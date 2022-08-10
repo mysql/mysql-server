@@ -110,3 +110,15 @@ SET @@global.innodb_interpreter = @start_global_value;
 SELECT @@global.innodb_interpreter;
 @@global.innodb_interpreter
 init
+#
+# Bug #33316661: setting innodb_interpreter=null terminate called after
+# throwing an instance of 'std::logic_error'
+#
+SET SESSION innodb_interpreter = null;
+ERROR 42000: Variable 'innodb_interpreter' can't be set to the value of 'NULL'
+SET SESSION innodb_interpreter = 0;
+ERROR 42000: Incorrect argument type to variable 'innodb_interpreter'
+SET GLOBAL innodb_interpreter = null;
+ERROR 42000: Variable 'innodb_interpreter' can't be set to the value of 'NULL'
+SET GLOBAL innodb_interpreter = 0;
+ERROR 42000: Incorrect argument type to variable 'innodb_interpreter'

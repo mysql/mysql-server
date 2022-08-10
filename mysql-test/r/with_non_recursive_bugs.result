@@ -726,10 +726,42 @@ INSERT INTO bb VALUES ('2000-03-10
 03:25:45','19:12:08',4,'n',10,'00:20:08','rkuz','2003-08-10','2000-03-27
 21:15:52','2002-11-17','ku',7,'m');
 Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-03-10
+07:59:07' at row 1 is deprecated. Prefer the standard ' '.
 Warning	1265	Data truncated for column 'col_datetime_key' at row 1
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-09-04
+21:14:02' at row 2 is deprecated. Prefer the standard ' '.
 Warning	1265	Data truncated for column 'col_datetime_key' at row 2
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2005-04-12
+00:00:00' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-09-07
+01:11:02' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-09-03
+00:00:00' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-07-04
+14:47:00' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2005-11-20
+00:00:00' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-12-17
+18:34:39' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-11-24
+18:26:08' at row 6 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2005-11-16
+15:25:37' at row 6 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-05-17
+00:00:00' at row 7 is deprecated. Prefer the standard ' '.
 Warning	1265	Data truncated for column 'col_datetime_key' at row 7
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-03-14
+13:32:30' at row 8 is deprecated. Prefer the standard ' '.
 Warning	1265	Data truncated for column 'col_datetime_key' at row 8
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-02-17
+18:23:44' at row 9 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-04-11
+00:00:00' at row 9 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-03-22
+03:25:45' at row 10 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-03-27
+21:15:52' at row 10 is deprecated. Prefer the standard ' '.
 CREATE TABLE cc (
 col_varchar_key varchar(1) DEFAULT NULL,
 col_date_key date DEFAULT NULL,
@@ -776,6 +808,45 @@ INSERT INTO cc VALUES ('r','2009-06-19',9,'00:20:01','uzymmwnorr','2000-07-03
 00:00:00','10:33:36','f',9,'2008-02-19','uzodhtfjsfcyq','2009-10-17
 08:43:06',3),('j','2000-05-07',9,'07:16:29','zodhtfjs','2009-09-07
 00:00:00','00:20:05','b',10,'2005-11-10','odhtfjs','2009-04-26 00:00:00',0);
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-07-03
+03:10:16' at row 1 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-10-19
+13:28:47' at row 1 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-09-05
+06:27:09' at row 2 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-06-08
+06:10:17' at row 2 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-05-21
+12:10:52' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-11-21
+10:47:03' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-03-04
+02:36:50' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-12-15
+19:28:52' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2004-04-23
+09:09:44' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2007-09-03
+17:43:18' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-11-15
+05:02:03' at row 6 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2004-01-19
+00:00:00' at row 6 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2004-07-18
+00:00:00' at row 7 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2003-07-22
+04:34:51' at row 7 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-07-11
+19:49:03' at row 8 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2003-02-21
+00:00:00' at row 8 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-09-27
+00:00:00' at row 9 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-10-17
+08:43:06' at row 9 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-09-07
+00:00:00' at row 10 is deprecated. Prefer the standard ' '.
 CREATE TABLE dd (
 col_int_key int(11) DEFAULT NULL,
 col_int int(11) DEFAULT NULL,

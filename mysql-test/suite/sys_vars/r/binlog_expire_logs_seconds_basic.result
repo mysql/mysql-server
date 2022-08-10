@@ -109,8 +109,10 @@ SET global.binlog_expire_logs_seconds = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.binlog_expire_logs_seconds = 1' at line 1
 SELECT global.binlog_expire_logs_seconds;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT binlog_expire_logs_seconds = @@session.binlog_expire_logs_seconds;
+SELECT binlog_expire_logs_seconds;
 ERROR 42S22: Unknown column 'binlog_expire_logs_seconds' in 'field list'
+SELECT @@session.binlog_expire_logs_seconds;
+ERROR HY000: Variable 'binlog_expire_logs_seconds' is a GLOBAL variable
 SET @@global.binlog_expire_logs_seconds = @start_value_sec;
 SELECT @@global.binlog_expire_logs_seconds;
 @@global.binlog_expire_logs_seconds

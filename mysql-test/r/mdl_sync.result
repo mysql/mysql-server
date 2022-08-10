@@ -3548,6 +3548,7 @@ SET DEBUG_SYNC= 'RESET';
 SET @@global.general_log= @old_general_log;
 SET @@global.log_output= @old_log_output;
 SET @@session.sql_log_off= @old_sql_log_off;
+TRUNCATE TABLE mysql.general_log;
 #
 # Additional coverage for bug #50913 "Deadlock between
 # open_and_lock_tables_derived and MDL". The main test

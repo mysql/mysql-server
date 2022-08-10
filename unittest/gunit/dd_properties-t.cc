@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ namespace dd_properties_unittest {
 
 class PropertiesTest : public ::testing::Test {
  protected:
-  PropertiesTest() {}
+  PropertiesTest() = default;
 
   void SetUp() override { m_props = new dd::Properties_impl(); }
 
@@ -627,7 +627,7 @@ TEST_F(PropertiesTest, IterationSize) {
 
   EXPECT_TRUE(p->size() == 0);
 
-  for (dd::Properties::iterator it MY_ATTRIBUTE((unused)) = p->begin();
+  for (dd::Properties::iterator it [[maybe_unused]] = p->begin();
        it != p->end(); ++it, ++i)
     EXPECT_TRUE(false);
 

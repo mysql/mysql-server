@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 #include "storage/perfschema/table_threads.h"
 
 #include <assert.h>
+#include <ctime>
+
 #include "lex_string.h"
 #include "my_compiler.h"
 
@@ -66,6 +68,7 @@ Plugin_table table_threads::m_table_def(
     "  CONNECTION_TYPE VARCHAR(16),\n"
     "  THREAD_OS_ID BIGINT unsigned,\n"
     "  RESOURCE_GROUP VARCHAR(64),\n"
+    "  EXECUTION_ENGINE ENUM ('PRIMARY', 'SECONDARY'),\n"
     "  PRIMARY KEY (THREAD_ID) USING HASH,\n"
     "  KEY (PROCESSLIST_ID) USING HASH,\n"
     "  KEY (THREAD_OS_ID) USING HASH,\n"
@@ -229,29 +232,14 @@ int table_threads::make_row(PFS_thread *pfs) {
   m_row.m_parent_thread_internal_id = pfs->m_parent_thread_internal_id;
   m_row.m_processlist_id = pfs->m_processlist_id;
   m_row.m_thread_os_id = pfs->m_thread_os_id;
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
 
   /* Protect this reader against session attribute changes */
   pfs->m_session_lock.begin_optimistic_lock(&session_lock);
 
-  m_row.m_username_length = pfs->m_username_length;
-  if (unlikely(m_row.m_username_length > sizeof(m_row.m_username))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  if (m_row.m_username_length != 0) {
-    memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
-  }
-
-  m_row.m_hostname_length = pfs->m_hostname_length;
-  if (unlikely(m_row.m_hostname_length > sizeof(m_row.m_hostname))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  if (m_row.m_hostname_length != 0) {
-    memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
-  }
+  m_row.m_user_name = pfs->m_user_name;
+  m_row.m_host_name = pfs->m_host_name;
 
   m_row.m_groupname_length = pfs->m_groupname_length;
   if (unlikely(m_row.m_groupname_length > sizeof(m_row.m_groupname))) {
@@ -272,21 +260,14 @@ int table_threads::make_row(PFS_thread *pfs) {
       Do not loop waiting for a stable value.
       Just return NULL values.
     */
-    m_row.m_username_length = 0;
-    m_row.m_hostname_length = 0;
+    m_row.m_user_name.reset();
+    m_row.m_host_name.reset();
   }
 
   /* Protect this reader against statement attributes changes */
   pfs->m_stmt_lock.begin_optimistic_lock(&stmt_lock);
 
-  m_row.m_dbname_length = pfs->m_dbname_length;
-  if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  if (m_row.m_dbname_length != 0) {
-    memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
-  }
+  m_row.m_db_name = pfs->m_db_name;
 
   m_row.m_processlist_info_ptr = &pfs->m_processlist_info[0];
   m_row.m_processlist_info_length = pfs->m_processlist_info_length;
@@ -301,7 +282,7 @@ int table_threads::make_row(PFS_thread *pfs) {
       Do not loop waiting for a stable value.
       Just return NULL values.
     */
-    m_row.m_dbname_length = 0;
+    m_row.m_db_name.reset();
     m_row.m_processlist_info_length = 0;
   }
 
@@ -316,9 +297,9 @@ int table_threads::make_row(PFS_thread *pfs) {
   stage_class = find_stage_class(pfs->m_stage);
   if (stage_class != nullptr) {
     m_row.m_processlist_state_ptr =
-        stage_class->m_name + stage_class->m_prefix_length;
+        stage_class->m_name.str() + stage_class->m_prefix_length;
     m_row.m_processlist_state_length =
-        stage_class->m_name_length - stage_class->m_prefix_length;
+        stage_class->m_name.length() - stage_class->m_prefix_length;
     if (m_row.m_processlist_state_length > 64) {
       /*
         Column PROCESSLIST_STATE is VARCHAR(64)
@@ -338,6 +319,8 @@ int table_threads::make_row(PFS_thread *pfs) {
   m_row.m_enabled = pfs->m_enabled;
   m_row.m_history = pfs->m_history;
   m_row.m_psi = pfs;
+
+  m_row.m_secondary = pfs->m_secondary;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
@@ -381,39 +364,40 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 4: /* PROCESSLIST_USER */
-          if (m_row.m_username_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_username,
-                                   m_row.m_username_length);
+          if (m_row.m_user_name.length() > 0) {
+            set_field_varchar_utf8(f, m_row.m_user_name.ptr(),
+                                   m_row.m_user_name.length());
           } else {
             f->set_null();
           }
           break;
         case 5: /* PROCESSLIST_HOST */
-          if (m_row.m_hostname_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_hostname,
-                                   m_row.m_hostname_length);
+          if (m_row.m_host_name.length() > 0) {
+            set_field_varchar_utf8(f, m_row.m_host_name.ptr(),
+                                   m_row.m_host_name.length());
           } else {
             f->set_null();
           }
           break;
         case 6: /* PROCESSLIST_DB */
-          if (m_row.m_dbname_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_dbname, m_row.m_dbname_length);
+          if (m_row.m_db_name.length() > 0) {
+            set_field_varchar_utf8(f, m_row.m_db_name.ptr(),
+                                   m_row.m_db_name.length());
           } else {
             f->set_null();
           }
           break;
         case 7: /* PROCESSLIST_COMMAND */
-          if (m_row.m_processlist_id != 0)
-            set_field_varchar_utf8(f, command_name[m_row.m_command].str,
-                                   (uint)command_name[m_row.m_command].length);
-          else {
+          if (m_row.m_processlist_id != 0) {
+            const std::string &cn = Command_names::str_session(m_row.m_command);
+            set_field_varchar_utf8(f, cn.c_str(), cn.length());
+          } else {
             f->set_null();
           }
           break;
         case 8: /* PROCESSLIST_TIME */
           if (m_row.m_start_time) {
-            time_t now = my_time(0);
+            time_t now = time(nullptr);
             ulonglong elapsed =
                 (now > m_row.m_start_time ? now - m_row.m_start_time : 0);
             set_field_ulonglong(f, elapsed);
@@ -476,6 +460,9 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
             f->set_null();
           }
           break;
+        case 18: /* EXECUTION_ENGINE */
+          set_field_enum(f, m_row.m_secondary ? ENUM_SECONDARY : ENUM_PRIMARY);
+          break;
         default:
           assert(false);
       }
@@ -492,20 +479,6 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
-        case 0:  /* THREAD_ID */
-        case 1:  /* NAME */
-        case 2:  /* TYPE */
-        case 3:  /* PROCESSLIST_ID */
-        case 4:  /* PROCESSLIST_USER */
-        case 5:  /* PROCESSLIST_HOST */
-        case 6:  /* PROCESSLIST_DB */
-        case 7:  /* PROCESSLIST_COMMAND */
-        case 8:  /* PROCESSLIST_TIME */
-        case 9:  /* PROCESSLIST_STATE */
-        case 10: /* PROCESSLIST_INFO */
-        case 11: /* PARENT_THREAD_ID */
-        case 12: /* ROLE */
-          return HA_ERR_WRONG_COMMAND;
         case 13: /* INSTRUMENTED */
           value = (enum_yes_no)get_field_enum(f);
           m_row.m_psi->set_enabled((value == ENUM_YES) ? true : false);
@@ -514,13 +487,8 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
           value = (enum_yes_no)get_field_enum(f);
           m_row.m_psi->set_history((value == ENUM_YES) ? true : false);
           break;
-        case 15: /* CONNECTION_TYPE */
-        case 16: /* THREAD_OS_ID */
-          return HA_ERR_WRONG_COMMAND;
-        case 17: /* RESOURCE_GROUP */
-          return HA_ERR_WRONG_COMMAND;
         default:
-          assert(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }

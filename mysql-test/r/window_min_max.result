@@ -149,7 +149,7 @@ SELECT i, j, MIN(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) min,
 MAX(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) max FROM t;
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`i` AS `i`,`t`.`j` AS `j`,min((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `min`,max((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `max` from `t`	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`i` AS `i`,`t`.`j` AS `j`,min((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `min`,max((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `max` from `t`	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 i	j	min	max
 1	4	5	5
@@ -359,7 +359,7 @@ k	MIN(i)	SUM(j)	max_wf
 3	1	11	3
 4	1	11	4
 NULL	1	48	4
-SELECT k, MIN(i), SUM(j), MIN(k) OVER (ROWS UNBOUNDED PRECEDING) min_wf FROM t
+SELECT k, MIN(i), SUM(j), MIN(k) OVER (ORDER BY k DESC ROWS UNBOUNDED PRECEDING) min_wf FROM t
 GROUP BY (k) WITH ROLLUP ORDER BY k DESC;
 k	MIN(i)	SUM(j)	min_wf
 4	1	11	4
@@ -644,7 +644,7 @@ WINDOW w AS (PARTITION BY sex ORDER BY id
 ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,sum(`t1`.`id`) OVER `w` AS `SUM(id) OVER w`,min(`t1`.`id`) OVER `w` AS `min`,max(`t1`.`id`) OVER `w` AS `max`,`t1`.`sex` AS `sex` from `t1` window `w` AS (PARTITION BY `t1`.`sex` ORDER BY `t1`.`id` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,sum(`t1`.`id`) OVER `w` AS `SUM(id) OVER w`,min(`t1`.`id`) OVER `w` AS `min`,max(`t1`.`id`) OVER `w` AS `max`,`t1`.`sex` AS `sex` from `t1` window `w` AS (PARTITION BY `t1`.`sex` ORDER BY `t1`.`id` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 id	SUM(id) OVER w	min	max	sex
 2	NULL	NULL	NULL	F
@@ -1285,78 +1285,78 @@ NULL	NULL
 With GROUP BY
 SELECT          COUNT(*) OVER (), MOD(MIN(i),2) FROM tj2 GROUP BY i ;
 COUNT(*) OVER ()	MOD(MIN(i),2)
+4	0
+4	0
 4	1
-4	0
-4	0
 4	NULL
 SELECT DISTINCT COUNT(*) OVER (), MOD(MAX(i),2) FROM tj2 GROUP BY i ;
 COUNT(*) OVER ()	MOD(MAX(i),2)
-4	1
 4	0
+4	1
 4	NULL
 Bug fix GROUP BY with window function referring column used in grouping expression
 SELECT i, MIN(i) OVER (), MOD(MIN(i),2) FROM tj2 GROUP BY i ;
 i	MIN(i) OVER ()	MOD(MIN(i),2)
-1	0	1
 0	0	0
+1	0	1
 2	0	0
 NULL	0	NULL
 SELECT i, MAX(MAX(i)) OVER (), MAX(i) OVER (ORDER BY i), MOD(MAX(i),2), MAX(i) FROM tj2 GROUP BY i ;
 i	MAX(MAX(i)) OVER ()	MAX(i) OVER (ORDER BY i)	MOD(MAX(i),2)	MAX(i)
-NULL	2	NULL	NULL	NULL
 0	2	0	0	0
 1	2	1	1	1
 2	2	2	0	2
+NULL	2	NULL	NULL	NULL
 SELECT i, MIN(i) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, MIN(i) OVER (ORDER BY i) FROM tj;
 i	MIN(i) OVER (ORDER BY i)
-NULL	NULL
-NULL	NULL
-7	7
-8	7
-8	7
-9	7
+10	7
+10	7
+10	7
 10	7
 10	7
 10	7
 11	7
+11	7
 12	7
-NULL	NULL
-NULL	NULL
+12	7
+7	7
 7	7
 8	7
 8	7
+8	7
+8	7
 9	7
-10	7
-10	7
-10	7
-11	7
-12	7
+9	7
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
 SELECT j,CAST(MIN(j) OVER (PARTITION BY i) AS JSON), CAST(MAX(j) OVER () AS JSON) FROM tj;
 j	CAST(MIN(j) OVER (PARTITION BY i) AS JSON)	CAST(MAX(j) OVER () AS JSON)
-NULL	NULL	[1, 2, 3]
-NULL	NULL	[1, 2, 3]
 1	1	[1, 2, 3]
-[1, 2, 3]	[1, 2, 3]	[1, 2, 3]
-[1, 2, 3]	[1, 2, 3]	[1, 2, 3]
 2	2	[1, 2, 3]
 3	3	[1, 2, 3]
 3.14	3	[1, 2, 3]
 3.14	3	[1, 2, 3]
 4	4	[1, 2, 3]
 5	5	[1, 2, 3]
+NULL	NULL	[1, 2, 3]
+NULL	NULL	[1, 2, 3]
+[1, 2, 3]	[1, 2, 3]	[1, 2, 3]
+[1, 2, 3]	[1, 2, 3]	[1, 2, 3]
 SELECT j,CAST(MIN(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(MAX(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
 j	CAST(MIN(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON)	CAST(MAX(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON)
-NULL	NULL	NULL
-NULL	NULL	NULL
 1	1	1
-[1, 2, 3]	[1, 2, 3]	[1, 2, 3]
-[1, 2, 3]	[1, 2, 3]	[1, 2, 3]
 2	2	2
 3	3	3
 3.14	3	3.14
 3.14	3	3.14
 4	4	4
 5	5	5
+NULL	NULL	NULL
+NULL	NULL	NULL
+[1, 2, 3]	[1, 2, 3]	[1, 2, 3]
+[1, 2, 3]	[1, 2, 3]	[1, 2, 3]
 DROP TABLE tj,tj2;
 CREATE TABLE t1 (i INTEGER, j INTEGER);
 INSERT INTO t1 VALUES (NULL,3),(NULL,3),(NULL,30),(NULL,30),(4,3),

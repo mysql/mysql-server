@@ -14,17 +14,17 @@ CALL mtr.add_suppression("One can only use the --user switch.*");
 # Integer type variables.
 SET PERSIST auto_increment_increment=10;
 SET @@persist.event_scheduler=0;
-SET PERSIST slave_compressed_protocol=1;
+SET PERSIST replica_compressed_protocol=1;
 
 --echo # Invalid syntax cases.
 --error ER_PARSE_ERROR
-SET GLOBAL PERSIST slave_compressed_protocol=1;
+SET GLOBAL PERSIST replica_compressed_protocol=1;
 --error ER_PARSE_ERROR
-SET PERSIST @@global.slave_compressed_protocol=1;
+SET PERSIST @@global.replica_compressed_protocol=1;
 --error ER_PARSE_ERROR
-SET PERSIST @@session.slave_compressed_protocol=1;
+SET PERSIST @@session.replica_compressed_protocol=1;
 --error ER_PARSE_ERROR
-SET @@persist.@@slave_compressed_protocol=1;
+SET @@persist.@@replica_compressed_protocol=1;
 --echo # Variables_info table should include info for
        # both session and global variables.
 SET SESSION auto_increment_increment=3;
@@ -276,6 +276,7 @@ SET PERSIST log_output=DEFAULT ,PERSIST general_log=DEFAULT;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 
 # UNSET PERSIST variables by setting variables values to DEFAULT.
 SET PERSIST block_encryption_mode=DEFAULT, PERSIST ft_boolean_syntax=DEFAULT,
@@ -529,21 +530,21 @@ CREATE USER bug25677422;
 GRANT ALL ON *.* TO bug25677422;
 --connect(con1, localhost, bug25677422)
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 SET PERSIST_ONLY innodb_read_io_threads= 16;
 connection default;
 SET PERSIST long_query_time= 8.3452;
-SET PERSIST_ONLY innodb_log_file_size= 4194304, ft_query_expansion_limit= 80;
+SET PERSIST_ONLY innodb_redo_log_capacity= 8388608, ft_query_expansion_limit= 80;
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
   FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
-   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+  ('sort_buffer_size', 'max_heap_table_size', 'replica_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_redo_log_capacity',
    'ft_query_expansion_limit');
 connection con1;
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
   FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
-   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+  ('sort_buffer_size', 'max_heap_table_size', 'replica_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_redo_log_capacity',
    'ft_query_expansion_limit');
 
 connection default;
@@ -555,15 +556,15 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE
   VARIABLE_SOURCE = 'PERSISTED';
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
   FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
-   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+  ('sort_buffer_size', 'max_heap_table_size', 'replica_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_redo_log_capacity',
    'ft_query_expansion_limit');
 --connect(con1, localhost, bug25677422)
 connection con1;
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
   FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
-   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+  ('sort_buffer_size', 'max_heap_table_size', 'replica_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_redo_log_capacity',
    'ft_query_expansion_limit');
 
 connection default;
@@ -571,7 +572,7 @@ disconnect con1;
 DROP USER bug25677422;
 RESET PERSIST;
 SET GLOBAL sort_buffer_size=DEFAULT, max_heap_table_size=DEFAULT,
-  slave_net_timeout=DEFAULT, long_query_time=DEFAULT;
+  replica_net_timeout=DEFAULT, long_query_time=DEFAULT;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 --echo # Restart server with defaults
 --source include/restart_mysqld.inc

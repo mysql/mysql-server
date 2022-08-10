@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqld_safe\fR
+.\"     Title: mysqld_safe
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLD_SAFE" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -57,6 +57,14 @@ For some Linux platforms, MySQL installation from RPM or Debian packages include
 \fBmysqld_safe\fR
 is not installed because it is unnecessary\&. For more information, see
 Section\ \&2.5.9, \(lqManaging MySQL Server with systemd\(rq\&.
+.PP
+One implication of the non\-use of
+\fBmysqld_safe\fR
+on platforms that use systemd for server management is that use of
+[mysqld_safe]
+or
+[safe_mysqld]
+sections in option files is not supported and might lead to unexpected behavior\&.
 .sp .5v
 .RE
 .PP
@@ -985,7 +993,7 @@ Section\ \&5.4.2.8, \(lqError Logging to the System Log\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

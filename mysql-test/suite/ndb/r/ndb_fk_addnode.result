@@ -5,147 +5,21 @@ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 alter table t2 algorithm=inplace, add constraint id1 foreign key (id1) references t1(id1);
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n' ignore 900 lines;
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n' ignore 900 lines (@id, data) set id1 = @id, id2 = -@id;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-PartitionCount 2
-FragmentCount 2
-
-
-
-
-
-HashMap DEFAULT-HASHMAP-3840-2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-PartitionCount 2
-FragmentCount 2
-
-
-
-
-
-HashMap DEFAULT-HASHMAP-3840-2
-
-
-
-
-
-
-
-
-
-... id1 (id1) REFERENCES test.t1/PRIMARY KEY () on update noaction on delete noaction
-
-
-
+SELECT partitions, fragments, hash_map from ndbinfo.dictionary_tables
+WHERE table_name in ("t1", "t2");
+partitions	fragments	hash_map
+2	2	DEFAULT-HASHMAP-3840-2
+2	2	DEFAULT-HASHMAP-3840-2
 Nodegroup 1 created
 Drop Node Group 1 done
 Nodegroup 1 created
 alter table t2 algorithm=inplace, reorganize partition;
 alter table t1 algorithm=inplace, reorganize partition;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-PartitionCount 4
-FragmentCount 4
-
-
-
-
-
-HashMap DEFAULT-HASHMAP-3840-4
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-PartitionCount 4
-FragmentCount 4
-
-
-
-
-
-HashMap DEFAULT-HASHMAP-3840-4
-
-
-
-
-
-
-
-
-
-... id1 (id1) REFERENCES test.t1/PRIMARY KEY () on update noaction on delete noaction
-
-
-
+SELECT partitions, fragments, hash_map from ndbinfo.dictionary_tables
+WHERE table_name in ("t1", "t2");
+partitions	fragments	hash_map
+4	4	DEFAULT-HASHMAP-3840-4
+4	4	DEFAULT-HASHMAP-3840-4
 *  1006: Illegal reply from server
 *        error: -2
 drop table t2,t1;

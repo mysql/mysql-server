@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <sstream>
 
 #include "storage/ndb/plugin/ndb_log.h"
+#include "storage/ndb/plugin/ndb_sleep.h"  // ndb_retry_sleep
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 Ndb_sql_metadata_table::Ndb_sql_metadata_table(Thd_ndb *thd_ndb)
@@ -93,8 +94,9 @@ bool Ndb_sql_metadata_table::define_table_ndb(NdbDictionary::Table &new_table,
   return true;
 }
 
-bool Ndb_sql_metadata_table::define_indexes(unsigned) const {
-  return create_primary_ordered_index();
+bool Ndb_sql_metadata_table::create_indexes(
+    const NdbDictionary::Table &table) const {
+  return create_primary_ordered_index(table);
 }
 
 bool Ndb_sql_metadata_table::check_schema() const { return true; }
@@ -149,11 +151,10 @@ void Ndb_sql_metadata_api::setup(NdbDictionary::Dictionary *dict,
                                       sizeof(m_record_layout.record_specs[0]));
 
   const NdbDictionary::Index *primary = dict->getIndexGlobal("PRIMARY", *table);
-  /* There is a test case where primary == nullptr because NDB has been
-     configured with __at_restart_skip_indexes, and presumably there are also
-     real-world data corruption situations where the table is available but
-     the index is not. Do not handle those conditions here. They are detected
-     later, when isInitialized() returns false.
+  /* NDB can be started with __at_restart_skip_indexes as a one-time recovery
+     measure in case of corruption. In this case, primary == nullptr.
+     Do not handle that condition here; it is detected later by testing
+     isInitialized().
   */
   if (primary) {
     m_ordered_index_rec =
@@ -162,7 +163,9 @@ void Ndb_sql_metadata_api::setup(NdbDictionary::Dictionary *dict,
                            sizeof(m_record_layout.record_specs[0]));
     dict->removeIndexGlobal(*primary, false);
   } else {
-    ndb_log_error("Failed to setup PRIMARY index of ndb_sql_metadata");
+    ndb_log_error(
+        "Failed to setup PRIMARY index of ndb_sql_metadata, error %u: %s",
+        dict->getNdbError().code, dict->getNdbError().message);
   }
 }
 
@@ -185,4 +188,111 @@ void Ndb_sql_metadata_api::clear(NdbDictionary::Dictionary *dict) {
   }
 
   m_record_layout.clear();
+}
+
+/* The row { TYPE_LOCK, "snapshot", 0 } may be used as a lock.
+   Private internal method to create the row if it does not exist
+   takes an already-open transaction.
+*/
+void Ndb_sql_metadata_api::writeSnapshotLockRow(NdbTransaction *tx) {
+  char row[16384];
+  setType(row, TYPE_LOCK);
+  setName(row, "snapshot");
+  setSeq(row, 0);
+  setNote(row, nullptr);
+  setSql(row, "");
+
+  (void)tx->writeTuple(keyNdbRecord(), row, rowNdbRecord(), row);
+}
+
+/*
+   Initialize the lock by assuring that the lock row is present in the table.
+   Retry on temporary errors.
+*/
+const NdbError &Ndb_sql_metadata_api::initializeSnapshotLock(Ndb *ndb) {
+  char key[512], row[512];
+  setType(key, TYPE_LOCK);
+  setName(key, "snapshot");
+  setSeq(key, 0);
+
+  const NdbError *err = nullptr;
+  for (int retries = 10; retries > 0; retries--) {
+    NdbTransaction *tx = ndb->startTransaction();
+    err = &ndb->getNdbError();
+    if (tx != nullptr) {
+      const NdbOperation *read_op =
+          tx->readTuple(keyNdbRecord(), key, noteNdbRecord(), row,
+                        NdbOperation::LM_CommittedRead);
+      tx->execute(NoCommit);
+
+      assert(read_op);
+      if (read_op && (read_op->getNdbError().code == 626)) {  // row not found
+        writeSnapshotLockRow(tx);
+        tx->execute(Commit);
+      }
+      tx->close();
+      err = &tx->getNdbError();
+    }
+    switch (err->status) {
+      case NdbError::TemporaryError:
+        ndb_trans_retry_sleep();
+        break;  // (break from switch; continue through loop)
+      case NdbError::Success:
+      case NdbError::PermanentError:
+      case NdbError::UnknownResult:
+        return *err;
+    }
+  }
+  return *err;
+}
+
+/* Try to acquire an exclusive lock on the row { TYPE_LOCK, "snapshot", 0 }.
+   Do not retry on a lock wait timeout, since this may lead to deadlock.
+   The thread that wants the lock is the same thread that must do the work
+   that would allow another server to release the lock.
+*/
+const NdbError &Ndb_sql_metadata_api::acquireSnapshotLock(Ndb *ndb,
+                                                          NdbTransaction *&tx) {
+  char key[512], row[512];
+  setType(key, TYPE_LOCK);
+  setName(key, "snapshot");
+  setSeq(key, 0);
+
+  const NdbError *err = nullptr;
+  for (int retries = 10; retries > 0;) {
+    tx = ndb->startTransaction();
+    err = &ndb->getNdbError();
+    if (tx != nullptr) {
+      const NdbOperation *read_op =
+          tx->readTuple(keyNdbRecord(), key, noteNdbRecord(), row,
+                        NdbOperation::LM_Exclusive);
+      tx->execute(NoCommit);
+      assert(read_op);
+      if (read_op && (read_op->getNdbError().code == 626)) {
+        /* Someone has deleted the lock row, maybe using ndb_delete_all.
+           Reinitialize the lock row and retry.
+        */
+        writeSnapshotLockRow(tx);
+        tx->execute(Commit);
+        tx->close();
+        err = &tx->getNdbError();
+        if (err->status == NdbError::Success) continue;
+      } else {
+        err = &tx->getNdbError();
+      }
+    }
+
+    // If the lock was acquired, return with the NdbTransaction still open.
+    if (err->status == NdbError::Success) return *err;
+
+    ndb->closeTransaction(tx);
+
+    // Check for lock wait timeout or a hard error.
+    if (err->code == 266 || err->status != NdbError::TemporaryError) break;
+
+    // The error is a temporary error that is not a lock wait timeout.  Retry.
+    if (--retries > 0) ndb_trans_retry_sleep();
+  }
+  tx = nullptr;
+  return *err;
 }

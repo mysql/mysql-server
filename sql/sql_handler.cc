@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -609,12 +609,12 @@ retry:
   table->file->init_table_handle_for_HANDLER();
 
   /*
-    Resolve the generated column expressions. They have to be cleaned up before
-    returning, since the resolved expressions may point to memory allocated on
-    the MEM_ROOT of the current HANDLER ... READ statement, which will be
-    cleared when the statement has completed.
+    Rebind the generated column expressions to current fields. They have to be
+    cleaned up before returning, since the resolved expressions may point to
+    memory allocated on the MEM_ROOT of the current HANDLER ... READ statement,
+    which will be cleared when the statement has completed.
   */
-  table->refix_value_generator_items(thd);
+  table->bind_value_generators_to_fields();
 
   for (num_rows = 0; num_rows < select_limit_cnt;) {
     switch (mode) {
@@ -636,6 +636,7 @@ retry:
           natural order, or, vice versa, trying to read next row in natural
           order after reading previous rows in index order.
         */
+        [[fallthrough]];
       case enum_ha_read_modes::RFIRST:
         if (m_key_name) {
           if (!(error = table->file->ha_index_or_rnd_end()) &&
@@ -658,6 +659,7 @@ retry:
         }
         /* else fall through, for more info, see comment before 'case RFIRST'.
          */
+        [[fallthrough]];
       case enum_ha_read_modes::RLAST:
         assert(m_key_name != nullptr);
         if (!(error = table->file->ha_index_or_rnd_end()) &&

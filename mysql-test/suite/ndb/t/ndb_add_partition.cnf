@@ -12,7 +12,7 @@
 # here.
 #
 PartitionsPerNode=1
-ThreadConfig=ldm={count=1}
+ThreadConfig=main,rep,recv,ldm={count=1}
 TimeBetweenGlobalCheckpoints=200
 
 [ENV]

@@ -21,7 +21,7 @@ USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW CREATE USER 'kristofer'@'localhost';
 CREATE USER for kristofer@localhost
-CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>'
+CREATE USER `kristofer`@`localhost` IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>'
 Change user (should succeed)
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
@@ -45,7 +45,7 @@ USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW CREATE USER 'kristofer'@'localhost';
 CREATE USER for kristofer@localhost
-CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `kristofer`@`localhost` IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 DROP USER 'kristofer'@'localhost';
 CREATE USER 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';

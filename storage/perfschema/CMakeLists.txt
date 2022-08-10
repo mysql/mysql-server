@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -36,6 +36,8 @@ cursor_by_thread.h
 cursor_by_thread_connect_attr.h
 cursor_by_user.h
 ha_perfschema.h
+terminology_use_previous.h
+terminology_use_previous_enum.h
 pfs.h
 pfs_account.h
 pfs_buffer_container.h
@@ -60,6 +62,7 @@ pfs_instr.h
 pfs_instr_class.h
 pfs_lock.h
 pfs_memory.h
+pfs_name.h
 pfs_plugin_table.h
 pfs_prepared_stmt.h
 pfs_program.h
@@ -199,6 +202,7 @@ cursor_by_thread.cc
 cursor_by_thread_connect_attr.cc
 cursor_by_user.cc
 ha_perfschema.cc
+terminology_use_previous.cc
 pfs.cc
 pfs_account.cc
 pfs_autosize.cc
@@ -222,6 +226,7 @@ pfs_host.cc
 pfs_instr.cc
 pfs_instr_class.cc
 pfs_memory.cc
+pfs_name.cc
 pfs_plugin_table.cc
 pfs_prepared_stmt.cc
 pfs_program.cc
@@ -362,7 +367,6 @@ MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY)
 
 IF(WITH_UNIT_TESTS)
-  ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)
 ENDIF()
 

@@ -1,0 +1,134 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+--source include/count_sessions.inc
+
+--echo # Initialize new data directory and restart MySQL on that data directory.
+--echo # The new data directory will be initialized by instance which has:
+--echo # --debug="d,trx_sys_low_trx_id_write_margin" so it will do reservations
+--echo # of trx_id values every 8 trx_id values (instead of every 256 values).
+--echo # This way we could collect enough connections in mtr test runner to fill
+--echo # concurrently the reservation interval (limit for mtr connections is 128).
+
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
+let $MYSQLD_DATADIR = $tmp_dir/max_trx_id;
+let $MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
+let $MYSQLD_EXTRA_ARGS = --debug="d,trx_sys_low_trx_id_write_margin" --innodb-redo-log-capacity=8M --innodb_page_size=$INNODB_PAGE_SIZE;
+--source include/initialize_datadir.inc
+
+--echo # Restart MySQL using the new data directory.
+let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG $MYSQLD_EXTRA_ARGS;
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/max_trx_id $INNODB_PAGE_SIZE INNODB_PAGE_SIZE
+--source include/restart_mysqld.inc
+
+--disable_query_log
+CREATE TABLE t (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c INT NOT NULL, INDEX(c)) ENGINE=InnoDB;
+
+--let $N=7
+
+--let $i=1
+while ($i <= $N) {
+  INSERT INTO t (a, c) VALUES (NULL, 0);
+  --inc $i
+}
+
+INSERT INTO t (a, c) VALUES (-1, 0);
+
+DELIMITER |;
+CREATE PROCEDURE trx_loop(IN id INT)
+BEGIN
+    WHILE 1 DO
+      START TRANSACTION;
+        UPDATE t SET c = c + 1 WHERE a = id;
+      COMMIT;
+      START TRANSACTION;
+        SELECT * FROM t WHERE a = id FOR UPDATE;
+      COMMIT;
+    END WHILE;
+END|
+DELIMITER ;|
+--enable_query_log
+
+--echo # Create $N connections which keep creating and comitting transactions.
+--echo # Pause the created connections before trx_sys_mutex_enter() is called
+--echo # before assigning trx->id.
+
+--let $i=1
+while ($i <= $N) {
+  --connect(con_id$i,localhost,root,,)
+  --eval SET DEBUG_SYNC = "trx_sys_before_assign_id SIGNAL con_id_waiting$i WAIT_FOR con_go NO_CLEAR_EVENT"
+  --eval SET @id = $i
+
+  START TRANSACTION;
+  --send UPDATE t SET c = c+1 WHERE a = @id
+  --inc $i
+}
+
+--echo # Wait.
+
+--connection default
+--let $i=1
+while ($i <= $N) {
+  --echo # Wait for $i....
+  --eval SET DEBUG_SYNC = "now WAIT_FOR con_id_waiting$i"
+  --inc $i
+}
+
+--echo # Create a connection which will hang inside trx_sys_write_max_trx_id()
+--echo # when holding the trx_sys_serialisation_mutex.
+
+--connect(con_hang,localhost,root,,)
+SET DEBUG_SYNC = "trx_sys_write_max_trx_id__ser SIGNAL write_waiting WAIT_FOR write_go";
+--send CALL trx_loop(-1)
+
+--echo # Wait until the created connection is hanging.
+
+--connection default
+SET DEBUG_SYNC = "now WAIT_FOR write_waiting";
+
+--echo # Let the paused connections go, to check if they could corrupt the database.
+--echo # Do not allow them to write max_trx_id to the transaction system header page.
+
+SET GLOBAL DEBUG = "+d,trx_sys_write_max_trx_id__all_blocked";
+SET DEBUG_SYNC = "now SIGNAL con_go";
+
+--echo # Wait a little bit, giving a chance to corrupt the database to the resumed
+--echo # connections (by writing down too high trx_id to some page / row).
+
+--sleep 5
+
+--echo # Kill and restart MySQL to see if the database is not corrupted.
+
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/max_trx_id $INNODB_PAGE_SIZE INNODB_PAGE_SIZE
+--source include/kill_and_restart_mysqld.inc
+
+--echo # Update rows using a new transaction. It would crash if the transaction
+--echo # received a trx->id which had been assigned to some other transaction
+--echo # and written to some page/row before MySQL crashed.
+
+UPDATE t SET c = c + 1;
+
+--echo # Check if there is no corruption if MySQL instantly crashed after using
+--echo # the new transaction (after restart).
+
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/max_trx_id $INNODB_PAGE_SIZE INNODB_PAGE_SIZE
+--source include/kill_and_restart_mysqld.inc
+
+--echo # Update all rows using a new transaction to see if there is no assertion
+--echo # failure on trx_id for any of the related pages.
+
+UPDATE t SET c = c + 1;
+
+--echo # Turn off MySQL and remove its data directory.
+
+--source include/kill_mysqld.inc
+--force-rmdir $MYSQLD_DATADIR
+--remove_file $MYSQLD_ERROR_LOG
+
+--echo # Restart usual instance of MySQL which is used for mtr tests.
+
+let $restart_parameters = restart:;
+--source include/start_mysqld.inc
+
+--source include/wait_until_count_sessions.inc

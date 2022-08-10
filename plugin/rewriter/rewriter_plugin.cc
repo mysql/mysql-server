@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,7 @@ mysql_declare_plugin(audit_log){
     0x0002,                      /* version                       */
     rewriter_plugin_status_vars, /* status variables              */
     rewriter_plugin_sys_vars,    /* system variables              */
-    nullptr,                     /* reserverd                     */
+    nullptr,                     /* reserved                      */
     0                            /* flags                         */
 } mysql_declare_plugin_end;
 
@@ -316,9 +316,10 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
   query when the plugin is active. The function extracts the digest of the
   query. If the digest matches an existing rewrite rule, it is executed.
 */
-static int rewrite_query_notify(
-    MYSQL_THD thd, mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
-    const void *event) {
+static int rewrite_query_notify(MYSQL_THD thd,
+                                mysql_event_class_t event_class
+                                [[maybe_unused]],
+                                const void *event) {
   assert(event_class == MYSQL_AUDIT_PARSE_CLASS);
 
   const struct mysql_event_parse *event_parse =

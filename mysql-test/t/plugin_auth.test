@@ -1,4 +1,4 @@
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/have_plugin_auth.inc
 --source include/mysql_upgrade_preparation.inc
 
@@ -41,8 +41,7 @@ connection plug_con;
 select USER(),CURRENT_USER();
 
 --echo ## test SET PASSWORD
-#--error ER_SET_PASSWORD_AUTH_PLUGIN
---echo Setting password is allowed but it won't affect the authentication mechanism.
+--error ER_SET_PASSWORD_AUTH_PLUGIN_ERROR
 SET PASSWORD = 'plug_dest';
 
 connection default;
@@ -54,11 +53,15 @@ disconnect plug_con;
 connect(plug_con,localhost,plug,bad_credentials);
 --enable_query_log
 
---echo ## test bad default plugin : should get CR_AUTH_PLUGIN_CANNOT_LOAD
+--echo ## test bad default plugin : As long as the server returns a compatible
+--echo ## plugin any default plugin set by the client is ignored. Only if the
+--echo ## client doesn't comprehend the servers plugin will the default be used.
 --disable_result_log
 --disable_query_log
---error 2059
 connect(plug_con_wrongp,localhost,plug,plug_dest,,,,,wrong_plugin_name);
+select USER(),CURRENT_USER();
+connection default;
+disconnect plug_con_wrongp;
 --enable_query_log
 --enable_result_log
 
@@ -495,6 +498,7 @@ connect(bug12818542_con,localhost,bug12818542,bug12818542_dest);
 connection bug12818542_con;
 SELECT USER(),CURRENT_USER();
 
+--error ER_SET_PASSWORD_AUTH_PLUGIN_ERROR
 SET PASSWORD = 'bruhaha';
 
 connection default;
@@ -509,37 +513,6 @@ disconnect bug12818542_con2;
 
 DROP USER bug12818542@localhost;
 DROP USER bug12818542_dest@localhost;
-
---echo #
---echo # Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM
---echo #   AUTHENTICATION SETTINGS
---echo #
-
-CREATE USER bug12818542@localhost
-  IDENTIFIED WITH 'test_plugin_server' AS 'bug12818542_dest';
-CREATE USER bug12818542_dest@localhost
-  IDENTIFIED BY 'bug12818542_dest_passwd';
-GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
-
-connect(bug12818542_con,localhost,bug12818542,bug12818542_dest);
-connection bug12818542_con;
-SELECT USER(),CURRENT_USER();
-
-SET PASSWORD = 'bruhaha';
-
-connection default;
-disconnect bug12818542_con;
-
-connect(bug12818542_con2,localhost,bug12818542,bug12818542_dest);
-connection bug12818542_con2;
-SELECT USER(),CURRENT_USER();
-
-connection default;
-disconnect bug12818542_con2;
-
-DROP USER bug12818542@localhost;
-DROP USER bug12818542_dest@localhost;
-
 
 --echo End of 5.5 tests
 

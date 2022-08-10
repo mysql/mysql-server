@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,9 +40,9 @@
 
 class PFS_index_hosts : public PFS_engine_index {
  public:
-  PFS_index_hosts(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_hosts(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_hosts() override {}
+  ~PFS_index_hosts() override = default;
 
   virtual bool match(PFS_host *pfs) = 0;
 };
@@ -60,10 +60,10 @@ class cursor_by_host : public PFS_engine_table {
   int index_next() override;
 
  protected:
-  cursor_by_host(const PFS_engine_table_share *share);
+  explicit cursor_by_host(const PFS_engine_table_share *share);
 
  public:
-  ~cursor_by_host() override {}
+  ~cursor_by_host() override = default;
 
  protected:
   virtual int make_row(PFS_host *host) = 0;

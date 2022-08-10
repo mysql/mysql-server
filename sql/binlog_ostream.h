@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,8 +75,8 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
 
   /**
      Opens the binlog cache. It creates a memory buffer as long as cache_size.
-     The buffer will be extended up to max_cache_size when writting data. The
-     data exceeds max_cache_size will be writting into temporary file.
+     The buffer will be extended up to max_cache_size when writing data. The
+     data exceeding max_cache_size will be written into a temporary file.
 
      @param[in] dir  Where the temporary file will be created
      @param[in] prefix  Prefix of the temporary file name
@@ -93,7 +93,7 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   bool truncate(my_off_t offset) override;
   /* purecov: inspected */
   /* binlog cache doesn't need seek operation. Setting true to return error */
-  bool seek(my_off_t offset MY_ATTRIBUTE((unused))) override { return true; }
+  bool seek(my_off_t offset [[maybe_unused]]) override { return true; }
   /**
      Reset status and drop all data. It looks like a cache never was used after
      reset.

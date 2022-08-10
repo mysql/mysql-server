@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,12 +114,12 @@ class Parse_tree_node_tmpl {
   typedef Context context_t;
 
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
+  static void operator delete(void *ptr [[maybe_unused]],
+                              size_t size [[maybe_unused]]) {
     TRASH(ptr, size);
   }
   static void operator delete(void *, MEM_ROOT *,
@@ -133,7 +133,7 @@ class Parse_tree_node_tmpl {
   }
 
  public:
-  virtual ~Parse_tree_node_tmpl() {}
+  virtual ~Parse_tree_node_tmpl() = default;
 
 #ifndef NDEBUG
   bool is_contextualized() const { return contextualized; }

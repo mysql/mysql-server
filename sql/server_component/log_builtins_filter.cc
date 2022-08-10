@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -288,7 +288,7 @@ static void log_builtins_filter_ruleset_free(log_filter_ruleset **ruleset) {
 
 /**
   Defaults for when the configuration engine isn't loaded;
-  aim for 5.7 compatibilty.
+  aim for 5.7 compatibility.
 */
 static void log_builtins_filter_set_defaults(log_filter_ruleset *ruleset) {
   log_filter_rule *r;

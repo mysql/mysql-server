@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sys.h"  // my_write, my_malloc
-#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
@@ -185,9 +185,8 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info",
-             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->m_coll_name));
   pctx->num_cols = num_cols;
   pctx->resultcs = resultcs;
   pctx->current_col = 0;
@@ -536,7 +535,7 @@ static void handle_error(void *ctx) {
   exec_test_cmd((s), (q), (p), (ctx), (err), __FUNCTION__, __LINE__)
 
 static void exec_test_cmd(MYSQL_SESSION session, const char *query,
-                          void *p MY_ATTRIBUTE((unused)), void *ctx,
+                          void *p [[maybe_unused]], void *ctx,
                           bool expect_error, const char *func, uint line) {
   char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
@@ -570,8 +569,8 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *query,
   WRITE_STR("\n");
 }
 
-static void test_com_init_db(void *p MY_ATTRIBUTE((unused)),
-                             MYSQL_SESSION st_session, const char *db_name) {
+static void test_com_init_db(void *p [[maybe_unused]], MYSQL_SESSION st_session,
+                             const char *db_name) {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_TRACE;
 
@@ -1053,7 +1052,8 @@ static void create_log_file(const char *log_name) {
 #ifdef HAVE_PSI_INTERFACE
 static PSI_thread_key key_thread_session_info = PSI_NOT_INSTRUMENTED;
 static PSI_thread_info session_info_threads[] = {
-    {&key_thread_session_info, "session_info", 0, 0, PSI_DOCUMENT_ME}};
+    {&key_thread_session_info, "session_info", "session_info", 0, 0,
+     PSI_DOCUMENT_ME}};
 #endif  // HAVE_PSI_INTERFACE
 
 static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
@@ -1104,7 +1104,7 @@ static int test_sql_service_plugin_init(void *p) {
   return 0;
 }
 
-static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
+static int test_sql_service_plugin_deinit(void *p [[maybe_unused]]) {
   DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);

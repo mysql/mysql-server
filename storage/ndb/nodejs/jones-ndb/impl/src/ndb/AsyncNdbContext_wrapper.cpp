@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2013, 2022, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -91,8 +91,4 @@ void destroy(const Arguments &args) {
 
 void AsyncNdbContext_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(target, "AsyncNdbContext", createAsyncNdbContext);
-  DEFINE_JS_CONSTANT(target, MULTIWAIT_ENABLED);
-#ifdef USE_OLD_MULTIWAIT_API
-  DEFINE_JS_CONSTANT(target, USE_OLD_MULTIWAIT_API);
-#endif
 }

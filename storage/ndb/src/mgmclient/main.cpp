@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,19 +77,19 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
   { "execute", 'e',
     "execute command and exit", 
-    (uchar**) &opt_execute_str, (uchar**) &opt_execute_str, 0,
+    &opt_execute_str, &opt_execute_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "prompt", 'p',
     "Set prompt to string specified",
-    (uchar**) &opt_prompt, (uchar**) &opt_prompt, 0,
+    &opt_prompt, &opt_prompt, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Control the amount of printout",
-    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
+    &opt_verbose, &opt_verbose, 0,
     GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0}, \
   {"try-reconnect", 't', \
     "Same as --connect-retries", \
-    (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0, \
+    &opt_connect_retries, &opt_connect_retries, 0, \
     GET_INT, REQUIRED_ARG, 12, 0, INT_MAX, 0, 0, 0 }, \
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

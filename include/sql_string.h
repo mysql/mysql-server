@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <new>
 #include <string>
+#include <string_view>
 
 #include "lex_string.h"
 #include "m_ctype.h"   // my_convert
@@ -67,7 +68,7 @@ extern PSI_memory_key key_memory_String_value;
   pass it and its descendants (such as Name_string) into functions
   using call-by-value evaluation.
 
-  Don't add new members or virual methods into this class!
+  Don't add new members or virtual methods to this class!
 */
 class Simple_cstring {
  private:
@@ -218,8 +219,8 @@ class String {
     str.m_is_alloced = false;
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
   static void operator delete(void *ptr_arg, size_t size) {
@@ -469,7 +470,7 @@ class String {
     s.m_is_alloced = false;
   }
 
-  bool copy();                 // Alloc string if not alloced
+  bool copy();                 // Alloc string if not allocated
   bool copy(const String &s);  // Allocate new string
   // Allocate new string
   bool copy(const char *s, size_t arg_length, const CHARSET_INFO *cs);
@@ -495,7 +496,7 @@ class String {
   bool copy(const char *s, size_t arg_length, const CHARSET_INFO *csfrom,
             const CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
-  bool append(const char *s);
+  bool append(std::string_view s) { return append(s.data(), s.size()); }
   bool append(LEX_STRING *ls) { return append(ls->str, ls->length); }
   bool append(Simple_cstring str) { return append(str.ptr(), str.length()); }
   bool append(const char *s, size_t arg_length);
@@ -526,7 +527,7 @@ class String {
   */
   int strrstr(const String &search, size_t offset = 0) const;
   /**
-   * Returns substring of given characters lenght, starting at given character
+   * Returns substring of given characters length, starting at given character
    * offset. Note that parameter indexes are character indexes and not byte
    * indexes.
    */

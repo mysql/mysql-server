@@ -1,0 +1,51 @@
+--source include/have_ndb.inc
+
+
+#
+#  Bug#31107858
+#  Test ndb_import --resume
+
+CREATE TABLE mt
+  (i int not null primary key, j mediumint unsigned) engine=ndb;
+
+--write_file $MYSQL_TMP_DIR/mt.data
+1,1
+2,2
+3,-1
+4,-1
+5,-1
+6,-1
+7,-1
+8,-1
+9,-1
+10,-1
+11,-1
+12,3
+13,4
+14,5
+15,6
+EOF
+
+# This data file contains 9 bad rows and 6 good rows.
+# The first run with --rejects=5 should insert a few rows and then fail.
+# The --resume option allows a user to resume a failed load.
+# The second run with --resume and --rejects=5 should succeed.
+# At the end, the table should contain 6 rows of data.
+
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=cn
+     test $MYSQL_TMP_DIR/mt.data;
+
+exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=cn
+     --resume test $MYSQL_TMP_DIR/mt.data;
+
+--let $n= `SELECT count(*) FROM mt`
+--assert($n == 6)
+
+DROP TABLE mt;
+
+--remove_file $MYSQL_TMP_DIR/mt.data
+--remove_file $MYSQL_TMP_DIR/mt.rej
+
+
+

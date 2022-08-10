@@ -44,9 +44,9 @@ SELECT MEMBER_STATE FROM performance_schema.replication_group_members;
 --let $assert_cond= "[SELECT @@GLOBAL.log_bin]" = 1
 --source include/assert.inc
 
-# log_slave_updates
---let $assert_text= GR compatible value of log_slave_updates is 1/ON
---let $assert_cond= "[SELECT @@GLOBAL.log_slave_updates]" = 1
+# log_replica_updates
+--let $assert_text= GR compatible value of log_replica_updates is 1/ON
+--let $assert_cond= "[SELECT @@GLOBAL.log_replica_updates]" = 1
 --source include/assert.inc
 
 # master_info_repository

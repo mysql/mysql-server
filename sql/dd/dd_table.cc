@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/dd/dd_table.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <memory>  // unique_ptr
@@ -91,6 +92,7 @@
 #include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec_list
 #include "sql/sql_class.h"             // THD
 #include "sql/sql_const.h"
+#include "sql/sql_gipk.h"  // table_def_has_generated_invisible_primary_key
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"
@@ -1342,13 +1344,13 @@ static void set_partition_options(partition_element *part_elem,
 /*
   Helper function to add partition column values.
 
-  @param      part_info          Parition info.
+  @param      part_info          Partition info.
   @param      list_value         List of partition element value.
   @param      list_index         Element index.
   @param      part_obj           DD partition object.
   @param      create_info        Create info.
   @param      create_fields      List of fields being created.
-  @param[out] part_desc_str Partiton description string.
+  @param[out] part_desc_str Partition description string.
 */
 static bool add_part_col_vals(partition_info *part_info,
                               part_elem_value *list_value, uint list_index,
@@ -1410,7 +1412,7 @@ static void collect_partition_expr(const THD *thd, List<char> &field_list,
   @param[in]     thd            Thread handle.
   @param[in,out] tab_obj        Table object where to store the info.
   @param[in]     create_info    Create info.
-  @param[in]     create_fields  List of fiels in the new table.
+  @param[in]     create_fields  List of fields in the new table.
   @param[in]     part_info      Partition info object.
 
   @return false on success, else true.
@@ -1908,7 +1910,7 @@ bool invalid_tablespace_usage(THD *thd, const dd::String_type &schema_name,
     additionally, a system thread can do what it likes.
     Tables in the 'mysql' schema, with temporary names, are
     also allowed to be in the DD tablespace, since mysql_upgrade
-    will ned to do ALTER TABLE.
+    will need to do ALTER TABLE.
   */
   if (dd::get_dictionary()->is_dd_table_name(schema_name, table_name) ||
       (type != nullptr && *type == System_tables::Types::SYSTEM) ||
@@ -2134,10 +2136,12 @@ static bool fill_dd_table_from_create_info(
   assert(create_info->default_table_charset);
   tab_obj->set_collation_id(create_info->default_table_charset->number);
 
-  // Secondary engine.
-  if (create_info->secondary_engine.str != nullptr)
+  // Secondary engine and secondary load.
+  if (create_info->secondary_engine.str != nullptr) {
     table_options->set("secondary_engine",
                        make_string_type(create_info->secondary_engine));
+    table_options->set("secondary_load", false);
+  }
 
   tab_obj->set_engine_attribute(create_info->engine_attribute);
   tab_obj->set_secondary_engine_attribute(
@@ -2188,6 +2192,36 @@ static bool fill_dd_table_from_create_info(
 
   if (invalid_tablespace_usage(thd, schema_name, table_name, create_info))
     return true;
+
+  /*
+    If table definition has a generated invisible primary key then set "gipk"
+    option for the table, primary key and key column.
+
+    At this point we use these "gipk" flags only in INFORMATION_SCHEMA
+    implementation to filter out information about the GIPK in
+    show_gipk_in_create_table_and_information_schema=OFF mode.
+  */
+  if (table_def_has_generated_invisible_primary_key(
+          thd, create_info->db_type, create_fields, keys, keyinfo)) {
+    // Set "gipk" option for the table.
+    table_options->set("gipk", true);
+
+    // Set "gipk" option for the primary key.
+    for (dd::Index *idx : *tab_obj->indexes()) {
+      if (idx->type() == dd::Index::IT_PRIMARY) {
+        idx->options().set("gipk", true);
+        break;
+      }
+    }
+
+    // Set "gipk" option for the column added for GIPK.
+    for (dd::Column *col : *tab_obj->columns()) {
+      if (is_generated_invisible_primary_key_column_name(col->name().c_str())) {
+        col->options().set("gipk", true);
+        break;
+      }
+    }
+  }
 
   /*
     Add hidden columns and indexes which are implicitly created by storage
@@ -2458,10 +2492,10 @@ static bool is_foreign_key_name_locked(THD *thd, const char *db,
 }
 #endif
 
-bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
-                         const char *old_db MY_ATTRIBUTE((unused)),
+bool rename_foreign_keys(THD *thd [[maybe_unused]],
+                         const char *old_db [[maybe_unused]],
                          const char *old_table_name, handlerton *hton,
-                         const char *new_db MY_ATTRIBUTE((unused)),
+                         const char *new_db [[maybe_unused]],
                          dd::Table *new_tab) {
   // With LCTN = 2, we are using lower-case tablename for FK name.
   char old_table_name_norm[NAME_LEN + 1];
@@ -2488,7 +2522,7 @@ bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
     if (is_generated_foreign_key_name(old_table_name_norm,
                                       old_table_name_norm_len, hton, *fk)) {
       char table_name[NAME_LEN + 1];
-      my_stpncpy(table_name, new_tab->name().c_str(), sizeof(table_name));
+      snprintf(table_name, sizeof(table_name), "%s", new_tab->name().c_str());
       if (lower_case_table_names == 2)
         my_casedn_str(system_charset_info, table_name);
       dd::String_type new_name(table_name);

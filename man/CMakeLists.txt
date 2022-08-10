@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,6 @@ IF(NOT WITH_SYSTEMD)
 ENDIF()
 
 SET(MAN1_NDB
-  ndb-common-options.1
   ndb_blob_tool.1
   ndb_config.1
   ndb_cpcd.1

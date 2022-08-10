@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ static void die(const char *file, int line, const char *expr)
     MY_ATTRIBUTE((noreturn));
 
 /*
-Abort unless given experssion is non-zero.
+Abort unless given expression is non-zero.
 
 SYNOPSIS
 DIE_UNLESS(expr)
@@ -195,24 +195,22 @@ static void die(const char *file, int line, const char *expr) {
   }
 
 /* Silence unused function warnings for some of the static functions. */
-static int cmp_double(double *a, double *b) MY_ATTRIBUTE((unused));
-static void verify_col_data(const char *table, const char *col,
-                            const char *exp_data) MY_ATTRIBUTE((unused));
-static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
-                                    const char *name, const char *org_name,
-                                    enum enum_field_types type,
-                                    const char *table, const char *org_table,
-                                    const char *db, unsigned long length,
-                                    const char *def, const char *file, int line)
-    MY_ATTRIBUTE((unused));
-static void verify_st_affected_rows(MYSQL_STMT *stmt, ulonglong exp_count)
-    MY_ATTRIBUTE((unused));
-static void verify_affected_rows(ulonglong exp_count) MY_ATTRIBUTE((unused));
-static void verify_field_count(MYSQL_RES *result, uint exp_count)
-    MY_ATTRIBUTE((unused));
-static void execute_prepare_query(const char *query, ulonglong exp_count)
-    MY_ATTRIBUTE((unused));
-static bool thread_query(const char *query) MY_ATTRIBUTE((unused));
+[[maybe_unused]] static int cmp_double(double *a, double *b);
+[[maybe_unused]] static void verify_col_data(const char *table, const char *col,
+                                             const char *exp_data);
+[[maybe_unused]] static void do_verify_prepare_field(
+    MYSQL_RES *result, unsigned int no, const char *name, const char *org_name,
+    enum enum_field_types type, const char *table, const char *org_table,
+    const char *db, unsigned long length, const char *def, const char *file,
+    int line);
+[[maybe_unused]] static void verify_st_affected_rows(MYSQL_STMT *stmt,
+                                                     ulonglong exp_count);
+[[maybe_unused]] static void verify_affected_rows(ulonglong exp_count);
+[[maybe_unused]] static void verify_field_count(MYSQL_RES *result,
+                                                uint exp_count);
+[[maybe_unused]] static void execute_prepare_query(const char *query,
+                                                   ulonglong exp_count);
+[[maybe_unused]] static bool thread_query(const char *query);
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
 
@@ -971,8 +969,7 @@ bool fetch_n(const char **query_list, unsigned query_count,
              enum fetch_type fetch_type) {
   unsigned open_statements = query_count;
   int rc, error_count = 0;
-  Stmt_fetch *fetch_array =
-      (Stmt_fetch *)calloc(1, sizeof(Stmt_fetch) * query_count);
+  auto *fetch_array = (Stmt_fetch *)calloc(1, sizeof(Stmt_fetch) * query_count);
   Stmt_fetch *fetch;
   DBUG_TRACE;
 
@@ -1116,7 +1113,7 @@ static struct my_option client_test_long_options[] = {
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
-static void usage(void) {
+static void usage() {
   /* show the usage string when the user asks for this */
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2002"));
@@ -1131,7 +1128,7 @@ static struct my_tests_st *get_my_tests(); /* To be defined in main .c file */
 static struct my_tests_st *my_testlist = nullptr;
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt MY_ATTRIBUTE((unused)),
+                           const struct my_option *opt [[maybe_unused]],
                            char *argument) {
   switch (optid) {
     case '#':
@@ -1187,7 +1184,6 @@ static void get_options(int *argc, char ***argv) {
     exit(ho_error);
 
   if (tty_password) opt_password = get_tty_password(NullS);
-  return;
 }
 
 /*

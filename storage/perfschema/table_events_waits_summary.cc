@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -234,8 +234,8 @@ int table_events_waits_summary_by_instance::make_instr_row(
   */
   object_lock->begin_optimistic_lock(&lock);
 
-  m_row.m_name = klass->m_name;
-  m_row.m_name_length = klass->m_name_length;
+  m_row.m_name = klass->m_name.str();
+  m_row.m_name_length = klass->m_name.length();
   m_row.m_object_instance_addr = (intptr)object_instance_begin;
 
   m_row.m_stat.set(m_normalizer, pfs_stat);

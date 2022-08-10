@@ -77,6 +77,11 @@ SET GLOBAL syseventlog.facility = "local1";
 # ---------------------------------------------------------
 SET PERSIST syseventlog.tag = "wl11828";
 
+# Now that we've shown explicit loading with INSTALL above, we'll UNINSTALL
+# use implicit loading from the command-line.
+SET @@global.log_error_services=DEFAULT;
+UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
+
 --let $log_services="log_filter_internal;log_sink_syseventlog;log_sink_internal"
 --let restart_parameters="restart: --no-console --log-error-services=$log_services "
 --source include/restart_mysqld.inc
@@ -113,7 +118,6 @@ SET GLOBAL log_error_services= default;
 --echo
 
 --echo # cleanup
-# UNINSTALL COMPONENT "file://component_log_syseventlog";
 
 SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
 SET @@session.debug="-d,parser_stmt_to_error_log";
@@ -122,6 +126,10 @@ SET @@session.debug="-d,log_error_normalize";
 # SET @@global.log_error_filter_rules=@save_filters;
 
 FLUSH ERROR LOGS;
+
+let $restart_parameters = restart:;
+--source include/restart_mysqld_no_echo.inc
+
 
 --echo
 --echo ###

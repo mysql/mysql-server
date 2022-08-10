@@ -14,18 +14,18 @@ CREATE TEMPORARY TABLE t2_tmp (a int);
 ALTER TABLE t1_tmp ADD COLUMN c INT;
 ### assertion: assert that slave has no temp table opened.
 include/sync_slave_sql_with_master.inc
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	0
+Replica_open_temp_tables	0
 DROP TABLE t1_tmp, t2;
 INSERT INTO t1 VALUES (1);
 DROP TEMPORARY TABLE t2_tmp;
 INSERT INTO t1 VALUES (2);
 include/sync_slave_sql_with_master.inc
 ### assertion: assert that slave has no temporary tables opened
-SHOW STATUS LIKE 'Slave_open_temp_tables';
+SHOW STATUS LIKE 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	0
+Replica_open_temp_tables	0
 DROP TABLE t3, t1;
 include/sync_slave_sql_with_master.inc
 include/show_binlog_events.inc

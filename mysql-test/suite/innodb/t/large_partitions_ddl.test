@@ -3,6 +3,7 @@
 --echo #
 
 --source include/big_test.inc
+--source include/not_valgrind.inc
 
 # Case 1 : Test create and drop large number of partitions in
 # system table-space.

@@ -95,6 +95,10 @@ truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 delete from test.no_index_tab where a = 51;
 update performance_schema.setup_consumers set enabled='NO';
+--skip_if_hypergraph  # Returns 101 instead of 102. (The same is seen with
+                      # the old optimizer if a multi-table delete is used.
+                      # This is because multi-table delete uses PSI batch
+                      # mode, whereas single-table delete does not.)
 eval $table_io_select 'no_index_tab';
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';

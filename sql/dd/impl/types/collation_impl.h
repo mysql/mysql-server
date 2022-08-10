@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,6 +137,11 @@ class Collation_impl : public Entity_object_impl, public Collation {
   Object_id m_charset_id;
 
   Collation *clone() const override { return new Collation_impl(*this); }
+
+  Collation *clone_dropped_object_placeholder() const override {
+    // Play simple. Proper placeholder will take the same memory as clone.
+    return clone();
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

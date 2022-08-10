@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <cstring>
 #include <iostream>
 #include <locale>
+#include <memory>
 #include <sstream>
 
 #include <m_string.h>
@@ -261,12 +262,12 @@ DEFINE_METHOD(int, Log_builtins_keyring::line_submit, (log_line * ll)) {
       const char format[] = "%Y-%m-%d %X";
       time_t t(time(nullptr));
       tm tm(*localtime(&t));
-      std::locale loc(std::cout.getloc());
-      std::ostringstream sout;
-      const std::time_put<char> &tput =
-          std::use_facet<std::time_put<char>>(loc);
-      tput.put(sout.rdbuf(), sout, '\0', &tm, &format[0], &format[11]);
-      std::string time_string = sout.str().c_str();
+
+      const size_t date_length{50};
+      std::unique_ptr<char[]> date{new char[date_length]};
+      strftime(date.get(), date_length, format, &tm);
+
+      std::string time_string = date.get();
 
       (void)snprintf(buff_line, buff_size, "%s [%.*s] [MY-%06u] [Keyring] %.*s",
                      time_string.c_str(), (int)label_len, label, errcode,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,12 +37,12 @@ class Gcs_gr_logger_impl : public Logger_interface {
   /**
     Constructor.
   */
-  Gcs_gr_logger_impl() {}
+  Gcs_gr_logger_impl() = default;
 
   /**
     Destructor.
   */
-  ~Gcs_gr_logger_impl() override {}
+  ~Gcs_gr_logger_impl() override = default;
 
   /**
     Initialize the logger.

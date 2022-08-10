@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 
 
 struct CreateIndxImplReq {
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 SignalLength = 8;
   SECTION( ATTRIBUTE_LIST_SECTION = 0 );
   SECTION( INDEX_NAME_SECTION = 1 );
 
@@ -44,14 +44,14 @@ struct CreateIndxImplReq {
 };
 
 struct CreateIndxImplConf {
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   Uint32 senderRef;
   Uint32 senderData;
 };
 
 struct CreateIndxImplRef {
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
   enum ErrorCode {
     NoError = 0,

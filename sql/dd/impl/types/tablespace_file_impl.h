@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ class Tablespace_file_impl : public Weak_object_impl, public Tablespace_file {
   Tablespace_file_impl(const Tablespace_file_impl &src,
                        Tablespace_impl *parent);
 
-  ~Tablespace_file_impl() override {}
+  ~Tablespace_file_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -287,7 +287,7 @@ View *Schema_impl::create_view(THD *thd) const {
 
 ///////////////////////////////////////////////////////////////////////////
 
-View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const {
+View *Schema_impl::create_system_view(THD *thd [[maybe_unused]]) const {
 // Creating system views requires an IX meta data lock on the schema name.
 #ifndef NDEBUG
   char name_buf[NAME_LEN + 1];

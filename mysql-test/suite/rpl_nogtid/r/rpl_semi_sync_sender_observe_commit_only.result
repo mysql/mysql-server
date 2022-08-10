@@ -1,4 +1,3 @@
-SET GLOBAL replication_sender_observe_commit_only = 1;
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -9,108 +8,108 @@ include/sync_slave_sql_with_master.inc
 # Uninstall semi-sync plugins on master and slave
 #
 include/stop_slave.inc
-UNINSTALL PLUGIN rpl_semi_sync_slave;
-UNINSTALL PLUGIN rpl_semi_sync_master;
-UNINSTALL PLUGIN rpl_semi_sync_slave;
-UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+UNINSTALL PLUGIN rpl_semi_sync_source;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+UNINSTALL PLUGIN rpl_semi_sync_source;
 include/rpl_reset.inc
 #
 # Main test of semi-sync replication starts here
 #
 [connection master]
 [ default state of semi-sync on master should be OFF ]
-show variables like 'rpl_semi_sync_master_enabled';
+show variables like 'rpl_semi_sync_source_enabled';
 Variable_name	Value
-rpl_semi_sync_master_enabled	OFF
+rpl_semi_sync_source_enabled	OFF
 [ enable semi-sync on master ]
-set global rpl_semi_sync_master_enabled = 1;
-show variables like 'rpl_semi_sync_master_enabled';
+set global rpl_semi_sync_source_enabled = 1;
+show variables like 'rpl_semi_sync_source_enabled';
 Variable_name	Value
-rpl_semi_sync_master_enabled	ON
+rpl_semi_sync_source_enabled	ON
 [ status of semi-sync on master should be ON even without any semi-sync slaves ]
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	0
-show status like 'Rpl_semi_sync_master_status';
+Rpl_semi_sync_source_clients	0
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_status	ON
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	0
+Rpl_semi_sync_source_yes_tx	0
 #
 # BUG#45672 Semisync repl: ActiveTranx:insert_tranx_node: transaction node allocation failed
 # BUG#45673 Semisync reports correct operation even if no slave is connected
 #
 [ status of semi-sync on master should be OFF ]
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	0
-show status like 'Rpl_semi_sync_master_status';
+Rpl_semi_sync_source_clients	0
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	OFF
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_status	OFF
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	0
+Rpl_semi_sync_source_yes_tx	0
 include/rpl_reset.inc
 #
 # INSTALL PLUGIN semi-sync on slave
 #
 [connection slave]
 [ default state of semi-sync on slave should be OFF ]
-show variables like 'rpl_semi_sync_slave_enabled';
+show variables like 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
-rpl_semi_sync_slave_enabled	OFF
+rpl_semi_sync_replica_enabled	OFF
 [ enable semi-sync on slave ]
-set global rpl_semi_sync_slave_enabled = 1;
-show variables like 'rpl_semi_sync_slave_enabled';
+set global rpl_semi_sync_replica_enabled = 1;
+show variables like 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
-rpl_semi_sync_slave_enabled	ON
+rpl_semi_sync_replica_enabled	ON
 include/start_slave.inc
 [connection master]
 [ initial master state after the semi-sync slave connected ]
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	1
-show status like 'Rpl_semi_sync_master_status';
+Rpl_semi_sync_source_clients	1
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	ON
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	0
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	0
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	0
+Rpl_semi_sync_source_yes_tx	0
 create table t1(a int) engine = ENGINE_TYPE;
 [ master state after CREATE TABLE statement ]
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	ON
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	0
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	0
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	1
+Rpl_semi_sync_source_yes_tx	1
 select CONNECTIONS_NORMAL_SLAVE - CONNECTIONS_NORMAL_SLAVE as 'Should be 0';
 Should be 0
 0
 [ insert records to table ]
 [ master status after inserts ]
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	ON
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	0
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	0
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	11
+Rpl_semi_sync_source_yes_tx	11
 include/sync_slave_sql_with_master.inc
 [ on slave ]
 [ slave status after replicated inserts ]
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	ON
+Rpl_semi_sync_replica_status	ON
 select count(distinct a) from t1;
 count(distinct a)
 10
@@ -144,60 +143,60 @@ FLUSH STATUS;
 include/sync_slave_sql_with_master.inc
 #
 # Test semi-sync master will switch OFF after one transaction
-# timeout waiting for slave reply.
+# timeout waiting for replica reply.
 #
 include/stop_slave.inc
 [connection master]
 include/stop_dump_threads.inc
 [ master status should be ON ]
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	ON
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	0
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	0
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	1
-show status like 'Rpl_semi_sync_master_clients';
+Rpl_semi_sync_source_yes_tx	1
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	0
+Rpl_semi_sync_source_clients	0
 [ semi-sync replication of these transactions will fail ]
 insert into t1 values (500);
 [ master status should be OFF ]
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	OFF
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	OFF
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	1
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	1
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	1
+Rpl_semi_sync_source_yes_tx	1
 insert into t1 values (100);
 [ master status should be OFF ]
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	OFF
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	OFF
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	12
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	12
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	1
+Rpl_semi_sync_source_yes_tx	1
 #
 # Test semi-sync status on master will be ON again when slave catches up
 #
 [connection slave]
 [ slave status should be OFF ]
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	OFF
+Rpl_semi_sync_replica_status	OFF
 include/start_slave.inc
 [ slave status should be ON ]
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	ON
+Rpl_semi_sync_replica_status	ON
 select count(distinct a) from t1;
 count(distinct a)
 2
@@ -209,18 +208,18 @@ max(a)
 500
 [connection master]
 [ master status should be ON again after slave catches up ]
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	ON
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	12
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	12
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	1
-show status like 'Rpl_semi_sync_master_clients';
+Rpl_semi_sync_source_yes_tx	1
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	1
+Rpl_semi_sync_source_clients	1
 #
 # Test disable/enable master semi-sync on the fly.
 #
@@ -232,44 +231,44 @@ include/stop_slave.inc
 # Flush status
 #
 [ Semi-sync master status variables before FLUSH STATUS ]
-SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	12
-SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	12
+SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	2
+Rpl_semi_sync_source_yes_tx	2
 FLUSH NO_WRITE_TO_BINLOG STATUS;
 [ Semi-sync master status variables after FLUSH STATUS ]
-SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
+SHOW STATUS LIKE 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	0
-SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	0
+SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	0
+Rpl_semi_sync_source_yes_tx	0
 [connection master]
 show master logs;
 Log_name	master-bin.000001
 File_size	#
 Encrypted	#
-show variables like 'rpl_semi_sync_master_enabled';
+show variables like 'rpl_semi_sync_source_enabled';
 Variable_name	Value
-rpl_semi_sync_master_enabled	ON
+rpl_semi_sync_source_enabled	ON
 [ disable semi-sync on the fly ]
-set global rpl_semi_sync_master_enabled=0;
-show variables like 'rpl_semi_sync_master_enabled';
+set global rpl_semi_sync_source_enabled=0;
+show variables like 'rpl_semi_sync_source_enabled';
 Variable_name	Value
-rpl_semi_sync_master_enabled	OFF
-show status like 'Rpl_semi_sync_master_status';
+rpl_semi_sync_source_enabled	OFF
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	OFF
+Rpl_semi_sync_source_status	OFF
 [ enable semi-sync on the fly ]
-set global rpl_semi_sync_master_enabled=1;
-show variables like 'rpl_semi_sync_master_enabled';
+set global rpl_semi_sync_source_enabled=1;
+show variables like 'rpl_semi_sync_source_enabled';
 Variable_name	Value
-rpl_semi_sync_master_enabled	ON
-show status like 'Rpl_semi_sync_master_status';
+rpl_semi_sync_source_enabled	ON
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
+Rpl_semi_sync_source_status	ON
 #
 # Test RESET MASTER/SLAVE
 #
@@ -284,15 +283,15 @@ Variable_name	Value
 [ test reset master ]
 [connection master]
 reset master;
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	ON
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	0
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	0
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	0
+Rpl_semi_sync_source_yes_tx	0
 [connection slave]
 include/stop_slave.inc
 reset slave;
@@ -315,15 +314,15 @@ a
 3
 [connection master]
 [ master semi-sync status should be ON ]
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	ON
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	0
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	0
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	3
+Rpl_semi_sync_source_yes_tx	3
 #
 # Start semi-sync replication without SUPER privilege
 #
@@ -344,54 +343,54 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	ON
+Rpl_semi_sync_replica_status	ON
 [connection master]
 [connection slave]
 include/stop_slave.inc
 [connection master]
 Insert into t1 values (4);
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	OFF
-show status like 'Rpl_semi_sync_master_clients';
+Rpl_semi_sync_source_status	OFF
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	0
+Rpl_semi_sync_source_clients	0
 [connection slave]
 include/start_slave.inc
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	ON
+Rpl_semi_sync_replica_status	ON
 [connection master]
-show status like 'Rpl_semi_sync_master_status';
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
+Rpl_semi_sync_source_status	ON
 [ master semi-sync should be ON ]
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	1
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_clients	1
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	1
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	1
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	0
+Rpl_semi_sync_source_yes_tx	0
 insert into t1 values (5);
 insert into t1 values (6);
 [ master semi-sync should be ON ]
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	1
-show status like 'Rpl_semi_sync_master_status';
+Rpl_semi_sync_source_clients	1
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-show status like 'Rpl_semi_sync_master_no_tx';
+Rpl_semi_sync_source_status	ON
+show status like 'Rpl_semi_sync_source_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	1
-show status like 'Rpl_semi_sync_master_yes_tx';
+Rpl_semi_sync_source_no_tx	1
+show status like 'Rpl_semi_sync_source_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	2
+Rpl_semi_sync_source_yes_tx	2
 select subsystem, error_code
 from performance_schema.error_log
 where error_code="MY-011170" limit 1;
@@ -403,89 +402,89 @@ Repl	MY-011170
 include/sync_slave_sql_with_master.inc
 [ on slave ]
 include/stop_slave.inc
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	OFF
+Rpl_semi_sync_replica_status	OFF
 [connection master]
 include/stop_dump_threads.inc
 [ Semi-sync status on master should be ON ]
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	0
-show status like 'Rpl_semi_sync_master_status';
+Rpl_semi_sync_source_clients	0
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	ON
-set global rpl_semi_sync_master_enabled= 0;
+Rpl_semi_sync_source_status	ON
+set global rpl_semi_sync_source_enabled= 0;
 [connection slave]
-SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
-rpl_semi_sync_slave_enabled	ON
+rpl_semi_sync_replica_enabled	ON
 include/start_slave.inc
 [connection master]
 insert into t1 values (8);
 [ master semi-sync clients should be 1, status should be OFF ]
-show status like 'Rpl_semi_sync_master_clients';
+show status like 'Rpl_semi_sync_source_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	1
-show status like 'Rpl_semi_sync_master_status';
+Rpl_semi_sync_source_clients	1
+show status like 'Rpl_semi_sync_source_status';
 Variable_name	Value
-Rpl_semi_sync_master_status	OFF
+Rpl_semi_sync_source_status	OFF
 include/sync_slave_sql_with_master.inc
 [ on slave ]
-show status like 'Rpl_semi_sync_slave_status';
+show status like 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	ON
+Rpl_semi_sync_replica_status	ON
 include/stop_slave.inc
 [ on master ]
 include/stop_dump_threads.inc
-UNINSTALL PLUGIN rpl_semi_sync_master;
-SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
+UNINSTALL PLUGIN rpl_semi_sync_source;
+SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
 Variable_name	Value
 [connection slave]
-SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
-rpl_semi_sync_slave_enabled	ON
+rpl_semi_sync_replica_enabled	ON
 include/start_slave.inc
 [connection master]
 insert into t1 values (10);
 include/sync_slave_sql_with_master.inc
 [ on slave ]
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	OFF
+Rpl_semi_sync_replica_status	OFF
 #
 # Test non-semi-sync slave connect to semi-sync master
 #
-INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
-set global rpl_semi_sync_master_timeout= 60000;
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'SEMISYNC_SOURCE_PLUGIN';
+set global rpl_semi_sync_source_timeout= 60000;
 /* 60s */
-set global rpl_semi_sync_master_enabled= 1;
+set global rpl_semi_sync_source_enabled= 1;
 [connection slave]
 include/stop_slave.inc
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	OFF
+Rpl_semi_sync_replica_status	OFF
 [ uninstall semi-sync slave plugin ]
-UNINSTALL PLUGIN rpl_semi_sync_slave;
-SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
 include/start_slave.inc
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 Variable_name	Value
 include/stop_slave.inc
 [ reinstall semi-sync slave plugin and disable semi-sync ]
-INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_SLAVE_PLUGIN';
-set global rpl_semi_sync_slave_enabled= 0;
-SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'SEMISYNC_REPLICA_PLUGIN';
+set global rpl_semi_sync_replica_enabled= 0;
+SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
 Variable_name	Value
-rpl_semi_sync_slave_enabled	OFF
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+rpl_semi_sync_replica_enabled	OFF
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	OFF
+Rpl_semi_sync_replica_status	OFF
 include/start_slave.inc
-SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
+SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 Variable_name	Value
-Rpl_semi_sync_slave_status	OFF
+Rpl_semi_sync_replica_status	OFF
 #
 # Clean up
 #
@@ -501,4 +500,3 @@ include/sync_slave_sql_with_master.inc
 drop user rpl@127.0.0.1;
 flush privileges;
 include/rpl_end.inc
-SET GLOBAL replication_sender_observe_commit_only = 0;

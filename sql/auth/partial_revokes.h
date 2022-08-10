@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,7 @@ class Restrictions {
  public:
   explicit Restrictions();
 
-  Restrictions(const Restrictions &);
+  Restrictions(const Restrictions &) = default;
   Restrictions(Restrictions &&);
   Restrictions &operator=(const Restrictions &);
   Restrictions &operator=(Restrictions &&);
@@ -139,11 +139,11 @@ class Restrictions {
 /**
   Factory class that solely creates an object of type Restrictions_aggregator.
 
-  - The concrete implemenations of Restrictions_aggregator cannot be created
+  - The concrete implementations of Restrictions_aggregator cannot be created
     directly since their constructors are private. This class is declared as
     friend in those concrete implementations.
   - It also records the CURRENT_USER in the binlog so that partial_revokes can
-    be executed on slave with context of current user
+    be executed on the replica with context of current user
 */
 class Restrictions_aggregator_factory {
  public:
@@ -194,7 +194,7 @@ class Restrictions_aggregator {
  public:
   virtual ~Restrictions_aggregator();
 
-  /* interface methods which derived classes havee to implement */
+  /* interface methods which derived classes have to implement */
   virtual bool generate(Abstract_restrictions &restrictions) = 0;
   virtual bool find_if_require_next_level_operation(ulong &rights) const = 0;
 

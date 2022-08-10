@@ -8,23 +8,7 @@ SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
 # Make sure that transactions will not finish prematurely
 SET @@global.innodb_lock_wait_timeout = 20;
 
-# A helper table to map c1,...,c10 to their connection ids
-CREATE TABLE t0 (
-  id INT PRIMARY KEY,
-  trx_mysql_thread_id BIGINT
-) ENGINE=InnoDB;
-
-DELIMITER //;
-CREATE PROCEDURE show_locks ()
-BEGIN
-  SELECT
-    t0.id, object_name, index_name, lock_type, lock_mode, lock_status, lock_data
-  FROM t0
-  JOIN INFORMATION_SCHEMA.INNODB_TRX USING (trx_mysql_thread_id)
-  JOIN performance_schema.data_locks ON (trx_id=engine_transaction_id)
-  ORDER BY 1,2,3,4,5,6,7;
-END //
-DELIMITER ;//
+--source ../include/prepare_show_locks.inc
 
 # Scenario in which a WAITING lock struct is first "cleared" because locks
 # are moved to a different heap_no, and then "reused" for another GRANTED
@@ -52,24 +36,24 @@ CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, val CHAR(200));
 INSERT INTO t1 (id,val) VALUES (1, "a"),  (3, "c"), (1998,"x"), (2000, "z");
 
 --connect (con1, localhost, root,,)
-  INSERT INTO t0 VALUES (1, CONNECTION_ID());
+  CALL register_connection("con1");
   BEGIN;
   SELECT * FROM t1 WHERE id<=3 FOR SHARE;
 
 --connect (con2, localhost, root,,)
-  INSERT INTO t0 VALUES (2, CONNECTION_ID());
+  CALL register_connection("con2");
   BEGIN;
   SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con2_will_wait';
   --send INSERT INTO t1 VALUES (2,"b")
 
 --connect (con3, localhost, root,,)
   SET DEBUG_SYNC='now WAIT_FOR con2_will_wait';
-  INSERT INTO t0 VALUES (3, CONNECTION_ID());
+  CALL register_connection("con3");
   BEGIN;
   SELECT * FROM t1 WHERE id=2000 FOR UPDATE;
 
 --connect (con4, localhost, root,,)
-  INSERT INTO t0 VALUES (4, CONNECTION_ID());
+  CALL register_connection("con4");
   BEGIN;
   SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con4_will_wait';
   --send SELECT * FROM t1 WHERE 1999<=id FOR SHARE
@@ -117,8 +101,8 @@ INSERT INTO t1 (id,val) VALUES (1, "a"),  (3, "c"), (1998,"x"), (2000, "z");
 --disconnect con4
 
 DROP TABLE t1;
-DROP PROCEDURE show_locks;
-DROP TABLE t0;
+--source ../include/cleanup_show_locks.inc
+
 # Restore saved settings
 SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved ;
 --source include/wait_until_count_sessions.inc

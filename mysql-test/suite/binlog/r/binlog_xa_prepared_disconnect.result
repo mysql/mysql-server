@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 0]
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 include/gtid_utils.inc
 RESET MASTER;
@@ -928,8 +929,8 @@ CREATE TABLE t(a INT);
 XA START 'xa1';
 INSERT INTO t SET a = 1;
 XA END 'xa1';
-SET @@SESSION.pseudo_slave_mode=1;
-ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+SET @@SESSION.pseudo_replica_mode=1;
+ERROR HY000: The system variable pseudo_replica_mode cannot be set when there is an ongoing transaction.
 XA PREPARE 'xa1';
 # restart
 XA ROLLBACK 'xa1';
@@ -937,8 +938,8 @@ XA START 'xa1';
 INSERT INTO t SET a = 1;
 XA END 'xa1';
 XA PREPARE 'xa1';
-SET @@SESSION.pseudo_slave_mode=1;
-ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+SET @@SESSION.pseudo_replica_mode=1;
+ERROR HY000: The system variable pseudo_replica_mode cannot be set when there is an ongoing transaction.
 XA COMMIT 'xa1';
 DROP TABLE t;
 include/gtid_utils_end.inc

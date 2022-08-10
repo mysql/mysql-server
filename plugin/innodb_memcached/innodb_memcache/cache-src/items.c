@@ -1,4 +1,8 @@
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+/*
+ *  Modifications Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+ *  All rights reserved.
+ */
 #include "config.h"
 #include <fcntl.h>
 #include <errno.h>
@@ -82,186 +86,186 @@ static uint64_t get_cas_id(void) {
 
 #ifdef INNODB_MEMCACHED /* INNODB_MEMCACHED */
 /*@null@*/
-hash_item *do_item_alloc(struct default_engine *engine,
-                         const void *key,
-                         const size_t nkey,
-                         const int flags,
-                         const rel_time_t exptime,
-                         const int nbytes,
+hash_item *do_item_alloc(struct default_engine *engine, const void *key,
+                         const size_t nkey, const int flags,
+                         const rel_time_t exptime, const int nbytes,
                          const void *cookie) {
-    hash_item *it = NULL;
-    size_t ntotal = sizeof(hash_item) + nkey + nbytes;
-    if (engine->config.use_cas) {
-        ntotal += sizeof(uint64_t);
-    }
+  hash_item *it = NULL;
+  // Avoid potential underflows.
+  if (nbytes < 0) return 0;
 
-    unsigned int id = slabs_clsid(engine, ntotal);
-    if (id == 0)
-        return 0;
+  size_t ntotal = sizeof(hash_item) + nkey + nbytes;
+  if (engine->config.use_cas) {
+    ntotal += sizeof(uint64_t);
+  }
 
-    if (it == NULL && (it = slabs_alloc(engine, ntotal, id)) == NULL) {
-        return NULL;
-    }
+  unsigned int id = slabs_clsid(engine, ntotal);
+  if (id == 0) return 0;
 
-    assert(it->slabs_clsid == 0);
+  if (it == NULL && (it = slabs_alloc(engine, ntotal, id)) == NULL) {
+    return NULL;
+  }
 
-    it->slabs_clsid = id;
+  assert(it->slabs_clsid == 0);
 
-    assert(it != engine->items.heads[it->slabs_clsid]);
+  it->slabs_clsid = id;
 
-    it->next = it->prev = it->h_next = 0;
-    it->refcount = 1;     /* the caller will have a reference */
-    DEBUG_REFCNT(it, '*');
-    it->iflag = engine->config.use_cas ? ITEM_WITH_CAS : 0;
-    it->nkey = nkey;
-    it->nbytes = nbytes;
-    it->flags = flags;
-    memcpy((void*)item_get_key(it), key, nkey);
-    it->exptime = exptime;
-    return it;
+  assert(it != engine->items.heads[it->slabs_clsid]);
+
+  it->next = it->prev = it->h_next = 0;
+  it->refcount = 1; /* the caller will have a reference */
+  DEBUG_REFCNT(it, '*');
+  it->iflag = engine->config.use_cas ? ITEM_WITH_CAS : 0;
+  it->nkey = nkey;
+  it->nbytes = nbytes;
+  it->flags = flags;
+  memcpy((void *)item_get_key(it), key, nkey);
+  it->exptime = exptime;
+  return it;
 }
 
 #else /* INNODB_MEMCACHED */
 /*@null@*/
-hash_item *do_item_alloc(struct default_engine *engine,
-                         const void *key,
-                         const size_t nkey,
-                         const int flags,
-                         const rel_time_t exptime,
-                         const int nbytes,
+hash_item *do_item_alloc(struct default_engine *engine, const void *key,
+                         const size_t nkey, const int flags,
+                         const rel_time_t exptime, const int nbytes,
                          const void *cookie) {
-    hash_item *it = NULL;
-    size_t ntotal = sizeof(hash_item) + nkey + nbytes;
-    if (engine->config.use_cas) {
-        ntotal += sizeof(uint64_t);
+  hash_item *it = NULL;
+  // Avoid potential underflows.
+  if (nbytes < 0) return 0;
+
+  size_t ntotal = sizeof(hash_item) + nkey + nbytes;
+  if (engine->config.use_cas) {
+    ntotal += sizeof(uint64_t);
+  }
+
+  unsigned int id = slabs_clsid(engine, ntotal);
+  if (id == 0) return 0;
+
+  /* do a quick check if we have any expired items in the tail.. */
+  int tries = 50;
+  hash_item *search;
+
+  rel_time_t current_time = engine->server.core->get_current_time();
+
+  for (search = engine->items.tails[id]; tries > 0 && search != NULL;
+       tries--, search = search->prev) {
+    if (search->refcount == 0 &&
+        (search->exptime != 0 && search->exptime < current_time)) {
+      it = search;
+      /* I don't want to actually free the object, just steal
+       * the item to avoid to grab the slab mutex twice ;-)
+       */
+      pthread_mutex_lock(&engine->stats.lock);
+      engine->stats.reclaimed++;
+      pthread_mutex_unlock(&engine->stats.lock);
+      engine->items.itemstats[id].reclaimed++;
+      it->refcount = 1;
+      do_item_unlink(engine, it);
+      /* Initialize the item block: */
+      it->slabs_clsid = 0;
+      it->refcount = 0;
+      break;
+    }
+  }
+
+  if (it == NULL && (it = slabs_alloc(engine, ntotal, id)) == NULL) {
+    /*
+    ** Could not find an expired item at the tail, and memory allocation
+    ** failed. Try to evict some items!
+    */
+    tries = 50;
+
+    /* If requested to not push old items out of cache when memory runs out,
+     * we're out of luck at this point...
+     */
+
+    if (engine->config.evict_to_free == 0) {
+      engine->items.itemstats[id].outofmemory++;
+      return NULL;
     }
 
-    unsigned int id = slabs_clsid(engine, ntotal);
-    if (id == 0)
-        return 0;
+    /*
+     * try to get one off the right LRU
+     * don't necessariuly unlink the tail because it may be locked: refcount>0
+     * search up from tail an item with refcount==0 and unlink it; give up after
+     * 50 tries
+     */
 
-    /* do a quick check if we have any expired items in the tail.. */
-    int tries = 50;
-    hash_item *search;
-
-    rel_time_t current_time = engine->server.core->get_current_time();
-
-    for (search = engine->items.tails[id];
-         tries > 0 && search != NULL;
-         tries--, search=search->prev) {
-        if (search->refcount == 0 &&
-            (search->exptime != 0 && search->exptime < current_time)) {
-            it = search;
-            /* I don't want to actually free the object, just steal
-             * the item to avoid to grab the slab mutex twice ;-)
-             */
-            pthread_mutex_lock(&engine->stats.lock);
-            engine->stats.reclaimed++;
-            pthread_mutex_unlock(&engine->stats.lock);
-            engine->items.itemstats[id].reclaimed++;
-            it->refcount = 1;
-            do_item_unlink(engine, it);
-            /* Initialize the item block: */
-            it->slabs_clsid = 0;
-            it->refcount = 0;
-            break;
-        }
+    if (engine->items.tails[id] == 0) {
+      engine->items.itemstats[id].outofmemory++;
+      return NULL;
     }
 
-    if (it == NULL && (it = slabs_alloc(engine, ntotal, id)) == NULL) {
-        /*
-        ** Could not find an expired item at the tail, and memory allocation
-        ** failed. Try to evict some items!
-        */
-        tries = 50;
-
-        /* If requested to not push old items out of cache when memory runs out,
-         * we're out of luck at this point...
-         */
-
-        if (engine->config.evict_to_free == 0) {
-            engine->items.itemstats[id].outofmemory++;
-            return NULL;
+    for (search = engine->items.tails[id]; tries > 0 && search != NULL;
+         tries--, search = search->prev) {
+      if (search->refcount == 0) {
+        if (search->exptime == 0 || search->exptime > current_time) {
+          engine->items.itemstats[id].evicted++;
+          engine->items.itemstats[id].evicted_time =
+              current_time - search->time;
+          if (search->exptime != 0) {
+            engine->items.itemstats[id].evicted_nonzero++;
+          }
+          pthread_mutex_lock(&engine->stats.lock);
+          engine->stats.evictions++;
+          pthread_mutex_unlock(&engine->stats.lock);
+          engine->server.stat->evicting(cookie, item_get_key(search),
+                                        search->nkey);
+        } else {
+          engine->items.itemstats[id].reclaimed++;
+          pthread_mutex_lock(&engine->stats.lock);
+          engine->stats.reclaimed++;
+          pthread_mutex_unlock(&engine->stats.lock);
         }
-
-        /*
-         * try to get one off the right LRU
-         * don't necessariuly unlink the tail because it may be locked: refcount>0
-         * search up from tail an item with refcount==0 and unlink it; give up after 50
-         * tries
-         */
-
-        if (engine->items.tails[id] == 0) {
-            engine->items.itemstats[id].outofmemory++;
-            return NULL;
-        }
-
-        for (search = engine->items.tails[id]; tries > 0 && search != NULL; tries--, search=search->prev) {
-            if (search->refcount == 0) {
-                if (search->exptime == 0 || search->exptime > current_time) {
-                    engine->items.itemstats[id].evicted++;
-                    engine->items.itemstats[id].evicted_time = current_time - search->time;
-                    if (search->exptime != 0) {
-                        engine->items.itemstats[id].evicted_nonzero++;
-                    }
-                    pthread_mutex_lock(&engine->stats.lock);
-                    engine->stats.evictions++;
-                    pthread_mutex_unlock(&engine->stats.lock);
-                    engine->server.stat->evicting(cookie,
-                                                  item_get_key(search),
-                                                  search->nkey);
-                } else {
-                    engine->items.itemstats[id].reclaimed++;
-                    pthread_mutex_lock(&engine->stats.lock);
-                    engine->stats.reclaimed++;
-                    pthread_mutex_unlock(&engine->stats.lock);
-                }
-                do_item_unlink(engine, search);
-                break;
-            }
-        }
-        it = slabs_alloc(engine, ntotal, id);
-        if (it == 0) {
-            engine->items.itemstats[id].outofmemory++;
-            /* Last ditch effort. There is a very rare bug which causes
-             * refcount leaks. We've fixed most of them, but it still happens,
-             * and it may happen in the future.
-             * We can reasonably assume no item can stay locked for more than
-             * three hours, so if we find one in the tail which is that old,
-             * free it anyway.
-             */
-            tries = 50;
-            for (search = engine->items.tails[id]; tries > 0 && search != NULL; tries--, search=search->prev) {
-                if (search->refcount != 0 && search->time + TAIL_REPAIR_TIME < current_time) {
-                    engine->items.itemstats[id].tailrepairs++;
-                    search->refcount = 0;
-                    do_item_unlink(engine, search);
-                    break;
-                }
-            }
-            it = slabs_alloc(engine, ntotal, id);
-            if (it == 0) {
-                return NULL;
-            }
-        }
+        do_item_unlink(engine, search);
+        break;
+      }
     }
+    it = slabs_alloc(engine, ntotal, id);
+    if (it == 0) {
+      engine->items.itemstats[id].outofmemory++;
+      /* Last ditch effort. There is a very rare bug which causes
+       * refcount leaks. We've fixed most of them, but it still happens,
+       * and it may happen in the future.
+       * We can reasonably assume no item can stay locked for more than
+       * three hours, so if we find one in the tail which is that old,
+       * free it anyway.
+       */
+      tries = 50;
+      for (search = engine->items.tails[id]; tries > 0 && search != NULL;
+           tries--, search = search->prev) {
+        if (search->refcount != 0 &&
+            search->time + TAIL_REPAIR_TIME < current_time) {
+          engine->items.itemstats[id].tailrepairs++;
+          search->refcount = 0;
+          do_item_unlink(engine, search);
+          break;
+        }
+      }
+      it = slabs_alloc(engine, ntotal, id);
+      if (it == 0) {
+        return NULL;
+      }
+    }
+  }
 
-    assert(it->slabs_clsid == 0);
+  assert(it->slabs_clsid == 0);
 
-    it->slabs_clsid = id;
+  it->slabs_clsid = id;
 
-    assert(it != engine->items.heads[it->slabs_clsid]);
+  assert(it != engine->items.heads[it->slabs_clsid]);
 
-    it->next = it->prev = it->h_next = 0;
-    it->refcount = 1;     /* the caller will have a reference */
-    DEBUG_REFCNT(it, '*');
-    it->iflag = engine->config.use_cas ? ITEM_WITH_CAS : 0;
-    it->nkey = nkey;
-    it->nbytes = nbytes;
-    it->flags = flags;
-    memcpy((void*)item_get_key(it), key, nkey);
-    it->exptime = exptime;
-    return it;
+  it->next = it->prev = it->h_next = 0;
+  it->refcount = 1; /* the caller will have a reference */
+  DEBUG_REFCNT(it, '*');
+  it->iflag = engine->config.use_cas ? ITEM_WITH_CAS : 0;
+  it->nkey = nkey;
+  it->nbytes = nbytes;
+  it->flags = flags;
+  memcpy((void *)item_get_key(it), key, nkey);
+  it->exptime = exptime;
+  return it;
 }
 #endif /* INNODB_MEMCACHED */
 

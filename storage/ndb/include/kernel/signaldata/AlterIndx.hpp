@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 
 struct AlterIndxReq {
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   enum RequestFlag {
     RF_BUILD_OFFLINE = 1 << 8
@@ -49,7 +49,7 @@ struct AlterIndxReq {
 };
 
 struct AlterIndxConf {
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };
@@ -72,7 +72,7 @@ struct AlterIndxRef {
     InvalidIndexVersion = 241
   };
 
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };

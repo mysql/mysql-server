@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ struct TABLE;
 
 class System_table_access {
  public:
-  virtual ~System_table_access() {}
+  virtual ~System_table_access() = default;
 
   /**
     Opens and locks a system table.
@@ -55,7 +55,7 @@ class System_table_access {
 
     @param[in]  thd           Thread requesting to open the table
     @param[in]  dbstr         Database where the table resides
-    @param[in]  tbstr         Table to be openned
+    @param[in]  tbstr         Table to be opened
     @param[in]  max_num_field Maximum number of fields
     @param[in]  lock_type     How to lock the table
     @param[out] table         We will store the open table here
@@ -84,7 +84,7 @@ class System_table_access {
 
     @param[in]  thd           Thread requesting to open the table
     @param[in]  dbstr         Database where the table resides
-    @param[in]  tbstr         Table to be openned
+    @param[in]  tbstr         Table to be opened
     @param[in]  max_num_field Maximum number of fields
     @param[in]  lock_type     How to lock the table
     @param[out] table         We will store the open table here

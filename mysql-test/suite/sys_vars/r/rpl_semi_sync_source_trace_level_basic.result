@@ -1,0 +1,72 @@
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'semisync_source.so';
+select @@global.rpl_semi_sync_source_trace_level;
+@@global.rpl_semi_sync_source_trace_level
+32
+SET @start_global_value = @@global.rpl_semi_sync_source_trace_level;
+select @@global.rpl_semi_sync_source_trace_level in (1,16,32,64);
+@@global.rpl_semi_sync_source_trace_level in (1,16,32,64)
+1
+select @@session.rpl_semi_sync_source_trace_level;
+ERROR HY000: Variable 'rpl_semi_sync_source_trace_level' is a GLOBAL variable
+show global variables like 'rpl_semi_sync_source_trace_level';
+Variable_name	Value
+rpl_semi_sync_source_trace_level	32
+show session variables like 'rpl_semi_sync_source_trace_level';
+Variable_name	Value
+rpl_semi_sync_source_trace_level	32
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_source_trace_level';
+VARIABLE_NAME	VARIABLE_VALUE
+rpl_semi_sync_source_trace_level	32
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_source_trace_level';
+VARIABLE_NAME	VARIABLE_VALUE
+rpl_semi_sync_source_trace_level	32
+set global rpl_semi_sync_source_trace_level=16;
+set session rpl_semi_sync_source_trace_level=99;
+ERROR HY000: Variable 'rpl_semi_sync_source_trace_level' is a GLOBAL variable and should be set with SET GLOBAL
+select @@global.rpl_semi_sync_source_trace_level;
+@@global.rpl_semi_sync_source_trace_level
+16
+select @@session.rpl_semi_sync_source_trace_level;
+ERROR HY000: Variable 'rpl_semi_sync_source_trace_level' is a GLOBAL variable
+show global variables like 'rpl_semi_sync_source_trace_level';
+Variable_name	Value
+rpl_semi_sync_source_trace_level	16
+show session variables like 'rpl_semi_sync_source_trace_level';
+Variable_name	Value
+rpl_semi_sync_source_trace_level	16
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_source_trace_level';
+VARIABLE_NAME	VARIABLE_VALUE
+rpl_semi_sync_source_trace_level	16
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_source_trace_level';
+VARIABLE_NAME	VARIABLE_VALUE
+rpl_semi_sync_source_trace_level	16
+NOTE: Value can also be set to values that are combinations of values
+set global rpl_semi_sync_source_trace_level=42;
+select @@global.rpl_semi_sync_source_trace_level;
+@@global.rpl_semi_sync_source_trace_level
+42
+select @@session.rpl_semi_sync_source_trace_level;
+ERROR HY000: Variable 'rpl_semi_sync_source_trace_level' is a GLOBAL variable
+show global variables like 'rpl_semi_sync_source_trace_level';
+Variable_name	Value
+rpl_semi_sync_source_trace_level	42
+show session variables like 'rpl_semi_sync_source_trace_level';
+Variable_name	Value
+rpl_semi_sync_source_trace_level	42
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_source_trace_level';
+VARIABLE_NAME	VARIABLE_VALUE
+rpl_semi_sync_source_trace_level	42
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_source_trace_level';
+VARIABLE_NAME	VARIABLE_VALUE
+rpl_semi_sync_source_trace_level	42
+set global rpl_semi_sync_source_trace_level=1.1;
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_source_trace_level'
+set global rpl_semi_sync_source_trace_level=1e1;
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_source_trace_level'
+set global rpl_semi_sync_source_trace_level="some text";
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_source_trace_level'
+SET @@global.rpl_semi_sync_source_trace_level = @start_global_value;
+select @@global.rpl_semi_sync_source_trace_level;
+@@global.rpl_semi_sync_source_trace_level
+32
+UNINSTALL PLUGIN rpl_semi_sync_source;

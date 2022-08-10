@@ -1,0 +1,376 @@
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+PARTITION BY KEY(col1) PARTITIONS 5;
+CREATE PROCEDURE execute_dml(
+p_dml_type	INT,
+p_key_min	INT,
+p_key_range	INT,
+p_loop_count	INT,
+p_frequency	INT,
+p_is_rand	INT)
+BEGIN
+DECLARE v_idx		INT DEFAULT 0;
+DECLARE v_commit	INT DEFAULT 0;
+DECLARE v_key		INT DEFAULT 0;
+/* Loop and INSERT data at random position */
+WHILE(v_idx < p_loop_count) DO
+/* Generate key between 1 to p_loop_count */
+IF p_is_rand = 1 THEN
+SET v_key = p_key_min + FLOOR(RAND() * p_key_range);
+ELSE
+SET v_key = p_key_min + (v_idx  % p_key_range);
+END IF;
+CASE p_dml_type
+WHEN 0 THEN
+SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
+INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
+@clol3_text, REPEAT('Large Column Data ', 2048))
+ON DUPLICATE KEY UPDATE col2 = col2 + 1;
+INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
+@clol3_text, REPEAT('Large Column Data ', 2048))
+ON DUPLICATE KEY UPDATE col2 = col2 + 1;
+WHEN 1 THEN
+UPDATE t1 SET col2 = v_idx + 1 WHERE col1 = v_key;
+UPDATE t2 SET col2 = v_idx + 1 WHERE col1 = v_key;
+WHEN 2 THEN
+DELETE FROM t1 WHERE col1 = v_key;
+DELETE FROM t2 WHERE col1 = v_key;
+ELSE
+DELETE FROM t1;
+DELETE FROM t2;
+END CASE;
+SET v_idx = v_idx + 1;
+/* Commit or rollback work at specified frequency. */
+IF v_idx % p_frequency = 0 THEN
+SET v_commit = FLOOR(RAND() * 2);
+IF v_commit = 0 AND p_is_rand = 1 THEN
+ROLLBACK;
+START TRANSACTION;
+ELSE
+COMMIT;
+START TRANSACTION;
+END IF;
+END IF;
+END WHILE;
+COMMIT;
+END|
+call execute_dml(0, 0, 100, 100, 10, 0);
+CREATE TABLE t SELECT * FROM t1;
+CREATE TABLE t0 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t01 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t3 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t11 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t21 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+INSERT INTO t11 SELECT * FROM t;
+INSERT INTO t21 SELECT * FROM t;
+SHOW VARIABLES LIKE 'clone_ddl_timeout';
+Variable_name	Value
+clone_ddl_timeout	300
+SHOW VARIABLES LIKE 'clone_block_ddl';
+Variable_name	Value
+clone_block_ddl	OFF
+# 1. RENAME and CREATE a TABLE with same name while clone in progress
+RESET MASTER;
+SET GLOBAL DEBUG = '+d,local_release_clone_file_pin';
+ALTER TABLE t0 RENAME t0_new;
+CREATE TABLE t0 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) ;
+SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl_file WAIT_FOR resume_file';
+SET DEBUG_SYNC = 'clone_file_copy_end_before_ack SIGNAL start_ddl_file_ack WAIT_FOR resume_file_ack';
+SET DEBUG_SYNC = 'clone_before_file_ddl_meta SIGNAL start_ddl_file_meta WAIT_FOR resume_file_meta';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_ddl_page WAIT_FOR resume_page';
+SET DEBUG_SYNC = 'clone_before_page_ddl_meta SIGNAL start_ddl_page_meta WAIT_FOR resume_page_meta';
+SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl_redo WAIT_FOR resume_redo';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection CON1
+# Waiting for clone to reach 'Initial metadata transfer'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file_init';
+# Wait finished
+ALTER TABLE t01 RENAME t01_new;
+CREATE TABLE t01 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) ;
+SET DEBUG_SYNC = 'now SIGNAL resume_file_init';
+# Waiting for clone to reach 'file copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file';
+# Wait finished
+ALTER TABLE t1 RENAME t1_new;
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+# Flush all dirty pages to track
+SET GLOBAL innodb_buf_flush_list_now = 1;
+SET DEBUG_SYNC = 'now SIGNAL resume_file';
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file_ack';
+SET DEBUG_SYNC = 'now SIGNAL resume_file_ack';
+# Waiting for clone to reach DDL metadata for 'file copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file_meta';
+# Wait finished
+ALTER TABLE t11 RENAME t11_new;
+CREATE TABLE t11 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) ;
+INSERT INTO t11 SELECT * FROM t;
+SET DEBUG_SYNC = 'now SIGNAL resume_file_meta';
+# Waiting for clone to reach 'page copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_page';
+# Wait finished
+ALTER TABLE t2 RENAME t2_new;
+CREATE TABLE t2 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) ;
+CALL execute_dml(0, 0, 100, 100, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_page';
+# Waiting for clone to reach DDL metadata for 'page copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_page_meta';
+# Wait finished
+ALTER TABLE t21 RENAME t21_new;
+CREATE TABLE t21 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) ;
+INSERT INTO t21 SELECT * FROM t;
+SET DEBUG_SYNC = 'now SIGNAL resume_page_meta';
+# Waiting for clone to reach 'redo copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_redo';
+# Wait finished
+ALTER TABLE t3 RENAME t3_new;
+CREATE TABLE t3 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) ;
+SET DEBUG_SYNC = 'now SIGNAL resume_redo';
+# In connection DEFAULT
+# Waiting for clone to complete
+# Wait finished
+SET GLOBAL DEBUG = '-d,local_release_clone_file_pin';
+# Restart server on cloned data directory
+# restart: --datadir=CLONE_DATADIR
+# Check cloned data
+SHOW TABLES;
+Tables_in_test
+t
+t0
+t01
+t01_new
+t0_new
+t1
+t11
+t11_new
+t1_new
+t2
+t21
+t2_new
+t3
+SHOW CREATE TABLE t1_new;
+Table	Create Table
+t1_new	CREATE TABLE `t1_new` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1_new EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1_new	check	status	OK
+SELECT count(*) from t1_new;
+count(*)
+100
+SELECT col1, col2, col3 FROM t1_new ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	0	Clone Test Row - 0
+1	10	Clone Test Row - 1
+2	20	Clone Test Row - 2
+3	30	Clone Test Row - 3
+4	40	Clone Test Row - 4
+5	50	Clone Test Row - 5
+6	60	Clone Test Row - 6
+7	70	Clone Test Row - 7
+8	80	Clone Test Row - 8
+9	90	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t1_new ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	990	Clone Test Row - 99
+98	980	Clone Test Row - 98
+97	970	Clone Test Row - 97
+96	960	Clone Test Row - 96
+95	950	Clone Test Row - 95
+94	940	Clone Test Row - 94
+93	930	Clone Test Row - 93
+92	920	Clone Test Row - 92
+91	910	Clone Test Row - 91
+90	900	Clone Test Row - 90
+SHOW CREATE TABLE t11_new;
+Table	Create Table
+t11_new	CREATE TABLE `t11_new` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t11_new EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t11_new	check	status	OK
+SELECT count(*) from t11_new;
+count(*)
+100
+SELECT col1, col2, col3 FROM t11_new ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	0	Clone Test Row - 0
+1	10	Clone Test Row - 1
+2	20	Clone Test Row - 2
+3	30	Clone Test Row - 3
+4	40	Clone Test Row - 4
+5	50	Clone Test Row - 5
+6	60	Clone Test Row - 6
+7	70	Clone Test Row - 7
+8	80	Clone Test Row - 8
+9	90	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t11_new ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	990	Clone Test Row - 99
+98	980	Clone Test Row - 98
+97	970	Clone Test Row - 97
+96	960	Clone Test Row - 96
+95	950	Clone Test Row - 95
+94	940	Clone Test Row - 94
+93	930	Clone Test Row - 93
+92	920	Clone Test Row - 92
+91	910	Clone Test Row - 91
+90	900	Clone Test Row - 90
+SHOW CREATE TABLE t2_new;
+Table	Create Table
+t2_new	CREATE TABLE `t2_new` (
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` varchar(64) DEFAULT NULL,
+  `col4` blob,
+  PRIMARY KEY (`col1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 5 */
+CHECK TABLE t2_new EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t2_new	check	status	OK
+SELECT count(*) from t2_new;
+count(*)
+100
+SELECT col1, col2, col3 FROM t2_new ORDER BY col1 LIMIT 10;;
+col1	col2	col3
+0	1	Clone Test Row - 0
+1	11	Clone Test Row - 1
+2	21	Clone Test Row - 2
+3	31	Clone Test Row - 3
+4	41	Clone Test Row - 4
+5	51	Clone Test Row - 5
+6	61	Clone Test Row - 6
+7	71	Clone Test Row - 7
+8	81	Clone Test Row - 8
+9	91	Clone Test Row - 9
+SELECT col1, col2, col3 FROM t2_new ORDER BY col1 DESC LIMIT 10;;
+col1	col2	col3
+99	991	Clone Test Row - 99
+98	981	Clone Test Row - 98
+97	971	Clone Test Row - 97
+96	961	Clone Test Row - 96
+95	951	Clone Test Row - 95
+94	941	Clone Test Row - 94
+93	931	Clone Test Row - 93
+92	921	Clone Test Row - 92
+91	911	Clone Test Row - 91
+90	901	Clone Test Row - 90
+CALL execute_dml(1, 0, 100, 100, 10, 0);
+# Restart server back on base data directory
+# restart:
+SET DEBUG_SYNC = 'RESET';
+# Cleanup
+DROP TABLE t0;
+DROP TABLE t01;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t11;
+DROP TABLE t21;
+DROP TABLE t0_new;
+DROP TABLE t01_new;
+DROP TABLE t1_new;
+DROP TABLE t2_new;
+DROP TABLE t3_new;
+DROP TABLE t11_new;
+DROP TABLE t21_new;
+# 2. CREATE & DROP TABLE while clone in progress
+RESET MASTER;
+SET GLOBAL DEBUG = '+d,local_release_clone_file_pin';
+CREATE TABLE t0 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) PARTITION BY KEY(col1) PARTITIONS 5;
+DROP TABLE t0  ;
+SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl_file WAIT_FOR resume_file';
+SET DEBUG_SYNC = 'clone_file_copy_end_before_ack SIGNAL start_ddl_file_ack WAIT_FOR resume_file_ack';
+SET DEBUG_SYNC = 'clone_before_file_ddl_meta SIGNAL start_ddl_file_meta WAIT_FOR resume_file_meta';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_ddl_page WAIT_FOR resume_page';
+SET DEBUG_SYNC = 'clone_before_page_ddl_meta SIGNAL start_ddl_page_meta WAIT_FOR resume_page_meta';
+SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl_redo WAIT_FOR resume_redo';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection CON1
+# Waiting for clone to reach 'Initial metadata transfer'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file_init';
+# Wait finished
+CREATE TABLE t01 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) PARTITION BY KEY(col1) PARTITIONS 5;
+DROP TABLE t01  ;
+SET DEBUG_SYNC = 'now SIGNAL resume_file_init';
+# Waiting for clone to reach 'file copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file';
+# Wait finished
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) PARTITION BY KEY(col1) PARTITIONS 5;
+INSERT INTO t1 SELECT * FROM t;
+# Flush all dirty pages to track
+SET GLOBAL innodb_buf_flush_list_now = 1;
+DROP TABLE t1  ;
+SET DEBUG_SYNC = 'now SIGNAL resume_file';
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file_ack';
+SET DEBUG_SYNC = 'now SIGNAL resume_file_ack';
+# Waiting for clone to reach DDL metadata for 'file copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_file_meta';
+# Wait finished
+CREATE TABLE t11 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) PARTITION BY KEY(col1) PARTITIONS 5;
+INSERT INTO t11 SELECT * FROM t;
+DROP TABLE t11  ;
+SET DEBUG_SYNC = 'now SIGNAL resume_file_meta';
+# Waiting for clone to reach 'page copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_page';
+# Wait finished
+CREATE TABLE t2 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) PARTITION BY KEY(col1) PARTITIONS 5;
+INSERT INTO t2 SELECT * FROM t;
+DROP TABLE t2  ;
+SET DEBUG_SYNC = 'now SIGNAL resume_page';
+# Waiting for clone to reach DDL metadata for 'page copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_page_meta';
+# Wait finished
+CREATE TABLE t21 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) PARTITION BY KEY(col1) PARTITIONS 5;
+INSERT INTO t21 SELECT * FROM t;
+DROP TABLE t21  ;
+SET DEBUG_SYNC = 'now SIGNAL resume_page_meta';
+# Waiting for clone to reach 'redo copy'
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_redo';
+# Wait finished
+CREATE TABLE t3 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) PARTITION BY KEY(col1) PARTITIONS 5;
+DROP TABLE t3  ;
+SET DEBUG_SYNC = 'now SIGNAL resume_redo';
+# In connection DEFAULT
+# Waiting for clone to complete
+# Wait finished
+SET GLOBAL DEBUG = '-d,local_release_clone_file_pin';
+# Restart server on cloned data directory
+# restart: --datadir=CLONE_DATADIR
+# Check cloned data
+SHOW TABLES;
+Tables_in_test
+t
+# Restart server back on base data directory
+# restart:
+SET DEBUG_SYNC = 'RESET';
+# Cleanup
+DROP TABLE t;
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t2 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE execute_dml;
+# Uninstall clone
+UNINSTALL PLUGIN clone;

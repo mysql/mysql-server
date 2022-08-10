@@ -27,12 +27,20 @@
 SET SESSION sql_log_bin=0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
 SET SESSION sql_log_bin=1;
 
 SET @tls_version_saved= @@GLOBAL.tls_version;
 SET GLOBAL tls_version='TLSv1.3';
 SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
 SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+SET @group_replication_recovery_tls_ciphersuites_saved= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
+SET GLOBAL group_replication_recovery_tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+
+SET @conf_rec_ssl_mode= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+
 ALTER INSTANCE RELOAD TLS;
 
 --echo #
@@ -51,11 +59,22 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET SESSION sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin=1;
+
 # Configure TLS on the server to allow GCS connections over TLS
 SET @tls_version_saved= @@GLOBAL.tls_version;
 SET GLOBAL tls_version='TLSv1.3';
 SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
 SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+
+SET @conf_rec_ssl_mode= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+
 ALTER INSTANCE RELOAD TLS;
 
 --disable_warnings
@@ -92,6 +111,11 @@ SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @group_replication_rec
 --source include/rpl_connection.inc
 SET @@GLOBAL.tls_version= @tls_version_saved;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @group_replication_recovery_tls_ciphersuites_saved;
+
+SET @@GLOBAL.group_replication_ssl_mode= @conf_rec_ssl_mode;
+ALTER INSTANCE RELOAD TLS;
+
 ALTER INSTANCE RELOAD TLS;
 
 SET SESSION sql_log_bin=0;
@@ -99,5 +123,15 @@ DROP USER 'rec_ssl_user';
 SET SESSION sql_log_bin=1;
 
 DROP TABLE t1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+SET SESSION sql_log_bin=1;
+
+SET @@GLOBAL.group_replication_ssl_mode= @conf_rec_ssl_mode;
+ALTER INSTANCE RELOAD TLS;
 
 --source include/group_replication_end.inc

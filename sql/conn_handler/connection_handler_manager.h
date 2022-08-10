@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ struct mysql_mutex_t;
 
 /**
   Functions to notify interested connection handlers
-  of events like begining of wait and end of wait and post-kill
+  of events like beginning of wait and end of wait and post-kill
   notification events.
 */
 struct THD_event_functions {

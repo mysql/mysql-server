@@ -20,7 +20,7 @@ SET @save_debug = @@GLOBAL.debug;
 
 # make the following transactions to have a common commit parent
 # so be parallelizable on slave.
-SET GLOBAL debug = "d,set_commit_parent_100";
+SET GLOBAL debug = "+d,set_commit_parent_100";
 
 INSERT INTO t2 VALUES(99); # just a warmup load
 BEGIN;
@@ -39,13 +39,13 @@ SET GLOBAL debug = @save_debug;
 --source include/save_master_pos.inc
 
 --source include/rpl_connection_slave.inc
-SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
-SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
-SET @save_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 
-SET GLOBAL slave_parallel_type = LOGICAL_CLOCK;
-SET GLOBAL slave_parallel_workers = 2;
-SET GLOBAL slave_transaction_retries = 0;
+SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+SET GLOBAL replica_parallel_workers = 2;
+SET GLOBAL replica_transaction_retries = 0;
 
 # Inserts an offending row into slave's db. A worker will fail with
 # the duplicate key error when applying master's transaction.
@@ -71,7 +71,7 @@ LOCK TABLE t1 WRITE;
 # Wait unti coordinator enters the wait status.
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= = 'Waiting for slave workers to process their queues'
+--let $condition= = 'Waiting for replica workers to process their queues'
 --source include/wait_show_condition.inc
 
 # Release metadata lock on t1, so workers can go ahead.
@@ -83,9 +83,11 @@ UNLOCK TABLES;
 --let $slave_sql_errno=1062,3030
 --source include/wait_for_slave_sql_to_stop.inc
 
-SET GLOBAL slave_parallel_workers = @save_slave_parallel_workers;
-SET GLOBAL slave_parallel_type = @save_slave_parallel_type;
-SET GLOBAL slave_transaction_retries = @save_slave_transaction_retries;
+--disable_warnings
+SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_parallel_type = @save_replica_parallel_type;
+SET GLOBAL replica_transaction_retries = @save_replica_transaction_retries;
 # Remove the duplicate key from slave's db.
 TRUNCATE t1;
 --source include/start_slave_sql.inc

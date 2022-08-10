@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -141,15 +142,20 @@ class HARNESS_EXPORT CmdArgHandler {
   /** @brief Constructor
    *
    * @param allow_rest_arguments_ whether we allow rest arguments or not
+   * @param ignore_unknown_arguments_ whether we ignore unknown arguments or
+   * give an error
    */
-  explicit CmdArgHandler(bool allow_rest_arguments_)
-      : allow_rest_arguments(allow_rest_arguments_) {}
+  explicit CmdArgHandler(bool allow_rest_arguments_,
+                         bool ignore_unknown_arguments_ = false)
+      : allow_rest_arguments(allow_rest_arguments_),
+        ignore_unknown_arguments(ignore_unknown_arguments_) {}
 
   /** @brief Default constructor
    *
-   * By default, rest arguments are not allowed.
+   * By default, rest arguments are not allowed and unknown arguments are not
+   * ignored.
    */
-  CmdArgHandler() : CmdArgHandler(false) {}
+  CmdArgHandler() : CmdArgHandler(false, false) {}
 
   /** @brief Adds a command line option
    *
@@ -410,11 +416,25 @@ class HARNESS_EXPORT CmdArgHandler {
   /** @brief Whether to allow rest arguments or not **/
   bool allow_rest_arguments;
 
+  /** @brief Whether to ignore unknown arguments **/
+  bool ignore_unknown_arguments;
+
+  /** @brief The key is a section identificator (section name and optional
+   * section key), the value is a map of all the overrides for a given section
+   * (option/value pairs) **/
+  using ConfigOverwrites = std::map<std::pair<std::string, std::string>,
+                                    std::map<std::string, std::string>>;
+  const ConfigOverwrites &get_config_overwrites() const noexcept {
+    return config_overwrites_;
+  }
+
  private:
   /** @brief Vector with registered options **/
   std::vector<CmdOption> options_;
   /** @brief Vector with arguments as strings not processed as options **/
   std::vector<std::string> rest_arguments_;
+  /** @brief Keeps configuration options overwrites **/
+  ConfigOverwrites config_overwrites_;
 };
 
 #endif  // HARNESS_ARG_HANDLER_INCLUDED

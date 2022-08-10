@@ -1,0 +1,210 @@
+# Scenario 1 : Rename a column
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT AS (c1 + 10) VIRTUAL);
+INSERT INTO t1(c1, c2) VALUES (1,11);
+INSERT INTO t1(c1, c2) VALUES (2,22);
+INSERT INTO t1(c1, c2) VALUES (3,33);
+INSERT INTO t1(c1, c2) VALUES (4,44);
+INSERT INTO t1(c1, c2) VALUES (5,55);
+SELECT * FROM t1;
+c1	c2	c3
+1	11	11
+2	22	12
+3	33	13
+4	44	14
+5	55	15
+ALTER TABLE t1 RENAME COLUMN c2 TO c22, ALGORITHM=INSTANT;
+SELECT * FROM t1;
+c1	c22	c3
+1	11	11
+2	22	12
+3	33	13
+4	44	14
+5	55	15
+CREATE TABLE tpart (c1 INT, c2 INT, c3 INT AS (c1 + 10) VIRTUAL)
+PARTITION BY RANGE (c1) (
+PARTITION tpart1 VALUES LESS THAN (10),
+PARTITION tpart2 VALUES LESS THAN (100));
+ALTER TABLE tpart RENAME COLUMN c1 TO c22, ALGORITHM=INSTANT;
+ERROR HY000: Column 'c1' has a generated column dependency.
+ALTER TABLE tpart RENAME COLUMN c2 TO c22, ALGORITHM=INSTANT;
+# Scenario 2 : Rename an INSTANT ADD column
+ALTER TABLE t1 ADD COLUMN c4 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 RENAME COLUMN c4 to c44, ALGORITHM=INSTANT;
+SELECT * FROM t1;
+c1	c22	c3	c44
+1	11	11	NULL
+2	22	12	NULL
+3	33	13	NULL
+4	44	14	NULL
+5	55	15	NULL
+ALTER TABLE tpart ADD COLUMN c4 INT, ALGORITHM=INSTANT;
+ALTER TABLE tpart RENAME COLUMN c4 TO c44, ALGORITHM=INSTANT;
+SELECT * FROM tpart;
+c1	c22	c3	c44
+# Scenario 3 : Rename a VIRTUAL column
+ALTER TABLE t1 CHANGE c3 c33 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL, algorithm=instant;
+SELECT * FROM t1;
+c1	c22	c33	c44
+1	11	11	NULL
+2	22	12	NULL
+3	33	13	NULL
+4	44	14	NULL
+5	55	15	NULL
+ALTER TABLE tpart CHANGE c3 c33 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL, ALGORITHM=INSTANT;
+SELECT * FROM tpart;
+c1	c22	c33	c44
+# Scenario 4 : Rename an INSTANT ADD VIRTUAL column
+ALTER TABLE t1 add COLUMN (c5 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL), ALGORITHM=INSTANT;
+SELECT * FROM t1;
+c1	c22	c33	c44	c5
+1	11	11	NULL	11
+2	22	12	NULL	12
+3	33	13	NULL	13
+4	44	14	NULL	14
+5	55	15	NULL	15
+ALTER TABLE t1 change c5 c55 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL, algorithm=instant;
+SELECT * FROM t1;
+c1	c22	c33	c44	c55
+1	11	11	NULL	11
+2	22	12	NULL	12
+3	33	13	NULL	13
+4	44	14	NULL	14
+5	55	15	NULL	15
+ALTER TABLE tpart ADD COLUMN (c5 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL), ALGORITHM=INSTANT;
+SELECT * FROM tpart;
+c1	c22	c33	c44	c5
+ALTER TABLE tpart CHANGE c5 c55 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL, ALGORITHM=INSTANT;
+SELECT * FROM tpart;
+c1	c22	c33	c44	c55
+DROP TABLE t1;
+DROP TABLE tpart;
+# Scenario 5 : Try to rename a column which is referenced in other table
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT,  INDEX(c2));
+CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT,
+CONSTRAINT t1c1 FOREIGN KEY (c2) REFERENCES t1(c2));
+ALTER TABLE t1 CHANGE c2 c22 INT, algorithm=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
+DROP TABLE t1c;
+DROP TABLE t1;
+# Scenario 6: Try to change the column name in a table with discarded tablespace
+CREATE TABLE t1 (c1 int, c2 INT as (c1+1) VIRTUAL);
+SELECT TABLE_ID INTO @old_tid FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t1%";
+ALTER TABLE t1 DISCARD TABLESPACE;
+SELECT TABLE_ID INTO @new_tid FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t1%";
+SELECT (@old_tid != @new_tid) as Table_Id_Changed;
+Table_Id_Changed
+1
+ALTER TABLE t1 RENAME COLUMN c2 to c3, algorithm=instant;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+ALTER TABLE t1 RENAME COLUMN c3 to c2, algorithm=instant;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Drop TABLE t1;
+CREATE TABLE tpart (c1 INT, c2 INT AS (c1 + 1) VIRTUAL)
+PARTITION BY RANGE(c1) (
+PARTITION p1 VALUES LESS THAN (10),
+PARTITION p2 VALUES LESS THAN (100));
+SELECT max(TABLE_ID) INTO @old_tpid FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%tpart%";
+ALTER TABLE tpart DISCARD TABLESPACE;
+SELECT max(TABLE_ID) INTO @new_tpid FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%tpart%";
+SELECT (@old_tpid != @new_tpid) AS Table_Id_Changed;
+Table_Id_Changed
+1
+ALTER TABLE tpart RENAME COLUMN c2 TO c3, ALGORITHM=INSTANT;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
+Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
+ALTER TABLE tpart RENAME COLUMN c3 TO c2, ALGORITHM=INSTANT;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
+Warning	1814	InnoDB: Tablespace has been discarded for table 'tpart'
+DROP TABLE tpart;
+# Scenario 7: Try to rename a column to an internal column name
+CREATE TABLE t1 (c1 INT, c2 INT);
+ALTER TABLE t1 RENAME COLUMN c1 TO DB_ROW_ID;
+ERROR 42000: Incorrect column name 'DB_ROW_ID'
+ALTER TABLE t1 RENAME COLUMN c1 TO DB_TRX_ID;
+ERROR 42000: Incorrect column name 'DB_TRX_ID'
+ALTER TABLE t1 RENAME COLUMN c1 TO DB_ROLL_PTR;
+ERROR 42000: Incorrect column name 'DB_ROLL_PTR'
+DROP TABLE t1;
+# Scenario 8: Rename SET and ENUM type columns
+CREATE TABLE tenum (c1 INT, c2 ENUM('a','b'));
+INSERT INTO tenum VALUES (1, 'a');
+ALTER TABLE tenum RENAME COLUMN c2 TO c22, ALGORITHM=INSTANT;
+ALTER TABLE tenum CHANGE c22 c2 ENUM ('a','b','c'), ALGORITHM=INSTANT;
+ALTER TABLE tenum CHANGE c2 c22 ENUM ('a','b'), ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
+DROP TABLE tenum;
+CREATE TABLE tset (c1 INT, c2 SET('a','b'));
+INSERT INTO tset VALUES (1, 'a');
+ALTER TABLE tset RENAME COLUMN c2 TO c22, ALGORITHM=INSTANT;
+ALTER TABLE tset CHANGE c22 c2 SET ('a','b','c'), ALGORITHM=INSTANT;
+ALTER TABLE tset CHANGE c2 c22 SET ('a','b'), ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
+DROP TABLE tset;
+# Scenario 9: CHANGE column cannot use INSTANT algorithm if
+# it involves definition change
+CREATE TABLE tchange (c1 INT, c2 INT);
+ALTER TABLE tchange CHANGE c2 c2 DOUBLE, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE tchange CHANGE c2 c2 DOUBLE, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ALTER TABLE tchange CHANGE c2 c22 DOUBLE, ALGORITHM=COPY;
+SHOW CREATE TABLE tchange;
+Table	Create Table
+tchange	CREATE TABLE `tchange` (
+  `c1` int DEFAULT NULL,
+  `c22` double DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE tchange CHANGE c22 c2 DOUBLE, ALGORITHM=INSTANT;
+SHOW CREATE TABLE tchange;
+Table	Create Table
+tchange	CREATE TABLE `tchange` (
+  `c1` int DEFAULT NULL,
+  `c2` double DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tchange;
+# Scenario 10: INSTANT RENAME WITH INSTANT ADD
+Create table t1 (c1 int KEY, c2 int, c3 int, c4 int);
+desc t1;
+Field	Type	Null	Key	Default	Extra
+c1	int	NO	PRI	NULL	
+c2	int	YES		NULL	
+c3	int	YES		NULL	
+c4	int	YES		NULL	
+alter table t1 add column c5 int , rename column c2 to c22, algorithm=instant;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+c1	int	NO	PRI	NULL	
+c22	int	YES		NULL	
+c3	int	YES		NULL	
+c4	int	YES		NULL	
+c5	int	YES		NULL	
+alter table t1 add column v1 int as (c1+1), add column v2 int as (c1+2) virtual, rename column c3 to c33, algorithm=instant;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY/INPLACE.
+alter table t1 add column v1 int as (c1+1), add column v2 int as (c1+2) virtual, algorithm=instant;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+c1	int	NO	PRI	NULL	
+c22	int	YES		NULL	
+c3	int	YES		NULL	
+c4	int	YES		NULL	
+c5	int	YES		NULL	
+v1	int	YES		NULL	VIRTUAL GENERATED
+v2	int	YES		NULL	VIRTUAL GENERATED
+alter table t1 drop column v1, algorithm=instant;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+alter table t1 drop column v2, algorithm=instant;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+c1	int	NO	PRI	NULL	
+c22	int	YES		NULL	
+c3	int	YES		NULL	
+c4	int	YES		NULL	
+c5	int	YES		NULL	
+v1	int	YES		NULL	VIRTUAL GENERATED
+alter table t1 drop column v1, rename column c22 to c222, algorithm=instant;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY/INPLACE.
+DROP TABLE t1;

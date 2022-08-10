@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,12 +43,12 @@
 #include "my_psi_config.h"
 #include "my_thread.h"
 #include "my_thread_local.h"  // my_get_thread_local & my_set_thread_local
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_rwlock_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
+#include "mysql/components/services/bits/psi_rwlock_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/mysql_rwlock_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
@@ -271,7 +271,7 @@ class Mutexed_map_thd_srv_session {
  public:
   class Do_Impl {
    public:
-    virtual ~Do_Impl() {}
+    virtual ~Do_Impl() = default;
     /**
       Work on the session
 
@@ -915,7 +915,7 @@ bool Srv_session::attach() {
   if (first_attach) {
     /*
       At first attach the security context should have been already set and
-      and this will report corect information.
+      and this will report correct information.
     */
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(notify_session_connect)(thd.get_psi());
@@ -1113,6 +1113,15 @@ int Srv_session::execute_command(enum enum_server_command command,
   */
   if (command != COM_QUERY) thd.reset_for_next_command();
 
+  /* For per-query performance counters with log_slow_statement */
+  struct System_status_var query_start_status;
+  thd.clear_copy_status_var();
+  if (opt_log_slow_extra) {
+    thd.copy_status_var(&query_start_status);
+  }
+
+  mysql_thread_set_secondary_engine(false);
+
   assert(thd.m_statement_psi == nullptr);
   thd.m_statement_psi = MYSQL_START_STATEMENT(
       &thd.m_statement_state, stmt_info_new_packet.m_key, thd.db().str,
@@ -1144,48 +1153,6 @@ bool Srv_session::set_connection_type(enum_vio_type v_type) {
 }
 
 /**
-  Template class for scanning the thd list in the Global_THD_manager and
-  modifying and element from the list. This template is for functions that
-  need to change data of a THD without getting into races.
-
-  If the THD is found, a callback is executed under THD::Lock_thd_data.
-  A pointer to a member variable is passed as a second parameter to the
-  callback. The callback should store its result there.
-
-  After the search has been completed the result value can be obtained by
-  calling get_result().
-*/
-template <typename INPUT_TYPE>
-class Find_thd_by_id_with_callback_set : public Find_THD_Impl {
- public:
-  typedef void (*callback_t)(THD *thd, INPUT_TYPE *result);
-
-  Find_thd_by_id_with_callback_set(my_thread_id t_id, callback_t cb,
-                                   INPUT_TYPE in)
-      : thread_id(t_id), callback(cb), input(in) {}
-
-  /**
-    Callback called for every THD in the thd_list.
-
-    When a thread is found the callback function passed to the constructor
-    is invoked under THD::Lock_thd_data
-  */
-  bool operator()(THD *thd) override {
-    if (thd->thread_id() == thread_id) {
-      MUTEX_LOCK(lock, &thd->LOCK_thd_data);
-      callback(thd, &input);
-      return true;
-    }
-    return false;
-  }
-
- private:
-  my_thread_id thread_id;
-  callback_t callback;
-  INPUT_TYPE input;
-};
-
-/**
   Callback for inspecting a THD object and modifying the peer_port member
 */
 static void set_client_port_in_thd(THD *thd, uint16_t *input) {
@@ -1201,9 +1168,10 @@ static void set_client_port_in_thd(THD *thd, uint16_t *input) {
   @param port  Port number
 */
 void Srv_session::set_client_port(uint16_t port) {
-  Find_thd_by_id_with_callback_set<uint16_t> find_thd_with_id(
-      thd.thread_id(), set_client_port_in_thd, port);
-  Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  Find_thd_with_id find_thd_with_id(thd.thread_id());
+  THD_ptr thd_ptr =
+      Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  if (thd_ptr) set_client_port_in_thd(thd_ptr.get(), &port);
 }
 
 /**

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ struct CreateFKReq
    */
   friend bool printCREATE_FK_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 10 );
+  static constexpr Uint32 SignalLength = 10;
 
   union {
     Uint32 senderData;
@@ -76,7 +76,7 @@ struct CreateFKRef
    */
   friend bool printCREATE_FK_REF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   enum ErrorCode {
     NoError = 0,
@@ -124,7 +124,7 @@ struct CreateFKConf
    */
   friend bool printCREATE_FK_CONF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderData;
   Uint32 senderRef;

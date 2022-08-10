@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -189,10 +189,9 @@ int table_file_instances::make_row(PFS_file *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  m_row.m_filename = pfs->m_filename;
-  m_row.m_filename_length = pfs->m_filename_length;
-  m_row.m_event_name = safe_class->m_name;
-  m_row.m_event_name_length = safe_class->m_name_length;
+  m_row.m_file_name = pfs->m_file_name;
+  m_row.m_event_name = safe_class->m_name.str();
+  m_row.m_event_name_length = safe_class->m_name.length();
   m_row.m_open_count = pfs->m_file_stat.m_open_count;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
@@ -213,7 +212,8 @@ int table_file_instances::read_row_values(TABLE *table, unsigned char *,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* FILENAME */
-          set_field_varchar_utf8(f, m_row.m_filename, m_row.m_filename_length);
+          set_field_varchar_utf8(f, m_row.m_file_name.ptr(),
+                                 m_row.m_file_name.length());
           break;
         case 1: /* EVENT_NAME */
           set_field_varchar_utf8(f, m_row.m_event_name,

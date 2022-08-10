@@ -98,8 +98,8 @@ SELECT COUNT(@@GLOBAL.innodb_temp_data_file_path);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_temp_data_file_path = @@SESSION.innodb_temp_data_file_path;
---echo Expected error 'Readonly variable'
+SELECT innodb_temp_data_file_path;
+--echo Expected error 'Unknown column'
 
 
 --echo #

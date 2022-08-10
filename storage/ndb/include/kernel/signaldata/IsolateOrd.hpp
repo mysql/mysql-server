@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,8 @@ class IsolateOrd
   friend bool printISOLATE_ORD(FILE *, const Uint32*, Uint32, Uint16);
 
 private:
-  STATIC_CONST(SignalLengthWithBitmask48 = 3 + NdbNodeBitmask48::Size);
-  STATIC_CONST(SignalLength = 3);
+  static constexpr Uint32 SignalLengthWithBitmask48 = 3 + NdbNodeBitmask48::Size;
+  static constexpr Uint32 SignalLength = 3;
 
   enum IsolateStep 
   {

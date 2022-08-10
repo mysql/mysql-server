@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,9 @@ const char *clone_plugin_name = "clone";
 /** Clone system variable: buffer size for data transfer */
 uint clone_buffer_size;
 
+/** Clone system variable: If clone should block concurrent DDL */
+bool clone_block_ddl;
+
 /** Clone system variable: timeout for DDL lock */
 uint clone_ddl_timeout;
 
@@ -79,6 +82,9 @@ static char *clone_ssl_ca;
 /** Clone system variable: timeout for clone restart after n/w failure */
 uint clone_restart_timeout;
 
+/** Clone system variable: time delay after removing data */
+uint clone_delay_after_data_drop;
+
 /** Key for registering clone allocations with performance schema */
 PSI_memory_key clone_mem_key;
 
@@ -105,8 +111,9 @@ static PSI_memory_info clone_memory[] = {
 
 /** Clone thread key for performance schema */
 static PSI_thread_info clone_threads[] = {
-    {&clone_local_thd_key, "local-task", 0, 0, PSI_DOCUMENT_ME},
-    {&clone_client_thd_key, "client-task", 0, 0, PSI_DOCUMENT_ME}};
+    {&clone_local_thd_key, "local-task", "clone_local", 0, 0, PSI_DOCUMENT_ME},
+    {&clone_client_thd_key, "client-task", "clone_client", 0, 0,
+     PSI_DOCUMENT_ME}};
 
 static PSI_statement_info clone_stmts[] = {{0, "local", 0, PSI_DOCUMENT_ME},
                                            {0, "client", 0, PSI_DOCUMENT_ME},
@@ -288,8 +295,7 @@ static int match_valid_donor_address(MYSQL_THD thd, const char *host,
 @param[out]	save	possibly updated variable value
 @param[in]	value	current variable value
 @return error code */
-static int check_donor_addr_format(MYSQL_THD thd,
-                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
+static int check_donor_addr_format(MYSQL_THD thd, SYS_VAR *var [[maybe_unused]],
                                    void *save, struct st_mysql_value *value) {
   char temp_buffer[STRING_BUFFER_USUAL_SIZE];
   auto buf_len = static_cast<int>(sizeof(temp_buffer));
@@ -325,10 +331,17 @@ static int check_donor_addr_format(MYSQL_THD thd,
   return (0);
 }
 
+/** Check if it is safe to uninstall plugin.
+@param[in]	plugin_info	server plugin handle
+@return error code */
+static int plugin_clone_check(MYSQL_PLUGIN plugin_info) {
+  return clone_handle_check_drop(plugin_info);
+}
+
 /** Initialize clone plugin
 @param[in]	plugin_info	server plugin handle
 @return error code */
-static int plugin_clone_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+static int plugin_clone_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   /* Acquire registry and log service handles. */
   if (init_logging_service_for_plugin(&mysql_service_registry, &log_bi,
                                       &log_bs)) {
@@ -397,8 +410,7 @@ static int plugin_clone_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
 /** Uninitialize clone plugin
 @param[in]	plugin_info	server plugin handle
 @return error code */
-static int plugin_clone_deinit(
-    MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+static int plugin_clone_deinit(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   /* If service registry is uninitialized, return. */
   if (mysql_service_registry == nullptr) {
     return (0);
@@ -509,13 +521,19 @@ static MYSQL_SYSVAR_UINT(buffer_size, clone_buffer_size, PLUGIN_VAR_RQCMDARG,
                          CLONE_MIN_BLOCK * 256,        /* Maximum = 256M */
                          CLONE_MIN_BLOCK);             /* Block   =   1M */
 
-/** Time in seconds to wait for DDL lock */
+/** If clone should block concurrent DDL */
+static MYSQL_SYSVAR_BOOL(block_ddl, clone_block_ddl, PLUGIN_VAR_NOCMDARG,
+                         "If clone should block concurrent DDL", nullptr,
+                         nullptr, false); /* Allow concurrent ddl by default */
+
+/** Time in seconds to wait for DDL lock. Relevant for donor only when
+clone_block_ddl is set to true. */
 static MYSQL_SYSVAR_UINT(ddl_timeout, clone_ddl_timeout, PLUGIN_VAR_RQCMDARG,
                          "Time in seconds to wait for DDL lock", nullptr,
-                         nullptr, 60 * 5,   /* Default =   5 min */
-                         0,                 /* Minimum =   0 skip lock */
-                         60 * 60 * 24 * 30, /* Maximum =   1 month */
-                         1);                /* Step    =   1 sec */
+                         nullptr, 60 * 5,   /* Default =  5 min */
+                         0,                 /* Minimum =  0 no wait */
+                         60 * 60 * 24 * 30, /* Maximum =  1 month */
+                         1);                /* Step    =  1 sec */
 
 /** If concurrency is automatically tuned */
 static MYSQL_SYSVAR_BOOL(autotune_concurrency, clone_autotune_concurrency,
@@ -596,9 +614,24 @@ static MYSQL_SYSVAR_UINT(donor_timeout_after_network_failure,
                          30,                  /* Maximum =  30 min */
                          1);                  /* Step    =   1 min */
 
+/* Time in seconds to wait after data drop.
+In VxFS file system, it was found that the disk space is released
+asynchronously after data files are successfully removed. Since it
+is FS specific behavior and we could not find any generic way to wait
+till the space is completely released, therefore this configuration
+is introduced.*/
+static MYSQL_SYSVAR_UINT(delay_after_data_drop, clone_delay_after_data_drop,
+                         PLUGIN_VAR_RQCMDARG,
+                         "Time in seconds to wait after removing data.",
+                         nullptr, nullptr, 0, /* Default =  0 no wait */
+                         0,                   /* Minimum =  0 no wait */
+                         60 * 60,             /* Maximum =  1 hour */
+                         1);                  /* Step    =  1 sec */
+
 /** Clone system variables */
 static SYS_VAR *clone_system_variables[] = {
     MYSQL_SYSVAR(buffer_size),
+    MYSQL_SYSVAR(block_ddl),
     MYSQL_SYSVAR(ddl_timeout),
     MYSQL_SYSVAR(max_concurrency),
     MYSQL_SYSVAR(max_network_bandwidth),
@@ -610,6 +643,7 @@ static SYS_VAR *clone_system_variables[] = {
     MYSQL_SYSVAR(ssl_cert),
     MYSQL_SYSVAR(ssl_ca),
     MYSQL_SYSVAR(donor_timeout_after_network_failure),
+    MYSQL_SYSVAR(delay_after_data_drop),
     nullptr};
 
 /** Declare clone plugin */
@@ -624,7 +658,7 @@ mysql_declare_plugin(clone_plugin){
     PLUGIN_LICENSE_GPL,
 
     plugin_clone_init,   /* Plugin Init */
-    nullptr,             /* Plugin check uninstall */
+    plugin_clone_check,  /* Plugin check uninstall */
     plugin_clone_deinit, /* Plugin Deinit */
 
     CLONE_PLUGIN_VERSION,   /* Plugin Version */

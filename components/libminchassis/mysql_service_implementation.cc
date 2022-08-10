@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -45,12 +45,9 @@ mysql_service_implementation::mysql_service_implementation(
 }
 
 mysql_service_implementation::mysql_service_implementation(
-    mysql_service_implementation &other)
-    : my_ref_counted(other),
-      my_metadata(other),
-      m_interface(other.m_interface),
-      m_service(other.m_service),
-      m_full_name(other.m_full_name) {}
+    mysql_service_implementation &)
+
+    = default;
 
 /**
   Gets service name that is implemented by this service implementation.

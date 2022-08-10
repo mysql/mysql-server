@@ -89,23 +89,21 @@
 # WL#9556: Writeset-based MTS dependency tracking on master
 
 --source include/have_binlog_format_row.inc
+--source include/have_transaction_write_set_extraction.inc
 --source include/master-slave.inc
 
 --echo #### INITIALIZE ####
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
-SET @save_slave_parallel_workers= @@GLOBAL.slave_parallel_workers;
-SET @@GLOBAL.slave_parallel_workers= 4;
+SET @save_replica_parallel_workers= @@GLOBAL.replica_parallel_workers;
+SET @@GLOBAL.replica_parallel_workers= 4;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
 
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET GLOBAL transaction_write_set_extraction = XXHASH64;
-SET SESSION transaction_write_set_extraction = XXHASH64;
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 
 # Tell assert_logical_timestamps to save the current position so that
@@ -308,10 +306,11 @@ while ($explicit_pk < 2)
 --echo #### CLEAN UP ####
 # Value of TWSE cannot be changed when binlog_transaction_dependency_tracking!= COMMIT_ORDER
 SET @@GLOBAL.binlog_transaction_dependency_tracking= COMMIT_ORDER;
-SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 
 --source include/sync_slave_sql_with_master.inc
-SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
+--disable_warnings
+SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
 
 --source include/rpl_end.inc

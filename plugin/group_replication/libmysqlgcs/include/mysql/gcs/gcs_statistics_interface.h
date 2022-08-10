@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ class Gcs_statistics_interface {
 
   virtual long get_last_message_timestamp() = 0;
 
-  virtual ~Gcs_statistics_interface() {}
+  virtual ~Gcs_statistics_interface() = default;
 };
 
 #endif  // GCS_STATISTICS_INTERFACE_INCLUDED

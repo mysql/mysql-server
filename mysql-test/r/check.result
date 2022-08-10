@@ -84,3 +84,17 @@ CHECK TABLE tt1 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
 test.tt1	check	status	OK
 DROP TABLE tt1;
+#
+# Bug#33777821 Memory leak when checking a view of a view
+#
+CREATE VIEW w AS SELECT 1 AS a;
+CREATE VIEW v AS SELECT a FROM w;
+CHECK TABLE v;
+Table	Op	Msg_type	Msg_text
+test.v	check	status	OK
+CREATE VIEW u AS SELECT * FROM v;
+CHECK TABLE u;
+Table	Op	Msg_type	Msg_text
+test.u	check	status	OK
+DROP VIEW u, v, w;
+# end Bug#33777821

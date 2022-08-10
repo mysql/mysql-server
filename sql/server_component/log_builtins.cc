@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -63,10 +63,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_sys.h"
 
 #include "my_time.h"  // str_to_datetime()
-
-extern CHARSET_INFO my_charset_utf16le_bin;  // used in Windows EventLog
-static HANDLE hEventLog = NULL;              // global
-#define MSG_DEFAULT 0xC0000064L
 #endif
 
 PSI_memory_key key_memory_log_error_loaded_services;
@@ -74,6 +70,52 @@ PSI_memory_key key_memory_log_error_stack;
 
 using std::string;
 using std::unique_ptr;
+
+/**
+  Initial log-processor:
+  Just buffer events until we have external log-components.
+
+  @param  ll    the log-event to buffer
+  @retval true  log_sink_buffer() failed
+  @retval false log_sink_buffer() succeeded
+*/
+bool log_line_buffer_event(log_line *ll) {
+  return (log_sink_buffer(nullptr, ll) < 0);
+}
+
+/**
+  The function pointed to by this hook is run when a log-event is submitted.
+  By default (until any sinks are set), we just buffer incoming events.
+*/
+log_line_processor log_line_process_hook = log_line_buffer_event;
+
+/**
+  Set the log-event processor.
+
+  When a log-event is submitted, a function is applied to that event.
+  That function usually either buffers the event for later processing,
+  or filters and logs the event.
+  That function can be set here.
+
+  @param llp   A log-processor
+*/
+void log_line_process_hook_set(log_line_processor llp) {
+  log_line_process_hook = llp;
+}
+
+/**
+  Get current log-event processor.
+
+  When a log-event is submitted, a function is applied to that event.
+  That function usually either buffers the event for later processing,
+  or filters and logs the event.
+  log_line_process_hook_get() returns a pointer to that function.
+
+  @retval      a pointer to a log-event processing function
+*/
+log_line_processor log_line_process_hook_get(void) {
+  return log_line_process_hook;
+}
 
 struct log_service_cache_entry;
 
@@ -124,6 +166,17 @@ bool log_builtins_inited = false;
 #define LOG_SERVICES_PREFIX "log_service"
 
 /**
+  URN-prefix used to load a log-component.
+
+  When log-components passed to log_builtins_error_stack() are neither
+  built-in nor have they been loaded already, this prefix will be
+  prepended to their name to look them up using the component framework.
+  Thus, "log_sink_json" will be looked up as "file://component_log_sink_json"
+  and so on.
+*/
+#define LOG_SERVICES_URN "file://component_"
+
+/**
   Chain of log-service instances.
  (Each service can have no/one/several instances.)
 */
@@ -148,8 +201,7 @@ struct log_errstream {
 };
 
 /// What mode is error-logging in (e.g. are loadable services available yet)?
-static enum log_error_stage log_error_stage_current =
-    LOG_ERROR_STAGE_BUFFERING_EARLY;
+static enum log_error_stage log_error_stage_current = LOG_ERROR_STAGE_BUFFERING;
 
 /// Set error-logging stage hint (e.g. are loadable services available yet?).
 void log_error_stage_set(enum log_error_stage les) {
@@ -187,11 +239,6 @@ static int log_service_check_if_builtin(const char *name, size_t len) {
       (0 == strncmp(name, LOG_BUILTINS_SINK, len)))
     return LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON |
            LOG_SERVICE_LOG_PARSER | LOG_SERVICE_PFS_SUPPORT;
-
-  if ((len == sizeof(LOG_BUILTINS_BUFFER) - 1) &&
-      (0 == strncmp(name, LOG_BUILTINS_BUFFER, len)))
-    return LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON |
-           LOG_SERVICE_BUFFER;
 
   return LOG_SERVICE_UNSPECIFIED;
 }
@@ -297,7 +344,7 @@ int log_string_compare(const char *a, const char *b, size_t len,
 }
 
 /*
-  log item helpers
+  Log-item helpers
 */
 
 /**
@@ -522,8 +569,8 @@ void log_item_free(log_item *li) {
 
 log_line *log_line_init() {
   log_line *ll;
-  if ((ll = (log_line *)my_malloc(key_memory_log_error_stack, sizeof(log_line),
-                                  MYF(0))) != nullptr)
+  if ((ll = static_cast<log_line *>(my_malloc(
+           key_memory_log_error_stack, sizeof(log_line), MYF(0)))) != nullptr)
     memset(ll, 0, sizeof(log_line));
   return ll;
 }
@@ -953,6 +1000,92 @@ enum loglevel log_prio_from_label(const char *label) {
 }
 
 /**
+  MySQL server's default log-processor.
+
+  Apply all components (filters, sinks, ...) in the log stack to a given event.
+
+  @param  ll    the log-event to process
+
+  @retval true  failure
+  @retval false success
+*/
+bool log_line_error_stack_run(log_line *ll) {
+  // Get S-lock.
+  mysql_rwlock_rdlock(&THR_LOCK_log_stack);
+
+  // set up output buffer
+  char capture_buffer[LOG_BUFF_MAX];
+
+  log_item_init(&ll->output_buffer);
+  // Set up a valid item. It's not needed here, but it's a good habit.
+  log_item_set_with_key(&ll->output_buffer, LOG_ITEM_GEN_BUFFER,
+                        "output_buffer", LOG_ITEM_FREE_NONE);
+  // Attach the output buffer to the item and set the item-class.
+  log_item_set_buffer(&ll->output_buffer.data, capture_buffer,
+                      sizeof(capture_buffer));
+
+  /*
+    Call all configured log-services (sources, filters, sinks)
+    on this log-event.
+
+    sources:
+    Add info from other log item sources,
+    e.g. that supplied by the client on connect using mysql_options4();
+
+    filters:
+    Remove or modify entries
+
+    sinks:
+    Write logs
+  */
+
+  log_service_cache_entry *sce;
+  log_service_instance *lsi = log_service_instances;
+
+  while ((lsi != nullptr) && ((sce = lsi->sce) != nullptr)) {
+    // make capture buffer valid if primary log-writer
+    ll->output_buffer.item_class =
+        (lsi == log_sink_pfs_source) ? LOG_BUFFER : LOG_UNTYPED;
+
+    // loadable services
+    if (!(sce->chistics & LOG_SERVICE_BUILTIN)) {
+      SERVICE_TYPE(log_service) * ls;
+
+      ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(sce->service);
+
+      if (ls != nullptr) ls->run(lsi->instance, ll);
+
+    }  // built-in filter
+    else if (log_service_has_characteristics(
+                 sce, (LOG_SERVICE_BUILTIN | LOG_SERVICE_FILTER)))
+      log_builtins_filter_run(log_filter_builtin_rules, ll);
+
+    // built-in sink
+    else if (log_service_has_characteristics(
+                 sce, (LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK)))
+      log_sink_trad(lsi->instance, ll);
+
+    lsi = lsi->next;
+  }
+
+  /*
+    If there is anything in the capture buffer, log it to
+    performance_schema.error_log.
+  */
+  if ((log_error_stage_get() == LOG_ERROR_STAGE_COMPONENTS_AND_PFS) &&
+      (ll->output_buffer.type == LOG_ITEM_RET_BUFFER) &&
+      (ll->output_buffer.data.data_buffer.length > 0))
+    log_sink_perfschema(nullptr, ll);
+
+  // release output buffer if changed by the service
+  log_item_free(&ll->output_buffer);
+
+  mysql_rwlock_unlock(&THR_LOCK_log_stack);
+
+  return false;
+}
+
+/**
   Complete, filter, and write submitted log items.
 
   This expects a log_line collection of log-related key/value pairs,
@@ -1160,86 +1293,9 @@ int log_line_submit(log_line *ll) {
       catastrophically wrong, so we'll make sure the information
       (e.g. cause of failure) isn't lost.
     */
-    if (!log_builtins_inited)
-      log_sink_buffer(nullptr, ll);
-
-    else {
-      mysql_rwlock_rdlock(&THR_LOCK_log_stack);
-
-      // set up output buffer
-      char capture_buffer[LOG_BUFF_MAX];
-
-      log_item_init(&ll->output_buffer);
-      // Set up a valid item. It's not needed here, but it's a good habit.
-      log_item_set_with_key(&ll->output_buffer, LOG_ITEM_GEN_BUFFER,
-                            "output_buffer", LOG_ITEM_FREE_NONE);
-      // Attach the output buffer to the item and set the item-class.
-      log_item_set_buffer(&ll->output_buffer.data, capture_buffer,
-                          sizeof(capture_buffer));
-
-      /*
-        Call all configured log-services (sources, filters, sinks)
-        on this log-event.
-
-        sources:
-        Add info from other log item sources,
-        e.g. that supplied by the client on connect using mysql_options4();
-
-        filters:
-        Remove or modify entries
-
-        sinks:
-        Write logs
-      */
-
-      log_service_cache_entry *sce;
-      log_service_instance *lsi = log_service_instances;
-
-      while ((lsi != nullptr) && ((sce = lsi->sce) != nullptr)) {
-        // make capture buffer valid if primary log-writer
-        ll->output_buffer.item_class =
-            (lsi == log_sink_pfs_source) ? LOG_BUFFER : LOG_UNTYPED;
-
-        // buffered logging trumps everything
-        if (sce->chistics & LOG_SERVICE_BUFFER)
-          log_sink_buffer(lsi->instance, ll);
-
-        // loadable services
-        else if (!(sce->chistics & LOG_SERVICE_BUILTIN)) {
-          SERVICE_TYPE(log_service) * ls;
-
-          ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(sce->service);
-
-          if (ls != nullptr) ls->run(lsi->instance, ll);
-
-        }  // built-in filter
-        else if (log_service_has_characteristics(
-                     sce, (LOG_SERVICE_BUILTIN | LOG_SERVICE_FILTER)))
-          log_builtins_filter_run(log_filter_builtin_rules, ll);
-
-        // built-in sink
-        else if (log_service_has_characteristics(
-                     sce, (LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK)))
-          log_sink_trad(lsi->instance, ll);
-
-        lsi = lsi->next;
-      }
-
-      /*
-        If there is anything in the capture buffer, log it to
-        performance_schema.error_log.
-      */
-      if ((log_error_stage_get() ==
-           LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE) &&
-          (ll->output_buffer.type == LOG_ITEM_RET_BUFFER) &&
-          (ll->output_buffer.data.data_buffer.length > 0))
-        log_sink_perfschema(nullptr, ll);
-
-      // release output buffer if changed by the service
-      log_item_free(&ll->output_buffer);
-
-      mysql_rwlock_unlock(&THR_LOCK_log_stack);
-    }
+    assert((log_builtins_inited == true) ||
+           (log_line_process_hook_get() == log_line_buffer_event));
+    log_line_process_hook(ll);
 
 #if !defined(NDEBUG)
     /*
@@ -1272,8 +1328,8 @@ int log_line_submit(log_line *ll) {
   Make and return an ISO 8601 / RFC 3339 compliant timestamp.
   Accepts the log_timestamps global variable in its third parameter.
 
-  @param buf       A buffer of at least 26 bytes to store the timestamp in
-                   (19 + tzinfo tail + \0)
+  @param buf       A buffer of at least iso8601_size bytes to store
+                   the timestamp in. The timestamp will be \0 terminated.
   @param utime     Microseconds since the epoch
   @param mode      if 0, use UTC; if 1, use local time
 
@@ -1329,6 +1385,7 @@ int make_iso8601_timestamp(char *buf, ulonglong utime,
     assert(false);
   }
 
+  // length depends on whether timezone is "Z" or "+12:34" style
   len = snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
                  my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday,
                  my_tm.tm_hour, my_tm.tm_min, my_tm.tm_sec,
@@ -1370,7 +1427,7 @@ ulonglong iso8601_timestamp_to_microseconds(const char *timestamp, size_t len) {
   @param[out]     e   end of the token
   @param[in,out]  d   delimiter (in: last used, \0 if none; out: detected here)
 
-  @retval         <0  an error occured
+  @retval         <0  an error occurred
   @retval        >=0  the length in bytes of the token
 */
 static ssize_t log_builtins_stack_get_service_from_var(const char **s,
@@ -1407,44 +1464,99 @@ done:
 /**
   Look up a log service by name (in the service registry).
 
-  @param        name    name of the component
-  @param        len     length of that name
+  @param       name   name of the component
+  @param       len    length of that name
+  @param[out]  urn    if the component was loaded implicitly,
+                      returns a pointer to a newly-allocated
+                      buffer containing the URN used
 
-  @retval               a handle to that service.
+  @retval             a handle to that service (or nullptr on failure)
 */
-static my_h_service log_service_get_by_name(const char *name, size_t len) {
-  char buf[128];
+static my_h_service log_service_get_by_name(const char *name, size_t len,
+                                            char **urn) {
+  char reg_buf[128];
   my_h_service service = nullptr;
   size_t needed;
+  bool load_attempted = false;
 
-  needed =
-      snprintf(buf, sizeof(buf), LOG_SERVICES_PREFIX ".%.*s", (int)len, name);
+  assert(urn != nullptr);
 
-  if (needed > sizeof(buf)) return service;
+  *urn = nullptr;
 
-  if ((!srv_registry->acquire(buf, &service)) && (service != nullptr)) {
-    SERVICE_TYPE(log_service) * ls;
+  // create component name with prefix (as used by the registry)
+  needed = snprintf(reg_buf, sizeof(reg_buf), LOG_SERVICES_PREFIX ".%.*s",
+                    (int)len, name);
 
-    if ((ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(service)) ==
-        nullptr) {
-      srv_registry->release(service);
-      service = nullptr;
+  // if the name is too long, bail
+  if (needed > sizeof(reg_buf)) return nullptr;
+
+log_service_look_up:
+
+  // Try to find component in registry (in case it's already been loaded).
+  if ((!srv_registry->acquire(reg_buf, &service)) && (service != nullptr)) {
+    // Look-up succeeded. Return service.
+    return service;
+  } else if (!load_attempted) {
+    /*
+      Look-up failed, so component's not present yet. Maybe, we can load it?
+    */
+
+    char urn_buf[128];
+
+    /*
+      Create component URN with protocol and prefix
+      (as used by the component-loader).
+    */
+    needed = snprintf(urn_buf, sizeof(urn_buf), LOG_SERVICES_URN "%.*s",
+                      (int)len, name);
+
+    // If the name is too long, bail.
+    if (needed > sizeof(urn_buf)) return nullptr;
+
+    // Note that we've tried to load to prevent endless loop on failure.
+    load_attempted = true;
+
+    // Try to load the component!
+    const char *urn_ptr = urn_buf;
+    if (!dynamic_loader_srv->load(&urn_ptr, 1)) {
+      // Loading succeeded; now try again to look it up in the registry!
+      char *u = my_strndup(key_memory_log_error_stack, urn_buf, strlen(urn_buf),
+                           MYF(0));
+      *urn = u;
+
+      goto log_service_look_up;
     }
-  } else
-    service = nullptr;
 
-  return service;
+    // If we get here, loading failed; fall through to "failure."
+  }
+
+  // We made an URN, but failed to load: release the URN.
+  if (*urn != nullptr) {
+    my_free(urn);
+    *urn = nullptr;
+  }
+
+  // Either loading or look-up failed; signal failure!
+  return nullptr;
 }
 
 void log_service_cache_entry_free::operator()(
     log_service_cache_entry *sce) const {
   if (sce == nullptr) return;
 
+  // release the component
+  if (sce->service != nullptr) srv_registry->release(sce->service);
+
+  // if we implicitly loaded the component, we should implicitly unload it too
+  if (sce->urn != nullptr) {
+    const char *urn_ptr = sce->urn;
+    dynamic_loader_srv->unload(&urn_ptr, 1);
+    my_free(sce->urn);
+  }
+
   if (sce->name != nullptr) my_free(sce->name);
 
   assert(sce->opened == 0);
-
-  if (sce->service != nullptr) srv_registry->release(sce->service);
 
   memset(sce, 0, sizeof(log_service_cache_entry));
 
@@ -1457,27 +1569,30 @@ void log_service_cache_entry_free::operator()(
   @param  name      Name of component that provides the service
   @param  name_len  Length of that name
   @param  srv       The handle of the log_service
+  @param  urn       Pointer to allocated buffer containing an URN, or NULL
 
   @retval           A new log_service_cache_entry on success
   @retval           nullptr on failure
 */
 static log_service_cache_entry *log_service_cache_entry_new(const char *name,
                                                             size_t name_len,
-                                                            my_h_service srv) {
+                                                            my_h_service srv,
+                                                            char *urn) {
   char *n = my_strndup(key_memory_log_error_stack, name, name_len, MYF(0));
   log_service_cache_entry *sce = nullptr;
 
   if (n != nullptr) {
     // make new service cache entry
-    if ((sce = (log_service_cache_entry *)my_malloc(
-             key_memory_log_error_stack, sizeof(log_service_cache_entry),
-             MYF(0))) == nullptr)
+    if ((sce = static_cast<log_service_cache_entry *>(
+             my_malloc(key_memory_log_error_stack,
+                       sizeof(log_service_cache_entry), MYF(0)))) == nullptr)
       my_free(n);
     else {
       memset(sce, 0, sizeof(log_service_cache_entry));
       sce->name = n;
       sce->name_len = name_len;
       sce->service = srv;
+      sce->urn = urn;
       sce->chistics = LOG_SERVICE_UNSPECIFIED;
       sce->requested = 0;
       sce->opened = 0;
@@ -1525,9 +1640,9 @@ log_service_instance *log_service_instance_new(log_service_cache_entry *sce,
   log_service_instance *lsi;
 
   // make new service instance entry
-  if ((lsi = (log_service_instance *)my_malloc(
-           key_memory_log_error_stack, sizeof(log_service_instance), MYF(0))) !=
-      nullptr) {
+  if ((lsi = static_cast<log_service_instance *>(
+           my_malloc(key_memory_log_error_stack, sizeof(log_service_instance),
+                     MYF(0)))) != nullptr) {
     memset(lsi, 0, sizeof(log_service_instance));
     lsi->sce = sce;
 
@@ -1584,29 +1699,67 @@ static void log_service_instance_release_all() {
   flush() function must not try to log anything, as we hold an
   exclusive lock on the stack.
 
-  @retval   0   no problems
-  @retval  -1   error
+  @returns 0 if no problems occurred, otherwise the negative count
+             of the components that failed to flush
 */
 int log_builtins_error_stack_flush() {
   int rr = 0;
   log_service_cache_entry *sce;
-  log_service_instance *lsi;
+  log_service_instance *lsi;  // instance
 
   if (!log_builtins_inited) return 0;
 
+  /*
+    We're getting an X-lock here. It's a trade-off.
+
+    If we got an S-lock, logging could go on while we're flushing.
+    In that case, we could log meaningful warnings on failure to flush,
+    which would be nice.
+
+    Conversely, if we get an X-lock, we don't allow logging during flush,
+    which guarantees that for each component's error log, log-rotation
+    will happen on the same row (i.e. the row with the same timestamp)
+    for all components' active error logs (assuming flush/open is
+    possible for that log).
+  */
   mysql_rwlock_wrlock(&THR_LOCK_log_stack);
 
   lsi = log_service_instances;
 
   while ((lsi != nullptr) && ((sce = lsi->sce) != nullptr)) {
-    if (!(sce->chistics & LOG_SERVICE_BUILTIN)) {
-      SERVICE_TYPE(log_service) *ls = nullptr;
+    if (!(sce->chistics & LOG_SERVICE_BUILTIN)) {  // skip built-ins
+      SERVICE_TYPE(log_service) *ls =
+          nullptr;  // service that it is an instance of
       ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(sce->service);
 
+      // If the instance has a service ...
       if (ls != nullptr) {
-        if ((ls->flush != nullptr) && (ls->flush(&lsi->instance) < 0)) rr--;
-      } else
+        /*
+          If the service has a flush function, call it.
+          If it fails, count the failure.
+        */
+        if (ls->flush != nullptr) {
+          log_service_error flush_result = ls->flush(&lsi->instance);
+          /*
+            "Nothing done" counts as no error, as laid out in
+            enum_log_service_error.
+
+            Most filters (and any other components where flushing
+            is not supported nor necessary) will return this.
+          */
+          if ((flush_result != LOG_SERVICE_NOTHING_DONE) &&
+              (flush_result != LOG_SERVICE_SUCCESS))
+            rr--;
+        }
+      } else {
+        // If an instance has no service, count the bug.
         rr--;
+        /*
+          Bail. An instance must have a service, even if that service
+          has no flush function, or one that fails.
+        */
+        assert(false);
+      }
     }
     lsi = lsi->next;
   }
@@ -1687,13 +1840,23 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
 
   mysql_rwlock_wrlock(&THR_LOCK_log_stack);
 
-  // if we're actually setting this configuration, release the previous one!
+  /*
+    Setting up a new pipeline might implicitly load new logging components.
+    A failure to load those components (e.g. because we set up incorrect
+    values for the components' system variables) may result in the component
+    trying to log an error. We're switching the log-stack processing over to
+    buffered while in here.
+  */
+  log_line_processor log_line_process_hook_save = log_line_process_hook_get();
+  log_line_process_hook_set(log_line_buffer_event);
+
+  // If we're actually setting this configuration, release the previous one!
   if (!check_only) {
     log_sink_pfs_source = nullptr;
     log_service_instance_release_all();
   }
 
-  // clear keep flag on all service cache entries
+  // Clear "keep" flag on all service cache entries.
   for (auto &key_and_value : *log_service_cache) {
     sce = key_and_value.second.get();
     sce->requested = 0;
@@ -1708,67 +1871,77 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
          0) {
     chistics = LOG_SERVICE_UNSPECIFIED;
 
-    // more than one service listed, but no delimiter used (only space)
+    // More than one service listed, but no delimiter used (only space):
     if ((++count > 1) && (delim == '\0')) {
-      // at least one service not found => fail
+      // At least one service not found => fail
       rr = LOG_ERROR_STACK_DELIMITER_MISSING;
       goto done;
     }
 
-    // find current service name in service-cache
+    // Try to find current service name in service-cache.
     auto it = log_service_cache->find(string(start, len));
 
-    // not found in cache; is it a built-in default?
+    // Service not found in cache?
     if (it == log_service_cache->end()) {
+      // See whether it's a built-in "component"!
       chistics = log_service_check_if_builtin(start, len);
 
-      /*
-        Buffered logging is only used during start-up.
-        As we set it up internally from a constant, we don't
-        check the value first, but go straight to the set phase.
-        If we do see the special sink during the check phase,
-        it was requested by the user. That is not supported
-        (as it isn't useful), so we throw an error here.
-      */
-      if (check_only && (chistics & LOG_SERVICE_BUFFER)) {
-        rr = LOG_ERROR_STACK_SERVICE_UNAVAILABLE;
-        goto done;
-      }
+      char *urn = nullptr;
 
-      // not a built-in; ask component framework
+      // If it's not built-in; ask component framework for it.
       if (!(chistics & LOG_SERVICE_BUILTIN)) {
-        service = log_service_get_by_name(start, len);
+        // See whether component's already present, or can be loaded.
+        service = log_service_get_by_name(start, len, &urn);
 
-        // not found in framework, signal failure
+        // Framework could not provide component, signal failure!
         if (service == nullptr) {
-          // at least one service not found => fail
+          // At least one service not found => fail
           rr = LOG_ERROR_STACK_SERVICE_MISSING;
           goto done;
         }
-      } else
-        service = nullptr;
 
-      // make a cache-entry for this service
-      if ((sce = log_service_cache_entry_new(start, len, service)) == nullptr) {
-        // failed to make cache-entry. if we hold a service handle, release it!
+        /*
+          If we get here, the component is present, and service is
+          valid and non-null. (Regardless of whether it was already
+          present in the registry, or we had to load it first.)
+        */
+      } else {
+        // If it's built-in, null the handle. This is not a failure condition.
+        service = nullptr;
+      }
+
+      // Make a cache-entry for this service.
+      if ((sce = log_service_cache_entry_new(start, len, service, urn)) ==
+          nullptr) {
+        // Failed to make cache-entry. If we hold a service handle, release it!
         /* purecov: begin inspected */
         if (service != nullptr) srv_registry->release(service);
         rr = LOG_ERROR_STACK_CACHE_ENTRY_OOM;
         goto done; /* purecov: end */
       }
 
-      // service is not built-in, so we know nothing about it. Ask it!
-      if ((sce->chistics = chistics) == LOG_SERVICE_UNSPECIFIED)
-        sce->chistics =
-            log_service_get_characteristics(service) &
-            ~LOG_SERVICE_BUILTIN;  // loaded service can not be built-in
+      // Service is not built-in, so we know nothing about it. Ask it!
+      if ((sce->chistics = chistics) == LOG_SERVICE_UNSPECIFIED) {
+        sce->chistics = log_service_get_characteristics(service);
+        // "Loaded" implies "not built-in"
+        sce->chistics = sce->chistics & ~LOG_SERVICE_BUILTIN;
+      }
 
+      // We have a valid cache-entry. Now, add it to the actual cache!
       log_service_cache->emplace(string(sce->name, sce->name_len),
                                  cache_entry_with_deleter(sce));
-    } else
+    } else {
+      // Service was found in cache. Retrieve the record.
       sce = it->second.get();
+    }
 
-    // at this point, it's in cache, one way or another
+    /*
+      At this point, the service is available and its record in the cache,
+      one way or another. (That is to say, it's present now whether we had
+      to load it or it was already there.)
+      Increase the ref-count so we can detect multi-opening of the same
+      component (which components can choose to support).
+    */
     sce->requested++;
 
     if (check_only) {
@@ -1794,9 +1967,12 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
 
     } else if ((sce->requested == 1) ||
                !(sce->chistics & LOG_SERVICE_SINGLETON)) {
+      /*
+        We're not just checking the configuration, we're trying to apply it,
+        and it's either the first mention of this component in the "pipeline",
+        or it supports multi-opening. Time to create an instance!
+      */
       log_service_instance *lsi_new = nullptr;
-
-      // actually setting this config, so open this instance!
       lsi_new = log_service_instance_new(sce, nullptr);
 
       if (lsi_new != nullptr)  // add to chain of instances
@@ -1815,10 +1991,12 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
             (sce->chistics &
              (LOG_SERVICE_LOG_PARSER | LOG_SERVICE_PFS_SUPPORT)))
           log_sink_pfs_parser = lsi;
+
         // remember first pfs-supporting sink
         if ((log_sink_pfs_buffer == nullptr) &&
             (sce->chistics & LOG_SERVICE_PFS_SUPPORT))
           log_sink_pfs_buffer = lsi;
+
         // count filters
         if (sce->chistics & LOG_SERVICE_FILTER) log_filter_count++;
       } else  // could not make new instance entry; fail
@@ -1833,7 +2011,7 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
       is invalid (i.e. we're trying to multi-open a singleton). As
       this should have been caught in the check phase, we don't
       specfically handle it here; the invalid element is skipped and
-      not added to the instance list; that way, we'll get as close
+      not added to the instance list. That way, we'll get as close
       to a working configuration as possible in our attempt to fail
       somewhat gracefully.
     */
@@ -1841,34 +2019,89 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
     start = end;
   }
 
-  if (len < 0)  // log_builtins_stack_get_service_from_var() failed
-    rr = (log_error_stack_error)len;  // flag delimiter issue in string
+  if (len < 0)  // log_builtins_stack_get_service_from_var() failed:
+    rr = (log_error_stack_error)len;  // Flag delimiter issue in string.
   else if ((sce != nullptr) && !(sce->chistics & LOG_SERVICE_SINK))
-    rr = LOG_ERROR_STACK_ENDS_IN_NON_SINK;  // last past service was not a sink.
-  else                                      // success
+    rr = LOG_ERROR_STACK_ENDS_IN_NON_SINK;  // Last service was not a sink.
+  else                                      // Success!
     rr = LOG_ERROR_STACK_SUCCESS;
 
 done:
-  // remove stale entries from cache
-  for (auto it = log_service_cache->begin(); it != log_service_cache->end();) {
-    sce = it->second.get();
+  /*
+    Remove stale entries from cache.
+    This drops entries for services that have no open instances
+    (i.e. entries that were used in a previous configuration of
+    log_error_services, but not in the new one).
 
-    if (sce->opened <= 0)
-      it = log_service_cache->erase(it);
-    else
-      ++it;
+    Note that we only discard those services when the configuration is
+    applied, not when it is pre-checked. This prevents us init-exit-init
+    sequences for components we load implicitly, where we load and init
+    the component during the check-phase, then unload and discard it again,
+    and then load it another time during the apply-phase.
+
+    This is of course more efficient.
+
+    It also means that we do the implicit loading during the pre-check
+    phase (when the sys_vars-mutex is not held), not during the apply-phase
+    when (the mutex is held). This is important as implicitly loaded
+    components may install their own variables and ask the component
+    framework for user-supplied values for those variables. The framework
+    will then attempt to obtain the sys_vars-mutex, so we shouldn't be
+    holding it already (as we do in a sys-var's update function).
+
+    Since succesful user-initiated changes come in check/apply pairs,
+    this is not an issue. At worst, the check can fail and leave the
+    stale entries cached until the next successful apply-phase, when
+    they will be discarded as expected. As the server resets the
+    configuration to the default on shutdown, any stale items will
+    be discarded then at the very latest as a failsafe.
+
+    There are some server-internal calls to this function that go
+    straight to the apply phase without checking first. Since those
+    calls do not go through the sys-var sub-system, locking is not
+    a consideration.
+
+    Last but not least, as discussed above, load-unload-load cycles
+    also mean that any system-variables the component provides would
+    be installed, uninstalled, and then installed again. This can
+    interfere with those variables' correct setting from the command-
+    line.
+  */
+  if (!check_only) {
+    for (auto it = log_service_cache->begin();
+         it != log_service_cache->end();) {
+      sce = it->second.get();
+
+      if (sce->opened <= 0)
+        it = log_service_cache->erase(it);
+      else
+        ++it;
+    }
   }
 
+  /*
+    If we have a component that can both parse the log format it writes
+    and add rows to performance_schema.error_log, we'll use that to append
+    to that pfs table.
+
+    If no such component exists but we have one that can append to the
+    pfs table (but cannot read its own logs, e.g. because it writes to
+    a socket), then we'll fall back on that.
+
+    In either case if multiple matches exist in the configuration,
+    the leftmost match is selected.
+  */
   if (!check_only) {
     log_sink_pfs_source = (log_sink_pfs_parser != nullptr)
                               ? log_sink_pfs_parser
                               : log_sink_pfs_buffer;
   }
+
   /*
     We only process warnings if
     a) We're in check_only mode;
     b) there aren't errors already (which outrank warnings)
-    c) pos != non-NULL
+    c) pos is set (so we can return where we didn't like the configuration)
   */
   else if ((rr == LOG_ERROR_STACK_SUCCESS) && (pos != nullptr)) {
     if (log_pfs_count == 0)
@@ -1879,7 +2112,15 @@ done:
       rr = LOG_ERROR_MULTIPLE_FILTERS;
   }
 
+  // Restore regular logging, enabling the pipeline we just set.
+  log_line_process_hook_set(log_line_process_hook_save);
+
   mysql_rwlock_unlock(&THR_LOCK_log_stack);
+
+  // If we're not in buffered mode anymore, flush anything we have buffered.
+  if (log_line_process_hook_get() != log_line_buffer_event) {
+    log_sink_buffer_flush(LOG_BUFFER_PROCESS_AND_DISCARD);
+  }
 
   if (pos != nullptr) *pos = (size_t)(start - conf);
 
@@ -1888,6 +2129,9 @@ done:
 
 /**
   Acquire an exclusive lock on the error logger core.
+
+  Used e.g. to pause all logging while the previous run's
+  log is read to performance_schema.error_log.
 */
 void log_builtins_error_stack_wrlock() {
   mysql_rwlock_wrlock(&THR_LOCK_log_stack);
@@ -1918,7 +2162,7 @@ int log_builtins_exit() {
   delete log_service_cache;
 
   log_builtins_inited = false;
-  log_error_stage_set(LOG_ERROR_STAGE_BUFFERING_EARLY);
+  log_error_stage_set(LOG_ERROR_STAGE_BUFFERING);
 
   mysql_rwlock_unlock(&THR_LOCK_log_stack);
   mysql_rwlock_destroy(&THR_LOCK_log_stack);
@@ -1932,29 +2176,18 @@ int log_builtins_exit() {
   return 0;
 }
 
-/**
+/*
   Initialize the structured logging subsystem.
 
   Since we're initializing various locks here, we must call this late enough
   so this is clean, but early enough so it still happens while we're running
   single-threaded -- this specifically also means we must call it before we
   start plug-ins / storage engines / external components!
-
-  @retval  0  no errors
-  @retval -1  couldn't initialize stack lock
-  @retval -2  couldn't initialize built-in default filter
-  @retval -3  couldn't set up service hash
-  @retval -4  couldn't initialize syseventlog lock
-  @retval -5  couldn't set service pipeline
-  @retval -6  couldn't initialize buffered logging lock
 */
 int log_builtins_init() {
   int rr = 0;
 
   assert(!log_builtins_inited);
-
-  // Reset flag. This is *also* set on definition, this is intentional.
-  log_buffering_flushworthy = false;
 
   if (mysql_rwlock_init(0, &THR_LOCK_log_stack)) return -1;
 
@@ -1964,7 +2197,7 @@ int log_builtins_init() {
   }
 
   if (mysql_mutex_init(0, &THR_LOCK_log_buffered, MY_MUTEX_INIT_FAST)) {
-    rr = -6;
+    rr = -5;
     goto fail;
   }
 
@@ -1984,14 +2217,10 @@ int log_builtins_init() {
   mysql_rwlock_unlock(&THR_LOCK_log_stack);
 
   if (rr >= 0) {
-    if (log_builtins_error_stack(LOG_BUILTINS_BUFFER, false, nullptr) >= 0) {
-      log_error_stage_set(LOG_ERROR_STAGE_BUFFERING_EARLY);
-      log_builtins_inited = true;
-      return 0;
-    } else {
-      rr = -5;       /* purecov: inspected */
-      assert(false); /* purecov: inspected */
-    }
+    log_line_process_hook_set(log_line_buffer_event);
+    log_error_stage_set(LOG_ERROR_STAGE_BUFFERING);
+    log_builtins_inited = true;
+    return 0;
   }
 
 fail:
@@ -2560,7 +2789,8 @@ DEFINE_METHOD(int, log_builtins_imp::sanitize, (log_item * li)) {
 
   // find out how many \0 to escape
   for (in_read = in_start, len = in_len;
-       ((in_read = (const char *)memchr(in_read, '\0', len)) != nullptr);) {
+       ((in_read = static_cast<const char *>(memchr(in_read, '\0', len))) !=
+        nullptr);) {
     nuls_found++;
     in_read++;  // skip over \0
     len = in_len - (in_read - in_start);
@@ -2571,8 +2801,8 @@ DEFINE_METHOD(int, log_builtins_imp::sanitize, (log_item * li)) {
   */
   out_len = in_len + (nuls_found * 3) + 1;
 
-  if ((out_start = (char *)my_malloc(key_memory_log_error_loaded_services,
-                                     out_len, MYF(0))) == nullptr)
+  if ((out_start = static_cast<char *>(my_malloc(
+           key_memory_log_error_loaded_services, out_len, MYF(0)))) == nullptr)
     return -1;
 
   /*
@@ -2672,6 +2902,7 @@ DEFINE_METHOD(ulonglong, log_builtins_imp::parse_iso8601_timestamp,
 
 /**
   Create a log-file name (path + name + extension).
+
   The path will be taken from @@log_error.
   If name + extension are given, they are used.
   If only an extension is given (argument starts with '.'),
@@ -2742,7 +2973,7 @@ log_service_error make_log_path(char *result, const char *name_or_ext) {
 }
 
 /**
-  open an error log file
+  Open an error log file.
 
   @param       name_or_ext   if beginning with '.':
                                @@global.log_error, except with this extension
@@ -2771,8 +3002,8 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::open_errstream,
 
   *my_errstream = nullptr;
 
-  les = (log_errstream *)my_malloc(key_memory_log_error_loaded_services,
-                                   sizeof(log_errstream), MYF(0));
+  les = static_cast<log_errstream *>(my_malloc(
+      key_memory_log_error_loaded_services, sizeof(log_errstream), MYF(0)));
 
   if (les == nullptr) return LOG_SERVICE_OUT_OF_MEMORY; /* purecov: inspected */
 
@@ -2838,13 +3069,14 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::open_errstream,
   return LOG_SERVICE_SUCCESS;
 
 fail_with_free:
+  mysql_mutex_destroy(&les->LOCK_errstream);
   my_free(les); /* purecov: begin inspected */
 
   return rr; /* purecov: end */
 }
 
 /**
-  write to an error log file previously opened with open_errstream()
+  Write to an error log file previously opened with open_errstream().
 
   @param       my_errstream  a handle describing the log file
   @param       buffer        pointer to the string to write
@@ -2855,7 +3087,7 @@ fail_with_free:
 */
 DEFINE_METHOD(log_service_error, log_builtins_imp::write_errstream,
               (void *my_errstream, const char *buffer, size_t length)) {
-  log_errstream *les = (log_errstream *)my_errstream;
+  log_errstream *les = static_cast<log_errstream *>(my_errstream);
 
   if ((les == nullptr) || (les->file == nullptr))
     log_write_errstream(buffer, length);
@@ -2870,7 +3102,7 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::write_errstream,
 }
 
 /**
-  are we writing to a dedicated errstream, or are we sharing it?
+  Are we writing to a dedicated errstream, or are we sharing it?
 
   @param       my_errstream  a handle describing the log file
 
@@ -2880,7 +3112,7 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::write_errstream,
 */
 DEFINE_METHOD(int, log_builtins_imp::dedicated_errstream,
               (void *my_errstream)) {
-  log_errstream *les = (log_errstream *)my_errstream;
+  log_errstream *les = static_cast<log_errstream *>(my_errstream);
 
   if (les == nullptr) return -1;
 
@@ -2888,20 +3120,18 @@ DEFINE_METHOD(int, log_builtins_imp::dedicated_errstream,
 }
 
 /**
-  close an error log file previously opened with open_errstream()
+  Close an error log file previously opened with open_errstream().
 
-  @param       my_errstream  a handle describing the log file
+  @param      my_errstream  a handle describing the log file
 
-  @retval     LOG_SERVICE_SUCCESS          success
-  @retval     otherwise                    failure
+  @returns    LOG_SERVICE_SUCCESS on success
 */
-DEFINE_METHOD(log_service_error, log_builtins_imp::close_errstream,
-              (void **my_errstream)) {
+log_service_error log_close_errstream(void **my_errstream) {
   int rr;
 
   if (my_errstream == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
-  log_errstream *les = (log_errstream *)(*my_errstream);
+  log_errstream *les = static_cast<log_errstream *>(*my_errstream);
 
   if (les == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
@@ -2909,7 +3139,22 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::close_errstream,
 
   if (les->file != nullptr) {
     my_fclose(les->file, MYF(0));
-    // Continue to log after closing, you'll log to stderr. That'll learn ya.
+    /*
+      If you continue to log to a log-file after closing it,
+      you'll log to stderr instead. Since stderr is normally
+      redirected to the "traditional" log-file, this will in
+      effect mix formats in that file. This is undesirable,
+      but not as undesirable as losing error information.
+      This happening likely indicates a bug, very possibly
+      in a loadable log-sink, where we specifically asked for
+      a log to be closed, and then continue writing to it.
+
+      This should not happen in the context of a FLUSH, as
+      reopen_errstream() only closes the (old) log if it
+      manages to open the new one. I.e. FLUSH (and thus,
+      re-open) should not be able to create scenarios where
+      a log is closed when we didn't ask for it to be closed.
+    */
     les->file = nullptr;
   }
 
@@ -2920,6 +3165,113 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::close_errstream,
   return rr ? LOG_SERVICE_LOCK_ERROR : LOG_SERVICE_SUCCESS;
 }
 
+/**
+  Close an error log file previously opened with open_errstream()
+  (wrapper for the component system).
+
+  @param      my_errstream  a handle describing the log file
+
+  @returns    LOG_SERVICE_SUCCESS on success
+*/
+DEFINE_METHOD(log_service_error, log_builtins_imp::close_errstream,
+              (void **my_errstream)) {
+  return log_close_errstream(my_errstream);
+}
+
+/**
+  Re-open an error log file
+  (primarily to facilitate flush/log-rotation)
+
+  The semantics here are, if we can open the file by name (again), we close
+  the original file (handle), and replace the old handle with the new one
+  in our stream-descriptor; if we can't, we'll leave the existing stream
+  as it is (e.g. it remains open so we can go on logging, but we don't
+  change over to a new log if log-rotation happened). This is different
+  from libc reopen semantics.
+
+  @param       name_or_ext   if beginning with '.':
+                               @@global.log_error, except with this extension
+                             otherwise:
+                               use this as file name in the same location as
+                               @@global.log_error
+
+                             Value may not contain folder separators!
+
+                             In the general case, the caller will be a
+                             log-writer, the log-writer will just pass
+                             its preferred file extension, and the resulting
+                             file name and path will therefore be the same
+                             as for the original log file.
+
+  @param[in,out]  my_errstream  an error log handle
+
+  @returns LOG_SERVICE_INVALID_ARGUMENT, or the result of open_errstream()
+*/
+DEFINE_METHOD(log_service_error, log_builtins_imp::reopen_errstream,
+              (const char *name_or_ext, void **my_errstream)) {
+  log_service_error oret;
+  log_errstream *old_les, *new_les = nullptr;
+
+  // need non-empty name
+  if ((name_or_ext == nullptr) || (*name_or_ext == '\0'))
+    return LOG_SERVICE_INVALID_ARGUMENT;
+  // need existing stream
+  if ((my_errstream == nullptr) || (*my_errstream == nullptr))
+    return LOG_SERVICE_INVALID_ARGUMENT;
+
+  // lock caller's errstream
+  old_les = static_cast<log_errstream *>(*my_errstream);
+  mysql_mutex_lock(&old_les->LOCK_errstream);
+
+  /*
+    Every write_errstream does this anyway,
+    but let's be explicit about our semantics.
+  */
+  fflush(old_les->file);
+
+  // try to open a log-file in the same position again
+  if ((oret =
+           open_errstream(name_or_ext, reinterpret_cast<void **>(&new_les))) ==
+      LOG_SERVICE_SUCCESS) {
+    /*
+      Success! We managed to open a log-file with
+      the given name again. This may or may not be
+      the same file as the existing log-file, depending
+      on whether or not log rotation has happened.
+
+      When all this is over, the les (log_error_stream)
+      structure in the caller should feature the new
+      file's handle (while retaining the existing lock,
+      as that's already being held).
+
+      The old file and the new lock can go (after we close
+      the old file).
+
+      This will still work if we later extend
+      log_errstream with more variables.
+    */
+    log_errstream tmp;
+    tmp.file = old_les->file;       // save old file
+    old_les->file = new_les->file;  // update caller to use new file
+    new_les->file =
+        tmp.file;  // update new stream to use old file (for close())
+    close_errstream(reinterpret_cast<void **>(
+        &new_les));              // close old file; dest new lock+stream
+    assert(new_les == nullptr);  // temporary errstream should be gone
+  }
+
+  /*
+    Unlock caller's errstream.
+    If opening the new file succeeded, it's now associated with this errstream.
+    If opening the new file failed, we're still logging to the old file, which
+    can be less than ideal if log rotation moved the file to slower storage.
+    It is however considered better than losing log data.
+  */
+  mysql_mutex_unlock(&old_les->LOCK_errstream);
+
+  return oret;
+}
+
 /*
   Service: some stand-ins for string functions we need until they are
   implemented in a more comprehensive service.
@@ -2927,9 +3279,7 @@ DEFINE_METHOD(log_service_error, log_builtins_imp::close_errstream,
 */
 
 /**
-  Wrapper for my_malloc()
-
-  Alloc (len+1) bytes.
+  Wrapper for my_malloc(): Alloc (len+1) bytes.
 
   @param len  length of string to copy
 */
@@ -2938,8 +3288,7 @@ DEFINE_METHOD(void *, log_builtins_string_imp::malloc, (size_t len)) {
 }
 
 /**
-  Wrapper for my_strndup()
-
+  Wrapper for my_strndup():
   Alloc (len+1) bytes, then copy len bytes from fm, and \0 terminate.
   Like my_strndup(), and unlike strndup(), \0 in input won't end copying.
 
@@ -2952,21 +3301,21 @@ DEFINE_METHOD(char *, log_builtins_string_imp::strndup,
 }
 
 /**
-  Wrapper for my_free() - free allocated memory
+  Wrapper for my_free(): free allocated memory.
 */
 DEFINE_METHOD(void, log_builtins_string_imp::free, (void *ptr)) {
   return my_free(ptr);
 }
 
 /**
-  Wrapper for strlen() - length of a nul-terminated byte string
+  Wrapper for strlen(): length of a nul-terminated byte string.
 */
 DEFINE_METHOD(size_t, log_builtins_string_imp::length, (const char *s)) {
   return strlen(s);
 }
 
 /**
-  Wrapper for strchr() - find character in string, from the left
+  Wrapper for strchr(): find character in string, from the left.
 */
 DEFINE_METHOD(char *, log_builtins_string_imp::find_first,
               (const char *s, int c)) {
@@ -2974,7 +3323,7 @@ DEFINE_METHOD(char *, log_builtins_string_imp::find_first,
 }
 
 /**
-  Wrapper for strrchr() - find character in string, from the right
+  Wrapper for strrchr(): find character in string, from the right.
 */
 DEFINE_METHOD(char *, log_builtins_string_imp::find_last,
               (const char *s, int c)) {
@@ -2982,7 +3331,7 @@ DEFINE_METHOD(char *, log_builtins_string_imp::find_last,
 }
 
 /**
-  Compare two NUL-terminated byte strings
+  Compare two NUL-terminated byte strings.
 
   Note that when comparing without length limit, the long string
   is greater if they're equal up to the length of the shorter
@@ -3010,7 +3359,7 @@ DEFINE_METHOD(int, log_builtins_string_imp::compare,
 }
 
 /**
-  Wrapper for vsnprintf()
+  Wrapper for vsnprintf():
   Replace all % in format string with variables from list
 
   @param  to    buffer to write the result to
@@ -3026,7 +3375,7 @@ DEFINE_METHOD(size_t, log_builtins_string_imp::substitutev,
 }
 
 /**
-  Wrapper for vsnprintf()
+  Wrapper for vsnprintf():
   Replace all % in format string with variables from list
 */
 DEFINE_METHOD(size_t, log_builtins_string_imp::substitute,
@@ -3057,8 +3406,9 @@ DEFINE_METHOD(size_t, log_builtins_tmp_imp::notify_client,
     ret = vsnprintf(to, n, format, ap);
     va_end(ap);
 
-    push_warning((THD *)thd, (Sql_condition::enum_severity_level)severity, code,
-                 to);
+    push_warning(static_cast<THD *>(thd),
+                 static_cast<Sql_condition::enum_severity_level>(severity),
+                 code, to);
   }
 
   return ret;

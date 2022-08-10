@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ using thread::Thread;
 
 class DebugSyncTest : public ::testing::Test {
  protected:
-  DebugSyncTest() {}
+  DebugSyncTest() = default;
 
   void SetUp() override {
     // set debug sync timeout of 60 seconds.

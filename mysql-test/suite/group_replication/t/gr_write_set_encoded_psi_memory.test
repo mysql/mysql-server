@@ -1,0 +1,110 @@
+###############################################################################
+# This test verifies following for 'write_set_encoded' event name:
+# - Verify that entries corresponding to the 'write_set_encoded'
+#   performance schema instrumented memory are in the memory table only during
+#   the execution of the group replication plugin.
+# - Verify that the sum of bytes allocated is greater than zero for a
+#   transaction and zero after transaction is finished.
+#
+# Test:
+# 0. The test requires one Server: M1
+# 1. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables.
+# 2. Verify that the sum of bytes allocated is greater than
+#    zero for a transaction and zero after transaction is
+#    finished.
+# 3. Stop GR.
+# 4. Verify that the entries corresponding to the instrumented
+#    write_set_encoded remain in the tables after stopping GR.
+# 5. Assert that the number of bytes allocated for
+#    write_set_encoded event must be 0.
+###############################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Verify that the entries corresponding to the
+--echo #    instrumented memory are in the setup instruments
+--echo #    table and the memory summary tables.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/write_set_encoded';
+--let $assert_text= 'There should be 1 entry corresponding to the write_set_encoded in the setup_instruments table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/write_set_encoded"
+--source include/assert.inc
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/write_set_encoded';
+--let $assert_text= 'There should be 1 entry corresponding to the write_set_encoded in the memory_summary_global_by_event_name table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/write_set_encoded"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Verify that the sum of bytes allocated is greater than
+--echo #    zero for a transaction and zero after transaction is
+--echo #    finished.
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=innodb;
+SET @@GLOBAL.DEBUG= '+d,group_replication_after_add_write_set';
+--send INSERT INTO t1 VALUES(1);
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_after_add_write_set_reached";
+
+--let $assert_text= 'The sum bytes allocated must be greater than 0'
+--let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/write_set_encoded"] > 0
+--source include/assert.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_after_before_commit_hook';
+SET @@GLOBAL.DEBUG= '-d,group_replication_after_add_write_set';
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_add_write_set_continue";
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_after_before_commit_hook_reached";
+
+--let $assert_text= 'The sum of bytes allocated must be zero'
+--let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/write_set_encoded"
+--source include/assert.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_after_before_commit_hook';
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_continue";
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+DROP TABLE t1;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Stop GR
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ##############################################################
+--echo # 4. Verify that the entries corresponding to the instrumented
+--echo #    write_set_encoded remain in the tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/write_set_encoded';
+--let $assert_text= 'There should be 1 entry corresponding to the write_set_encoded in the setup_instruments table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/write_set_encoded"
+--source include/assert.inc
+
+SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/write_set_encoded';
+--let $assert_text= 'There should be 1 entry corresponding to the write_set_encoded in the memory_summary_global_by_event_name table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/write_set_encoded"
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 5. Assert that the number of bytes allocated for
+--echo #    write_set_encoded event must be 0.
+--let $assert_text= 'The sum of bytes allocated must be zero after stopping GR'
+--let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/write_set_encoded"
+--source include/assert.inc
+
+--echo
+--source include/group_replication_end.inc

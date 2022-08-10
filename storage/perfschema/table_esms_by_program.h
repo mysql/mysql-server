@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ class PFS_index_esms_by_program : public PFS_engine_index {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_esms_by_program() override {}
+  ~PFS_index_esms_by_program() override = default;
 
   virtual bool match(PFS_program *pfs);
 
@@ -64,11 +64,9 @@ struct row_esms_by_program {
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column OBJECT_SCHEMA. */
-  char m_schema_name[COL_OBJECT_SCHEMA_SIZE];
-  int m_schema_name_length;
+  PFS_schema_name m_schema_name;
   /** Column OBJECT_NAME. */
-  char m_object_name[COL_OBJECT_NAME_SIZE];
-  int m_object_name_length;
+  PFS_routine_name m_object_name;
 
   /**
     Columns COUNT_STAR
@@ -107,7 +105,7 @@ class table_esms_by_program : public PFS_engine_table {
   table_esms_by_program();
 
  public:
-  ~table_esms_by_program() override {}
+  ~table_esms_by_program() override = default;
 
  protected:
   int make_row(PFS_program *);

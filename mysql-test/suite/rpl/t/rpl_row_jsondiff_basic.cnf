@@ -9,25 +9,25 @@
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 log-bin
-log-slave-updates
+log-replica-updates
 
 [mysqld.4]
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 log-bin
-log-slave-updates
+log-replica-updates
 
 [mysqld.5]
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 log-bin
-log-slave-updates
+log-replica-updates
 
 [mysqld.6]
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 log-bin
-log-slave-updates
+log-replica-updates
 
 [mysqld.7]
 loose-innodb_write_io_threads=    2

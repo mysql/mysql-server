@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@ Gcs_xcom_synode::Gcs_xcom_synode() noexcept : synode_(null_synode) {}
 
 Gcs_xcom_synode::Gcs_xcom_synode(synode_no synod) noexcept : synode_(synod) {}
 
-Gcs_xcom_synode::~Gcs_xcom_synode() {}
+Gcs_xcom_synode::~Gcs_xcom_synode() = default;
 
 Gcs_xcom_synode::Gcs_xcom_synode(Gcs_xcom_synode &&other) noexcept
     : synode_(other.synode_) {

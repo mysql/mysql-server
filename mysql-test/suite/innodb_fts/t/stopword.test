@@ -260,6 +260,7 @@ ANALYZE TABLE articles;
 # (refer Behavior (at the top of the test) for explanation ) 
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("where will");
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("when");
+--sorted_result
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("what" WITH QUERY EXPANSION);
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST("whe*" IN BOOLEAN MODE);
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST("+what +will" IN BOOLEAN MODE);

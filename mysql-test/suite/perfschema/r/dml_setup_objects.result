@@ -16,28 +16,28 @@ select * from performance_schema.setup_objects
 order by object_type, object_schema, object_name;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
 insert into performance_schema.setup_objects
-set object_type='ILLEGAL', object_schema='FOO', object_name='BAR',
+set object_type='ILLEGAL', object_schema='foo', object_name='bar',
 enabled='YES', timed='YES';
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails ()
 insert into performance_schema.setup_objects
-set object_type='TABLE', object_schema='FOO', object_name='BAR',
+set object_type='TABLE', object_schema='foo', object_name='bar',
 enabled='YES', timed='YES';
 insert into performance_schema.setup_objects
-set object_type='TABLE', object_schema='FOO', object_name='BAR',
+set object_type='TABLE', object_schema='foo', object_name='bar',
 enabled='YES', timed='NO';
 ERROR 23000: Can't write; duplicate key in table 'setup_objects'
 delete from performance_schema.setup_objects
-where object_type='TABLE' and object_schema='FOO';
+where object_type='TABLE' and object_schema='foo';
 select * from performance_schema.setup_objects
 order by object_type, object_schema, object_name;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
 insert into performance_schema.setup_objects
-set object_type='TABLE', object_schema='FOO', object_name='BAR',
+set object_type='TABLE', object_schema='foo', object_name='bar',
 enabled='NO', timed='YES';
 select * from performance_schema.setup_objects
 order by object_type, object_schema, object_name;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
-TABLE	FOO	BAR	NO	YES
+TABLE	foo	bar	NO	YES
 update performance_schema.setup_objects
 set object_type='ILLEGAL';
 ERROR HY000: Invalid performance_schema usage.
@@ -52,7 +52,7 @@ set enabled='NO', timed='NO';
 select * from performance_schema.setup_objects
 order by object_type, object_schema, object_name;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
-TABLE	FOO	BAR	NO	NO
+TABLE	foo	bar	NO	NO
 update performance_schema.setup_objects
 set enabled='YES', timed='YES';
 delete from performance_schema.setup_objects

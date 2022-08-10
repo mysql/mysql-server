@@ -1,0 +1,55 @@
+--source include/count_sessions.inc
+--echo # The specific purpose of this test is to test the 
+--echo # detach at disconnect behavior
+SET @saved_xa_detach_on_prepare = @@GLOBAL.xa_detach_on_prepare;
+SET GLOBAL xa_detach_on_prepare = OFF;
+CREATE TABLE t (id INT PRIMARY KEY);
+
+--connect (con1, localhost, root,,)
+	XA START "xa1";
+	INSERT INTO t VALUES (1);
+	XA END "xa1";
+	XA PREPARE "xa1";
+
+--connect (con2, localhost, root,,)
+	# Trying to commit by XID from another connection, should fail
+	# if there is still a client connected to it
+	--error ER_XAER_NOTA
+	XA COMMIT "xa1";
+	# same for rollback
+	--error ER_XAER_NOTA
+	XA ROLLBACK "xa1";
+	# Yet the transaction's XID should appear in the XA RECOVER output
+	XA RECOVER;
+
+# We disconnect a client from "xa1", so that it becomes available for con2
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+let $wait_condition=
+	SELECT COUNT(1)=0
+	FROM information_schema.innodb_trx
+	WHERE trx_mysql_thread_id>0;
+--source include/wait_condition.inc
+
+--connection con2
+	# Check that the XID is still visible
+	XA RECOVER;
+	# Trying to commit an abandoned XID should now succeed
+	XA COMMIT "xa1";
+	# And it should no longer appear in the list of available XIDs
+	XA RECOVER;
+	# Trying to commit it again, should fail
+	--error ER_XAER_NOTA
+	XA COMMIT "xa1";
+
+--connection default
+
+--disconnect con2
+
+DROP TABLE t;
+
+SET GLOBAL xa_detach_on_prepare = @saved_xa_detach_on_prepare;
+--source include/wait_until_count_sessions.inc

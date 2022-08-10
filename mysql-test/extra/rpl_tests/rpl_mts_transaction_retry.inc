@@ -3,10 +3,10 @@
 # on both database and logical clock MTS.
 #
 # Test Scenarios:
-# 1. slave_transaction_retries = 0, coordinator and workers should stop without
+# 1. replica_transaction_retries = 0, coordinator and workers should stop without
 #    retry when encountering a temporary error.
 # 2. coordinator and workers should stop after retrying a transaction
-#    'slave_transaction_retries' times.
+#    'replica_transaction_retries' times.
 # 3. the worker can continue to finish the transaction correctly if retry does't
 #    encounter any error and succeeds.
 #
@@ -49,14 +49,14 @@ CALL mtr.add_suppression("Slave SQL for channel '': worker thread retried transa
 
 # Backup the original value of the variables
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
-SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
-SET @saved_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @saved_max_relay_log_size = @@GLOBAL.max_relay_log_size;
-SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 
 # Set a small wait timeout, so the test can run fast
 SET GLOBAL innodb_lock_wait_timeout = 1;
-SET GLOBAL slave_parallel_workers = 2;
+SET GLOBAL replica_parallel_workers = 2;
 
 # Set a small relay log size, so the events of a transaction will be divided
 # into more than one relay logs.
@@ -64,14 +64,14 @@ SET GLOBAL max_relay_log_size = 4096;
 
 --source include/stop_slave_sql.inc
 
-eval SET GLOBAL slave_parallel_type = $mts_parallel_type;
+eval SET GLOBAL replica_parallel_type = $mts_parallel_type;
 
 --source include/start_slave_sql.inc
 
 --echo #
---echo # Case 1: slave will stop if slave_transaction_retries is 0
+--echo # Case 1: slave will stop if replica_transaction_retries is 0
 --echo #
-SET GLOBAL slave_transaction_retries = 0;
+SET GLOBAL replica_transaction_retries = 0;
 
 # Lock all rows of db1.t1
 BEGIN;
@@ -101,9 +101,9 @@ ROLLBACK;
 
 --echo #
 --echo # Case 2: Slave will stop after retrying a transaction
---echo #         slave_transaction_retries times.
+--echo #         replica_transaction_retries times.
 --echo #
-SET GLOBAL slave_transaction_retries = 2;
+SET GLOBAL replica_transaction_retries = 2;
 --source include/start_slave_sql.inc
 --source include/sync_slave_sql.inc
 
@@ -138,7 +138,7 @@ ROLLBACK;
 --echo #         sucessfully.
 --echo #
 --let $retried_trans= query_get_value(select count_transactions_retries from performance_schema.replication_applier_status, count_transactions_retries, 1)
-SET GLOBAL slave_transaction_retries = 10;
+SET GLOBAL replica_transaction_retries = 10;
 --source include/start_slave_sql.inc
 --source include/sync_slave_sql.inc
 --source include/check_slave_no_error.inc
@@ -229,12 +229,14 @@ DELETE FROM db1.t1 WHERE c1 = 50;
 --echo # Cleanup
 --echo #
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
-SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
+--disable_warnings
+SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
+--enable_warnings
 SET GLOBAL max_relay_log_size = @saved_max_relay_log_size;
-SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
+SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 
 --source include/stop_slave_sql.inc
-SET GLOBAL slave_parallel_type= @saved_slave_parallel_type;
+SET GLOBAL replica_parallel_type= @saved_replica_parallel_type;
 --source include/start_slave_sql.inc
 
 --source include/rpl_connection_master.inc

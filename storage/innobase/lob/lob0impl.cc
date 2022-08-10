@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -98,7 +98,7 @@ buf_block_t *node_page_t::alloc(first_page_t &first_page, bool bulk) {
     cur += index_entry_t::SIZE;
   }
 
-  ut_ad(flst_validate(free_list, m_mtr));
+  ut_d(flst_validate(free_list, m_mtr));
   return (m_block);
 }
 
@@ -120,7 +120,7 @@ void z_frag_entry_t::purge(flst_base_node_t *used_lst,
 
 /** Update the current fragment entry with information about
 the given fragment page.
-@param[in]	frag_page	the fragment page whose information
+@param[in]      frag_page       the fragment page whose information
                                 will be stored in current fragment entry. */
 void z_frag_entry_t::update(const z_frag_page_t &frag_page) {
   ut_ad(m_mtr != nullptr);
@@ -137,23 +137,24 @@ void z_frag_entry_t::free_frag_page(mtr_t *mtr, dict_index_t *index) {
   if (page_no != FIL_NULL) {
     page_id_t page_id = page_id_t(index->space_id(), page_no);
     page_size_t page_size = index->get_page_size();
-    buf_block_t *block = buf_page_get(page_id, page_size, RW_X_LATCH, mtr);
+    buf_block_t *block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
     btr_page_free_low(index, block, ULINT_UNDEFINED, mtr);
     set_page_no(FIL_NULL);
   }
 }
 
 /** Insert a single zlib stream.
-@param[in]	index	the index to which the LOB belongs.
-@param[in]	first	the first page of the compressed LOB.
-@param[in]	trxid	the id of the current transaction.
-@param[in]	blob	in memory copy of the LOB.
-@param[in]	len	the length of the LOB.
-@param[in]	mtr	the mini-transaction context.
-@param[in]	bulk	true if bulk operation, false otherwise.
-@param[out]	start_page_no	the first page into which zlib stream
+@param[in]      index   the index to which the LOB belongs.
+@param[in]      first   the first page of the compressed LOB.
+@param[in]      trxid   the id of the current transaction.
+@param[in]      blob    in memory copy of the LOB.
+@param[in]      len     the length of the LOB.
+@param[in]      mtr     the mini-transaction context.
+@param[in]      bulk    true if bulk operation, false otherwise.
+@param[out]     start_page_no   the first page into which zlib stream
                                 was written.
-@param[out]	frag_id	the fragment id that contains last part of the
+@param[out]     frag_id the fragment id that contains last part of the
                         zlib stream.
 @return DB_SUCCESS on success, error code on error. */
 dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
@@ -269,9 +270,9 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     data_page.set_trx_id(trxid);
 
     /* Get the previous page and update its next page. */
-    buf_block_t *block =
-        buf_page_get(page_id_t(dict_index_get_space(index), prev_page_no),
-                     dict_table_page_size(index->table), RW_X_LATCH, mtr);
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), prev_page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     buf_block_set_next_page_no(block, data_page.get_page_no(), mtr);
 
@@ -312,9 +313,9 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     frag_entry.update(frag_page);
 
     /* Get the previous page and update its next page. */
-    buf_block_t *block =
-        buf_page_get(page_id_t(dict_index_get_space(index), prev_page_no),
-                     dict_table_page_size(index->table), RW_X_LATCH, mtr);
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), prev_page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     buf_block_set_next_page_no(block, frag_page.get_page_no(), mtr);
   }
@@ -322,20 +323,9 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
   return (DB_SUCCESS);
 }
 
-/** Insert one chunk of input.  The maximum size of a chunk is Z_CHUNK_SIZE.
-@param[in]  index      Clustered index in which LOB is inserted.
-@param[in]  first      First page of the LOB.
-@param[in]  trx        Transaction doing the insertion.
-@param[in]  ref        LOB reference in the clust rec.
-@param[in]  blob       Uncompressed LOB to be inserted.
-@param[in]  len        Length of the blob.
-@param[out] out_entry  Newly inserted index entry. can be NULL.
-@param[in]  mtr        Mini-transaction
-@param[in]  bulk       true if it is bulk operation, false otherwise.
-@return DB_SUCCESS on success, error code on failure. */
 dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
-                       ref_t ref, byte *blob, ulint len,
-                       z_index_entry_t *out_entry, mtr_t *mtr, bool bulk) {
+                       byte *blob, ulint len, z_index_entry_t *out_entry,
+                       mtr_t *mtr, bool bulk) {
   ut_ad(len <= Z_CHUNK_SIZE);
   ut_ad(first.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
   dberr_t err(DB_SUCCESS);
@@ -405,11 +395,11 @@ dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
 }
 
 /** Insert a compressed large object (LOB) into the system.
-@param[in]	ctx	the B-tree context for this LOB operation.
-@param[in]	trx	transaction doing the insertion.
-@param[in,out]	ref	the LOB reference.
-@param[in]	field	the LOB field.
-@param[in]	field_j	the LOB field index in big rec vector.
+@param[in]      ctx     the B-tree context for this LOB operation.
+@param[in]      trx     transaction doing the insertion.
+@param[in,out]  ref     the LOB reference.
+@param[in]      field   the LOB field.
+@param[in]      field_j the LOB field index in big rec vector.
 @return DB_SUCCESS on success, error code on failure.*/
 dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
                  big_rec_field_t *field, ulint field_j) {
@@ -479,7 +469,7 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
     z_index_entry_t entry(mtr, index);
     ulint size = (remain >= chunk_size) ? chunk_size : remain;
 
-    err = z_insert_chunk(index, first, trx, ref, ptr, size, &entry, mtr,
+    err = z_insert_chunk(index, first, trx, ptr, size, &entry, mtr,
                          ctx->is_bulk());
 
     if (err != DB_SUCCESS) {
@@ -570,13 +560,13 @@ buf_block_t *z_frag_page_t::alloc(z_first_page_t &first, page_no_t hint,
   set_version_0();
 
   /* All allocated fragment pages are linked via the next page of the first page
-   * of LOB. */
+  of LOB. */
   page_no_t frag_page_no = first.get_frag_page_no();
 
   if (frag_page_no == 0) {
     /* If the frag_page_no is equal to 0, it means that this LOB was created
-     * before storing the fragment page list in the FIL_PAGE_PREV of the first
-     * page.  So don't change that. */
+    before storing the fragment page list in the FIL_PAGE_PREV of the first
+    page.  So don't change that. */
   } else {
     if (frag_page_no != FIL_NULL) {
       /* Load the first fragment page and updates its prev page. */
@@ -736,13 +726,13 @@ ulint z_frag_page_t::alloc_dir_entry() {
   /* The last free fragment must be adjacent to the directory.
   Then only it can give space to one slot. */
   if (frag.end_ptr() != slots_end_ptr()) {
-    ut_ad(0);
-    return (FRAG_ID_NULL);
+    ut_d(ut_error);
+    ut_o(return (FRAG_ID_NULL));
   }
 
   if (len <= SIZE_OF_PAGE_DIR_ENTRY) {
-    ut_ad(0);
-    return (FRAG_ID_NULL);
+    ut_d(ut_error);
+    ut_o(return (FRAG_ID_NULL));
   }
 
   incr_n_dir_entries();
@@ -776,8 +766,8 @@ void z_frag_page_t::dealloc_with_entry(z_first_page_t &first,
 
   if (top_frag_page == 0) {
     /* If the first page contains 0 in FIL_PAGE_PREV, then this LOB does not use
-     * FIL_PAGE_PREV to point to the doubly-linked list of fragment pages.  In
-     * this case, don't touch FIL_PAGE_PREV. */
+    FIL_PAGE_PREV to point to the doubly-linked list of fragment pages.  In
+    this case, don't touch FIL_PAGE_PREV. */
   } else {
     page_no_t next_frag_page = get_next_page_no();
     page_no_t prev_frag_page = get_prev_page_no();
@@ -791,7 +781,7 @@ void z_frag_page_t::dealloc_with_entry(z_first_page_t &first,
     }
 
     /* The fragment pages are doubly linked via FIL_PAGE_NEXT and
-     * FIL_PAGE_PREV. Update the links before deallocating a fragment page. */
+    FIL_PAGE_PREV. Update the links before deallocating a fragment page. */
     if (next_frag_page != FIL_NULL) {
       z_frag_page_t zfp_next(alloc_mtr, m_index);
       zfp_next.load_x(next_frag_page);
@@ -929,11 +919,11 @@ void z_frag_page_t::dealloc_frag_id() {
 }
 
 /** Insert a large object (LOB) into the system.
-@param[in]	ctx	the B-tree context for this LOB operation.
-@param[in]	trx	transaction doing the insertion.
-@param[in,out]	ref	the LOB reference.
-@param[in]	field	the LOB field.
-@param[in]	field_j	the LOB field index in big rec vector.
+@param[in]      ctx     the B-tree context for this LOB operation.
+@param[in]      trx     transaction doing the insertion.
+@param[in,out]  ref     the LOB reference.
+@param[in]      field   the LOB field.
+@param[in]      field_j the LOB field index in big rec vector.
 @return DB_SUCCESS on success, error code on failure.*/
 dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
                big_rec_field_t *field, ulint field_j) {
@@ -1025,7 +1015,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
       break;
     }
 
-    to_write = data_page.write(trxid, ptr, remaining);
+    to_write = data_page.write(ptr, remaining);
     total_written += to_write;
     data_page.set_trx_id(trxid);
 
@@ -1218,9 +1208,9 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
         want -= actual_read;
 
       } else {
-        buf_block_t *block =
-            buf_page_get(page_id_t(ctx->m_space_id, read_from_page_no),
-                         ctx->m_page_size, RW_S_LATCH, &data_mtr);
+        buf_block_t *block = buf_page_get(
+            page_id_t(ctx->m_space_id, read_from_page_no), ctx->m_page_size,
+            RW_S_LATCH, UT_LOCATION_HERE, &data_mtr);
 
         data_page_t page(block, &data_mtr);
         actual_read = page.read(page_offset, ptr, want);
@@ -1278,8 +1268,8 @@ buf_block_t *z_index_page_t::alloc(z_first_page_t &first, bool bulk) {
 }
 
 /** Allocate one data page.
-@param[in]	hint	hint page number for allocation.
-@param[in]	bulk	true if bulk operation (OPCODE_INSERT_BULK)
+@param[in]      hint    hint page number for allocation.
+@param[in]      bulk    true if bulk operation (OPCODE_INSERT_BULK)
                         false otherwise.
 @return the allocated buffer block. */
 buf_block_t *z_data_page_t::alloc(page_no_t hint, bool bulk) {

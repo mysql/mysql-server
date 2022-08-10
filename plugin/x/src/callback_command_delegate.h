@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class Callback_command_delegate : public ngs::Command_delegate {
   };
 
   struct Row_data {
-    Row_data() {}
+    Row_data() = default;
     Row_data(const Row_data &other);
     Row_data &operator=(const Row_data &other);
     ~Row_data();

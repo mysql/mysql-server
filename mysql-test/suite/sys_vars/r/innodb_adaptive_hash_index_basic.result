@@ -73,8 +73,8 @@ set global innodb_adaptive_hash_index=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_adaptive_hash_index'
 set global innodb_adaptive_hash_index=2;
 ERROR 42000: Variable 'innodb_adaptive_hash_index' can't be set to the value of '2'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_adaptive_hash_index=-3;
+ERROR 42000: Variable 'innodb_adaptive_hash_index' can't be set to the value of '-3'
 select @@global.innodb_adaptive_hash_index;
 @@global.innodb_adaptive_hash_index
 1

@@ -1,0 +1,292 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+insert into mysql.ndb_replication values ("test", "t1_max_ins", 0, 7, "NDB$MAX_INS(X)");
+insert into mysql.ndb_replication values ("test", "t1_max_del_win_ins", 0, 7, "NDB$MAX_DEL_WIN_INS(X)");
+create table `t1_max_ins$EX`
+  (NDB$server_id int unsigned,
+NDB$master_server_id int unsigned,
+NDB$master_epoch bigint unsigned,
+NDB$count int unsigned,
+NDB$OP_TYPE ENUM( 'WRITE_ROW','UPDATE_ROW', 'DELETE_ROW',
+'REFRESH_ROW','READ_ROW') NOT NULL,
+NDB$CFT_CAUSE ENUM( 'ROW_DOES_NOT_EXIST',
+'ROW_ALREADY_EXISTS',
+'DATA_IN_CONFLICT',
+'TRANS_IN_CONFLICT') NOT NULL,
+a int not null,
+primary key(NDB$server_id, NDB$master_server_id, NDB$master_epoch, NDB$count)) engine ndb;
+create table `t1_max_del_win_ins$EX`
+  (NDB$server_id int unsigned,
+NDB$master_server_id int unsigned,
+NDB$master_epoch bigint unsigned,
+NDB$count int unsigned,
+NDB$OP_TYPE ENUM( 'WRITE_ROW','UPDATE_ROW', 'DELETE_ROW',
+'REFRESH_ROW','READ_ROW') NOT NULL,
+NDB$CFT_CAUSE ENUM( 'ROW_DOES_NOT_EXIST',
+'ROW_ALREADY_EXISTS',
+'DATA_IN_CONFLICT',
+'TRANS_IN_CONFLICT') NOT NULL,
+a int not null,
+primary key(NDB$server_id, NDB$master_server_id, NDB$master_epoch, NDB$count)) engine ndb;
+create table t1_max_ins (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max_del_win_ins (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+"Test 0 : No conflicts, row applied"
+Insert a row in both tables to check replication without conflicts
+insert into t1_max_ins values (1, 'Initial X=1', 1);
+insert into t1_max_del_win_ins values (1, 'Initial X=1', 1);
+"Expect t1_max_ins* to contain initial master row"
+select * from t1_max_ins order by a;
+a	b	X
+1	Initial X=1	1
+select * from t1_max_del_win_ins order by a;
+a	b	X
+1	Initial X=1	1
+"Test 1 : No conflict detected, Row applied"
+Insert some rows in slave to cause conflicts
+insert into t1_max_ins values (2, 'Slave X=2', 2);
+insert into t1_max_del_win_ins values (2, 'Slave X=2', 2);
+Insert a row in both tables with a greater timestamp
+Detect a conflict and accept replication
+insert into t1_max_ins values (2, 'Master X=20', 20);
+insert into t1_max_del_win_ins values (2, 'Master X=20', 20);
+"Expect t1_max_ins and t1_max_del_win_ins to contains 2 rows."
+"1. A row replicated without any conflicts(a=1)."
+"2. A row replicated successfully because of higher value in the timestamp column(a=2)."
+select * from t1_max_ins order by a;
+a	b	X
+1	Initial X=1	1
+2	Master X=20	20
+select * from t1_max_del_win_ins order by a;
+a	b	X
+1	Initial X=1	1
+2	Master X=20	20
+"Expect t1_max_ins* to have no entries"
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_del_win_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+"Test 2 : Conflict detected, Row rejected"
+insert into t1_max_ins values (3, 'Slave X=30', 30);
+insert into t1_max_del_win_ins values (3, 'Slave X=30', 30);
+Insert a row in both tables with a smaller or equal timestamp
+Detect a conflict and reject replication
+insert into t1_max_ins values (3, 'Master X=3', 3);
+insert into t1_max_del_win_ins values (3, 'Master X=3', 3);
+"Expect t1_max_ins and t1_max_del_win_ins to contains 3 rows."
+"1. A row replicated without any conflicts(a=1)."
+"2. A row replicated successfully because of higher value in the timestamp column(a=2)."
+"3. A row detected conflict and didn't replicate on the slave(a=3)."
+select * from t1_max_ins order by a;
+a	b	X
+1	Initial X=1	1
+2	Master X=20	20
+3	Slave X=30	30
+select * from t1_max_del_win_ins order by a;
+a	b	X
+1	Initial X=1	1
+2	Master X=20	20
+3	Slave X=30	30
+"Expect t1_max_ins* to have 1 row."
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	1	WRITE_ROW	DATA_IN_CONFLICT	3
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_del_win_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	1	WRITE_ROW	DATA_IN_CONFLICT	3
+drop table t1_max_ins, t1_max_del_win_ins;
+delete from t1_max_ins$EX;
+delete from t1_max_del_win_ins$EX;
+delete from t1_max_ins$EX;
+delete from t1_max_del_win_ins$EX;
+create table t1_max_ins (a int primary key, b longtext, X int unsigned) engine = ndb;
+create table t1_max_del_win_ins (a int primary key, b longtext, X int unsigned) engine = ndb;
+"Testing with blobs"
+"Test 3 : Conflict detection and resolution for INSERTs"
+insert into t1_max_ins values (1, repeat('Initial X=1 ',1000), 1);
+insert into t1_max_del_win_ins values (1, repeat('Initial X=1 ',1000), 1);
+insert into t1_max_ins values (2, repeat('Slave X=2 ',2000), 2);
+insert into t1_max_del_win_ins values (2, repeat('Slave X=2 ',2000), 2);
+insert into t1_max_ins values (3, repeat('Slave X=30 ',3000), 30);
+insert into t1_max_del_win_ins values (3, repeat('Slave X=30', 3000), 30);
+Insert a row in both tables with a greater timestamp
+insert into t1_max_ins values (2, repeat('Master X=20 ',2000), 20);
+insert into t1_max_del_win_ins values (2, repeat('Master X=20 ',2000), 20);
+Insert a row in both tables with a smaller timestamp
+insert into t1_max_ins values (3, repeat('Master X=3 ',3000), 3);
+insert into t1_max_del_win_ins values (3, repeat('Master X=3 ',3000), 3);
+"Expect t1_max_ins* to contain 3 rows"
+select a, left(b, 25), length(b), X from t1_max_ins order by a;
+a	left(b, 25)	length(b)	X
+1	Initial X=1 Initial X=1 I	12000	1
+2	Master X=20 Master X=20 M	24000	20
+3	Slave X=30 Slave X=30 Sla	33000	30
+select a, left(b, 25), length(b), X from t1_max_del_win_ins order by a;
+a	left(b, 25)	length(b)	X
+1	Initial X=1 Initial X=1 I	12000	1
+2	Master X=20 Master X=20 M	24000	20
+3	Slave X=30Slave X=30Slave	30000	30
+Expect t1_max_ins* to have 1 entry
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	1	WRITE_ROW	DATA_IN_CONFLICT	3
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_del_win_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	1	WRITE_ROW	DATA_IN_CONFLICT	3
+drop table t1_max_ins, t1_max_del_win_ins;
+delete from t1_max_ins$EX;
+delete from t1_max_del_win_ins$EX;
+delete from t1_max_ins$EX;
+delete from t1_max_del_win_ins$EX;
+create table t1_max_ins (a int primary key, b longtext, X int unsigned) engine = ndb;
+create table t1_max_del_win_ins (a int primary key, b longtext, X int unsigned) engine = ndb;
+"Test 4 : Conflict detection and resolution for UPDATEs"
+insert into t1_max_ins values (1, repeat('Initial X=1',1000), 1);
+insert into t1_max_del_win_ins values (1, repeat('Initial X=1',1000), 1);
+update t1_max_ins set X = 20, b=repeat('Slave X=20',2000);
+update t1_max_del_win_ins set X = 20, b=repeat('Slave X=20',2000);
+update t1_max_ins set X = 2, b=repeat('Master X=2',2000);
+update t1_max_del_win_ins set X = 2, b=repeat('Master X=2',2000);
+"Expect t1_max* to contain a single row with X=20"
+select a, left(b, 20), length(b), X from t1_max_ins order by a;
+a	left(b, 20)	length(b)	X
+1	Slave X=20Slave X=20	20000	20
+select a, left(b, 20), length(b), X from t1_max_del_win_ins order by a;
+a	left(b, 20)	length(b)	X
+1	Slave X=20Slave X=20	20000	20
+Expect t1_max* to have 1 entry for row with X=2 since this update is rejected at slave because of a smaller timestamp
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	1	UPDATE_ROW	DATA_IN_CONFLICT	1
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_del_win_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	1	UPDATE_ROW	DATA_IN_CONFLICT	1
+update t1_max_ins set X = 30, b=repeat('Master X=30',3000);
+update t1_max_del_win_ins set X = 30, b=repeat('Master X=30',3000);
+"Expect t1_max* to contain a single row with X=30 since there is no conflict(higher timestamp)"
+select a, left(b, 20), length(b), X from t1_max_ins order by a;
+a	left(b, 20)	length(b)	X
+1	Master X=30Master X=	33000	30
+select a, left(b, 20), length(b), X from t1_max_del_win_ins order by a;
+a	left(b, 20)	length(b)	X
+1	Master X=30Master X=	33000	30
+Expect t1_max* to have 1 old entry for row with X=2
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	1	UPDATE_ROW	DATA_IN_CONFLICT	1
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_del_win_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	1	UPDATE_ROW	DATA_IN_CONFLICT	1
+delete from t1_max_ins$EX;
+delete from t1_max_del_win_ins$EX;
+"Test 5 : Conflict detection and resolution for DELETEs"
+update t1_max_ins set X = 4, b=repeat('Slave X=4',2000);
+update t1_max_del_win_ins set X = 4, b=repeat('Slave X=4',2000);
+delete from t1_max_ins;
+delete from t1_max_del_win_ins;
+"Expect t1_max_ins to contain slave row since before images don't match according to MAX_INS algorithm"
+"Expect t1_max_del_win_ins to be empty since delete will be applied anyways with MAX_DEL_WIN_INS algorithm"
+select a, left(b, 20), length(b), X from t1_max_ins order by a;
+a	left(b, 20)	length(b)	X
+1	Slave X=4Slave X=4Sl	18000	4
+select a, left(b, 20), length(b), X from t1_max_del_win_ins order by a;
+a	left(b, 20)	length(b)	X
+Expect t1_max_ins to contain 1 entry, and t1_max_del_win_ins to be empty
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	2	DELETE_ROW	DATA_IN_CONFLICT	1
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_del_win_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+delete from t1_max_ins$EX;
+delete from t1_max_del_win_ins$EX;
+delete from t1_max_ins;
+delete from t1_max_del_win_ins;
+delete from t1_max_ins;
+delete from t1_max_del_win_ins;
+"Test 6 : Test that operations affecting Blobs are rejected correctly on the slave"
+drop table t1_max_ins;
+create table t1_max_ins (a int primary key, b int, c longtext, d longtext, X int unsigned) engine = ndb;
+insert into t1_max_ins values (1, 1, repeat("B", 10000), repeat("E", 10001), 1);
+insert into t1_max_ins values (2, 2, repeat("A", 10002), repeat("T", 10003), 1);
+update t1_max_ins set X=20;
+Initial values on Slave
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max_ins order by a;
+a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
+1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
+2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Originate update which will be rejected due to NDB_MAX_INS algorithm.
+update t1_max_ins set c=repeat("Z", 10006), d=repeat("I", 10005), X=2 where a=1;
+Check slave has rejected due to smaller timestamp.
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max_ins order by a;
+a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
+1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
+2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Originate delete which will be rejected due to NDB_OLD algorithm.
+delete from t1_max_ins where a=1;
+Check slave has rejected due to before image mismatch.
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max_ins order by a;
+a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
+1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
+2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Originate insert which will be rejected due to NDB_MAX_INS algorithm.
+insert into t1_max_ins values (1, 1, repeat("R", 10004), repeat("A", 10007), 1);
+Check slave has rejected due to smaller timestamp.
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max_ins order by a;
+a	b	SHA1(c)	length(c)	SHA1(d)	length(d)	X
+1	1	4a222e18b539cdefbf0960eaa7f4362a4976e1e0	10000	9641d473ab1bd921263190eee074397084933e2d	10001	20
+2	2	f833241322c062495632923d74314a6a5c23034d	10002	2dad269dfa115f6c7e53e91a73251e597aab8fe9	10003	20
+Expect t1_max_ins to have 3 entries
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+2	1	1	UPDATE_ROW	DATA_IN_CONFLICT	1
+2	1	2	DELETE_ROW	DATA_IN_CONFLICT	1
+2	1	3	WRITE_ROW	DATA_IN_CONFLICT	1
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_del_win_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+delete from t1_max_ins$EX;
+delete from t1_max_del_win_ins$EX;
+Test 7 : Check that non-Blob related operations in a batch with a Blob
+operation are still subject to conflict detection.
+
+insert into mysql.ndb_replication values ("test", "t2_max", 0, 7, "NDB$MAX(X)");
+create table `t2_max$EX`
+  (server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table t2_max (a int primary key, b int, X bigint unsigned) engine=ndb;
+insert into t2_max values (1,1,10), (2,2,10), (3,3,10), (4,4,10), (5,5,10);
+insert into t1_max_ins values (3, 3, repeat("R", 3000), repeat("A", 3000), 3);
+Now issue a transaction with a successful Blob op, and unsuccessful
+non-Blob op.  Check that the Blob op succeeds, and the unsuccessful
+non-Blob op is handled as expected.
+begin;
+update t2_max set b=b+1, X=1 where a=3;
+insert into t1_max_ins values (3, 3, repeat("MAX_INS", 3000), repeat("Success", 3000), 30);
+commit;
+Contents on Slave
+Expect Blob data applied to t1_max_ins, no update applied to t2_max
+select a,b,left(c,7), length(c), left(d,7), length(d), X from t1_max_ins where a=3;
+a	b	left(c,7)	length(c)	left(d,7)	length(d)	X
+3	3	MAX_INS	21000	Success	21000	30
+select * from t2_max order by a;
+a	b	X
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+Expect 1 conflict detected, but not applied in t2_max
+select NDB$server_id, NDB$master_server_id, NDB$count, NDB$OP_TYPE, NDB$CFT_CAUSE, a from t1_max_ins$EX order by NDB$count;
+NDB$server_id	NDB$master_server_id	NDB$count	NDB$OP_TYPE	NDB$CFT_CAUSE	a
+select server_id, master_server_id, count, a from t2_max$EX order by count;
+server_id	master_server_id	count	a
+2	1	1	3
+drop table t2_max, t2_max$EX;
+drop table t1_max_ins, `t1_max_ins$EX`, t1_max_del_win_ins, `t1_max_del_win_ins$EX`;
+drop table mysql.ndb_replication;
+include/rpl_end.inc

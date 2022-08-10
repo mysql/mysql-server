@@ -3,7 +3,7 @@ connect-timeout=60
 log-bin-trust-function-creators=1
 log-bin=mysqld-bin
 innodb-buffer-pool-size=24M
-innodb-log-file-size=5M
+innodb-redo-log-capacity=10M
 loose-enable-performance-schema
 loose-performance-schema-accounts-size=100
 loose-performance-schema-digests-size=200

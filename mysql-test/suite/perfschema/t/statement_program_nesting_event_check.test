@@ -2,6 +2,8 @@
 # Tests for PERFORMANCE_SCHEMA stored programs instrumentation  
 #-------------------------------------------------------------
 
+--source include/not_valgrind.inc
+
 # Test to check the values populated in NESTING_EVENT_TYPE 
 # columns of events_statements_current/history/history_long PS tables. 
 

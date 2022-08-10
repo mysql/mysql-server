@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,26 +35,6 @@
 #include "mysql_router_thread.h"
 #include "mysqlrouter/routing.h"
 
-class QuanrantinableDestination;
-
-class Quarantine {
- public:
-  std::vector<size_t> quarantined() const;
-
-  void add(size_t ndx);
-
-  bool has(size_t ndx) const;
-
-  void erase(size_t ndx);
-
-  size_t size() const;
-
-  bool empty() const;
-
- private:
-  std::vector<size_t> quarantined_;
-};
-
 class DestRoundRobin : public RouteDestination {
  public:
   /** @brief Default constructor
@@ -62,93 +42,17 @@ class DestRoundRobin : public RouteDestination {
    * @param io_ctx context for io operations
    * @param protocol Protocol for the destination, defaults to value returned
    *        by Protocol::get_default()
-   * @param thread_stack_size memory in kilobytes allocated for thread's stack
    */
-  DestRoundRobin(
-      net::io_context &io_ctx,
-      Protocol::Type protocol = Protocol::get_default(),
-      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes)
-      : RouteDestination(io_ctx, protocol),
-        quarantine_thread_(thread_stack_size),
-        stopped_{stopper_.get_future()} {}
+  DestRoundRobin(net::io_context &io_ctx,
+                 Protocol::Type protocol = Protocol::get_default())
+      : RouteDestination(io_ctx, protocol) {}
 
   /** @brief Destructor */
-  ~DestRoundRobin() override;
-
-  /** @brief run Quarantine Manager Thread */
-  static void *run_thread(void *context);
-
-  void start(const mysql_harness::PluginFuncEnv * /*env*/) override;
+  ~DestRoundRobin() override = default;
 
   Destinations destinations() override;
 
-  /** @brief Returns number of quarantined servers
-   *
-   * @return size_t
-   */
-  size_t size_quarantine();
-
-  void stop_listening_router_socket() {
-    if (stop_router_socket_acceptor_callback_)
-      stop_router_socket_acceptor_callback_();
-  }
-
-  friend QuanrantinableDestination;
-
  protected:
-  /** @brief Returns whether destination is quarantined
-   *
-   * Uses the given index to check whether the destination is
-   * quarantined.
-   *
-   * @param index index of the destination to check
-   * @return True if destination is quarantined
-   */
-  virtual bool is_quarantined(const size_t index) {
-    return quarantine_([=](auto &q) { return q.has(index); });
-  }
-
-  /**
-   * Adds server to quarantine.
-   *
-   * Adds the given server address to the quarantine list. The index argument
-   * is the index of the server in the destination list.
-   *
-   * @param index Index of the destination
-   */
-  virtual void add_to_quarantine(size_t index) noexcept;
-
-  /** @brief Worker checking and removing servers from quarantine
-   *
-   * This method is meant to run in a thread and calling the
-   * `cleanup_quarantine()` method.
-   *
-   * The caller is responsible for locking and unlocking the
-   * mutex `mutex_quarantine_`.
-   *
-   */
-  virtual void quarantine_manager_thread() noexcept;
-
-  /** @brief Checks and removes servers from quarantine
-   *
-   * This method removes servers from quarantine while trying to establish
-   * a connection. It is used in a seperate thread and will update the
-   * quarantine list, and will keep trying until the list is empty.
-   * A conditional variable is used to notify the thread servers were
-   * quarantined.
-   *
-   */
-  virtual void cleanup_quarantine() noexcept;
-
-  WaitableMonitor<Quarantine> quarantine_{Quarantine{}};
-
-  /** @brief refresh thread facade */
-  mysql_harness::MySQLRouterThread quarantine_thread_;
-
-  /** @brief Whether we are stopping */
-  std::promise<void> stopper_;
-  std::future<void> stopped_;
-
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};
 };

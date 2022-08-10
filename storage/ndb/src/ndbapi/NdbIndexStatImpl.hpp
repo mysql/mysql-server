@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,8 @@ public:
   NdbMutex* m_query_mutex;
   NdbEventOperation* m_eventOp;
   Mem* m_mem_handler;
-  NdbIndexStat::Error m_error;
+  // Allow update error from const methods
+  mutable NdbIndexStat::Error m_error;
 
   // sys tables meta
   struct Sys {
@@ -327,8 +328,8 @@ public:
    * bound data.
    * Worst case is 32 cols in key and max key size used.
    */
-  STATIC_CONST( BoundBufWords = (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY)
-                + NDB_MAX_KEYSIZE_IN_WORDS );
+  static constexpr Uint32 BoundBufWords =
+    (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY) + NDB_MAX_KEYSIZE_IN_WORDS;
 };
 
 inline

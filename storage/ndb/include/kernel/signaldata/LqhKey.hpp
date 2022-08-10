@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,15 +55,15 @@ class LqhKeyReq {
   friend bool printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( FixedSignalLength = 11 );
-  STATIC_CONST( MaxKeyInfo = 4 );
-  STATIC_CONST( MaxAttrInfo = 5);
+  static constexpr Uint32 FixedSignalLength = 11;
+  static constexpr Uint32 MaxKeyInfo = 4;
+  static constexpr Uint32 MaxAttrInfo = 5;
 
   /* Long LQHKEYREQ definitions */
-  STATIC_CONST( KeyInfoSectionNum = 0 );
-  STATIC_CONST( AttrInfoSectionNum = 1 );
+  static constexpr Uint32 KeyInfoSectionNum = 0;
+  static constexpr Uint32 AttrInfoSectionNum = 1;
 
-  STATIC_CONST( UnlockKeyLen = 2 );
+  static constexpr Uint32 UnlockKeyLen = 2;
 
 private:
 
@@ -816,7 +816,7 @@ class LqhKeyConf {
   friend bool printLQHKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
 private:
 
@@ -874,7 +874,7 @@ class LqhKeyRef {
   friend bool printLQHKEYREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
 

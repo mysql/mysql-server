@@ -1,0 +1,118 @@
+###############################################################################
+# Validate that Group Replication members actions can be reset.
+# The UDF `group_replication_reset_member_actions` can only be performed on a
+# OFFLINE member.
+#
+# Test:
+#   0. This test requires one server
+#   1. Disable `mysql_disable_super_read_only_if_primary` action.
+#   2. Try to reset member actions on a running member, it will
+#      not be allowed.
+#   3. Leave the group and reset member actions.
+#      Validate Group Replication members actions default values.
+#   4. Try to reset member actions on a server with super_read_only=1,
+#      it will not be allowed.
+#   5. Try to reset member actions passing invalid parameters.
+#   6. Clean up.
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Disable `mysql_disable_super_read_only_if_primary` action.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 2
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 2
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Try to reset member actions on a running member, it will
+--echo #    not be allowed.
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_reset_member_actions();
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 2
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 2
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Leave the group and reset member actions.
+--echo #    Validate Group Replication members actions default values.
+--source include/stop_group_replication.inc
+
+SELECT group_replication_reset_member_actions();
+
+--let $assert_text= There must be two member actions
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2
+--source include/assert.inc
+
+--let $assert_text= mysql_disable_super_read_only_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=1 AND error_handling=\'IGNORE\'] = 1
+--source include/assert.inc
+
+--let $assert_text= mysql_start_failover_channels_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=10 AND error_handling=\'CRITICAL\'] = 1
+--source include/assert.inc
+
+--let $assert_text= There must be one GR configuration version
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_configuration_version] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 1
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_member_actions_reset
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= Member actions configuration was reset.
+--let $assert_count= 1
+--let $assert_text= Member actions configuration was reset.
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Try to reset member actions on a server with super_read_only=1,
+--echo #    it will not be allowed.
+
+SET GLOBAL super_read_only= 1;
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_reset_member_actions();
+SET GLOBAL read_only= 0;
+
+
+--echo
+--echo ############################################################
+--echo # 5. Try to reset member actions passing invalid parameters.
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_reset_member_actions(1);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_reset_member_actions("foo");
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--source include/group_replication_end.inc

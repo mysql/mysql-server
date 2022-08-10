@@ -38,7 +38,8 @@ SELECT COUNT(*)=0
 SET @@global.log_error_services=DEFAULT;
 
 # remove test sink
-UNINSTALL COMPONENT 'file://component_log_sink_test';
+DELETE FROM mysql.component
+      WHERE component_urn='file://component_log_sink_test';
 
 
 
@@ -91,6 +92,7 @@ SELECT error_code,data
 --echo
 --echo # clean up
 SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
+--remove_file $LOG_FILE
 
 --echo
 --echo # Done!

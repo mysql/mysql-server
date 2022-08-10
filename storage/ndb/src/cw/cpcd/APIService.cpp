@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -395,12 +395,12 @@ void CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
 }
 
 void CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
-                                 const class Properties &args) {
+                                 const class Properties & /*args*/)
+{
   CPCD::RequestStatus rs;
 
   m_output->println("show version");
 
-  m_output->println("compile time: %s %s", __DATE__, __TIME__);
   m_output->println("supported protocol: %u", CPCD::CPC_PROTOCOL_VERSION);
   m_output->println("effective protocol: %u", m_protocol_version);
   m_output->println("%s", "");

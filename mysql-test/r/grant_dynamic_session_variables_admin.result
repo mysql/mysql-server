@@ -3,8 +3,8 @@ Must have SESSION_VARIABLES_ADMIN with grant option
 SHOW GRANTS FOR root@localhost;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ABORT_EXEMPT,AUDIT_ADMIN,AUTHENTICATION_POLICY_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FIREWALL_EXEMPT,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,GROUP_REPLICATION_STREAM,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PASSWORDLESS_USER_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SENSITIVE_VARIABLES_OBSERVER,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ``@`` TO `root`@`localhost` WITH GRANT OPTION
 # Testing FR1
 CREATE USER wl12217@localhost;
 CREATE DATABASE wl12217;
@@ -41,7 +41,7 @@ SET SESSION character_set_database = DEFAULT;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 SET SESSION character_set_filesystem = DEFAULT;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or REPLICATION_APPLIER privilege(s) for this operation
 SET SESSION pseudo_thread_id = DEFAULT;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
@@ -74,11 +74,13 @@ SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 Warnings:
-Warning	1231	'pseudo_slave_mode' change was ineffective.
+Warning	1231	'pseudo_replica_mode' change was ineffective.
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 SET SESSION sql_log_off = DEFAULT;
 SET SESSION original_commit_timestamp = DEFAULT;
@@ -114,11 +116,13 @@ SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 Warnings:
-Warning	1231	'pseudo_slave_mode' change was ineffective.
+Warning	1231	'pseudo_replica_mode' change was ineffective.
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 SET SESSION sql_log_off = DEFAULT;
 SET SESSION original_commit_timestamp = DEFAULT;
@@ -156,11 +160,13 @@ SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 Warnings:
-Warning	1231	'pseudo_slave_mode' change was ineffective.
+Warning	1231	'pseudo_replica_mode' change was ineffective.
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 SET SESSION sql_log_off = DEFAULT;
 SET SESSION original_commit_timestamp = DEFAULT;
@@ -179,7 +185,7 @@ DROP USER wl12217@localhost;
 SHOW GRANTS for "mysql.session"@localhost;
 Grants for mysql.session@localhost
 GRANT SHUTDOWN, SUPER ON *.* TO `mysql.session`@`localhost`
-GRANT BACKUP_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
+GRANT AUDIT_ABORT_EXEMPT,BACKUP_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,FIREWALL_EXEMPT,PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 #

@@ -319,6 +319,26 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#34224193 Adding default value for not null column with
+--echo #              ALTER TABLE have issues.
+--echo #
+CREATE TABLE t1 (
+  pk int AUTO_INCREMENT PRIMARY KEY,
+  col1 int NOT NULL,
+  col2 int NOT NULL DEFAULT 0
+) ENGINE=ndbcluster;
+# Changing to have default value is not supported inplace
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 algorithm=inplace, CHANGE col1 col1 int NOT NULL DEFAULT 0;
+ALTER TABLE t1 CHANGE col1 col1 int NOT NULL DEFAULT 0;
+INSERT INTO t1() VALUE();
+SHOW WARNINGS;
+# Changing to NOT have default value is not supported inplace
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 algorithm=inplace, CHANGE col1 col1 int NOT NULL;
+DROP TABLE t1;
+
 #####################################
 # Adding dropping primary key
 ######################################

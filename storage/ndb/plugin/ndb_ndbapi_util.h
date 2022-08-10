@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,11 +178,14 @@ bool ndb_get_tablespace_names(
  * @param dict              NDB Dictionary
  * @param schema_name       Schema name
  * @param table_names [out] List of table names
+ * @param temp_names [out]  Optional, set of temporary table names
+ *
  * @return true on success, false on failure
  */
 bool ndb_get_table_names_in_schema(
     const NdbDictionary::Dictionary *dict, const std::string &schema_name,
-    std::unordered_set<std::string> *table_names);
+    std::unordered_set<std::string> *table_names,
+    std::unordered_set<std::string> *temp_names = nullptr);
 
 /**
  * @brief Retrieves list of undofile names assigned to a logfile group from NDB

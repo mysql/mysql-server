@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,17 +48,6 @@ IMPORT_LOG_FUNCTIONS()
 
 namespace routing {
 
-const int kDefaultWaitTimeout = 0;  // 0 = no timeout used
-const int kDefaultMaxConnections = 512;
-const std::chrono::seconds kDefaultDestinationConnectionTimeout{1};
-const std::string kDefaultBindAddress = "127.0.0.1";
-const unsigned int kDefaultNetBufferLength =
-    16384;  // Default defined in latest MySQL Server
-const unsigned long long kDefaultMaxConnectErrors =
-    100;  // Similar to MySQL Server
-const std::chrono::seconds kDefaultClientConnectTimeout{
-    9};  // Default connect_timeout MySQL Server minus 1
-
 // unused constant
 // const int kMaxConnectTimeout = INT_MAX / 1000;
 
@@ -69,19 +58,20 @@ static const std::array<const char *, 3> kAccessModeNames{{
     "read-only",
 }};
 
-AccessMode get_access_mode(const std::string &value) {
+ROUTING_EXPORT AccessMode get_access_mode(const std::string &value) {
   for (unsigned int i = 1; i < kAccessModeNames.size(); ++i)
     if (kAccessModeNames[i] == value) return static_cast<AccessMode>(i);
   return AccessMode::kUndefined;
 }
 
-std::string get_access_mode_names() {
+ROUTING_EXPORT std::string get_access_mode_names() {
   // +1 to skip undefined
   return mysql_harness::serial_comma(kAccessModeNames.begin() + 1,
                                      kAccessModeNames.end());
 }
 
-std::string get_access_mode_name(AccessMode access_mode) noexcept {
+ROUTING_EXPORT std::string get_access_mode_name(
+    AccessMode access_mode) noexcept {
   if (access_mode == AccessMode::kUndefined)
     return "<not-set>";
   else
@@ -97,14 +87,14 @@ static const std::array<const char *, 5> kRoutingStrategyNames{{
     "round-robin-with-fallback",
 }};
 
-RoutingStrategy get_routing_strategy(const std::string &value) {
+ROUTING_EXPORT RoutingStrategy get_routing_strategy(const std::string &value) {
   for (unsigned int i = 1; i < kRoutingStrategyNames.size(); ++i)
     if (kRoutingStrategyNames[i] == value)
       return static_cast<RoutingStrategy>(i);
   return RoutingStrategy::kUndefined;
 }
 
-std::string get_routing_strategy_names(bool metadata_cache) {
+ROUTING_EXPORT std::string get_routing_strategy_names(bool metadata_cache) {
   // round-robin-with-fallback is not supported for static routing
   const std::array<const char *, 3> kRoutingStrategyNamesStatic{{
       "first-available",
@@ -124,7 +114,7 @@ std::string get_routing_strategy_names(bool metadata_cache) {
   return mysql_harness::serial_comma(v.begin(), v.end());
 }
 
-std::string get_routing_strategy_name(
+ROUTING_EXPORT std::string get_routing_strategy_name(
     RoutingStrategy routing_strategy) noexcept {
   if (routing_strategy == RoutingStrategy::kUndefined)
     return "<not set>";

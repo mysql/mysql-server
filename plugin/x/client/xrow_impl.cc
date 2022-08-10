@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 namespace xcl {
 namespace details {
 
-std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
+std::string as_string(const Column_metadata &m [[maybe_unused]],
                       const std::set<std::string> &values) {
   std::string result;
   bool first = true;
@@ -49,22 +49,22 @@ std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
   return result;
 }
 
-std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
+std::string as_string(const Column_metadata &m [[maybe_unused]],
                       const std::string &value) {
   return value;
 }
 
-std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
+std::string as_string(const Column_metadata &m [[maybe_unused]],
                       const Time &value) {
   return value.to_string();
 }
 
-std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
+std::string as_string(const Column_metadata &m [[maybe_unused]],
                       const DateTime &value) {
   return value.to_string();
 }
 
-std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
+std::string as_string(const Column_metadata &m [[maybe_unused]],
                       const Decimal &value) {
   return value.to_string();
 }
@@ -97,7 +97,7 @@ std::string as_string(const Column_metadata &metadata, const float &value) {
 }
 
 template <typename Value_type>
-std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
+std::string as_string(const Column_metadata &m [[maybe_unused]],
                       const Value_type &value) {
   return std::to_string(value);
 }

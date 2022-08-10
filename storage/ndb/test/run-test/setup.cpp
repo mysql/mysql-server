@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <util/ndb_opts.h>
 #include <map>
@@ -591,6 +592,12 @@ static bool load_process(atrt_config& config,
           proc.m_proc.m_args.assfmt("--config-file=%s/config%s.ini",
                                     proc.m_host->m_basedir.c_str(),
                                     cluster.m_name.c_str());
+          if (g_restart) {
+            proc.m_proc.m_args.append(" --reload");
+          } else {
+            proc.m_proc.m_args.append(" --initial");
+          }
+
           break;
         }
       }
@@ -1205,13 +1212,13 @@ NdbOut& operator<<(NdbOut& out, const atrt_process& proc) {
 
   out << " ]";
 
-#if 0  
+#if 0
   proc.m_index = 0; //idx;
   proc.m_host = host_ptr;
   proc.m_cluster = cluster;
   proc.m_proc.m_id = -1;
   proc.m_proc.m_type = "temporary";
-  proc.m_proc.m_owner = "atrt";  
+  proc.m_proc.m_owner = "atrt";
   proc.m_proc.m_group = cluster->m_name.c_str();
   proc.m_proc.m_cwd.assign(dir).append("/atrt/").append(cluster->m_dir);
   proc.m_proc.m_stdout = "log.out";

@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,3 +35,9 @@ FOREACH(test_file
     INCLUDE_DIRS ../include/
     LIB_DEPENDS harness_stdx)
 ENDFOREACH()
+
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    test_classic_protocol_message.cc
+    COMPILE_FLAGS "/bigobj")
+ENDIF()

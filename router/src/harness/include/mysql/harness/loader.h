@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -614,8 +614,6 @@ end). Actions taken for each plugin function are as follows:
 #ifndef MYSQL_HARNESS_LOADER_INCLUDED
 #define MYSQL_HARNESS_LOADER_INCLUDED
 
-#include "router_config.h"
-
 #include "config_parser.h"
 #include "filesystem.h"
 #include "mysql/harness/dynamic_loader.h"
@@ -644,59 +642,7 @@ end). Actions taken for each plugin function are as follows:
 typedef void (*log_reopen_callback)(const std::string);
 
 #ifdef FRIEND_TEST
-// TODO replace by #include after merge:
-// #include "../../../mysqlrouter/utils.h"  // DECLARE_TEST
-/** @brief Declare test (class)
- *
- * When using FRIEND_TEST() on classes that are not in the same namespace
- * as the test, the test (class) needs to be forward-declared. This marco
- * eases this.
- *
- * @note We need this for unit tests, BUT on the TESTED code side (not in unit
- * test code)
- */
-#define DECLARE_TEST(test_case_name, test_name) \
-  class test_case_name##_##test_name##_Test
-
 class TestLoader;
-class LifecycleTest;
-
-DECLARE_TEST(TestStart, StartLogger);
-DECLARE_TEST(LifecycleTest, Simple_None);
-DECLARE_TEST(LifecycleTest, Simple_AllFunctions);
-DECLARE_TEST(LifecycleTest, Simple_Init);
-DECLARE_TEST(LifecycleTest, Simple_StartStop);
-DECLARE_TEST(LifecycleTest, Simple_StartStopBlocking);
-DECLARE_TEST(LifecycleTest, Simple_Start);
-DECLARE_TEST(LifecycleTest, Simple_Stop);
-DECLARE_TEST(LifecycleTest, Simple_Deinit);
-DECLARE_TEST(LifecycleTest, ThreeInstances_NoError);
-DECLARE_TEST(LifecycleTest, BothLifecycles_NoError);
-DECLARE_TEST(LifecycleTest, OneInstance_NothingPersists_NoError);
-DECLARE_TEST(LifecycleTest, OneInstance_NothingPersists_StopFails);
-DECLARE_TEST(LifecycleTest, ThreeInstances_InitFails);
-DECLARE_TEST(LifecycleTest, BothLifecycles_InitFails);
-DECLARE_TEST(LifecycleTest, ThreeInstances_Start1Fails);
-DECLARE_TEST(LifecycleTest, ThreeInstances_Start2Fails);
-DECLARE_TEST(LifecycleTest, ThreeInstances_Start3Fails);
-DECLARE_TEST(LifecycleTest, ThreeInstances_2StartsFail);
-DECLARE_TEST(LifecycleTest, ThreeInstances_StopFails);
-DECLARE_TEST(LifecycleTest, ThreeInstances_DeinintFails);
-DECLARE_TEST(LifecycleTest, ThreeInstances_StartStopDeinitFail);
-DECLARE_TEST(LifecycleTest, NoInstances);
-DECLARE_TEST(LifecycleTest, EmptyErrorMessage);
-DECLARE_TEST(LifecycleTest, send_signals);
-DECLARE_TEST(LifecycleTest, send_signals2);
-DECLARE_TEST(LifecycleTest, wait_for_stop);
-DECLARE_TEST(LifecycleTest, InitThrows);
-DECLARE_TEST(LifecycleTest, StartThrows);
-DECLARE_TEST(LifecycleTest, StopThrows);
-DECLARE_TEST(LifecycleTest, DeinitThrows);
-DECLARE_TEST(LifecycleTest, InitThrowsWeird);
-DECLARE_TEST(LifecycleTest, StartThrowsWeird);
-DECLARE_TEST(LifecycleTest, StopThrowsWeird);
-DECLARE_TEST(LifecycleTest, DeinitThrowsWeird);
-DECLARE_TEST(LoaderReadTest, Loading);
 #endif
 
 namespace mysql_harness {
@@ -1010,46 +956,26 @@ class HARNESS_EXPORT Loader {
   bool signal_thread_ready_{false};
   std::thread signal_thread_;
 
+  /**
+   * Checks if all the options in the configuration fed to the Loader are
+   * supported.
+   *
+   * @throws std::runtime_error if there is unsupported option in the
+   * configuration
+   */
+  void check_config_options_supported();
+
+  /**
+   * Checks if all the options in the section [DEFAULT] in the configuration fed
+   * to the Loader are supported.
+   *
+   * @throws std::runtime_error if there is unsupported option in the [DEFAULT]
+   * section of the configuration
+   */
+  void check_default_config_options_supported();
+
 #ifdef FRIEND_TEST
   friend class ::TestLoader;
-  friend class ::LifecycleTest;
-
-  FRIEND_TEST(::TestStart, StartLogger);
-  FRIEND_TEST(::LifecycleTest, Simple_None);
-  FRIEND_TEST(::LifecycleTest, Simple_AllFunctions);
-  FRIEND_TEST(::LifecycleTest, Simple_Init);
-  FRIEND_TEST(::LifecycleTest, Simple_StartStop);
-  FRIEND_TEST(::LifecycleTest, Simple_StartStopBlocking);
-  FRIEND_TEST(::LifecycleTest, Simple_Start);
-  FRIEND_TEST(::LifecycleTest, Simple_Stop);
-  FRIEND_TEST(::LifecycleTest, Simple_Deinit);
-  FRIEND_TEST(::LifecycleTest, ThreeInstances_NoError);
-  FRIEND_TEST(::LifecycleTest, BothLifecycles_NoError);
-  FRIEND_TEST(::LifecycleTest, OneInstance_NothingPersists_NoError);
-  FRIEND_TEST(::LifecycleTest, OneInstance_NothingPersists_StopFails);
-  FRIEND_TEST(::LifecycleTest, ThreeInstances_InitFails);
-  FRIEND_TEST(::LifecycleTest, BothLifecycles_InitFails);
-  FRIEND_TEST(::LifecycleTest, ThreeInstances_Start1Fails);
-  FRIEND_TEST(::LifecycleTest, ThreeInstances_Start2Fails);
-  FRIEND_TEST(::LifecycleTest, ThreeInstances_Start3Fails);
-  FRIEND_TEST(::LifecycleTest, ThreeInstances_2StartsFail);
-  FRIEND_TEST(::LifecycleTest, ThreeInstances_StopFails);
-  FRIEND_TEST(::LifecycleTest, ThreeInstances_DeinintFails);
-  FRIEND_TEST(::LifecycleTest, ThreeInstances_StartStopDeinitFail);
-  FRIEND_TEST(::LifecycleTest, NoInstances);
-  FRIEND_TEST(::LifecycleTest, EmptyErrorMessage);
-  FRIEND_TEST(::LifecycleTest, send_signals);
-  FRIEND_TEST(::LifecycleTest, send_signals2);
-  FRIEND_TEST(::LifecycleTest, wait_for_stop);
-  FRIEND_TEST(::LifecycleTest, InitThrows);
-  FRIEND_TEST(::LifecycleTest, StartThrows);
-  FRIEND_TEST(::LifecycleTest, StopThrows);
-  FRIEND_TEST(::LifecycleTest, DeinitThrows);
-  FRIEND_TEST(::LifecycleTest, InitThrowsWeird);
-  FRIEND_TEST(::LifecycleTest, StartThrowsWeird);
-  FRIEND_TEST(::LifecycleTest, StopThrowsWeird);
-  FRIEND_TEST(::LifecycleTest, DeinitThrowsWeird);
-  FRIEND_TEST(::LoaderReadTest, Loading);
 #endif
 
 };  // class Loader
@@ -1095,7 +1021,7 @@ class LogReopenThread {
    */
   static void log_reopen_thread_function(LogReopenThread *t);
 
-  /*
+  /**
    * request reopen
    *
    * @note Empty dst will cause reopen only, and the old content will not be
@@ -1108,7 +1034,7 @@ class LogReopenThread {
    * @param dst filename to use for old log file during reopen
    * @throws std::system_error same as std::unique_lock::lock does
    */
-  void request_reopen(const std::string dst = "");
+  void request_reopen(const std::string &dst = "");
 
   /* Log reopen state triplet */
   enum LogReopenState { REOPEN_NONE, REOPEN_REQUESTED, REOPEN_ACTIVE };
@@ -1181,7 +1107,7 @@ void request_application_shutdown(
  * @throws std::system_error same as std::unique_lock::lock does
  */
 HARNESS_EXPORT
-void request_log_reopen(const std::string dst = "");
+void request_log_reopen(const std::string &dst = "");
 
 /**
  * check reopen completed

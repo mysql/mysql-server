@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_HISTOGRAM_INCLUDED
 #define HISTOGRAMS_HISTOGRAM_INCLUDED
 
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,6 +132,18 @@ enum class enum_operator {
 
 /**
   Histogram base class.
+
+  This is an abstract class containing the interface and shared code for
+  concrete histogram subclasses.
+
+  Histogram subclasses (Singleton, Equi_height) are constructed through factory
+  methods in order to catch memory allocation errors during construction.
+
+  The histogram subclasses have no public copy or move constructors. In order to
+  copy a histogram onto a given MEM_ROOT, use the public clone method. The clone
+  method ensures that members of the histogram, such String type buckets,
+  are also allocated on the given MEM_ROOT. Modifications to these methods need
+  to be careful that histogram buckets are cloned/copied correctly.
 */
 class Histogram {
  public:
@@ -180,6 +192,32 @@ class Histogram {
   static constexpr const char *numer_of_buckets_specified_str() {
     return "number-of-buckets-specified";
   }
+
+  /**
+    Constructor.
+
+    @param mem_root  the mem_root where the histogram contents will be allocated
+    @param db_name   name of the database this histogram represents
+    @param tbl_name  name of the table this histogram represents
+    @param col_name  name of the column this histogram represents
+    @param type      the histogram type (equi-height, singleton)
+    @param data_type the type of data that this histogram contains
+    @param[out] error is set to true if an error occurs
+  */
+  Histogram(MEM_ROOT *mem_root, const std::string &db_name,
+            const std::string &tbl_name, const std::string &col_name,
+            enum_histogram_type type, Value_map_type data_type, bool *error);
+
+  /**
+    Copy constructor
+
+    This will make a copy of the provided histogram onto the provided MEM_ROOT.
+
+    @param mem_root  the mem_root where the histogram contents will be allocated
+    @param other     the histogram to copy
+    @param[out] error is set to true if an error occurs
+  */
+  Histogram(MEM_ROOT *mem_root, const Histogram &other, bool *error);
 
   /**
     Write the data type of this histogram into a JSON object.
@@ -239,12 +277,19 @@ class Histogram {
   LEX_CSTRING m_column_name;
 
   /**
+    An internal function for getting a selectivity estimate prior to adustment.
+    @see get_selectivity() for details.
+   */
+  bool get_raw_selectivity(Item **items, size_t item_count, enum_operator op,
+                           double *selectivity) const;
+
+  /**
     An internal function for getting the selecitvity estimation.
 
     This function will read/evaluate the value from the given Item, and pass
     this value on to the correct selectivity estimation function based on the
     data type of the histogram. For instance, if the data type of the histogram
-    is INT, we will call "val_int" on the Item to evaulate the value as an
+    is INT, we will call "val_int" on the Item to evaluate the value as an
     integer and pass this value on to the next function.
 
     @param item The Item to read/evaluate the value from.
@@ -298,31 +343,11 @@ class Histogram {
   double apply_operator(const enum_operator op, const T &value) const;
 
  public:
-  /**
-    Constructor.
-
-    @param mem_root  the mem_root where the histogram contents will be allocated
-    @param db_name   name of the database this histogram represents
-    @param tbl_name  name of the table this histogram represents
-    @param col_name  name of the column this histogram represents
-    @param type      the histogram type (equi-height, singleton)
-    @param data_type the type of data that this histogram contains
-  */
-  Histogram(MEM_ROOT *mem_root, const std::string &db_name,
-            const std::string &tbl_name, const std::string &col_name,
-            enum_histogram_type type, Value_map_type data_type);
-
-  /**
-    Copy constructor
-
-    This will make a copy of the provided histogram onto the provided MEM_ROOT.
-  */
-  Histogram(MEM_ROOT *mem_root, const Histogram &other);
-
+  Histogram() = delete;
   Histogram(const Histogram &other) = delete;
 
   /// Destructor.
-  virtual ~Histogram() {}
+  virtual ~Histogram() = default;
 
   /// @return the MEM_ROOT that this histogram uses for allocations
   MEM_ROOT *get_mem_root() const { return m_mem_root; }
@@ -468,7 +493,7 @@ class Histogram {
   /**
     @return the fraction of non-null values in the histogram.
   */
-  double get_non_null_values_frequency() const {
+  double get_non_null_values_fraction() const {
     return 1.0 - get_null_values_fraction();
   }
 };
@@ -531,9 +556,12 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
   @param original_table_def Original table definition.
   @param results A map where the result of each operation is stored.
 
+  @note Assumes that caller owns exclusive metadata lock on the table,
+        so there is no need to lock individual statistics.
+
   @return false on success, true on error.
 */
-bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
+bool drop_all_histograms(THD *thd, TABLE_LIST &table,
                          const dd::Table &original_table_def,
                          results_map &results);
 
@@ -546,12 +574,18 @@ bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
   @param thd Thread handler.
   @param table The table where we should look for the columns.
   @param columns Columns specified by the user.
+  @param needs_lock Whether we need to acquire metadata locks on
+                    the table and column statistics to be dropped.
   @param results A map where the result of each operation is stored.
+
+  @note In case when needs_lock parameter is false assumes that caller
+        owns exclusive metadata lock on the table, so there is no need
+        to lock individual statistics.
 
   @return false on success, true on error.
 */
-bool drop_histograms(THD *thd, const TABLE_LIST &table,
-                     const columns_set &columns, results_map &results);
+bool drop_histograms(THD *thd, TABLE_LIST &table, const columns_set &columns,
+                     bool needs_lock, results_map &results);
 
 /**
   Rename histograms for all columns in a given table.

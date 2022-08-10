@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,10 +79,10 @@ class Dictionary_impl : public Dictionary {
   static Dictionary_impl *instance();
 
  private:
-  Dictionary_impl() {}
+  Dictionary_impl() = default;
 
  public:
-  ~Dictionary_impl() override {}
+  ~Dictionary_impl() override = default;
 
  public:
   static uint get_target_dd_version();

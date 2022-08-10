@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ int table_esgs_global_by_event_name::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esgs_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
+int table_esgs_global_by_event_name::index_init(uint idx [[maybe_unused]],
                                                 bool) {
   PFS_index_esgs_global_by_event_name *result = nullptr;
   assert(idx == 0);

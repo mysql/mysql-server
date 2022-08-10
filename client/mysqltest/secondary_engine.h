@@ -1,7 +1,7 @@
 #ifndef SECONDARY_ENGINE_INCLUDED
 #define SECONDARY_ENGINE_INCLUDED
 
-// Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,8 @@
 
 class Secondary_engine {
  public:
-  Secondary_engine() {}
-  ~Secondary_engine() {}
+  Secondary_engine() = default;
+  ~Secondary_engine() = default;
 
   /// Get the secondary engine execution count value.
   ///

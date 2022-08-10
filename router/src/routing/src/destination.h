@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <list>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -38,14 +39,22 @@
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/protocol.h"
-#include "router_config.h"
 #include "tcp_address.h"
 
 namespace mysql_harness {
 class PluginFuncEnv;
 }
 
-using AllowedNodes = std::vector<std::string>;
+struct AvailableDestination {
+  AvailableDestination(mysql_harness::TCPAddress a, std::string i)
+      : address{std::move(a)}, id{std::move(i)} {}
+
+  mysql_harness::TCPAddress address;
+  std::string id;
+};
+
+using AllowedNodes = std::vector<AvailableDestination>;
+
 // first argument is the new set of the allowed nodes
 // second argument is a set of nodes that can be used for new connections
 // third argument is an indication whether we should disconnect existing
@@ -65,6 +74,15 @@ using AllowedNodesChangeCallbacksListIterator =
 using StartSocketAcceptorCallback =
     std::function<stdx::expected<void, std::error_code>()>;
 using StopSocketAcceptorCallback = std::function<void()>;
+// First callback argument informs if the instances returned from the metadata
+// has changed. Second argument is a list of new instances available after
+// md refresh.
+using MetadataRefreshCallback =
+    std::function<void(const bool, const AllowedNodes &)>;
+// Callback argument is a destination we want to check, value returned is
+// true if the destination is quarantined, false otherwise.
+using QueryQuarantinedDestinationsCallback =
+    std::function<bool(const mysql_harness::TCPAddress &)>;
 
 /** @class DestinationNodesStateNotifier
  *
@@ -123,12 +141,44 @@ class DestinationNodesStateNotifier {
    */
   void unregister_stop_router_socket_acceptor();
 
+  /**
+   * Registers a callback that is going to be used on metadata refresh
+   *
+   * @param callback Callback that will be called on each metadata refresh.
+   */
+  void register_md_refresh_callback(const MetadataRefreshCallback &callback);
+
+  /**
+   * Unregisters the callback registered with
+   * register_md_refresh_callback().
+   */
+  void unregister_md_refresh_callback();
+
+  /**
+   * Registers a callback that could be used for checking if the provided
+   * destination candidate is currently quarantined.
+   *
+   * @param clb Callback to query unreachable destinations.
+   */
+  void register_query_quarantined_destinations(
+      const QueryQuarantinedDestinationsCallback &clb);
+
+  /**
+   * Unregisters the callback registered with
+   * register_query_quarantined_destinations().
+   */
+  void unregister_query_quarantined_destinations();
+
  protected:
   AllowedNodesChangeCallbacksList allowed_nodes_change_callbacks_;
+  MetadataRefreshCallback md_refresh_callback_;
   StartSocketAcceptorCallback start_router_socket_acceptor_callback_;
   StopSocketAcceptorCallback stop_router_socket_acceptor_callback_;
-  std::mutex allowed_nodes_change_callbacks_mtx_;
-  std::mutex socket_acceptor_handle_callbacks_mtx;
+  QueryQuarantinedDestinationsCallback query_quarantined_destinations_callback_;
+  mutable std::mutex allowed_nodes_change_callbacks_mtx_;
+  mutable std::mutex md_refresh_callback_mtx_;
+  mutable std::mutex socket_acceptor_handle_callbacks_mtx;
+  mutable std::mutex query_quarantined_destinations_callback_mtx_;
 };
 
 /** @class RouteDestination
@@ -227,8 +277,7 @@ class RouteDestination : public DestinationNodesStateNotifier {
    *
    * @param env pointer to the PluginFuncEnv object
    */
-  virtual void start(
-      const mysql_harness::PluginFuncEnv *env MY_ATTRIBUTE((unused))) {}
+  virtual void start(const mysql_harness::PluginFuncEnv *env);
 
   AddrVector::iterator begin() { return destinations_.begin(); }
 
@@ -256,10 +305,8 @@ class RouteDestination : public DestinationNodesStateNotifier {
    *
    * @returns new destinations, if there are any.
    */
-  virtual stdx::expected<Destinations, void> refresh_destinations(
-      const Destinations &dests MY_ATTRIBUTE((unused))) {
-    return stdx::make_unexpected();
-  }
+  virtual std::optional<Destinations> refresh_destinations(
+      const Destinations &dests);
 
   /**
    * Trigger listening socket acceptors state handler based on the destination

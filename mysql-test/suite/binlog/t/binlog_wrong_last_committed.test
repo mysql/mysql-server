@@ -27,6 +27,10 @@
 ################################################################################
 --source include/have_binlog_format_statement.inc
 --source include/have_debug_sync.inc
+--let $option_name = binlog_order_commits
+--let $option_value = 1
+--source include/only_with_option.inc
+
 
 # Reset sequence_number and last_committed, so we can check the exact number
 # Make sure it starts from binlog.000001

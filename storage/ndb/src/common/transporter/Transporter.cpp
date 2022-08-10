@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 
+#include "util/require.h"
 #include <TransporterRegistry.hpp>
 #include <TransporterCallback.hpp>
 #include "Transporter.hpp"
@@ -31,9 +32,9 @@
 #include <SocketAuthenticator.hpp>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
+#include "util/cstrbuf.h"
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -97,19 +98,34 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   m_is_active = true;
 
   assert(rHostName);
-  if (rHostName && strlen(rHostName) > 0){
-    strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
+  if (rHostName && strlen(rHostName) > 0)
+  {
+    if (cstrbuf_copy(remoteHostName, rHostName) == 1)
+    {
+      ndbout << "Unable to setup transporter. Node " << rNodeId
+             << " had a too long hostname '" << rHostName
+             << "'. Update configuration." << endl;
+      exit(-1);
+    }
   }
   else
   {
     if (!isServer) {
-      ndbout << "Unable to setup transporter. Node " << rNodeId 
-	     << " must have hostname. Update configuration." << endl; 
+      g_eventLogger->info(
+          "Unable to setup transporter. Node %u must have hostname."
+          " Update configuration.",
+          rNodeId);
       exit(-1);
     }
     remoteHostName[0]= 0;
   }
-  strncpy(localHostName, lHostName, sizeof(localHostName));
+  if (cstrbuf_copy(localHostName, lHostName) == 1)
+  {
+    ndbout << "Unable to setup transporter. Node " << lNodeId
+           << " had a too long hostname '" << lHostName
+           << "'. Update configuration." << endl;
+    exit(-1);
+  }
 
   DBUG_PRINT("info",("rId=%d lId=%d isServer=%d rHost=%s lHost=%s s_port=%d",
 		     remoteNodeId, localNodeId, isServer,
@@ -369,8 +385,8 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   if (unlikely(helloLen > OldMaxHandshakeBytesLimit))
   {
     /* Cannot send this many bytes to older versions */
-    ndbout_c("Failed handshake string length %u : \"%s\"",
-             helloLen, helloBuf);
+    g_eventLogger->info("Failed handshake string length %u : \"%s\"", helloLen,
+                        helloBuf);
     abort();
   }
 
@@ -484,18 +500,10 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
                                                  size_t len) const
 {
   /* Timestamped event showing issue, followed by details */
-  /* As eventLogger and stderr may not be in-sync, put details together */
-  g_eventLogger->error("Transporter::checksum_state::compute() failed");
-  fprintf(stderr,
-          "checksum_state::compute() failed "
-          "with sum 0x%x.\n"
-          "Input sum 0x%x compute offset %llu len %u "
-          "bufflen %llu\n",
-          badSum,
-          inputSum,
-          Uint64(offset),
-          sig_remaining,
-          Uint64(len));
+  g_eventLogger->error(
+      "Transporter::checksum_state::compute() failed with sum 0x%x", badSum);
+  g_eventLogger->info("Input sum 0x%x compute offset %llu len %u  bufflen %llu",
+                      inputSum, Uint64(offset), sig_remaining, Uint64(len));
   /* Next dump buf content, with word alignment
    * Buffer is a byte aligned window on signals made of words
    * remaining bytes to end of multiple-of-word sized signal
@@ -511,13 +519,15 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       /* Partial first word */
       Uint32 word = 0;
       memcpy(&word, data, firstWordBytes);
-      fprintf(stderr, "\n-%4x  : 0x%08x\n", 4 - firstWordBytes, word);
+      g_eventLogger->info("-%4x  : 0x%08x", 4 - firstWordBytes, word);
       buf_remain -= firstWordBytes;
       pos += firstWordBytes;
     }
 
+    char logbuf[MAX_LOG_MESSAGE_SIZE] = "";
+
     if (buf_remain)
-      fprintf(stderr, "\n %4x  : ", pos);
+      BaseString::snappend(logbuf, sizeof(logbuf), " %4x  : ", pos);
 
     while (buf_remain > 4)
     {
@@ -525,18 +535,22 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       memcpy(&word, data+pos, 4);
       pos += 4;
       buf_remain -= 4;
-      fprintf(stderr, "0x%08x ", word);
+      BaseString::snappend(logbuf, sizeof(logbuf), "0x%08x ", word);
       if (((pos + firstWordBytes) % 24) == 0)
-        fprintf(stderr, "\n %4x  : ", pos);
+      {
+        g_eventLogger->info("%s", logbuf);
+
+        logbuf[0] = '\0';
+        BaseString::snappend(logbuf, sizeof(logbuf), " %4x  : ", pos);
+      }
     }
     if (buf_remain > 0)
     {
       /* Partial last word */
       Uint32 word = 0;
       memcpy(&word, data + pos, buf_remain);
-      fprintf(stderr, "0x%08x\n", word);
+      g_eventLogger->info("%s 0x%08x", logbuf, word);
     }
-    fprintf(stderr, "\n\n");
   }
 }
 
@@ -544,7 +558,7 @@ void
 Transporter::set_get(NDB_SOCKET_TYPE fd,
                      int level,
                      int optval,
-                     const char *optname, 
+                     const char */*optname*/,
                      int val)
 {
   int actual = 0, defval = 0;

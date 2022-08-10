@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@ Sync_before_execution_message::Sync_before_execution_message(
 
 Sync_before_execution_message::Sync_before_execution_message(
     const unsigned char *buf, size_t len)
-    : Plugin_gcs_message(CT_TRANSACTION_PREPARED_MESSAGE), m_thread_id(0) {
+    : Plugin_gcs_message(CT_SYNC_BEFORE_EXECUTION_MESSAGE), m_thread_id(0) {
   decode(buf, len);
 }
 
-Sync_before_execution_message::~Sync_before_execution_message() {}
+Sync_before_execution_message::~Sync_before_execution_message() = default;
 
 void Sync_before_execution_message::encode_payload(
     std::vector<unsigned char> *buffer) const {

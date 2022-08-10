@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 
 Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
     : m_thread_name(thread_name) {
-  mysql_mutex_init(key_mutex_slave_reporting_capability_err_lock, &err_lock,
+  mysql_mutex_init(key_mutex_replica_reporting_capability_err_lock, &err_lock,
                    MY_MUTEX_INIT_FAST);
 }
 

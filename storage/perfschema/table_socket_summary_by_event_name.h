@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ class PFS_index_socket_summary_by_event_name : public PFS_engine_index {
   PFS_index_socket_summary_by_event_name()
       : PFS_engine_index(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_socket_summary_by_event_name() override {}
+  ~PFS_index_socket_summary_by_event_name() override = default;
 
   bool match(const PFS_socket_class *pfs);
 
@@ -95,7 +95,7 @@ class table_socket_summary_by_event_name : public PFS_engine_table {
   table_socket_summary_by_event_name();
 
  public:
-  ~table_socket_summary_by_event_name() override {}
+  ~table_socket_summary_by_event_name() override = default;
 
  private:
   int make_row(PFS_socket_class *socket_class);

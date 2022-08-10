@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,8 @@ int get_defaults_options(int argc, char **argv, char **defaults,
 extern "C" int my_load_defaults(const char *conf_file, const char **groups,
                                 int *argc, char ***argv, MEM_ROOT *alloc,
                                 const char ***);
-int check_file_permissions(const char *file_name, bool is_login_file);
+int check_file_permissions(const char *file_name, bool is_login_file,
+                           myf MyFlags = 0);
 int load_defaults(const char *conf_file, const char **groups, int *argc,
                   char ***argv, MEM_ROOT *alloc);
 int my_search_option_files(const char *conf_file, int *argc, char ***argv,

@@ -1,0 +1,56 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Try to enable, disable and reset member actions without
+#    GROUP_REPLICATION_ADMIN privilege.
+[connection server1]
+CREATE USER 'group_rpl_user' IDENTIFIED BY '';
+[connection con_group_rpl_user]
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: Can't initialize function 'group_replication_disable_member_action'; User 'group_rpl_user'@'%' needs SUPER or GROUP_REPLICATION_ADMIN privileges.
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+ERROR HY000: Can't initialize function 'group_replication_enable_member_action'; User 'group_rpl_user'@'%' needs SUPER or GROUP_REPLICATION_ADMIN privileges.
+SELECT group_replication_reset_member_actions();
+ERROR HY000: Can't initialize function 'group_replication_reset_member_actions'; User 'group_rpl_user'@'%' needs SUPER or GROUP_REPLICATION_ADMIN privileges.
+
+############################################################
+# 2. Try to enable, disable and reset member actions with
+#    GROUP_REPLICATION_ADMIN privilege.
+[connection server1]
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'group_rpl_user';
+GRANT SELECT ON performance_schema.* TO 'group_rpl_user';
+[connection con_group_rpl_user]
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be disabled]
+include/assert.inc [The version of replication_group_member_actions must be 2]
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION")
+OK
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be enabled]
+include/assert.inc [The version of replication_group_member_actions must be 3]
+SELECT group_replication_reset_member_actions();
+group_replication_reset_member_actions()
+OK
+include/assert.inc [The action mysql_disable_super_read_only_if_primary must be enabled]
+include/assert.inc [The version of replication_group_member_actions must be 1]
+
+############################################################
+# 3. Assert log messages.
+#    include/assert_grep.inc requires more privileges, thence
+#    doing it on server1 connection.
+[connection server1]
+include/assert_grep.inc [Member action disabled: "mysql_disable_super_read_only_if_primary", type: "INTERNAL", event: "AFTER_PRIMARY_ELECTION", priority: "1", error_handling: "IGNORE".]
+include/assert_grep.inc [Member action enabled: "mysql_disable_super_read_only_if_primary", type: "INTERNAL", event: "AFTER_PRIMARY_ELECTION", priority: "1", error_handling: "IGNORE".]
+include/assert_grep.inc [Member actions configuration was reset.]
+
+############################################################
+# 4. Clean up.
+[connection server1]
+DROP USER group_rpl_user;
+include/group_replication_end.inc

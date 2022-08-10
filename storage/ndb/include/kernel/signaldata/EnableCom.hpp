@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class EnableComReq  {
   friend class TrpmanProxy;
 
 public:
-  STATIC_CONST( SignalLength = 3);
+  static constexpr Uint32 SignalLength = 3;
 private:
 
   Uint32 m_senderRef;
@@ -52,7 +52,7 @@ class EnableComConf  {
   friend class Cmvmi;
 
 public:
-  STATIC_CONST( SignalLength = 3);
+  static constexpr Uint32 SignalLength = 3;
 private:
 
   Uint32 m_senderRef;

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,15 @@
 
 # cmake -DWITH_CURL=system|<path/to/custom/installation>|no
 # system is the default for unix builds.
+# bundled is also supported on el7, for -DWITH_SSL=openssl11.
 # no will disable build of binaries that use curl.
 
 SET(WITH_CURL_DOC "\nsystem (use the OS curl library)")
 STRING_APPEND(WITH_CURL_DOC ", \n</path/to/custom/installation>")
-STRING_APPEND(WITH_CURL_DOC ", \n 0 | no | off | none (skip curl)>")
+STRING_APPEND(WITH_CURL_DOC ", \n 0 | no | off | none (skip curl)")
+STRING_APPEND(WITH_CURL_DOC
+  ", \n bundled (only supported for WITH_SSL=openssl11 on el7")
+STRING_APPEND(WITH_CURL_DOC "\n")
 
 STRING(REPLACE "\n" "| " WITH_CURL_DOC_STRING "${WITH_CURL_DOC}")
 
@@ -73,7 +77,9 @@ MACRO(FIND_CURL_VERSION)
       "^.*LIBCURL_VERSION_MINOR[\t ]+([0-9]+).*$" "\\1"
       CURL_VERSION_MINOR "${CURL_VERSION_NUMBERS}"
       )
-    MESSAGE(STATUS "CURL version: ${CURL_VERSION_MAJOR}.${CURL_VERSION_MINOR}")
+    SET(CURL_VERSION "${CURL_VERSION_MAJOR}.${CURL_VERSION_MINOR}")
+    SET(CURL_VERSION "${CURL_VERSION}" CACHE INTERNAL "CURL major.minor")
+    MESSAGE(STATUS "CURL_VERSION (${WITH_CURL}) is ${CURL_VERSION}")
   ENDIF()
 ENDMACRO()
 
@@ -92,6 +98,16 @@ MACRO(FIND_SYSTEM_CURL)
     SET(CURL_INCLUDE_DIR "")
   ENDIF()
 ENDMACRO()
+
+SET(CURL_VERSION_DIR "curl-7.83.1")
+MACRO(MYSQL_USE_BUNDLED_CURL)
+  SET(WITH_CURL "bundled" CACHE STRING "Bundled curl library")
+  ADD_SUBDIRECTORY(extra/curl)
+  SET(CURL_FOUND ON)
+  SET(CURL_LIBRARY libcurl)
+  SET(CURL_INCLUDE_DIR
+    ${CMAKE_SOURCE_DIR}/extra/curl/${CURL_VERSION_DIR}/include)
+ENDMACRO(MYSQL_USE_BUNDLED_CURL)
 
 MACRO(FIND_CUSTOM_CURL)
   # Explicit path given. Normalize path for the following regex replace.
@@ -145,7 +161,12 @@ MACRO(MYSQL_CHECK_CURL)
   IF(WITH_CURL STREQUAL "system")
     FIND_SYSTEM_CURL()
   ELSEIF(WITH_CURL STREQUAL "bundled")
-    MESSAGE(FATAL_ERROR "There is no bundled CURL library.")
+    IF(ALTERNATIVE_SYSTEM_SSL)
+      MYSQL_USE_BUNDLED_CURL()
+    ELSE()
+      MESSAGE(WARNING "WITH_CURL options: ${WITH_CURL_DOC}")
+      MESSAGE(FATAL_ERROR "Bundled CURL library is not supported.")
+    ENDIF()
   ELSEIF(WITH_CURL STREQUAL "none")
     MESSAGE(STATUS "WITH_CURL=none, not using any curl library.")
     RESET_CURL_VARIABLES()
@@ -192,7 +213,7 @@ MACRO(MYSQL_CHECK_CURL_DLLS)
           "CURL dll import library not found under '${WITH_CURL}'")
       ENDIF()
       GET_FILENAME_COMPONENT(CURL_DLL_NAME "${HAVE_CURL_DLL}" NAME)
-      ADD_CUSTOM_TARGET(copy_curl_dlls ALL
+      MY_ADD_CUSTOM_TARGET(copy_curl_dlls ALL
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${HAVE_CURL_DLL}"
         "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${CURL_DLL_NAME}"
@@ -227,7 +248,7 @@ MACRO(MYSQL_CHECK_CURL_DLLS)
         INSTALL(FILES "${HAVE_ZLIB_DLL}"
           DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
         GET_FILENAME_COMPONENT(ZLIB_DLL_NAME "${HAVE_ZLIB_DLL}" NAME)
-        ADD_CUSTOM_TARGET(copy_zlib_dlls ALL
+        MY_ADD_CUSTOM_TARGET(copy_zlib_dlls ALL
           COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${HAVE_ZLIB_DLL}"
           "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${ZLIB_DLL_NAME}"

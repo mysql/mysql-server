@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Check_constraint : virtual public Entity_object {
   enum enum_constraint_state { CS_NOT_ENFORCED = 1, CS_ENFORCED };
 
  public:
-  ~Check_constraint() override {}
+  ~Check_constraint() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // State. (enforced / not enforced)

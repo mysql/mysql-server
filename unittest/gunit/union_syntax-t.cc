@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,14 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include <assert.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
 
 #include <string>
 
-#include "my_config.h"
 #include "sql/sql_lex.h"
 #include "thr_lock.h"
 #include "unittest/gunit/parsertest.h"

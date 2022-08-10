@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <NDBT_Test.hpp>
 #include <NDBT_ReturnCodes.h>
 #include <HugoTransactions.hpp>
@@ -30,6 +31,7 @@
 #include <NdbAutoPtr.hpp>
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
+#include <NdbSleep.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
@@ -694,7 +696,7 @@ int runEventOperation(NDBT_Context* ctx, NDBT_Step* step)
 
   g_info << "***** start Id " << tId << endl;
 
-  //  sleep(tId);
+  //  NdbSleep_SecSleep(tId);
 
   if (eventOperation(GETNDB(step), *ctx->getTab(), (void*)&stats, 3*records) != 0){
     return NDBT_FAILED;
@@ -734,10 +736,10 @@ int runEventLoad(NDBT_Context* ctx, NDBT_Step* step)
   if (ctx->getProperty("AllowEmptyUpdates"))
     hugoTrans.setAllowEmptyUpdates(true);
 
-  sleep(1);
+  NdbSleep_SecSleep(1);
 #if 0
-  sleep(5);
-  sleep(theThreadIdCounter);
+  NdbSleep_SecSleep(5);
+  NdbSleep_SecSleep(theThreadIdCounter);
 #endif
   if (hugoTrans.loadTable(GETNDB(step), records, 1, true, loops) != 0){
     return NDBT_FAILED;
@@ -2117,7 +2119,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
 	DBUG_RETURN(NDBT_FAILED);
       }
 
-      sleep(5);
+      NdbSleep_SecSleep(5);
       // update all tables
       for (i= 0; pTabs[i]; i++)
       {
@@ -3903,7 +3905,7 @@ runBug57886_create_drop(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
   NdbDictionary::Table tab = * ctx->getTab();
 
-  sleep(5);
+  NdbSleep_SecSleep(5);
 
   while (loops --)
   {
@@ -3917,7 +3919,7 @@ runBug57886_create_drop(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
 
-    sleep(1);
+    NdbSleep_SecSleep(1);
   }
 
   ctx->stopTest();
@@ -4039,7 +4041,7 @@ int runTryGetEvent(NDBT_Context* ctx, NDBT_Step* step)
   {
     g_err << "Attempting to get the event, expect "
           << ((odd?"success":"failure")) << endl;
-    const NdbDictionary::Event* ev = myDict->getEvent(eventName);
+    NdbDictionary::Event_ptr ev(myDict->getEvent(eventName));
     
     if (odd)
     {
@@ -4989,7 +4991,7 @@ bool consume_buffer(NDBT_Context* ctx, Ndb* ndb,
   Uint32 prev_mem_usage = mem_usage.usage_percent;
 
   const Uint32 max_mem_usage = mem_usage.usage_percent;
-  const Uint32 max_allocated = mem_usage.allocated_bytes;
+  const Uint64 max_allocated = mem_usage.allocated_bytes;
 
   Uint64 op_gci = 0, curr_gci = 0;
   Uint64 poll_gci = 0;
@@ -5097,7 +5099,7 @@ int runTardyEventListener(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* ndb= GETNDB(step);
   tardy_ndb_ref = ndb->getReference();
 
-  ndb->set_eventbuf_max_alloc(5*1024*1024); // max event buffer size 1024*1024 
+  ndb->set_eventbuf_max_alloc(5*1024*1024); // max event buffer size 5MB
   const Uint32 free_percent = 60;
   ndb->set_eventbuffer_free_percent(free_percent);
 
@@ -5432,25 +5434,17 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
            Uint32 alloc = le_event.EventBufferStatus.alloc;
            Uint32 max = le_event.EventBufferStatus.max;
            Uint32 used = le_event.EventBufferStatus.usage;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
+           Uint32 used_pct = max ? (Uint32)((((Uint64)used) * 100) / max) : 0;
 
-           g_err << "Parsable str: Event buffer status: ";
-           g_err << "used=" << le_event.EventBufferStatus.usage
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc;
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max
-                 << " apply_gci " << le_event.EventBufferStatus.apply_gci_l
-                 << "/" << le_event.EventBufferStatus.apply_gci_h
-                 << " latest_gci " << le_event.EventBufferStatus.latest_gci_l
-                 << "/" << le_event.EventBufferStatus.latest_gci_h
-                 << endl;
+           g_err << "Parsable str: Event buffer status: "
+                 << "max=" << max << " bytes"
+                 << " used=" << le_event.EventBufferStatus.usage << " bytes";
+           if (max != 0) g_err << "(" << used_pct << "% of max)";
+           g_err << " alloc=" << alloc << " bytes"
+                 << " apply_gci " << le_event.EventBufferStatus.apply_gci_h
+                 << "/" << le_event.EventBufferStatus.apply_gci_l
+                 << " latest_gci " << le_event.EventBufferStatus.latest_gci_h
+                 << "/" << le_event.EventBufferStatus.latest_gci_l << endl;
          }
          break;
        case NDB_LE_EventBufferStatus2:
@@ -5458,12 +5452,7 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
            Uint32 alloc = le_event.EventBufferStatus2.alloc;
            Uint32 max = le_event.EventBufferStatus2.max;
            Uint32 used = le_event.EventBufferStatus2.usage;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
+           Uint32 used_pct = max ? (Uint32)((((Uint64)used)*100)/max) : 0;
 
            Uint32 ndb_ref = le_event.EventBufferStatus2.ndb_reference;
            Uint32 reason = le_event.EventBufferStatus2.report_reason;
@@ -5472,20 +5461,47 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
 
            g_err << "Parsable str: Event buffer status2 "
                  << "(" << hex << ndb_ref << "): " << dec
-                 << "used=" << used
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc;
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max
+                 << "max=" << max << " bytes"
+                 << " used=" << used << " bytes";
+           if (max != 0) g_err << "(" << used_pct << "% of max)";
+           g_err << " alloc=" << alloc << " bytes"
                  << " latest_consumed_epoch "
+                 << le_event.EventBufferStatus2.latest_consumed_epoch_h << "/"
                  << le_event.EventBufferStatus2.latest_consumed_epoch_l
-                 << "/" << le_event.EventBufferStatus2.latest_consumed_epoch_h
                  << " latest_buffered_epoch "
+                 << le_event.EventBufferStatus2.latest_buffered_epoch_h << "/"
                  << le_event.EventBufferStatus2.latest_buffered_epoch_l
-                 << "/" << le_event.EventBufferStatus2.latest_buffered_epoch_h
-                 << " reason " << reason
-                 << endl;
+                 << " reason " << reason << endl;
+         }
+         break;
+       case NDB_LE_EventBufferStatus3:
+         {
+           Uint64 usage = (Uint64)le_event.EventBufferStatus3.usage_h << 32;
+           usage |= le_event.EventBufferStatus3.usage_l;
+           Uint64 alloc = (Uint64)le_event.EventBufferStatus3.alloc_h << 32;
+           alloc |= le_event.EventBufferStatus3.alloc_l;
+           Uint64 max = (Uint64)le_event.EventBufferStatus3.max_h << 32;
+           max |= le_event.EventBufferStatus3.max_l;
+           Uint32 used_pct = max ? (Uint32)((usage*100)/max) : 0;
+
+           Uint32 ndb_ref = le_event.EventBufferStatus3.ndb_reference;
+           Uint32 reason = le_event.EventBufferStatus3.report_reason;
+           if (tardy_ndb_ref == ndb_ref && reason != 0)
+             statusMsges2++;
+
+           g_err << "Parsable str: Event buffer status3 "
+                 << "(" << hex << ndb_ref << "): " << dec
+                 << "max=" << max << " bytes"
+                 << " used=" << usage << " bytes";
+           if (max != 0) g_err << "(" << used_pct << "% of max)";
+           g_err << " alloc=" << alloc << " bytes"
+                 << " latest_consumed_epoch "
+                 << le_event.EventBufferStatus3.latest_consumed_epoch_h << "/"
+                 << le_event.EventBufferStatus3.latest_consumed_epoch_l
+                 << " latest_buffered_epoch "
+                 << le_event.EventBufferStatus3.latest_buffered_epoch_h << "/"
+                 << le_event.EventBufferStatus3.latest_buffered_epoch_l
+                 << " reason " << reason << endl;
          }
          break;
        default:
@@ -5703,6 +5719,17 @@ int clearEmptySafeCounterPool(NDBT_Context* ctx, NDBT_Step* step)
   return setEmptySafeCounterPool(false);
 }
 
+int setErrorInsertEBUsage(NDBT_Context* ctx, NDBT_Step* step)
+{
+  DBUG_SET_INITIAL("+d,ndb_eventbuffer_high_usage");
+  return NDBT_OK;
+}
+
+int clearErrorInsertEBUsage(NDBT_Context* ctx, NDBT_Step* step)
+{
+  DBUG_SET_INITIAL("-d,ndb_eventbuffer_high_usage");
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
@@ -6092,8 +6119,8 @@ TESTCASE("SlowGCP_COMPLETE_ACK",
   STEP(runSlowGCPCompleteAck);
   FINALIZER(runDropEvent);
 }
-TESTCASE("getEventBufferUsage2",
-         "Get event buffer usage2 as pretty and parsable format "
+TESTCASE("getEventBufferUsage3",
+         "Get event buffer usage as pretty and parsable format "
          "by subscribing them. Event buffer usage msg is ensured "
          "by running tardy listener filling the event buffer")
 {
@@ -6104,6 +6131,21 @@ TESTCASE("getEventBufferUsage2",
   STEP(runGetLogEventParsable);
   STEP(runGetLogEventPretty);
   FINALIZER(runDropEvent);
+}
+TESTCASE("getEventBufferHighUsage",
+         "Get event buffer usage when buffer grows to over 4GB"
+         "Tardy listener should receive, parse and print 64-bit"
+         "max, alloc and usage values correctly")
+{
+  TC_PROPERTY("BufferUsage2", 1);
+  INITIALIZER(runCreateEvent);
+  INITIALIZER(setErrorInsertEBUsage);
+  STEP(runInsertDeleteUntilStopped);
+  STEP(runTardyEventListener);
+  STEP(runGetLogEventParsable);
+  STEP(runGetLogEventPretty);
+  FINALIZER(runDropEvent);
+  FINALIZER(clearErrorInsertEBUsage);
 }
 TESTCASE("checkParallelTriggerDropReqHandling",
          "Flood the DBDICT with lots of SUB_STOP_REQs and "

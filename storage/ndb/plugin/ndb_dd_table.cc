@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,43 +39,47 @@
 // se_private_data field of DD
 static const char *object_version_key = "object_version";
 
-void ndb_dd_table_set_object_id_and_version(dd::Table *table_def, int object_id,
-                                            int object_version) {
+void ndb_dd_table_set_spi_and_version(dd::Table *table_def, int spi,
+                                      int version) {
   DBUG_TRACE;
-  DBUG_PRINT("enter",
-             ("object_id: %d, object_version: %d", object_id, object_version));
+  DBUG_PRINT("enter", ("object_id: %d, object_version: %d", spi, version));
 
-  table_def->set_se_private_id(object_id);
-  table_def->se_private_data().set(object_version_key, object_version);
+  table_def->set_se_private_id(spi);
+  table_def->se_private_data().set(object_version_key, version);
 }
 
-bool ndb_dd_table_get_object_id_and_version(const dd::Table *table_def,
-                                            int &object_id,
-                                            int &object_version) {
+void ndb_dd_table_set_spi_and_version(dd::Table *table_def,
+                                      Ndb_dd_handle handle) {
+  ndb_dd_table_set_spi_and_version(table_def, handle.spi, handle.version);
+}
+
+Ndb_dd_handle ndb_dd_table_get_spi_and_version(const dd::Table *table_def) {
   DBUG_TRACE;
 
-  if (table_def->se_private_id() == dd::INVALID_OBJECT_ID) {
+  const dd::Object_id spi = table_def->se_private_id();
+  int version;
+
+  if (spi == dd::INVALID_OBJECT_ID) {
     DBUG_PRINT("error", ("Table definition contained an invalid object id"));
-    return false;
+    return Ndb_dd_handle();
   }
-  object_id = table_def->se_private_id();
 
   if (!table_def->se_private_data().exists(object_version_key)) {
     DBUG_PRINT("error", ("Table definition didn't contain property '%s'",
                          object_version_key));
-    return false;
+    return Ndb_dd_handle();
   }
 
-  if (table_def->se_private_data().get(object_version_key, &object_version)) {
+  if (table_def->se_private_data().get(object_version_key, &version)) {
     DBUG_PRINT("error", ("Table definition didn't have a valid number for '%s'",
                          object_version_key));
-    return false;
+    return Ndb_dd_handle();
   }
 
-  DBUG_PRINT("exit",
-             ("object_id: %d, object_version: %d", object_id, object_version));
+  Ndb_dd_handle handle(spi, version);
+  DBUG_PRINT("info", ("%s", handle.c_str()));
 
-  return true;
+  return handle;
 }
 
 void ndb_dd_table_mark_as_hidden(dd::Table *table_def) {
@@ -240,3 +244,22 @@ Ndb_dd_table::Ndb_dd_table(THD *thd)
     : m_thd(thd), m_table_def{dd::create_object<dd::Table>()} {}
 
 Ndb_dd_table::~Ndb_dd_table() { delete m_table_def; }
+
+bool ndb_dd_table_check_column_varbinary(const dd::Table *table_def,
+                                         const dd::String_type &col_name) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("column '%s'", col_name.c_str()));
+  const dd::Column *col_def = table_def->get_column(col_name);
+  if (!col_def) {
+    return false;
+  }
+
+  // Constant corresponding to number of my_charset_bin
+  constexpr dd::Object_id BINARY_COLLATION_ID = 63;
+  return col_def->type() == dd::enum_column_types::VARCHAR &&
+         col_def->collation_id() == BINARY_COLLATION_ID;
+}
+
+bool ndb_dd_table_has_trigger(const dd::Table *table_def) {
+  return table_def->has_trigger();
+}

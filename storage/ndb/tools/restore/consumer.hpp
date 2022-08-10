@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 #define CONSUMER_HPP
 
 #include "Restore.hpp"
-#include "ndb_nodegroup_map.h"
 #include "restore_tables.h"
 #include <NdbThread.h>
 #include <NdbCondition.h>
@@ -53,6 +52,8 @@ public:
   virtual bool createSystable(const TableS &){ return true;}
   virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart)
     {return true;}
+  virtual bool delete_epoch_tuple()
+    {return true;}
   virtual bool report_started(unsigned backup_id, unsigned node_id)
     {return true;}
   virtual bool report_meta_data(unsigned backup_id, unsigned node_id)
@@ -64,12 +65,11 @@ public:
   virtual bool report_completed(unsigned backup_id, unsigned node_id)
     {return true;}
   virtual bool isMissingTable(const TableS &){return false;}
-  NODE_GROUP_MAP *m_nodegroup_map;
-  uint            m_nodegroup_map_len;
   virtual bool has_temp_error() {return false;}
   virtual bool table_equal(const TableS &) { return true; }
   virtual bool table_compatible_check(TableS &) {return true;}
   virtual bool check_blobs(TableS &) {return true;}
+  virtual bool handle_index_stat_tables() {return true;}
 #ifdef ERROR_INSERT
   virtual void error_insert(unsigned int code) {}
 #endif

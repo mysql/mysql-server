@@ -17,24 +17,27 @@
 #  R4. Statements that modify multiple rows of different partitions/subpartition
 #      shall generate multiple events, one for every row that moves from one
 #      partition to another.
-#  R5. partition_id shall not be written to the binary log when there is
+#  R5. partition_id shall be read and written in endian-independent way
+#  R6. partition_id shall not be written to the binary log when there is
 #      no partitioning.
-#  R6. It shall be possible to have both partition_id and ndb_extra_row_info in
+#  R7. It shall be possible to have both partition_id and ndb_extra_row_info in
 #      same event.
 #
 #  ==== Implementation ====
 #
 #  Create a table with partitions(RANGE), and test for (R1), (R3) and (R4)
+#  Create a table with partitions(RANGE), with more than one byte(partitions >=128) partitions, and test for (R5)
 #  Create a table with partitions(RANGE) and sub_partitions(KEY), and test for (R2)-(R4)
-#  Create a table without partition and test for (R5)
+#  Create a table without partition and test for (R6)
 #  Sync with slave successfully
 #  Drop the tables created
 #  Create a table with partitions and INSERT a row which has both partition
-#  and ndb_extra_row_info (R6)
+#  and ndb_extra_row_info (R7)
 #  Test PARTIAL_UPDATE_EVENT on a partitioned table
 #
 # ==== References ====
 #
+# Bug#32358736:PARSING INCORRECTLY EXTRA ROW INFO OF BINLOG
 # Bug#28712618:INSERT/UPDATE/DELETE WITH MULTIPLE ROWS IN SAME PARTITION CREATE MULTIPLE EVENT
 # WL#12168:Add Partition Information into the Binary Log
 #
@@ -191,7 +194,84 @@ while ($iteration <= 2)
 
   DROP TABLE employees;
 }
---echo #####4.Verifying the value of partition_id written to the binary log in case of sub-partitions######
+--echo #####4.Verifying the value of partition_id written to the binary log in case of table with more than 128 partitions######
+CREATE TABLE tp (
+    id INT primary key
+)
+PARTITION BY RANGE( id ) (
+  PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN (1),
+  PARTITION p2 VALUES LESS THAN (2), PARTITION p3 VALUES LESS THAN (3),
+  PARTITION p4 VALUES LESS THAN (4), PARTITION p5 VALUES LESS THAN (5),
+  PARTITION p6 VALUES LESS THAN (6), PARTITION p7 VALUES LESS THAN (7),
+  PARTITION p8 VALUES LESS THAN (8), PARTITION p9 VALUES LESS THAN (9),
+  PARTITION p10 VALUES LESS THAN (10), PARTITION p11 VALUES LESS THAN (11),
+  PARTITION p12 VALUES LESS THAN (12), PARTITION p13 VALUES LESS THAN (13),
+  PARTITION p14 VALUES LESS THAN (14), PARTITION p15 VALUES LESS THAN (15),
+  PARTITION p16 VALUES LESS THAN (16), PARTITION p17 VALUES LESS THAN (17),
+  PARTITION p18 VALUES LESS THAN (18), PARTITION p19 VALUES LESS THAN (19),
+  PARTITION p20 VALUES LESS THAN (20), PARTITION p21 VALUES LESS THAN (21),
+  PARTITION p22 VALUES LESS THAN (22), PARTITION p23 VALUES LESS THAN (23),
+  PARTITION p24 VALUES LESS THAN (24), PARTITION p25 VALUES LESS THAN (25),
+  PARTITION p26 VALUES LESS THAN (26), PARTITION p27 VALUES LESS THAN (27),
+  PARTITION p28 VALUES LESS THAN (28), PARTITION p29 VALUES LESS THAN (29),
+  PARTITION p30 VALUES LESS THAN (30), PARTITION p31 VALUES LESS THAN (31),
+  PARTITION p32 VALUES LESS THAN (32), PARTITION p33 VALUES LESS THAN (33),
+  PARTITION p34 VALUES LESS THAN (34), PARTITION p35 VALUES LESS THAN (35),
+  PARTITION p36 VALUES LESS THAN (36), PARTITION p37 VALUES LESS THAN (37),
+  PARTITION p38 VALUES LESS THAN (38), PARTITION p39 VALUES LESS THAN (39),
+  PARTITION p40 VALUES LESS THAN (40), PARTITION p41 VALUES LESS THAN (41),
+  PARTITION p42 VALUES LESS THAN (42), PARTITION p43 VALUES LESS THAN (43),
+  PARTITION p44 VALUES LESS THAN (44), PARTITION p45 VALUES LESS THAN (45),
+  PARTITION p46 VALUES LESS THAN (46), PARTITION p47 VALUES LESS THAN (47),
+  PARTITION p48 VALUES LESS THAN (48), PARTITION p49 VALUES LESS THAN (49),
+  PARTITION p50 VALUES LESS THAN (50), PARTITION p51 VALUES LESS THAN (51),
+  PARTITION p52 VALUES LESS THAN (52), PARTITION p53 VALUES LESS THAN (53),
+  PARTITION p54 VALUES LESS THAN (54), PARTITION p55 VALUES LESS THAN (55),
+  PARTITION p56 VALUES LESS THAN (56), PARTITION p57 VALUES LESS THAN (57),
+  PARTITION p58 VALUES LESS THAN (58), PARTITION p59 VALUES LESS THAN (59),
+  PARTITION p60 VALUES LESS THAN (60), PARTITION p61 VALUES LESS THAN (61),
+  PARTITION p62 VALUES LESS THAN (62), PARTITION p63 VALUES LESS THAN (63),
+  PARTITION p64 VALUES LESS THAN (64), PARTITION p65 VALUES LESS THAN (65),
+  PARTITION p66 VALUES LESS THAN (66), PARTITION p67 VALUES LESS THAN (67),
+  PARTITION p68 VALUES LESS THAN (68), PARTITION p69 VALUES LESS THAN (69),
+  PARTITION p70 VALUES LESS THAN (70), PARTITION p71 VALUES LESS THAN (71),
+  PARTITION p72 VALUES LESS THAN (72), PARTITION p73 VALUES LESS THAN (73),
+  PARTITION p74 VALUES LESS THAN (74), PARTITION p75 VALUES LESS THAN (75),
+  PARTITION p76 VALUES LESS THAN (76), PARTITION p77 VALUES LESS THAN (77),
+  PARTITION p78 VALUES LESS THAN (78), PARTITION p79 VALUES LESS THAN (79),
+  PARTITION p80 VALUES LESS THAN (80), PARTITION p81 VALUES LESS THAN (81),
+  PARTITION p82 VALUES LESS THAN (82), PARTITION p83 VALUES LESS THAN (83),
+  PARTITION p84 VALUES LESS THAN (84), PARTITION p85 VALUES LESS THAN (85),
+  PARTITION p86 VALUES LESS THAN (86), PARTITION p87 VALUES LESS THAN (87),
+  PARTITION p88 VALUES LESS THAN (88), PARTITION p89 VALUES LESS THAN (89),
+  PARTITION p90 VALUES LESS THAN (90), PARTITION p91 VALUES LESS THAN (91),
+  PARTITION p92 VALUES LESS THAN (92), PARTITION p93 VALUES LESS THAN (93),
+  PARTITION p94 VALUES LESS THAN (94), PARTITION p95 VALUES LESS THAN (95),
+  PARTITION p96 VALUES LESS THAN (96), PARTITION p97 VALUES LESS THAN (97),
+  PARTITION p98 VALUES LESS THAN (98), PARTITION p99 VALUES LESS THAN (99),
+  PARTITION p100 VALUES LESS THAN (100), PARTITION p101 VALUES LESS THAN (101),
+  PARTITION p102 VALUES LESS THAN (102), PARTITION p103 VALUES LESS THAN (103),
+  PARTITION p104 VALUES LESS THAN (104), PARTITION p105 VALUES LESS THAN (105),
+  PARTITION p106 VALUES LESS THAN (106), PARTITION p107 VALUES LESS THAN (107),
+  PARTITION p108 VALUES LESS THAN (108), PARTITION p109 VALUES LESS THAN (109),
+  PARTITION p110 VALUES LESS THAN (110), PARTITION p111 VALUES LESS THAN (111),
+  PARTITION p112 VALUES LESS THAN (112), PARTITION p113 VALUES LESS THAN (113),
+  PARTITION p114 VALUES LESS THAN (114), PARTITION p115 VALUES LESS THAN (115),
+  PARTITION p116 VALUES LESS THAN (116), PARTITION p117 VALUES LESS THAN (117),
+  PARTITION p118 VALUES LESS THAN (118), PARTITION p119 VALUES LESS THAN (119),
+  PARTITION p120 VALUES LESS THAN (120), PARTITION p121 VALUES LESS THAN (121),
+  PARTITION p122 VALUES LESS THAN (122), PARTITION p123 VALUES LESS THAN (123),
+  PARTITION p124 VALUES LESS THAN (124), PARTITION p125 VALUES LESS THAN (125),
+  PARTITION p126 VALUES LESS THAN (126), PARTITION p127 VALUES LESS THAN (127),
+  PARTITION p128 VALUES LESS THAN (128), PARTITION p129 VALUES LESS THAN (129));
+
+--source include/save_binlog_position.inc
+INSERT INTO tp VALUES(126), (127), (128);
+# Check if the partition_id is correctly logged for this event.
+--let $expected_partition_id = 127;128;129
+--source suite/rpl/include/rpl_partition_info.inc
+
+--echo #####5.Verifying the value of partition_id written to the binary log in case of sub-partitions######
 
 CREATE TABLE sp(id INT, age INT) PARTITION BY RANGE(age) SUBPARTITION BY KEY(id) (
  PARTITION p0 VALUES LESS THAN (30) (SUBPARTITION p0a, SUBPARTITION p0b),
@@ -211,8 +291,8 @@ INSERT INTO sp VALUES (102, 32);
 --let $expected_partition_id = 3
 --source suite/rpl/include/rpl_partition_info.inc
 
---echo #####5.INSERTS, UPDATES, DELETES in a partitioned table affecting same and multiple sub_partition #####
---echo #####6.Verifying the number of events created when executing statements affecting single and multiple sub_partitions #####
+--echo #####6.INSERTS, UPDATES, DELETES in a partitioned table affecting same and multiple sub_partition #####
+--echo #####7.Verifying the number of events created when executing statements affecting single and multiple sub_partitions #####
 
 --echo -----INSERT-----
 
@@ -298,8 +378,8 @@ DELETE FROM sp where id = 102 or id=103;
 --let $expected_partition_id = 0;1
 --source suite/rpl/include/rpl_partition_info.inc
 
---echo #####7.INSERT, UPDATE, DELETE in a table with no partition #####
---echo #####8.Verifying the number of events created when executing the above statements #####
+--echo #####8.INSERT, UPDATE, DELETE in a table with no partition #####
+--echo #####9.Verifying the number of events created when executing the above statements #####
 
 CREATE TABLE t(s int, x int);
 INSERT INTO t VALUES (11, 2);
@@ -329,9 +409,12 @@ DELETE from t where x < 4;
 --let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Delete_rows # !Commit
 --source include/assert_binlog_events.inc
 
---echo #####9.Sync with slave and check if all the tables are replicated correctly#####
+--echo #####10.Sync with slave and check if all the tables are replicated correctly#####
 
 --source include/sync_slave_sql_with_master.inc
+
+let $diff_tables= master:tp, slave:tp;
+--source include/diff_tables.inc
 
 let $diff_tables= master:t, slave:t;
 --source include/diff_tables.inc
@@ -341,10 +424,11 @@ let $diff_tables= master:sp, slave:sp;
 
 # Cleanup
 connection master;
+DROP TABLE tp;
 DROP TABLE t;
 DROP TABLE sp;
 
---echo #####10.INSERT in a table which has both partition info and ndb_info #####
+--echo #####11.INSERT in a table which has both partition info and ndb_info #####
 
 # Set the debug points to be used for creating ndb_info
 #
@@ -383,7 +467,7 @@ connection master;
 --let $debug_point= extra_row_ndb_info_set_3
 --source include/remove_debug_point.inc
 
---echo #####11.Test partial JSON Update #####
+--echo #####12.Test partial JSON Update #####
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 
 --source include/save_binlog_position.inc

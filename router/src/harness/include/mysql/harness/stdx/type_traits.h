@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,61 +42,34 @@ enum class endian {
 #endif
 };
 
-// from http://wg21.link/p0504r0
-#if __cplusplus >= 201703L
-using in_place_t = std::in_place_t;
-inline constexpr in_place_t in_place{};
-#else
-struct in_place_t {
-  explicit in_place_t() = default;
+// from C++23
+// wg21.link/P1048
+
+// all non-enums are also non-scoped-enums
+template <class T, bool B = std::is_enum_v<T>>
+struct __is_scoped_enum_helper : std::false_type {};
+
+// scoped enums are enum's that can't be automatically be converted into its
+// underlying type.
+template <class T>
+struct __is_scoped_enum_helper<T, true>
+    : std::bool_constant<!std::is_convertible_v<T, std::underlying_type_t<T>>> {
 };
-static constexpr in_place_t in_place{};
-#endif
 
-// std::negation from C++17
-template <class B>
-struct negation : std::integral_constant<bool, !bool(B::value)> {};
+template <class T>
+struct is_scoped_enum : __is_scoped_enum_helper<T> {};
 
-// std::conjuntion from C++17
-template <class...>
-struct conjunction;
+template <class E>
+inline constexpr bool is_scoped_enum_v = is_scoped_enum<E>::value;
 
-template <>
-struct conjunction<> : std::true_type {};
-
-template <class P1, class... Pn>
-struct conjunction<P1, Pn...>
-    : std::conditional_t<P1::value, conjunction<Pn...>, std::false_type> {};
-
-// std::disjunction from C++17
-template <class...>
-struct disjunction : std::false_type {};
-
-template <class P1>
-struct disjunction<P1> : P1 {};
-
-template <class P1, class... Pn>
-struct disjunction<P1, Pn...>
-    : std::conditional_t<P1::value, P1, disjunction<Pn...>> {};
-
-// void_t from C++17
-//
-// see: https://en.cppreference.com/w/cpp/types/void_t
-// see: http::/wg21.link/n3911
-// seealso: http::/wg21.link/n4436
-
-#if defined(__GNUC__) && __GNUC__ < 5
-// GCC 4.x needs this verbose form, GCC 5.0 has the fix applied
-template <typename... Ts>
-struct make_void {
-  using type = void;
+// C++20
+template <class T>
+struct remove_cvref {
+  using type = std::remove_cv_t<std::remove_reference_t<T>>;
 };
-template <typename... Ts>
-using void_t = typename make_void<Ts...>::type;
-#else
-template <class...>
-using void_t = void;
-#endif
+
+template <class T>
+using remove_cvref_t = typename remove_cvref<T>::type;
 
 }  // namespace stdx
 

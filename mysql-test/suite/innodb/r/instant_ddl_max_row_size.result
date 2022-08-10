@@ -1,0 +1,317 @@
+##############################################
+# Test instant ADD/DROP COLUMN for REDUNDANT format
+##############################################
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+# ------------------------------------------------------------
+# Create a table with 3 columns. [id, c2, c3]
+# ------------------------------------------------------------
+CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000)) ROW_FORMAT=REDUNDANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	6	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+SET SESSION innodb_strict_mode=OFF;
+# ------------------------------------------------------------
+# Add a new column. It causes max_row_size > permissible size
+# ------------------------------------------------------------
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
+Warnings:
+Warning	139	Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+Warning	139	Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16716047	0
+INSERT INTO t1 (id, c1, c2) VALUES(1, repeat('a', 4000), repeat('b', 4000));
+ERROR 42000: Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+INSERT INTO t1 (id, c1, c2) VALUES(1, repeat('a', 4), repeat('b', 4));
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1 ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	aaaa	bbbb	dddddddddd
+ALTER TABLE t1 ADD COLUMN c4 INT, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+###########
+# CLEANUP #
+###########
+DROP TABLE t1;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
+# ------------------------------------------------------------
+# Create a partition table with 3 columns. [c1, c2, c3, c4]
+# ------------------------------------------------------------
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) ROW_FORMAT=REDUNDANT PARTITION BY RANGE(c1 * 2) ( PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256) , PARTITION p2 VALUES LESS THAN (384) , PARTITION p3 VALUES LESS THAN MAXVALUE);;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p0	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p1	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p2	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p3	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+SET SESSION innodb_strict_mode=OFF;
+# ------------------------------------------------------------
+# Add new columns. It causes max_row_size > permissible size
+# ------------------------------------------------------------
+ALTER TABLE t1 ADD COLUMN c5 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ADD COLUMN c6 TEXT, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ALTER TABLE t1 ADD COLUMN c5 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ADD COLUMN c6 TEXT;
+Warnings:
+Warning	139	Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+Warning	139	Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+Warning	139	Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+Warning	139	Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p0	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+c5	4	12	16716047	0
+c6	5	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p1	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+c5	4	12	16716047	0
+c6	5	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p2	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+c5	4	12	16716047	0
+c6	5	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p3	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+c5	4	12	16716047	0
+c6	5	5	16711932	0
+INSERT INTO t1 (c1, c2, c3, c4, c6) VALUES(1, 2, 3, repeat('a', 1000), repeat('c', 1000));
+ERROR 42000: Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+INSERT INTO t1 (c1, c2, c3, c4, c6) VALUES(1, 2, 3, 'abcdefg', 'hijklmnop');
+SELECT c1, c2, c3, c4, LEFT(c5 , 10), c6 from t1;
+c1	c2	c3	c4	LEFT(c5 , 10)	c6
+1	2	3	abcdefg	dddddddddd	hijklmnop
+ALTER TABLE t1 ADD COLUMN c7 INT, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+###########
+# CLEANUP #
+###########
+DROP TABLE t1;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
+############################################
+# No need to run for DYNAMIC
+############################################
+############################################
+# Test instant ADD/DROP COLUMN for COMPACT format
+############################################
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+# ------------------------------------------------------------
+# Create a table with 3 columns. [id, c2, c3]
+# ------------------------------------------------------------
+CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000)) ROW_FORMAT=COMPACT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	6	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+SET SESSION innodb_strict_mode=OFF;
+# ------------------------------------------------------------
+# Add a new column. It causes max_row_size > permissible size
+# ------------------------------------------------------------
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
+Warnings:
+Warning	139	Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+Warning	139	Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16716047	0
+INSERT INTO t1 (id, c1, c2) VALUES(1, repeat('a', 4000), repeat('b', 4000));
+ERROR 42000: Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+INSERT INTO t1 (id, c1, c2) VALUES(1, repeat('a', 4), repeat('b', 4));
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1 ORDER BY id;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
+1	aaaa	bbbb	dddddddddd
+ALTER TABLE t1 ADD COLUMN c4 INT, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+###########
+# CLEANUP #
+###########
+DROP TABLE t1;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
+# ------------------------------------------------------------
+# Create a partition table with 3 columns. [c1, c2, c3, c4]
+# ------------------------------------------------------------
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) ROW_FORMAT=COMPACT PARTITION BY RANGE(c1 * 2) ( PARTITION p0 VALUES LESS THAN (128), PARTITION p1 VALUES LESS THAN (256) , PARTITION p2 VALUES LESS THAN (384) , PARTITION p3 VALUES LESS THAN MAXVALUE);;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p0	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p1	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p2	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p3	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+SET SESSION innodb_strict_mode=OFF;
+# ------------------------------------------------------------
+# Add new columns. It causes max_row_size > permissible size
+# ------------------------------------------------------------
+ALTER TABLE t1 ADD COLUMN c5 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ADD COLUMN c6 TEXT, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ALTER TABLE t1 ADD COLUMN c5 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ADD COLUMN c6 TEXT;
+Warnings:
+Warning	139	Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+Warning	139	Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+Warning	139	Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+Warning	139	Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p0	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+c5	4	12	16716047	0
+c6	5	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p1	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+c5	4	12	16716047	0
+c6	5	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p2	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+c5	4	12	16716047	0
+c6	5	5	16711932	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1#p#p3	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	6	1027	0
+c2	1	6	1027	0
+c3	2	6	1027	0
+c4	3	5	16711932	0
+c5	4	12	16716047	0
+c6	5	5	16711932	0
+INSERT INTO t1 (c1, c2, c3, c4, c6) VALUES(1, 2, 3, repeat('a', 1000), repeat('c', 1000));
+ERROR 42000: Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+INSERT INTO t1 (c1, c2, c3, c4, c6) VALUES(1, 2, 3, 'abcdefg', 'hijklmnop');
+SELECT c1, c2, c3, c4, LEFT(c5 , 10), c6 from t1;
+c1	c2	c3	c4	LEFT(c5 , 10)	c6
+1	2	3	abcdefg	dddddddddd	hijklmnop
+ALTER TABLE t1 ADD COLUMN c7 INT, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+###########
+# CLEANUP #
+###########
+DROP TABLE t1;
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;

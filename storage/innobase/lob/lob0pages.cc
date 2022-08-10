@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,8 +31,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-void data_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
-                                 ulint &want, mtr_t *mtr) {
+void data_page_t::replace_inline(ulint offset, const byte *&ptr, ulint &want,
+                                 mtr_t *mtr) {
   byte *old_ptr = data_begin() + offset;
 
   ulint data_len = get_data_len();
@@ -108,9 +108,9 @@ buf_block_t *data_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
 }
 
 /** Append given data in data page.
-@param[in]	trxid	transaction doing append.
-@param[in,out]	data	data to be appended.
-@param[in,out]	len	length of data.
+@param[in]      trxid   transaction doing append.
+@param[in,out]  data    data to be appended.
+@param[in,out]  len     length of data.
 @return number of bytes appended. */
 ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
   DBUG_TRACE;
@@ -166,13 +166,7 @@ buf_block_t *data_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
   return (m_block);
 }
 
-/** Write data into a data page.
-@param[in]	trxid	the transaction identifier of the session writing data.
-@param[in,out]	data	the data to be written.  it will be updated to point
-to the byte not yet written.
-@param[in,out]	len	length of data to be written.
-@return amount of data actually written into the page. */
-ulint data_page_t::write(trx_id_t trxid, const byte *&data, ulint &len) {
+ulint data_page_t::write(const byte *&data, ulint &len) {
   byte *ptr = data_begin();
   ulint written = (len > payload()) ? payload() : len;
 
@@ -194,14 +188,15 @@ buf_block_t *data_page_t::load_x(page_no_t page_no) {
   const page_id_t page_id(space_id, page_no);
   const page_size_t page_size = dict_table_page_size(m_index->table);
 
-  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+  m_block =
+      buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
   return (m_block);
 }
 
 /** Read data from the data page.
-@param[in]	offset	read begins at this offset.
-@param[out]	ptr	the output buffer.
-@param[in]	want	bytes to read
+@param[in]      offset  read begins at this offset.
+@param[out]     ptr     the output buffer.
+@param[in]      want    bytes to read
 @return bytes actually read. */
 ulint data_page_t::read(ulint offset, byte *ptr, ulint want) {
   DBUG_TRACE;

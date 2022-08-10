@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,9 +131,10 @@ static void free_resources() {
 }
 
 extern "C" {
-static bool my_arguments_get_one_option(
-    int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-    char *argument) {
+static bool my_arguments_get_one_option(int optid,
+                                        const struct my_option *opt
+                                        [[maybe_unused]],
+                                        char *argument) {
   switch (optid) {
     case '?':
       usage();
@@ -349,7 +350,7 @@ static int install_password_validation_component() {
       int tmp = sizeof("SET GLOBAL validate_password.policy = ") + 3;
       size_t strength_length = strlen(strength);
       /*
-        query string needs memory which is atleast the length of initial part
+        query string needs memory which is at least the length of initial part
         of query plus twice the size of variable being appended.
       */
       query = (char *)my_malloc(PSI_NOT_INSTRUMENTED,
@@ -383,7 +384,7 @@ static void estimate_password_strength(char *password_string) {
   size_t tmp = sizeof("SELECT validate_password_strength(") + 3;
   size_t password_length = strlen(password_string);
   /*
-    query string needs memory which is atleast the length of initial part
+    query string needs memory which is at least the length of initial part
     of query plus twice the size of variable being appended.
   */
   query = (char *)my_malloc(PSI_NOT_INSTRUMENTED,
@@ -516,7 +517,7 @@ static void set_opt_user_password(int component_set) {
       char *query = nullptr, *end;
       int tmp = sizeof("SET PASSWORD=") + 3;
       /*
-        query string needs memory which is atleast the length of initial part
+        query string needs memory which is at least the length of initial part
         of query plus twice the size of variable being appended.
       */
       query = (char *)my_malloc(PSI_NOT_INSTRUMENTED,
@@ -642,7 +643,7 @@ static void drop_users(MYSQL_RES *result) {
     user_length = strlen(user_tmp);
     host_length = strlen(host_tmp);
     /*
-      query string needs memory which is atleast the length of initial part
+      query string needs memory which is at least the length of initial part
       of query plus twice the size of variable being appended.
     */
     query = (char *)my_malloc(

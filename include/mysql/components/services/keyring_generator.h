@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ BEGIN_SERVICE_DEFINITION(keyring_generator)
   Examples: AES, SECRET
 
   Note: If components want to support aes_encryption service,
-  it must spport storing data of type AES.
+  it must support storing data of type AES.
 
   If error object is not initialized, the method will initialize it if returns
   false. Caller will be responsible for freeing error state in such cases.

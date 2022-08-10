@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,10 +112,10 @@ uint32 murmur3_32(const uchar *key, size_t len, uint32 seed) {
   switch (len % 4) {
     case 3:
       k1 ^= static_cast<uint32>(tail[2]) << 16;
-      /* Fall through. */
+      [[fallthrough]];
     case 2:
       k1 ^= static_cast<uint32>(tail[1]) << 8;
-      /* Fall through. */
+      [[fallthrough]];
     case 1:
       k1 ^= tail[0];
       k1 *= c1;

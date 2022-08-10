@@ -3,7 +3,7 @@
 # This file contains tests for WL#5096 and bug fixes.
 #
 
-# sql_slave_skip_counter is not supported with compression
+# sql_replica_skip_counter is not supported with compression
 --source include/not_binlog_transaction_compression_on.inc
 
 -- source include/have_binlog_format_row.inc

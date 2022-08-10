@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ DEFINE_SERVICE_HANDLE(mysqlh_query_attributes_iterator);
 
   A service to fetch the query attributes for the current thread
 
-  Use in conjuntion with all the related services that operate on thread ids
+  Use in conjunction with all the related services that operate on thread ids
   @sa mysql_component_mysql_query_attributes_imp
 */
 BEGIN_SERVICE_DEFINITION(mysql_query_attributes_iterator)
@@ -52,7 +52,7 @@ BEGIN_SERVICE_DEFINITION(mysql_query_attributes_iterator)
   @param thd The thread handle for the thread you want data for. It NULL it
              will read the current thread.
   @param name The name of the parameter to position on. UTF8mb4. if non-NULL
-              will position the iterator on the first occurance of a parameter
+              will position the iterator on the first occurrence of a parameter
               with the specified name, if any.
   @param [out] out_iterator place to store the iterator handle.
   @return Status of performed operation
@@ -112,7 +112,7 @@ END_SERVICE_DEFINITION(mysql_query_attributes_iterator)
 
   A service to fetch the query attribute value as a string
 
-  Use in conjuntion with mysql_query_atrributes_iterator service
+  Use in conjunction with mysql_query_atrributes_iterator service
 
   @sa mysql_component_mysql_query_attributes_imp
 */
@@ -135,7 +135,7 @@ END_SERVICE_DEFINITION(mysql_query_attribute_string)
 
   A service to fetch the query attribute null flag
 
-  Use in conjuntion with mysql_query_atrributes_iterator service
+  Use in conjunction with mysql_query_atrributes_iterator service
 
   @sa mysql_component_mysql_query_attributes_imp
 */

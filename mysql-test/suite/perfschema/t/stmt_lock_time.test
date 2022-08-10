@@ -1,0 +1,48 @@
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+--source include/not_valgrind.inc
+
+#
+# BUG#33236909 Lock_time computed differently by slow log and performance_schema
+#
+
+CREATE TABLE t1(id INT PRIMARY KEY,val INT);
+INSERT INTO t1 VALUES (1,1);
+
+--connect (c1, localhost, root,,)
+BEGIN;
+SELECT * FROM t1 WHERE id=1 FOR SHARE;
+
+--connect (c2, localhost, root,,)
+BEGIN;
+--send SELECT * FROM t1 FOR UPDATE
+
+--sleep 5
+--connection c1
+COMMIT;
+--disconnect c1
+
+--connection c2
+--reap
+--connection default
+SELECT SQL_TEXT, (LOCK_TIME >= 4900000000000) as locked_5_sec
+  FROM performance_schema.events_statements_current;
+--connection c2
+COMMIT;
+
+--connection default
+--disconnect c2
+
+## MANUAL INSPECTION ONLY
+# --let $read_from_file=`select @@slow_query_log_file`
+# --source include/read_file_to_var.inc
+# --echo $result
+
+SELECT query_sample_text, (SUM_LOCK_TIME >= 4900000000000) as locked_5_sec
+  FROM performance_schema.events_statements_summary_by_digest
+  WHERE query_sample_text LIKE 'SELECT * FROM t1 %';
+
+DROP TABLE t1;
+
+

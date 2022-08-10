@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,14 +39,12 @@ static void *launch_handler_thread(void *arg) {
   return nullptr;
 }
 
-Group_partition_handling::Group_partition_handling(
-    Shared_writelock *shared_stop_lock, ulong unreachable_timeout)
+Group_partition_handling::Group_partition_handling(ulong unreachable_timeout)
     : member_in_partition(false),
       group_partition_thd_state(),
       partition_handling_aborted(false),
       partition_handling_terminated(false),
-      timeout_on_unreachable(unreachable_timeout),
-      shared_stop_write_lock(shared_stop_lock) {
+      timeout_on_unreachable(unreachable_timeout) {
   mysql_mutex_init(key_GR_LOCK_group_part_handler_run, &run_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_GR_LOCK_group_part_handler_abort,
@@ -234,11 +232,11 @@ int Group_partition_handling::partition_thread_handler() {
   ph_thd->release_resources();
   global_thd_manager_remove_thd(ph_thd);
   delete ph_thd;
+  my_thread_end();
   group_partition_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
-  my_thread_end();
   my_thread_exit(nullptr);
 
   return 0;

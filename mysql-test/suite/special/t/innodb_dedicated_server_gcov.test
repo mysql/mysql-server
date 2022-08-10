@@ -5,8 +5,7 @@
 # This test checks autoscaling of following variables based on value of             #
 # innodb_dedicated_server option                                                    #
 #       - innodb_buffer_pool_size                                                   #
-#       - innodb_log_file_size                                                      #
-#       - innodb_log_files_in_group                                                 #
+#       - innodb_redo_log_capacity                                                       #
 #                                                                                   #
 # This test also does basic testing for new variable innodb_dedicated_server        #
 #####################################################################################
@@ -25,8 +24,8 @@ if (!$have_debug_dedicated) {
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Resizing redo log");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Starting to delete and rewrite log files.");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* New log files created");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Starting to delete and rewrite redo log files.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* New redo log files created");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored ");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* No argument was provided to --log-bin, and --log-bin-index was not used");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* option 'innodb-buffer-pool-size': signed value");
@@ -39,22 +38,15 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* option 'innodb-buffer-pool-s
 #               server_memory <= 4G ? server_memory * 0.5                    #
 #               server_memory  > 4G ? server_memory * 0.75                   #
 #                                                                            #
-#       innodb_log_file_size                                                 #
-#               buf_pool_size  < 1G ? 48M (same as current default)          #
-#               buf_pool_size  < 8G ? 512M                                   #
-#               buf_pool_size <= 128G ? 1024M                                #
-#               buf_pool_size  > 128G ? 2048M                                #
-#                                                                            #
-#       innodb_log_files_in_group                                            #
-#               buf_pool_size  < 1G ? 2 (same as current default)            #
-#               buf_pool_size  < 8G ? ROUND(buf_pool_size/GB)                #
-#               buf_pool_size <= 128G ? ROUND(buf_pool_size/GB * 0.75)       #
-#               buf_pool_size  > 128G ? 64                                   #
+#       innodb_redo_log_capacity                                             #
+#               buf_pool_size  < 1G ? 100M (same as current default)         #
+#               buf_pool_size  < 8G ? ROUND(buf_pool_size * 0.5) G           #
+#               buf_pool_size <= 128G ? ROUND(buf_pool_size * 0.75) G        #
+#               buf_pool_size  > 128G ? 128G                                 #
 #                                                                            #
 # Following Perl module calculates server memory and evaluates               #
 #       innodb_buffer_pool_size and                                          #
-#       innodb_log_file_size                                                 #
-#       innodb_log_files_in_group                                            #
+#       innodb_redo_log_capacity                                             #
 # based on above formula.                                                    #
 #                                                                            #
 # NOTE : Please build the server with UNIV_DEBUG_DEDICATED!!!!!!             #

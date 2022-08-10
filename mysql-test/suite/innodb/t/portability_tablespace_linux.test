@@ -39,7 +39,7 @@ INSERT INTO tab VALUES(10);
 
 --echo ## Start winDB with --innodb-directories
 let $innodb_dirs='$MYSQL_TMP_DIR/datadir1;$MYSQL_TMP_DIR/undo_files;$MYSQL_TMP_DIR/part0;$MYSQL_TMP_DIR/part1;$MYSQL_TMP_DIR/part2;$MYSQL_TMP_DIR/part3';
---let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_redo_log_capacity=20M --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
 --source include/start_mysqld_no_echo.inc
 
 --echo ## Check new datadir
@@ -73,7 +73,7 @@ SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES
 --source include/shutdown_mysqld.inc
 
 --echo ## restart the server with --datadir and innodb-directories
---let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1 --innodb-directories=$innodb_dirs
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_redo_log_capacity=20M --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1 --innodb-directories=$innodb_dirs
 --source include/start_mysqld_no_echo.inc
 
 --echo ## Check new datadir
@@ -162,7 +162,7 @@ SELECT * FROM purchase;
 
 --echo ## Start winDB with --innodb-directories
 let $innodb_dirs='$MYSQL_TMP_DIR/db1/../datadir1;$MYSQL_TMP_DIR/db1/../undo_files;$MYSQL_TMP_DIR/db1/../part0;$MYSQL_TMP_DIR/db1/../part1;$MYSQL_TMP_DIR/part2;$MYSQL_TMP_DIR/part3';
---let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_redo_log_capacity=20M --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
 --source include/start_mysqld_no_echo.inc
 
 --echo ## Check new datadir
@@ -194,7 +194,7 @@ SHOW CREATE TABLE tab4;
 --source include/shutdown_mysqld.inc
 
 --echo ## restart the server with --datadir and --innodb-directories
---let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1 --innodb-directories=$innodb_dirs
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_redo_log_capacity=20M --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1 --innodb-directories=$innodb_dirs
 --source include/start_mysqld_no_echo.inc
 
 --echo ## Check new datadir
@@ -282,8 +282,9 @@ DROP TABLESPACE ts2;
 --echo ## Cleanup the Windows --datadir location and its *.ibd file location
 --remove_files_wildcard $MYSQL_TMP_DIR/data_home/ data*
 --remove_files_wildcard $MYSQL_TMP_DIR/data_home/ ib_buffer*
---remove_files_wildcard $MYSQL_TMP_DIR/data_home/ ib_log*
+--remove_files_wildcard $MYSQL_TMP_DIR/data_home/#innodb_redo/ #ib_redo*
 --remove_files_wildcard $MYSQL_TMP_DIR/data_home/ ibtmp*
+--rmdir $MYSQL_TMP_DIR/data_home/#innodb_redo
 --rmdir $MYSQL_TMP_DIR/data_home
 
 --remove_files_wildcard $MYSQL_TMP_DIR/undo_files/ undo*

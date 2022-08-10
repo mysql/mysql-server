@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include <mgmapi_internal.h>
 #include <ConfigValues.hpp>
 #include <DnsCache.hpp>
+#include <EventLogger.hpp>
 
 //****************************************************************************
 //****************************************************************************
@@ -135,9 +136,24 @@ int
 ConfigRetriever::do_connect(int no_retries,
 			    int retry_delay_in_seconds, int verbose)
 {
-  return
-    (ndb_mgm_connect(m_handle,no_retries,retry_delay_in_seconds,verbose)==0) ?
-    0 : -1;
+  if (ndb_mgm_connect(m_handle, no_retries, retry_delay_in_seconds, verbose) == 0)
+  {
+    return 0;
+  }
+  else
+  {
+    const int err = ndb_mgm_get_latest_error(m_handle);
+    if (err == NDB_MGM_ILLEGAL_CONNECT_STRING)
+    {
+      BaseString tmp(ndb_mgm_get_latest_error_msg(m_handle));
+      tmp.append(" : ");
+      tmp.append(ndb_mgm_get_latest_error_desc(m_handle));
+      setError(CR_ERROR, tmp.c_str());
+      return -2;
+    }
+    return -1;
+  }
+
 }
 
 int
@@ -152,7 +168,7 @@ ConfigRetriever::is_connected(void)
   return (ndb_mgm_is_connected(m_handle) != 0);
 }
 
-ndb_mgm_config_unique_ptr
+ndb_mgm::config_ptr
 ConfigRetriever::getConfig(Uint32 nodeid)
 {
   if (!m_handle)
@@ -165,7 +181,7 @@ ConfigRetriever::getConfig(Uint32 nodeid)
   const Uint32 save_nodeid = get_configuration_nodeid();
   setNodeId(nodeid);
 
-  ndb_mgm_config_unique_ptr conf = getConfig(m_handle);
+  ndb_mgm::config_ptr conf = getConfig(m_handle);
 
   setNodeId(save_nodeid);
 
@@ -178,11 +194,11 @@ ConfigRetriever::getConfig(Uint32 nodeid)
   return conf;
 }
 
-ndb_mgm_config_unique_ptr
+ndb_mgm::config_ptr
 ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
 {
   const int from_node = 0;
-  ndb_mgm_config_unique_ptr conf(
+  ndb_mgm::config_ptr conf(
     ndb_mgm_get_configuration2(mgm_handle,
                                m_version,
                                m_node_type,
@@ -197,7 +213,7 @@ ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
   return conf;
 }
 
-ndb_mgm_config_unique_ptr
+ndb_mgm::config_ptr
 ConfigRetriever::getConfig(const char * filename)
 {
   if (access(filename, F_OK))
@@ -235,7 +251,7 @@ ConfigRetriever::getConfig(const char * filename)
     setError(CR_ERROR,  "Error while unpacking");
     return {};
   }
-  return ndb_mgm_config_unique_ptr(
+  return ndb_mgm::config_ptr(
       reinterpret_cast<ndb_mgm_configuration *>(cvf.getConfigValues()));
 }
 
@@ -291,7 +307,9 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
   }
 
   if(_type != (unsigned int)m_node_type){
-    const char *type_s, *alias_s, *type_s2, *alias_s2;
+    const char *alias_s, *alias_s2;
+    const char *type_s = nullptr;
+    const char *type_s2 = nullptr;
     alias_s=
       ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)m_node_type,
                                          &type_s);
@@ -359,26 +377,42 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
    * Check hostnames
    */
   LocalDnsCache dnsCache;
+  int ip_ver_preference = -1;
   ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next()){
 
     Uint32 type = CONNECTION_TYPE_TCP + 1;
     if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
     if(type != CONNECTION_TYPE_TCP) continue;
-    
-    Uint32 nodeId1, nodeId2, remoteNodeId;
+
+    Uint32 nodeId1, nodeId2;
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
     if(iter.get(CFG_CONNECTION_NODE_2, &nodeId2)) continue;
     
     if(nodeId1 != nodeid && nodeId2 != nodeid) continue;
-    remoteNodeId = (nodeid == nodeId1 ? nodeId2 : nodeId1);
 
     Uint32 allow_unresolved = false;
     iter.get(CFG_CONNECTION_UNRES_HOSTS, & allow_unresolved);
 
+    BaseString tmp;
+    Uint32 conn_preferred_ip_version = 4;
+
+    iter.get(CFG_CONNECTION_PREFER_IP_VER, &conn_preferred_ip_version);
+    if(! (conn_preferred_ip_version == 6 || conn_preferred_ip_version == 4)) {
+      tmp.assfmt("Invalid IP version: %d", conn_preferred_ip_version);
+      setError(CR_ERROR, tmp);
+      return false;
+    }
+    if(ip_ver_preference == -1) {              // Set the preference globally
+      ip_ver_preference = conn_preferred_ip_version;
+      NdbTCP_set_preferred_IP_version(ip_ver_preference);
+    } else if(ip_ver_preference != (int) conn_preferred_ip_version) {
+      setError(CR_ERROR, "All connections must prefer the same IP version");
+      return false;
+    }
+
     const char * name;
     struct in6_addr addr;
-    BaseString tmp;
     if(!iter.get(CFG_CONNECTION_HOSTNAME_1, &name) && strlen(name)){
       if(dnsCache.getAddress(&addr, name) != 0){
 	tmp.assfmt("Could not resolve hostname [node %d]: %s", nodeId1, name);
@@ -386,7 +420,7 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
           setError(CR_ERROR, tmp.c_str());
           return false;
         }
-        ndbout << "Warning: " << tmp << endl;
+        g_eventLogger->info("Warning: %s", tmp.c_str());
       }
     }
 
@@ -397,7 +431,7 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
           setError(CR_ERROR, tmp.c_str());
           return false;
         }
-        ndbout << "Warning: " << tmp << endl;
+        g_eventLogger->info("Warning: %s", tmp.c_str());
       }
     }
   }

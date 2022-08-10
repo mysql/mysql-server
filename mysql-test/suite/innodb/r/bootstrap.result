@@ -5,11 +5,12 @@
 # Start mysqld without the possibility to create undo tablespaces
 # because a directory exists named 'undo_002'.
 Pattern "\[ERROR\] .*MY-\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
+auto.cnf
 undo_002
 # Start mysqld to create tablespaces according to my.cnf
 # Backup the datadir
 # 1. Start mysqld with non existent innodb_log_group_home_dir
-Pattern "\[ERROR\] .* Cannot create .path.to.non-existent.ib_logfile101" found
+Pattern "\[ERROR\] .* Failed to list redo log files in the redo log directory .path.to.non-existent" found
 Pattern "\[ERROR\] .* Aborting" found
 # 2. Start mysqld without ibdata1
 Pattern "\[ERROR\] .* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
@@ -18,22 +19,22 @@ Pattern "\[ERROR\] .* Tablespace size stored in header is \d+ pages, but" found
 Pattern "\[ERROR\] .* Aborting" found
 # 4. Start mysqld without ibdata1 & ibdata2
 Pattern "\[ERROR\] .* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
-# 5. Start mysqld without ibdata*, ib_logfile* and undo_00*
+# 5. Start mysqld without ibdata*, #ib_redo* and undo_00*
 Pattern "\[ERROR\] .* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
 # 6. Start mysqld without undo_002
 Pattern "\[Note\] .* Creating UNDO Tablespace .*undo_002" found
 # 7. Start mysqld without undo_001, undo_002
 Pattern "\[Note\] .* Creating UNDO Tablespace .*undo_001" found
 Pattern "\[Note\] .* Creating UNDO Tablespace .*undo_002" found
-# 8. Start mysqld without ib_logfile0
-# 9. Start mysqld without ib_logfile1
-Pattern "\[ERROR\] .* Only one log file found" found
-Pattern "\[ERROR\] .* Aborting" found
-# 10. Start mysqld without ib_logfile2
-Pattern "\[Note\] .* Resizing redo log from \d+\*\d+ to \d+\*\d+ bytes, LSN=\d+" found
-# 11. Add new datafile at the end
+# 8. Start mysqld without #ib_redo*
+Pattern "\[Note\] .* Apply batch completed" found
+# 9. Add new datafile at the end
 Pattern "\[Note\] .* File.*ibdata3. size is now 20 MB" found
-# 12. Show that --innodb-undo-directory cannot be an ancestor of the datadir
+# 10. Show that --innodb-undo-directory cannot be an ancestor of the datadir
 Pattern "\[ERROR\] .* The innodb_undo_directory is not allowed to be an ancestor of the datadir" found
+# 11. Try to initialize InnoDB in directory which has log files
+Pattern "--initialize specified but the redo log directory .* has redo log files inside" found
+# 12. Rename log file after shutdown and start MySQL (should succeed)
+Pattern "[ERROR].*innodb-unknown-parameter-12.*" found
 # Cleanup
 # restart

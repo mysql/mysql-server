@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,12 +39,12 @@
 #include <sys/types.h>
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 #include <BaseTsd.h>
 typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif
-#if !defined(HAVE_ULONG)
+#if !defined(HAVE_ULONG) && !defined(MYSQL_ABI_CHECK)
 typedef unsigned long ulong; /* Short for unsigned long */
 #endif
 
@@ -101,7 +101,7 @@ typedef int myf; /* Type of MyFlags in my_funcs */
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21U
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 typedef SSIZE_T ssize_t;
 #endif
 
@@ -109,7 +109,7 @@ typedef SSIZE_T ssize_t;
   This doesn't really belong here, but it was the only reasonable place
   at the time.
 */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 typedef int sigset_t;
 #endif
 

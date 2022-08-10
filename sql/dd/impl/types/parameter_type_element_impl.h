@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ class Parameter_type_element_impl : public Weak_object_impl,
   Parameter_type_element_impl(const Parameter_type_element_impl &src,
                               Parameter_impl *parent);
 
-  ~Parameter_type_element_impl() override {}
+  ~Parameter_type_element_impl() override = default;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);

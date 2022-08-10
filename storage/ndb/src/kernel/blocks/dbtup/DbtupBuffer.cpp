@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -382,8 +382,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
          blockNumber == SUMA))
     {
       static_assert(MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE <=
-                      NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength,
-                    "");
+                      NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength);
       ndbrequire(TransIdAI::HeaderLength + ToutBufIndex <=
                  NDB_ARRAY_SIZE(signal->theData));
       EXECUTE_DIRECT(blockNumber, GSN_TRANSID_AI, signal,
@@ -396,8 +395,9 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
        * Data is 'short', send short signal
        */
       jam();
+      const JobBufferLevel prioLevel = req_struct->m_prio_a_flag ? JBA : JBB;
       sendSignal(recBlockref, GSN_TRANSID_AI, signal,
-                 TransIdAI::HeaderLength+ToutBufIndex, JBB);
+                 TransIdAI::HeaderLength+ToutBufIndex, prioLevel);
     }
     else
     {

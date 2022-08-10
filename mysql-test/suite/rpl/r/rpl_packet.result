@@ -3,13 +3,14 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Slave I/O for channel '': Got a packet bigger than 'slave_max_allowed_packet' bytes, Error_code: MY-013125");
-call mtr.add_suppression("Log entry on master is longer than slave_max_allowed_packet");
+call mtr.add_suppression("Slave I/O for channel '': Got a packet bigger than 'replica_max_allowed_packet' bytes, Error_code: MY-013125");
+call mtr.add_suppression("Log entry on master is longer than replica_max_allowed_packet");
 drop database if exists DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 create database DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 SET @@global.max_allowed_packet=10240;
 SET @@global.net_buffer_length=1024;
 include/sync_slave_sql_with_master.inc
+call mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 include/stop_slave.inc
 include/start_slave.inc
 select @@net_buffer_length, @@max_allowed_packet;
@@ -34,10 +35,10 @@ include/stop_slave.inc
 include/start_slave.inc
 CREATE TABLE `t1` (`f1` LONGTEXT);
 include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
 INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 include/wait_for_slave_io_error.inc [errno=13125]
-Last_IO_Error = 'Got a packet bigger than 'slave_max_allowed_packet' bytes'
-include/stop_slave_sql.inc
+Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
 include/rpl_reset.inc
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
@@ -45,7 +46,7 @@ CREATE TABLE t1 (f1 int PRIMARY KEY, f2 LONGTEXT, f3 LONGTEXT) ENGINE=MyISAM;
 include/sync_slave_sql_with_master.inc
 INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), REPEAT('b', @@global.max_allowed_packet));
 include/wait_for_slave_io_error.inc [errno=13125]
-Last_IO_Error = 'Got a packet bigger than 'slave_max_allowed_packet' bytes'
+Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
@@ -82,7 +83,7 @@ include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 # 13125 = ER_SERVER_NET_PACKET_TOO_LARGE
 include/wait_for_slave_io_error.inc [errno=13125]
-Last_IO_Error = 'Got a packet bigger than 'slave_max_allowed_packet' bytes'
+Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
 # Record Read_Master_Log_Pos for the Table_map_log_event
 SET @@global.max_allowed_packet=1048576;
 WARNING: The range of printed events ends with a row event or a table map event that does not have the STMT_END_F flag set. This might be because the last statement was not fully written to the log, or because you are using a --stop-position or --stop-datetime that refers to an event in the middle of a statement. The event(s) from the partial statement have not been written to output.
@@ -93,10 +94,10 @@ SET @@global.max_allowed_packet= 4096;
 Warnings:
 Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SET @@global.net_buffer_length= 1024;
-SET @@global.slave_max_allowed_packet= 4096;
+SET @@global.replica_max_allowed_packet= 4096;
 SET @@global.max_allowed_packet= 2048;
 DROP TABLE t1;
-include/stop_slave_sql.inc
+STOP REPLICA;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

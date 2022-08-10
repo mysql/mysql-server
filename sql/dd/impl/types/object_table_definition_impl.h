@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,7 @@ class Object_table_definition_impl : public Object_table_definition {
                               Element_definitions *element_defs);
 
  public:
-  Object_table_definition_impl() {}
+  Object_table_definition_impl() = default;
 
   Object_table_definition_impl(const String_type &schema_name,
                                const String_type &table_name,
@@ -140,7 +140,7 @@ class Object_table_definition_impl : public Object_table_definition {
         m_table_name(table_name),
         m_ddl_statement(ddl_statement) {}
 
-  ~Object_table_definition_impl() override {}
+  ~Object_table_definition_impl() override = default;
 
   static void set_dd_tablespace_encrypted(bool is_encrypted) {
     s_dd_tablespace_encrypted = is_encrypted;

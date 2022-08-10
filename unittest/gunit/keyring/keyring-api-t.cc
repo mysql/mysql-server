@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ using namespace keyring;
 
 class Keyring_api_test : public ::testing::Test {
  public:
-  Keyring_api_test() {}
+  Keyring_api_test() = default;
   ~Keyring_api_test() override {
     delete[] plugin_name;
     delete[] keyring_filename;

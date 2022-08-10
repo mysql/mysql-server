@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,12 +55,12 @@ void Help_options::create_options() {
           std::bind(&Help_options::version_callback, this, _1)));
 }
 
-void Help_options::help_callback(char *argument MY_ATTRIBUTE((unused))) {
+void Help_options::help_callback(char *argument [[maybe_unused]]) {
   this->print_usage();
   exit(0);
 }
 
-void Help_options::version_callback(char *argument MY_ATTRIBUTE((unused))) {
+void Help_options::version_callback(char *argument [[maybe_unused]]) {
   this->print_version_line();
   exit(0);
 }

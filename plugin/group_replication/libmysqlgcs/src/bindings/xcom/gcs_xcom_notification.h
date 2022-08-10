@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ class Gcs_xcom_notification {
     execution returns true.
   */
 
-  explicit Gcs_xcom_notification() {}
+  explicit Gcs_xcom_notification() = default;
 
   /**
     Task implemented by this notification which calls do_execute.
@@ -78,7 +78,7 @@ class Gcs_xcom_notification {
     Destructor for the Gcs_xcom_notification.
   */
 
-  virtual ~Gcs_xcom_notification() {}
+  virtual ~Gcs_xcom_notification() = default;
 
  private:
   /*
@@ -207,13 +207,13 @@ class Parameterized_notification : public Gcs_xcom_notification {
     Constructor for Parameterized_notification.
   */
 
-  explicit Parameterized_notification() {}
+  explicit Parameterized_notification() = default;
 
   /**
     Destructor for Parameterized_notification.
   */
 
-  ~Parameterized_notification() override {}
+  ~Parameterized_notification() override = default;
 
   /**
     Task implemented by this notification which calls do_execute.
@@ -326,8 +326,8 @@ class Initialize_notification : public Parameterized_notification<false> {
   Initialize_notification &operator=(Initialize_notification const &);
 };
 
-typedef void(xcom_receive_data_functor)(synode_no, Gcs_xcom_nodes *, synode_no,
-                                        u_int, char *);
+typedef void(xcom_receive_data_functor)(synode_no, synode_no, Gcs_xcom_nodes *,
+                                        synode_no, u_int, char *);
 /**
   Notification used to inform that data has been totally ordered.
 */
@@ -339,6 +339,7 @@ class Data_notification : public Parameterized_notification<false> {
     @param functor Pointer to a function that contains that actual
                     core of the execution.
     @param message_id Messaged Id.
+    @param origin XCom synod of origin.
     @param xcom_nodes Set of nodes that participated in the consensus
                   to deliver the message.
     @param size Size of the message's content.
@@ -348,8 +349,9 @@ class Data_notification : public Parameterized_notification<false> {
   */
 
   explicit Data_notification(xcom_receive_data_functor *functor,
-                             synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
-                             synode_no last_removed, u_int size, char *data);
+                             synode_no message_id, synode_no origin,
+                             Gcs_xcom_nodes *xcom_nodes, synode_no last_removed,
+                             u_int size, char *data);
 
   /**
     Destructor for Data_notification
@@ -375,6 +377,11 @@ class Data_notification : public Parameterized_notification<false> {
     Messaged Id.
   */
   synode_no m_message_id;
+
+  /*
+    XCom synode of origin.
+  */
+  synode_no m_origin;
 
   /*
     Set of nodes that participated in the consensus to deliver the

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,9 @@
 #include <exception>
 #include <utility>  // make_pair
 
-#include "common.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
-#include "utils.h"  // copy_file
+#include "mysqlrouter/utils.h"  // copy_file
 
 IMPORT_LOG_FUNCTIONS()
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,14 +137,14 @@ struct pos_replication_applier_status_by_worker : public PFS_double_index {
 
 class PFS_index_rpl_applier_status_by_worker : public PFS_engine_index {
  public:
-  PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key)
+  explicit PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key)
       : PFS_engine_index(key) {}
 
   PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key_1,
                                          PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_rpl_applier_status_by_worker() override {}
+  ~PFS_index_rpl_applier_status_by_worker() override = default;
 
   virtual bool match(Master_info *mi) = 0;
   virtual bool match(Master_info *mi, Slave_worker *w) = 0;
@@ -158,7 +158,7 @@ class PFS_index_rpl_applier_status_by_worker_by_channel
         m_key_1("CHANNEL_NAME"),
         m_key_2("WORKER_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_worker_by_channel() override {}
+  ~PFS_index_rpl_applier_status_by_worker_by_channel() override = default;
 
   bool match(Master_info *mi) override;
   bool match(Master_info *mi, Slave_worker *w) override;
@@ -174,7 +174,7 @@ class PFS_index_rpl_applier_status_by_worker_by_thread
   PFS_index_rpl_applier_status_by_worker_by_thread()
       : PFS_index_rpl_applier_status_by_worker(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_worker_by_thread() override {}
+  ~PFS_index_rpl_applier_status_by_worker_by_thread() override = default;
 
   bool match(Master_info *mi) override;
   bool match(Master_info *mi, Slave_worker *w) override;
@@ -194,7 +194,8 @@ class table_replication_applier_status_by_worker : public PFS_engine_table {
     information in STS mode
   */
   int make_row(Master_info *);
-  void populate_trx_info(Gtid_monitoring_info *, mysql_mutex_t *);
+  void populate_trx_info(Trx_monitoring_info const &applying_trx,
+                         Trx_monitoring_info const &last_applied_trx);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

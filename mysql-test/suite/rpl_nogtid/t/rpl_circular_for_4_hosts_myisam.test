@@ -85,7 +85,7 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
 
 # Note: server_N has auto_increment_offset=N. Below, we insert value 6
 # in the autoinc column on server_3 (and prevent it from replicating
-# further using SQL_SLAVE_SKIP_COUNTER on server_4). Due to the
+# further using SQL_REPLICA_SKIP_COUNTER on server_4). Due to the
 # auto_increment_offset setting, the autoinc value 6 is normally
 # generated on server_2. When we later insert a row on server_2, we
 # thus cause a duplicate key error on server_3.
@@ -93,7 +93,7 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
 # Do not replicate next event from C
 --connection server_4
 STOP SLAVE;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
+SET GLOBAL SQL_REPLICA_SKIP_COUNTER = 1;
 source include/start_slave.inc;
 --connection server_3
 INSERT INTO t1 VALUES(6,'C',2);

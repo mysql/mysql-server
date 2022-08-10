@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ class Ndb_sql_metadata_table : public Ndb_util_table {
   bool define_table_ndb(NdbDictionary::Table &table,
                         unsigned mysql_version) const override;
 
-  bool define_indexes(unsigned int mysql_version) const override;
+  bool create_indexes(const NdbDictionary::Table &table) const override;
 
  public:
   Ndb_sql_metadata_table(class Thd_ndb *);
@@ -67,6 +67,7 @@ class Ndb_sql_metadata_api {
   Ndb_sql_metadata_api &operator=(const Ndb_sql_metadata_api &) = delete;
 
   /* Record Types */
+  static constexpr short TYPE_LOCK = 4;
   static constexpr short TYPE_USER = 11;
   static constexpr short TYPE_GRANT = 12;
 
@@ -110,7 +111,25 @@ class Ndb_sql_metadata_api {
     layout().getValue(buf, 4, a, b);
   }
 
+  /* Global locking around snapshot updates
+     After a mysql server has written a batch of rows to ndb_sql_metadata,
+     it may use the schema change distribution protocol to force other mysql
+     servers to read these rows. The global snapshot lock serializes these
+     "snapshot refreshes" so that only one of them happens at a time.
+
+     initializeSnapshotLock() assures that the token lock tuple exists.
+
+     acquireSnapshotLock() attempts to acquire an exclusive read lock on the
+     lock tuple, without waiting.
+
+     releaseSnapshotLock() releases the read lock.
+  */
+  const NdbError &initializeSnapshotLock(Ndb *);
+  const NdbError &acquireSnapshotLock(Ndb *, NdbTransaction *&);
+  void releaseSnapshotLock(NdbTransaction *tx) { tx->close(); }
+
  private:
+  void writeSnapshotLockRow(NdbTransaction *);
   Ndb_record_layout &layout() { return m_record_layout; }
   Ndb_record_layout m_record_layout;
 

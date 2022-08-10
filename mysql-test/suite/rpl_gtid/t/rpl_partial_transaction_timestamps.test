@@ -22,7 +22,7 @@
 
 # Prepare the slave IO thread to stop after queuing a WRITE_ROWS event
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG= "d,stop_io_after_reading_write_rows_log_event";
+SET GLOBAL DEBUG= "+d,stop_io_after_reading_write_rows_log_event";
 
 # Do some transactions on master
 --source include/rpl_connection_master.inc
@@ -44,10 +44,7 @@ COMMIT;
 
 --let $restart_queue_timestamp= query_get_value(select QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP from performance_schema.replication_connection_status,QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP,1)
 
-# Remove the debug point, so the IO thread will not stop after
-# queuing a WRITE_ROWS event anymore
-
-SET GLOBAL DEBUG= @save_debug;
+# Debug point disappears on restart
 
 # Start slave
 --source include/start_slave.inc

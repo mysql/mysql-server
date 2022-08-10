@@ -2,6 +2,17 @@
 # Find string "NOTE NOTE NOTE" in order to find some 'unsure' tests
 #
 
+-- disable_query_log
+-- disable_result_log
+# High values set for sampling scanning, effectively forcing full scan for
+# statistics.
+SET @innodb_stats_transient_sample_pages= @@GLOBAL.innodb_stats_transient_sample_pages;
+SET @@global.innodb_stats_transient_sample_pages=5000000000;
+SET @innodb_stats_persistent_sample_pages= @@GLOBAL.innodb_stats_persistent_sample_pages;
+SET @@global.innodb_stats_persistent_sample_pages=5000000000;
+-- enable_result_log
+-- enable_query_log
+
 #
 # Simple select test
 #
@@ -1412,6 +1423,8 @@ insert into t3 select * from tmp;
 #insert into tmp select * from t3;
 #insert into t3 select * from tmp;
 
+# The test assumes a 1-1 correspondence of autoinc values to  fields tested.
+set session innodb_parallel_read_threads = 1;
 alter table t3 add t2nr int not null auto_increment primary key first;
 
 drop table tmp;
@@ -3429,7 +3442,7 @@ CREATE TABLE t1 (name varchar(255)) charset latin1;
 CREATE TABLE t2 (name varchar(255), n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
-INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES (concat('cc ', '!'), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
 ANALYZE TABLE t1, t2;
 SELECT * FROM t2;
@@ -3452,7 +3465,7 @@ CREATE TABLE t1 (name text) charset latin1;
 CREATE TABLE t2 (name text, n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
-INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES (concat('cc ', '!'), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
 ANALYZE TABLE t1, t2;
 SELECT * FROM t2;
@@ -4549,3 +4562,10 @@ eval EXPLAIN FORMAT=tree $query;  # Verify that we get BKA, and no NULL rejectio
 eval $query;
 
 DROP TABLE t1;
+
+-- disable_query_log
+-- disable_result_log
+SET @@GLOBAL.innodb_stats_transient_sample_pages= @innodb_stats_transient_sample_pages;
+SET @@GLOBAL.innodb_stats_persistent_sample_pages= @innodb_stats_persistent_sample_pages;
+-- enable_result_log
+-- enable_query_log

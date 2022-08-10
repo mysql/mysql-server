@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -147,7 +147,7 @@ TEST_F(MysysMyGetopTest, Signed) {
   EXPECT_EQ(m_error, 0);
 
   result = eval_num_suffix<long long>("-1E", &m_error, "");
-  EXPECT_EQ(result, -one_exa);
+  EXPECT_EQ(result, -static_cast<long long>(one_exa));
   EXPECT_EQ(m_error, 0);
 
   result = eval_num_suffix<long long>("-1000000E", &m_error, "");

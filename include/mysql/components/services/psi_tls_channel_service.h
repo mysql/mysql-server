@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 #define COMPONENT_SERVICES_PSI_TLS_CHANNEL_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/psi_tls_channel_bits.h>
+#include <mysql/components/services/bits/psi_tls_channel_bits.h>
 
 /**
   @ingroup group_components_services_inventory

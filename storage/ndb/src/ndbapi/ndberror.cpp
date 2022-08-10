@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 #include <ndb_global.h>
 #include <ndberror.h>
 
-#include "../mgmsrv/ndb_mgmd_error.h"
 #include "NdbQueryBuilderImpl.hpp"
 #include "m_string.h"
 #include "my_base.h"
@@ -270,6 +269,8 @@ ErrorBundle ErrorCodes[] = {
     "SharedGlobalMemory" },
   { 233,  DMEC, TR,
     "Out of operation records in transaction coordinator (increase SharedGlobalMemory)" },
+  { 234,  DMEC, TR,
+    "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 251,  DMEC, TR, "Out of frag location records in TC (increase SharedGlobalMemory)" },
   { 275,  DMEC, TR, "Out of transaction records for complete phase (increase SharedGlobalMemory)" },
   { 273,  DMEC, TR, "Out of transaction markers databuffer in TC, "
@@ -278,13 +279,13 @@ ErrorBundle ErrorCodes[] = {
   { 293,  DMEC, TR, "Out of attribute buffers in TC block, increase SharedGlobalMemory" },
   { 312,  DMEC, TR, "Out of LongMessageBuffer" },
   { 414,  DMEC, TR, "414" },
-  { 418,  DMEC, TR, "Out of transaction buffers in LQH, increase LongSignalMemory" },
-  { 419,  DMEC, TR, "Out of signal memory, increase LongSignalMemory" },
+  { 418,  DMEC, TR, "Out of transaction buffers in LQH, increase LongMessageBuffer" },
+  { 419,  DMEC, TR, "Out of signal memory, increase LongMessageBuffer" },
   { 245,  DMEC, TR, "Too many active scans, increase MaxNoOfConcurrentScans" },
   { 488,  DMEC, TR, "Too many active scans" },
   { 489,  DMEC, TR, "Out of scan records in LQH, increase SharedGlobalMemory" },
   { 490,  DMEC, TR, "Too many active scans" },
-  { 805,  DMEC, TR, "Out of attrinfo records in tuple manager, increase LongSignalMemory" },
+  { 805,  DMEC, TR, "Out of attrinfo records in tuple manager, increase LongMessageBuffer" },
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
   { 899,  DMEC, TR, "Rowid already allocated" },
@@ -343,8 +344,6 @@ ErrorBundle ErrorCodes[] = {
   { 296,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout */
   { 297,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout, temporary!! */
   { 237,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Transaction had timed out when trying to commit it" },
-  { 5024, DMEC, TO, "Time-out due to node shutdown not starting in time" },
-  { 5025, DMEC, TO, "Time-out due to node shutdown not completing in time" },
   { 635,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Lock already taken, not waiting" }, // HA_ERR_NO_WAIT_LOCK
   
   /**
@@ -462,6 +461,7 @@ ErrorBundle ErrorCodes[] = {
   { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
   { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
   { 325,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node ID invalid or undefined" },
+  { 326,  DMEC, AE, "Same node(s) specified for new nodegroup" },
   { 417,  DMEC, AE, "Bad operation reference - double unlock" },
 
   /** 
@@ -677,7 +677,7 @@ ErrorBundle ErrorCodes[] = {
   /*
    * Index stats error codes
    */
-  { 4714, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " do not exist" },
+  { 4714, DMEC, AE, "Index stats system tables do not exist" },
   { 4715, DMEC, AE, "Index stats for specified index do not exist" },
   { 4716, DMEC, AE, "Index stats methods usage error" },
   { 4717, DMEC, AE, "Index stats cannot allocate memory" },
@@ -821,6 +821,7 @@ ErrorBundle ErrorCodes[] = {
   { 4556, DMEC, AE, "RecordSpecification has illegal value in column_flags" },
   { 4557, DMEC, AE, "Column types must be identical when comparing two columns" },
   { 4558, DMEC, AE, "Pending Blob operations must be executed before this call" },
+  { 4559, DMEC, AE, "Failed to transfer KeyInfo to AttrInfo for InterpretedWrite" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },
@@ -983,32 +984,39 @@ ErrorBundle ErrorCodes[] = {
   { QRY_NEST_NOT_SUPPORTED, DMEC, AE,
     "FirstInner/Upper has to be an ancestor or a sibling" },
 
-  { NO_CONTACT_WITH_PROCESS, DMEC, AE,
+  /*
+   * Management server error codes
+   */
+  { 5000 /* NO_CONTACT_WITH_PROCESS */, DMEC, AE,
     "No contact with the process (dead ?)."},
-  { WRONG_PROCESS_TYPE, DMEC, AE,
+  { 5002 /* WRONG_PROCESS_TYPE */, DMEC, AE,
    "The process has wrong type. Expected a DB process."},
-  { SEND_OR_RECEIVE_FAILED, DMEC, AE,
+  { 5005 /* SEND_OR_RECEIVE_FAILED */, DMEC, AE,
     "Send to process or receive failed."},
-  { INVALID_ERROR_NUMBER, DMEC, AE,
+  { 5007 /* INVALID_ERROR_NUMBER */, DMEC, AE,
     "Invalid error number. Should be >= 0."},
-  { INVALID_TRACE_NUMBER, DMEC, AE,
+  { 5008 /* INVALID_TRACE_NUMBER */, DMEC, AE,
     "Invalid trace number."},
-  { INVALID_BLOCK_NAME, DMEC, AE,
+  { 5010 /* INVALID_BLOCK_NAME */, DMEC, AE,
     "Invalid block name"},
-  { NODE_SHUTDOWN_IN_PROGESS, DMEC, AE,
+  { 5024 /* WAIT_FOR_NDBD_SHUTDOWN_FAILED */, DMEC, TO,
+    "Time-out due to node shutdown not starting in time" },
+  { 5025 /* WAIT_FOR_NDBD_SHUTDOWN_FAILED */, DMEC, TO,
+    "Time-out due to node shutdown not completing in time" },
+  { 5026 /* NODE_SHUTDOWN_IN_PROGESS */, DMEC, AE,
     "Node shutdown in progress" },
-  { SYSTEM_SHUTDOWN_IN_PROGRESS, DMEC, AE,
+  { 5027 /* SYSTEM_SHUTDOWN_IN_PROGRESS */, DMEC, AE,
     "System shutdown in progress" },
-  { NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH, DMEC, AE,
+  { 5028 /* NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH */, DMEC, AE,
    "Node shutdown would cause system crash" },
-  { UNSUPPORTED_NODE_SHUTDOWN, DMEC, AE,
+  { 5030 /* NO_CONTACT_WITH_DB_NODES */, DMEC, AE,
+    "No contact with database nodes" },
+  { 5031 /* UNSUPPORTED_NODE_SHUTDOWN */, DMEC, AE,
    "Unsupported multi node shutdown. Abort option required." },
-  { NODE_NOT_API_NODE, DMEC, AE,
+  { 5062 /* NODE_NOT_API_NODE */, DMEC, AE,
     "The specified node is not an API node." },
-  { OPERATION_NOT_ALLOWED_START_STOP, DMEC, AE,
-   "Operation not allowed while nodes are starting or stopping."},
-  { NO_CONTACT_WITH_DB_NODES, DMEC, AE,
-    "No contact with database nodes" }
+  { 5063 /* OPERATION_NOT_ALLOWED_START_STOP */, DMEC, AE,
+   "Operation not allowed while nodes are starting or stopping."}
 };
 
 static

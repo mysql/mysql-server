@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2013, 2022, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@ void ColumnHandler::init(v8::Isolate * _isolate,
   switch(column->getType()) {
     case NDB_TYPE_TEXT: 
       isText = true;   // fall through to also set isLob
+      [[fallthrough]];
     case NDB_TYPE_BLOB:
       isLob = true;
       break;

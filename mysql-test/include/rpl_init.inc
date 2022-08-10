@@ -24,12 +24,12 @@
 #
 #    !include ../my.cnf
 #    [mysqld.1]
-#    log-slave-updates
+#    log-replica-updates
 #    [mysqld.2]
-#    log-slave-updates
+#    log-replica-updates
 #    ...
 #    [mysqld.N]
-#    log-slave-updates
+#    log-replica-updates
 #
 #    [ENV]
 #    SERVER_MYPORT_3= @mysqld.3.port
@@ -66,6 +66,7 @@
 #    [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 #    [--let $rpl_require_row_format= *:0,1:0,2:1]
 #    [--let $rpl_require_table_primary_key_check= *:STREAM,1:ON,2:OFF]
+#    [--let $rpl_gtid_only= *:0,1:0,2:1]
 #    [--let $rpl_shallow_reset_slave= 1]
 #    --source include/rpl_init.inc
 #
@@ -160,6 +161,9 @@
 #      See `include/rpl_change_topology.inc`.
 #
 #   $rpl_require_table_primary_key_check
+#      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_gtid_only
 #      See `include/rpl_change_topology.inc`.
 #
 #   $rpl_shallow_reset_slave

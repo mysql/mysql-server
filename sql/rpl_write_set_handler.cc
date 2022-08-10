@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,17 +31,17 @@
 #include <utility>
 #include <vector>
 
-#include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_murmur3.h"  // murmur3_32
+#include "my_xxhash.h"   // IWYU pragma: keep
 #include "mysql_com.h"
+#include "sql-common/json_binary.h"
+#include "sql-common/json_dom.h"
 #include "sql/field.h"  // Field
-#include "sql/json_binary.h"
-#include "sql/json_dom.h"
 #include "sql/key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_transaction_write_set_ctx.h"
@@ -76,99 +76,6 @@ uint64 calc_hash(ulong algorithm, type T, size_t len) {
     return (murmur3_32((const uchar *)T, len, 0));
   else
     return (MY_XXH64((const uchar *)T, len, 0));
-}
-
-/**
-  Function to check if the given TABLE has any foreign key field. This is
-  needed to be checked to get the hash of the field value in the foreign
-  table.
-
-  This function is meant to be only called by add_pke() function, some
-  conditions are check there for performance optimization.
-
-  @param[in] table - TABLE object */
-#ifndef NDEBUG
-/**
-  @param[in] thd - THD object pointing to current thread. */
-#endif
-/**
-
-  @param[out] foreign_key_map - a standard map which keeps track of the
-                                foreign key fields.
-*/
-static void check_foreign_key(
-    TABLE *table,
-#ifndef NDEBUG
-    THD *thd,
-#endif
-    std::map<std::string, std::string> &foreign_key_map) {
-  DBUG_TRACE;
-  assert(!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS));
-  assert(table->s->foreign_keys > 0);
-
-  TABLE_SHARE_FOREIGN_KEY_INFO *fk = table->s->foreign_key;
-  std::string pke_prefix;
-  pke_prefix.reserve(NAME_LEN * 5);
-
-  for (uint i = 0; i < table->s->foreign_keys; i++) {
-    /*
-      There are two situations on which there is no
-      unique_constraint_name, which means that the foreign key
-      must be skipped.
-
-      1) The referenced table was dropped using
-         foreign_key_checks= 0, on that case we cannot check
-         foreign key and need to skip it.
-
-      2) The foreign key does reference a non unique key, thence
-         it must be skipped since it cannot be used to check
-         conflicts/dependencies.
-
-         Example:
-           CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, KEY(c2));
-           CREATE TABLE t2 (x1 INT PRIMARY KEY, x2 INT,
-                            FOREIGN KEY (x2) REFERENCES t1(c2));
-
-           DELETE FROM t1 WHERE c1=1;
-             does generate the PKEs:
-               PRIMARY½test½4t1½21½1
-
-           INSERT INTO t2 VALUES (1,1);
-             does generate the PKEs:
-               PRIMARY½test½4t2½21½1
-
-           which does not contain PKE for the non unique key c2.
-    */
-    if (0 == fk[i].unique_constraint_name.length) continue;
-
-    const std::string referenced_schema_name_length =
-        std::to_string(fk[i].referenced_table_db.length);
-    const std::string referenced_table_name_length =
-        std::to_string(fk[i].referenced_table_name.length);
-
-    /*
-      Prefix the hash keys with the referenced index name.
-    */
-    pke_prefix.clear();
-    pke_prefix.append(fk[i].unique_constraint_name.str,
-                      fk[i].unique_constraint_name.length);
-    pke_prefix.append(HASH_STRING_SEPARATOR);
-    pke_prefix.append(fk[i].referenced_table_db.str,
-                      fk[i].referenced_table_db.length);
-    pke_prefix.append(HASH_STRING_SEPARATOR);
-    pke_prefix.append(referenced_schema_name_length);
-    pke_prefix.append(fk[i].referenced_table_name.str,
-                      fk[i].referenced_table_name.length);
-    pke_prefix.append(HASH_STRING_SEPARATOR);
-    pke_prefix.append(referenced_table_name_length);
-
-    /*
-      Foreign key must not have a empty column list.
-    */
-    assert(fk[i].columns > 0);
-    for (uint c = 0; c < fk[i].columns; c++)
-      foreign_key_map[fk[i].column_name[c].str] = pke_prefix;
-  }
 }
 
 #ifndef NDEBUG
@@ -452,6 +359,116 @@ static void debug_check_for_write_sets(
              "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1");
       assert(hash_list.size() == 1);
       assert(hash_list[0] == 10002085147685770725ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_multi_column_foreign_key_on_multiple_column_primary_key_"
+      "insert",
+      assert(key_list_to_hash.size() == 2);
+      assert(key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR
+                 "12" HASH_STRING_SEPARATOR "13" HASH_STRING_SEPARATOR "1" &&
+             key_list_to_hash[1] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR
+                 "12" HASH_STRING_SEPARATOR "13" HASH_STRING_SEPARATOR "1");
+      assert(hash_list.size() == 2);
+      assert(hash_list[0] == 15066957522449671266ULL &&
+             hash_list[1] == 9647156720027801592ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_multi_column_foreign_key_on_multiple_column_primary_key_"
+      "update",
+      assert(key_list_to_hash.size() == 2);
+      assert((key_list_to_hash[0] ==
+                  "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t2" HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR
+                  "12" HASH_STRING_SEPARATOR "13" HASH_STRING_SEPARATOR "1" &&
+              key_list_to_hash[1] ==
+                  "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t1" HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR
+                  "12" HASH_STRING_SEPARATOR "13" HASH_STRING_SEPARATOR "1") ||
+             (key_list_to_hash[0] ==
+                  "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR
+                  "12" HASH_STRING_SEPARATOR "13" HASH_STRING_SEPARATOR "1" &&
+              key_list_to_hash[1] ==
+                  "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR
+                  "12" HASH_STRING_SEPARATOR "13" HASH_STRING_SEPARATOR "1"));
+      assert(hash_list.size() == 2);
+      assert((hash_list[0] == 12726729333133305663ULL &&
+              hash_list[1] == 17273381564889724595ULL) ||
+             (hash_list[0] == 15066957522449671266ULL &&
+              hash_list[1] == 9647156720027801592ULL)););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_multiple_column_unique_key_insert",
+      assert(key_list_to_hash.size() == 2);
+      assert(key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
+             key_list_to_hash[1] ==
+                 "key_b_c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR
+                 "13" HASH_STRING_SEPARATOR "1");
+      assert(hash_list.size() == 2);
+      assert(hash_list[0] == 340395741608101502ULL &&
+             hash_list[1] == 14341778092818779177ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_multi_column_foreign_key_on_multiple_column_unique_key_"
+      "insert",
+      assert(key_list_to_hash.size() == 3);
+      assert(key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
+             key_list_to_hash[1] ==
+                 "key_e_f" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t2" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR
+                 "13" HASH_STRING_SEPARATOR "1" &&
+             key_list_to_hash[2] ==
+                 "key_b_c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR
+                 "13" HASH_STRING_SEPARATOR "1");
+      assert(hash_list.size() == 3);
+      assert(hash_list[0] == 10002085147685770725ULL &&
+             hash_list[1] == 7781576503154198764ULL &&
+             hash_list[2] == 14341778092818779177ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_multi_column_foreign_key_on_multiple_column_unique_key_"
+      "update",
+      assert(key_list_to_hash.size() == 3);
+      assert((key_list_to_hash[0] ==
+                  "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t2" HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1" &&
+              key_list_to_hash[1] ==
+                  "key_e_f" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t2" HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR
+                  "16" HASH_STRING_SEPARATOR "1" &&
+              key_list_to_hash[2] ==
+                  "key_b_c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t1" HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR
+                  "16" HASH_STRING_SEPARATOR "1") ||
+             (key_list_to_hash[0] ==
+                  "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
+              key_list_to_hash[1] ==
+                  "key_e_f" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t2" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR
+                  "13" HASH_STRING_SEPARATOR "1" &&
+              key_list_to_hash[2] ==
+                  "key_b_c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                  "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR
+                  "13" HASH_STRING_SEPARATOR "1"));
+      assert(hash_list.size() == 3);
+      assert((hash_list[0] == 7572125940027161025ULL &&
+              hash_list[1] == 12139583969308846244ULL &&
+              hash_list[2] == 3682008013696622692ULL) ||
+             (hash_list[0] == 10002085147685770725ULL &&
+              hash_list[1] == 7781576503154198764ULL &&
+              hash_list[2] == 14341778092818779177ULL)););
 }
 #endif
 
@@ -555,7 +572,7 @@ static bool generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
   return false;
 }
 
-bool add_pke(TABLE *table, THD *thd, uchar *record) {
+bool add_pke(TABLE *table, THD *thd, const uchar *record) {
   DBUG_TRACE;
   assert(record == table->record[0] || record == table->record[1]);
   /*
@@ -597,7 +614,7 @@ bool add_pke(TABLE *table, THD *thd, uchar *record) {
   bool writeset_hashes_added = false;
 
   if (table->key_info && (table->s->primary_key < MAX_KEY)) {
-    ptrdiff_t ptrdiff = record - table->record[0];
+    const ptrdiff_t ptrdiff = record - table->record[0];
     std::string pke_schema_table;
     pke_schema_table.reserve(NAME_LEN * 3);
     pke_schema_table.append(HASH_STRING_SEPARATOR);
@@ -704,8 +721,6 @@ bool add_pke(TABLE *table, THD *thd, uchar *record) {
 
     /*
       Foreign keys handling.
-      We check the foreign keys existence here and not at check_foreign_key()
-      function to avoid allocate foreign_key_map when it is not needed.
 
       OPTION_NO_FOREIGN_KEY_CHECKS bit in options_bits is set at two places
 
@@ -724,55 +739,108 @@ bool add_pke(TABLE *table, THD *thd, uchar *record) {
     */
     if (!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS) &&
         table->s->foreign_keys > 0) {
-      std::map<std::string, std::string> foreign_key_map;
-      check_foreign_key(table,
-#ifndef NDEBUG
-                        thd,
-#endif
-                        foreign_key_map);
+      TABLE_SHARE_FOREIGN_KEY_INFO *fk = table->s->foreign_key;
+      for (uint fk_number = 0; fk_number < table->s->foreign_keys;
+           fk_number++) {
+        /*
+          There are two situations on which there is no
+          unique_constraint_name, which means that the foreign key
+          must be skipped.
 
-      if (!foreign_key_map.empty()) {
-        for (uint i = 0; i < table->s->fields; i++) {
-          Field *field = table->field[i];
-          if (field->is_null(ptrdiff)) continue;
-          /*
-            Update the field offset, since we may be operating on
-            table->record[0] or table->record[1] and both have
-            different offsets.
-          */
-          field->move_field_offset(ptrdiff);
-          std::map<std::string, std::string>::iterator it =
-              foreign_key_map.find(field->field_name);
-          if (foreign_key_map.end() != it) {
-            std::string pke_prefix = it->second;
+          1) The referenced table was dropped using
+             foreign_key_checks= 0, on that case we cannot check
+             foreign key and need to skip it.
 
-            const CHARSET_INFO *cs = field->charset();
-            int max_length = cs->coll->strnxfrmlen(cs, field->pack_length());
-            std::unique_ptr<uchar[]> pk_value(new uchar[max_length + 1]());
+          2) The foreign key does reference a non unique key, thence
+             it must be skipped since it cannot be used to check
+             conflicts/dependencies.
 
-            /*
-              convert to normalized string and store so that it can be
-              sorted using binary comparison functions like memcmp.
-            */
-            size_t length = field->make_sort_key(pk_value.get(), max_length);
-            pk_value[length] = 0;
+             Example:
+               CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, KEY(c2));
+               CREATE TABLE t2 (x1 INT PRIMARY KEY, x2 INT,
+                                FOREIGN KEY (x2) REFERENCES t1(c2));
 
-            pke_prefix.append(pointer_cast<char *>(pk_value.get()), length);
-            pke_prefix.append(HASH_STRING_SEPARATOR);
-            pke_prefix.append(std::to_string(length));
+               DELETE FROM t1 WHERE c1=1;
+                 does generate the PKEs:
+                   PRIMARY½test½4t1½21½1
 
-            if (generate_hash_pke(pke_prefix, thd
-#ifndef NDEBUG
-                                  ,
-                                  write_sets, hash_list
-#endif
-                                  ))
-              return true;
-            writeset_hashes_added = true;
+               INSERT INTO t2 VALUES (1,1);
+                 does generate the PKEs:
+                   PRIMARY½test½4t2½21½1
+
+               which does not contain PKE for the non unique key c2.
+        */
+        if (0 == fk[fk_number].unique_constraint_name.length) continue;
+
+        const std::string referenced_schema_name_length =
+            std::to_string(fk[fk_number].referenced_table_db.length);
+        const std::string referenced_table_name_length =
+            std::to_string(fk[fk_number].referenced_table_name.length);
+
+        /*
+          Prefix the hash keys with the referenced index name.
+        */
+        pke.clear();
+        pke.append(fk[fk_number].unique_constraint_name.str,
+                   fk[fk_number].unique_constraint_name.length);
+        pke.append(HASH_STRING_SEPARATOR);
+        pke.append(fk[fk_number].referenced_table_db.str,
+                   fk[fk_number].referenced_table_db.length);
+        pke.append(HASH_STRING_SEPARATOR);
+        pke.append(referenced_schema_name_length);
+        pke.append(fk[fk_number].referenced_table_name.str,
+                   fk[fk_number].referenced_table_name.length);
+        pke.append(HASH_STRING_SEPARATOR);
+        pke.append(referenced_table_name_length);
+
+        /*
+          Foreign key must not have a empty column list.
+        */
+        assert(fk[fk_number].columns > 0);
+        for (uint c = 0; c < fk[fk_number].columns; c++) {
+          for (uint field_number = 0; field_number < table->s->fields;
+               field_number++) {
+            Field *field = table->field[field_number];
+            if (field->is_null(ptrdiff)) continue;
+
+            if (!my_strcasecmp(system_charset_info, field->field_name,
+                               fk[fk_number].column_name[c].str)) {
+              /*
+                Update the field offset, since we may be operating on
+                table->record[0] or table->record[1] and both have
+                different offsets.
+              */
+              field->move_field_offset(ptrdiff);
+
+              const CHARSET_INFO *cs = field->charset();
+              int max_length = cs->coll->strnxfrmlen(cs, field->pack_length());
+              std::unique_ptr<uchar[]> pk_value(new uchar[max_length + 1]());
+
+              /*
+                convert to normalized string and store so that it can be
+                sorted using binary comparison functions like memcmp.
+              */
+              size_t length = field->make_sort_key(pk_value.get(), max_length);
+              pk_value[length] = 0;
+
+              pke.append(pointer_cast<char *>(pk_value.get()), length);
+              pke.append(HASH_STRING_SEPARATOR);
+              pke.append(std::to_string(length));
+
+              /* revert the field object record offset back */
+              field->move_field_offset(-ptrdiff);
+            }
           }
-          /* revert the field object record offset back */
-          field->move_field_offset(-ptrdiff);
         }
+
+        if (generate_hash_pke(pke, thd
+#ifndef NDEBUG
+                              ,
+                              write_sets, hash_list
+#endif
+                              ))
+          return true;
+        writeset_hashes_added = true;
       }
     }
 

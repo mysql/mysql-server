@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,12 +21,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "util/require.h"
 #include <NdbHW.hpp>
 #include <UtilBuffer.hpp>
 #include <File.hpp>
 #include <NdbTick.h>
 #include <NdbThread.h>
 #include <ndb_limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include "../src/common/util/parse_mask.hpp"
 #include <iostream>
@@ -280,7 +282,7 @@ create_cpu_list(struct ndb_hwinfo *hwinfo,
   Uint32 prev_cpu = RNIL;
   Uint32 next_cpu = RNIL;
   Uint32 all_groups = hwinfo->num_virt_l3_caches;
-  Uint32 current_groups = num_rr_groups;
+  Uint32 current_groups = num_rr_groups > 0 ? num_rr_groups : all_groups;
   bool found = false;
   Uint32 first_virt_l3_cache[MAX_NUM_CPUS];
   for (Uint32 i = 0; i < hwinfo->num_virt_l3_caches; i++)
@@ -518,7 +520,7 @@ create_l3_cache_list(struct ndb_hwinfo *hwinfo)
               found_online,
               l3_cache_id));
   }
-  return 0; 
+  return 0;
 }
 
 static bool
@@ -712,6 +714,8 @@ adjust_rr_group_sizes(struct ndb_hwinfo *hwinfo,
                       Uint32 ldm_group_size,
                       Uint32 num_ldm_instances)
 {
+  if(num_rr_groups == 0)
+    return;
   Uint32 group_size =
     (num_ldm_instances + (num_rr_groups - 1)) / num_rr_groups;
   Uint32 non_full_groups =
@@ -834,13 +838,14 @@ create_min_virt_l3_cache_list(struct ndb_hwinfo *hwinfo,
 static int
 create_virt_l3_cache_list(struct ndb_hwinfo *hwinfo,
                           Uint32 optimal_group_size,
-                          Uint32 optimal_num_ldm_groups,
                           Uint32 min_group_size,
                           Uint32 max_num_groups,
                           Uint32 ldm_group_size,
                           Uint32 num_ldm_instances)
 {
   create_init_virt_l3_cache_list(hwinfo);
+  if(num_ldm_instances == 0 && max_num_groups == 0)
+    return 0;
 
   /**
    * We start by attempting to create a number of L3 cache groups
@@ -964,17 +969,20 @@ Ndb_CreateCPUMap(Uint32 num_ldm_instances,
    * to make it easy to assign CPUs to the various threads.
    * We will return the number of Round Robin groups from this method.
    */
+
   Uint32 num_cpus_per_ldm_group = 1 + num_query_threads_per_ldm;
-  Uint32 optimal_num_ldm_groups = 
+  Uint32 optimal_num_ldm_groups =
     (num_ldm_instances + (MAX_RR_GROUP_SIZE - 1)) /
     MAX_RR_GROUP_SIZE;
-  Uint32 optimal_group_size = 
+  Uint32 optimal_group_size = (num_ldm_instances > 0) ?
     (num_ldm_instances + (optimal_num_ldm_groups - 1)) /
-    optimal_num_ldm_groups;
+    optimal_num_ldm_groups : 0;
   Uint32 max_num_groups = num_ldm_instances < MAX_RR_GROUP_SIZE ? 1 :
     num_ldm_instances / MIN_RR_GROUP_SIZE;
-  Uint32 min_group_size = (num_ldm_instances + (max_num_groups - 1)) /
-                          max_num_groups;
+  max_num_groups = (num_ldm_instances > 0) ? max_num_groups : 0;
+  Uint32 min_group_size = (max_num_groups > 0) ?
+      (num_ldm_instances + (max_num_groups - 1)) / max_num_groups : 0;
+
   hwinfo->num_cpus_per_group = num_cpus_per_ldm_group;
   DEBUG_HW(("Call create_virt_l3_cache_list: "
             " %u opt groups, size: %u ::"
@@ -988,7 +996,6 @@ Ndb_CreateCPUMap(Uint32 num_ldm_instances,
             num_cpus_per_ldm_group));
   Uint32 num_rr_groups = create_virt_l3_cache_list(hwinfo,
                                                    optimal_group_size,
-                                                   optimal_num_ldm_groups,
                                                    min_group_size,
                                                    max_num_groups,
                                                    num_cpus_per_ldm_group,
@@ -1204,7 +1211,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
   glpi = (LPFN_GLPI) GetProcAddress(
                           GetModuleHandle(TEXT("kernel32")),
                           "GetLogicalProcessorInformationEx");
-  if (nullptr == glpi) 
+  if (nullptr == glpi)
   {
     return nullptr;
   }
@@ -1215,9 +1222,9 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
   {
     DWORD res = glpi(relationship, buf, &buf_len);
 
-    if (res == FALSE) 
+    if (!res)
     {
-      if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) 
+      if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
       {
         if (buf != nullptr)
         {
@@ -1227,7 +1234,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
         buf = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)
            malloc(buf_len);
 
-        if (buf == nullptr) 
+        if (buf == nullptr)
         {
           return nullptr;
         }
@@ -1239,7 +1246,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
     }
     else
     {
-       done = TRUE;
+       done = true;
     }
   }
   return buf;
@@ -1318,7 +1325,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
     return -1;
   }
 
-  BOOL done = FALSE;
+  BOOL done = false;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buf = nullptr;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ptr = nullptr;
   DWORD buf_len = 0;
@@ -2282,24 +2289,22 @@ static void NdbHW_End_platform()
 {
 }
 
-static int init_cpudata(struct ndb_hwinfo * hwinfo)
-{
-  (void)hwinfo;
-  return 0;
-}
-
-static int Ndb_ReloadCPUData(struct ndb_hwinfo *hwinfo)
-{
-  (void)hwinfo;
-  return 0;
-}
-
-static int init_hwinfo(struct ndb_hwinfo * hwinfo)
+static int init_cpudata(struct ndb_hwinfo *)
 {
   return 0;
 }
 
-static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
+static int Ndb_ReloadCPUData(struct ndb_hwinfo *)
+{
+  return 0;
+}
+
+static int init_hwinfo(struct ndb_hwinfo *)
+{
+  return 0;
+}
+
+static int Ndb_ReloadHWInfo(struct ndb_hwinfo * hwinfo)
 {
   hwinfo->cpu_cnt_max = ncpu;
   hwinfo->cpu_cnt = ncpu;
@@ -2318,27 +2323,23 @@ static void NdbHW_End_platform()
 {
 }
 
-static int init_hwinfo(struct ndb_hwinfo * hwinfo)
+static int init_hwinfo(struct ndb_hwinfo *)
 {
-  (void)hwinfo;
   return -1;
 }
 
-static int init_cpudata(struct ndb_hwinfo * hwinfo)
+static int init_cpudata(struct ndb_hwinfo *)
 {
-  (void)hwinfo;
   return -1;
 }
 
-static int Ndb_ReloadHWInfo(struct ndb_hwinfo * hwinfo)
+static int Ndb_ReloadHWInfo(struct ndb_hwinfo *)
 {
-  (void)hwinfo;
   return -1;
 }
 
-static int Ndb_ReloadCPUData(struct ndb_hwinfo *hwinfo)
+static int Ndb_ReloadCPUData(struct ndb_hwinfo *)
 {
-  (void)hwinfo;
   return -1;
 }
 
@@ -2834,7 +2835,7 @@ test_create_cpumap()
 void
 printdata(const struct ndb_hwinfo* data, Uint32 cpu)
 {
-  long long sum_sys = 0;
+  uintmax_t sum_sys = 0;
 
   for (Uint32 i = 0; i < data->cpu_cnt; i++)
   {
@@ -2845,7 +2846,7 @@ printdata(const struct ndb_hwinfo* data, Uint32 cpu)
     sum_sys += data->cpu_data[i].cs_guest_nice_us;
   }
 
-  long long elapsed = 0;
+  uintmax_t elapsed = 0;
   elapsed += data->cpu_data[cpu].cs_user_us;
   elapsed += data->cpu_data[cpu].cs_idle_us;
   elapsed += data->cpu_data[cpu].cs_nice_us;
@@ -2857,7 +2858,7 @@ printdata(const struct ndb_hwinfo* data, Uint32 cpu)
   elapsed += data->cpu_data[cpu].cs_guest_us;
   elapsed += data->cpu_data[cpu].cs_guest_nice_us;
 
-  long long cpu_sys = 0;
+  uintmax_t cpu_sys = 0;
   cpu_sys += data->cpu_data[cpu].cs_sys_us;
   cpu_sys += data->cpu_data[cpu].cs_irq_us;
   cpu_sys += data->cpu_data[cpu].cs_sirq_us;
@@ -2865,9 +2866,11 @@ printdata(const struct ndb_hwinfo* data, Uint32 cpu)
   cpu_sys += data->cpu_data[cpu].cs_guest_nice_us;
   cpu_sys += data->cpu_data[cpu].cs_steal_us;
 
-  printf("time: %llu sys: %llu%%",
+  printf("Cpu %u time: %juus sys: %ju%% All cpu sys: %juus\n",
+         cpu,
          elapsed,
-         elapsed ? (100 * cpu_sys) / elapsed : 0);
+         elapsed ? (100 * cpu_sys) / elapsed : 0,
+         sum_sys);
 }
 
 TAPTEST(NdbCPU)
@@ -2881,6 +2884,7 @@ TAPTEST(NdbCPU)
     return 0;
   }
 
+  ndb_init();
   long sysconf_ncpu_conf = 0;
 #ifdef _SC_NPROCESSORS_CONF
   {
@@ -2917,6 +2921,7 @@ TAPTEST(NdbCPU)
   }
   Ndb_FreeHWInfo();
   NdbHW_End();
+  ndb_end(0);
   return 1; // OK
 }
 #endif

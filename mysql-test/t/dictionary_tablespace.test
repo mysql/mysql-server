@@ -40,9 +40,10 @@ eval SELECT name INTO OUTFILE '$OUTFILE2' FROM mysql.tables WHERE
 --source include/not_windows.inc
 
 call mtr.add_suppression("Resizing redo log from");
+call mtr.add_suppression("Redo log has been requested to resize");
 call mtr.add_suppression("Upgrading redo log");
-call mtr.add_suppression("Starting to delete and rewrite log files");
-call mtr.add_suppression("New log files created");
+call mtr.add_suppression("Starting to delete and rewrite redo log files");
+call mtr.add_suppression("New redo log files created");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 call mtr.add_suppression("Creating routine without parsing routine body");
 call mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
@@ -86,7 +87,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
---exec echo "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --skip-log-replica-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
 --enable_reconnect
 --source include/wait_until_connected_again.inc

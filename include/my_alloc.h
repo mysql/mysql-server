@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,10 @@
 #include "my_pointer_arithmetic.h"
 #include "mysql/psi/psi_memory.h"
 
+#if defined(MYSQL_SERVER)
+extern "C" void sql_alloc_error_handler();
+#endif
+
 /**
  * The MEM_ROOT is a simple arena, where allocations are carved out of
  * larger blocks. Using an arena over plain malloc gives you two main
@@ -79,6 +83,7 @@ struct MEM_ROOT {
  private:
   struct Block {
     Block *prev{nullptr}; /** Previous block; used for freeing. */
+    char *end{nullptr};   /** One byte past the end; used for Contains(). */
   };
 
  public:
@@ -87,7 +92,11 @@ struct MEM_ROOT {
   MEM_ROOT(PSI_memory_key key, size_t block_size)
       : m_block_size(block_size),
         m_orig_block_size(block_size),
-        m_psi_key(key) {}
+        m_psi_key(key) {
+#if defined(MYSQL_SERVER)
+    m_error_handler = sql_alloc_error_handler;
+#endif
+  }
 
   // MEM_ROOT is movable but not copyable.
   MEM_ROOT(const MEM_ROOT &) = delete;
@@ -156,13 +165,18 @@ struct MEM_ROOT {
   }
 
   /**
-    Allocate “num” objects of type T, and default-construct them.
+    Allocate “num” objects of type T, and initialize them to a default value
+    that is created by passing the supplied args to T's constructor. If args
+    is empty, value-initialization is used. For primitive types, like int and
+    pointers, this means the elements will be set to the equivalent of 0
+    (or false or nullptr).
+
     If the constructor throws an exception, behavior is undefined.
 
     We don't use new[], as it can put extra data in front of the array.
    */
   template <class T, class... Args>
-  T *ArrayAlloc(size_t num, Args &&... args) {
+  T *ArrayAlloc(size_t num, Args... args) {
     static_assert(alignof(T) <= 8, "MEM_ROOT only returns 8-aligned memory.");
     if (num * sizeof(T) < num) {
       // Overflow.
@@ -174,11 +188,9 @@ struct MEM_ROOT {
       return nullptr;
     }
 
-    // Construct all elements. For primitive types like int
-    // and no arguments (ie., default construction),
-    // the entire loop will be optimized away.
+    // Initialize all elements.
     for (size_t i = 0; i < num; ++i) {
-      new (&ret[i]) T(std::forward<Args>(args)...);
+      new (&ret[i]) T(args...);
     }
 
     return ret;
@@ -331,6 +343,22 @@ struct MEM_ROOT {
     m_current_free_start += length;
   }
 
+  /**
+   * Returns whether this MEM_ROOT contains the given pointer,
+   * ie., whether it was given back from Alloc(n) (given n >= 1)
+   * at some point. This means it will be legally accessible until
+   * the next Clear() or ClearForReuse() call.
+   */
+  bool Contains(void *ptr) const {
+    for (Block *block = m_current_block; block != nullptr;
+         block = block->prev) {
+      if (ptr >= block && ptr < block->end) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// @}
 
  private:
@@ -346,8 +374,7 @@ struct MEM_ROOT {
     than wanted_length, but if it cannot allocate at least minimum_length,
     will return nullptr.
   */
-  std::pair<Block *, size_t> AllocBlock(size_t wanted_length,
-                                        size_t minimum_length);
+  Block *AllocBlock(size_t wanted_length, size_t minimum_length);
 
   /** Allocate memory that doesn't fit into the current free block. */
   void *AllocSlow(size_t length);
@@ -391,14 +418,6 @@ struct MEM_ROOT {
   PSI_memory_key m_psi_key = 0;
 };
 
-// Legacy C thunks. Do not use in new code.
-static inline void init_alloc_root(PSI_memory_key key, MEM_ROOT *root,
-                                   size_t block_size, size_t) {
-  ::new (root) MEM_ROOT(key, block_size);
-}
-
-void free_root(MEM_ROOT *root, myf flags);
-
 /**
  * Allocate an object of the given type. Use like this:
  *
@@ -413,15 +432,15 @@ void free_root(MEM_ROOT *root, myf flags);
  * a MEM_ROOT using regular placement new. We should make a less ambiguous
  * syntax, e.g. new (On(mem_root)) Foo().
  */
-inline void *operator new(
-    size_t size, MEM_ROOT *mem_root,
-    const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) noexcept {
+inline void *operator new(size_t size, MEM_ROOT *mem_root,
+                          const std::nothrow_t &arg
+                          [[maybe_unused]] = std::nothrow) noexcept {
   return mem_root->Alloc(size);
 }
 
-inline void *operator new[](
-    size_t size, MEM_ROOT *mem_root,
-    const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) noexcept {
+inline void *operator new[](size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
   return mem_root->Alloc(size);
 }
 

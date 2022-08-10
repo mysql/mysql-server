@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -77,15 +77,14 @@ static int generate_auth_string_hash(char *outbuf, unsigned int *buflen,
   return 0;
 }
 
-static int validate_auth_string_hash(char *const inbuf MY_ATTRIBUTE((unused)),
-                                     unsigned int buflen
-                                         MY_ATTRIBUTE((unused))) {
+static int validate_auth_string_hash(char *const inbuf [[maybe_unused]],
+                                     unsigned int buflen [[maybe_unused]]) {
   return 0;
 }
 
-static int set_salt(const char *password MY_ATTRIBUTE((unused)),
-                    unsigned int password_len MY_ATTRIBUTE((unused)),
-                    unsigned char *salt MY_ATTRIBUTE((unused)),
+static int set_salt(const char *password [[maybe_unused]],
+                    unsigned int password_len [[maybe_unused]],
+                    unsigned char *salt [[maybe_unused]],
                     unsigned char *salt_len) {
   *salt_len = 0;
   return 0;

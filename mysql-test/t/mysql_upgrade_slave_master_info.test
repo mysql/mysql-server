@@ -13,6 +13,7 @@
  #                SLAVE_MASTER_INFO AFTER UPGRADE FROM 5.7.13
  #
 --source include/big_test.inc
+--source include/not_valgrind.inc
 --source include/mysql_upgrade_preparation.inc
 
 USE test;
@@ -82,7 +83,7 @@ CREATE TABLE `mysql`.`slave_master_info` (
   `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file.',
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
   `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last read event.',
-  `Host` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '' COMMENT 'The host name of the master.',
+  `Host` varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '' COMMENT 'The host name of the source.',
   `User_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
   `User_password` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
   `Port` int(10) unsigned NOT NULL COMMENT 'The network port used to connect to the master.',
@@ -127,7 +128,7 @@ TRUNCATE TABLE mysql.slave_master_info;
 INSERT INTO mysql.slave_master_info SELECT * FROM test.slave_master_info_backup;
 
 ALTER TABLE mysql.slave_master_info
-  MODIFY Host CHAR(255) CHARACTER SET ASCII NULL COMMENT 'The host name of the master.',
+  MODIFY Host VARCHAR(255) CHARACTER SET ASCII NULL COMMENT 'The host name of the source.',
   ALTER COLUMN Channel_name DROP DEFAULT;
 
 DROP TABLE test.slave_master_info_backup;

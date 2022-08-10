@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,6 @@
 	dh $@
 
 export DH_VERBOSE=1
-export CFLAGS=
-export CXXFLAGS=
 
 ifeq (,$(MYSQL_BUILD_MAKE_JFLAG))
 	JOBS=-j8
@@ -55,6 +53,7 @@ override_dh_auto_configure:
 		-DCOMPILATION_COMMENT_SERVER="MySQL @DEB_PRODUCTNAMEC@ Server - @DEB_LICENSENAME@" \
 		-DINSTALL_LAYOUT=DEB \
 		-DREPRODUCIBLE_BUILD=OFF \
+		-DUSE_LD_LLD=OFF \
 		-DDEB_PRODUCT=@DEB_PRODUCT@ \
 		@DEB_CMAKE_EXTRAS@
 
@@ -98,11 +97,9 @@ override_dh_installinit:
 	@echo "RULES.$@"
 	@DEB_RULES_APPARMOR_LOAD@
 	@DEB_RULES_APPARMOR_LOAD_ROUTER@
-	dh_systemd_enable --name=mysql
-	dh_installinit --name=mysql -- defaults 19 21
-	dh_installinit --name=mysql@ -- disable
+	dh_installsystemd --name=mysql
+	dh_installsystemd --name=mysql@ --no-enable --no-start
 	@DEB_RULES_INSTALLINIT_ROUTER@
-	dh_systemd_start --restart-after-upgrade
 	touch $@
 
 override_dh_install:
@@ -118,3 +115,7 @@ override_dh_install:
 # for both.
 override_dh_strip:
 	dh_strip -Xlibprotobuf-lite
+
+# Debug plugins use libprotobuf-lite from the server package.
+override_dh_shlibdeps:
+	dh_shlibdeps -Lmysql-@DEB_PRODUCT@-server-core -l/usr/lib/mysql/private

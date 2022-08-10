@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #ifndef XCOM_STANDALONE
 My_xp_mutex_server::My_xp_mutex_server()
-    : m_mutex(static_cast<mysql_mutex_t *>(malloc(sizeof(*m_mutex)))) {}
+    : m_mutex(static_cast<mysql_mutex_t *>(calloc(1, sizeof(*m_mutex)))) {}
 
 My_xp_mutex_server::~My_xp_mutex_server() { free(m_mutex); }
 

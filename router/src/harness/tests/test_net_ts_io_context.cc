@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <chrono>
 
 #include <gmock/gmock.h>
+#include <memory>
 
 #include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/timer.h"
@@ -113,7 +114,7 @@ TEST(NetTS_io_context, poll_io_service_poll_one_empty) {
 
 TEST(NetTS_io_context, work_guard_blocks_run) {
   // prepare the io-service
-  auto io_service = std::make_unique<MockIoService>();
+  auto io_service = std::make_unique<::testing::StrictMock<MockIoService>>();
 
   // succeed the open
   EXPECT_CALL(*io_service, open);
@@ -123,8 +124,9 @@ TEST(NetTS_io_context, work_guard_blocks_run) {
       .WillRepeatedly(
           Return(stdx::make_unexpected(make_error_code(std::errc::timed_out))));
 
-  net::io_context io_ctx(std::make_unique<MockSocketService>(),
-                         std::move(io_service));
+  net::io_context io_ctx(
+      std::make_unique<::testing::StrictMock<MockSocketService>>(),
+      std::move(io_service));
 
   // work guard is need to trigger the poll_one() as otherwise the run() would
   // just leave as there is no work to do without blocking
@@ -136,7 +138,7 @@ TEST(NetTS_io_context, work_guard_blocks_run) {
 
 TEST(NetTS_io_context, io_service_open_fails) {
   // prepare the io-service
-  auto io_service = std::make_unique<MockIoService>();
+  auto io_service = std::make_unique<::testing::StrictMock<MockIoService>>();
 
   EXPECT_CALL(*io_service, open)
       .WillOnce(Return(stdx::make_unexpected(
@@ -144,8 +146,9 @@ TEST(NetTS_io_context, io_service_open_fails) {
 
   // no call to poll_one
 
-  net::io_context io_ctx(std::make_unique<MockSocketService>(),
-                         std::move(io_service));
+  net::io_context io_ctx(
+      std::make_unique<::testing::StrictMock<MockSocketService>>(),
+      std::move(io_service));
 
   EXPECT_EQ(
       io_ctx.open_res(),
@@ -166,7 +169,7 @@ TEST(NetTS_io_context, run_one_until_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -212,7 +215,7 @@ TEST(NetTS_io_context, run_one_for_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -258,7 +261,7 @@ TEST(NetTS_io_context, run_until_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -305,7 +308,7 @@ TEST(NetTS_io_context, run_for_leave_early) {
   using namespace std::chrono_literals;
 
   net::steady_timer t(io_ctx);
-  t.expires_after(1ms);
+  t.expires_after(100ms);
 
   bool is_run{false};
   t.async_wait([&](std::error_code ec) {
@@ -412,6 +415,193 @@ TEST(NetTS_io_context, poll_one_expired_timer) {
   EXPECT_EQ(t1_is_run, true);
 
   EXPECT_EQ(io_ctx.stopped(), true);
+}
+
+/**
+ * test that net::post() queues work.
+ *
+ * ExecutionContext overload
+ */
+TEST(NetTS_io_context, exec_ctx_post_lambda) {
+  net::io_context io_ctx;
+
+  SCOPED_TRACE("// defer function call until run_one()");
+  bool called{false};
+  net::post(io_ctx, [&called]() { called = true; });
+
+  SCOPED_TRACE("// pre: shouldn't be called yet.");
+  ASSERT_EQ(called, false);
+
+  SCOPED_TRACE("// run: should call it");
+  ASSERT_EQ(1, io_ctx.run_one());
+  ASSERT_EQ(called, true);
+
+  SCOPED_TRACE("// not run again");
+  ASSERT_EQ(0, io_ctx.run_one());
+}
+
+/**
+ * test that net::post() queues work.
+ *
+ * Executor overload
+ */
+TEST(NetTS_io_context, executor_post_lambda) {
+  net::io_context io_ctx;
+
+  SCOPED_TRACE("// defer function call until run_one()");
+  bool called{false};
+  net::post(io_ctx.get_executor(), [&called]() { called = true; });
+
+  SCOPED_TRACE("// pre: shouldn't be called yet.");
+  ASSERT_EQ(called, false);
+
+  SCOPED_TRACE("// run: should call it");
+  ASSERT_EQ(1, io_ctx.run_one());
+  ASSERT_EQ(called, true);
+
+  SCOPED_TRACE("// not run again");
+  ASSERT_EQ(0, io_ctx.run_one());
+}
+
+/**
+ * test that net::defer() queues work.
+ *
+ * ExecutionContext overload
+ */
+TEST(NetTS_io_context, exec_ctx_defer_lambda) {
+  net::io_context io_ctx;
+
+  SCOPED_TRACE("// defer function call until run_one()");
+  bool called{false};
+  net::defer(io_ctx, [&called]() { called = true; });
+
+  SCOPED_TRACE("// pre: shouldn't be called yet.");
+  ASSERT_EQ(called, false);
+
+  SCOPED_TRACE("// run: should call it");
+  ASSERT_EQ(1, io_ctx.run_one());
+  ASSERT_EQ(called, true);
+
+  SCOPED_TRACE("// not run again");
+  ASSERT_EQ(0, io_ctx.run_one());
+}
+
+/**
+ * test that net::defer() queues work.
+ *
+ * Executor overload
+ */
+TEST(NetTS_io_context, executor_defer_lambda) {
+  net::io_context io_ctx;
+
+  SCOPED_TRACE("// defer function call until run_one()");
+  bool called{false};
+  net::defer(io_ctx.get_executor(), [&called]() { called = true; });
+
+  SCOPED_TRACE("// pre: shouldn't be called yet.");
+  ASSERT_EQ(called, false);
+
+  SCOPED_TRACE("// run: should call it");
+  ASSERT_EQ(1, io_ctx.run_one());
+  ASSERT_EQ(called, true);
+
+  SCOPED_TRACE("// not run again");
+  ASSERT_EQ(0, io_ctx.run_one());
+}
+
+class MoveOnlyFunctor {
+ public:
+  MoveOnlyFunctor(bool &called) : called_{called} {}
+
+  MoveOnlyFunctor(const MoveOnlyFunctor &) = delete;
+  MoveOnlyFunctor(MoveOnlyFunctor &&other) : called_{other.called_} {}
+
+  MoveOnlyFunctor &operator=(const MoveOnlyFunctor &) = delete;
+  MoveOnlyFunctor &operator=(MoveOnlyFunctor &&other) {
+    called_ = other.called_;
+    return *this;
+  }
+
+  void operator()() { called_ = true; }
+
+ private:
+  bool &called_;
+};
+
+/**
+ * test that net::defer() works with non-copyable-types.
+ *
+ * Executor overload
+ */
+TEST(NetTS_io_context, executor_defer_move_only_functor) {
+  net::io_context io_ctx;
+
+  SCOPED_TRACE("// defer function call until run_one()");
+  bool called{false};
+  net::defer(io_ctx.get_executor(), MoveOnlyFunctor{called});
+
+  SCOPED_TRACE("// pre: shouldn't be called yet.");
+  ASSERT_EQ(called, false);
+
+  SCOPED_TRACE("// run: should call it");
+  ASSERT_EQ(1, io_ctx.run_one());
+  ASSERT_EQ(called, true);
+
+  SCOPED_TRACE("// not run again");
+  ASSERT_EQ(0, io_ctx.run_one());
+}
+
+size_t global_called{};
+
+void called_once() { ++global_called; }
+
+/**
+ * test that net::defer() works c-funcs and is called once.
+ *
+ * Executor overload
+ */
+TEST(NetTS_io_context, executor_defer_called_once) {
+  net::io_context io_ctx;
+
+  SCOPED_TRACE("// defer function call until run_one()");
+  net::defer(io_ctx.get_executor(), called_once);
+
+  SCOPED_TRACE("// pre: shouldn't be called yet.");
+  ASSERT_EQ(global_called, 0);
+
+  SCOPED_TRACE("// run: should call it");
+  ASSERT_EQ(1, io_ctx.run_one());
+  ASSERT_EQ(global_called, 1);
+
+  SCOPED_TRACE("// not run again");
+  ASSERT_EQ(0, io_ctx.run_one());
+  ASSERT_EQ(global_called, 1);
+}
+
+/**
+ * test that net::defer() compiles with move only lambdas.
+ */
+TEST(NetTS_io_context, executor_defer_move_only_lambda) {
+  net::io_context io_ctx;
+
+  int called{0};
+  auto move_only = std::make_unique<int>(0);
+
+  SCOPED_TRACE("// defer function call until run_one()");
+  net::defer(io_ctx.get_executor(), [&called, moved = std::move(move_only)]() {
+    ++(*moved);
+    ++called;
+  });
+  ASSERT_EQ(move_only.get(), nullptr);  // moved away.
+  ASSERT_EQ(called, 0);
+
+  SCOPED_TRACE("// run: should call it");
+  ASSERT_EQ(1, io_ctx.run_one());
+  ASSERT_EQ(called, 1);
+
+  SCOPED_TRACE("// not run again");
+  ASSERT_EQ(0, io_ctx.run_one());
+  ASSERT_EQ(called, 1);
 }
 
 // net::is_executor_v<> chokes with solaris-ld on

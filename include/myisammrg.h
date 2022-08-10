@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ struct MYMERGE_INFO /* Struct from h_info */
   ulonglong data_file_length;
   ulonglong dupp_key_pos; /* Offset of the Duplicate key in the merge table */
   uint reclength;         /* Recordlength */
-  int errkey;             /* With key was dupplicated on err */
+  int errkey;             /* With key was duplicated on err */
   uint options;           /* HA_OPTION_... used */
   ulong *rec_per_key;     /* for sql optimizing */
 };

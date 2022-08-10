@@ -3,9 +3,27 @@
 --source include/not_valgrind.inc
 
 # Can be 0, depends on where the mysqld process was killed
+--disable_query_log
 call mtr.add_suppression("File '.*tablespaces.open..*' size is 0 bytes. Must be at least 12 bytes");
 
-let MYSQLD_DATADIR= `select @@datadir`;
+# Work around Bug#18605064 INNODB CREATES NEW DATA FILE BEFORE APPLYING REDO LOG
+call mtr.add_suppression("Tablespace size stored in header is [0-9]* pages, but the sum of data file sizes is [0-9]* pages");
+--enable_query_log
+
+let BASEDIR= `select @@basedir`;
+let DATADIR= $MYSQLTEST_VARDIR/tmp/mydatadir;
+let BOOTSTRAP_SQL=$MYSQLTEST_VARDIR/tmp/create_test_db;
+--let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR
+write_file $BOOTSTRAP_SQL;
+  CREATE SCHEMA test;
+EOF
+
+--source include/shutdown_mysqld.inc
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DATADIR --init-file=$BOOTSTRAP_SQL > $MYSQLTEST_VARDIR/bootstrap.log 2>&1
+--exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
 let OLD_IBDATA= `select @@innodb_data_file_path`;
 let NEW_IBDATA_PREFIX= `select replace(@@innodb_data_file_path, 'ibdata1:12M:autoextend', 'ibdata1:12M')`;
 
@@ -27,7 +45,7 @@ $cmd =~ s/--defaults-file=([^ ]*)/--defaults-file=$ENV{NEW_CNF}/ || die;
 
 $ENV{NEW_IBDATA_PREFIX} =~ s/:[0-9]+[MG]$//;
 my @files = split(';', $ENV{NEW_IBDATA_PREFIX});
-my $file = $ENV{MYSQLD_DATADIR} . '/' . $files[$#files];
+my $file = $ENV{DATADIR} . '/' . $files[$#files];
 
 my $size = (stat($file))[7] || die "cannot stat $file";
 
@@ -56,21 +74,17 @@ EOF
 
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 
---disable_query_log
-# Work around Bug#18605064 INNODB CREATES NEW DATA FILE BEFORE APPLYING REDO LOG
-call mtr.add_suppression("Tablespace size stored in header is [0-9]* pages, but the sum of data file sizes is [0-9]* pages");
---enable_query_log
-
 # Kill the server to inject faults.
 --source include/kill_mysqld.inc
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let $old_mysqld=$MYSQLD_CMD --console > $SEARCH_FILE 2>&1;
-let $new_mysqld=$NEW_CMD --console > $SEARCH_FILE 2>&1;
+let $old_mysqld=$MYSQLD_CMD --datadir=$DATADIR --console > $SEARCH_FILE 2>&1;
 
 --echo # Fault 1: Extra file in innodb_data_file_path
 
---source include/start_mysqld.inc
+--exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
 SHOW TABLES;
 --source include/shutdown_mysqld.inc
 
@@ -88,15 +102,14 @@ let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] unknown option '--innodb-nonex
 
 # Create empty data file
 perl;
-die unless open(FILE, ">$ENV{MYSQLD_DATADIR}/foo");
+die unless open(FILE, ">$ENV{DATADIR}/foo");
 print FILE "\0" x 1048576;
 close(FILE);
 EOF
 
 --echo # Start with new data file path
 
---exec echo "restart: --defaults-file=$NEW_CNF" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
+--exec echo "restart: --datadir=$DATADIR --defaults-file=$NEW_CNF" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -108,7 +121,9 @@ INSERT INTO t1 VALUES (1);
 
 --echo # Fault 2: Missing file in innodb_data_file_path
 
---source include/start_mysqld.inc
+--exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
 SHOW TABLES;
 --source include/shutdown_mysqld.inc
 
@@ -125,10 +140,12 @@ let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] unknown option '--innodb-nonex
 
 --echo # Cleanup
 
---remove_file $MYSQLD_DATADIR/foo
+--remove_file $DATADIR/foo
 --remove_file $NEW_CNF
 
---source include/start_mysqld.inc
+--exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
 
 --echo # No log should be generated while persistent tablespaces are idle
 --echo # FIXME: Something occasionally violates this (log_write_requests=1)
@@ -141,3 +158,62 @@ DROP TABLE t1;
 
 SELECT count>0 FROM information_schema.innodb_metrics
 WHERE name='log_write_requests';
+
+--source include/shutdown_mysqld.inc
+--force-rmdir $DATADIR
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Bug#33508534: ADDITION OF A NEW DATAFILE TO SYSTEM TABLESPACE IS NOT
+--echo #               REFLECTED IN I_S.FILES
+--echo #
+
+--let $MYSQLD_LOG=$MYSQLTEST_VARDIR/log/server.log
+--source include/shutdown_mysqld.inc
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DATADIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
+--exec echo "restart: --datadir=$DATADIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT @@innodb_data_file_path;
+SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+  WHERE TABLESPACE_NAME='innodb_system';
+
+# Restart the server by adding a data file to system tablespace via innodb-data-file-path.
+# Case 1: Data file added to end of the innodb-data-file-path list.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQLD_LOG MYSQLD_LOG
+--let $restart_parameters = restart: --datadir=$DATADIR --log-error=$MYSQLD_LOG --innodb-data-file-path=ibdata1:12M;ibdata2:12M:autoextend
+--source include/restart_mysqld.inc
+
+# Verify that the data file is reflected in I_S.Files
+SELECT @@innodb_data_file_path;
+SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+  WHERE TABLESPACE_NAME='innodb_system';
+
+--source include/shutdown_mysqld.inc
+# Case 2: Data file (foo) added to the beginning of the innodb-data-file-path list.
+--let SEARCH_FILE=$MYSQLD_LOG
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQLD_LOG MYSQLD_LOG
+--let $restart_params = --datadir=$DATADIR --log-error=$MYSQLD_LOG --innodb-data-file-path="foo:12M;ibdata1:12M;ibdata2:12M:autoextend"
+--error 1,3
+--exec $MYSQLD_CMD $restart_params
+
+--let SEARCH_PATTERN= \[ERROR\] .* File .*foo: 'open' returned OS error 71. Cannot continue operation
+--source include/search_pattern.inc
+
+# The following scenario is currently not considered valid by InnoDB SE and not being restricted.
+# Case 3: Data file (myibdata) added to the middle of the innodb-data-file-path list.
+# --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQLD_LOG MYSQLD_LOG
+# --let $restart_parameters = restart: --datadir=$DATADIR --log-error=$MYSQLD_LOG --innodb-data-file-path=ibdata1:12M;myibdata:12M;ibdata2:12M:autoextend
+# --source include/start_mysqld.inc
+
+# SELECT @@innodb_data_file_path;
+# SELECT FILE_NAME FROM INFORMATION_SCHEMA.FILES
+#   WHERE TABLESPACE_NAME='innodb_system';
+
+# --source include/shutdown_mysqld.inc
+--force-rmdir $DATADIR
+--remove_file $MYSQLD_LOG
+--remove_file $BOOTSTRAP_SQL
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc

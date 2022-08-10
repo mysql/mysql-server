@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_BOX_H_INCLUDED
 #define SQL_GIS_BOX_H_INCLUDED
 
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -45,11 +45,11 @@ class Box {
   Box &operator=(const Box &) = default;
   Box &operator=(Box &&) = default;
 
-  virtual ~Box() {}
+  virtual ~Box() = default;
 
   /// Gets the coordinate system.
   ///
-  /// @return The coordiante system type.
+  /// @return The coordinate system type.
   virtual Coordinate_system coordinate_system() const = 0;
 
   /// Returns the minimum corner.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,12 @@
 #ifndef XDR_UTILS_H
 #define XDR_UTILS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <assert.h>
+#include "xcom/xcom_memory.h"
 
 #ifdef __APPLE__
 /* OSX missing xdr_sizeof() */
-extern u_long xdr_sizeof(xdrproc_t, void *);
+extern "C" u_long xdr_sizeof(xdrproc_t, void *);
 #endif
 
 /**
@@ -39,11 +36,11 @@ extern u_long xdr_sizeof(xdrproc_t, void *);
  */
 #define def_init_xdr_array(name) \
   static inline void init_##name##_array(name##_array *x)
-#define init_xdr_array(name)                                       \
-  def_init_xdr_array(name) {                                       \
-    x->name##_array_len = 2;                                       \
-    x->name##_array_val =                                          \
-        (name *)calloc((size_t)x->name##_array_len, sizeof(name)); \
+#define init_xdr_array(name)                                            \
+  def_init_xdr_array(name) {                                            \
+    x->name##_array_len = 2;                                            \
+    x->name##_array_val =                                               \
+        (name *)xcom_calloc((size_t)x->name##_array_len, sizeof(name)); \
   }
 
 /**
@@ -106,23 +103,23 @@ extern u_long xdr_sizeof(xdrproc_t, void *);
  */
 #define def_clone_xdr_array(name) \
   static inline name##_array clone_##name##_array(name##_array x)
-#define clone_xdr_array(name)                                       \
-  def_clone_xdr_array(name) {                                       \
-    name##_array retval = x;                                        \
-    u_int i;                                                        \
-    retval.name##_array_len = x.name##_array_len;                   \
-    IFDBG(D_XDR, FN; NDBG(retval.name##_array_len, u));             \
-    if (retval.name##_array_len > 0) {                              \
-      retval.name##_array_val =                                     \
-          (name *)calloc((size_t)x.name##_array_len, sizeof(name)); \
-      for (i = 0; i < retval.name##_array_len; i++) {               \
-        retval.name##_array_val[i] = x.name##_array_val[i];         \
-        IFDBG(D_XDR, FN; STRLIT("clone_xdr_array"); NDBG(i, u));    \
-      }                                                             \
-    } else {                                                        \
-      retval.name##_array_val = 0;                                  \
-    }                                                               \
-    return retval;                                                  \
+#define clone_xdr_array(name)                                            \
+  def_clone_xdr_array(name) {                                            \
+    name##_array retval = x;                                             \
+    u_int i;                                                             \
+    retval.name##_array_len = x.name##_array_len;                        \
+    IFDBG(D_XDR, FN; NDBG(retval.name##_array_len, u));                  \
+    if (retval.name##_array_len > 0) {                                   \
+      retval.name##_array_val =                                          \
+          (name *)xcom_calloc((size_t)x.name##_array_len, sizeof(name)); \
+      for (i = 0; i < retval.name##_array_len; i++) {                    \
+        retval.name##_array_val[i] = x.name##_array_val[i];              \
+        IFDBG(D_XDR, FN; STRLIT("clone_xdr_array"); NDBG(i, u));         \
+      }                                                                  \
+    } else {                                                             \
+      retval.name##_array_val = 0;                                       \
+    }                                                                    \
+    return retval;                                                       \
   }
 
 /**
@@ -302,9 +299,5 @@ extern u_long xdr_sizeof(xdrproc_t, void *);
       x_reverse(type, (x), (n1), (n3));       \
     }                                         \
   }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

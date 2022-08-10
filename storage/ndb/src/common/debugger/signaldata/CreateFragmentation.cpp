@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,19 @@
 
 #include <signaldata/CreateFragmentation.hpp>
 
-bool
-printCREATE_FRAGMENTATION_REQ(FILE * output, const Uint32 * theData, 
-			      Uint32 len, Uint16 receiverBlockNo) {
-  const CreateFragmentationReq * const sig = (CreateFragmentationReq *)theData;
+bool printCREATE_FRAGMENTATION_REQ(FILE *output,
+                                   const Uint32 *theData,
+                                   Uint32 len,
+                                   Uint16 /*receiverBlockNo*/)
+{
+  if (len < CreateFragmentationRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const CreateFragmentationReq *const sig =
+      (const CreateFragmentationReq *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " fragmentationType: %x\n", sig->fragmentationType);
@@ -41,25 +50,41 @@ printCREATE_FRAGMENTATION_REQ(FILE * output, const Uint32 * theData,
   return true;
 }
 
-bool
-printCREATE_FRAGMENTATION_REF(FILE * output, const Uint32 * theData, 
-			      Uint32 len, Uint16 receiverBlockNo) {
-  const CreateFragmentationRef * const sig = (CreateFragmentationRef *)theData;
+bool printCREATE_FRAGMENTATION_REF(FILE *output,
+                                   const Uint32 *theData,
+                                   Uint32 len,
+                                   Uint16 /*receiverBlockNo*/)
+{
+  if (len < CreateFragmentationRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const CreateFragmentationRef *const sig =
+      (const CreateFragmentationRef *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " errorCode: %x\n", sig->errorCode);
   return true;
 }
 
-bool
-printCREATE_FRAGMENTATION_CONF(FILE * output, const Uint32 * theData, 
-			       Uint32 len, Uint16 receiverBlockNo) {
-  const CreateFragmentationConf * const sig = 
-    (CreateFragmentationConf *)theData;
+bool printCREATE_FRAGMENTATION_CONF(FILE *output,
+                                    const Uint32 *theData,
+                                    Uint32 len,
+                                    Uint16 /*receiverBlockNo*/)
+{
+  if (len < CreateFragmentationConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const CreateFragmentationConf *const sig =
+      (const CreateFragmentationConf *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " noOfReplicas: %x\n", sig->noOfReplicas);
   fprintf(output, " noOfFragments: %x\n", sig->noOfFragments);
   return true;
 }
-

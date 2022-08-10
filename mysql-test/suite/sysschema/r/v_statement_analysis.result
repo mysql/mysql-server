@@ -10,6 +10,7 @@ total_latency	varchar(11)	YES		NULL
 max_latency	varchar(11)	YES		NULL	
 avg_latency	varchar(11)	YES		NULL	
 lock_latency	varchar(11)	YES		NULL	
+cpu_latency	varchar(11)	YES		NULL	
 rows_sent	bigint unsigned	NO		NULL	
 rows_sent_avg	decimal(21,0)	NO		0	
 rows_examined	bigint unsigned	NO		NULL	
@@ -21,8 +22,8 @@ tmp_disk_tables	bigint unsigned	NO		NULL
 rows_sorted	bigint unsigned	NO		NULL	
 sort_merge_passes	bigint unsigned	NO		NULL	
 digest	varchar(64)	YES		NULL	
-first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+first_seen	timestamp(6)	NO		NULL	
+last_seen	timestamp(6)	NO		NULL	
 SELECT * FROM sys.statement_analysis;
 DESC sys.x$statement_analysis;
 Field	Type	Null	Key	Default	Extra
@@ -30,12 +31,14 @@ query	longtext	YES		NULL
 db	varchar(64)	YES		NULL	
 full_scan	varchar(1)	NO			
 exec_count	bigint unsigned	NO		NULL	
+exec_secondary_count	bigint unsigned	NO		NULL	
 err_count	bigint unsigned	NO		NULL	
 warn_count	bigint unsigned	NO		NULL	
 total_latency	bigint unsigned	NO		NULL	
 max_latency	bigint unsigned	NO		NULL	
 avg_latency	bigint unsigned	NO		NULL	
 lock_latency	bigint unsigned	NO		NULL	
+cpu_latency	bigint unsigned	NO		NULL	
 rows_sent	bigint unsigned	NO		NULL	
 rows_sent_avg	decimal(21,0)	NO		0	
 rows_examined	bigint unsigned	NO		NULL	
@@ -47,6 +50,6 @@ tmp_disk_tables	bigint unsigned	NO		NULL
 rows_sorted	bigint unsigned	NO		NULL	
 sort_merge_passes	bigint unsigned	NO		NULL	
 digest	varchar(64)	YES		NULL	
-first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+first_seen	timestamp(6)	NO		NULL	
+last_seen	timestamp(6)	NO		NULL	
 SELECT * FROM sys.x$statement_analysis;

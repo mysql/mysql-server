@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <climits>
 #include <cstring>   // std::memcmp
@@ -43,7 +40,7 @@ namespace value_map_unittest {
 
 class ValueMapTest : public ::testing::Test {
  public:
-  ValueMapTest() {}
+  ValueMapTest() = default;
 };
 
 TEST_F(ValueMapTest, LongLongValueMap) {
@@ -350,8 +347,8 @@ static void benchmark_insertion_integer(size_t num_iterations,
   StartBenchmarkTiming();
 
   for (size_t i = 0; i < num_iterations; ++i) {
-    histograms::Value_map<longlong> value_map(
-        &my_charset_numeric, histograms::Value_map_type::INT, 1.0);
+    histograms::Value_map<longlong> value_map(&my_charset_numeric,
+                                              histograms::Value_map_type::INT);
 
     for (int j = 0; j < values_to_add; ++j) {
       EXPECT_FALSE(value_map.add_values(dis(gen), 1));
@@ -389,8 +386,7 @@ static void benchmark_insertion_string(size_t num_iterations,
 
   for (size_t it = 0; it < num_iterations; ++it) {
     histograms::Value_map<String> value_map(&my_charset_utf8mb4_0900_ai_ci,
-                                            histograms::Value_map_type::STRING,
-                                            1.0);
+                                            histograms::Value_map_type::STRING);
 
     for (int j = 0; j < values_to_add; ++j) {
       str.length(0);

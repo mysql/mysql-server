@@ -40,4 +40,4 @@ START GROUP_REPLICATION;
 
 call mtr.add_suppression("Binlog must be enabled for Group Replication");
 call mtr.add_suppression("You need to use --log-bin");
-call mtr.add_suppression("slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled.");
+call mtr.add_suppression("replica_preserve_commit_order is not supported unless both log_bin and log_replica_updates are enabled.");

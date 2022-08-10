@@ -1,0 +1,315 @@
+##############################################
+# Test instant ADD/DROP COLUMN for REDUNDANT format
+##############################################
+# ------------------------------------------------------------
+# Create a table with 3 columns. [id, c1, c2, c3]
+# ------------------------------------------------------------
+CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(1000)) ROW_FORMAT=REDUNDANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16715791	0
+INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000), repeat('c', 1));
+SELECT id, length(c1), length(c2), length(c3) FROM t1;
+id	length(c1)	length(c2)	length(c3)
+1	4000	4000	1
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3 FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3
+1	aaaaaaaaaa	bbbbbbbbbb	c
+# INSTANT ADD a column
+ALTER TABLE t1 ADD COLUMN c4 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	8	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16715791	0
+c4	4	12	16716047	1
+INSERT INTO t1 VALUES(2, repeat('e', 4000), repeat('f', 4000), repeat('g', 1), repeat('h', 100));
+SELECT id, length(c1), length(c2), length(c3), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c3)	length(c4)
+1	4000	4000	1	500
+2	4000	4000	1	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3, LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	c	dddddddddd
+2	eeeeeeeeee	ffffffffff	g	hhhhhhhhhh
+START TRANSACTION;
+UPDATE t1 SET c1 = repeat('x', 200) WHERE id = 1;
+SELECT id, length(c1), length(c2), length(c3), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c3)	length(c4)
+1	200	4000	1	500
+2	4000	4000	1	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3, LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3	LEFT(c4, 10)
+1	xxxxxxxxxx	bbbbbbbbbb	c	dddddddddd
+2	eeeeeeeeee	ffffffffff	g	hhhhhhhhhh
+ROLLBACK;
+SELECT id, length(c1), length(c2), length(c3), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c3)	length(c4)
+1	4000	4000	1	500
+2	4000	4000	1	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3, LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	c	dddddddddd
+2	eeeeeeeeee	ffffffffff	g	hhhhhhhhhh
+# INSTANT DROP a column
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	7	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c4	3	12	16716047	1
+SELECT id, length(c1), length(c2), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c4)
+1	4000	4000	500
+2	4000	4000	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+2	eeeeeeeeee	ffffffffff	hhhhhhhhhh
+START TRANSACTION;
+UPDATE t1 SET c1 = repeat('x', 200) WHERE id = 1;
+SELECT id, length(c1), length(c2), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c4)
+1	200	4000	500
+2	4000	4000	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c4, 10)
+1	xxxxxxxxxx	bbbbbbbbbb	dddddddddd
+2	eeeeeeeeee	ffffffffff	hhhhhhhhhh
+ROLLBACK;
+SELECT id, length(c1), length(c2), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c4)
+1	4000	4000	500
+2	4000	4000	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+2	eeeeeeeeee	ffffffffff	hhhhhhhhhh
+###########
+# CLEANUP #
+###########
+DROP TABLE t1;
+############################################
+# Test instant ADD/DROP COLUMN for DYNAMIC format
+############################################
+# ------------------------------------------------------------
+# Create a table with 3 columns. [id, c1, c2, c3]
+# ------------------------------------------------------------
+CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(1000)) ROW_FORMAT=DYNAMIC;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16715791	0
+INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000), repeat('c', 1));
+SELECT id, length(c1), length(c2), length(c3) FROM t1;
+id	length(c1)	length(c2)	length(c3)
+1	4000	4000	1
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3 FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3
+1	aaaaaaaaaa	bbbbbbbbbb	c
+# INSTANT ADD a column
+ALTER TABLE t1 ADD COLUMN c4 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	8	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16715791	0
+c4	4	12	16716047	1
+INSERT INTO t1 VALUES(2, repeat('e', 4000), repeat('f', 4000), repeat('g', 1), repeat('h', 100));
+SELECT id, length(c1), length(c2), length(c3), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c3)	length(c4)
+1	4000	4000	1	500
+2	4000	4000	1	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3, LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	c	dddddddddd
+2	eeeeeeeeee	ffffffffff	g	hhhhhhhhhh
+START TRANSACTION;
+UPDATE t1 SET c1 = repeat('x', 200) WHERE id = 1;
+SELECT id, length(c1), length(c2), length(c3), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c3)	length(c4)
+1	200	4000	1	500
+2	4000	4000	1	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3, LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3	LEFT(c4, 10)
+1	xxxxxxxxxx	bbbbbbbbbb	c	dddddddddd
+2	eeeeeeeeee	ffffffffff	g	hhhhhhhhhh
+ROLLBACK;
+SELECT id, length(c1), length(c2), length(c3), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c3)	length(c4)
+1	4000	4000	1	500
+2	4000	4000	1	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3, LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	c	dddddddddd
+2	eeeeeeeeee	ffffffffff	g	hhhhhhhhhh
+# INSTANT DROP a column
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	7	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c4	3	12	16716047	1
+SELECT id, length(c1), length(c2), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c4)
+1	4000	4000	500
+2	4000	4000	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+2	eeeeeeeeee	ffffffffff	hhhhhhhhhh
+START TRANSACTION;
+UPDATE t1 SET c1 = repeat('x', 200) WHERE id = 1;
+SELECT id, length(c1), length(c2), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c4)
+1	200	4000	500
+2	4000	4000	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c4, 10)
+1	xxxxxxxxxx	bbbbbbbbbb	dddddddddd
+2	eeeeeeeeee	ffffffffff	hhhhhhhhhh
+ROLLBACK;
+SELECT id, length(c1), length(c2), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c4)
+1	4000	4000	500
+2	4000	4000	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+2	eeeeeeeeee	ffffffffff	hhhhhhhhhh
+###########
+# CLEANUP #
+###########
+DROP TABLE t1;
+############################################
+# Test instant ADD/DROP COLUMN for COMPACT format
+############################################
+# ------------------------------------------------------------
+# Create a table with 3 columns. [id, c1, c2, c3]
+# ------------------------------------------------------------
+CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(1000)) ROW_FORMAT=COMPACT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	7	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16715791	0
+INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000), repeat('c', 1));
+SELECT id, length(c1), length(c2), length(c3) FROM t1;
+id	length(c1)	length(c2)	length(c3)
+1	4000	4000	1
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3 FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3
+1	aaaaaaaaaa	bbbbbbbbbb	c
+# INSTANT ADD a column
+ALTER TABLE t1 ADD COLUMN c4 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	8	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c3	3	12	16715791	0
+c4	4	12	16716047	1
+INSERT INTO t1 VALUES(2, repeat('e', 4000), repeat('f', 4000), repeat('g', 1), repeat('h', 100));
+SELECT id, length(c1), length(c2), length(c3), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c3)	length(c4)
+1	4000	4000	1	500
+2	4000	4000	1	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3, LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	c	dddddddddd
+2	eeeeeeeeee	ffffffffff	g	hhhhhhhhhh
+START TRANSACTION;
+UPDATE t1 SET c1 = repeat('x', 200) WHERE id = 1;
+SELECT id, length(c1), length(c2), length(c3), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c3)	length(c4)
+1	200	4000	1	500
+2	4000	4000	1	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3, LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3	LEFT(c4, 10)
+1	xxxxxxxxxx	bbbbbbbbbb	c	dddddddddd
+2	eeeeeeeeee	ffffffffff	g	hhhhhhhhhh
+ROLLBACK;
+SELECT id, length(c1), length(c2), length(c3), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c3)	length(c4)
+1	4000	4000	1	500
+2	4000	4000	1	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), c3, LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	c3	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	c	dddddddddd
+2	eeeeeeeeee	ffffffffff	g	hhhhhhhhhh
+# INSTANT DROP a column
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	7	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+id	0	6	1283	0
+c1	1	12	16715791	0
+c2	2	12	16715791	0
+c4	3	12	16716047	1
+SELECT id, length(c1), length(c2), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c4)
+1	4000	4000	500
+2	4000	4000	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+2	eeeeeeeeee	ffffffffff	hhhhhhhhhh
+START TRANSACTION;
+UPDATE t1 SET c1 = repeat('x', 200) WHERE id = 1;
+SELECT id, length(c1), length(c2), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c4)
+1	200	4000	500
+2	4000	4000	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c4, 10)
+1	xxxxxxxxxx	bbbbbbbbbb	dddddddddd
+2	eeeeeeeeee	ffffffffff	hhhhhhhhhh
+ROLLBACK;
+SELECT id, length(c1), length(c2), length(c4) FROM t1;
+id	length(c1)	length(c2)	length(c4)
+1	4000	4000	500
+2	4000	4000	100
+SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c4, 10) FROM t1;
+id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c4, 10)
+1	aaaaaaaaaa	bbbbbbbbbb	dddddddddd
+2	eeeeeeeeee	ffffffffff	hhhhhhhhhh
+###########
+# CLEANUP #
+###########
+DROP TABLE t1;

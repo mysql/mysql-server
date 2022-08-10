@@ -177,62 +177,62 @@ catalogs	CREATE TABLE `catalogs` (
   `name` varchar(64) <LCTN dependent collation> NOT NULL,
   `created` timestamp NOT NULL,
   `last_altered` timestamp NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 character_sets	CREATE TABLE `character_sets` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `default_collation_id` bigint unsigned NOT NULL,
-  `comment` varchar(2048) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `comment` varchar(2048) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `mb_max_length` int unsigned NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   UNIQUE KEY `default_collation_id` (`default_collation_id`),
   CONSTRAINT `character_sets_ibfk_1` FOREIGN KEY (`default_collation_id`) REFERENCES `collations` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 collations	CREATE TABLE `collations` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `character_set_id` bigint unsigned NOT NULL,
   `is_compiled` tinyint(1) NOT NULL,
   `sort_length` int unsigned NOT NULL,
-  `pad_attribute` enum('PAD SPACE','NO PAD') COLLATE utf8_bin NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `pad_attribute` enum('PAD SPACE','NO PAD') COLLATE utf8mb3_bin NOT NULL,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   KEY `character_set_id` (`character_set_id`),
   CONSTRAINT `collations_ibfk_1` FOREIGN KEY (`character_set_id`) REFERENCES `character_sets` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 column_statistics	CREATE TABLE `column_statistics` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `catalog_id` bigint unsigned NOT NULL,
-  `name` varchar(255) COLLATE utf8_bin NOT NULL,
+  `name` varchar(255) COLLATE utf8mb3_bin NOT NULL,
   `schema_name` varchar(64) <LCTN dependent collation> NOT NULL,
   `table_name` varchar(64) <LCTN dependent collation> NOT NULL,
-  `column_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `column_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci NOT NULL,
   `histogram` json NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
   UNIQUE KEY `catalog_id_2` (`catalog_id`,`schema_name`,`table_name`,`column_name`),
   CONSTRAINT `column_statistics_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 column_type_elements	CREATE TABLE `column_type_elements` (
   `column_id` bigint unsigned NOT NULL,
   `element_index` int unsigned NOT NULL,
   `name` varbinary(1020) NOT NULL,
   PRIMARY KEY (`column_id`,`element_index`),
   CONSTRAINT `column_type_elements_ibfk_1` FOREIGN KEY (`column_id`) REFERENCES `columns` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 columns	CREATE TABLE `columns` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `table_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci NOT NULL,
   `ordinal_position` int unsigned NOT NULL,
-  `type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8_bin NOT NULL,
+  `type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8mb3_bin NOT NULL,
   `is_nullable` tinyint(1) NOT NULL,
   `is_zerofill` tinyint(1) DEFAULT NULL,
   `is_unsigned` tinyint(1) DEFAULT NULL,
@@ -243,19 +243,19 @@ columns	CREATE TABLE `columns` (
   `collation_id` bigint unsigned DEFAULT NULL,
   `has_no_default` tinyint(1) DEFAULT NULL,
   `default_value` blob,
-  `default_value_utf8` text COLLATE utf8_bin,
+  `default_value_utf8` text COLLATE utf8mb3_bin,
   `default_option` blob,
-  `update_option` varchar(32) COLLATE utf8_bin DEFAULT NULL,
+  `update_option` varchar(32) COLLATE utf8mb3_bin DEFAULT NULL,
   `is_auto_increment` tinyint(1) DEFAULT NULL,
   `is_virtual` tinyint(1) DEFAULT NULL,
   `generation_expression` longblob,
-  `generation_expression_utf8` longtext COLLATE utf8_bin,
-  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
-  `hidden` enum('Visible','SE','SQL','User') COLLATE utf8_bin NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
-  `se_private_data` mediumtext COLLATE utf8_bin,
-  `column_key` enum('','PRI','UNI','MUL') COLLATE utf8_bin NOT NULL,
-  `column_type_utf8` mediumtext COLLATE utf8_bin NOT NULL,
+  `generation_expression_utf8` longtext COLLATE utf8mb3_bin,
+  `comment` varchar(2048) COLLATE utf8mb3_bin NOT NULL,
+  `hidden` enum('Visible','SE','SQL','User') COLLATE utf8mb3_bin NOT NULL,
+  `options` mediumtext COLLATE utf8mb3_bin,
+  `se_private_data` mediumtext COLLATE utf8mb3_bin,
+  `column_key` enum('','PRI','UNI','MUL') COLLATE utf8mb3_bin NOT NULL,
+  `column_type_utf8` mediumtext COLLATE utf8mb3_bin NOT NULL,
   `srs_id` int unsigned DEFAULT NULL,
   `is_explicit_collation` tinyint(1) DEFAULT NULL,
   `engine_attribute` json DEFAULT NULL,
@@ -268,35 +268,35 @@ columns	CREATE TABLE `columns` (
   CONSTRAINT `columns_ibfk_1` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
   CONSTRAINT `columns_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `columns_ibfk_3` FOREIGN KEY (`srs_id`) REFERENCES `st_spatial_reference_systems` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 dd_properties	CREATE TABLE `dd_properties` (
   `properties` mediumblob
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 events	CREATE TABLE `events` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `definer` varchar(288) COLLATE utf8_bin NOT NULL,
-  `time_zone` varchar(64) COLLATE utf8_bin NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
+  `definer` varchar(288) COLLATE utf8mb3_bin NOT NULL,
+  `time_zone` varchar(64) COLLATE utf8mb3_bin NOT NULL,
   `definition` longblob NOT NULL,
-  `definition_utf8` longtext COLLATE utf8_bin NOT NULL,
+  `definition_utf8` longtext COLLATE utf8mb3_bin NOT NULL,
   `execute_at` datetime DEFAULT NULL,
   `interval_value` int DEFAULT NULL,
-  `interval_field` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') COLLATE utf8_bin DEFAULT NULL,
-  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8_bin NOT NULL,
+  `interval_field` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') COLLATE utf8mb3_bin DEFAULT NULL,
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8mb3_bin NOT NULL,
   `starts` datetime DEFAULT NULL,
   `ends` datetime DEFAULT NULL,
-  `status` enum('ENABLED','DISABLED','SLAVESIDE_DISABLED') COLLATE utf8_bin NOT NULL,
-  `on_completion` enum('DROP','PRESERVE') COLLATE utf8_bin NOT NULL,
+  `status` enum('ENABLED','DISABLED','SLAVESIDE_DISABLED') COLLATE utf8mb3_bin NOT NULL,
+  `on_completion` enum('DROP','PRESERVE') COLLATE utf8mb3_bin NOT NULL,
   `created` timestamp NOT NULL,
   `last_altered` timestamp NOT NULL,
   `last_executed` datetime DEFAULT NULL,
-  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
+  `comment` varchar(2048) COLLATE utf8mb3_bin NOT NULL,
   `originator` int unsigned NOT NULL,
   `client_collation_id` bigint unsigned NOT NULL,
   `connection_collation_id` bigint unsigned NOT NULL,
   `schema_collation_id` bigint unsigned NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `schema_id` (`schema_id`,`name`),
   KEY `client_collation_id` (`client_collation_id`),
@@ -307,55 +307,55 @@ events	CREATE TABLE `events` (
   CONSTRAINT `events_ibfk_2` FOREIGN KEY (`client_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `events_ibfk_3` FOREIGN KEY (`connection_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `events_ibfk_4` FOREIGN KEY (`schema_collation_id`) REFERENCES `collations` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 foreign_key_column_usage	CREATE TABLE `foreign_key_column_usage` (
   `foreign_key_id` bigint unsigned NOT NULL,
   `ordinal_position` int unsigned NOT NULL,
   `column_id` bigint unsigned NOT NULL,
-  `referenced_column_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `referenced_column_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci NOT NULL,
   PRIMARY KEY (`foreign_key_id`,`ordinal_position`),
   UNIQUE KEY `foreign_key_id` (`foreign_key_id`,`column_id`,`referenced_column_name`),
   KEY `column_id` (`column_id`),
   CONSTRAINT `foreign_key_column_usage_ibfk_1` FOREIGN KEY (`foreign_key_id`) REFERENCES `foreign_keys` (`id`),
   CONSTRAINT `foreign_key_column_usage_ibfk_2` FOREIGN KEY (`column_id`) REFERENCES `columns` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 foreign_keys	CREATE TABLE `foreign_keys` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint unsigned NOT NULL,
   `table_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `unique_constraint_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci DEFAULT NULL,
-  `match_option` enum('NONE','PARTIAL','FULL') COLLATE utf8_bin NOT NULL,
-  `update_rule` enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT') COLLATE utf8_bin NOT NULL,
-  `delete_rule` enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT') COLLATE utf8_bin NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
+  `unique_constraint_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci DEFAULT NULL,
+  `match_option` enum('NONE','PARTIAL','FULL') COLLATE utf8mb3_bin NOT NULL,
+  `update_rule` enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT') COLLATE utf8mb3_bin NOT NULL,
+  `delete_rule` enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT') COLLATE utf8mb3_bin NOT NULL,
   `referenced_table_catalog` varchar(64) <LCTN dependent collation> NOT NULL,
   `referenced_table_schema` varchar(64) <LCTN dependent collation> NOT NULL,
   `referenced_table_name` varchar(64) <LCTN dependent collation> NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `schema_id` (`schema_id`,`name`),
   UNIQUE KEY `table_id` (`table_id`,`name`),
   KEY `referenced_table_catalog` (`referenced_table_catalog`,`referenced_table_schema`,`referenced_table_name`),
   CONSTRAINT `foreign_keys_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 index_column_usage	CREATE TABLE `index_column_usage` (
   `index_id` bigint unsigned NOT NULL,
   `ordinal_position` int unsigned NOT NULL,
   `column_id` bigint unsigned NOT NULL,
   `length` int unsigned DEFAULT NULL,
-  `order` enum('UNDEF','ASC','DESC') COLLATE utf8_bin NOT NULL,
+  `order` enum('UNDEF','ASC','DESC') COLLATE utf8mb3_bin NOT NULL,
   `hidden` tinyint(1) NOT NULL,
   UNIQUE KEY `index_id` (`index_id`,`ordinal_position`),
   UNIQUE KEY `index_id_2` (`index_id`,`column_id`,`hidden`),
   KEY `column_id` (`column_id`),
   CONSTRAINT `index_column_usage_ibfk_1` FOREIGN KEY (`index_id`) REFERENCES `indexes` (`id`),
   CONSTRAINT `index_column_usage_ibfk_2` FOREIGN KEY (`column_id`) REFERENCES `columns` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 index_partitions	CREATE TABLE `index_partitions` (
   `partition_id` bigint unsigned NOT NULL,
   `index_id` bigint unsigned NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
-  `se_private_data` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
+  `se_private_data` mediumtext COLLATE utf8mb3_bin,
   `tablespace_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`partition_id`,`index_id`),
   KEY `index_id` (`index_id`),
@@ -363,32 +363,32 @@ index_partitions	CREATE TABLE `index_partitions` (
   CONSTRAINT `index_partitions_ibfk_1` FOREIGN KEY (`partition_id`) REFERENCES `table_partitions` (`id`),
   CONSTRAINT `index_partitions_ibfk_2` FOREIGN KEY (`index_id`) REFERENCES `indexes` (`id`),
   CONSTRAINT `index_partitions_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 index_stats	CREATE TABLE `index_stats` (
-  `schema_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `table_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `column_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `schema_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
+  `table_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
+  `index_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
+  `column_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
   `cardinality` bigint unsigned DEFAULT NULL,
   `cached_time` timestamp NOT NULL,
   UNIQUE KEY `schema_name` (`schema_name`,`table_name`,`index_name`,`column_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 indexes	CREATE TABLE `indexes` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `table_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
-  `type` enum('PRIMARY','UNIQUE','MULTIPLE','FULLTEXT','SPATIAL') COLLATE utf8_bin NOT NULL,
-  `algorithm` enum('SE_SPECIFIC','BTREE','RTREE','HASH','FULLTEXT') COLLATE utf8_bin NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci NOT NULL,
+  `type` enum('PRIMARY','UNIQUE','MULTIPLE','FULLTEXT','SPATIAL') COLLATE utf8mb3_bin NOT NULL,
+  `algorithm` enum('SE_SPECIFIC','BTREE','RTREE','HASH','FULLTEXT') COLLATE utf8mb3_bin NOT NULL,
   `is_algorithm_explicit` tinyint(1) NOT NULL,
   `is_visible` tinyint(1) NOT NULL,
   `is_generated` tinyint(1) NOT NULL,
   `hidden` tinyint(1) NOT NULL,
   `ordinal_position` int unsigned NOT NULL,
-  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
-  `se_private_data` mediumtext COLLATE utf8_bin,
+  `comment` varchar(2048) COLLATE utf8mb3_bin NOT NULL,
+  `options` mediumtext COLLATE utf8mb3_bin,
+  `se_private_data` mediumtext COLLATE utf8mb3_bin,
   `tablespace_id` bigint unsigned DEFAULT NULL,
-  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `engine_attribute` json DEFAULT NULL,
   `secondary_engine_attribute` json DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -396,7 +396,7 @@ indexes	CREATE TABLE `indexes` (
   KEY `tablespace_id` (`tablespace_id`),
   CONSTRAINT `indexes_ibfk_1` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
   CONSTRAINT `indexes_ibfk_2` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 innodb_ddl_log	CREATE TABLE `innodb_ddl_log` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `thread_id` bigint unsigned NOT NULL,
@@ -405,52 +405,52 @@ innodb_ddl_log	CREATE TABLE `innodb_ddl_log` (
   `page_no` int unsigned DEFAULT NULL,
   `index_id` bigint unsigned DEFAULT NULL,
   `table_id` bigint unsigned DEFAULT NULL,
-  `old_file_path` varchar(512) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  `new_file_path` varchar(512) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `old_file_path` varchar(512) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `new_file_path` varchar(512) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `thread_id` (`thread_id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 innodb_dynamic_metadata	CREATE TABLE `innodb_dynamic_metadata` (
   `table_id` bigint unsigned NOT NULL,
   `version` bigint unsigned NOT NULL,
   `metadata` blob NOT NULL,
   PRIMARY KEY (`table_id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 innodb_index_stats	CREATE TABLE `innodb_index_stats` (
-  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
-  `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `database_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8mb3_bin NOT NULL,
+  `index_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `stat_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `stat_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
   `stat_value` bigint unsigned NOT NULL,
   `sample_size` bigint unsigned DEFAULT NULL,
-  `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
+  `stat_description` varchar(1024) COLLATE utf8mb3_bin NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 innodb_table_stats	CREATE TABLE `innodb_table_stats` (
-  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `database_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8mb3_bin NOT NULL,
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `n_rows` bigint unsigned NOT NULL,
   `clustered_index_size` bigint unsigned NOT NULL,
   `sum_of_other_index_sizes` bigint unsigned NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 parameter_type_elements	CREATE TABLE `parameter_type_elements` (
   `parameter_id` bigint unsigned NOT NULL,
   `element_index` int unsigned NOT NULL,
   `name` varbinary(1020) NOT NULL,
   PRIMARY KEY (`parameter_id`,`element_index`),
   CONSTRAINT `parameter_type_elements_ibfk_1` FOREIGN KEY (`parameter_id`) REFERENCES `parameters` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 parameters	CREATE TABLE `parameters` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `routine_id` bigint unsigned NOT NULL,
   `ordinal_position` int unsigned NOT NULL,
-  `mode` enum('IN','OUT','INOUT') COLLATE utf8_bin DEFAULT NULL,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
-  `data_type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8_bin NOT NULL,
-  `data_type_utf8` mediumtext COLLATE utf8_bin NOT NULL,
+  `mode` enum('IN','OUT','INOUT') COLLATE utf8mb3_bin DEFAULT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+  `data_type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8mb3_bin NOT NULL,
+  `data_type_utf8` mediumtext COLLATE utf8mb3_bin NOT NULL,
   `is_zerofill` tinyint(1) DEFAULT NULL,
   `is_unsigned` tinyint(1) DEFAULT NULL,
   `char_length` int unsigned DEFAULT NULL,
@@ -458,31 +458,31 @@ parameters	CREATE TABLE `parameters` (
   `numeric_scale` int unsigned DEFAULT NULL,
   `datetime_precision` int unsigned DEFAULT NULL,
   `collation_id` bigint unsigned DEFAULT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `routine_id` (`routine_id`,`ordinal_position`),
   KEY `collation_id` (`collation_id`),
   CONSTRAINT `parameters_ibfk_1` FOREIGN KEY (`routine_id`) REFERENCES `routines` (`id`),
   CONSTRAINT `parameters_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES `collations` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 resource_groups	CREATE TABLE `resource_groups` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `resource_group_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `resource_group_type` enum('SYSTEM','USER') COLLATE utf8_bin NOT NULL,
+  `resource_group_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
+  `resource_group_type` enum('SYSTEM','USER') COLLATE utf8mb3_bin NOT NULL,
   `resource_group_enabled` tinyint(1) NOT NULL,
-  `cpu_id_mask` varchar(1024) COLLATE utf8_bin NOT NULL,
+  `cpu_id_mask` varchar(1024) COLLATE utf8mb3_bin NOT NULL,
   `thread_priority` int NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `resource_group_name` (`resource_group_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 routines	CREATE TABLE `routines` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `type` enum('FUNCTION','PROCEDURE') COLLATE utf8_bin NOT NULL,
-  `result_data_type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8_bin DEFAULT NULL,
-  `result_data_type_utf8` mediumtext COLLATE utf8_bin NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
+  `type` enum('FUNCTION','PROCEDURE') COLLATE utf8mb3_bin NOT NULL,
+  `result_data_type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8mb3_bin DEFAULT NULL,
+  `result_data_type_utf8` mediumtext COLLATE utf8mb3_bin NOT NULL,
   `result_is_zerofill` tinyint(1) DEFAULT NULL,
   `result_is_unsigned` tinyint(1) DEFAULT NULL,
   `result_char_length` int unsigned DEFAULT NULL,
@@ -491,21 +491,21 @@ routines	CREATE TABLE `routines` (
   `result_datetime_precision` int unsigned DEFAULT NULL,
   `result_collation_id` bigint unsigned DEFAULT NULL,
   `definition` longblob,
-  `definition_utf8` longtext COLLATE utf8_bin,
+  `definition_utf8` longtext COLLATE utf8mb3_bin,
   `parameter_str` blob,
   `is_deterministic` tinyint(1) NOT NULL,
-  `sql_data_access` enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA') COLLATE utf8_bin NOT NULL,
-  `security_type` enum('DEFAULT','INVOKER','DEFINER') COLLATE utf8_bin NOT NULL,
-  `definer` varchar(288) COLLATE utf8_bin NOT NULL,
-  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8_bin NOT NULL,
+  `sql_data_access` enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA') COLLATE utf8mb3_bin NOT NULL,
+  `security_type` enum('DEFAULT','INVOKER','DEFINER') COLLATE utf8mb3_bin NOT NULL,
+  `definer` varchar(288) COLLATE utf8mb3_bin NOT NULL,
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8mb3_bin NOT NULL,
   `client_collation_id` bigint unsigned NOT NULL,
   `connection_collation_id` bigint unsigned NOT NULL,
   `schema_collation_id` bigint unsigned NOT NULL,
   `created` timestamp NOT NULL,
   `last_altered` timestamp NOT NULL,
-  `comment` text COLLATE utf8_bin NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
-  `external_language` varchar(64) COLLATE utf8_bin NOT NULL DEFAULT 'SQL',
+  `comment` text COLLATE utf8mb3_bin NOT NULL,
+  `options` mediumtext COLLATE utf8mb3_bin,
+  `external_language` varchar(64) COLLATE utf8mb3_bin NOT NULL DEFAULT 'SQL',
   PRIMARY KEY (`id`),
   UNIQUE KEY `schema_id` (`schema_id`,`type`,`name`),
   KEY `result_collation_id` (`result_collation_id`),
@@ -518,7 +518,7 @@ routines	CREATE TABLE `routines` (
   CONSTRAINT `routines_ibfk_3` FOREIGN KEY (`client_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `routines_ibfk_4` FOREIGN KEY (`connection_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `routines_ibfk_5` FOREIGN KEY (`schema_collation_id`) REFERENCES `collations` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 schemata	CREATE TABLE `schemata` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `catalog_id` bigint unsigned NOT NULL,
@@ -526,51 +526,51 @@ schemata	CREATE TABLE `schemata` (
   `default_collation_id` bigint unsigned NOT NULL,
   `created` timestamp NOT NULL,
   `last_altered` timestamp NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
-  `default_encryption` enum('NO','YES') COLLATE utf8_bin NOT NULL,
-  `se_private_data` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
+  `default_encryption` enum('NO','YES') COLLATE utf8mb3_bin NOT NULL,
+  `se_private_data` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
   KEY `default_collation_id` (`default_collation_id`),
   CONSTRAINT `schemata_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`),
   CONSTRAINT `schemata_ibfk_2` FOREIGN KEY (`default_collation_id`) REFERENCES `collations` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 st_spatial_reference_systems	CREATE TABLE `st_spatial_reference_systems` (
   `id` int unsigned NOT NULL,
   `catalog_id` bigint unsigned NOT NULL,
-  `name` varchar(80) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(80) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `organization` varchar(256) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `organization` varchar(256) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `organization_coordsys_id` int unsigned DEFAULT NULL,
-  `definition` varchar(4096) COLLATE utf8_bin NOT NULL,
-  `description` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `definition` varchar(4096) COLLATE utf8mb3_bin NOT NULL,
+  `description` varchar(2048) COLLATE utf8mb3_bin DEFAULT NULL,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `SRS_NAME` (`catalog_id`,`name`),
   UNIQUE KEY `ORGANIZATION_AND_ID` (`catalog_id`,`organization`,`organization_coordsys_id`),
   CONSTRAINT `st_spatial_reference_systems_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 table_partition_values	CREATE TABLE `table_partition_values` (
   `partition_id` bigint unsigned NOT NULL,
   `list_num` smallint unsigned NOT NULL,
   `column_num` tinyint unsigned NOT NULL,
-  `value_utf8` text COLLATE utf8_bin,
+  `value_utf8` text COLLATE utf8mb3_bin,
   `max_value` tinyint(1) NOT NULL,
   PRIMARY KEY (`partition_id`,`list_num`,`column_num`),
   CONSTRAINT `table_partition_values_ibfk_1` FOREIGN KEY (`partition_id`) REFERENCES `table_partitions` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 table_partitions	CREATE TABLE `table_partitions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `table_id` bigint unsigned NOT NULL,
   `parent_partition_id` bigint unsigned DEFAULT NULL,
   `number` smallint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
-  `description_utf8` text COLLATE utf8_bin,
-  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
-  `se_private_data` mediumtext COLLATE utf8_bin,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci NOT NULL,
+  `description_utf8` text COLLATE utf8mb3_bin,
+  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
+  `comment` varchar(2048) COLLATE utf8mb3_bin NOT NULL,
+  `options` mediumtext COLLATE utf8mb3_bin,
+  `se_private_data` mediumtext COLLATE utf8mb3_bin,
   `se_private_id` bigint unsigned DEFAULT NULL,
   `tablespace_id` bigint unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -583,10 +583,10 @@ table_partitions	CREATE TABLE `table_partitions` (
   CONSTRAINT `table_partitions_ibfk_1` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
   CONSTRAINT `table_partitions_ibfk_2` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`),
   CONSTRAINT `table_partitions_ibfk_3` FOREIGN KEY (`parent_partition_id`) REFERENCES `table_partitions` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 table_stats	CREATE TABLE `table_stats` (
-  `schema_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `table_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `schema_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
+  `table_name` varchar(64) COLLATE utf8mb3_bin NOT NULL,
   `table_rows` bigint unsigned DEFAULT NULL,
   `avg_row_length` bigint unsigned DEFAULT NULL,
   `data_length` bigint unsigned DEFAULT NULL,
@@ -599,42 +599,42 @@ table_stats	CREATE TABLE `table_stats` (
   `check_time` timestamp NULL DEFAULT NULL,
   `cached_time` timestamp NOT NULL,
   PRIMARY KEY (`schema_name`,`table_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 tables	CREATE TABLE `tables` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint unsigned NOT NULL,
   `name` varchar(64) <LCTN dependent collation> NOT NULL,
-  `type` enum('BASE TABLE','VIEW','SYSTEM VIEW') COLLATE utf8_bin NOT NULL,
-  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `type` enum('BASE TABLE','VIEW','SYSTEM VIEW') COLLATE utf8mb3_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `mysql_version_id` int unsigned NOT NULL,
-  `row_format` enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged') COLLATE utf8_bin DEFAULT NULL,
+  `row_format` enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged') COLLATE utf8mb3_bin DEFAULT NULL,
   `collation_id` bigint unsigned DEFAULT NULL,
-  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
-  `hidden` enum('Visible','System','SE','DDL') COLLATE utf8_bin NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
-  `se_private_data` mediumtext COLLATE utf8_bin,
+  `comment` varchar(2048) COLLATE utf8mb3_bin NOT NULL,
+  `hidden` enum('Visible','System','SE','DDL') COLLATE utf8mb3_bin NOT NULL,
+  `options` mediumtext COLLATE utf8mb3_bin,
+  `se_private_data` mediumtext COLLATE utf8mb3_bin,
   `se_private_id` bigint unsigned DEFAULT NULL,
   `tablespace_id` bigint unsigned DEFAULT NULL,
-  `partition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55','RANGE','LIST','RANGE_COLUMNS','LIST_COLUMNS','AUTO','AUTO_LINEAR') COLLATE utf8_bin DEFAULT NULL,
-  `partition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
-  `partition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
-  `default_partitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
-  `subpartition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55') COLLATE utf8_bin DEFAULT NULL,
-  `subpartition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
-  `subpartition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
-  `default_subpartitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
+  `partition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55','RANGE','LIST','RANGE_COLUMNS','LIST_COLUMNS','AUTO','AUTO_LINEAR') COLLATE utf8mb3_bin DEFAULT NULL,
+  `partition_expression` varchar(2048) COLLATE utf8mb3_bin DEFAULT NULL,
+  `partition_expression_utf8` varchar(2048) COLLATE utf8mb3_bin DEFAULT NULL,
+  `default_partitioning` enum('NO','YES','NUMBER') COLLATE utf8mb3_bin DEFAULT NULL,
+  `subpartition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55') COLLATE utf8mb3_bin DEFAULT NULL,
+  `subpartition_expression` varchar(2048) COLLATE utf8mb3_bin DEFAULT NULL,
+  `subpartition_expression_utf8` varchar(2048) COLLATE utf8mb3_bin DEFAULT NULL,
+  `default_subpartitioning` enum('NO','YES','NUMBER') COLLATE utf8mb3_bin DEFAULT NULL,
   `created` timestamp NOT NULL,
   `last_altered` timestamp NOT NULL,
   `view_definition` longblob,
-  `view_definition_utf8` longtext COLLATE utf8_bin,
-  `view_check_option` enum('NONE','LOCAL','CASCADED') COLLATE utf8_bin DEFAULT NULL,
-  `view_is_updatable` enum('NO','YES') COLLATE utf8_bin DEFAULT NULL,
-  `view_algorithm` enum('UNDEFINED','TEMPTABLE','MERGE') COLLATE utf8_bin DEFAULT NULL,
-  `view_security_type` enum('DEFAULT','INVOKER','DEFINER') COLLATE utf8_bin DEFAULT NULL,
-  `view_definer` varchar(288) COLLATE utf8_bin DEFAULT NULL,
+  `view_definition_utf8` longtext COLLATE utf8mb3_bin,
+  `view_check_option` enum('NONE','LOCAL','CASCADED') COLLATE utf8mb3_bin DEFAULT NULL,
+  `view_is_updatable` enum('NO','YES') COLLATE utf8mb3_bin DEFAULT NULL,
+  `view_algorithm` enum('UNDEFINED','TEMPTABLE','MERGE') COLLATE utf8mb3_bin DEFAULT NULL,
+  `view_security_type` enum('DEFAULT','INVOKER','DEFINER') COLLATE utf8mb3_bin DEFAULT NULL,
+  `view_definer` varchar(288) COLLATE utf8mb3_bin DEFAULT NULL,
   `view_client_collation_id` bigint unsigned DEFAULT NULL,
   `view_connection_collation_id` bigint unsigned DEFAULT NULL,
-  `view_column_names` longtext COLLATE utf8_bin,
+  `view_column_names` longtext COLLATE utf8mb3_bin,
   `last_checked_for_upgrade_version_id` int unsigned NOT NULL,
   `engine_attribute` json DEFAULT NULL,
   `secondary_engine_attribute` json DEFAULT NULL,
@@ -653,45 +653,45 @@ tables	CREATE TABLE `tables` (
   CONSTRAINT `tables_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`),
   CONSTRAINT `tables_ibfk_4` FOREIGN KEY (`view_client_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `tables_ibfk_5` FOREIGN KEY (`view_connection_collation_id`) REFERENCES `collations` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 tablespace_files	CREATE TABLE `tablespace_files` (
   `tablespace_id` bigint unsigned NOT NULL,
   `ordinal_position` int unsigned NOT NULL,
-  `file_name` varchar(512) COLLATE utf8_bin NOT NULL,
-  `se_private_data` mediumtext COLLATE utf8_bin,
+  `file_name` varchar(512) COLLATE utf8mb3_bin NOT NULL,
+  `se_private_data` mediumtext COLLATE utf8mb3_bin,
   UNIQUE KEY `tablespace_id` (`tablespace_id`,`ordinal_position`),
   UNIQUE KEY `file_name` (`file_name`),
   CONSTRAINT `tablespace_files_ibfk_1` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 tablespaces	CREATE TABLE `tablespaces` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(268) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
-  `se_private_data` mediumtext COLLATE utf8_bin,
-  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
-  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(268) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  `options` mediumtext COLLATE utf8mb3_bin,
+  `se_private_data` mediumtext COLLATE utf8mb3_bin,
+  `comment` varchar(2048) COLLATE utf8mb3_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `engine_attribute` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 triggers	CREATE TABLE `triggers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint unsigned NOT NULL,
-  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `event_type` enum('INSERT','UPDATE','DELETE') COLLATE utf8_bin NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
+  `event_type` enum('INSERT','UPDATE','DELETE') COLLATE utf8mb3_bin NOT NULL,
   `table_id` bigint unsigned NOT NULL,
-  `action_timing` enum('BEFORE','AFTER') COLLATE utf8_bin NOT NULL,
+  `action_timing` enum('BEFORE','AFTER') COLLATE utf8mb3_bin NOT NULL,
   `action_order` int unsigned NOT NULL,
   `action_statement` longblob NOT NULL,
-  `action_statement_utf8` longtext COLLATE utf8_bin NOT NULL,
+  `action_statement_utf8` longtext COLLATE utf8mb3_bin NOT NULL,
   `created` timestamp(2) NOT NULL,
   `last_altered` timestamp(2) NOT NULL,
-  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8_bin NOT NULL,
-  `definer` varchar(288) COLLATE utf8_bin NOT NULL,
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8mb3_bin NOT NULL,
+  `definer` varchar(288) COLLATE utf8mb3_bin NOT NULL,
   `client_collation_id` bigint unsigned NOT NULL,
   `connection_collation_id` bigint unsigned NOT NULL,
   `schema_collation_id` bigint unsigned NOT NULL,
-  `options` mediumtext COLLATE utf8_bin,
+  `options` mediumtext COLLATE utf8mb3_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `schema_id` (`schema_id`,`name`),
   UNIQUE KEY `table_id` (`table_id`,`event_type`,`action_timing`,`action_order`),
@@ -704,16 +704,16 @@ triggers	CREATE TABLE `triggers` (
   CONSTRAINT `triggers_ibfk_3` FOREIGN KEY (`client_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `triggers_ibfk_4` FOREIGN KEY (`connection_collation_id`) REFERENCES `collations` (`id`),
   CONSTRAINT `triggers_ibfk_5` FOREIGN KEY (`schema_collation_id`) REFERENCES `collations` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 view_routine_usage	CREATE TABLE `view_routine_usage` (
   `view_id` bigint unsigned NOT NULL,
   `routine_catalog` varchar(64) <LCTN dependent collation> NOT NULL,
   `routine_schema` varchar(64) <LCTN dependent collation> NOT NULL,
-  `routine_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `routine_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   PRIMARY KEY (`view_id`,`routine_catalog`,`routine_schema`,`routine_name`),
   KEY `routine_catalog` (`routine_catalog`,`routine_schema`,`routine_name`),
   CONSTRAINT `view_routine_usage_ibfk_1` FOREIGN KEY (`view_id`) REFERENCES `tables` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 view_table_usage	CREATE TABLE `view_table_usage` (
   `view_id` bigint unsigned NOT NULL,
   `table_catalog` varchar(64) <LCTN dependent collation> NOT NULL,
@@ -722,7 +722,7 @@ view_table_usage	CREATE TABLE `view_table_usage` (
   PRIMARY KEY (`view_id`,`table_catalog`,`table_schema`,`table_name`),
   KEY `table_catalog` (`table_catalog`,`table_schema`,`table_name`),
   CONSTRAINT `view_table_usage_ibfk_1` FOREIGN KEY (`view_id`) REFERENCES `tables` (`id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SET debug = '-d,skip_dd_table_access_check';
 # PART 4
 ########################################################################

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #define DBTUP_C
 #define DBTUP_INDEX_CPP
+#include <cstring>
 #include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
@@ -38,7 +39,6 @@
 #define JAM_FILE_ID 418
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_INDEX_BUILD 1
@@ -61,7 +61,7 @@ Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
 {
   jamEntryDebug();
   PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, pageId);
+  ndbrequire(c_page_pool.getPtr(pagePtr, pageId));
   lkey1 = pagePtr.p->frag_page_id;
   lkey2 = pageIndex;
 }
@@ -757,7 +757,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       goto next_tuple;
     }
 
-    c_page_pool.getPtr(pagePtr, realPageId);
+    ndbrequire(c_page_pool.getPtr(pagePtr, realPageId));
 
 next_tuple:
     // get tuple
@@ -957,7 +957,7 @@ Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
    * Note: before 7.3.4, 7.2.15, 7.1.30 fifth word and
    * up was undefined.
    */
-  bzero(req, sizeof(*req));
+  std::memset(req, 0, sizeof(*req));
   req->senderRef = reference();
   req->senderData = buildPtrI;
   req->tableId = buildReq->tableId;
@@ -1028,7 +1028,7 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
     }
     ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
     mt_BuildIndxReq req;
-    bzero(&req, sizeof(req));
+    std::memset(&req, 0, sizeof(req));
     req.senderRef = reference();
     req.senderData = buildPtr.i;
     req.tableId = buildReq->tableId;
@@ -1068,7 +1068,7 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
      * Note: before 7.3.4, 7.2.15, 7.1.30 fifth word and
      * up was undefined.
      */
-    bzero(req, sizeof(*req));
+    std::memset(req, 0, sizeof(*req));
     req->senderRef = reference();
     req->senderData = buildPtrI;
     req->tableId = buildReq->tableId;
@@ -1168,7 +1168,7 @@ Dbtup::mt_scan_next(Uint32 tableId, Uint32 fragPtrI,
   }
 
   PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, pos->m_page_no);
+  ndbrequire(c_page_pool.getPtr(pagePtr, pos->m_page_no));
 
   while (1)
   {
@@ -1203,7 +1203,7 @@ Dbtup::mt_scan_next(Uint32 tableId, Uint32 fragPtrI,
       break;
 
     pos->m_page_idx = 0;
-    c_page_pool.getPtr(pagePtr, pos->m_page_no);
+    ndbrequire(c_page_pool.getPtr(pagePtr, pos->m_page_no));
   }
 
   return 1;

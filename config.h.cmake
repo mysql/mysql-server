@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@
 /* Libraries */
 #cmakedefine HAVE_LIBM 1
 #cmakedefine HAVE_LIBNSL 1
-#cmakedefine HAVE_LIBCRYPT 1
 #cmakedefine HAVE_LIBSOCKET 1
 #cmakedefine HAVE_LIBDL 1
 #cmakedefine HAVE_LIBRT 1
@@ -105,11 +104,15 @@
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_GETAFFINITY_NP 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
+#cmakedefine HAVE_PTHREAD_SETNAME_NP_LINUX 1
+#cmakedefine HAVE_PTHREAD_SETNAME_NP_MACOS 1
+#cmakedefine HAVE_SET_THREAD_DESCRIPTION 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
+#cmakedefine HAVE_STRPTIME 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_TELL 1
 #cmakedefine HAVE_VASPRINTF 1
@@ -187,6 +190,9 @@
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
 #cmakedefine LINUX_ALPINE 1
 #cmakedefine LINUX_SUSE
+#cmakedefine LINUX_RHEL6
+#cmakedefine LINUX_RHEL7
+#cmakedefine LINUX_RHEL8
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
@@ -194,6 +200,7 @@
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
+#cmakedefine APPLE_ARM 1
 
 /*
  * From main CMakeLists.txt
@@ -212,6 +219,7 @@
 #cmakedefine KERBEROS_LIB_CONFIGURED
 #cmakedefine SCRAM_LIB_CONFIGURED
 #cmakedefine WITH_HYPERGRAPH_OPTIMIZER
+#cmakedefine KERBEROS_LIB_SSPI
 
 /* Lock Order */
 #cmakedefine WITH_LOCK_ORDER 1
@@ -226,6 +234,8 @@
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
 #cmakedefine DEFAULT_TMPDIR @DEFAULT_TMPDIR@
+#cmakedefine MYSQL_ICU_DATADIR "@MYSQL_ICU_DATADIR@"
+#cmakedefine ICUDT_DIR "@ICUDT_DIR@"
 /*
  * Readline
  */
@@ -298,6 +308,7 @@
  * CPU info
  */
 #cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
+#cmakedefine CPU_PAGE_SIZE @CPU_PAGE_SIZE@
 
 /*
  * NDB
@@ -318,10 +329,6 @@
 #define HAVE_FCNTL_H 1
 #define HAVE_GETADDRINFO 1
 #define HAVE_INTTYPES_H 1
-/* libevent's select.c is not Windows compatible */
-#ifndef _WIN32
-#define HAVE_SELECT 1
-#endif
 #define HAVE_SIGNAL_H 1
 #define HAVE_STDARG_H 1
 #define HAVE_STDINT_H 1

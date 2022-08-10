@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ static PSI_mutex_info mutex_info[] = {
 *   - Acquire pfs_plugin_table service implementation.
 */
 bool
-acquire_service_handles(MYSQL_PLUGIN p MY_ATTRIBUTE((unused)))
+acquire_service_handles(MYSQL_PLUGIN p [[maybe_unused]])
 {
   bool result = false;
 
@@ -394,7 +394,7 @@ pfs_example_plugin_employee_check(void *)
 *   - Release pfs_plugin_table service handle.
 */
 static int
-pfs_example_plugin_employee_deinit(void *p  MY_ATTRIBUTE((unused)))
+pfs_example_plugin_employee_deinit(void *p  [[maybe_unused]])
 {
   DBUG_TRACE;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ class Resource_group : virtual public Entity_object {
   typedef Void_key Aux_key;
 
  public:
-  ~Resource_group() override {}
+  ~Resource_group() override = default;
 
   virtual bool update_id_key(Id_key *key) const {
     return update_id_key(key, id());
@@ -83,6 +83,13 @@ class Resource_group : virtual public Entity_object {
   virtual void set_thread_priority(int priority) = 0;
 
   virtual Resource_group *clone() const = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry (i.e. it has the same
+    keys as original).
+  */
+  virtual Resource_group *clone_dropped_object_placeholder() const = 0;
 
   static void create_mdl_key(const String_type &name, MDL_key *key);
 };

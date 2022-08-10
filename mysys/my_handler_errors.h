@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ static const char *handler_error_messages[] = {
     "Someone has changed the row since it was read (while the table was locked "
     "to prevent it)",
     "Wrong index given to function",
-    "Undefined handler error 125",
+    "Transaction has been rolled back",
     "Index file is crashed",
     "Record file is crashed",
     "Out of memory in engine",

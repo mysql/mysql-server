@@ -188,6 +188,51 @@ select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DE
 delete from performance_schema.setup_objects
   where OBJECT_NAME="pfs_example_country";
 
+
+
+--echo ---------- Index fetch with partial key ----------
+
+# Tests for
+# Bug#33893369 static bool PFS_key_pstring::stateless_match(): Assertion `false' failed.
+
+# Yes, this is silly, as the primary key definition is wrong.
+# Making sure a partial key index fetch works with 0, 1, N records.
+
+INSERT into performance_schema.pfs_example_country values
+  ("Home", "Europe", 2022, 1, 1),
+  ("Home", "America", 2022, 2, 2),
+  ("Canada", "America", 2022, 3, 3);
+
+# 0 record
+
+SELECT * FROM performance_schema.pfs_example_country
+  WHERE NAME = 'nowhere';
+
+SELECT * FROM performance_schema.pfs_example_country
+  FORCE INDEX(name)
+  WHERE NAME = 'nowhere';
+
+# 1 record
+
+SELECT * FROM performance_schema.pfs_example_country
+  WHERE NAME = 'Canada';
+
+SELECT * FROM performance_schema.pfs_example_country
+  FORCE INDEX(name)
+  WHERE NAME = 'Canada';
+
+# N records
+
+SELECT * FROM performance_schema.pfs_example_country
+  WHERE NAME = 'Home'
+  ORDER BY CONTINENT;
+
+SELECT * FROM performance_schema.pfs_example_country
+  FORCE INDEX(name)
+  WHERE NAME = 'Home'
+  ORDER BY CONTINENT;
+
+
 --echo -------------------------------------------------------
 --echo Fetching from component table after component uninstall
 --echo -------------------------------------------------------

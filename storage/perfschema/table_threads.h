@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,17 +55,11 @@ struct row_threads {
   /** Length in bytes of @c m_name. */
   uint m_name_length;
   /** Column PROCESSLIST_USER. */
-  char m_username[USERNAME_LENGTH];
-  /** Length in bytes of @c m_username. */
-  uint m_username_length;
+  PFS_user_name m_user_name;
   /** Column PROCESSLIST_HOST. */
-  char m_hostname[HOSTNAME_LENGTH];
-  /** Length in bytes of @c m_hostname. */
-  uint m_hostname_length;
+  PFS_host_name m_host_name;
   /** Column PROCESSLIST_DB. */
-  char m_dbname[NAME_LEN];
-  /** Length in bytes of @c m_dbname. */
-  uint m_dbname_length;
+  PFS_schema_name m_db_name;
   /** Column PROCESSLIST_COMMAND. */
   int m_command;
   /** Column PROCESSLIST_TIME. */
@@ -94,6 +88,8 @@ struct row_threads {
   char m_groupname[NAME_LEN];
   /** Length in bytes of @c m_groupname. */
   uint m_groupname_length;
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
 };
 
 class PFS_index_threads_by_thread_id : public PFS_index_threads {
@@ -101,7 +97,7 @@ class PFS_index_threads_by_thread_id : public PFS_index_threads {
   PFS_index_threads_by_thread_id()
       : PFS_index_threads(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_threads_by_thread_id() override {}
+  ~PFS_index_threads_by_thread_id() override = default;
 
   bool match(PFS_thread *pfs) override;
 
@@ -114,7 +110,7 @@ class PFS_index_threads_by_processlist_id : public PFS_index_threads {
   PFS_index_threads_by_processlist_id()
       : PFS_index_threads(&m_key), m_key("PROCESSLIST_ID") {}
 
-  ~PFS_index_threads_by_processlist_id() override {}
+  ~PFS_index_threads_by_processlist_id() override = default;
 
   bool match(PFS_thread *pfs) override;
 
@@ -126,7 +122,7 @@ class PFS_index_threads_by_name : public PFS_index_threads {
  public:
   PFS_index_threads_by_name() : PFS_index_threads(&m_key), m_key("NAME") {}
 
-  ~PFS_index_threads_by_name() override {}
+  ~PFS_index_threads_by_name() override = default;
 
   bool match(PFS_thread *pfs) override;
 
@@ -141,7 +137,7 @@ class PFS_index_threads_by_user_host : public PFS_index_threads {
         m_key_1("PROCESSLIST_USER"),
         m_key_2("PROCESSLIST_HOST") {}
 
-  ~PFS_index_threads_by_user_host() override {}
+  ~PFS_index_threads_by_user_host() override = default;
 
   bool match(PFS_thread *pfs) override;
 
@@ -155,7 +151,7 @@ class PFS_index_threads_by_host : public PFS_index_threads {
   PFS_index_threads_by_host()
       : PFS_index_threads(&m_key), m_key("PROCESSLIST_HOST") {}
 
-  ~PFS_index_threads_by_host() override {}
+  ~PFS_index_threads_by_host() override = default;
 
   bool match(PFS_thread *pfs) override;
 
@@ -168,7 +164,7 @@ class PFS_index_threads_by_thread_os_id : public PFS_index_threads {
   PFS_index_threads_by_thread_os_id()
       : PFS_index_threads(&m_key), m_key("THREAD_OS_ID") {}
 
-  ~PFS_index_threads_by_thread_os_id() override {}
+  ~PFS_index_threads_by_thread_os_id() override = default;
 
   bool match(PFS_thread *pfs) override;
 
@@ -181,7 +177,7 @@ class PFS_index_threads_by_resource_group : public PFS_index_threads {
   PFS_index_threads_by_resource_group()
       : PFS_index_threads(&m_key), m_key("RESOURCE_GROUP") {}
 
-  ~PFS_index_threads_by_resource_group() override {}
+  ~PFS_index_threads_by_resource_group() override = default;
 
   bool match(PFS_thread *pfs) override;
 
@@ -209,7 +205,7 @@ class table_threads : public cursor_by_thread {
   int index_init(uint idx, bool sorted) override;
 
  public:
-  ~table_threads() override {}
+  ~table_threads() override = default;
 
  private:
   int make_row(PFS_thread *pfs) override;

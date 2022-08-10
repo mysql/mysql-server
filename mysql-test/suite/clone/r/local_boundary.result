@@ -24,10 +24,12 @@ END IF;
 CASE p_dml_type
 WHEN 0 THEN
 SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
-INSERT INTO t1 VALUES(v_key, v_key * 10,
+INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
-INSERT INTO t2 VALUES(v_key, v_key * 10,
+INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
 WHEN 1 THEN
@@ -53,6 +55,7 @@ START TRANSACTION;
 END IF;
 END IF;
 END WHILE;
+COMMIT;
 END|
 call execute_dml(0, 0, 150, 150, 10, 0);
 SHOW CREATE TABLE t1;
@@ -130,7 +133,7 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 141	1410	Clone Test Row - 141	umn Data Large Column Data Large
 140	1400	Clone Test Row - 140	umn Data Large Column Data Large
 # In connection default - Cloning database
-SET global debug="+d,clone_no_zero_copy";
+SET GLOBAL DEBUG ="+d,clone_no_zero_copy";
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
@@ -151,7 +154,7 @@ CALL execute_dml(1, 0, 150, 200, 100, 1);
 COMMIT;
 SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
 # In connection default - Cloning database
-SET global debug="-d,clone_no_zero_copy";
+SET GLOBAL DEBUG ="-d,clone_no_zero_copy";
 # Restart cloned database
 # restart: --datadir=CLONE_DATADIR
 SHOW CREATE TABLE t1;
@@ -279,6 +282,8 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 141	1410	Clone Test Row - 141	umn Data Large Column Data Large
 140	1400	Clone Test Row - 140	umn Data Large Column Data Large
 # restart:
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
+SET GLOBAL DEBUG ="+d,clone_arch_log_stop_file_end";
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
@@ -294,14 +299,16 @@ COMMIT;
 SET GLOBAL innodb_buf_flush_list_now = 1;
 SET DEBUG_SYNC = 'now SIGNAL resume_clone1';
 SET DEBUG_SYNC = 'now WAIT_FOR start_dml2';
-SET global debug="+d,clone_arch_log_stop_file_end";
 START TRANSACTION;
 call execute_dml(3, 0, 1, 1, 1, 0);
 call execute_dml(0, 0, 150, 150, 10, 0);
 COMMIT;
 SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
 # In connection default - Cloning database
-SET global debug="-d,clone_arch_log_stop_file_end";
+SET GLOBAL DEBUG ="-d,clone_arch_log_stop_file_end";
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
+SET GLOBAL DEBUG ="+d,clone_arch_log_stop_file_end";
+SET GLOBAL DEBUG ="+d,clone_arch_log_extra_bytes";
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
@@ -317,16 +324,14 @@ COMMIT;
 SET GLOBAL innodb_buf_flush_list_now = 1;
 SET DEBUG_SYNC = 'now SIGNAL resume_clone1';
 SET DEBUG_SYNC = 'now WAIT_FOR start_dml2';
-SET global debug="+d,clone_arch_log_stop_file_end";
-SET global debug="+d,clone_arch_log_extra_bytes";
 START TRANSACTION;
 call execute_dml(3, 0, 1, 1, 1, 0);
 call execute_dml(0, 0, 150, 150, 10, 0);
 COMMIT;
 SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
 # In connection default - Cloning database
-SET global debug="-d,clone_arch_log_stop_file_end";
-SET global debug="-d,clone_arch_log_extra_bytes";
+SET GLOBAL DEBUG ="-d,clone_arch_log_stop_file_end";
+SET GLOBAL DEBUG ="-d,clone_arch_log_extra_bytes";
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET GLOBAL clone_autotune_concurrency = OFF;

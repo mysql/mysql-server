@@ -55,7 +55,8 @@ CREATE TABLE data_types (
 id INT PRIMARY KEY AUTO_INCREMENT,
 name TEXT
 );
-INSERT INTO data_types (name) SELECT DISTINCT(type_name) FROM data_examples;
+INSERT INTO data_types (name)
+SELECT type_name FROM data_examples GROUP BY type_name ORDER BY MIN(id);
 #
 # Testing virtual column of type JSON
 #
@@ -3247,9 +3248,11 @@ t	CREATE TABLE `t` (
   KEY `on_b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (4000000000);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t;
 a	b
-4000000000	-294967296
+4000000000	2147483647
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -7539,7 +7542,7 @@ Note	1265	Data truncated for column 'b' at row 1
 Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t;
 a	b
-200000000000000000000000000000000000000000   	0.00
+200000000000000000000000000000000000000000   	99.99
 Warnings:
 Warning	1366	Incorrect decimal value: '200000000000000000000000000000000000000000\x00\x00\x00' for column 'b' at row 1
 DELETE FROM t;
@@ -8348,7 +8351,7 @@ Note	1265	Data truncated for column 'b' at row 1
 Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t;
 a	b
-200000000000000000000000000000000000000000   	0.0000
+200000000000000000000000000000000000000000   	999999999999999999999999999999.9999
 Warnings:
 Warning	1366	Incorrect decimal value: '200000000000000000000000000000000000000000\x00\x00\x00' for column 'b' at row 1
 DELETE FROM t;

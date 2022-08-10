@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqlrouter\fR
+.\"     Title: mysqlrouter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/02/2022
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Router"
+.TH "MYSQLROUTER" "1" "06/02/2022" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -95,8 +95,8 @@ Displays the version number and related information of the application, and exit
 .RS 4
 .\}
 .nf
-shell> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.0\&.25 on Linux (64\-bit) (GPL community edition)
+$> \fBmysqlrouter \-\-version\fR
+MySQL Router v8\&.0\&.29 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -137,7 +137,7 @@ output shows an example from a Ubuntu 16\&.04 machine:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlrouter \-\-help\fR
+$> \fBmysqlrouter \-\-help\fR
 \&.\&.\&.
 Start MySQL Router\&.
 Configuration read from the following files in the given order (enclosed
@@ -313,7 +313,13 @@ values for each connection type.
 .PP
 By default, generated
 \fBbind_port\fR
-values are as follows: For the classic protocol, Read-Write uses 6446 and Read-Only uses 6447, and for the X protocol Read-Write uses 64460 and Read-Only uses 64470.
+values are as follows: For the classic protocol, Read-Write uses 6446 and Read-Only uses 6447, and for the X protocol Read-Write uses 6448 and Read-Only uses 6449.
+.PP
+As of Router 8.0.24: Setting
+\fB--conf-base-port\fR
+to 0 changes the default
+\fBbind_port\fR
+values to previous (before 8.0.24) defaults, which were as follows: For the classic protocol, Read-Write uses 6446 and Read-Only uses 6447, and for the X protocol Read-Write uses 64460 and Read-Only uses 64470.
 T}
 T{
 \fB--conf-use-sockets\fR
@@ -516,7 +522,7 @@ Example usage:
 .RS 4
 .\}
 .nf
-shell> mysqlrouter \-\-bootstrap=127\&.0\&.0\&.1:3310 \-\-master\-key\-reader=\&./reader\&.sh \-\-master\-key\-writer=\&./writer\&.sh
+$> mysqlrouter \-\-bootstrap=127\&.0\&.0\&.1:3310 \-\-master\-key\-reader=\&./reader\&.sh \-\-master\-key\-writer=\&./writer\&.sh
 .fi
 .if n \{\
 .RE
@@ -617,7 +623,7 @@ Example usage:
 .RS 4
 .\}
 .nf
-shell> mysqlrouter \-\-bootstrap=127\&.0\&.0\&.1:3310 \-\-master\-key\-reader=\&./reader\&.sh \-\-master\-key\-writer=\&./writer\&.sh
+$> mysqlrouter \-\-bootstrap=127\&.0\&.0\&.1:3310 \-\-master\-key\-reader=\&./reader\&.sh \-\-master\-key\-writer=\&./writer\&.sh
 .fi
 .if n \{\
 .RE
@@ -728,9 +734,13 @@ option is also used\&. Example required permissions:
 .RS 4
 .\}
 .nf
-GRANT SELECT ON mysql_innodb_cluster_metadata\&.* TO `theuser`
-GRANT SELECT ON performance_schema\&.replication_group_members TO `theuser`
-GRANT SELECT ON performance_schema\&.replication_group_member_stats TO `theuser`
+GRANT USAGE ON *\&.* TO `theuser`@`%`
+GRANT SELECT, EXECUTE ON `mysql_innodb_cluster_metadata`\&.* TO `theuser`@`%`
+GRANT INSERT, UPDATE, DELETE ON `mysql_innodb_cluster_metadata`\&.`routers` TO `theuser`@`%`
+GRANT INSERT, UPDATE, DELETE ON `mysql_innodb_cluster_metadata`\&.`v2_routers` TO `theuser`@`%`
+GRANT SELECT ON `performance_schema`\&.`global_variables` TO `theuser`@`%`
+GRANT SELECT ON `performance_schema`\&.`replication_group_member_stats` TO `theuser`@`%`
+GRANT SELECT ON `performance_schema`\&.`replication_group_members` TO `theuser`@`%`
 .fi
 .if n \{\
 .RE
@@ -910,9 +920,9 @@ Examples:
 .\}
 .nf
 # One host
-shell> mysqlrouter \-\-bootstrap localhost:3310 \-\-account\-host host1
+$> mysqlrouter \-\-bootstrap localhost:3310 \-\-account\-host host1
 # Or, multiple hosts
-shell> mysqlrouter \-\-bootstrap localhost:3310 \-\-account\-host host1 \-\-account\-host host2 \-\-account\-host host3
+$> mysqlrouter \-\-bootstrap localhost:3310 \-\-account\-host host1 \-\-account\-host host2 \-\-account\-host host3
 .fi
 .if n \{\
 .RE
@@ -996,7 +1006,9 @@ Enables the
 \fBuse_gr_notifications\fR
 [metadata_cache] option during bootstrap\&. When enabled, Router is asynchronously notified about most cluster changes\&. See
 \fBuse_gr_notifications\fR
-for more information\&.
+for more information\&. In addition, using this option sets
+\fBttl\fR=60 and
+\fBauth_cache_refresh_interval\fR=60\&.
 .RE
 .sp
 .RS 4
@@ -1161,6 +1173,12 @@ for each bootstrapped route\&.
 .sp
 This value is used for the classic read\-write route, and each additional allocated port is incremented by a value of one\&. The port order set is classic read\-write / read\-only, and then x read\-write / read\-only\&.
 .sp
+As of Router 8\&.0\&.24: Setting
+\fB\-\-conf\-base\-port\fR
+to 0 changes the default
+\fBbind_port\fR
+values to previous (before 8\&.0\&.24) defaults, which were as follows: For the classic protocol, Read\-Write uses 6446 and Read\-Only uses 6447, and for the X protocol Read\-Write uses 64460 and Read\-Only uses 64470\&.
+.sp
 Example usage:
 .sp
 .if n \{\
@@ -1168,16 +1186,7 @@ Example usage:
 .\}
 .nf
 \fB# Example without \-\-conf\-base\-port\fR
-shell> mysqlrouter \-\-bootstrap root@localhost:3310
-\&.\&.\&.
-Classic MySQL protocol connections to cluster \*(AqdevCluster\*(Aq:
-\- Read/Write Connections: localhost:6446
-\- Read/Only Connections: localhost:6447
-X protocol connections to cluster \*(AqdevCluster\*(Aq:
-\- Read/Write Connections: localhost:64460
-\- Read/Only Connections: localhost:64470
-\fB# Example demonstrating \-\-conf\-base\-port behavior\fR
-shell> mysqlrouter \-\-bootstrap root@localhost:3310 \-\-conf\-base\-port 6446
+$> mysqlrouter \-\-bootstrap root@localhost:3310
 \&.\&.\&.
 Classic MySQL protocol connections to cluster \*(AqdevCluster\*(Aq:
 \- Read/Write Connections: localhost:6446
@@ -1185,6 +1194,15 @@ Classic MySQL protocol connections to cluster \*(AqdevCluster\*(Aq:
 X protocol connections to cluster \*(AqdevCluster\*(Aq:
 \- Read/Write Connections: localhost:6448
 \- Read/Only Connections: localhost:6449
+\fB# Example demonstrating \-\-conf\-base\-port set to 0\fR
+$> mysqlrouter \-\-bootstrap root@localhost:3310 \-\-conf\-base\-port 0
+\&.\&.\&.
+Classic MySQL protocol connections to cluster \*(AqdevCluster\*(Aq:
+\- Read/Write Connections: localhost:6446
+\- Read/Only Connections: localhost:6447
+X protocol connections to cluster \*(AqdevCluster\*(Aq:
+\- Read/Write Connections: localhost:64460
+\- Read/Only Connections: localhost:64470
 .fi
 .if n \{\
 .RE
@@ -1265,17 +1283,11 @@ is not defined\&.
 allbox tab(:);
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --read-timeout num_seconds
-T}
-T{
-Introduced
-T}:T{
-8.0.4
 T}
 T{
 Type
@@ -1314,17 +1326,11 @@ namespace\&.
 allbox tab(:);
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --connect-timeout num_seconds
-T}
-T{
-Introduced
-T}:T{
-8.0.4
 T}
 T{
 Type
@@ -1638,17 +1644,11 @@ The configuration file equivalent is documented separately at
 .TS
 allbox tab(:);
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ssl-key file_path
-T}
-T{
-Introduced
-T}:T{
-8.0.4
 T}
 T{
 Type
@@ -1677,17 +1677,11 @@ Like
 .TS
 allbox tab(:);
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ssl-key file_path
-T}
-T{
-Introduced
-T}:T{
-8.0.4
 T}
 T{
 Type
@@ -1973,7 +1967,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---install-service
+--install-service [service_name]
 T}
 T{
 Platform Specific
@@ -1982,7 +1976,7 @@ Windows
 T}
 .TE
 .sp 1
-Install Router as a Windows service that automatically starts when Windows starts\&. The service name is
+Install Router as a Windows service that automatically starts when Windows starts\&. The service name defaults to
 \fIMySQLRouter\fR\&.
 .sp
 This installation process does not validate configuration files passed in via
@@ -2007,7 +2001,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---install-service-manual
+--install-service-manual [service_name]
 T}
 T{
 Platform Specific
@@ -2016,10 +2010,10 @@ Windows
 T}
 .TE
 .sp 1
-Install MySQL Router as a Windows service that can be manually started\&. The service name is
+Install MySQL Router as a Windows service that can be manually started\&. The service name defaults to
 \fIMySQLRouter\fR\&.
 .sp
-This option is only available on Windows\&.
+This option is only available on Windows\&. Optional service name argument available as of MySQL Router 8\&.0\&.28\&.
 .RE
 .sp
 .RS 4
@@ -2038,7 +2032,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---remove-service
+--remove-service [service_name]
 T}
 T{
 Platform Specific
@@ -2047,9 +2041,9 @@ Windows
 T}
 .TE
 .sp 1
-Remove the Router Windows service\&.
+Remove the Router Windows service; service name defaults to MySQLRouter\&.
 .sp
-This option is only available on Windows\&.
+This option is only available on Windows\&. Optional service name argument available as of MySQL Router 8\&.0\&.28\&.
 .RE
 .sp
 .RS 4
@@ -2077,9 +2071,9 @@ Windows
 T}
 .TE
 .sp 1
-Start Router as a Windows service\&.
+Start Router as a Windows service\&. This is a private option, meaning it is only meant to be used by the Windows Service when launching Router as a service\&.
 .sp
-This option is only available on Windows\&.
+This option is only available on Windows\&. Optional service name argument available as of MySQL Router 8\&.0\&.28\&.
 .RE
 .sp
 .RS 4
@@ -2108,6 +2102,226 @@ T}
 .TE
 .sp 1
 This option is only available on Windows, and refers to its password vault\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-conf\-target\-cluster\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--conf-target-cluster value
+T}
+T{
+Introduced
+T}:T{
+8.0.27
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Valid Values
+T}:T{
+.PP
+current
+.PP
+primary
+T}
+.TE
+.sp 1
+Sets the
+\fBtarget_cluster\fR
+metadata MySQL Router option\&. Accepts one of the following strings:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+current: sets
+\fBtarget_cluster\fR
+to the cluster containing the node being boostrapped against\&. It defines it as the cluster\*(Aqs UUID value\&.
+.sp
+If this is also the Primary, it does not dynamically follow role changes like the
+\fBprimary\fR
+does; instead it remains static\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+primary: sets
+\fBtarget_cluster\fR
+to the primary cluster, including when it changes at runtime\&.
+.RE
+.sp
+See also
+\fB\-\-config\-target\-cluster\-by\-name\fR, which sets the
+\fBtarget_cluster\fR
+to a specific static cluster name\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+Bootstrapping against a
+\m[blue]\fBClusterSet\fR\m[]\&\s-2\u[2]\d\s+2
+requires the
+\fBcluster_type\fR
+Router configuration option set to
+\fIgr\fR\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-conf\-set\-option\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--conf-set-option section_name[:optional_section_key].option=value
+T}
+T{
+Introduced
+T}:T{
+8.0.28
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+Sets a value for a generated configuration option during bootstrap; this can set a value for any bootstrapped option, for example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$> mysqlrouter \-B 127\&.0\&.0\&.1:5000 \e
+               \-\-directory=dir1  \e
+               \-\-conf\-set\-option=logger\&.level=debug \e
+               \-\-conf\-set\-option=routing:test_rw\&.max_connect_errors=0 \e
+               \-\-conf\-set\-option=routing:test_ro\&.max_connect_errors=0
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Those commands alter the default values for those specific options by defining them as such:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[logger]
+level=debug
+[routing:test_rw]
+\&.\&.\&.
+max_connect_errors=0
+\&.\&.\&.
+[routing:test_ro]
+\&.\&.\&.
+max_connect_errors=0
+\&.\&.\&.
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+\fB\-\-conf\-set\-option\fR
+definitions take precedence over option specific parameters to set specific value\&. For example, if both
+\fB\-\-connect\-timeout=X\fR
+and
+\fB\-\-conf\-set\-option=DEFAULT\&.connect_timeout=Y\fR
+are specified when bootstrapping, the
+\fBconnect_timeout\fR
+is set to
+\fIY\fR
+in the generated configuration file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-conf\-target\-cluster\-by\-name\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--conf-target-cluster-by-name clusterName
+T}
+T{
+Introduced
+T}:T{
+8.0.27
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+Sets the
+\fBtarget_cluster\fR
+metadata MySQL Router option to a specific cluster name\&.
+.sp
+Or, instead use
+\fB\-\-conf\-target\-cluster\fR
+to assign a dynamic cluster type, such as primary\&.
 .RE
 .sp
 .RS 4
@@ -2260,7 +2474,7 @@ at bootstrap\&. It defaults to 8443\&. Availability of the port is not checked\&
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2021, Oracle and/or its affiliates.
+Copyright \(co 2006, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -2273,6 +2487,11 @@ You should have received a copy of the GNU General Public License along with the
 Connecting Using URI-Like Connection Strings
 .RS 4
 \%https://dev.mysql.com/doc/refman/8.0/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri
+.RE
+.IP " 2." 4
+ClusterSet
+.RS 4
+\%https://dev.mysql.com/doc/mysql-shell/8.0/en/innodb-clusterset.html
 .RE
 .SH AUTHOR
 Oracle Corporation (http://dev.mysql.com/).

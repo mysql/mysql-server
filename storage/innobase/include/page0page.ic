@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,28 +40,22 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0log.h"
 #include "page0zip.h"
 
-#ifdef UNIV_MATERIALIZE
-#undef UNIV_INLINE
-#define UNIV_INLINE
-#endif
-
 /** Gets the start of a page.
  @return start of the page */
-UNIV_INLINE
-page_t *page_align(const void *ptr) /*!< in: pointer to page frame */
+static inline page_t *page_align(
+    const void *ptr) /*!< in: pointer to page frame */
 {
   return ((page_t *)ut_align_down(ptr, UNIV_PAGE_SIZE));
 }
 /** Gets the offset within a page.
  @return offset from the start of the page */
-UNIV_INLINE
-ulint page_offset(const void *ptr) /*!< in: pointer to page frame */
+static inline ulint page_offset(
+    const void *ptr) /*!< in: pointer to page frame */
 {
   return (ut_align_offset(ptr, UNIV_PAGE_SIZE));
 }
 /** Returns the max trx id field value. */
-UNIV_INLINE
-trx_id_t page_get_max_trx_id(const page_t *page) /*!< in: page */
+static inline trx_id_t page_get_max_trx_id(const page_t *page) /*!< in: page */
 {
   ut_ad(page);
 
@@ -70,8 +64,7 @@ trx_id_t page_get_max_trx_id(const page_t *page) /*!< in: page */
 
 /** Sets the max trx id field value if trx_id is bigger than the previous
  value. */
-UNIV_INLINE
-void page_update_max_trx_id(
+static inline void page_update_max_trx_id(
     buf_block_t *block,       /*!< in/out: page */
     page_zip_des_t *page_zip, /*!< in/out: compressed page whose
                              uncompressed part will be updated, or NULL */
@@ -85,7 +78,7 @@ void page_update_max_trx_id(
   /* During crash recovery, this function may be called on
   something else than a leaf page of a secondary index or the
   insert buffer index tree (dict_index_is_sec_or_ibuf() returns
-  TRUE for the dummy indexes constructed during redo log
+  true for the dummy indexes constructed during redo log
   application).  In that case, PAGE_MAX_TRX_ID is unused,
   and trx_id is usually zero. */
   ut_ad(trx_id || recv_recovery_is_on());
@@ -97,10 +90,9 @@ void page_update_max_trx_id(
 }
 
 /** Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
-@param[in]	page	page
+@param[in]      page    page
 @return SPLIT SEQUENCE NUMBER */
-UNIV_INLINE
-node_seq_t page_get_ssn_id(const page_t *page) {
+static inline node_seq_t page_get_ssn_id(const page_t *page) {
   ut_ad(page);
 
   return (static_cast<node_seq_t>(
@@ -108,14 +100,13 @@ node_seq_t page_get_ssn_id(const page_t *page) {
 }
 
 /** Sets the RTREE SPLIT SEQUENCE NUMBER field value
-@param[in,out]	block		Page
-@param[in,out]	page_zip	Compressed page whose uncompressed part will
+@param[in,out]  block           Page
+@param[in,out]  page_zip        Compressed page whose uncompressed part will
                                 be updated, or NULL
-@param[in]	ssn_id		Transaction id
-@param[in,out]	mtr		Mini-transaction */
-UNIV_INLINE
-void page_set_ssn_id(buf_block_t *block, page_zip_des_t *page_zip,
-                     node_seq_t ssn_id, mtr_t *mtr) {
+@param[in]      ssn_id          Transaction id
+@param[in,out]  mtr             Mini-transaction */
+static inline void page_set_ssn_id(buf_block_t *block, page_zip_des_t *page_zip,
+                                   node_seq_t ssn_id, mtr_t *mtr) {
   page_t *page = buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
   ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_SX_FIX) ||
@@ -135,8 +126,7 @@ void page_set_ssn_id(buf_block_t *block, page_zip_des_t *page_zip,
 }
 
 /** Sets the given header field. */
-UNIV_INLINE
-void page_header_set_field(
+static inline void page_header_set_field(
     page_t *page,             /*!< in/out: page */
     page_zip_des_t *page_zip, /*!< in/out: compressed page whose
                              uncompressed part will be updated, or NULL */
@@ -154,12 +144,7 @@ void page_header_set_field(
   }
 }
 
-/** Returns the offset stored in the given header field.
- @return offset from the start of the page, or 0 */
-UNIV_INLINE
-ulint page_header_get_offs(const page_t *page, /*!< in: page */
-                           ulint field)        /*!< in: PAGE_FREE, ... */
-{
+static inline ulint page_header_get_offs(const page_t *page, ulint field) {
   ulint offs;
 
   ut_ad(page);
@@ -174,8 +159,7 @@ ulint page_header_get_offs(const page_t *page, /*!< in: page */
 }
 
 /** Sets the pointer stored in the given header field. */
-UNIV_INLINE
-void page_header_set_ptr(
+static inline void page_header_set_ptr(
     page_t *page,             /*!< in: page */
     page_zip_des_t *page_zip, /*!< in/out: compressed page whose
                              uncompressed part will be updated, or NULL */
@@ -202,8 +186,7 @@ void page_header_set_ptr(
 #ifndef UNIV_HOTBACKUP
 /** Resets the last insert info field in the page header. Writes to mlog
  about this operation. */
-UNIV_INLINE
-void page_header_reset_last_insert(
+static inline void page_header_reset_last_insert(
     page_t *page,             /*!< in/out: page */
     page_zip_des_t *page_zip, /*!< in/out: compressed page whose
                              uncompressed part will be updated, or NULL */
@@ -226,24 +209,22 @@ void page_header_reset_last_insert(
 /** Determine whether the page is in new-style compact format.
  @return nonzero if the page is in compact format, zero if it is in
  old-style format */
-UNIV_INLINE
-ulint page_is_comp(const page_t *page) /*!< in: index page */
+static inline bool page_is_comp(const page_t *page) /*!< in: index page */
 {
-  return (page_header_get_field(page, PAGE_N_HEAP) & 0x8000);
+  return (page_header_get_field(page, PAGE_N_HEAP) & 0x8000) != 0;
 }
 
-/** TRUE if the record is on a page in compact format.
+/** true if the record is on a page in compact format.
  @return nonzero if in compact format */
-UNIV_INLINE
-ulint page_rec_is_comp(const rec_t *rec) /*!< in: record */
+static inline bool page_rec_is_comp(const rec_t *rec) /*!< in: record */
 {
   return (page_is_comp(page_align(rec)));
 }
 
 /** Returns the heap number of a record.
  @return heap number */
-UNIV_INLINE
-ulint page_rec_get_heap_no(const rec_t *rec) /*!< in: the physical record */
+static inline ulint page_rec_get_heap_no(
+    const rec_t *rec) /*!< in: the physical record */
 {
   if (page_rec_is_comp(rec)) {
     return (rec_get_heap_no_new(rec));
@@ -254,31 +235,25 @@ ulint page_rec_get_heap_no(const rec_t *rec) /*!< in: the physical record */
 
 /** Determine whether the page is a B-tree leaf.
  @return true if the page is a B-tree leaf (PAGE_LEVEL = 0) */
-UNIV_INLINE
-bool page_is_leaf(const page_t *page) /*!< in: page */
+static inline bool page_is_leaf(const page_t *page) /*!< in: page */
 {
   return (!*(const uint16 *)(page + (PAGE_HEADER + PAGE_LEVEL)));
 }
 
 /** Determine whether the page is empty.
  @return true if the page is empty (PAGE_N_RECS = 0) */
-UNIV_INLINE
-bool page_is_empty(const page_t *page) /*!< in: page */
+static inline bool page_is_empty(const page_t *page) /*!< in: page */
 {
   return (!*(const uint16 *)(page + (PAGE_HEADER + PAGE_N_RECS)));
 }
 
 /** Determine whether a page is an index root page.
-@param[in]	page	page frame
+@param[in]      page    page frame
 @return true if the page is a root page of an index */
-UNIV_INLINE
-bool page_is_root(const page_t *page) {
-#if FIL_PAGE_PREV % 8
-#error FIL_PAGE_PREV must be 64-bit aligned
-#endif
-#if FIL_PAGE_NEXT != FIL_PAGE_PREV + 4
-#error FIL_PAGE_NEXT must be adjacent to FIL_PAGE_PREV
-#endif
+static inline bool page_is_root(const page_t *page) {
+  static_assert(FIL_PAGE_PREV % 8 == 0, "FIL_PAGE_PREV must be 64-bit aligned");
+  static_assert(FIL_PAGE_NEXT == FIL_PAGE_PREV + 4,
+                "FIL_PAGE_NEXT must be adjacent to FIL_PAGE_PREV");
 
   static_assert(FIL_NULL == 0xffffffff, "FIL_NULL != 0xffffffff");
 
@@ -286,22 +261,20 @@ bool page_is_root(const page_t *page) {
   pointers are FIL_NULL, because the root page does not have any
   siblings. */
   return (fil_page_index_page_check(page) &&
-          *reinterpret_cast<const ib_uint64_t *>(page + FIL_PAGE_PREV) ==
-              IB_UINT64_MAX);
+          *reinterpret_cast<const uint64_t *>(page + FIL_PAGE_PREV) ==
+              std::numeric_limits<uint64_t>::max());
 }
 
 /** Determine whether the page contains garbage.
  @return true if the page contains garbage (PAGE_GARBAGE is not 0) */
-UNIV_INLINE
-bool page_has_garbage(const page_t *page) /*!< in: page */
+static inline bool page_has_garbage(const page_t *page) /*!< in: page */
 {
   return (!!*(const uint16 *)(page + (PAGE_HEADER + PAGE_GARBAGE)));
 }
 
 /** Gets the offset of the first record on the page.
  @return offset of the first record in record list, relative from page */
-UNIV_INLINE
-ulint page_get_infimum_offset(
+static inline ulint page_get_infimum_offset(
     const page_t *page) /*!< in: page which must have record(s) */
 {
   ut_ad(page);
@@ -316,8 +289,7 @@ ulint page_get_infimum_offset(
 
 /** Gets the offset of the last record on the page.
  @return offset of the last record in record list, relative from page */
-UNIV_INLINE
-ulint page_get_supremum_offset(
+static inline ulint page_get_supremum_offset(
     const page_t *page) /*!< in: page which must have record(s) */
 {
   ut_ad(page);
@@ -330,10 +302,10 @@ ulint page_get_supremum_offset(
   }
 }
 
-/** TRUE if the record is a user record on the page.
+/** true if the record is a user record on the page.
  @return true if a user record */
-UNIV_INLINE
-ibool page_rec_is_user_rec_low(ulint offset) /*!< in: record offset on page */
+static inline bool page_rec_is_user_rec_low(
+    ulint offset) /*!< in: record offset on page */
 {
   ut_ad(offset >= PAGE_NEW_INFIMUM);
 
@@ -361,10 +333,10 @@ ibool page_rec_is_user_rec_low(ulint offset) /*!< in: record offset on page */
           offset != PAGE_OLD_INFIMUM && offset != PAGE_OLD_SUPREMUM);
 }
 
-/** TRUE if the record is the supremum record on a page.
+/** true if the record is the supremum record on a page.
  @return true if the supremum record */
-UNIV_INLINE
-ibool page_rec_is_supremum_low(ulint offset) /*!< in: record offset on page */
+static inline bool page_rec_is_supremum_low(
+    ulint offset) /*!< in: record offset on page */
 {
   ut_ad(offset >= PAGE_NEW_INFIMUM);
   ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
@@ -372,10 +344,10 @@ ibool page_rec_is_supremum_low(ulint offset) /*!< in: record offset on page */
   return (offset == PAGE_NEW_SUPREMUM || offset == PAGE_OLD_SUPREMUM);
 }
 
-/** TRUE if the record is the infimum record on a page.
+/** true if the record is the infimum record on a page.
  @return true if the infimum record */
-UNIV_INLINE
-ibool page_rec_is_infimum_low(ulint offset) /*!< in: record offset on page */
+static inline bool page_rec_is_infimum_low(
+    ulint offset) /*!< in: record offset on page */
 {
   ut_ad(offset >= PAGE_NEW_INFIMUM);
   ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
@@ -383,73 +355,55 @@ ibool page_rec_is_infimum_low(ulint offset) /*!< in: record offset on page */
   return (offset == PAGE_NEW_INFIMUM || offset == PAGE_OLD_INFIMUM);
 }
 
-/** TRUE if the record is a user record on the page.
+/** true if the record is a user record on the page.
  @return true if a user record */
-UNIV_INLINE
-ibool page_rec_is_user_rec(const rec_t *rec) /*!< in: record */
+static inline bool page_rec_is_user_rec(const rec_t *rec) /*!< in: record */
 {
   ut_ad(page_rec_check(rec));
 
   return (page_rec_is_user_rec_low(page_offset(rec)));
 }
 
-/** TRUE if the record is the supremum record on a page.
+/** true if the record is the supremum record on a page.
  @return true if the supremum record */
-UNIV_INLINE
-ibool page_rec_is_supremum(const rec_t *rec) /*!< in: record */
+static inline bool page_rec_is_supremum(const rec_t *rec) /*!< in: record */
 {
   ut_ad(page_rec_check(rec));
 
   return (page_rec_is_supremum_low(page_offset(rec)));
 }
 
-/** TRUE if the record is the infimum record on a page.
+/** true if the record is the infimum record on a page.
  @return true if the infimum record */
-UNIV_INLINE
-ibool page_rec_is_infimum(const rec_t *rec) /*!< in: record */
+static inline bool page_rec_is_infimum(const rec_t *rec) /*!< in: record */
 {
   ut_ad(page_rec_check(rec));
 
   return (page_rec_is_infimum_low(page_offset(rec)));
 }
 
-/** true if the record is the first user record on a page.
- @return true if the first user record */
-UNIV_INLINE
-bool page_rec_is_first(const rec_t *rec,   /*!< in: record */
-                       const page_t *page) /*!< in: page */
-{
+static inline bool page_rec_is_first(const rec_t *rec, const page_t *page) {
   ut_ad(page_get_n_recs(page) > 0);
 
   return (page_rec_get_next_const(page_get_infimum_rec(page)) == rec);
 }
 
-/** true if the record is the second user record on a page.
- @return true if the second user record */
-UNIV_INLINE
-bool page_rec_is_second(const rec_t *rec,   /*!< in: record */
-                        const page_t *page) /*!< in: page */
-{
+static inline bool page_rec_is_second(const rec_t *rec, const page_t *page) {
   ut_ad(page_get_n_recs(page) > 1);
 
   return (page_rec_get_next_const(
               page_rec_get_next_const(page_get_infimum_rec(page))) == rec);
 }
 
-/** true if the record is the last user record on a page.
- @return true if the last user record */
-UNIV_INLINE
-bool page_rec_is_last(const rec_t *rec,   /*!< in: record */
-                      const page_t *page) /*!< in: page */
-{
+static inline bool page_rec_is_last(const rec_t *rec, const page_t *page) {
   ut_ad(page_get_n_recs(page) > 0);
 
   return (page_rec_get_next_const(rec) == page_get_supremum_rec(page));
 }
 
-UNIV_INLINE
-bool page_rec_distance_is_at_most(const rec_t *left_rec, const rec_t *right_rec,
-                                  ulint val) {
+static inline bool page_rec_distance_is_at_most(const rec_t *left_rec,
+                                                const rec_t *right_rec,
+                                                ulint val) {
   for (ulint i = 0; i <= val; i++) {
     if (left_rec == right_rec) {
       return (true);
@@ -459,12 +413,8 @@ bool page_rec_distance_is_at_most(const rec_t *left_rec, const rec_t *right_rec,
   return (false);
 }
 
-/** true if the record is the second last user record on a page.
- @return true if the second last user record */
-UNIV_INLINE
-bool page_rec_is_second_last(const rec_t *rec,   /*!< in: record */
-                             const page_t *page) /*!< in: page */
-{
+static inline bool page_rec_is_second_last(const rec_t *rec,
+                                           const page_t *page) {
   ut_ad(page_get_n_recs(page) > 1);
   ut_ad(!page_rec_is_last(rec, page));
 
@@ -475,9 +425,8 @@ bool page_rec_is_second_last(const rec_t *rec,   /*!< in: record */
 /** Returns the nth record of the record list.
  This is the inverse function of page_rec_get_n_recs_before().
  @return nth record */
-UNIV_INLINE
-rec_t *page_rec_get_nth(page_t *page, /*!< in: page */
-                        ulint nth)    /*!< in: nth record */
+static inline rec_t *page_rec_get_nth(page_t *page, /*!< in: page */
+                                      ulint nth)    /*!< in: nth record */
 {
   return ((rec_t *)page_rec_get_nth_const(page, nth));
 }
@@ -487,8 +436,7 @@ rec_t *page_rec_get_nth(page_t *page, /*!< in: page */
  even number of records in the list, returns the first record of the
  upper half-list.
  @return middle record */
-UNIV_INLINE
-rec_t *page_get_middle_rec(page_t *page) /*!< in: page */
+static inline rec_t *page_get_middle_rec(page_t *page) /*!< in: page */
 {
   ulint middle = (page_get_n_recs(page) + PAGE_HEAP_NO_USER_LOW) / 2;
 
@@ -498,8 +446,7 @@ rec_t *page_get_middle_rec(page_t *page) /*!< in: page */
 
 /** Gets the page number.
  @return page number */
-UNIV_INLINE
-page_no_t page_get_page_no(const page_t *page) /*!< in: page */
+static inline page_no_t page_get_page_no(const page_t *page) /*!< in: page */
 {
   ut_ad(page == page_align((page_t *)page));
   return (mach_read_from_4(page + FIL_PAGE_OFFSET));
@@ -507,37 +454,33 @@ page_no_t page_get_page_no(const page_t *page) /*!< in: page */
 
 /** Gets the tablespace identifier.
  @return space id */
-UNIV_INLINE
-space_id_t page_get_space_id(const page_t *page) /*!< in: page */
+static inline space_id_t page_get_space_id(const page_t *page) /*!< in: page */
 {
   ut_ad(page == page_align((page_t *)page));
   return (mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 }
 
-UNIV_INLINE
-page_id_t page_get_page_id(const page_t *page) {
+static inline page_id_t page_get_page_id(const page_t *page) {
   return page_id_t{page_get_space_id(page), page_get_page_no(page)};
 }
 
 /** Gets the number of user records on page (infimum and supremum records
  are not user records).
  @return number of user records */
-UNIV_INLINE
-ulint page_get_n_recs(const page_t *page) /*!< in: index page */
+static inline ulint page_get_n_recs(const page_t *page) /*!< in: index page */
 {
   return (page_header_get_field(page, PAGE_N_RECS));
 }
 
 /** Gets the number of dir slots in directory.
  @return number of slots */
-UNIV_INLINE
-ulint page_dir_get_n_slots(const page_t *page) /*!< in: index page */
+static inline ulint page_dir_get_n_slots(
+    const page_t *page) /*!< in: index page */
 {
   return (page_header_get_field(page, PAGE_N_DIR_SLOTS));
 }
 /** Sets the number of dir slots in directory. */
-UNIV_INLINE
-void page_dir_set_n_slots(
+static inline void page_dir_set_n_slots(
     page_t *page,             /*!< in/out: page */
     page_zip_des_t *page_zip, /*!< in/out: compressed page whose
                              uncompressed part will be updated, or NULL */
@@ -547,8 +490,7 @@ void page_dir_set_n_slots(
 }
 
 /** Sets the number of records in the heap. */
-UNIV_INLINE
-void page_dir_set_n_heap(
+static inline void page_dir_set_n_heap(
     page_t *page,             /*!< in/out: index page */
     page_zip_des_t *page_zip, /*!< in/out: compressed page whose
                              uncompressed part will be updated, or NULL.
@@ -559,7 +501,7 @@ void page_dir_set_n_heap(
 {
   ut_ad(n_heap < 0x8000);
   ut_ad(!page_zip ||
-        n_heap == (page_header_get_field(page, PAGE_N_HEAP) & 0x7fff) + 1);
+        n_heap == (page_header_get_field(page, PAGE_N_HEAP) & 0x7fffU) + 1);
 
   page_header_set_field(
       page, page_zip, PAGE_N_HEAP,
@@ -569,8 +511,7 @@ void page_dir_set_n_heap(
 #ifdef UNIV_DEBUG
 /** Gets pointer to nth directory slot.
  @return pointer to dir slot */
-UNIV_INLINE
-page_dir_slot_t *page_dir_get_nth_slot(
+static inline page_dir_slot_t *page_dir_get_nth_slot(
     const page_t *page, /*!< in: index page */
     ulint n)            /*!< in: position */
 {
@@ -583,8 +524,7 @@ page_dir_slot_t *page_dir_get_nth_slot(
 
 /** Used to check the consistency of a record on a page.
  @return true if succeed */
-UNIV_INLINE
-ibool page_rec_check(const rec_t *rec) /*!< in: record */
+static inline bool page_rec_check(const rec_t *rec) /*!< in: record */
 {
   const page_t *page = page_align(rec);
 
@@ -593,22 +533,21 @@ ibool page_rec_check(const rec_t *rec) /*!< in: record */
   ut_a(page_offset(rec) <= page_header_get_field(page, PAGE_HEAP_TOP));
   ut_a(page_offset(rec) >= PAGE_DATA);
 
-  return (TRUE);
+  return true;
 }
 
 /** Gets the record pointed to by a directory slot.
  @return pointer to record */
-UNIV_INLINE
-const rec_t *page_dir_slot_get_rec(
+static inline const rec_t *page_dir_slot_get_rec(
     const page_dir_slot_t *slot) /*!< in: directory slot */
 {
   return (page_align(slot) + mach_read_from_2(slot));
 }
 
 /** This is used to set the record offset in a directory slot. */
-UNIV_INLINE
-void page_dir_slot_set_rec(page_dir_slot_t *slot, /*!< in: directory slot */
-                           rec_t *rec)            /*!< in: record on the page */
+static inline void page_dir_slot_set_rec(
+    page_dir_slot_t *slot, /*!< in: directory slot */
+    rec_t *rec)            /*!< in: record on the page */
 {
   ut_ad(page_rec_check(rec));
 
@@ -617,8 +556,7 @@ void page_dir_slot_set_rec(page_dir_slot_t *slot, /*!< in: directory slot */
 
 /** Gets the number of records owned by a directory slot.
  @return number of records */
-UNIV_INLINE
-ulint page_dir_slot_get_n_owned(
+static inline ulint page_dir_slot_get_n_owned(
     const page_dir_slot_t *slot) /*!< in: page directory slot */
 {
   const rec_t *rec = page_dir_slot_get_rec(slot);
@@ -630,8 +568,7 @@ ulint page_dir_slot_get_n_owned(
 }
 
 /** This is used to set the owned records field of a directory slot. */
-UNIV_INLINE
-void page_dir_slot_set_n_owned(
+static inline void page_dir_slot_set_n_owned(
     page_dir_slot_t *slot,    /*!< in/out: directory slot */
     page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
     ulint n)                  /*!< in: number of records owned by the slot */
@@ -648,8 +585,8 @@ void page_dir_slot_set_n_owned(
 /** Calculates the space reserved for directory slots of a given number of
  records. The exact value is a fraction number n * PAGE_DIR_SLOT_SIZE /
  PAGE_DIR_SLOT_MIN_N_OWNED, and it is rounded upwards to an integer. */
-UNIV_INLINE
-ulint page_dir_calc_reserved_space(ulint n_recs) /*!< in: number of records */
+static inline ulint page_dir_calc_reserved_space(
+    ulint n_recs) /*!< in: number of records */
 {
   return ((PAGE_DIR_SLOT_SIZE * n_recs + PAGE_DIR_SLOT_MIN_N_OWNED - 1) /
           PAGE_DIR_SLOT_MIN_N_OWNED);
@@ -657,8 +594,7 @@ ulint page_dir_calc_reserved_space(ulint n_recs) /*!< in: number of records */
 
 /** Gets the pointer to the next record on the page.
  @return pointer to next record */
-UNIV_INLINE
-const rec_t *page_rec_get_next_low(
+static inline const rec_t *page_rec_get_next_low(
     const rec_t *rec, /*!< in: pointer to record */
     ulint comp)       /*!< in: nonzero=compact page layout */
 {
@@ -688,16 +624,14 @@ const rec_t *page_rec_get_next_low(
 
 /** Gets the pointer to the next record on the page.
  @return pointer to next record */
-UNIV_INLINE
-rec_t *page_rec_get_next(rec_t *rec) /*!< in: pointer to record */
+static inline rec_t *page_rec_get_next(rec_t *rec) /*!< in: pointer to record */
 {
   return ((rec_t *)page_rec_get_next_low(rec, page_rec_is_comp(rec)));
 }
 
 /** Gets the pointer to the next record on the page.
  @return pointer to next record */
-UNIV_INLINE
-const rec_t *page_rec_get_next_const(
+static inline const rec_t *page_rec_get_next_const(
     const rec_t *rec) /*!< in: pointer to record */
 {
   return (page_rec_get_next_low(rec, page_rec_is_comp(rec)));
@@ -707,8 +641,7 @@ const rec_t *page_rec_get_next_const(
  If all subsequent records are delete-marked, then this function
  will return the supremum record.
  @return pointer to next non delete-marked record or pointer to supremum */
-UNIV_INLINE
-const rec_t *page_rec_get_next_non_del_marked(
+static inline const rec_t *page_rec_get_next_non_del_marked(
     const rec_t *rec) /*!< in: pointer to record */
 {
   const rec_t *r;
@@ -724,11 +657,11 @@ const rec_t *page_rec_get_next_non_del_marked(
 }
 
 /** Sets the pointer to the next record on the page. */
-UNIV_INLINE
-void page_rec_set_next(rec_t *rec,        /*!< in: pointer to record,
-                                          must not be page supremum */
-                       const rec_t *next) /*!< in: pointer to next record,
-                                          must not be page infimum */
+static inline void page_rec_set_next(
+    rec_t *rec,        /*!< in: pointer to record,
+                       must not be page supremum */
+    const rec_t *next) /*!< in: pointer to next record,
+                       must not be page infimum */
 {
   ulint offs;
 
@@ -750,8 +683,7 @@ void page_rec_set_next(rec_t *rec,        /*!< in: pointer to record,
 
 /** Gets the pointer to the previous record.
  @return pointer to previous record */
-UNIV_INLINE
-const rec_t *page_rec_get_prev_const(
+static inline const rec_t *page_rec_get_prev_const(
     const rec_t *rec) /*!< in: pointer to record, must not be page
                       infimum */
 {
@@ -778,12 +710,12 @@ const rec_t *page_rec_get_prev_const(
   if (page_is_comp(page)) {
     while (rec != rec2) {
       prev_rec = rec2;
-      rec2 = page_rec_get_next_low(rec2, TRUE);
+      rec2 = page_rec_get_next_low(rec2, true);
     }
   } else {
     while (rec != rec2) {
       prev_rec = rec2;
-      rec2 = page_rec_get_next_low(rec2, FALSE);
+      rec2 = page_rec_get_next_low(rec2, false);
     }
   }
 
@@ -794,17 +726,16 @@ const rec_t *page_rec_get_prev_const(
 
 /** Gets the pointer to the previous record.
  @return pointer to previous record */
-UNIV_INLINE
-rec_t *page_rec_get_prev(rec_t *rec) /*!< in: pointer to record, must not be
-                                     page infimum */
+static inline rec_t *page_rec_get_prev(rec_t *rec) /*!< in: pointer to record,
+                                                   must not be page infimum */
 {
   return ((rec_t *)page_rec_get_prev_const(rec));
 }
 
 /** Looks for the record which owns the given record.
  @return the owner record */
-UNIV_INLINE
-rec_t *page_rec_find_owner_rec(rec_t *rec) /*!< in: the physical record */
+static inline rec_t *page_rec_find_owner_rec(
+    rec_t *rec) /*!< in: the physical record */
 {
   ut_ad(page_rec_check(rec));
 
@@ -824,20 +755,19 @@ rec_t *page_rec_find_owner_rec(rec_t *rec) /*!< in: the physical record */
 /** Returns the base extra size of a physical record.  This is the
  size of the fixed header, independent of the record size.
  @return REC_N_NEW_EXTRA_BYTES or REC_N_OLD_EXTRA_BYTES */
-UNIV_INLINE
-ulint page_rec_get_base_extra_size(const rec_t *rec) /*!< in: physical record */
+static inline ulint page_rec_get_base_extra_size(
+    const rec_t *rec) /*!< in: physical record */
 {
-#if REC_N_NEW_EXTRA_BYTES + 1 != REC_N_OLD_EXTRA_BYTES
-#error "REC_N_NEW_EXTRA_BYTES + 1 != REC_N_OLD_EXTRA_BYTES"
-#endif
+  static_assert(REC_N_NEW_EXTRA_BYTES + 1 == REC_N_OLD_EXTRA_BYTES,
+                "REC_N_NEW_EXTRA_BYTES + 1 != REC_N_OLD_EXTRA_BYTES");
   return (REC_N_NEW_EXTRA_BYTES + (ulint)!page_rec_is_comp(rec));
 }
 
 /** Returns the sum of the sizes of the records in the record list, excluding
  the infimum and supremum records.
  @return data in bytes */
-UNIV_INLINE
-ulint page_get_data_size(const page_t *page) /*!< in: index page */
+static inline ulint page_get_data_size(
+    const page_t *page) /*!< in: index page */
 {
   ulint ret;
 
@@ -852,8 +782,7 @@ ulint page_get_data_size(const page_t *page) /*!< in: index page */
 }
 
 /** Allocates a block of memory from the free list of an index page. */
-UNIV_INLINE
-void page_mem_alloc_free(
+static inline void page_mem_alloc_free(
     page_t *page,             /*!< in/out: index page */
     page_zip_des_t *page_zip, /*!< in/out: compressed page with enough
                              space available for inserting the record,
@@ -883,9 +812,8 @@ void page_mem_alloc_free(
 
 /** Calculates free space if a page is emptied.
  @return free space */
-UNIV_INLINE
-ulint page_get_free_space_of_empty(
-    ulint comp) /*!< in: nonzero=compact page layout */
+static inline ulint page_get_free_space_of_empty(
+    bool comp) /*!< in: nonzero=compact page layout */
 {
   if (comp) {
     return ((ulint)(UNIV_PAGE_SIZE - PAGE_NEW_SUPREMUM_END - PAGE_DIR -
@@ -896,25 +824,6 @@ ulint page_get_free_space_of_empty(
                   2 * PAGE_DIR_SLOT_SIZE));
 }
 
-#ifndef UNIV_HOTBACKUP
-/** Write a 32-bit field in a data dictionary record. */
-UNIV_INLINE
-void page_rec_write_field(rec_t *rec, /*!< in/out: record to update */
-                          ulint i,    /*!< in: index of the field to update */
-                          ulint val,  /*!< in: value to write */
-                          mtr_t *mtr) /*!< in/out: mini-transaction */
-{
-  byte *data;
-  ulint len;
-
-  data = rec_get_nth_field_old(rec, i, &len);
-
-  ut_ad(len == 4);
-
-  mlog_write_ulint(data, val, MLOG_4BYTES, mtr);
-}
-#endif /* !UNIV_HOTBACKUP */
-
 /** Each user record on a page, and also the deleted user records in the heap
  takes its size plus the fraction of the dir cell size /
  PAGE_DIR_SLOT_MIN_N_OWNED bytes for it. If the sum of these exceeds the
@@ -922,9 +831,9 @@ void page_rec_write_field(rec_t *rec, /*!< in/out: record to update */
  it is allowed. This function returns the maximum combined size of records
  which can be inserted on top of the record heap.
  @return maximum combined size for inserted records */
-UNIV_INLINE
-ulint page_get_max_insert_size(const page_t *page, /*!< in: index page */
-                               ulint n_recs)       /*!< in: number of records */
+static inline ulint page_get_max_insert_size(
+    const page_t *page, /*!< in: index page */
+    ulint n_recs)       /*!< in: number of records */
 {
   ulint occupied;
   ulint free_space;
@@ -934,13 +843,13 @@ ulint page_get_max_insert_size(const page_t *page, /*!< in: index page */
         page_header_get_field(page, PAGE_HEAP_TOP) - PAGE_NEW_SUPREMUM_END +
         page_dir_calc_reserved_space(n_recs + page_dir_get_n_heap(page) - 2);
 
-    free_space = page_get_free_space_of_empty(TRUE);
+    free_space = page_get_free_space_of_empty(true);
   } else {
     occupied =
         page_header_get_field(page, PAGE_HEAP_TOP) - PAGE_OLD_SUPREMUM_END +
         page_dir_calc_reserved_space(n_recs + page_dir_get_n_heap(page) - 2);
 
-    free_space = page_get_free_space_of_empty(FALSE);
+    free_space = page_get_free_space_of_empty(false);
   }
 
   /* Above the 'n_recs +' part reserves directory space for the new
@@ -957,8 +866,7 @@ ulint page_get_max_insert_size(const page_t *page, /*!< in: index page */
 /** Returns the maximum combined size of records which can be inserted on top
  of the record heap if a page is first reorganized.
  @return maximum combined size for inserted records */
-UNIV_INLINE
-ulint page_get_max_insert_size_after_reorganize(
+static inline ulint page_get_max_insert_size_after_reorganize(
     const page_t *page, /*!< in: index page */
     ulint n_recs)       /*!< in: number of records */
 {
@@ -978,15 +886,15 @@ ulint page_get_max_insert_size_after_reorganize(
 }
 
 /** Puts a record to free list. */
-UNIV_INLINE
-void page_mem_free(page_t *page,              /*!< in/out: index page */
-                   page_zip_des_t *page_zip,  /*!< in/out: compressed page,
-                                              or NULL */
-                   rec_t *rec,                /*!< in: pointer to the
-                                              (origin of) record */
-                   const dict_index_t *index, /*!< in: index of rec */
-                   const ulint *offsets)      /*!< in: array returned by
-                                              rec_get_offsets() */
+static inline void page_mem_free(
+    page_t *page,              /*!< in/out: index page */
+    page_zip_des_t *page_zip,  /*!< in/out: compressed page,
+                               or NULL */
+    rec_t *rec,                /*!< in: pointer to the
+                               (origin of) record */
+    const dict_index_t *index, /*!< in: index of rec */
+    const ulint *offsets)      /*!< in: array returned by
+                               rec_get_offsets() */
 {
   rec_t *free;
   ulint garbage;
@@ -1013,7 +921,7 @@ void page_mem_free(page_t *page,              /*!< in/out: index page */
 /** Check that a page_size is correct for InnoDB.
 If correct, set the associated page_size_shift which is the power of 2
 for this page size.
-@param[in]	page_size	Page Size to evaluate
+@param[in]      page_size       Page Size to evaluate
 @return an associated page_size_shift if valid, 0 if invalid. */
 inline ulong page_size_validate(ulong page_size) {
   for (ulong n = UNIV_PAGE_SIZE_SHIFT_MIN; n <= UNIV_PAGE_SIZE_SHIFT_MAX; n++) {
@@ -1023,8 +931,3 @@ inline ulong page_size_validate(ulong page_size) {
   }
   return (0);
 }
-
-#ifdef UNIV_MATERIALIZE
-#undef UNIV_INLINE
-#define UNIV_INLINE UNIV_INLINE_ORIGINAL
-#endif

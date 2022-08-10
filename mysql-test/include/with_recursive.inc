@@ -48,6 +48,7 @@ with recursive qn as
    select 1 from qn)
 select * from qn;
 
+--replace_regex /  \(cost=.*//
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -538,6 +539,7 @@ SELECT * FROM employees_extended ORDER BY PATH;
 
 --echo # Breadth-first is likely what we get, if no ordering
 
+--skip_if_hypergraph  # Chooses a different plan, gets different ordering.
 WITH RECURSIVE employees_extended
 AS
 (
@@ -568,6 +570,7 @@ SELECT * FROM employees_extended ORDER BY SEQ, NAME;
 
 --echo # Or, use a user variable, then all rows have different number:
 
+--skip_if_hypergraph  # Chooses a different plan, gets different ordering.
 WITH RECURSIVE employees_extended
 AS
 (
@@ -582,6 +585,7 @@ SELECT * FROM employees_extended ORDER BY SEQ;
 
 --echo # Direct & indirect reports of John = having John in their PATH
 
+--sorted_result
 WITH RECURSIVE employees_extended
 AS
 (
@@ -599,6 +603,7 @@ WHERE FIND_IN_SET((SELECT ID FROM employees WHERE NAME='John'),
 --echo # Exclude John, he's not a report of himself;
 --echo # bonus: use a QN to cache his ID.
 
+--sorted_result
 WITH RECURSIVE employees_extended(ID, NAME, PATH)
 AS
 (
@@ -616,6 +621,7 @@ WHERE FIND_IN_SET(JOHN_ID.ID,
       AND e.ID<>JOHN_ID.ID;
 
 --echo # Similar, but faster: start dive at John (and include him again).
+--sorted_result
 WITH RECURSIVE employees_extended
 AS
 (
@@ -630,6 +636,7 @@ SELECT * FROM employees_extended;
 
 --echo # Get the management chain above Pierre:
 
+--sorted_result
 WITH RECURSIVE employees_extended
 AS
 (
@@ -644,6 +651,7 @@ SELECT * FROM employees_extended;
 
 --echo # Get the management chain above Pierre, without PATH
 
+--sorted_result
 WITH RECURSIVE employees_extended
 AS
 (
@@ -658,6 +666,7 @@ SELECT * FROM employees_extended;
 
 --echo # Get the management chain above Pierre and Sarah, without PATH
 
+--sorted_result
 WITH RECURSIVE employees_extended
 AS
 (
@@ -672,6 +681,7 @@ SELECT * FROM employees_extended;
 
 --echo # Do it without duplicates
 
+--sorted_result
 WITH RECURSIVE employees_extended
 AS
 (
@@ -710,6 +720,7 @@ SELECT * FROM employees_extended;
 --echo # Add cycle detection: the row closing a cycle is marked with
 --echo # IS_CYCLE=1, which stops the iterations. The outer SELECT
 --echo # could then want to see only that row, or only previous ones.
+--sorted_result
 WITH RECURSIVE employees_extended(ID, NAME, PATH, IS_CYCLE)
 AS
 (
@@ -786,6 +797,8 @@ eval explain $query order by path;
 eval $query order by path;
 
 --echo # Also demonstrates EXPLAIN FORMAT=TREE of recursive CTEs with joins.
+--skip_if_hypergraph  # Chooses different plan (hash join a few places).
+--replace_regex /  \(cost=.*//
 eval EXPLAIN FORMAT=tree $query order by path;
 
 --echo # Without ORDER BY order is different; it is deterministic as

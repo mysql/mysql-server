@@ -4,7 +4,7 @@
 # Problem:
 # ========
 # Step 1. enable semisync and set a big value for
-# rpl_semi_sync_master_timeout.
+# rpl_semi_sync_source_timeout.
 #
 # Step 2. kill io thread of slave, so the threads on master will keep on
 # WAITING ACK FROM SLAVE.
@@ -30,7 +30,7 @@ call mtr.add_suppression("Read semi-sync reply network error");
 call mtr.add_suppression("SEMISYNC: Forced shutdown. Some updates might not be replicated.");
 
 --source include/rpl_connection_master.inc
-SET GLOBAL rpl_semi_sync_master_timeout = 10000000;
+SET GLOBAL rpl_semi_sync_source_timeout = 10000000;
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave_io.inc
@@ -39,7 +39,7 @@ SET GLOBAL rpl_semi_sync_master_timeout = 10000000;
 --send CREATE TABLE t(f INT) ENGINE=INNODB;
 
 --source include/rpl_connection_master1.inc
---let $status_var= rpl_semi_sync_master_wait_sessions
+--let $status_var= rpl_semi_sync_source_wait_sessions
 --let $status_var_value= 1
 --source include/wait_for_status_var.inc
 

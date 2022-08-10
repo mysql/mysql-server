@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 #ifndef DBLQH_H
 #define DBLQH_H
 
-#ifndef DBLQH_STATE_EXTRACT
 #include <pc.hpp>
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
@@ -37,6 +36,7 @@
 #include <atomic>
 
 #include <NodeBitmask.hpp>
+#include "kernel/DblqhState.hpp"
 #include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/LqhTransConf.hpp>
@@ -63,8 +63,6 @@ class Dbtux;
 class Lgman;
 
 class FsReadWriteReq;
-
-#endif // DBLQH_STATE_EXTRACT
 
 #define JAM_FILE_ID 450
 
@@ -150,11 +148,6 @@ class FsReadWriteReq;
 /*       VARIOUS CONSTANTS USED AS FLAGS TO THE FILE MANAGER.                */
 /* ------------------------------------------------------------------------- */
 #define ZVAR_NO_LOG_PAGE_WORD 1
-#define ZLIST_OF_PAIRS 0
-#define ZLIST_OF_PAIRS_SYNCH 16
-#define ZARRAY_OF_PAGES 1
-#define ZLIST_OF_MEM_PAGES 2
-#define ZLIST_OF_MEM_PAGES_SYNCH 18
 #define ZCLOSE_NO_DELETE 0
 #define ZCLOSE_DELETE 1
 #define ZPAGE_ZERO 0
@@ -470,15 +463,12 @@ class FsReadWriteReq;
 
 
 class Dblqh 
-#ifndef DBLQH_STATE_EXTRACT
   : public SimulatedBlock
-#endif
 {
   friend class DblqhProxy;
   friend class Backup;
 public:
 
-#ifndef DBLQH_STATE_EXTRACT
 private:
   Uint32 m_acc_block;
   Uint32 m_tup_block;
@@ -569,7 +559,7 @@ public:
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   
   struct ScanRecord {
-    STATIC_CONST( TYPE_ID = RT_DBLQH_SCAN_RECORD);
+    static constexpr Uint32 TYPE_ID = RT_DBLQH_SCAN_RECORD;
     Uint32 m_magic;
 
     ScanRecord() :
@@ -620,9 +610,9 @@ public:
      * an ACC ptr, but all others are refs to SectionSegments containing
      * ACC ptrs.
      */
-    STATIC_CONST( MaxScanAccSegments= (
+    static constexpr Uint32 MaxScanAccSegments = (
                  (MAX_PARALLEL_OP_PER_SCAN + SectionSegment::DataLength - 1) /
-                 SectionSegment::DataLength) + 1);
+                 SectionSegment::DataLength) + 1;
 
     UintR scan_acc_op_ptr[ MaxScanAccSegments ];
     Uint32 scan_acc_index;
@@ -704,7 +694,7 @@ public:
     Uint8 m_first_match_flag;
     Uint8 m_send_early_hbrep;
   };
-  STATIC_CONST(DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX = 1);
+  static constexpr Uint32 DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX = 1;
   typedef Ptr<ScanRecord> ScanRecordPtr;
   typedef TransientPool<ScanRecord> ScanRecord_pool;
   typedef DLCList<ScanRecord_pool> ScanRecord_list;
@@ -1239,6 +1229,8 @@ public:
   typedef Ptr<GcpRecord> GcpRecordPtr;
 
   struct HostRecord {
+    Bitmask<(MAX_NDBMT_LQH_THREADS+1+31)/32> lqh_pack_mask;
+    Bitmask<(MAX_NDBMT_TC_THREADS+1+31)/32> tc_pack_mask;
     struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
     struct PackedWordsContainer tc_pack[MAX_NDBMT_TC_THREADS+1];
     Uint8 inPackedList;
@@ -1332,9 +1324,9 @@ public:
 
   struct IOTracker
   {
-    STATIC_CONST( SAMPLE_TIME = 128 );              // millis
-    STATIC_CONST( SLIDING_WINDOW_LEN = 1024 );      // millis
-    STATIC_CONST( SLIDING_WINDOW_HISTORY_LEN = 8 );
+    static constexpr Uint32 SAMPLE_TIME = 128;              // millis
+    static constexpr Uint32 SLIDING_WINDOW_LEN = 1024;      // millis
+    static constexpr Uint32 SLIDING_WINDOW_HISTORY_LEN = 8;
 
     void init(Uint32 partNo);
     Uint32 m_log_part_no;
@@ -1443,7 +1435,7 @@ public:
    */
   struct LCPFragWatchdog
   {
-    STATIC_CONST( PollingPeriodMillis = 1000 ); /* 10s */
+    static constexpr Uint32 PollingPeriodMillis = 1000; /* 10s */
     Uint32 WarnElapsedWithNoProgressMillis; /* LCP Warn, milliseconds */
     Uint32 MaxElapsedWithNoProgressMillis;  /* LCP Fail, milliseconds */
 
@@ -1979,13 +1971,14 @@ public:
 
   void check_cache_page_ptr_i(LogPartRecord *logPartPtrP, Uint32 cachePagePtrI)
   {
-    ndbrequire(cachePagePtrI < logPartPtrP->logPageCount);
+    ndbrequire(cachePagePtrI < logPartPtrP->logPageFileSize);
   }
   void check_log_page_ptr_i(LogPartRecord *logPartPtrP, Uint32 logPagePtrI)
   {
     LogPartRecord::RedoPageCache *cache = &logPartPtrP->m_redo_page_cache;
     ndbrequire(logPagePtrI >= cache->m_first_page &&
-               logPagePtrI < (cache->m_first_page + logPartPtrP->logPageCount));
+               logPagePtrI <
+                   (cache->m_first_page + logPartPtrP->logPageFileSize));
   }
   Uint32 get_cache_i_val(LogPartRecord *logPartPtrP, Uint32 logPagePtrI)
   {
@@ -2251,9 +2244,13 @@ public:
     /**
      * We have to remember the log pages read. 
      * Otherwise we cannot build the linked list after the pages have 
-     * arrived to main memory.  
+     * arrived to main memory.
+     *
+     * readExecSr sends 8 pages that need to be remembered in logPageArray.
+     * readExecLog supports sending up to 9 pages.
      */
-    UintR logPageArray[16];
+    static constexpr unsigned LOG_PAGE_ARRAY_SIZE = 9;
+    UintR logPageArray[LOG_PAGE_ARRAY_SIZE];
     /**
      * A list of the pages that are part of this active operation.
      */
@@ -2529,7 +2526,6 @@ public:
     bool m_restore_started;
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
-#endif // DBLQH_STATE_EXTRACT
   struct TcConnectionrec {
     enum LogWriteState {
       NOT_STARTED = 0,
@@ -2545,45 +2541,56 @@ public:
       ABORT_FROM_TC = 4,
       ABORT_FROM_LQH = 5
     };
+    /*
+     * TransactionState is exposed in Ndbinfo::OPERATIONS_TABLEID, values must
+     * match.  New values added to TransactionState must also be added in
+     * dblqh_tcconnect_state and g_dblqh_tcconnect_state_desc.
+     */
     enum TransactionState {
-      IDLE = 0,
+      IDLE = dblqh_tcconnect_state::IDLE, // 0
 
       /* -------------------------------------------------------------------- */
       // Transaction in progress states
       /* -------------------------------------------------------------------- */
-      WAIT_ACC = 1,
-      WAIT_TUP = 4,
-      LOG_QUEUED = 6,
-      PREPARED = 7,
-      LOG_COMMIT_WRITTEN_WAIT_SIGNAL = 8,
-      LOG_COMMIT_QUEUED_WAIT_SIGNAL = 9,
+      WAIT_ACC = dblqh_tcconnect_state::WAIT_ACC, // 1
+      WAIT_TUP = dblqh_tcconnect_state::WAIT_TUP, // 4
+      LOG_QUEUED = dblqh_tcconnect_state::LOG_QUEUED, // 6
+      PREPARED = dblqh_tcconnect_state::PREPARED, // 7
+      LOG_COMMIT_WRITTEN_WAIT_SIGNAL =
+        dblqh_tcconnect_state::LOG_COMMIT_WRITTEN_WAIT_SIGNAL, // 8
+      LOG_COMMIT_QUEUED_WAIT_SIGNAL =
+        dblqh_tcconnect_state::LOG_COMMIT_QUEUED_WAIT_SIGNAL, // 9
       
       /* -------------------------------------------------------------------- */
       // Commit in progress states
       /* -------------------------------------------------------------------- */
-      LOG_COMMIT_QUEUED = 11,
+      LOG_COMMIT_QUEUED = dblqh_tcconnect_state::LOG_COMMIT_QUEUED, // 11
       // COMMIT_QUEUED = 12 no longer used
-      COMMITTED = 13,
-      WAIT_TUP_COMMIT= 35,
+      COMMITTED = dblqh_tcconnect_state::COMMITTED, // 13
+      WAIT_TUP_COMMIT= dblqh_tcconnect_state::WAIT_TUP_COMMIT, // 35
       
       /* -------------------------------------------------------------------- */
       // Abort in progress states
       /* -------------------------------------------------------------------- */
-      WAIT_ACC_ABORT = 14,
+      WAIT_ACC_ABORT = dblqh_tcconnect_state::WAIT_ACC_ABORT, // 14
       // ABORT_QUEUED = 15, no longer used
-      LOG_ABORT_QUEUED = 18,
-      WAIT_TUP_TO_ABORT = 19,
+      LOG_ABORT_QUEUED = dblqh_tcconnect_state::LOG_ABORT_QUEUED, // 18
+      WAIT_TUP_TO_ABORT = dblqh_tcconnect_state::WAIT_TUP_TO_ABORT, // 19
       
       /* -------------------------------------------------------------------- */
       // Scan in progress states
       /* -------------------------------------------------------------------- */
-      SCAN_STATE_USED = 21,
-      SCAN_TUPKEY = 30,
-      COPY_TUPKEY = 31,
+      SCAN_STATE_USED = dblqh_tcconnect_state::SCAN_STATE_USED, // 21
+      SCAN_TUPKEY = dblqh_tcconnect_state::SCAN_TUPKEY, // 30
+      COPY_TUPKEY = dblqh_tcconnect_state::COPY_TUPKEY, // 31
 
-      TC_NOT_CONNECTED = 32,
-      PREPARED_RECEIVED_COMMIT = 33, // Temporary state in write commit log
-      LOG_COMMIT_WRITTEN = 34        // Temporary state in write commit log
+      TC_NOT_CONNECTED = dblqh_tcconnect_state::TC_NOT_CONNECTED, // 32
+
+      // Temporary state in write commit log
+      PREPARED_RECEIVED_COMMIT =
+        dblqh_tcconnect_state::PREPARED_RECEIVED_COMMIT, // 33
+      // Temporary state in write commit log
+      LOG_COMMIT_WRITTEN = dblqh_tcconnect_state::LOG_COMMIT_WRITTEN, // 34
     };
     enum ConnectState {
       DISCONNECTED = 0,
@@ -2591,8 +2598,7 @@ public:
       COPY_CONNECTED = 2,
       LOG_CONNECTED = 3
     };
-#ifndef DBLQH_STATE_EXTRACT
-    STATIC_CONST( TYPE_ID = RT_DBLQH_TC_CONNECT);
+    static constexpr Uint32 TYPE_ID = RT_DBLQH_TC_CONNECT;
     Uint32 m_magic;
     Uint32 ptrI;
 
@@ -2852,11 +2858,9 @@ public:
       Local_key m_disk_ref[2];
     } m_nr_delete;
     Uint32 accOpPtr; /* for scan lock take over */
-#endif // DBLQH_STATE_EXTRACT
   }; /* p2c: size = 308 bytes */
 
-#ifndef DBLQH_STATE_EXTRACT
-  STATIC_CONST(DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0);
+  static constexpr Uint32 DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0;
   Uint32 ctcConnectReservedCount;
   Uint32 ctcConnectReserved;
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
@@ -3316,6 +3320,13 @@ private:
                    CommitLogRecord* commitLogRecord,
                    LogPageRecordPtr & logPagePtr,
                    LogPartRecord *logPartPtrP);
+  Uint32 getHashKey(UintR Transid1,
+                    UintR Transid2,
+                    UintR TcOprec);
+  Uint32 getHashIndex(UintR Transid1,
+                      UintR Transid2,
+                      UintR TcOprec);
+  Uint32 getHashIndex(TcConnectionrec *regTcPtr);
   int  findTransaction(UintR Transid1,
                        UintR Transid2,
                        UintR TcOprec,
@@ -3562,10 +3573,11 @@ private:
                   Uint32 errcode,
                   TcConnectionrecPtr);
   void localAbortStateHandlerLab(Signal* signal, TcConnectionrecPtr);
-  void writePrepareLog(Signal* signal, TcConnectionrecPtr, bool);
+  void writePrepareLog(Signal* signal, TcConnectionrecPtr);
   void writePrepareLog_problems(Signal* signal,
                                 const TcConnectionrecPtr,
                                 LogPartRecord *logPartPtrP);
+  void doWritePrepareLog(Signal* signal, TcConnectionrecPtr);
   void update_log_problem(Signal*, LogPartRecord*, Uint32 problem, bool);
   void takeOverErrorLab(Signal* signal, TcConnectionrecPtr);
   bool checkTransporterOverloaded(Signal* signal,
@@ -3787,8 +3799,10 @@ private:
   void remove_commit_marker(TcConnectionrec * const regTcPtr);
   // Initialisation
   void initData();
-  void initRecords(const ndb_mgm_configuration_iterator *mgm_cfg);
-protected:
+  void initRecords(const ndb_mgm_configuration_iterator* mgm_cfg,
+                   Uint64 logPageFilesize);
+
+ protected:
   bool getParam(const char* name, Uint32* count) override;
 
 public:
@@ -4051,8 +4065,6 @@ private:
   LogFileOperationRecord *logFileOperationRecord;
   UintR clfoFileSize;
 
-  UintR clogPageFileSize;
-
 #define ZPAGE_REF_FILE_SIZE 20
   PageRefRecord *pageRefRecord;
   UintR cfirstfreePageRef;
@@ -4272,9 +4284,10 @@ private:
 /* ACTUALLY USED FOR ALL ABORTS COMMANDED BY TC.                             */
 /* ------------------------------------------------------------------------- */
   UintR preComputedRequestInfoMask;
-#define TRANSID_HASH_SIZE 4096
-  UintR ctransidHash[TRANSID_HASH_SIZE];
-  
+
+  Uint32 *ctransidHash;
+  Uint32 ctransidHashSize;
+
   Uint32 c_diskless;
   Uint32 c_o_direct;
   Uint32 c_o_direct_sync_flag;
@@ -4323,7 +4336,7 @@ public:
    *
    */
   struct CommitAckMarker {
-    STATIC_CONST( TYPE_ID = RT_DBLQH_COMMIT_ACK_MARKER );
+    static constexpr Uint32 TYPE_ID = RT_DBLQH_COMMIT_ACK_MARKER;
     Uint32 m_magic;
 
     CommitAckMarker() :
@@ -4353,7 +4366,7 @@ public:
       return transid1;
     }
   };
-  STATIC_CONST(DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 2);
+  static constexpr Uint32 DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 2;
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
   typedef TransientPool<CommitAckMarker> CommitAckMarker_pool;
   typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
@@ -4491,6 +4504,8 @@ public:
   void execSET_LOCAL_LCP_ID_CONF(Signal*);
   void execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal*);
   void execCUT_REDO_LOG_TAIL_REQ(Signal*);
+
+  bool c_encrypted_filesystem;
 
   /**
    * Variable keeping track of which GCI to keep in REDO log
@@ -4893,10 +4908,8 @@ public:
     const Uint32 ldm_instance_count,
     const ndb_mgm_configuration_iterator * mgm_cfg,
     const bool use_reserved);
-#endif
 };
 
-#ifndef DBLQH_STATE_EXTRACT
 inline bool
 Dblqh::check_expand_shrink_ongoing(Uint32 tableId, Uint32 fragId)
 {
@@ -5026,12 +5039,18 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
     FragrecordPtr regFragptr;
     regFragptr.i = regTcPtr.p->fragmentptr;
     c_fragment_pool.getPtr(regFragptr);
-    if (regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY)
-      ndbout << " LK: " << *key;
+    if (regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY) {
+      char buf[MAX_LOG_MESSAGE_SIZE];
+      g_eventLogger->info(" LK: %s",
+                          printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, *key));
+    }
   }
 
-  if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713))
-    ndbout << " LK: " << *key;
+  if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713)) {
+    char buf[MAX_LOG_MESSAGE_SIZE];
+    g_eventLogger->info(" LK: %s",
+                        printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, *key));
+  }
   regTcPtr.p->m_row_id = *key;
 }
 
@@ -5468,7 +5487,6 @@ inline void Dblqh::unlock_log_part(LogPartRecord *logPartPtrP)
     NdbMutex_Unlock(&logPartPtrP->m_log_part_mutex);
   }
 }
-#endif
 
 #undef JAM_FILE_ID
 

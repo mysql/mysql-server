@@ -27,6 +27,10 @@ select 'a  a' > 'a', 'a  \0' < 'a';
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select hex(_utf32 0x44);
 hex(_utf32 0x44)
 00000044
@@ -269,6 +273,8 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT * FROM t1 WHERE a LIKE '%фЫв%' ORDER BY BINARY a;
 a
 ФЫВА
@@ -289,6 +295,8 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT * FROM t1 WHERE a LIKE 'фЫва%' ORDER BY BINARY a;
 a
 ФЫВА
@@ -309,10 +317,14 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT * FROM t1 WHERE a LIKE 'фЫва%' COLLATE utf32_bin ORDER BY BINARY a;
 a
 фЫва
 фЫвапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 CREATE TABLE t1 (word varchar(64) NOT NULL, PRIMARY KEY (word))
 CHARACTER SET utf32;
@@ -704,10 +716,14 @@ select * from t1 where a='a' order by binary a;
 a
 A
 a
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select hex(min(binary a)),count(*) from t1 group by a;
 hex(min(binary a))	count(*)
 00000041	2
 00000042	2
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 select char_length('abcd'), octet_length('abcd');
 char_length('abcd')	octet_length('abcd')
@@ -1051,7 +1067,7 @@ CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `format(123,2,'no_NO')` varchar(36) CHARACTER SET utf32 DEFAULT NULL
+  `format(123,2,'no_NO')` varchar(37) CHARACTER SET utf32 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 format(123,2,'no_NO')
@@ -1424,6 +1440,32 @@ qxuvoxcgohdbytybwcqxdwtqrebgjzbycekyjgbpmqadutrqluyxhrdodxqqjwasfkvetfobocgpft
 rhvxugmmszwpoglvarsfiljrzimqeplevleqdhepkhcfrahcpjj') CHARACTER SET utf32)
 RETURNS CHAR(50) DETERMINISTIC RETURN CONCAT('Hello, ',s,'!');
 ERROR HY000: Too long enumeration/set value for column s.
+# Bug#32745294: my_well_formed_len_utf32: assertion `(length % 4) == 0'
+#               failed.
+DO REPLACE(CONVERT(1 USING utf32),BIT_XOR(1),SHA1(@d));
+ERROR HY000: Cannot convert string '1' from binary to utf32
+#
+# Bug #33810558 Invalid Unicode characters can be inserted in
+#               column with UTF32 character set
+#
+CREATE TABLE t1 (v VARCHAR(10) CHARACTER SET utf32);
+INSERT INTO t1 VALUES(x'D7FF');
+INSERT INTO t1 VALUES(x'D800');
+ERROR HY000: Incorrect string value: '\xD8\x00' for column 'v' at row 1
+INSERT INTO t1 VALUES(x'D83C');
+ERROR HY000: Incorrect string value: '\xD8<' for column 'v' at row 1
+INSERT INTO t1 VALUES(x'DFFF');
+ERROR HY000: Incorrect string value: '\xDF\xFF' for column 'v' at row 1
+INSERT INTO t1 VALUES(x'E000');
+INSERT INTO t1 VALUES(x'10FFFF');
+INSERT INTO t1 VALUES(x'110000');
+ERROR HY000: Incorrect string value: '\x11\x00\x00' for column 'v' at row 1
+SELECT HEX(v) FROM t1;
+HEX(v)
+0000D7FF
+0000E000
+0010FFFF
+DROP TABLE t1;
 #
 # End of 8.0 tests
 #

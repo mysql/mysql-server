@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class Global_status_variables : public ngs::Common_status_variables {
   Variable m_aborted_clients;
 
  private:
-  Global_status_variables() {}
+  Global_status_variables() = default;
   Global_status_variables(const Global_status_variables &);
 };
 

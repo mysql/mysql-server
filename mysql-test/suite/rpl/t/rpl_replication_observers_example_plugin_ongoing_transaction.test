@@ -64,7 +64,6 @@ INSERT INTO t2 VALUES(1);
 --let $rpl_connection_name= con5
 --source include/rpl_connection.inc
 
-SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_before_commit_hook_wait';
 
 --send INSERT INTO t2 VALUES (3);
@@ -127,7 +126,7 @@ SET DEBUG_SYNC='now SIGNAL continue_commit';
 DROP TABLE t1;
 DROP TABLE t2;
 
-SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transactions';
 
 --disconnect con1
 

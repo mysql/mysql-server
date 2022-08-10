@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -220,6 +220,12 @@ Uncommitted_tables_guard::~Uncommitted_tables_guard() {
   @param      thd             Current thread.
   @param      db              Database name.
   @param      tbl_or_sf_name  Base table/ View/ Stored function name.
+  @param      skip_same_db    Indicates whether it is OK to skip
+                              views belonging to the same database
+                              as table (as they will be dropped anyway).
+  @param      mem_root        Memory root for allocation of temporary
+                              objects which will be cleared after
+                              processing this table/view/routine.
   @param[out] views           TABLE_LIST objects for views.
 
   @retval     false           Success.
@@ -230,6 +236,7 @@ Uncommitted_tables_guard::~Uncommitted_tables_guard() {
 template <typename T>
 static bool prepare_view_tables_list(THD *thd, const char *db,
                                      const char *tbl_or_sf_name,
+                                     bool skip_same_db, MEM_ROOT *mem_root,
                                      std::vector<TABLE_LIST *> *views) {
   DBUG_TRACE;
   std::vector<dd::Object_id> view_ids;
@@ -246,7 +253,7 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
     dd::String_type schema_name;
     // Get schema name and view name from the object id of the view.
     {
-      dd::View *view = nullptr;
+      std::unique_ptr<dd::View> view;
       // We need to use READ_UNCOMMITTED here as the view could be changed
       // by the same statement (e.g. RENAME TABLE).
       if (thd->dd_client()->acquire_uncached_uncommitted(view_ids.at(idx),
@@ -254,7 +261,7 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
         return true;
       if (!view) continue;
 
-      dd::Schema *schema = nullptr;
+      std::unique_ptr<dd::Schema> schema;
       if (thd->dd_client()->acquire_uncached_uncommitted(view->schema_id(),
                                                          &schema))
         return true;
@@ -263,16 +270,31 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
       schema_name = schema->name();
     }
 
+    if (skip_same_db) {
+      /*
+        DROP DATABASE acquires exclusive metadata lock on database being
+        dropped. So we have guarantee that dependent view belonging to
+        the same database won't be moved into other database using
+        RENAME TABLE or doing DROP/CREATE. Hence it is safe to skip
+        view belonging to the database being dropped even if we don't
+        have any lock on it yet.
+      */
+      assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA, db,
+                                                          "", MDL_EXCLUSIVE));
+      if (my_strcasecmp(table_alias_charset, db, schema_name.c_str()) == 0)
+        continue;
+    }
+
     // If TABLE_LIST object is already prepared for view name then skip it.
     if (prepared_view_ids.find(view_ids.at(idx)) == prepared_view_ids.end()) {
       // Prepare TABLE_LIST object for the view and push_back
 
-      char *db_name = strmake_root(thd->mem_root, schema_name.c_str(),
-                                   schema_name.length());
+      char *db_name =
+          strmake_root(mem_root, schema_name.c_str(), schema_name.length());
       if (db_name == nullptr) return true;
 
       char *vw_name =
-          strmake_root(thd->mem_root, view_name.c_str(), view_name.length());
+          strmake_root(mem_root, view_name.c_str(), view_name.length());
       if (vw_name == nullptr) return true;
 
       /*
@@ -288,7 +310,7 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
           my_casedn_str(system_charset_info, vw_name);
       }
 
-      auto vw = new (thd->mem_root)
+      auto vw = new (mem_root)
           TABLE_LIST(db_name, schema_name.length(), vw_name, view_name.length(),
                      TL_IGNORE, MDL_EXCLUSIVE);
       if (vw == nullptr) return true;
@@ -320,8 +342,15 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
   @param          tbl_or_sf_name      Base table/ View/ Stored function name.
   @param          views_list          TABLE_LIST objects of the referencing
                                       views.
+  @param          skip_same_db        Indicates whether it is OK to skip
+                                      views belonging to the same database
+                                      as table (as they will be dropped
+                                      anyway).
   @param          commit_dd_changes   Indicates whether changes to DD need
                                       to be committed.
+  @param          mem_root            Memory root for allocation of temporary
+                                      objects which will be cleared after
+                                      processing referenced table/view/routine.
 
   @retval     false           Success.
   @retval     true            Failure.
@@ -331,15 +360,16 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
 template <typename T>
 static bool mark_all_views_invalid(THD *thd, const char *db,
                                    const char *tbl_or_sf_name,
-                                   std::vector<TABLE_LIST *> *views_list,
-                                   bool commit_dd_changes) {
+                                   const std::vector<TABLE_LIST *> *views_list,
+                                   bool skip_same_db, bool commit_dd_changes,
+                                   MEM_ROOT *mem_root) {
   DBUG_TRACE;
   assert(!views_list->empty());
 
   // Acquire lock on all the views.
   MDL_request_list mdl_requests;
   for (auto view : *views_list) {
-    MDL_request *schema_request = new (thd->mem_root) MDL_request;
+    MDL_request *schema_request = new (mem_root) MDL_request;
     ;
     MDL_REQUEST_INIT(schema_request, MDL_key::SCHEMA, view->db, "",
                      MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
@@ -362,7 +392,8 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
     Hence preparing updated list of view tables after acquiring the lock.
   */
   std::vector<TABLE_LIST *> updated_views_list;
-  if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, &updated_views_list))
+  if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, skip_same_db,
+                                  mem_root, &updated_views_list))
     return true;
   if (updated_views_list.empty()) return false;
 
@@ -554,7 +585,10 @@ static bool open_views_and_update_metadata(
         order->used_alias = false;  /// @see Item::print_for_order()
     }
     Sql_mode_parse_guard parse_guard(thd);
-    thd->lex->unit->print(thd, &view_query, QT_TO_ARGUMENT_CHARSET);
+    thd->lex->unit->print(
+        thd, &view_query,
+        static_cast<enum_query_type>(QT_TO_ARGUMENT_CHARSET |
+                                     QT_HIDE_ROLLUP_FUNCTIONS));
     if (lex_string_strmake(thd->mem_root, &view->select_stmt, view_query.ptr(),
                            view_query.length()))
       return true;
@@ -685,11 +719,10 @@ static bool update_view_metadata(THD *thd, const char *db,
   if (is_view_metadata_update_needed(thd, db, tbl_or_sf_name)) {
     // Prepare list of all views referencing the db.table_name.
     std::vector<TABLE_LIST *> views;
-    if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, &views))
+    if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, false,
+                                    thd->mem_root, &views))
       return true;
     if (views.empty()) return false;
-
-    DEBUG_SYNC(thd, "after_preparing_view_tables_list");
 
     bool is_drop_operation = (thd->lex->sql_command == SQLCOM_DROP_TABLE ||
                               thd->lex->sql_command == SQLCOM_DROP_VIEW ||
@@ -700,8 +733,8 @@ static bool update_view_metadata(THD *thd, const char *db,
     // If operation is drop operation then view referencing it becomes invalid.
     // Hence mark all view as invalid.
     if (is_drop_operation)
-      return mark_all_views_invalid<T>(thd, db, tbl_or_sf_name, &views,
-                                       commit_dd_changes);
+      return mark_all_views_invalid<T>(thd, db, tbl_or_sf_name, &views, false,
+                                       commit_dd_changes, thd->mem_root);
 
     /*
        Open views and update views metadata.
@@ -780,7 +813,7 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
   assert(spname);
 
   /*
-    Updates to view metatdata for DDL on stored routines does not include
+    Updates to view metadata for DDL on stored routines does not include
     any changes to non-atomic SE. Hence transaction is not committed in
     the update_view_metadata().
   */
@@ -788,6 +821,74 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
   bool error = update_view_metadata<dd::View_routine>(
       thd, spname->m_db.str, spname->m_name.str, false, &uncommitted_tables);
   return error;
+}
+
+/**
+  Helper method to mark referencing views as invalid.
+
+  @tparam         T                   Type of object (View_table/View_routine)
+                                      to fetch referencing view names.
+  @param          thd                 Current thread.
+  @param          db                  Database name.
+  @param          tbl_or_sf_name      Base table/ View/ Stored function name.
+  @param          skip_same_db        Indicates whether it is OK to skip
+                                      views belonging to the same database
+                                      as table (as they will be dropped
+                                      anyway).
+  @param          commit_dd_changes   Indicates whether changes to DD need
+                                      to be committed.
+  @param          mem_root            Memory root for allocation of temporary
+                                      objects which will be cleared after
+                                      each call to this function.
+
+  @retval     false           Success.
+  @retval     true            Failure.
+
+*/
+
+template <typename T>
+static bool mark_referencing_views_invalid(THD *thd, const char *db,
+                                           const char *tbl_or_sf_name,
+                                           bool skip_same_db,
+                                           bool commit_dd_changes,
+                                           MEM_ROOT *mem_root) {
+  std::vector<TABLE_LIST *> views;
+  if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, skip_same_db,
+                                  mem_root, &views))
+    return true;
+
+  if (views.empty()) return false;
+
+  DEBUG_SYNC(thd, "after_preparing_view_tables_list");
+
+  return mark_all_views_invalid<T>(thd, db, tbl_or_sf_name, &views,
+                                   skip_same_db, commit_dd_changes, mem_root);
+}
+
+bool mark_referencing_views_invalid(THD *thd, const TABLE_LIST *table,
+                                    bool skip_same_db, bool commit_dd_changes,
+                                    MEM_ROOT *mem_root) {
+  DBUG_TRACE;
+
+  const char *db_name = table->get_db_name();
+  const char *table_name = table->get_table_name();
+
+  // Don't mark referencing view invalid if we drop dictionary table.
+  if (dd::get_dictionary()->is_dd_table_name(db_name, table_name)) return false;
+
+  return mark_referencing_views_invalid<dd::View_table>(
+      thd, db_name, table_name, skip_same_db, commit_dd_changes, mem_root);
+}
+
+bool mark_referencing_views_invalid(THD *thd, const sp_name *spname,
+                                    MEM_ROOT *mem_root) {
+  /*
+    DROP DATABASE always drops routines atomically so we don't need to commit
+    transaction here. Also since DROP DATABASE drops routines views are dropped
+    there is no point in using skip-views-in-the-same-db optimization here.
+  */
+  return mark_referencing_views_invalid<dd::View_routine>(
+      thd, spname->m_db.str, spname->m_name.str, false, false, mem_root);
 }
 
 std::string push_view_warning_or_error(THD *thd, const char *db,

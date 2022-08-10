@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,6 @@
 #include <chrono>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -69,7 +67,7 @@ using JsonStringBuffer =
  */
 JsonValue mock_GR_metadata_as_json(
     const std::string &gr_id, const std::vector<uint16_t> &gr_node_ports,
-    unsigned primary_id = 0, unsigned view_id = 0,
+    unsigned primary_id = 0, uint64_t view_id = 0,
     bool error_on_md_query = false,
     const std::string &gr_node_host = "127.0.0.1",
     const std::vector<uint32_t> &gr_node_xports = {},
@@ -94,7 +92,7 @@ JsonValue mock_GR_metadata_as_json(
  */
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                        const std::vector<uint16_t> &gr_node_ports,
-                       unsigned primary_id = 0, unsigned view_id = 0,
+                       unsigned primary_id = 0, uint64_t view_id = 0,
                        bool error_on_md_query = false,
                        const std::string &gr_node_host = "127.0.0.1",
                        const std::vector<uint32_t> &gr_node_xports = {},

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,7 @@ struct table_list_equal {
 
 /**
   Check if connection owns SNRW metadata lock on table or view.
-  Report apropriate error if not.
+  Report appropriate error if not.
 
   @note Unlike find_table_for_mdl_upgrade() this call can handle views.
 */
@@ -736,9 +736,37 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
         }
       }
 
-      if (lock_check_constraint_names_for_rename(thd, ren_table->db, old_alias,
-                                                 from_table, new_db, new_alias))
+      if (lock_check_constraint_names_for_rename(
+              thd, ren_table->db, old_alias, from_table, new_db, new_alias)) {
+        /*
+          Preserve the invariant that FK invalidator is empty after each
+          step of non-atomic RENAME TABLE.
+        */
+        fk_invalidator->clear();
         return true;
+      }
+
+      /*
+        Orphan non-self-referencing foreign keys may become non-orphan/adopted
+        self-referencing foreign keys. Check that table has compatible
+        referenced column and parent key for such foreign key. Also, update
+        DD.UNIQUE_CONSTRAINT_NAME.
+      */
+      if ((hton->flags & HTON_SUPPORTS_FOREIGN_KEYS) &&
+          adjust_adopted_self_ref_fk_for_simple_rename_table(
+              thd, ren_table->db, old_alias, new_db, new_alias, hton)) {
+        if (*int_commit_done) {
+          Implicit_substatement_state_guard substatement_guard(thd);
+          trans_rollback_stmt(thd);
+          trans_rollback(thd);
+          /*
+            Preserve the invariant that FK invalidator is empty after each
+            step of non-atomic RENAME TABLE.
+          */
+          fk_invalidator->clear();
+        }
+        return true;
+      }
 
       /*
         We commit changes to data-dictionary immediately after renaming
@@ -820,7 +848,8 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
 
       break;
     }
-    case dd::enum_table_type::SYSTEM_VIEW:  // Fall through
+    case dd::enum_table_type::SYSTEM_VIEW:
+      [[fallthrough]];
     case dd::enum_table_type::USER_VIEW: {
       // Changing the schema of a view is not allowed.
       if (strcmp(ren_table->db, new_db)) {

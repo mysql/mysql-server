@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
 #include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_dist_priv_util.h"
+#include "storage/ndb/plugin/ndb_event_data.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_schema_dist.h"
@@ -54,7 +55,7 @@ bool Ndb_binlog_client::table_should_have_event(
   }
 
   // Never create event(or event operation) for tables which have
-  // hidden primary key and blobs
+  // hidden primary key AND blobs
   if (ndb_table_has_hidden_pk(ndbtab) && ndb_table_has_blobs(ndbtab)) {
     // NOTE! Legacy warning message, could certainly be improved to simply
     // just say:
@@ -80,7 +81,8 @@ bool Ndb_binlog_client::table_should_have_event(
 
 extern bool ndb_binlog_running;
 
-bool Ndb_binlog_client::table_should_have_event_op(const NDB_SHARE *share) {
+bool Ndb_binlog_client::table_should_have_event_op(
+    const NDB_SHARE *share) const {
   DBUG_TRACE;
 
   if (!share->get_have_event()) {
@@ -162,20 +164,16 @@ bool Ndb_binlog_client::event_exists_for_table(Ndb *ndb,
   DBUG_TRACE;
 
   // Generate event name
-  std::string event_name =
+  const std::string event_name =
       event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
 
   // Get event from NDB
-  NdbDictionary::Dictionary *dict = ndb->getDictionary();
-  const NdbDictionary::Event *existing_event =
-      dict->getEvent(event_name.c_str());
+  NdbDictionary::Event_ptr existing_event(
+      ndb->getDictionary()->getEvent(event_name.c_str()));
   if (existing_event) {
     // The event exist
-    delete existing_event;
-
     ndb_log_verbose(1, "Event '%s' for table '%s.%s' already exists",
                     event_name.c_str(), m_dbname, m_tabname);
-
     return true;
   }
   return false;  // Does not exist

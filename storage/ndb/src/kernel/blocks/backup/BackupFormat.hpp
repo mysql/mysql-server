@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -308,11 +308,9 @@ struct BackupFormat {
       Uint32 Data[1]; // Len = Length - 3
     };
     static_assert(offsetof(LogEntry, FragId) ==
-                    LogEntry::FRAGID_OFFSET * sizeof(Uint32),
-                  "");
+                    LogEntry::FRAGID_OFFSET * sizeof(Uint32));
     static_assert(offsetof(LogEntry, Data) ==
-                    LogEntry::DATA_OFFSET * sizeof(Uint32),
-                  "");
+                    LogEntry::DATA_OFFSET * sizeof(Uint32));
 
     /**
      * Log Entry pre NDBD_FRAGID_VERSION (<5.1.6) and drop6 (5.2.x)
@@ -330,8 +328,7 @@ struct BackupFormat {
       Uint32 Data[1]; // Len = Length - 2
     };
     static_assert(offsetof(LogEntry_no_fragid, Data) ==
-                    LogEntry_no_fragid::DATA_OFFSET * sizeof(Uint32),
-                  "");
+                    LogEntry_no_fragid::DATA_OFFSET * sizeof(Uint32));
   };
 
   /**

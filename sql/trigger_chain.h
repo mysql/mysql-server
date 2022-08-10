@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ struct TABLE_LIST;
 
 class Trigger_chain {
  public:
-  Trigger_chain() {}
+  Trigger_chain() = default;
 
   ~Trigger_chain();
   /**

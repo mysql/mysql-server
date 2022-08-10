@@ -54,7 +54,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_spin_cpu_abs_lwm);
 COUNT(@@GLOBAL.innodb_log_spin_cpu_abs_lwm)
 1
 1 Expected
-SELECT innodb_log_spin_cpu_abs_lwm = @@SESSION.innodb_log_spin_cpu_abs_lwm;
+SELECT innodb_log_spin_cpu_abs_lwm;
 ERROR 42S22: Unknown column 'innodb_log_spin_cpu_abs_lwm' in 'field list'
 SET GLOBAL innodb_log_spin_cpu_abs_lwm = 200;
 SELECT @@innodb_log_spin_cpu_abs_lwm;

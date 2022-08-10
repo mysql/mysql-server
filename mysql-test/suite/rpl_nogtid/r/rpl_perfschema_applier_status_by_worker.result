@@ -12,15 +12,17 @@ include/assert.inc [On master, the table should return an empty set.]
 
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-SET @save_slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=0;
-set @save_slave_transaction_retries= @@global.slave_transaction_retries;
+SET @save_replica_parallel_workers=@@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers=0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
+set @save_replica_transaction_retries= @@global.replica_transaction_retries;
 include/start_slave.inc
 include/assert.inc [In non-MTS mode(SQL thread), the table should return one row as Single SQL applier thread will be part of replication_applier_status_by_worker table.]
 include/assert.inc [In non-MTS mode(SQL thread), the table should return empty result set]
 include/stop_slave.inc
-SET @@global.slave_parallel_workers=1;
-set @save_slave_transaction_retries= @@global.slave_transaction_retries;
+SET @@global.replica_parallel_workers=1;
+set @save_replica_transaction_retries= @@global.replica_transaction_retries;
 include/start_slave.inc
 include/assert.inc [Worker_Id should be 1]
 include/assert.inc [thread_name should should indicate worker thread.]
@@ -86,8 +88,8 @@ CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_MYPORT, 
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-SET @@global.slave_parallel_workers=1;
-set @save_slave_transaction_retries= @@global.slave_transaction_retries;
+SET @@global.replica_parallel_workers=1;
+set @save_replica_transaction_retries= @@global.replica_transaction_retries;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -99,7 +101,7 @@ insert into d1.t1 values(1);
 #              WRONG WORKER_ID WHEN SLAVE STOPS
 #
 include/stop_slave.inc
-SET @@GLOBAL.slave_parallel_workers = 3;
+SET @@GLOBAL.replica_parallel_workers = 3;
 include/start_slave.inc
 SELECT worker_id from performance_schema.replication_applier_status_by_worker;
 worker_id
@@ -116,8 +118,8 @@ worker_id
 # Cleanup.
 
 DROP DATABASE d1;
-set @@global.slave_parallel_workers= @save_slave_parallel_workers;
-set @@global.slave_transaction_retries= @save_slave_transaction_retries;
+set @@global.replica_parallel_workers= @save_replica_parallel_workers;
+set @@global.replica_transaction_retries= @save_replica_transaction_retries;
 include/start_slave.inc
 include/rpl_set_gtid_mode.inc [OFF on servers 1,2]
 include/rpl_end.inc

@@ -1,0 +1,108 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+stop replica;
+## CREATE TABLE in master with custom Blob inline size
+CREATE TABLE test.t1 (a int primary key,
+b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=64",
+bm mediumblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=700",
+bl longblob,
+t text comment "NDB_COLUMN=BLOB_INLINE_SIZE=100",
+tm mediumtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=512",
+tl longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=128")
+engine=ndb;
+## Verify inline and partition sizes of test.t1 on master
+SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 't1';
+inline_size	part_size
+64	2000
+700	4000
+256	13948
+100	2000
+512	4000
+128	13948
+reset master;
+## Create table in replica with other custom Blob inline size
+CREATE TABLE test.t1 (a int primary key,
+b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=96",
+bm mediumblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=456",
+bl longblob comment "NDB_COLUMN=BLOB_INLINE_SIZE=766",
+t text,
+tm mediumtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=255",
+tl longtext comment "NDB_COLUMN=BLOB_INLINE_SIZE=255") 
+engine=ndb;
+start replica;
+## Verify inline and partition sizes of test.t1 on replica
+SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 't1';
+inline_size	part_size
+96	2000
+456	4000
+766	13948
+256	2000
+255	4000
+255	13948
+## Connect to master and insert values on test.t1
+INSERT INTO test.t1 VALUES
+(
+1,
+repeat('J',60000),
+repeat('J',60000),
+repeat('J',60000),
+repeat(_utf32 0x1F47E,15000),
+repeat(_utf32 0x1F47E,60000),
+repeat(_utf32 0x1F47E,60000)),
+(
+2,
+repeat('K',60000),
+repeat('K',60000),
+repeat('K',60000),
+repeat(_utf32 0x1F47D,15000),
+repeat(_utf32 0x1F47D,60000),
+repeat(_utf32 0x1F47D,60000)),
+(
+3,
+repeat('L',60000),
+repeat('L',60000),
+repeat('L',60000),
+repeat(_utf32 0x1F47C,15000),
+repeat(_utf32 0x1F47C,60000),
+repeat(_utf32 0x1F47C,60000));
+
+## Verify inserted values on master, sync and verify those on replica
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl) FROM test.t1 ORDER BY a;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
+1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67
+2	d5950c0a4f54841607d278b9b85e6ece7f17b391	d5950c0a4f54841607d278b9b85e6ece7f17b391	d5950c0a4f54841607d278b9b85e6ece7f17b391	c8309b03b49ea221240972d3dbf6613c9f503283	2abc30b2daa3c61390c442518f34c4b63af579ad	2abc30b2daa3c61390c442518f34c4b63af579ad
+3	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	e8d860ea44ff946acbcd1dd18c462480472847d1	35f775de2d256b02670507c8e96f9c91d671afb8	35f775de2d256b02670507c8e96f9c91d671afb8
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl) FROM test.t1 ORDER BY a;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
+1	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	b0be713435a4afe8da1785f8d4c879a7af3a91a5	5adfaa7bc57d12afbafae28fbe2497f36e604ff9	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67	83d131c719aaa6026ee3a3fcec2ad856ed1e1a67
+2	d5950c0a4f54841607d278b9b85e6ece7f17b391	d5950c0a4f54841607d278b9b85e6ece7f17b391	d5950c0a4f54841607d278b9b85e6ece7f17b391	c8309b03b49ea221240972d3dbf6613c9f503283	2abc30b2daa3c61390c442518f34c4b63af579ad	2abc30b2daa3c61390c442518f34c4b63af579ad
+3	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	bb83d65b3b7e04c81fc59390a6a2c26a04070b93	e8d860ea44ff946acbcd1dd18c462480472847d1	35f775de2d256b02670507c8e96f9c91d671afb8	35f775de2d256b02670507c8e96f9c91d671afb8
+
+## Update values on master, verify, sync and verify those on replica
+UPDATE test.t1 SET
+b=left(b,59000),
+bm=left(bm, 59000),
+bl=left(bl, 59000),
+t=left(t,14000),
+tm=left(tm, 59000),
+tl=left(tl, 59000);
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl) FROM test.t1 order by a;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
+1	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	559f4ebf66e0318b821c3914a9df199bab6546d8	bf88664d7e8cf9785ef0c3de6f913dadd38cc7c5	bf88664d7e8cf9785ef0c3de6f913dadd38cc7c5
+2	db9d4b27baffbdee7dad91a7633a228c653e2af5	db9d4b27baffbdee7dad91a7633a228c653e2af5	db9d4b27baffbdee7dad91a7633a228c653e2af5	ebac5ad15b4941997be96ef1a6883aefd4ebc07b	45d1660acc8a8884d8ceff3a6a4594b50a5446a3	45d1660acc8a8884d8ceff3a6a4594b50a5446a3
+3	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	d9dbf90c93dce56f023a0d73060989b63f5c4e8b	9825358fe11f44b2b7b096d0c637a1f1dd727b52	9825358fe11f44b2b7b096d0c637a1f1dd727b52
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl) FROM test.t1 order by a;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
+1	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	4d600b2f06d25c2aa8c0cdf97f4fa1f39587326a	559f4ebf66e0318b821c3914a9df199bab6546d8	bf88664d7e8cf9785ef0c3de6f913dadd38cc7c5	bf88664d7e8cf9785ef0c3de6f913dadd38cc7c5
+2	db9d4b27baffbdee7dad91a7633a228c653e2af5	db9d4b27baffbdee7dad91a7633a228c653e2af5	db9d4b27baffbdee7dad91a7633a228c653e2af5	ebac5ad15b4941997be96ef1a6883aefd4ebc07b	45d1660acc8a8884d8ceff3a6a4594b50a5446a3	45d1660acc8a8884d8ceff3a6a4594b50a5446a3
+3	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	571d9ab7a0546b52048b1f2b7c34864fe37ae97e	d9dbf90c93dce56f023a0d73060989b63f5c4e8b	9825358fe11f44b2b7b096d0c637a1f1dd727b52	9825358fe11f44b2b7b096d0c637a1f1dd727b52
+
+## Delete on master, sync and verify deletion on replica
+DELETE FROM test.t1;
+SELECT a, sha1(b), sha1(bm), sha1(bl), sha1(t), sha1(tm), sha1(tl) FROM test.t1 order by a;
+a	sha1(b)	sha1(bm)	sha1(bl)	sha1(t)	sha1(tm)	sha1(tl)
+DROP TABLE test.t1;
+include/rpl_end.inc

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -102,15 +102,15 @@ inline bool operator==(const Schema &a, const Schema &b) {
  */
 class State {
  public:
-  State(std::string state) : state_{std::move(state)} {}
+  constexpr State(int8_t state) : state_{std::move(state)} {}
 
-  std::string state() const noexcept { return state_; }
+  constexpr int8_t state() const noexcept { return state_; }
 
  private:
-  std::string state_;
+  int8_t state_;
 };
 
-inline bool operator==(const State &a, const State &b) {
+constexpr inline bool operator==(const State &a, const State &b) {
   return (a.state() == b.state());
 }
 
@@ -217,22 +217,24 @@ inline bool operator==(const TransactionState &a, const TransactionState &b) {
 /**
  * TransactionCharacteristics changed.
  *
+ * resembles the SQL-text which started the transaction.
+ *
  * see: session_track_transaction_info
  */
 class TransactionCharacteristics {
  public:
-  TransactionCharacteristics(std::string statements)
-      : statements_{std::move(statements)} {}
+  TransactionCharacteristics(std::string characteristics)
+      : characteristics_{std::move(characteristics)} {}
 
-  std::string statements() const { return statements_; }
+  std::string characteristics() const { return characteristics_; }
 
  private:
-  std::string statements_;
+  std::string characteristics_;
 };
 
 inline bool operator==(const TransactionCharacteristics &a,
                        const TransactionCharacteristics &b) {
-  return (a.statements() == b.statements());
+  return (a.characteristics() == b.characteristics());
 }
 
 }  // namespace session_track

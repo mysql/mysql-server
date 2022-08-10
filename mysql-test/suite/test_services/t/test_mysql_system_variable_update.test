@@ -1,0 +1,86 @@
+--echo #
+--echo # WL#12002: SET system variable values as a component service
+--echo #
+
+call mtr.add_suppression("Setting session values for system variables only makes sense in a user session");
+
+INSTALL COMPONENT "file://component_test_mysql_system_variable_set";
+
+--echo # Ensure the value of super read only is off
+SELECT @@global.super_read_only;
+
+--echo # Try setting wrong variable name in the same thread. Should fail
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT test_set_system_variable_string(0, "the_meaning_of_life", "42", "GLOBAL");
+
+--echo # Try setting wrong variable name in a new sub-thread. Should fail
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT test_set_system_variable_string(1, "the_meaning_of_life", "42", "GLOBAL");
+
+--echo # Try setting wrong value to super_read_only, Should fail
+--error ER_WRONG_VALUE_FOR_VAR
+SELECT test_set_system_variable_string(0, "super_read_only", "gizmo", "GLOBAL");
+
+--echo # Ensure the value of super read only is still off
+SELECT @@global.super_read_only;
+
+--echo # Try setting super_read_only on using the same thread. Should succeed
+SELECT test_set_system_variable_string(0, "super_read_only", "on", "GLOBAL");
+
+--echo # Ensure the value of super read only is on
+SELECT @@global.super_read_only;
+
+--echo # Try setting super_read_only to off using a new sub-thread. Should succeed
+SELECT test_set_system_variable_string(1, "super_read_only", "off", "GLOBAL");
+
+--echo # Ensure the value of super read only is off
+SELECT @@global.super_read_only;
+
+--echo # Check that the variable is not yet persisted:
+SELECT * FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='super_read_only';
+
+--echo # Try setting PERSIST super_read_only. Should succeed
+SELECT test_set_system_variable_string(0, "super_read_only", "off", "PERSIST");
+
+--echo # Check that the variable is now persisted:
+SELECT VARIABLE_VALUE,@@global.super_read_only
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='super_read_only';
+
+--echo # reset persisted value
+RESET PERSIST super_read_only;
+
+--echo # Try setting PERSIST_ONLY super_read_only. Should succeed
+SELECT test_set_system_variable_string(0, "super_read_only", "on", "PERSIST_ONLY");
+
+--echo # Check that the variable is now persisted only but not changed:
+SELECT VARIABLE_VALUE,@@global.super_read_only
+  FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='super_read_only';
+
+--echo # reset persisted value
+RESET PERSIST super_read_only;
+
+--echo # Show initial value of super read only before next test
+SELECT @@global.super_read_only;
+
+--echo # Bug#34072134: mysql_system_variable_update_string::set does not allow NULL for variable_type
+--echo # Try setting super_read_only on using NULL type (defaults to GLOBAL). Should succeed
+SELECT test_set_system_variable_string(0, "super_read_only", "on", NULL);
+
+--echo # Ensure the value of super read only is on
+SELECT @@global.super_read_only;
+
+--echo # Bug#34072155: Improve mysql_system_variable_update_string::set to add error information
+--echo # Try using SESSION type with sub-thread, Should fail with NULL
+SELECT test_set_system_variable_string(1, "super_read_only", "off", "SESSION");
+
+--echo # Ensure the value of super read only is still on
+SELECT @@global.super_read_only;
+
+--echo # Cleanup
+SET GLOBAL read_only = DEFAULT;
+RESET PERSIST;
+UNINSTALL COMPONENT "file://component_test_mysql_system_variable_set";
+
+
+--echo # End of 8.0 tests
+

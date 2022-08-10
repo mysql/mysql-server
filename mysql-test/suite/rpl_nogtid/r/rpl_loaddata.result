@@ -56,7 +56,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/check_slave_no_error.inc
-set global sql_slave_skip_counter=1;
+set global sql_replica_skip_counter=1;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -101,6 +101,8 @@ ERROR 23000: Duplicate entry '2003-03-22' for key 't2.day'
 include/wait_for_slave_sql_error.inc [errno=13113]
 drop table t1, t2;
 drop table t1, t2;
+include/stop_slave_io.inc
+RESET REPLICA;
 include/rpl_reset.inc
 drop database if exists b48297_db1;
 drop database if exists b42897_db2;

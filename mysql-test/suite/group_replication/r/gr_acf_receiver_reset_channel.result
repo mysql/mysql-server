@@ -1,0 +1,91 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a group in single-primary mode on server1 and server2.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/gr_assert_primary_member.inc
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_group_replication.inc
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 2. Configure and start a failover channel on server1 that
+#    replicates from server4.
+[connection server4]
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 50);;
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+
+############################################################
+# 3. Validate server1 and server2 configuration.
+[connection server1]
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server4]
+include/assert.inc [Verify channel ch1 SQL_THREAD is ON]
+include/assert.inc [Verify replica_monitor thread is running]
+[connection server2]
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is OFF]
+include/assert.inc [Verify channel ch1 SQL_THREAD is OFF]
+include/assert.inc [Verify replica_monitor thread is not running]
+
+############################################################
+# 4. Stop and delete channel 'ch1' on server1 and server2.
+[connection server2]
+include/rpl_reset_slave.inc
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl_reset_slave.inc
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '');;
+asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+
+############################################################
+# 5. Validate server1 and server2 configuration.
+[connection server1]
+include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/assert.inc ['Verify ch1 was deleted']
+include/assert.inc [Verify replica_monitor thread is not running]
+[connection server2]
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/assert.inc ['Verify ch1 was deleted']
+include/assert.inc [Verify replica_monitor thread is not running]
+
+############################################################
+# 6. Add server3 to the group.
+[connection server3]
+include/start_group_replication.inc
+include/gr_assert_secondary_member.inc
+include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/assert.inc ['Verify ch1 does noet exist']
+include/assert.inc [Verify replica_monitor thread is not running]
+
+############################################################
+# 7. Clean up.
+[connection server3]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+include/group_replication_end.inc

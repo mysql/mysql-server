@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,10 @@
   @file include/my_getopt.h
 */
 
-#include <stdio.h>
 #include <sys/types.h>
+
+#include <cstdio>
+#include <string_view>
 
 #include <mysql/components/services/system_variable_source_type.h> /* enum_variable_source */
 #include "my_config.h"
@@ -138,8 +140,8 @@ typedef void *(*my_getopt_value)(const char *, size_t, const struct my_option *,
 extern char *disabled_my_option;
 extern bool my_getopt_print_errors;
 extern bool my_getopt_skip_unknown;
-extern bool log_slave_updates_supplied;
-extern bool slave_preserve_commit_order_supplied;
+extern bool log_replica_updates_supplied;
+extern bool replica_preserve_commit_order_supplied;
 extern my_error_reporter my_getopt_error_reporter;
 
 extern "C" int handle_options(int *argc, char ***argv,
@@ -167,7 +169,7 @@ ulonglong getopt_double2ulonglong(double);
 double getopt_ulonglong2double(ulonglong);
 int findopt(const char *, uint, const struct my_option **);
 
-bool is_key_cache_variable_suffix(const char *suffix);
+bool is_key_cache_variable_suffix(std::string_view suffix);
 
 bool get_bool_argument(const char *argument, bool *error);
 // Declared here, so we can unit test it.

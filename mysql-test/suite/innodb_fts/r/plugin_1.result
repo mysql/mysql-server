@@ -42,8 +42,8 @@ SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('dbms' WITH QUERY EXPANSION);
 id	title	body	body1	body2	body3
 1	MySQL Tutorial	DBMS stands for MySQL DataBase ...	row1col4	row1col5	row1col5
-3	Optimizing MySQL	In this tutorial we will show ...	row3col4	row3col5	row3col5 for
 2	How To Use MySQL Well	After you went through a ...	row2col4	row2col5	row2col5
+3	Optimizing MySQL	In this tutorial we will show ...	row3col4	row3col5	row3col5 for
 4	1001 MySQL Tricks	How to use full-text search engine	row4col4	row4col5	row4col5
 5	Go MySQL Tricks	How to use full text search engine	row5col4 this	row5col5	row5col5
 SELECT * FROM articles WHERE

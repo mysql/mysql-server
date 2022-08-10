@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,9 @@
 /* View timeout (seconds) */
 #define VIEW_MODIFICATION_TIMEOUT 60
 
+/* View timeout for Force Members (seconds) */
+#define FORCE_MEMBERS_VIEW_MODIFICATION_TIMEOUT 120
+
 /*
   Transaction wait timeout before kill (seconds)
   This value comes from innodb_lock_wait_timeout that can make some of the
@@ -77,5 +80,11 @@
   Version from which group replication and the server support cloning
 */
 #define CLONE_GR_SUPPORT_VERSION 0x080017
+
+/*
+  Version from which group replication support timeout argument in UDF
+  group_replication_set_as_primary
+*/
+#define MEMBER_VERSION_INTRODUCING_RUNNING_TRANSACTION_TIMEOUT 0x080029
 
 #endif /* PLUGIN_CONSTANTS_INCLUDE */

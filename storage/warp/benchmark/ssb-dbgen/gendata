@@ -16,7 +16,7 @@ if [ -e lineorder.tbl ]; then
   echo "Backup completed"
 fi;
 echo "Generating new data set of scale factor $SIZE"  
-./dbgen -s $SIZE -T l > /dev/null 2>&1 &
+./dbgen -C 8 -s $SIZE -T l > /dev/null 2>&1 &
 ./dbgen -s $SIZE -T c > /dev/null 2>&1 &
 ./dbgen -s $SIZE -T d > /dev/null 2>&1 &
 ./dbgen -s $SIZE -T p > /dev/null 2>&1 &

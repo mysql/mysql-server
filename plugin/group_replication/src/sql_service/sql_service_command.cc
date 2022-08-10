@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -358,79 +358,6 @@ long Sql_service_commands::internal_get_server_read_only(
   return server_read_only;
 }
 
-int Sql_service_command_interface::get_server_gtid_executed(
-    string &gtid_executed) {
-  DBUG_TRACE;
-  long error = 0;
-
-  if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
-    error = sql_service_commands.internal_get_server_gtid_executed(
-        m_server_interface, static_cast<void *>(&gtid_executed));
-  } else {
-    m_plugin_session_thread->set_return_pointer(
-        static_cast<void *>(&gtid_executed));
-    m_plugin_session_thread->queue_new_method_for_application(
-        &Sql_service_commands::internal_get_server_gtid_executed);
-    error = m_plugin_session_thread->wait_for_method_execution();
-  }
-
-  return error;
-}
-
-long Sql_service_commands::internal_get_server_gtid_executed(
-    Sql_service_interface *sql_interface, void *gtid_executed_arg) {
-  DBUG_TRACE;
-
-  assert(sql_interface != nullptr);
-
-  std::string *gtid_executed = static_cast<std::string *>(gtid_executed_arg);
-
-  Sql_resultset rset;
-  long srv_err =
-      sql_interface->execute_query("SELECT @@GLOBAL.gtid_executed", &rset);
-  if (srv_err == 0 && rset.get_rows() > 0) {
-    gtid_executed->assign(rset.getString(0));
-    return 0;
-  }
-  return 1;
-}
-
-int Sql_service_command_interface::get_server_gtid_purged(string &gtid_purged) {
-  DBUG_TRACE;
-  long error = 0;
-
-  if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
-    error = sql_service_commands.internal_get_server_gtid_purged(
-        m_server_interface, static_cast<void *>(&gtid_purged));
-  } else {
-    m_plugin_session_thread->set_return_pointer(
-        static_cast<void *>(&gtid_purged));
-    m_plugin_session_thread->queue_new_method_for_application(
-        &Sql_service_commands::internal_get_server_gtid_purged);
-    error = m_plugin_session_thread->wait_for_method_execution();
-  }
-
-  return error;
-}
-
-long Sql_service_commands::internal_get_server_gtid_purged(
-    Sql_service_interface *sql_interface, void *gtid_purged_arg) {
-  DBUG_TRACE;
-
-  assert(sql_interface != nullptr);
-
-  std::string *gtid_purged = static_cast<std::string *>(gtid_purged_arg);
-
-  Sql_resultset rset;
-  long srv_err =
-      sql_interface->execute_query("SELECT @@GLOBAL.GTID_PURGED", &rset);
-  if (srv_err == 0 && rset.get_rows() > 0) {
-    gtid_purged->assign(rset.getString(0));
-    return 0;
-  }
-  return 1;
-}
-
 long Sql_service_command_interface::wait_for_server_gtid_executed(
     std::string &gtid_executed, int timeout) {
   DBUG_TRACE;
@@ -781,7 +708,8 @@ Session_plugin_thread::Session_plugin_thread(
   mysql_mutex_init(key_GR_LOCK_session_thread_method_exec, &m_method_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_session_thread_method_exec, &m_method_cond);
-  this->incoming_methods = new Synchronized_queue<st_session_method *>();
+  this->incoming_methods =
+      new Synchronized_queue<st_session_method *>(key_sql_service_command_data);
 }
 
 Session_plugin_thread::~Session_plugin_thread() {
@@ -805,7 +733,7 @@ void Session_plugin_thread::queue_new_method_for_application(
     bool terminate) {
   st_session_method *method_to_execute;
   method_to_execute = (st_session_method *)my_malloc(
-      PSI_NOT_INSTRUMENTED, sizeof(st_session_method), MYF(0));
+      key_sql_service_command_data, sizeof(st_session_method), MYF(0));
   method_to_execute->method = method;
   method_to_execute->terminated = terminate;
   m_method_execution_completed = false;
@@ -923,6 +851,19 @@ int Session_plugin_thread::session_thread_handler() {
   if (m_session_thread_error) goto end;
 
   while (!m_session_thread_terminate) {
+    DBUG_EXECUTE_IF("group_replication_session_plugin_handler_before_pop", {
+      st_session_method *m = nullptr;
+      this->incoming_methods->front(&m);
+      const char act[] =
+          "now signal "
+          "signal.group_replication_session_plugin_handler_before_pop_"
+          "reached "
+          "wait_for "
+          "signal.group_replication_session_plugin_handler_before_pop_"
+          "continue";
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    });
+
     this->incoming_methods->pop(&method);
 
     if (method->terminated) {

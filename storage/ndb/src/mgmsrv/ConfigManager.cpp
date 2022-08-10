@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
+#include "util/require.h"
+#include <time.h>
+
 #include "ConfigManager.hpp"
 #include "MgmtSrvr.hpp"
 #include <NdbDir.hpp>
@@ -36,7 +39,6 @@
 #include <ndb_version.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 extern "C" const char* opt_ndb_connectstring;
 extern "C" int opt_ndb_nodeid;
@@ -217,6 +219,9 @@ find_own_nodeid(Config* conf)
 {
   NodeId found_nodeid= 0;
   ConfigIter iter(conf, CFG_SECTION_NODE);
+  int unmatched_host_count = 0;
+  std::string unmatched_hostname;
+  const char *separator = "";
   for (iter.first(); iter.valid(); iter.next())
   {
     Uint32 type;
@@ -240,15 +245,28 @@ find_own_nodeid(Config* conf)
       // This node is setup to run on this host
       if (found_nodeid == 0)
         found_nodeid = nodeid;
-      else
-      {
-        return 0; // More than one host on this node
+      else {
+        g_eventLogger->error(
+            "More than one hostname matches a local interface, including node "
+            "ids %d and %d.",
+            found_nodeid, nodeid);
+        return 0;
       }
+    } else {
+      unmatched_host_count++;
+      // Append the hostname to the list of unmatched host
+      unmatched_hostname += separator + std::string(hostname);
+      separator = ",";
     }
+  }
+  if (found_nodeid == 0 && unmatched_host_count > 0) {
+    g_eventLogger->error(
+        "At least one hostname in the configuration does not match a local "
+        "interface. Failed to bind on %s",
+        unmatched_hostname.c_str());
   }
   return found_nodeid;
 }
-
 
 NodeId
 ConfigManager::find_nodeid_from_config(void)
@@ -312,6 +330,11 @@ ConfigManager::init_nodeid(void)
                          nodeid);
     m_node_id = nodeid;
     DBUG_RETURN(true);
+  }
+
+  if (m_config_retriever.hasError())
+  {
+    g_eventLogger->error("%s", m_config_retriever.getErrorString());
   }
 
   // We _could_ try connecting to other running mgmd(s)
@@ -393,6 +416,16 @@ ConfigManager::init(void)
   BaseString config_bin_name;
   if (saved_config_exists(config_bin_name))
   {
+    /**
+     * ndb-connectstring is ignored when mgmd is started from binary
+     * config
+     */
+    if (!(m_opts.config_filename || m_opts.mycnf) && opt_ndb_connectstring) {
+      g_eventLogger->warning(
+          "--ndb-connectstring is ignored when mgmd is started from binary "
+          "config.");
+    }
+
     Config* conf = NULL;
     if (!(conf = load_saved_config(config_bin_name)))
       DBUG_RETURN(false);
@@ -707,9 +740,11 @@ ConfigManager::config_ok(const Config* conf)
    * Validation of Port number for management nodes happens only if its not
    * started. validate_port is set to true when node is not started and set
    * to false when node is started.
+   * Validation is also skipped when printing full config.
    */
   bool validate_port = false;
-  if (!m_started.get(m_node_id)) validate_port = true;
+  if (!(m_started.get(m_node_id) || m_opts.print_full_config))
+    validate_port = true;
   if (!m_config_retriever.verifyConfig(conf->m_configuration, m_node_id,
                                        validate_port))
   {
@@ -732,6 +767,28 @@ ConfigManager::config_ok(const Config* conf)
                          datadir);
     return false;
   }
+
+  /**
+   * Gives information to users to start all the management nodes for multiple
+   * mgmd node configuration.
+   */
+  if (!(m_started.get(m_node_id) || m_opts.print_full_config)) {
+    Uint32 num_mgm_nodes = 0;
+    ConfigIter it(conf, CFG_SECTION_NODE);
+    for (it.first(); it.valid(); it.next()) {
+      unsigned int type;
+      require(it.get(CFG_TYPE_OF_SECTION, &type) == 0);
+
+      if (type == NODE_TYPE_MGM) num_mgm_nodes++;
+      if (num_mgm_nodes > 1) {
+        g_eventLogger->info("Cluster configuration has multiple "
+                            "Management nodes. Please start the other "
+                            "mgmd nodes if not started yet.");
+        break;
+      }
+    }
+  }
+
   return true;
 }
 
@@ -2167,19 +2224,36 @@ ConfigManager::fetch_config(void)
                         "using '%s'...",
                         m_config_retriever.get_connectstring(buf, sizeof(buf)));
 
-    if (m_config_retriever.is_connected() ||
-        m_config_retriever.do_connect(30 /* retry */,
-                                      1 /* delay */,
-                                      0 /* verbose */) == 0)
+    if (!m_config_retriever.is_connected())
+    {
+      int ret = m_config_retriever.do_connect(30 /* retry */,
+        1 /* delay */,
+        0 /* verbose */);
+      if (ret == 0)
+      {
+        //connection success
+        g_eventLogger->info("Connected to '%s:%d'...",
+          m_config_retriever.get_mgmd_host(),
+          m_config_retriever.get_mgmd_port());
+        break;
+      }
+      else if (ret == -2)
+      {
+        //premanent error, return without re-try
+        g_eventLogger->error("%s", m_config_retriever.getErrorString());
+        DBUG_RETURN(NULL);
+      }
+    }
+    else
     {
       g_eventLogger->info("Connected to '%s:%d'...",
-                          m_config_retriever.get_mgmd_host(),
-                          m_config_retriever.get_mgmd_port());
+        m_config_retriever.get_mgmd_host(),
+        m_config_retriever.get_mgmd_port());
       break;
     }
   }
   // read config from other management server
-  ndb_mgm_config_unique_ptr conf =
+  ndb_mgm::config_ptr conf =
     m_config_retriever.getConfig(m_config_retriever.get_mgmHandle());
 
   // Disconnect from other mgmd
@@ -2347,7 +2421,7 @@ ConfigManager::failed_config_change_exists() const
 Config*
 ConfigManager::load_saved_config(const BaseString& config_name)
 {
-  ndb_mgm_config_unique_ptr retrieved_config =
+  ndb_mgm::config_ptr retrieved_config =
       m_config_retriever.getConfig(config_name.c_str());
   if(!retrieved_config)
   {

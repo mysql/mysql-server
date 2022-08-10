@@ -1,5 +1,5 @@
 #ifndef RPL_TRX_TRACKING_INCLUDED
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,14 +66,14 @@ class Logical_clock {
     Updates the offset.
     This operation is invoked when binlog rotates and at that time
     there can't any concurrent step() callers so no need to guard
-    the assignement.
+    the assignment.
   */
   void update_offset(int64 new_offset) {
     assert(offset <= new_offset);
 
     offset = new_offset;
   }
-  ~Logical_clock() {}
+  ~Logical_clock() = default;
 };
 
 /**

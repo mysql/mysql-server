@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,11 +43,13 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/string_utils.h"    // mysql_harness::split_string
 #include "mysql/harness/utility/string.h"  // mysql_harness::join
-#include "mysqlrouter/utils.h"
-#include "print_version.h"             // build_version
-#include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
+#include "mysqlrouter/utils.h"             // set_prompt_password
+#include "print_version.h"                 // build_version
+#include "router_config.h"                 // MYSQL_ROUTER_PACKAGE_NAME
+#include "welcome_copyright_notice.h"      // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 constexpr const char kAppExeFileName[]{"mysqlrouter_keyring"};
 
@@ -293,13 +295,13 @@ constexpr size_t max_bits(size_t max_value) {
   return used_bits;
 }
 
-static_assert(max_bits(0) == 0, "");
-static_assert(max_bits(1) == 1, "");
-static_assert(max_bits(2) == 2, "");
-static_assert(max_bits(3) == 2, "");
-static_assert(max_bits(4) == 3, "");
-static_assert(max_bits(7) == 3, "");
-static_assert(max_bits(8) == 4, "");
+static_assert(max_bits(0) == 0);
+static_assert(max_bits(1) == 1);
+static_assert(max_bits(2) == 2);
+static_assert(max_bits(3) == 2);
+static_assert(max_bits(4) == 3);
+static_assert(max_bits(7) == 3);
+static_assert(max_bits(8) == 4);
 
 template <class T, class Values, class Prev, size_t max_value>
 class ChainedBitset {
@@ -934,19 +936,12 @@ TEST_P(KeyringFrontendTest, ensure) {
       is_absolute = tmpdir.name().at(0) == '/';
 #endif
       if (!is_absolute) {
-#ifdef _WIN32
-        std::array<char, MAX_PATH> cwd;
-#else
-        std::array<char, PATH_MAX> cwd;
-#endif
-        if (nullptr == getcwd(cwd.data(), cwd.size())) {
-          throw std::system_error(errno, std::generic_category(),
-                                  "getcwd() failed");
-        }
-        keyring_filename = mysql_harness::Path(cwd.data())
-                               .join(tmpdir.name())
-                               .join("Key ring")
-                               .str();
+        // current_path throws if something goes wrong.
+        keyring_filename =
+            mysql_harness::Path(stdx::filesystem::current_path().native())
+                .join(tmpdir.name())
+                .join("Key ring")
+                .str();
       } else {
         keyring_filename =
             mysql_harness::Path(tmpdir.name()).join("Key ring").str();
@@ -1817,8 +1812,8 @@ const KeyringFrontendTestParam password_frontend_param[]{
         EXIT_FAILURE,
         "",
         "",
-        "^opening master-key-file failed: '.*' has insecure permissions. "
-        ".*: " +
+        "^opening master-key-file failed: '.*' has insecure permissions"
+        ": " +
             make_error_code(std::errc::permission_denied).message(),
         PreCond::Keyring::none() | PreCond::MasterKeyfile::insecure() |
             PostCond::Keyring::not_exists() | PostCond::MasterKeyfile::exists(),

@@ -36,7 +36,7 @@ SQL_PATH	binary(0)	YES		NULL
 DEFAULT_ENCRYPTION	enum('NO','YES')	NO		NULL	
 SHOW CREATE TABLE information_schema.SCHEMATA;
 View	Create View	character_set_client	collation_connection
-SCHEMATA	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`SCHEMATA` AS select `cat`.`name` AS `CATALOG_NAME`,`sch`.`name` AS `SCHEMA_NAME`,`cs`.`name` AS `DEFAULT_CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATION_NAME`,NULL AS `SQL_PATH`,`sch`.`default_encryption` AS `DEFAULT_ENCRYPTION` from (((`mysql`.`schemata` `sch` join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `col` on((`sch`.`default_collation_id` = `col`.`id`))) join `mysql`.`character_sets` `cs` on((`col`.`character_set_id` = `cs`.`id`))) where (0 <> can_access_database(`sch`.`name`))	utf8	utf8_general_ci
+SCHEMATA	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`SCHEMATA` AS select `cat`.`name` AS `CATALOG_NAME`,`sch`.`name` AS `SCHEMA_NAME`,`cs`.`name` AS `DEFAULT_CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATION_NAME`,NULL AS `SQL_PATH`,`sch`.`default_encryption` AS `DEFAULT_ENCRYPTION` from (((`mysql`.`schemata` `sch` join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `col` on((`sch`.`default_collation_id` = `col`.`id`))) join `mysql`.`character_sets` `cs` on((`col`.`character_set_id` = `cs`.`id`))) where (0 <> can_access_database(`sch`.`name`))	utf8mb3	utf8mb3_general_ci
 SHOW COLUMNS FROM information_schema.SCHEMATA;
 Field	Type	Null	Key	Default	Extra
 CATALOG_NAME	varchar(64)	NO		NULL	
@@ -131,7 +131,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT schema_name, default_character_set_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
 SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
-db_datadict	utf8
+db_datadict	utf8mb3
 ALTER SCHEMA db_datadict CHARACTER SET 'latin1';
 SELECT schema_name, default_collation_name FROM information_schema.schemata
 WHERE schema_name = 'db_datadict';

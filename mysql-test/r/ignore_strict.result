@@ -148,11 +148,6 @@ CREATE TABLE t2(a INT, b INT NOT NULL) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(1, NULL),(2,NULL);
 INSERT INTO t2 VALUES (1,3), (2,4);
 UPDATE IGNORE t1,t2 SET t2.b=NULL;
-Warnings:
-Warning	1048	Column 'b' cannot be null
-Warning	1048	Column 'b' cannot be null
-Warning	1048	Column 'b' cannot be null
-Warning	1048	Column 'b' cannot be null
 DROP TABLE t1,t2;
 #
 # IGNORE keyword in the statement should not affect the errors in the
@@ -275,11 +270,6 @@ INSERT INTO t2 VALUES (1,3), (2,4);
 UPDATE t1,t2 SET t2.b=NULL;
 ERROR 23000: Column 'b' cannot be null
 UPDATE IGNORE t1,t2 SET t2.b=NULL;
-Warnings:
-Warning	1048	Column 'b' cannot be null
-Warning	1048	Column 'b' cannot be null
-Warning	1048	Column 'b' cannot be null
-Warning	1048	Column 'b' cannot be null
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t2 (b INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE = InnoDB;
@@ -688,11 +678,6 @@ CREATE TABLE t2(a INT, b INT NOT NULL) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(1, NULL),(2,NULL);
 INSERT INTO t2 VALUES (1,3), (2,4);
 UPDATE IGNORE t1,t2 SET t2.b=NULL;
-Warnings:
-Warning	1048	Column 'b' cannot be null
-Warning	1048	Column 'b' cannot be null
-Warning	1048	Column 'b' cannot be null
-Warning	1048	Column 'b' cannot be null
 UPDATE IGNORE t2,t1 SET t2.b=NULL;
 Warnings:
 Warning	1048	Column 'b' cannot be null
@@ -808,9 +793,6 @@ INSERT INTO t2 VALUES(7);
 DELETE FROM t1 where a <=> ln(0);
 ERROR 2201E: Invalid argument for logarithm
 DELETE IGNORE FROM t1 where a <=> ln(0);
-Warnings:
-Warning	3020	Invalid argument for logarithm
-Warning	3020	Invalid argument for logarithm
 SHOW WARNINGS;
 Level	Code	Message
 Warning	3020	Invalid argument for logarithm

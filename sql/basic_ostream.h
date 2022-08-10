@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class Basic_ostream {
      @retval true  Error.
   */
   virtual bool write(const unsigned char *buffer, my_off_t length) = 0;
-  virtual ~Basic_ostream() {}
+  virtual ~Basic_ostream() = default;
 };
 
 /**
@@ -86,7 +86,7 @@ class Truncatable_ostream : public Basic_ostream {
   */
   virtual bool sync() = 0;
 
-  ~Truncatable_ostream() override {}
+  ~Truncatable_ostream() override = default;
 };
 
 /**
@@ -136,7 +136,7 @@ class IO_CACHE_ostream : public Truncatable_ostream {
 
   /**
      Syncs the file to disk. It doesn't check and flush any remaining data still
-     left in IO_CACHE's bufffer. So a call to flush() is necessary in order to
+     left in IO_CACHE's buffer. So a call to flush() is necessary in order to
      persist all data including the data in buffer.
 
      @retval false  Success
@@ -157,7 +157,7 @@ template <int BUFFER_SIZE>
 class StringBuffer_ostream : public Basic_ostream,
                              public StringBuffer<BUFFER_SIZE> {
  public:
-  StringBuffer_ostream() {}
+  StringBuffer_ostream() = default;
   StringBuffer_ostream(const StringBuffer_ostream &) = delete;
   StringBuffer_ostream &operator=(const StringBuffer_ostream &) = delete;
 

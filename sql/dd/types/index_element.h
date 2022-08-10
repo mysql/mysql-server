@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class Index_element : virtual public Weak_object {
   enum enum_index_element_order { ORDER_UNDEF = 1, ORDER_ASC, ORDER_DESC };
 
  public:
-  ~Index_element() override {}
+  ~Index_element() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // index.

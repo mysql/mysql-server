@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ static void test_noop() {
   psi_table_service->close_table(nullptr, nullptr);
   psi_file_service->create_file(1, nullptr, 2);
   /* TODO: spawn thread */
-  thread = psi_thread_service->new_thread(1, nullptr, 2);
+  thread = psi_thread_service->new_thread(1, 0, nullptr, 2);
   ok(thread == nullptr, "no thread");
   psi_thread_service->set_thread_id(nullptr, 1);
   thread = psi_thread_service->get_thread();
@@ -161,8 +161,8 @@ static void test_noop() {
   psi_file_service->end_file_wait(nullptr, 0);
   psi_file_service->start_file_close_wait(nullptr, nullptr, 0);
   psi_file_service->end_file_close_wait(nullptr, 0);
-  psi_file_service->start_file_rename_wait(NULL, 0, nullptr, nullptr, nullptr,
-                                           0);
+  psi_file_service->start_file_rename_wait(nullptr, 0, nullptr, nullptr,
+                                           nullptr, 0);
   psi_file_service->end_file_rename_wait(nullptr, nullptr, nullptr, 0);
   psi_stage_service->start_stage(1, nullptr, 0);
 
@@ -246,6 +246,11 @@ static void test_noop() {
   psi_thread_service->set_thread_THD(nullptr, nullptr);
 
   psi_error_service->log_error(0, PSI_ERROR_OPERATION_RAISED);
+
+  psi_thread_service->set_thread_secondary_engine(false);
+  psi_statement_service->set_statement_secondary_engine(nullptr, false);
+  psi_statement_service->set_prepared_stmt_secondary_engine(nullptr, false);
+
   ok(true, "no error");
 
   ok(true, "all noop api called");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ extern int find_type_or_exit(const char *x, TYPELIB *typelib,
 #define FIND_TYPE_BASIC 0
 /** makes @c find_type() require the whole name, no prefix */
 #define FIND_TYPE_NO_PREFIX (1 << 0)
-/** always implicitely on, so unused, but old code may pass it */
+/** always implicitly on, so unused, but old code may pass it */
 #define FIND_TYPE_NO_OVERWRITE (1 << 1)
 /** makes @c find_type() accept a number */
 #define FIND_TYPE_ALLOW_NUMBER (1 << 2)

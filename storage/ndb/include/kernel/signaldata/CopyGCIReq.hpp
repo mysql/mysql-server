@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,8 +66,8 @@ private:
   /**
    * No of free words to carry data
    */
-  STATIC_CONST( SignalLength = 3);
-  STATIC_CONST( DATA_SIZE = 22 );
+  static constexpr Uint32 SignalLength = 3;
+  static constexpr Uint32 DATA_SIZE = 22;
   
   Uint32 data[DATA_SIZE];
 };

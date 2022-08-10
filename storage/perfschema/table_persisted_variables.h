@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ class PFS_index_persisted_variables : public PFS_engine_index {
   PFS_index_persisted_variables()
       : PFS_engine_index(&m_key), m_key("VARIABLE_NAME") {}
 
-  ~PFS_index_persisted_variables() override {}
+  ~PFS_index_persisted_variables() override = default;
 
   virtual bool match(const System_variable *pfs);
 
@@ -95,7 +95,7 @@ class table_persisted_variables : public PFS_engine_table {
   table_persisted_variables();
 
  public:
-  ~table_persisted_variables() override {}
+  ~table_persisted_variables() override = default;
 
  protected:
   int make_row(const System_variable *system_var);

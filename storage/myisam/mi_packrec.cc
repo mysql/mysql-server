@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -454,7 +454,7 @@ static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
     This means so many bits from the input stream were needed to
     represent this byte value. The remaining bits belong to later
     Huffman codes. This also means that for every Huffman code shorter
-    than table_bits there are multiple entires in the array, which
+    than table_bits there are multiple entries in the array, which
     differ just in the unused bits.
 
     If the high-order bit (16) is clear (0) then the remaining bits are
@@ -761,7 +761,7 @@ static unpack_function_t get_unpack_function(MI_COLUMNDEF *rec) {
       return &uf_varchar2;
     case FIELD_LAST:
     default:
-      return nullptr; /* This should never happend */
+      return nullptr; /* This should never happen */
   }
 }
 
@@ -918,7 +918,7 @@ static void uf_zerofill_normal(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 }
 
 static void uf_constant(MI_COLUMNDEF *rec,
-                        MI_BIT_BUFF *bit_buff MY_ATTRIBUTE((unused)), uchar *to,
+                        MI_BIT_BUFF *bit_buff [[maybe_unused]], uchar *to,
                         uchar *end) {
   memcpy(to, rec->huff_tree->intervalls, (size_t)(end - to));
 }
@@ -933,8 +933,8 @@ static void uf_intervall(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
 }
 
 /*ARGSUSED*/
-static void uf_zero(MI_COLUMNDEF *rec MY_ATTRIBUTE((unused)),
-                    MI_BIT_BUFF *bit_buff MY_ATTRIBUTE((unused)), uchar *to,
+static void uf_zero(MI_COLUMNDEF *rec [[maybe_unused]],
+                    MI_BIT_BUFF *bit_buff [[maybe_unused]], uchar *to,
                     uchar *end) {
   memset(to, 0, (end - to));
 }
@@ -960,7 +960,7 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
 }
 
 static void uf_varchar1(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
-                        uchar *end MY_ATTRIBUTE((unused))) {
+                        uchar *end [[maybe_unused]]) {
   if (get_bit(bit_buff))
     to[0] = 0; /* Zero lengths */
   else {
@@ -971,7 +971,7 @@ static void uf_varchar1(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
 }
 
 static void uf_varchar2(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
-                        uchar *end MY_ATTRIBUTE((unused))) {
+                        uchar *end [[maybe_unused]]) {
   if (get_bit(bit_buff))
     to[0] = to[1] = 0; /* Zero lengths */
   else {
@@ -1026,7 +1026,7 @@ static void decode_bytes(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
       This means so many bits from the input stream were needed to
       represent this byte value. The remaining bits belong to later
       Huffman codes. This also means that for every Huffman code shorter
-      than table_bits there are multiple entires in the array, which
+      than table_bits there are multiple entries in the array, which
       differ just in the unused bits.
 
       If the high-order bit (16) is clear (0) then the remaining bits are
@@ -1047,7 +1047,7 @@ static void decode_bytes(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
       /* This means that the Huffman code must be longer than table_bits. */
       pos = decode_tree->table + low_byte;
       bits -= table_bits;
-      /* NOTE: decode_bytes_test_bit() is a macro wich contains a break !!! */
+      /* NOTE: decode_bytes_test_bit() is a macro which contains a break !!! */
       for (;;) {
         low_byte = (uint)(bit_buff->current_byte >> (bits - 8));
         decode_bytes_test_bit(0);
@@ -1316,7 +1316,7 @@ static void fill_buffer(MI_BIT_BUFF *bit_buff) {
 #endif
 }
 
-/* Get number of bits neaded to represent value */
+/* Get number of bits needed to represent value */
 
 static uint max_bit(uint value) {
   uint power = 1;
@@ -1430,9 +1430,10 @@ static int _mi_read_mempack_record(MI_INFO *info, my_off_t filepos,
 }
 
 /*ARGSUSED*/
-static int _mi_read_rnd_mempack_record(
-    MI_INFO *info, uchar *buf, my_off_t filepos,
-    bool skip_deleted_blocks MY_ATTRIBUTE((unused))) {
+static int _mi_read_rnd_mempack_record(MI_INFO *info, uchar *buf,
+                                       my_off_t filepos,
+                                       bool skip_deleted_blocks
+                                       [[maybe_unused]]) {
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share = info->s;
   uchar *pos, *start;

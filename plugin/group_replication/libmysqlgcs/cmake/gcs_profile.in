@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,8 +63,9 @@ enum {
   MAX_BATCH_SIZE = 0x3fffffff, /* Limit batch size to sensible ? amount */
   MAX_BATCH_APP_DATA = 5000,   /* Limit nr. of batched elements */
   MAX_DEAD = 10,
-  PROPOSERS = 10,         /* The number of proposers on one node */
-  MIN_CACHE_SIZE = 250000 /* Minimum cache size */
+  PROPOSERS = 10,              /* The number of proposers on one node */
+  MIN_CACHE_SIZE = 250000,     /* Minimum cache size */
+  DEFAULT_CACHE_LIMIT = 1000000000UL /* Reasonable initial cache limit */
 };
 
 /* How long to wait for snapshots when trying to find the best node to recover

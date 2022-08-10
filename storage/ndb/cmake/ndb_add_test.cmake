@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,7 @@ FUNCTION(NDB_ADD_TEST EXEC_ARG)
   # - skips install ot the unittest binary
   MYSQL_ADD_EXECUTABLE(${EXEC} ${SRC} ADD_TEST ${EXEC})
   SET_TARGET_PROPERTIES(${EXEC} PROPERTIES ENABLE_EXPORTS TRUE)
+  SET_TESTS_PROPERTIES(${EXEC} PROPERTIES LABELS "NDB")
 
   # Add additional libraries
   IF(ARG_LIBS)

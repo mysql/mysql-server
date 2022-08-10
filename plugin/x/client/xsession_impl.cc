@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -700,10 +700,10 @@ void Session_impl::setup_general_notices_handler() {
   auto context = m_context;
 
   m_protocol->add_notice_handler(
-      [context](XProtocol *p MY_ATTRIBUTE((unused)),
-                const bool is_global MY_ATTRIBUTE((unused)),
-                const Mysqlx::Notice::Frame::Type type MY_ATTRIBUTE((unused)),
-                const char *payload MY_ATTRIBUTE((unused)),
+      [context](XProtocol *p [[maybe_unused]],
+                const bool is_global [[maybe_unused]],
+                const Mysqlx::Notice::Frame::Type type [[maybe_unused]],
+                const char *payload [[maybe_unused]],
                 const uint32_t payload_size MY_ATTRIBUTE(
                     (unused))) -> Handler_result {
         return context->m_consume_all_notices ? Handler_result::Consumed
@@ -717,8 +717,8 @@ void Session_impl::setup_session_notices_handler() {
   auto context = m_context;
 
   m_protocol->add_notice_handler(
-      [context](XProtocol *p MY_ATTRIBUTE((unused)),
-                const bool is_global MY_ATTRIBUTE((unused)),
+      [context](XProtocol *p [[maybe_unused]],
+                const bool is_global [[maybe_unused]],
                 const Mysqlx::Notice::Frame::Type type, const char *payload,
                 const uint32_t payload_size) -> Handler_result {
         return handle_notices(context, type, payload, payload_size);

@@ -1110,7 +1110,7 @@ DROP USER user1@localhost,user8@localhost,user10@localhost,user11@localhost,
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
-
+TRUNCATE TABLE mysql.general_log;
 
 --echo
 --echo Bug #20602525 ALTER USER DOES NOT VERIFY AUTH PLUGIN
@@ -1145,7 +1145,8 @@ GRANT ALL PRIVILEGES ON db1.* TO bug20364862_dest@localhost WITH GRANT OPTION;
 
 # SET PASSWORD does not make any sense if mysql.user.authentication_string is
 # not used as password store
---exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u bug20364862_user --password=bug20364862_dest -e "SET PASSWORD = 'qa_test_2_dest'; SHOW WARNINGS;" 2>&1
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u bug20364862_user --password=bug20364862_dest -e "SET PASSWORD = 'qa_test_2_dest'" 2>&1
 
 connection default;
 # Make sure that previous SET PASSWORD didn't modify anything
@@ -1158,8 +1159,9 @@ FLUSH PRIVILEGES;
 # ALTER should work now
 --exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u bug20364862_user --password=bug20364862_dest -e "ALTER USER USER() IDENTIFIED BY 'qa_test_2_dest'; ALTER USER USER() IDENTIFIED BY 'bug20364862_dest';" 2>&1
 
-# SET PASSWORD should still show warning because we want to retain old behavior
---exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u bug20364862_user --password=bug20364862_dest -e "SET PASSWORD = 'qa_test_2_dest'; SHOW WARNINGS;" 2>&1
+# SET PASSWORD should still return an error
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u bug20364862_user --password=bug20364862_dest -e "SET PASSWORD = 'qa_test_2_dest';" 2>&1
 
 connection default;
 # Make sure that previous SET PASSWORD didn't modify anything
@@ -1172,8 +1174,9 @@ FLUSH PRIVILEGES;
 
 # ALTER should work now
 --exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u bug20364862_user --password=bug20364862_dest -e "ALTER USER USER() IDENTIFIED BY 'qa_test_2_dest'; ALTER USER USER() IDENTIFIED BY 'bug20364862_dest';" 2>&1
-# SET PASSWORD should still show warning because we want to retain old behavior
---exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u bug20364862_user --password=bug20364862_dest -e "SET PASSWORD = 'qa_test_2_dest'; SHOW WARNINGS;" 2>&1
+# SET PASSWORD should error out
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u bug20364862_user --password=bug20364862_dest -e "SET PASSWORD = 'qa_test_2_dest';" 2>&1
 
 connection default;
 # Make sure that previous SET PASSWORD didn't modify anything

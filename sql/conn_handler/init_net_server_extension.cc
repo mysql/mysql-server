@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,8 @@
 #include "my_compiler.h"
 
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_socket_bits.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_socket_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/psi/mysql_idle.h"  // MYSQL_SOCKET_SET_STATE,
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_statement.h"
@@ -49,8 +49,8 @@
 PSI_statement_info stmt_info_new_packet;
 #endif
 
-static void net_before_header_psi(NET *net MY_ATTRIBUTE((unused)),
-                                  void *user_data, size_t /* unused: count */) {
+static void net_before_header_psi(NET *net [[maybe_unused]], void *user_data,
+                                  size_t /* unused: count */) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
   assert(thd != nullptr);
@@ -66,11 +66,12 @@ static void net_before_header_psi(NET *net MY_ATTRIBUTE((unused)),
     MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
     MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
   }
+
+  mysql_thread_set_secondary_engine(false);
 }
 
-static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
-                                 void *user_data, size_t /* unused: count */,
-                                 bool rc) {
+static void net_after_header_psi(NET *net [[maybe_unused]], void *user_data,
+                                 size_t /* unused: count */, bool rc) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
   assert(thd != nullptr);

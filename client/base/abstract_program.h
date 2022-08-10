@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,9 +120,10 @@ class Abstract_program : public Options::Composite_options_provider {
     Redirects call to option_parsed of main Abstract_program instance.
     If we have anonymous functions or binding this should be removed.
   */
-  static bool callback_option_parsed(
-      int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-      char *argument);
+  static bool callback_option_parsed(int optid,
+                                     const struct my_option *opt
+                                     [[maybe_unused]],
+                                     char *argument);
 
   Options::Debug_options m_debug_options;
   Options::Help_options m_help_options;

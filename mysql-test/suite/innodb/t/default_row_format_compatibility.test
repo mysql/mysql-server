@@ -23,6 +23,10 @@ let $MYSQLD_DATADIR = `SELECT @@datadir`;
 # The following tescases works with page_size=16k only
 --source include/no_valgrind_without_big.inc
 
+--disable_query_log
+call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
+--enable_query_log
+
 CREATE TABLE tab
 (col1 TEXT, col2 TEXT, col3 TEXT, col4 TEXT, col5 TEXT,
 col6 TEXT, col7 TEXT, col8 TEXT, col9 TEXT, col10 TEXT,

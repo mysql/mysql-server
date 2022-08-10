@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,16 @@
 #ifndef METADATA_CACHE_CLUSTER_METADATA_INCLUDED
 #define METADATA_CACHE_CLUSTER_METADATA_INCLUDED
 
-#include "metadata.h"
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 #include "tcp_address.h"
 
-#include <string.h>
 #include <chrono>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <string>
@@ -57,25 +59,16 @@ using ConnectCallback =
  * It uses the mysqlrouter::MySQLSession to setup, manage and retrieve results.
  *
  */
-class METADATA_API ClusterMetadata : public MetaData {
+class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
  public:
   /** @brief Constructor
    *
-   * @param user The user name used to authenticate to the metadata server.
-   * @param password The password used to authenticate to the metadata server.
-   * @param connect_timeout The time after which trying to connect to the
-   *                        metadata server should timeout (in seconds).
-   * @param read_timeout The time after which read from metadata server should
-   *                     timeout (in seconds).
-   * @param connection_attempts The number of times a connection to metadata
-   *                            must be attempted, when a connection attempt
-   *                            fails.  NOTE: not used so far
+   * @param session_config Metadata MySQL session configuration
    * @param ssl_options SSL related options to use for MySQL connections)
    */
-  ClusterMetadata(const std::string &user, const std::string &password,
-                  int connect_timeout, int read_timeout,
-                  int connection_attempts,
-                  const mysqlrouter::SSLOptions &ssl_options);
+  ClusterMetadata(
+      const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+      const mysqlrouter::SSLOptions &ssl_options);
 
   // disable copy as it isn't needed right now. Feel free to enable
   // must be explicitly defined though.
@@ -98,8 +91,8 @@ class METADATA_API ClusterMetadata : public MetaData {
    * @return a boolean to indicate if the connection and session parameters
    * setup was successful.
    */
-  bool connect_and_setup_session(
-      const metadata_cache::ManagedInstance &metadata_server) noexcept override;
+  bool connect_and_setup_session(const metadata_cache::metadata_server_t
+                                     &metadata_server) noexcept override;
 
   /** @brief Disconnects from the Metadata server
    *
@@ -114,46 +107,38 @@ class METADATA_API ClusterMetadata : public MetaData {
     return metadata_connection_;
   }
 
-  bool update_router_version(const metadata_cache::ManagedInstance &rw_instance,
-                             const unsigned router_id) override;
+  bool update_router_attributes(
+      const metadata_cache::metadata_server_t &rw_server,
+      const unsigned router_id,
+      const metadata_cache::RouterAttributes &router_attributes) override;
 
   bool update_router_last_check_in(
-      const metadata_cache::ManagedInstance &rw_instance,
+      const metadata_cache::metadata_server_t &rw_server,
       const unsigned router_id) override;
 
   auth_credentials_t fetch_auth_credentials(
-      const std::string &cluster_name) override;
+      const mysqlrouter::TargetCluster &target_cluster,
+      const std::string &cluster_type_specific_id) override;
+
+  stdx::expected<metadata_cache::metadata_server_t, std::error_code>
+  find_rw_server(const std::vector<metadata_cache::ManagedInstance> &instances);
 
  protected:
   /** Connects a MYSQL connection to the given instance
    */
   bool do_connect(mysqlrouter::MySQLSession &connection,
-                  const metadata_cache::ManagedInstance &mi);
+                  const metadata_cache::metadata_server_t &mi);
 
   // throws metadata_cache::metadata_error and
   // MetadataUpgradeInProgressException
   mysqlrouter::MetadataSchemaVersion get_and_check_metadata_schema_version(
       mysqlrouter::MySQLSession &session);
 
-  // Metadata node connection information
-  std::string user_;
-  std::string password_;
-
   // Metadata node generic information
   mysql_ssl_mode ssl_mode_;
   mysqlrouter::SSLOptions ssl_options_;
 
-  std::string cluster_name_;
-#if 0  // not used so far
-  std::string metadata_uuid_;
-  std::string message_;
-#endif
-
-  // The time after which trying to connect to the metadata server should
-  // timeout.
-  int connect_timeout_;
-  // The time after which read from metadata server should timeout.
-  int read_timeout_;
+  metadata_cache::MetadataCacheMySQLSessionConfig session_config_;
 
 #if 0  // not used so far
   // The number of times we should try connecting to the metadata server if a

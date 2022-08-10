@@ -613,7 +613,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -53,4 +54,3 @@
                "col_varchar_nokey"
 -            ],
--            "attached_condition": "(`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
+-            "attached_condition": "(`test`.`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
 +            ]
            }
 @@ -66,3 +66,3 @@
@@ -628,7 +628,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -107,4 +108,3 @@
                "col_int_key"
 -            ],
--            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
+-            "attached_condition": "<if>(is_not_null_compl(sq2_alias2), (`test`.`sq2_alias2`.`col_int_key` = `test`.`t1`.`pk`), true)"
 +            ]
            }
 QUERY: SELECT d FROM (SELECT * FROM t2) AS a2 RIGHT JOIN (SELECT * FROM t1) AS a1 ON c = a WHERE d LIKE '_' ORDER BY d 

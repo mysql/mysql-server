@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,6 @@
 #include <string>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -44,11 +42,11 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
-
-#include "mysqlrouter/plugin_config.h"
+#include "mysql/harness/plugin_config.h"
 
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/mock_server_component.h"
+#include "scope_guard.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -74,6 +72,31 @@ using JsonDocument =
 using JsonValue =
     rapidjson::GenericValue<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
+static const char *http_method_to_string(const HttpMethod::type method) {
+  switch (method) {
+    case HttpMethod::Get:
+      return "GET";
+    case HttpMethod::Post:
+      return "POST";
+    case HttpMethod::Head:
+      return "HEAD";
+    case HttpMethod::Put:
+      return "PUT";
+    case HttpMethod::Delete:
+      return "DELETE";
+    case HttpMethod::Options:
+      return "OPTIONS";
+    case HttpMethod::Trace:
+      return "TRACE";
+    case HttpMethod::Connect:
+      return "CONNECT";
+    case HttpMethod::Patch:
+      return "PATCH";
+  }
+
+  return "UNKNOWN";
+}
+
 class RestApiV1MockServerGlobals : public BaseRequestHandler {
  public:
   RestApiV1MockServerGlobals() : last_modified_(time(nullptr)) {}
@@ -83,6 +106,9 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
   void handle_request(HttpRequest &req) override {
     last_modified_ =
         std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+    log_debug("%s %s", http_method_to_string(req.get_method()),
+              req.get_uri().get_path().c_str());
 
     if (!((HttpMethod::Get | HttpMethod::Put) & req.get_method())) {
       req.get_output_headers().add("Allow", "GET, PUT");
@@ -120,12 +146,15 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
     // required content-type: application/json
     if (nullptr == content_type ||
         std::string(content_type) != "application/json") {
+      log_debug("HTTP[%d]", HttpStatusCode::UnsupportedMediaType);
       req.send_reply(HttpStatusCode::UnsupportedMediaType);
       return;
     }
     auto body = req.get_input_buffer();
     auto data = body.pop_front(body.length());
     std::string str_data(data.begin(), data.end());
+
+    log_debug("HTTP> %s", str_data.c_str());
 
     JsonDocument body_doc;
     body_doc.Parse(str_data.c_str());
@@ -140,12 +169,14 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
 
       out_buf.add(parse_error.data(), parse_error.size());
 
+      log_debug("HTTP[%d]", HttpStatusCode::UnprocessableEntity);
       req.send_reply(HttpStatusCode::UnprocessableEntity,
                      "Unprocessable Entity", out_buf);
       return;
     }
 
     if (!body_doc.IsObject()) {
+      log_debug("HTTP[%d]", HttpStatusCode::UnprocessableEntity);
       req.send_reply(HttpStatusCode::UnprocessableEntity);
       return;
     }
@@ -166,6 +197,7 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
         MockServerComponent::get_instance().get_global_scope();
     shared_globals->reset(all_globals);
 
+    log_debug("HTTP[%d]", HttpStatusCode::NoContent);
     req.send_reply(HttpStatusCode::NoContent);
   }
 
@@ -206,6 +238,8 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
       // perhaps we could use evbuffer_add_reference() and a unique-ptr on
       // json_buf here. needs to be benchmarked
       chunk.add(json_buf.GetString(), json_buf.GetSize());
+
+      log_debug("HTTP[%d]< %s", HttpStatusCode::Ok, json_buf.GetString());
     }  // free json_buf early
 
     auto out_hdrs = req.get_output_headers();
@@ -262,22 +296,23 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-static void start(mysql_harness::PluginFuncEnv *env) {
+static void run(mysql_harness::PluginFuncEnv *env) {
   auto &srv = HttpServerComponent::get_instance();
 
-  srv.add_route(kRestGlobalsUri, std::unique_ptr<BaseRequestHandler>(
-                                     new RestApiV1MockServerGlobals()));
-  srv.add_route(kRestConnectionsUri, std::unique_ptr<BaseRequestHandler>(
-                                         new RestApiV1MockServerConnections()));
+  srv.add_route(kRestGlobalsUri,
+                std::make_unique<RestApiV1MockServerGlobals>());
+  Scope_guard global_route_guard(
+      [&srv]() { srv.remove_route(kRestGlobalsUri); });
+
+  srv.add_route(kRestConnectionsUri,
+                std::make_unique<RestApiV1MockServerConnections>());
+  Scope_guard connection_route_guard(
+      [&srv]() { srv.remove_route(kRestConnectionsUri); });
 
   mysql_harness::on_service_ready(env);
-}
 
-static void stop(mysql_harness::PluginFuncEnv *) {
-  auto &srv = HttpServerComponent::get_instance();
-
-  srv.remove_route(kRestConnectionsUri);
-  srv.remove_route(kRestGlobalsUri);
+  // wait until we are stopped.
+  wait_for_stop(env, 0);
 }
 
 #if defined(_MSC_VER) && defined(rest_mock_server_EXPORTS)
@@ -300,13 +335,17 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_mock_server = {
     "REST_MOCK_SERVER",                      // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    plugin_requires.size(), plugin_requires.data(),
+    plugin_requires.size(),
+    plugin_requires.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     nullptr,  // deinit
-    start,    // start
-    stop,     // stop
+    run,      // run
+    nullptr,  // stop
     true,     // declares_readiness
+    0,
+    nullptr,
 };
 }

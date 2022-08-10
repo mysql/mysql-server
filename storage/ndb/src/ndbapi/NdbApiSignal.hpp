@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ public:
    const Uint32 *       getDataPtr() const;
          Uint32 *       getDataPtrSend();
    const Uint32 *       getConstDataPtrSend() const;
-   STATIC_CONST(        MaxSignalWords = 25);
+   static constexpr Uint32 MaxSignalWords = 25;
 
   NodeId                get_sender_node() const;
 
@@ -236,17 +236,13 @@ NdbApiSignal::getDataPtr() const {
   return theRealData;
 }
 
-inline
-Uint32 *
-NdbApiSignal::getDataPtrSend(){
-  return (Uint32*)&theData[0];
-}
+inline Uint32* NdbApiSignal::getDataPtrSend() { return theData; }
 
 inline
 const Uint32 *
 NdbApiSignal::getConstDataPtrSend() const
 {
-  return (Uint32*)&theData[0];
+  return theData;
 }
 
 inline

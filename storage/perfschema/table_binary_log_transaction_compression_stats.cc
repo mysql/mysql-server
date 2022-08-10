@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,7 @@ PFS_engine_table_share table_binary_log_transaction_compression_stats::m_share =
     {
         &pfs_truncatable_acl,
         &table_binary_log_transaction_compression_stats::create,
-        NULL, /* write_row */
+        nullptr, /* write_row */
         table_binary_log_transaction_compression_stats::delete_all_rows,
         table_binary_log_transaction_compression_stats::get_row_count,
         sizeof(pos_t), /* ref length */
@@ -155,7 +155,7 @@ table_binary_log_transaction_compression_stats::
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_binary_log_transaction_compression_stats::
-    ~table_binary_log_transaction_compression_stats() {}
+    ~table_binary_log_transaction_compression_stats() = default;
 
 void table_binary_log_transaction_compression_stats::reset_position(void) {
   m_pos.m_index = 0;

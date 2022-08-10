@@ -6,13 +6,14 @@
 # Innodb does not recognizes partition table created in linux from windows
 # due to difference in path format.
 --source include/not_windows.inc
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 
 --disable_query_log
 call mtr.add_suppression("Resizing redo log from");
+call mtr.add_suppression("Redo log has been requested to resize");
 call mtr.add_suppression("Upgrading redo log");
-call mtr.add_suppression("Starting to delete and rewrite log files");
-call mtr.add_suppression("New log files created");
+call mtr.add_suppression("Starting to delete and rewrite redo log files");
+call mtr.add_suppression("New redo log files created");
 call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 call mtr.add_suppression("Creating routine without parsing routine body");
@@ -78,7 +79,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
 --echo # Start the server. Without fix, there is a segmentation fault in this step.
---exec echo "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --skip-log-replica-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --let $wait_counter= 6000
 --source include/wait_until_connected_again.inc

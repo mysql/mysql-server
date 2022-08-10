@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,7 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  in crash recovery.
  @return true if trx is an incomplete transaction that is being rolled
  back in crash recovery */
-ibool trx_is_recv(const trx_t *trx); /*!< in: transaction */
+bool trx_is_recv(const trx_t *trx); /*!< in: transaction */
 /** Returns a transaction savepoint taken at this point in time.
  @return savepoint */
 trx_savept_t trx_savept_take(trx_t *trx); /*!< in: transaction */
@@ -66,8 +66,8 @@ trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
  committed, then we clean up a possible insert undo log. If the
  transaction was not yet committed, then we roll it back. */
 void trx_rollback_or_clean_recovered(
-    ibool all); /*!< in: FALSE=roll back dictionary transactions;
-                TRUE=roll back all non-PREPARED transactions */
+    bool all); /*!< in: false=roll back dictionary transactions;
+                true=roll back all non-PREPARED transactions */
 
 /** Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
@@ -105,16 +105,15 @@ dberr_t trx_rollback_to_savepoint(
  were set after this savepoint are deleted.
  @return if no savepoint of the name found then DB_NO_SAVEPOINT,
  otherwise DB_SUCCESS */
-dberr_t trx_rollback_to_savepoint_for_mysql(
-    trx_t *trx,                      /*!< in: transaction handle */
-    const char *savepoint_name,      /*!< in: savepoint name */
-    int64_t *mysql_binlog_cache_pos) /*!< out: the MySQL binlog cache
+[[nodiscard]] dberr_t trx_rollback_to_savepoint_for_mysql(
+    trx_t *trx,                       /*!< in: transaction handle */
+    const char *savepoint_name,       /*!< in: savepoint name */
+    int64_t *mysql_binlog_cache_pos); /*!< out: the MySQL binlog cache
                                      position corresponding to this
                                      savepoint; MySQL needs this
                                      information to remove the
                                      binlog entries of the queries
                                      executed after the savepoint */
-    MY_ATTRIBUTE((warn_unused_result));
 /** Creates a named savepoint. If the transaction is not yet started, starts it.
  If there is already a savepoint of the same name, this call erases that old
  savepoint and replaces it with a new. Savepoints are deleted in a transaction
@@ -131,10 +130,9 @@ dberr_t trx_savepoint_for_mysql(
  were set after this savepoint are deleted.
  @return if no savepoint of the name found then DB_NO_SAVEPOINT,
  otherwise DB_SUCCESS */
-dberr_t trx_release_savepoint_for_mysql(
-    trx_t *trx,                 /*!< in: transaction handle */
-    const char *savepoint_name) /*!< in: savepoint name */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t trx_release_savepoint_for_mysql(
+    trx_t *trx,                  /*!< in: transaction handle */
+    const char *savepoint_name); /*!< in: savepoint name */
 
 /** Frees savepoint structs starting from savep.
 @param[in] trx Transaction handle
@@ -155,7 +153,7 @@ enum roll_node_state {
 struct roll_node_t {
   que_common_t common;        /*!< node type: QUE_NODE_ROLLBACK */
   enum roll_node_state state; /*!< node execution state */
-  bool partial;               /*!< TRUE if we want a partial
+  bool partial;               /*!< true if we want a partial
                               rollback */
   trx_savept_t savept;        /*!< savepoint to which to
                               roll back, in the case of a
@@ -177,6 +175,8 @@ struct trx_named_savept_t {
   trx_savepoints; /*!< the list of savepoints of a
                   transaction */
 };
+
+UT_LIST_NODE_GETTER_DEFINITION(trx_named_savept_t, trx_savepoints)
 
 #include "trx0roll.ic"
 

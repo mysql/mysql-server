@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,18 @@
 #define MYSQL_SERVER 1
 #include "storage/blackhole/ha_blackhole.h"
 
+#include "ft_global.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
+#include "my_base.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql/sql_class.h"  // THD, SYSTEM_THREAD_SLAVE_*
 #include "template_utils.h"
+
+class String;
 
 using std::string;
 using std::unique_ptr;
@@ -247,6 +252,26 @@ int ha_blackhole::index_last(uchar *) {
   rc = HA_ERR_END_OF_FILE;
   return rc;
 }
+
+FT_INFO *ha_blackhole::ft_init_ext(uint, uint, String *) {
+  MEM_ROOT *mem_root = ha_thd()->mem_root;
+
+  _ft_vft *vft = new (mem_root) _ft_vft{
+      /*read_next=*/nullptr,
+      /*find_relevance=*/nullptr,
+      /*close_search=*/[](FT_INFO *) { /*no-op*/ },
+      /*get_relevance=*/nullptr,
+      /*reinit_search=*/nullptr,
+  };
+
+  if (vft == nullptr) return nullptr;  // OOM
+
+  return new (mem_root) FT_INFO{vft};
+}
+
+int ha_blackhole::ft_init() { return 0; }
+
+int ha_blackhole::ft_read(uchar *) { return HA_ERR_END_OF_FILE; }
 
 static st_blackhole_share *get_share(const char *table_name) {
   st_blackhole_share *share;

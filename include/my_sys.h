@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,13 +63,13 @@
 #include "my_psi_config.h" /* IWYU pragma: keep */
 
 #include "my_sharedlib.h"
+#include "mysql/components/services/bits/my_io_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
-#include "mysql/components/services/my_io_bits.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_file_bits.h"
-#include "mysql/components/services/psi_memory_bits.h"
-#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/bits/psi_file_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "sql/stream_cipher.h"
 
 struct CHARSET_INFO;
@@ -116,8 +116,8 @@ struct MEM_ROOT;
 
 /* General bitmaps for my_func's */
 // 1 used to be MY_FFNF which has been removed
-#define MY_FNABP 2         /* Fatal if not all bytes read/writen */
-#define MY_NABP 4          /* Error if not all bytes read/writen */
+#define MY_FNABP 2         /* Fatal if not all bytes read/written */
+#define MY_NABP 4          /* Error if not all bytes read/written */
 #define MY_FAE 8           /* Fatal if any error */
 #define MY_WME 16          /* Write message on error */
 #define MY_WAIT_IF_FULL 32 /* Wait and try again if disk full error */
@@ -126,7 +126,7 @@ struct MEM_ROOT;
 #define MY_FULL_IO 512 /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128  /* Option to init_io_cache() */
 #define MY_LINK_WARNING 32          /* my_redel() gives warning if links */
-#define MY_COPYTIME 64              /* my_redel() copys time */
+#define MY_COPYTIME 64              /* my_redel() copies time */
 #define MY_DELETE_OLD 256           /* my_create_with_symlink() */
 #define MY_RESOLVE_LINK 128         /* my_realpath(); Only resolve links */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
@@ -171,10 +171,6 @@ struct MEM_ROOT;
 #define MY_WAIT_GIVE_USER_A_MESSAGE 10   /* Every 10 times of prev */
 #define MIN_COMPRESS_LENGTH 50           /* Don't compress small bl. */
 #define DFLT_INIT_HITS 3
-
-/* root_alloc flags */
-#define MY_KEEP_PREALLOC 1
-#define MY_MARK_BLOCKS_FREE 2 /* move used to free list and reuse them */
 
 /* Internal error numbers (for assembler functions) */
 #define MY_ERRNO_EDOM 33
@@ -340,7 +336,7 @@ struct IO_CACHE_SHARE {
   int error;           /* Last error. */
 };
 
-struct IO_CACHE /* Used when cacheing files */
+struct IO_CACHE /* Used when caching files */
 {
   /* Offset in file corresponding to the first byte of uchar* buffer. */
   my_off_t pos_in_file{0};
@@ -410,7 +406,7 @@ struct IO_CACHE /* Used when cacheing files */
   int (*write_function)(IO_CACHE *, const uchar *, size_t){nullptr};
   /*
     Specifies the type of the cache. Depending on the type of the cache
-    certain operations might not be available and yield unpredicatable
+    certain operations might not be available and yield unpredictable
     results. Details to be documented later
   */
   cache_type type{TYPE_NOT_SET};
@@ -438,7 +434,7 @@ struct IO_CACHE /* Used when cacheing files */
 
   /*
     seek_not_done is set by my_b_seek() to inform the upcoming read/write
-    operation that a seek needs to be preformed prior to the actual I/O
+    operation that a seek needs to be performed prior to the actual I/O
     error is 0 if the cache operation was successful, -1 if there was a
     "hard" error, and the actual number of I/O-ed bytes if the read/write was
     partial.
@@ -879,7 +875,7 @@ int my_msync(int, void *, size_t, int);
 extern void my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader);
 extern uint get_charset_number(const char *cs_name, uint cs_flags);
 extern uint get_collation_number(const char *name);
-extern const char *get_charset_name(uint cs_number);
+extern const char *get_collation_name(uint cs_number);
 
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,10 +63,10 @@ struct row_socket_summary_by_instance {
 
 class PFS_index_socket_summary_by_instance : public PFS_engine_index {
  public:
-  PFS_index_socket_summary_by_instance(PFS_engine_key *key_1)
+  explicit PFS_index_socket_summary_by_instance(PFS_engine_key *key_1)
       : PFS_engine_index(key_1) {}
 
-  ~PFS_index_socket_summary_by_instance() override {}
+  ~PFS_index_socket_summary_by_instance() override = default;
 
   virtual bool match(const PFS_socket *pfs) = 0;
 };
@@ -78,7 +78,7 @@ class PFS_index_socket_summary_by_instance_by_instance
       : PFS_index_socket_summary_by_instance(&m_key),
         m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_socket_summary_by_instance_by_instance() override {}
+  ~PFS_index_socket_summary_by_instance_by_instance() override = default;
 
   bool match(const PFS_socket *pfs) override;
 
@@ -92,7 +92,7 @@ class PFS_index_socket_summary_by_instance_by_event_name
   PFS_index_socket_summary_by_instance_by_event_name()
       : PFS_index_socket_summary_by_instance(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_socket_summary_by_instance_by_event_name() override {}
+  ~PFS_index_socket_summary_by_instance_by_event_name() override = default;
 
   bool match(const PFS_socket *pfs) override;
 
@@ -124,7 +124,7 @@ class table_socket_summary_by_instance : public PFS_engine_table {
   table_socket_summary_by_instance();
 
  public:
-  ~table_socket_summary_by_instance() override {}
+  ~table_socket_summary_by_instance() override = default;
 
  private:
   int make_row(PFS_socket *pfs);

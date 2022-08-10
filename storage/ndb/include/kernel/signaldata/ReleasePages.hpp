@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ struct ReleasePagesReq {
   enum {
     RT_RELEASE_UNLOCKED = 1
   };
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 requestType;
@@ -40,7 +40,7 @@ struct ReleasePagesReq {
 };
 
 struct ReleasePagesConf {
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   Uint32 senderData;
   Uint32 senderRef;
 };

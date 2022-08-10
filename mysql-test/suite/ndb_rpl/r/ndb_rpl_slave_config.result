@@ -4,15 +4,17 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/stop_slave.inc
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-set @@global.slave_parallel_workers= 2;
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+set @@global.replica_parallel_workers= 2;
 include/start_slave.inc
 create table t1 (a int) engine=ndb;
 insert into t1 values(1);
 include/wait_for_slave_sql_error_and_skip.inc [errno=1112]
 drop table t1;
 include/stop_slave.inc
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 include/start_slave.inc
 include/rpl_reset.inc
 include/rpl_end.inc

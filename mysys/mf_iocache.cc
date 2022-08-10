@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@
   Possibly use of asyncronic io.
   macros for read and writes for faster io.
   Used instead of FILE when reading or writing whole files.
-  This code makes mf_rec_cache obsolete (currently only used by ISAM)
-  One can change info->pos_in_file to a higher value to skip bytes in file if
+  This code makes mf_rec_cache obsolete (currently only used by ISAM).
+  One can change info->pos_in_file to a higher value to skip bytes in the file if
   also info->read_pos is set to info->read_end.
   If called through open_cached_file(), then the temporary file will
-  only be created if a write exeeds the file buffer or if one calls
+  only be created if a write exceeds the file buffer or if one calls
   my_b_flush_io_cache().
 
   If one uses SEQ_READ_APPEND, then two buffers are allocated, one for
@@ -109,7 +109,7 @@ bool binlog_cache_temporary_file_is_encrypted = false;
     info		IO_CACHE handler
 
   NOTES
-    This is called on automaticly on init or reinit of IO_CACHE
+    This is called on automatically on init or reinit of IO_CACHE
     It must be called externally if one moves or copies an IO_CACHE
     object.
 */
@@ -162,7 +162,7 @@ static void init_functions(IO_CACHE *info) {
                        If == 0 then use my_default_record_cache_size
     type               Type of cache
     seek_offset        Where cache should start reading/writing
-    use_async_io       Set to 1 of we should use async_io (if avaiable)
+    use_async_io       Set to 1 of we should use async_io (if available)
     cache_myflags      Bitmap of different flags
                        MY_WME | MY_FAE | MY_NABP | MY_FNABP |
                        MY_DONT_CHECK_FILESIZE
@@ -326,8 +326,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
 */
 
 bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
-                     bool use_async_io MY_ATTRIBUTE((unused)),
-                     bool clear_cache) {
+                     bool use_async_io [[maybe_unused]], bool clear_cache) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("cache: %p type: %d  seek_offset: %lu  clear_cache: %d",
                        info, type, (ulong)seek_offset, (int)clear_cache));
@@ -1049,7 +1048,7 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
   */
   while (write_length) {
     size_t copy_length = std::min(write_length, write_cache->buffer_length);
-    int MY_ATTRIBUTE((unused)) rc;
+    [[maybe_unused]] int rc;
 
     rc = lock_io_cache(write_cache, write_cache->pos_in_file);
     /* The writing thread does always have the lock when it awakes. */

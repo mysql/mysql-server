@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ class PFS_index_status_by_thread : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("VARIABLE_NAME") {}
 
-  ~PFS_index_status_by_thread() override {}
+  ~PFS_index_status_by_thread() override = default;
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(const Status_variable *pfs);
@@ -128,7 +128,7 @@ class table_status_by_thread : public PFS_engine_table {
   table_status_by_thread();
 
  public:
-  ~table_status_by_thread() override {}
+  ~table_status_by_thread() override = default;
 
  protected:
   int make_row(PFS_thread *thread, const Status_variable *status_var);

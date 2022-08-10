@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef STORAGE_NDB_INCLUDE_LOGGER_BUFFEREDLOGHANDLER_HPP_
 #define STORAGE_NDB_INCLUDE_LOGGER_BUFFEREDLOGHANDLER_HPP_
+
+#include <time.h>
 
 #include "LogHandler.hpp"
 #include <LogBuffer.hpp>
@@ -68,7 +70,7 @@ public:
     time_t log_timestamp;
     size_t varpart_length[2]; // 0: length of category, 1: length of message
   };
-  STATIC_CONST( MAX_VARPART_SIZE = MAX_HEADER_LENGTH + MAX_LOG_MESSAGE_SIZE );
+  static constexpr Uint32 MAX_VARPART_SIZE = MAX_HEADER_LENGTH + MAX_LOG_MESSAGE_SIZE;
 
 protected:
   void writeHeader(const char* pCategory, Logger::LoggerLevel level,
@@ -110,21 +112,20 @@ private:
 class MessageStreamLostMsgHandler : public LostMsgHandler
 {
 private:
-  const char* m_lost_msg_fmt;
   const char* m_category;
 
 public:
-  MessageStreamLostMsgHandler(): m_lost_msg_fmt("*** %u MESSAGES LOST ***"),
-  m_category("MgmtSrvr")
-  {
-  }
-  /* Return size in bytes which must be appended to describe the lost messages */
-  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) override;
+ MessageStreamLostMsgHandler() : m_category("MgmtSrvr") {}
+ /* Return size in bytes which must be appended to describe the lost messages */
+ size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) override;
 
-  /* Write lost message summary into the buffer for the lost message summary */
-  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs) override;
+ /* Write lost message summary into the buffer for the lost message summary */
+ bool writeLostMsg(char* buf,
+                   size_t buf_size,
+                   size_t lost_bytes,
+                   size_t lost_msgs) override;
 
-  ~MessageStreamLostMsgHandler() override {}
+ ~MessageStreamLostMsgHandler() override {}
 };
 
 #endif /* STORAGE_NDB_INCLUDE_LOGGER_BUFFEREDLOGHANDLER_HPP_ */

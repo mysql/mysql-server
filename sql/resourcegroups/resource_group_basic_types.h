@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ namespace resourcegroups {
 // Definitions for resource group basic types.
 enum class Type { SYSTEM_RESOURCE_GROUP = 1, USER_RESOURCE_GROUP };
 struct Range {
-  Range() {}
+  Range() = default;
   Range(platform::cpu_id_t start, platform::cpu_id_t end)
       : m_start(start), m_end(end) {}
   platform::cpu_id_t m_start;

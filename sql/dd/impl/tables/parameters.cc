@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ Parameters::Parameters() {
                          "mode ENUM('IN','OUT','INOUT')");
   m_target_def.add_field(
       FIELD_NAME, "FIELD_NAME",
-      "name VARCHAR(64) COLLATE " + String_type(name_collation()->name));
+      "name VARCHAR(64) COLLATE " + String_type(name_collation()->m_coll_name));
   m_target_def.add_field(FIELD_DATA_TYPE, "FIELD_DATA_TYPE",
                          "data_type ENUM(\n"
                          "    'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',\n"

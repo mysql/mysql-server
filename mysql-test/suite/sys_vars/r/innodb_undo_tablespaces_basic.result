@@ -56,6 +56,6 @@ SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
 COUNT(@@GLOBAL.innodb_undo_tablespaces)
 1
 # 1 Expected
-SELECT innodb_undo_tablespaces = @@SESSION.innodb_undo_tablespaces;
+SELECT innodb_undo_tablespaces;
 ERROR 42S22: Unknown column 'innodb_undo_tablespaces' in 'field list'
 # Expected error 'Unknown column'

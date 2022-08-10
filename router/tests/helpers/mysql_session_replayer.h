@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   virtual unsigned warning_count() noexcept override;
 
   virtual std::string quote(const std::string &s,
-                            char qchar = '\'') noexcept override;
+                            char qchar = '\'') const override;
 
   virtual const char *last_error() override;
   virtual unsigned int last_errno() override;
@@ -109,7 +109,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
 
  private:
   struct CallInfo {
-    CallInfo() {}
+    CallInfo() = default;
     CallInfo(const CallInfo &ci);
 
     enum Type { Connect, Execute, Query, QueryOne };

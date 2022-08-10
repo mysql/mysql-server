@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -28,6 +28,12 @@
 bool
 printDROP_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DropTrigReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropTrigReq* sig = (const DropTrigReq*)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
@@ -50,6 +56,12 @@ printDROP_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printDROP_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DropTrigConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropTrigConf* sig = (const DropTrigConf*) theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
@@ -64,6 +76,12 @@ printDROP_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printDROP_TRIG_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DropTrigRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropTrigRef * sig = (const DropTrigRef*) theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);

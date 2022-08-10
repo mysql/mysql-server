@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ constexpr value_type client_auth_method_data_varint{21};
 constexpr value_type expired_passwords{22};
 constexpr value_type session_track{23};
 constexpr value_type text_result_with_session_tracking{24};
-// 25: optional resultset metdata
+constexpr value_type optional_resultset_metadata{25};
 constexpr value_type compress_zstd{26};
 //
 // 29 is an extension flag for >32 bit
@@ -136,6 +136,9 @@ constexpr value_type text_result_with_session_tracking{
     1 << pos::text_result_with_session_tracking};
 // version_added: 8.0
 constexpr value_type compress_zstd{1 << pos::compress_zstd};
+// version_added: 8.0
+constexpr value_type optional_resultset_metadata{
+    1 << pos::optional_resultset_metadata};
 }  // namespace capabilities
 
 namespace status {
@@ -293,6 +296,33 @@ constexpr value_type no_default_value{1 << pos::no_default_value};
 constexpr value_type on_update{1 << pos::on_update};
 constexpr value_type numeric{1 << pos::numeric};
 }  // namespace column_def
+
+namespace reload_cmds {
+namespace pos {
+using value_type = uint8_t;
+constexpr value_type flush_privileges{0};
+constexpr value_type flush_logs{1};
+constexpr value_type flush_tables{2};
+constexpr value_type flush_hosts{3};
+constexpr value_type flush_status{4};
+constexpr value_type flush_threads{5};
+constexpr value_type reset_slave{6};
+constexpr value_type reset_master{7};
+
+constexpr value_type _bitset_size{reset_master + 1};
+}  // namespace pos
+using value_type = std::bitset<pos::_bitset_size>;
+
+constexpr value_type flush_privileges{1 << pos::flush_privileges};
+constexpr value_type flush_logs{1 << pos::flush_logs};
+constexpr value_type flush_tables{1 << pos::flush_tables};
+constexpr value_type flush_hosts{1 << pos::flush_hosts};
+constexpr value_type flush_status{1 << pos::flush_status};
+constexpr value_type flush_threads{1 << pos::flush_threads};
+constexpr value_type reset_slave{1 << pos::reset_slave};
+constexpr value_type reset_master{1 << pos::reset_master};
+
+}  // namespace reload_cmds
 
 namespace collation {
 using value_type = uint8_t;

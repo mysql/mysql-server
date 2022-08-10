@@ -78,8 +78,10 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/log.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/sql_thd_internal_api.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_optimizer.h"
 
 // Fastbit includes
 #include "include/fastbit/ibis.h"
@@ -653,7 +655,10 @@ class ha_warp : public handler {
   FILE*                insert_log         = NULL; 
 
   /* WHERE clause constructed from engine condition pushdown */
+ public:
   std::string          push_where_clause  = "";
+
+ private:
   int64_t pushdown_table_count = 0;
   
   
@@ -712,7 +717,8 @@ class ha_warp : public handler {
   ha_warp(handlerton *hton, TABLE_SHARE *table_arg);
   handlerton* warp_hton;
   ~ha_warp() {
-    free_root(&blobroot, MYF(0));
+    //free_root(&blobroot, MYF(0));
+    blobroot.ClearForReuse();
   }
  
   const char *table_type() const { return "WARP"; }
@@ -817,12 +823,16 @@ class ha_warp : public handler {
   */
 
   // Functions to support engine condition pushdown (ECP)
-  int engine_push(AQP::Table_access *table_aqp);
+  //int engine_push(AQP::Table_access *table_aqp);
   const Item* cond_push(const Item *cond,	bool other_tbls_ok );
 	
   int rename_table(const char * from, const char * to, const dd::Table* , dd::Table* );
 
   std::string explain_extra() const;
 
+  const handlerton *hton_supporting_engine_pushdown() override { return warp_hton; }
+  friend int warp_push_to_engine(THD *thd, AccessPath *, JOIN *);
 };
+
 #endif
+

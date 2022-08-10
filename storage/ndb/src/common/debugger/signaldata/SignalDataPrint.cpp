@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -311,6 +311,7 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_DROP_FK_CONF, printDROP_FK_CONF }
   ,{ GSN_PROCESSINFO_REP, printPROCESSINFO_REP }
 
+  ,{ GSN_TRP_KEEP_ALIVE, printTRP_KEEP_ALIVE }
   ,{ 0, 0 }
 };
 

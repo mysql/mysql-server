@@ -14,6 +14,7 @@
 ################################################################################
 
 --source include/big_test.inc
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/have_fips.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

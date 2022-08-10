@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,8 @@
 */
 #define mysql_unload_plugin(P1) inline_mysql_unload_plugin(P1)
 
-static inline void inline_mysql_unload_plugin(
-    const char *plugin_name MY_ATTRIBUTE((unused))) {
+static inline void inline_mysql_unload_plugin(const char *plugin_name
+                                              [[maybe_unused]]) {
 #ifdef HAVE_PSI_SYSTEM_INTERFACE
   PSI_SYSTEM_CALL(unload_plugin)(plugin_name);
 #endif

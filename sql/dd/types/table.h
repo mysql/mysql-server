@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ class Table : virtual public Abstract_table {
                              Object_id se_private_id);
 
  public:
-  ~Table() override {}
+  ~Table() override = default;
 
  public:
   enum enum_row_format {
@@ -412,12 +412,20 @@ class Table : virtual public Abstract_table {
 
  public:
   /**
-    Allocate a new object graph and invoke the copy contructor for
+    Allocate a new object graph and invoke the copy constructor for
     each object.
 
     @return pointer to dynamically allocated copy
   */
   Table *clone() const override = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  Table *clone_dropped_object_placeholder() const override = 0;
 
   /**
     Converts *this into json.

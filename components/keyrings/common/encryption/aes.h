@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ class Aes_operation_context final {
  public:
   Aes_operation_context(const std::string data_id, const std::string auth_id,
                         const std::string mode, size_t block_size);
-  ~Aes_operation_context() {}
+  ~Aes_operation_context() = default;
   const std::string data_id() const { return data_id_; }
   const std::string auth_id() const { return auth_id_; }
   Keyring_aes_opmode opmode() const { return opmode_; }

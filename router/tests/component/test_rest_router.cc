@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,6 @@
 #include <gmock/gmock.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -42,7 +40,7 @@
 #include "config_builder.h"
 #include "dim.h"
 #include "mysql/harness/utility/string.h"  // ::join
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "process_launcher.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -79,7 +77,8 @@ TEST_P(RestRouterApiTest, ensure_openapi) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   ProcessWrapper &http_server{launch_router({"-c", conf_file})};
 
-  fetch_and_validate_schema_and_resource(GetParam(), http_server);
+  ASSERT_NO_FATAL_FAILURE(
+      fetch_and_validate_schema_and_resource(GetParam(), http_server));
 }
 
 // ****************************************************************************
@@ -192,12 +191,12 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
     {"router_status_invalid_methods",
      std::string(rest_api_basepath) + "/router/status", "/router/status",
      HttpMethod::Post | HttpMethod::Delete | HttpMethod::Patch |
-         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options |
-         HttpMethod::Connect,
+         HttpMethod::Head | HttpMethod::Trace | HttpMethod::Options,
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed, kRouterSwaggerPaths},
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
+     kRouterSwaggerPaths},
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -273,12 +272,10 @@ TEST_F(RestRouterApiTest, rest_router_section_has_key) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
-  EXPECT_THAT(
-      router_output,
-      ::testing::HasSubstr("plugin 'rest_router' init failed: [rest_router] "
-                           "section does not expect a key, found 'A'"))
-      << router_output;
+  const std::string router_output = router.get_logfile_content();
+  EXPECT_THAT(router_output,
+              ::testing::HasSubstr("  init 'rest_router' failed: [rest_router] "
+                                   "section does not expect a key, found 'A'"));
 }
 
 /**
@@ -298,11 +295,10 @@ TEST_F(RestRouterApiTest, router_api_no_auth) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(router_output, ::testing::HasSubstr(
-                                 "plugin 'rest_router' init failed: option "
-                                 "require_realm in [rest_router] is required"))
-      << router_output;
+                                 "  init 'rest_router' failed: option "
+                                 "require_realm in [rest_router] is required"));
 }
 
 /**
@@ -321,13 +317,12 @@ TEST_F(RestRouterApiTest, invalid_realm) {
 
   check_exit_code(router, EXIT_FAILURE, 10s);
 
-  const std::string router_output = router.get_full_logfile();
+  const std::string router_output = router.get_logfile_content();
   EXPECT_THAT(
       router_output,
       ::testing::HasSubstr(
           "Configuration error: The option 'require_realm=invalidrealm' "
-          "in [rest_router] does not match any http_auth_realm."))
-      << router_output;
+          "in [rest_router] does not match any http_auth_realm."));
 }
 
 int main(int argc, char *argv[]) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,12 @@
 #include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
+
 #include <string>
 
 #include "field_types.h"
 #include "lex_string.h"
 #include "map_helpers.h"
-
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/item.h"     // Item::Type
@@ -168,7 +168,7 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx {
 };
 
 /* Drop all routines in database 'db' */
-enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema);
+bool sp_drop_db_routines(THD *thd, const dd::Schema &schema);
 
 /**
    Acquires exclusive metadata lock on all stored routines in the
@@ -207,7 +207,8 @@ enum_sp_return_code db_load_routine(
     const char *definer_host, longlong created, longlong modified,
     Stored_program_creation_ctx *creation_ctx);
 
-bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer);
+bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer,
+                       bool if_not_exists, bool &sp_already_exists);
 
 bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
                        st_sp_chistics *chistics);

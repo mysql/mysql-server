@@ -31,7 +31,7 @@ SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LI
 ## Test-1: Clone with dirty pages and redo log [No zero copy/sendfile]
 
 --echo # In connection default - Cloning database
-SET global debug="+d,clone_no_zero_copy";
+SET GLOBAL DEBUG ="+d,clone_no_zero_copy";
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
@@ -56,7 +56,7 @@ SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
 connection default;
 --echo # In connection default - Cloning database
 --reap
-SET global debug="-d,clone_no_zero_copy";
+SET GLOBAL DEBUG ="-d,clone_no_zero_copy";
 
 disconnect con1;
 
@@ -92,6 +92,8 @@ SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LI
 --force-rmdir $CLONE_DATADIR
 
 ## Test-2A: Clone with redo log ending at file boundary
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
+SET GLOBAL DEBUG ="+d,clone_arch_log_stop_file_end";
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
@@ -109,8 +111,6 @@ SET GLOBAL innodb_buf_flush_list_now = 1;
 SET DEBUG_SYNC = 'now SIGNAL resume_clone1';
 SET DEBUG_SYNC = 'now WAIT_FOR start_dml2';
 
-SET global debug="+d,clone_arch_log_stop_file_end";
-
 START TRANSACTION;
 # Execute procedure to delete all rows and insert 150 rows
 call execute_dml(3, 0, 1, 1, 1, 0);
@@ -123,12 +123,15 @@ connection default;
 --echo # In connection default - Cloning database
 --reap
 
-SET global debug="-d,clone_arch_log_stop_file_end";
+SET GLOBAL DEBUG ="-d,clone_arch_log_stop_file_end";
 
 # Removed cloned data
 --force-rmdir $CLONE_DATADIR
 
 ## Test-2B: Clone with redo log ending at file boundary + some bytes
+SET GLOBAL innodb_redo_log_capacity = 100*1024*1024;
+SET GLOBAL DEBUG ="+d,clone_arch_log_stop_file_end";
+SET GLOBAL DEBUG ="+d,clone_arch_log_extra_bytes";
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
@@ -146,9 +149,6 @@ SET GLOBAL innodb_buf_flush_list_now = 1;
 SET DEBUG_SYNC = 'now SIGNAL resume_clone1';
 SET DEBUG_SYNC = 'now WAIT_FOR start_dml2';
 
-SET global debug="+d,clone_arch_log_stop_file_end";
-SET global debug="+d,clone_arch_log_extra_bytes";
-
 START TRANSACTION;
 # Execute procedure to delete all rows and insert 150 rows
 call execute_dml(3, 0, 1, 1, 1, 0);
@@ -161,8 +161,8 @@ connection default;
 --echo # In connection default - Cloning database
 --reap
 
-SET global debug="-d,clone_arch_log_stop_file_end";
-SET global debug="-d,clone_arch_log_extra_bytes";
+SET GLOBAL DEBUG ="-d,clone_arch_log_stop_file_end";
+SET GLOBAL DEBUG ="-d,clone_arch_log_extra_bytes";
 
 # Removed cloned data
 --force-rmdir $CLONE_DATADIR

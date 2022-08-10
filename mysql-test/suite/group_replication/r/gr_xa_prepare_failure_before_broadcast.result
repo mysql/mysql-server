@@ -1,0 +1,71 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/suppress_messages.inc
+# Connection 1 suppresses message <Found .* prepared XA transactions>.
+# Connection 1 suppresses message <.*Checksum mismatch in datafile.*>.
+# Connection 2 suppresses message <Found .* prepared XA transactions>.
+# Connection 2 suppresses message <.*Checksum mismatch in datafile.*>.
+# Connection 3 suppresses message <Found .* prepared XA transactions>.
+# Connection 3 suppresses message <.*Checksum mismatch in datafile.*>.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+XA START X'78696431',X'',1;
+INSERT INTO t1 VALUES (2);
+XA END X'78696431',X'',1;
+XA PREPARE X'78696431',X'',1;
+XA COMMIT X'78696431',X'',1;
+[connection server2]
+include/save_sysvars.inc [ "GLOBAL.group_replication_member_expel_timeout" ]
+SET GLOBAL group_replication_member_expel_timeout = 0;
+include/start_group_replication.inc
+include/save_binlog_position.inc
+[connection server3]
+include/save_sysvars.inc [ "GLOBAL.group_replication_member_expel_timeout" ]
+SET GLOBAL group_replication_member_expel_timeout = 0;
+include/start_group_replication.inc
+[connection server1]
+include/save_binlog_position.inc
+XA START X'78696431',X'',1;
+INSERT INTO t1 VALUES (1);
+XA END X'78696431',X'',1;
+[connection server1]
+include/rpl_sync.inc
+include/execute_to_conditional_timestamp_sync_point.inc [before_invoke_before_commit_hook]
+XA PREPARE X'78696431',X'',1;
+# Kill the server
+ERROR HY000: Lost connection to MySQL server during query
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_start_on_boot=OFF --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+include/rpl_reconnect.inc
+[connection server1]
+include/assert.inc [Found 1 log message(s) for "((Successfully rolled back 1 XA transaction)|(Rolling back trx with id ([0-9]+), 1 rows to undo))"]
+include/assert_binlog_events.inc [()]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [Table 'test.t1' record count must be 1]
+[connection server2]
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [Table 'test.t1' record count must be 1]
+[connection server1]
+include/save_binlog_position.inc
+include/start_group_replication.inc
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server1]
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [Table 'test.t1' record count must be 1]
+include/gr_find_a_primary.inc
+DROP TABLE t1;
+[connection server2]
+include/restore_sysvars.inc
+[connection server3]
+include/restore_sysvars.inc
+include/group_replication_end.inc

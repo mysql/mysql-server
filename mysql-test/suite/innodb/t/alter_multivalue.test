@@ -1,0 +1,51 @@
+SET @@cte_max_recursion_depth := 10000;
+
+DROP TABLE IF EXISTS test;
+
+CREATE TABLE test (id INT, json_value JSON);
+
+# An array of 10 elements with pseudo-random values in each row
+INSERT INTO test (id, json_value)
+WITH RECURSIVE cte AS (
+    SELECT 1 id
+UNION ALL
+SELECT 1 + id FROM cte WHERE id < @@cte_max_recursion_depth
+)
+SELECT id,
+       JSON_ARRAY(CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED),
+                  CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED),
+                  CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED),
+                  CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED),
+                  CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED),
+                  CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED),
+                  CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED),
+                  CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED),
+                  CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED),
+                  CAST(@seed := (@seed * 73127 + 36671) % 99053 AS UNSIGNED))
+FROM cte
+WHERE (@seed := 0) = 0
+ORDER BY id;
+
+SELECT id, CAST(json_value AS CHAR) json_value FROM test ORDER BY id LIMIT 20;
+
+# Set a variable to a value found in the row with id=10
+SET @random_value := 37947;
+
+# Select id of rows in which this value is present
+# 5 rows will be found, with id values of 10, 2486, 4962, 7438, 9915
+SELECT id FROM test WHERE @random_value MEMBER OF (json_value->'$');
+
+ALTER TABLE test ADD INDEX mvi ((CAST(json_value->'$' AS UNSIGNED ARRAY)));
+  
+EXPLAIN SELECT id FROM test WHERE @random_value MEMBER OF (json_value->'$');
+SELECT id FROM test WHERE @random_value MEMBER OF (json_value->'$');
+
+# Look at the rows 1311 and 1312 (the values are found experimentally)
+SELECT id, CAST(json_value AS CHAR) json_value
+FROM test
+WHERE id IN (1311, 1312);
+
+SELECT id FROM test WHERE 48176 MEMBER OF (json_value->'$');
+SELECT id FROM test WHERE 74452 MEMBER OF (json_value->'$');
+
+DROP TABLE test;

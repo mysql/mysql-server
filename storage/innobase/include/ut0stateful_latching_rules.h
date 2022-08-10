@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -277,7 +277,7 @@ class Stateful_latching_rules {
     const bool can_leave_B = can_leave(owned_latches, B);
 
     if (can_leave_A || can_leave_B) {
-      ib::fatal the_err{};
+      ib::fatal the_err{UT_LOCATION_HERE};
       the_err << "We can leave "
               << (can_leave_A && can_leave_B ? "both A and B"
                                              : (can_leave_A ? "A" : "B"))
@@ -314,7 +314,7 @@ class Stateful_latching_rules {
         })) {
       return;
     }
-    ib::fatal the_err{};
+    ib::fatal the_err{UT_LOCATION_HERE};
     the_err << "Disallowed transition FROM " << from << " TO " << to
             << " WITH ";
     print(the_err, owned_latches);

@@ -42,7 +42,7 @@ REFERENCED_TABLE_NAME	varchar(64)	YES		NULL
 REFERENCED_COLUMN_NAME	varchar(64)	YES		NULL	
 SHOW CREATE TABLE information_schema.KEY_COLUMN_USAGE;
 View	Create View	character_set_client	collation_connection
-KEY_COLUMN_USAGE	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`KEY_COLUMN_USAGE` AS select `cat`.`name` AS `CONSTRAINT_CATALOG`,`sch`.`name` AS `CONSTRAINT_SCHEMA`,`constraints`.`CONSTRAINT_NAME` AS `CONSTRAINT_NAME`,`cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,`constraints`.`ORDINAL_POSITION` AS `ORDINAL_POSITION`,`constraints`.`POSITION_IN_UNIQUE_CONSTRAINT` AS `POSITION_IN_UNIQUE_CONSTRAINT`,`constraints`.`REFERENCED_TABLE_SCHEMA` AS `REFERENCED_TABLE_SCHEMA`,`constraints`.`REFERENCED_TABLE_NAME` AS `REFERENCED_TABLE_NAME`,`constraints`.`REFERENCED_COLUMN_NAME` AS `REFERENCED_COLUMN_NAME` from (((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join (lateral (select `idx`.`name` AS `CONSTRAINT_NAME`,`icu`.`ordinal_position` AS `ORDINAL_POSITION`,NULL AS `POSITION_IN_UNIQUE_CONSTRAINT`,NULL AS `REFERENCED_TABLE_SCHEMA`,NULL AS `REFERENCED_TABLE_NAME`,NULL AS `REFERENCED_COLUMN_NAME`,`icu`.`column_id` AS `column_id`,((0 <> `idx`.`hidden`) or (0 <> `icu`.`hidden`)) AS `HIDDEN` from (`mysql`.`indexes` `idx` join `mysql`.`index_column_usage` `icu` on((`icu`.`index_id` = `idx`.`id`))) where ((`idx`.`table_id` = `tbl`.`id`) and (`idx`.`type` in ('PRIMARY','UNIQUE'))) union all select (`fk`.`name` collate utf8_tolower_ci) AS `CONSTRAINT_NAME`,`fkcu`.`ordinal_position` AS `ORDINAL_POSITION`,`fkcu`.`ordinal_position` AS `POSITION_IN_UNIQUE_CONSTRAINT`,`fk`.`referenced_table_schema` AS `REFERENCED_TABLE_SCHEMA`,`fk`.`referenced_table_name` AS `REFERENCED_TABLE_NAME`,`fkcu`.`referenced_column_name` AS `REFERENCED_COLUMN_NAME`,`fkcu`.`column_id` AS `column_id`,false AS `HIDDEN` from (`mysql`.`foreign_keys` `fk` join `mysql`.`foreign_key_column_usage` `fkcu` on((`fkcu`.`foreign_key_id` = `fk`.`id`))) where (`fk`.`table_id` = `tbl`.`id`)) `constraints` join `mysql`.`columns` `col` on((`constraints`.`column_id` = `col`.`id`)))) where ((0 <> can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`)) and (0 <> is_visible_dd_object(`tbl`.`hidden`,((`col`.`hidden` <> 'Visible') or (0 <> `constraints`.`HIDDEN`)))))	utf8	utf8_general_ci
+KEY_COLUMN_USAGE	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`KEY_COLUMN_USAGE` AS select `cat`.`name` AS `CONSTRAINT_CATALOG`,`sch`.`name` AS `CONSTRAINT_SCHEMA`,`constraints`.`CONSTRAINT_NAME` AS `CONSTRAINT_NAME`,`cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,(`col`.`name` collate utf8mb3_tolower_ci) AS `COLUMN_NAME`,`constraints`.`ORDINAL_POSITION` AS `ORDINAL_POSITION`,`constraints`.`POSITION_IN_UNIQUE_CONSTRAINT` AS `POSITION_IN_UNIQUE_CONSTRAINT`,`constraints`.`REFERENCED_TABLE_SCHEMA` AS `REFERENCED_TABLE_SCHEMA`,`constraints`.`REFERENCED_TABLE_NAME` AS `REFERENCED_TABLE_NAME`,`constraints`.`REFERENCED_COLUMN_NAME` AS `REFERENCED_COLUMN_NAME` from (((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join (lateral (select `idx`.`name` AS `CONSTRAINT_NAME`,`icu`.`ordinal_position` AS `ORDINAL_POSITION`,NULL AS `POSITION_IN_UNIQUE_CONSTRAINT`,NULL AS `REFERENCED_TABLE_SCHEMA`,NULL AS `REFERENCED_TABLE_NAME`,NULL AS `REFERENCED_COLUMN_NAME`,`icu`.`column_id` AS `column_id`,((0 <> `idx`.`hidden`) or (0 <> `icu`.`hidden`)) AS `HIDDEN` from (`mysql`.`indexes` `idx` join `mysql`.`index_column_usage` `icu` on((`icu`.`index_id` = `idx`.`id`))) where ((`idx`.`table_id` = `tbl`.`id`) and (`idx`.`type` in ('PRIMARY','UNIQUE'))) union all select (`fk`.`name` collate utf8mb3_tolower_ci) AS `CONSTRAINT_NAME`,`fkcu`.`ordinal_position` AS `ORDINAL_POSITION`,`fkcu`.`ordinal_position` AS `POSITION_IN_UNIQUE_CONSTRAINT`,`fk`.`referenced_table_schema` AS `REFERENCED_TABLE_SCHEMA`,`fk`.`referenced_table_name` AS `REFERENCED_TABLE_NAME`,`fkcu`.`referenced_column_name` AS `REFERENCED_COLUMN_NAME`,`fkcu`.`column_id` AS `column_id`,false AS `HIDDEN` from (`mysql`.`foreign_keys` `fk` join `mysql`.`foreign_key_column_usage` `fkcu` on((`fkcu`.`foreign_key_id` = `fk`.`id`))) where (`fk`.`table_id` = `tbl`.`id`)) `constraints` join `mysql`.`columns` `col` on((`constraints`.`column_id` = `col`.`id`)))) where ((0 <> can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`)) and (0 <> is_visible_dd_object(`tbl`.`hidden`,((`col`.`hidden` not in ('Visible','User')) or (0 <> `constraints`.`HIDDEN`)),`col`.`options`)))	utf8mb3	utf8mb3_general_ci
 SHOW COLUMNS FROM information_schema.KEY_COLUMN_USAGE;
 Field	Type	Null	Key	Default	Extra
 CONSTRAINT_CATALOG	varchar(64)	NO		NULL	
@@ -64,6 +64,8 @@ WHERE (constraint_catalog IS NOT NULL OR table_catalog IS NOT NULL) AND
 table_name != 'ndb_binlog_index'
 ORDER BY constraint_schema, constraint_name, table_schema, table_name, column_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
+def	mtr	PRIMARY	def	mtr	asserted_test_suppressions	message
+def	mtr	PRIMARY	def	mtr	test_ignored_global_suppressions	pattern
 def	mysql	name	def	mysql	help_category	name
 def	mysql	name	def	mysql	help_keyword	name
 def	mysql	name	def	mysql	help_topic	name
@@ -120,6 +122,9 @@ def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover	Network
 def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover	Port
 def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover_managed	Channel_name
 def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover_managed	Managed_name
+def	mysql	PRIMARY	def	mysql	replication_group_configuration_version	name
+def	mysql	PRIMARY	def	mysql	replication_group_member_actions	event
+def	mysql	PRIMARY	def	mysql	replication_group_member_actions	name
 def	mysql	PRIMARY	def	mysql	role_edges	FROM_HOST
 def	mysql	PRIMARY	def	mysql	role_edges	FROM_USER
 def	mysql	PRIMARY	def	mysql	role_edges	TO_HOST
@@ -256,13 +261,6 @@ def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status
 def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status_by_coordinator	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status_by_worker	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	replication_applier_status_by_worker	WORKER_ID
-def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover	CHANNEL_NAME
-def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover	HOST
-def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover	MANAGED_NAME
-def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover	NETWORK_NAMESPACE
-def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover	PORT
-def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover_managed	CHANNEL_NAME
-def	performance_schema	PRIMARY	def	performance_schema	replication_asynchronous_connection_failover_managed	MANAGED_NAME
 def	performance_schema	PRIMARY	def	performance_schema	replication_connection_configuration	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	replication_connection_status	CHANNEL_NAME
 def	performance_schema	PRIMARY	def	performance_schema	rwlock_instances	OBJECT_INSTANCE_BEGIN

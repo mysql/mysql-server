@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 
 #include "ndb_socket.h"
+#include <cstring>
 
 /*
   Implement ndb_socketpair() so that it works both on UNIX and windows
@@ -45,7 +46,7 @@ int ndb_socketpair(ndb_socket_t s[2])
   if (!ndb_socket_valid(listener))
     return -1;
 
-  bzero(&addr, sizeof(addr));
+  std::memset(&addr, 0, sizeof(addr));
   addr.sin6_family = AF_INET6;
   addr.sin6_addr = in6addr_loopback; /* localhost */
   addr.sin6_port = 0; /* Any port */

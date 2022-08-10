@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,10 +88,10 @@ struct st_row_coordinator {
 
 class PFS_index_rpl_applier_status_by_coord : public PFS_engine_index {
  public:
-  PFS_index_rpl_applier_status_by_coord(PFS_engine_key *key)
+  explicit PFS_index_rpl_applier_status_by_coord(PFS_engine_key *key)
       : PFS_engine_index(key) {}
 
-  ~PFS_index_rpl_applier_status_by_coord() override {}
+  ~PFS_index_rpl_applier_status_by_coord() override = default;
 
   virtual bool match(Master_info *mi) = 0;
 };
@@ -102,7 +102,7 @@ class PFS_index_rpl_applier_status_by_coord_by_channel
   PFS_index_rpl_applier_status_by_coord_by_channel()
       : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("CHANNEL_NAME") {}
 
-  ~PFS_index_rpl_applier_status_by_coord_by_channel() override {}
+  ~PFS_index_rpl_applier_status_by_coord_by_channel() override = default;
 
   bool match(Master_info *mi) override;
 
@@ -116,7 +116,7 @@ class PFS_index_rpl_applier_status_by_coord_by_thread
   PFS_index_rpl_applier_status_by_coord_by_thread()
       : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_coord_by_thread() override {}
+  ~PFS_index_rpl_applier_status_by_coord_by_thread() override = default;
 
   bool match(Master_info *mi) override;
 

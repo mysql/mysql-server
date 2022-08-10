@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,7 +43,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 #include "lock0types.h"
-#include "log0log.h"
 #include "mem0mem.h"
 #include "que0types.h"
 #include "trx0xa.h"
@@ -52,6 +51,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "fts0fts.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "read0read.h"
+#include "sql/handler.h"  // Xa_state_list
 #include "srv0srv.h"
 
 // Forward declaration
@@ -61,16 +62,16 @@ struct mtr_t;
 class ReadView;
 
 // Forward declaration
-class FlushObserver;
+class Flush_observer;
 
 /** Dummy session used currently in MySQL interface */
 extern sess_t *trx_dummy_sess;
 
 #ifndef UNIV_HOTBACKUP
 /** Set flush observer for the transaction
-@param[in,out]	trx		transaction struct
-@param[in]	observer	flush observer */
-void trx_set_flush_observer(trx_t *trx, FlushObserver *observer);
+@param[in,out]  trx             transaction struct
+@param[in]      observer        flush observer */
+void trx_set_flush_observer(trx_t *trx, Flush_observer *observer);
 
 /** Set detailed error message for the transaction.
 @param[in] trx Transaction struct
@@ -84,8 +85,7 @@ void trx_set_detailed_error_from_file(
     FILE *file); /*!< in: file to read message from */
 /** Retrieves the error_info field from a trx.
  @return the error index */
-UNIV_INLINE
-const dict_index_t *trx_get_error_index(
+static inline const dict_index_t *trx_get_error_index(
     const trx_t *trx); /*!< in: trx object */
 /** Creates a transaction object for MySQL.
  @return own: transaction object */
@@ -94,15 +94,21 @@ trx_t *trx_allocate_for_mysql(void);
  @return own: transaction object */
 trx_t *trx_allocate_for_background(void);
 
-/** Resurrect table locks for resurrected transactions. */
-void trx_resurrect_locks();
+/** Resurrect table locks for resurrected transactions.
+@param[in]      all     false: resurrect locks for dictionary transactions,
+                        true : resurrect locks for all transactions. */
+void trx_resurrect_locks(bool all);
+
+/** Clear all resurrected table IDs. Needs to be called after all tables locks
+are resurrected. */
+void trx_clear_resurrected_table_ids();
 
 /** Free and initialize a transaction object instantiated during recovery.
-@param[in,out]	trx	transaction object to free and initialize */
+@param[in,out]  trx     transaction object to free and initialize */
 void trx_free_resurrected(trx_t *trx);
 
 /** Free a transaction that was allocated by background or user threads.
-@param[in,out]	trx	transaction object to free */
+@param[in,out]  trx     transaction object to free */
 void trx_free_for_background(trx_t *trx);
 
 /** At shutdown, frees a transaction object that represents either:
@@ -112,15 +118,15 @@ void trx_free_for_background(trx_t *trx);
 void trx_free_prepared_or_active_recovered(trx_t *trx);
 
 /** Free a transaction object for MySQL.
-@param[in,out]	trx	transaction */
+@param[in,out]  trx     transaction */
 void trx_free_for_mysql(trx_t *trx);
 
 /** Disconnect a transaction from MySQL.
-@param[in,out]	trx	transaction */
+@param[in,out]  trx     transaction */
 void trx_disconnect_plain(trx_t *trx);
 
 /** Disconnect a prepared transaction from MySQL.
-@param[in,out]	trx	transaction */
+@param[in,out]  trx     transaction */
 void trx_disconnect_prepared(trx_t *trx);
 
 /** Creates trx objects for transactions and initializes the trx list of
@@ -144,47 +150,8 @@ void trx_start_if_not_started_low(trx_t *trx, bool read_write);
 void trx_start_internal_low(trx_t *trx); /*!< in/out: transaction */
 
 /** Starts a read-only transaction for internal processing.
-@param[in,out] trx	transaction to be started */
+@param[in,out] trx      transaction to be started */
 void trx_start_internal_read_only_low(trx_t *trx);
-
-#ifdef UNIV_DEBUG
-#define trx_start_if_not_started_xa(t, rw)    \
-  do {                                        \
-    (t)->start_line = __LINE__;               \
-    (t)->start_file = __FILE__;               \
-    trx_start_if_not_started_xa_low((t), rw); \
-  } while (false)
-
-#define trx_start_if_not_started(t, rw)    \
-  do {                                     \
-    (t)->start_line = __LINE__;            \
-    (t)->start_file = __FILE__;            \
-    trx_start_if_not_started_low((t), rw); \
-  } while (false)
-
-#define trx_start_internal(t)    \
-  do {                           \
-    (t)->start_line = __LINE__;  \
-    (t)->start_file = __FILE__;  \
-    trx_start_internal_low((t)); \
-  } while (false)
-
-#define trx_start_internal_read_only(t)  \
-  do {                                   \
-    (t)->start_line = __LINE__;          \
-    (t)->start_file = __FILE__;          \
-    trx_start_internal_read_only_low(t); \
-  } while (false)
-#else
-#define trx_start_if_not_started(t, rw) trx_start_if_not_started_low((t), rw)
-
-#define trx_start_internal(t) trx_start_internal_low((t))
-
-#define trx_start_internal_read_only(t) trx_start_internal_read_only_low(t)
-
-#define trx_start_if_not_started_xa(t, rw) \
-  trx_start_if_not_started_xa_low((t), (rw))
-#endif /* UNIV_DEBUG */
 
 /** Commits a transaction. */
 void trx_commit(trx_t *trx); /*!< in/out: transaction */
@@ -205,7 +172,7 @@ dberr_t trx_commit_for_mysql(trx_t *trx); /*!< in/out: transaction */
 
 /**
 Does the transaction prepare for MySQL.
-@param[in, out] trx		Transaction instance to prepare */
+@param[in, out] trx             Transaction instance to prepare */
 
 dberr_t trx_prepare_for_mysql(trx_t *trx);
 
@@ -217,6 +184,12 @@ int trx_recover_for_mysql(
     ulint len,                /*!< in: number of slots in xid_list */
     MEM_ROOT *mem_root);      /*!< in: memory for table names */
 
+/** Find prepared transactions that are marked as prepared in TC, for recovery
+purposes.
+@param[in,out] xa_list prepared transactions state
+@return 0 if successful or error number */
+int trx_recover_tc_for_mysql(Xa_state_list &xa_list);
+
 /** This function is used to find one X/Open XA distributed transaction
  which is in the prepared state
  @param[in]   xid   X/Open XA transaction identifier
@@ -225,7 +198,7 @@ int trx_recover_for_mysql(
 trx_t *trx_get_trx_by_xid(const XID *xid);
 
 /** If required, flushes the log to disk if we called trx_commit_for_mysql()
- with trx->flush_log_later == TRUE. */
+ with trx->flush_log_later == true. */
 void trx_commit_complete_for_mysql(trx_t *trx); /*!< in/out: transaction */
 /** Marks the latest SQL statement ended. */
 void trx_mark_sql_stat_end(trx_t *trx); /*!< in: trx handle */
@@ -235,12 +208,10 @@ void trx_mark_sql_stat_end(trx_t *trx); /*!< in: trx handle */
 ReadView *trx_assign_read_view(trx_t *trx); /*!< in: active transaction */
 
 /** @return the transaction's read view or NULL if one not assigned. */
-UNIV_INLINE
-ReadView *trx_get_read_view(trx_t *trx);
+static inline ReadView *trx_get_read_view(trx_t *trx);
 
 /** @return the transaction's read view or NULL if one not assigned. */
-UNIV_INLINE
-const ReadView *trx_get_read_view(const trx_t *trx);
+static inline const ReadView *trx_get_read_view(const trx_t *trx);
 
 /** Prepares a transaction for commit/rollback. */
 void trx_commit_or_rollback_prepare(trx_t *trx); /*!< in/out: transaction */
@@ -286,26 +257,23 @@ void trx_print(FILE *f, const trx_t *trx, ulint max_query_len);
 
 /** Determine if a transaction is a dictionary operation.
  @return dictionary operation mode */
-UNIV_INLINE
-enum trx_dict_op_t trx_get_dict_operation(
-    const trx_t *trx) /*!< in: transaction */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline enum trx_dict_op_t trx_get_dict_operation(
+    const trx_t *trx); /*!< in: transaction */
 
 /** Flag a transaction a dictionary operation.
-@param[in,out]	trx	transaction
-@param[in]	op	operation, not TRX_DICT_OP_NONE */
-UNIV_INLINE
-void trx_set_dict_operation(trx_t *trx, enum trx_dict_op_t op);
+@param[in,out]  trx     transaction
+@param[in]      op      operation, not TRX_DICT_OP_NONE */
+static inline void trx_set_dict_operation(trx_t *trx, enum trx_dict_op_t op);
 
 /** Determines if a transaction is in the given state.
- The caller must hold trx_sys->mutex, or it must be the thread
- that is serving a running transaction.
- A running RW transaction must be in trx_sys->rw_trx_list.
- @return true if trx->state == state */
-UNIV_INLINE
-bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
-                  trx_state_t state) /*!< in: state */
-    MY_ATTRIBUTE((warn_unused_result));
+The caller must hold trx_sys->mutex, or it must be the thread
+that is serving a running transaction.
+A running RW transaction must be in trx_sys->rw_trx_list.
+@param[in] trx   Transaction.
+@param[in] state State.
+@return true if trx->state == state */
+[[nodiscard]] static inline bool trx_state_eq(const trx_t *trx,
+                                              trx_state_t state);
 #ifdef UNIV_DEBUG
 /** Determines if trx can be handled by current thread, which is when
 trx->mysql_thd is nullptr (a "background" trx) or equals current_thd.
@@ -314,25 +282,26 @@ trx->mysql_thd is nullptr (a "background" trx) or equals current_thd.
 */
 bool trx_can_be_handled_by_current_thread(const trx_t *trx);
 
+/** Determines if trx can be handled by current thread, which is when
+trx->mysql_thd is nullptr (a "background" trx) or equals current_thd,
+or is a victim being killed by HP transaction run by the current thread.
+@param[in]    trx   The transaction to check
+@return true iff current thread can handle the transaction
+*/
+bool trx_can_be_handled_by_current_thread_or_is_hp_victim(const trx_t *trx);
+
 /** Asserts that a transaction has been started.
  The caller must hold trx_sys->mutex.
  @return true if started */
-ibool trx_assert_started(const trx_t *trx) /*!< in: transaction */
-    MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG */
+[[nodiscard]] bool trx_assert_started(const trx_t *trx); /*!< in: transaction */
+#endif                                                   /* UNIV_DEBUG */
 
 /** Determines if the currently running transaction has been interrupted.
  @return true if interrupted */
-ibool trx_is_interrupted(const trx_t *trx); /*!< in: transaction */
+bool trx_is_interrupted(const trx_t *trx); /*!< in: transaction */
 /** Determines if the currently running transaction is in strict mode.
  @return true if strict */
-ibool trx_is_strict(trx_t *trx); /*!< in: transaction */
-
-/** Calculates the "weight" of a transaction. The weight of one transaction
- is estimated as the number of altered rows + the number of locked rows.
- @param t transaction
- @return transaction weight */
-#define TRX_WEIGHT(t) ((t)->undo_no + UT_LIST_GET_LEN((t)->lock.trx_locks))
+bool trx_is_strict(trx_t *trx); /*!< in: transaction */
 
 /** Compares the "weight" (or size) of two transactions. Transactions that
  have edited non-transactional tables are considered heavier than ones
@@ -342,13 +311,13 @@ bool trx_weight_ge(const trx_t *a,  /*!< in: the transaction to be compared */
                    const trx_t *b); /*!< in: the transaction to be compared */
 /* Maximum length of a string that can be returned by
 trx_get_que_state_str(). */
-#define TRX_QUE_STATE_STR_MAX_LEN 12 /* "ROLLING BACK" */
+constexpr uint32_t TRX_QUE_STATE_STR_MAX_LEN = 12; /* "ROLLING BACK" */
 
 /** Retrieves transaction's que state in a human readable string. The string
  should not be free()'d or modified.
  @return string in the data segment */
-UNIV_INLINE
-const char *trx_get_que_state_str(const trx_t *trx); /*!< in: transaction */
+static inline const char *trx_get_que_state_str(
+    const trx_t *trx); /*!< in: transaction */
 
 /** Retreieves the transaction ID.
 In a given point in time it is guaranteed that IDs of the running
@@ -356,13 +325,12 @@ transactions are unique. The values returned by this function for readonly
 transactions may be reused, so a subsequent RO transaction may get the same ID
 as a RO transaction that existed in the past. The values returned by this
 function should be used for printing purposes only.
-@param[in]	trx	transaction whose id to retrieve
+@param[in]      trx     transaction whose id to retrieve
 @return transaction id */
-UNIV_INLINE
-trx_id_t trx_get_id_for_print(const trx_t *trx);
+static inline trx_id_t trx_get_id_for_print(const trx_t *trx);
 
 /** Assign a temp-tablespace bound rollback-segment to a transaction.
-@param[in,out]	trx	transaction that involves write to temp-table. */
+@param[in,out]  trx     transaction that involves write to temp-table. */
 void trx_assign_rseg_temp(trx_t *trx);
 
 /** Create the trx_t pool */
@@ -374,47 +342,26 @@ void trx_pool_close();
 /**
 Set the transaction as a read-write transaction if it is not already
 tagged as such.
-@param[in,out] trx	Transaction that needs to be "upgraded" to RW from RO */
+@param[in,out] trx      Transaction that needs to be "upgraded" to RW from RO */
 void trx_set_rw_mode(trx_t *trx);
 
 /**
-Increase the reference count. If the transaction is in state
-TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered
-committed and the reference count is not incremented.
-@param trx Transaction that is being referenced
-@param do_ref_count Increment the reference iff this is true
-@return transaction instance if it is not committed */
-UNIV_INLINE
-trx_t *trx_reference(trx_t *trx, bool do_ref_count);
-
-/**
-Release the transaction. Decrease the reference count.
-@param trx Transaction that is being released */
-UNIV_INLINE
-void trx_release_reference(trx_t *trx);
-
-/**
-Check if the transaction is being referenced. */
-#define trx_is_referenced(t) ((t)->n_ref > 0)
-
-/**
-@param[in] requestor	Transaction requesting the lock
-@param[in] holder	Transaction holding the lock
+@param[in] requestor    Transaction requesting the lock
+@param[in] holder       Transaction holding the lock
 @return the transaction that will be rolled back, null don't care */
 
-UNIV_INLINE
-const trx_t *trx_arbitrate(const trx_t *requestor, const trx_t *holder);
+static inline const trx_t *trx_arbitrate(const trx_t *requestor,
+                                         const trx_t *holder);
 
 /**
-@param[in] trx		Transaction to check
+@param[in] trx          Transaction to check
 @return true if the transaction is a high priority transaction.*/
-UNIV_INLINE
-bool trx_is_high_priority(const trx_t *trx);
+static inline bool trx_is_high_priority(const trx_t *trx);
 
 /**
 If this is a high priority transaction,
 kill all transactions that are blocking this transaction from acquiring locks.
-@param[in,out] trx	High priority transaction */
+@param[in,out] trx      High priority transaction */
 void trx_kill_blocking(trx_t *trx);
 
 /** Provides an id of the transaction which does not change over time.
@@ -422,120 +369,17 @@ Contrast this with trx->id and trx_get_id_for_print(trx) which change value once
 a transaction can no longer be treated as read-only and becomes read-write.
 @param[in]  trx   The transaction for which you want an immutable id
 @return the transaction's immutable id */
-UNIV_INLINE
-uint64_t trx_immutable_id(const trx_t *trx) {
+static inline uint64_t trx_immutable_id(const trx_t *trx) {
   return (uint64_t{reinterpret_cast<uintptr_t>(trx)});
 }
 
 /**
 Check if redo/noredo rseg is modified for insert/update.
-@param[in] trx		Transaction to check */
-UNIV_INLINE
-bool trx_is_rseg_updated(const trx_t *trx);
-
-/**
-Transactions that aren't started by the MySQL server don't set
-the trx_t::mysql_thd field. For such transactions we set the lock
-wait timeout to 0 instead of the user configured value that comes
-from innodb_lock_wait_timeout via trx_t::mysql_thd.
-@param	t transaction
-@return lock wait timeout in seconds */
-#define trx_lock_wait_timeout_get(t) thd_lock_wait_timeout((t)->mysql_thd)
-
-/**
-Determine if the transaction is a non-locking autocommit select
-(implied read-only).
-@param t transaction
-@return true if non-locking autocommit select transaction. */
-#define trx_is_autocommit_non_locking(t) \
-  ((t)->auto_commit && (t)->will_lock == 0)
-
-/**
-Determine if the transaction is a non-locking autocommit select
-with an explicit check for the read-only status.
-@param t transaction
-@return true if non-locking autocommit read-only transaction. */
-#define trx_is_ac_nl_ro(t) \
-  ((t)->read_only && trx_is_autocommit_non_locking((t)))
-
-/**
-Assert that the transaction is in the trx_sys_t::rw_trx_list */
-#define assert_trx_in_rw_list(t)                         \
-  do {                                                   \
-    ut_ad(!(t)->read_only);                              \
-    ut_ad((t)->in_rw_trx_list ==                         \
-          !((t)->read_only || !(t)->rsegs.m_redo.rseg)); \
-    check_trx_state(t);                                  \
-  } while (0)
-
-/**
-Check transaction state */
-#define check_trx_state(t)                      \
-  do {                                          \
-    ut_ad(!trx_is_autocommit_non_locking((t))); \
-    switch ((t)->state) {                       \
-      case TRX_STATE_PREPARED:                  \
-        /* fall through */                      \
-      case TRX_STATE_ACTIVE:                    \
-      case TRX_STATE_COMMITTED_IN_MEMORY:       \
-        continue;                               \
-      case TRX_STATE_NOT_STARTED:               \
-      case TRX_STATE_FORCED_ROLLBACK:           \
-        break;                                  \
-    }                                           \
-    ut_error;                                   \
-  } while (0)
-
-/** Check if transaction is free so that it can be re-initialized.
-@param t transaction handle */
-#define assert_trx_is_free(t)                            \
-  do {                                                   \
-    ut_ad(trx_state_eq((t), TRX_STATE_NOT_STARTED) ||    \
-          trx_state_eq((t), TRX_STATE_FORCED_ROLLBACK)); \
-    ut_ad(!trx_is_rseg_updated(trx));                    \
-    ut_ad(!MVCC::is_view_active((t)->read_view));        \
-    ut_ad((t)->lock.wait_thr == NULL);                   \
-    ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);    \
-    ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);      \
-  } while (0)
-
-/** Check if transaction is in-active so that it can be freed and put back to
-transaction pool.
-@param t transaction handle */
-#define assert_trx_is_inactive(t)              \
-  do {                                         \
-    assert_trx_is_free((t));                   \
-    ut_ad((t)->dict_operation_lock_mode == 0); \
-  } while (0)
-
-#ifdef UNIV_DEBUG
-/** Assert that an autocommit non-locking select cannot be in the
- rw_trx_list and that it is a read-only transaction.
- The tranasction must be in the mysql_trx_list. */
-#define assert_trx_nonlocking_or_in_list(t)         \
-  do {                                              \
-    if (trx_is_autocommit_non_locking(t)) {         \
-      trx_state_t t_state = (t)->state;             \
-      ut_ad((t)->read_only);                        \
-      ut_ad(!(t)->is_recovered);                    \
-      ut_ad(!(t)->in_rw_trx_list);                  \
-      ut_ad((t)->in_mysql_trx_list);                \
-      ut_ad(t_state == TRX_STATE_NOT_STARTED ||     \
-            t_state == TRX_STATE_FORCED_ROLLBACK || \
-            t_state == TRX_STATE_ACTIVE);           \
-    } else {                                        \
-      check_trx_state(t);                           \
-    }                                               \
-  } while (0)
-#else /* UNIV_DEBUG */
-/** Assert that an autocommit non-locking slect cannot be in the
- rw_trx_list and that it is a read-only transaction.
- The tranasction must be in the mysql_trx_list. */
-#define assert_trx_nonlocking_or_in_list(trx) ((void)0)
-#endif /* UNIV_DEBUG */
+@param[in] trx          Transaction to check */
+static inline bool trx_is_rseg_updated(const trx_t *trx);
 #endif /* !UNIV_HOTBACKUP */
 
-typedef std::vector<ib_lock_t *, ut_allocator<ib_lock_t *>> lock_pool_t;
+typedef std::vector<ib_lock_t *, ut::allocator<ib_lock_t *>> lock_pool_t;
 
 /** Latching protocol for trx_lock_t::que_state.  trx_lock_t::que_state
  captures the state of the query thread during the execution of a query.
@@ -560,6 +404,9 @@ typedef std::vector<ib_lock_t *, ut_allocator<ib_lock_t *>> lock_pool_t;
 Protected by exclusive lock_sys latch or trx->mutex combined with shared
 lock_sys latch (unless stated otherwise for particular field). */
 struct trx_lock_t {
+  /** Default constructor. */
+  trx_lock_t() = default;
+
   ulint n_active_thrs; /*!< number of active query threads */
 
   trx_que_t que_state; /*!< valid when trx->state
@@ -656,7 +503,7 @@ struct trx_lock_t {
   /** Lock wait started at this time.
   Writes under shared lock_sys latch combined with trx->mutex.
   Reads require either trx->mutex or exclusive lock_sys latch. */
-  time_t wait_started;
+  std::chrono::system_clock::time_point wait_started;
 
   /** query thread belonging to this trx that is in QUE_THR_LOCK_WAIT state.
   For threads suspended in a lock wait, this is protected by lock_sys latch for
@@ -682,6 +529,7 @@ struct trx_lock_t {
   mem_heap_t *lock_heap;
 
   /** Locks requested by the transaction.
+  It is sorted so that LOCK_TABLE locks are before LOCK_REC locks.
   Modifications are protected by trx->mutex and shard of lock_sys mutex.
   Reads can be performed while holding trx->mutex or exclusive lock_sys latch.
   One can also check if this list is empty or not from the thread running this
@@ -694,13 +542,9 @@ struct trx_lock_t {
   one can read it without risking unsafe pointer operations) */
   trx_lock_list_t trx_locks;
 
-  /** All table locks requested by this transaction, including AUTOINC locks.
-  Protected by trx->mutex. */
-  lock_pool_t table_locks;
-
-  /** AUTOINC locks held by this transaction. Note that these are also in the
-  lock list trx_locks and table_locks. This vector needs to be freed explicitly
-  when the trx instance is destroyed.
+  /** AUTOINC locks held by this transaction.
+  Note that these are also in the trx_locks list.
+  This vector needs to be freed explicitly when the trx instance is destroyed.
   Protected by trx->mutex. */
   ib_vector_t *autoinc_locks;
 
@@ -743,7 +587,7 @@ transaction. We store pointers to the table objects in memory because
 we know that a table object will not be destroyed while a transaction
 that modified it is running. */
 typedef std::set<dict_table_t *, std::less<dict_table_t *>,
-                 ut_allocator<dict_table_t *>>
+                 ut::allocator<dict_table_t *>>
     trx_mod_tables_t;
 
 /** The transaction handle
@@ -859,6 +703,9 @@ struct trx_t {
     SERIALIZABLE
   };
 
+  /** Default constructor */
+  trx_t() = default;
+
   /** Mutex protecting the fields `state` and `lock` (except some fields of
   `lock`,  which are protected by lock_sys latches) */
   mutable TrxMutex mutex;
@@ -872,10 +719,10 @@ struct trx_t {
   Therefore in innobase_kill_connection. We don't increment this
   counter via TrxInInnoDB. */
 
-  ib_uint32_t in_depth; /*!< Track nested TrxInInnoDB
+  uint32_t in_depth; /*!< Track nested TrxInInnoDB
                         count */
 
-  ib_uint32_t in_innodb; /*!< if the thread is executing
+  uint32_t in_innodb; /*!< if the thread is executing
                          in the InnoDB context count > 0. */
 
   bool abort; /*!< if this flag is set then
@@ -955,7 +802,7 @@ struct trx_t {
   currently only required for a consistent view for printing stats.
   This unnecessarily adds a huge cost for the general case. */
 
-  trx_state_t state;
+  std::atomic<trx_state_t> state;
 
   /* If set, this transaction should stop inheriting (GAP)locks.
   Generally set to true during transaction prepare for RC or lower
@@ -979,10 +826,18 @@ struct trx_t {
   Protected by trx->mutex or lock_sys latches or both */
   trx_lock_t lock;
 
-  bool is_recovered; /*!< 0=normal transaction,
-                     1=recovered, must be rolled back,
-                     protected by trx_sys->mutex when
-                     trx->in_rw_trx_list holds */
+  /**
+  false:  a normal transaction
+  true:   a recovered transaction
+
+  Set to true when srv_is_being_started for recovered transactions.
+  Set to false without any protection in trx_init (where no other thread should
+  access this object anyway).
+  Can be read safely when holding trx_sys->mutex and trx belongs to rw_trx_list,
+  as trx_init can not be called until trx leaves rw_trx_list which requires the
+  trx_sys->mutex.
+  */
+  bool is_recovered;
 
   std::atomic<std::thread::id> killed_by; /*!< The thread ID that wants to
                             kill this transaction asynchronously.
@@ -998,14 +853,17 @@ struct trx_t {
                             the running thread can change. */
 
   /* These fields are not protected by any mutex. */
-  const char *op_info;   /*!< English text describing the
-                         current operation, or an empty
-                         string */
-  ulint isolation_level; /*!< TRX_ISO_REPEATABLE_READ, ... */
-  bool check_foreigns;   /*!< normally TRUE, but if the user
-                         wants to suppress foreign key checks,
-                         (in table imports, for example) we
-                         set this FALSE */
+  const char *op_info; /*!< English text describing the
+                       current operation, or an empty
+                       string */
+
+  /** Current isolation level */
+  isolation_level_t isolation_level;
+
+  bool check_foreigns; /*!< normally true, but if the user
+                       wants to suppress foreign key checks,
+                       (in table imports, for example) we
+                       set this false */
   /*------------------------------*/
   /* MySQL has a transaction coordinator to coordinate two phase
   commit between multiple storage engines and the binary log. When
@@ -1018,26 +876,26 @@ struct trx_t {
                       rollback. */
   /*------------------------------*/
   bool check_unique_secondary;
-  /*!< normally TRUE, but if the user
+  /*!< normally true, but if the user
   wants to speed up inserts by
   suppressing unique key checks
   for secondary indexes when we decide
   if we can use the insert buffer for
-  them, we set this FALSE */
+  them, we set this false */
   bool flush_log_later;      /* In 2PC, we hold the
                              prepare_commit mutex across
                              both phases. In that case, we
                              defer flush of the logs to disk
                              until after we release the
                              mutex. */
-  bool must_flush_log_later; /*!< this flag is set to TRUE in
+  bool must_flush_log_later; /*!< this flag is set to true in
                         trx_commit() if flush_log_later was
-                        TRUE, and there were modifications by
+                        true, and there were modifications by
                         the transaction; in that case we must
                         flush the log in
                         trx_commit_complete_for_mysql() */
   bool has_search_latch;
-  /*!< TRUE if this trx has latched the
+  /*!< true if this trx has latched the
   search system latch in S-mode.
   This now can only be true in
   row_search_mvcc, the btr search latch
@@ -1053,23 +911,25 @@ struct trx_t {
 
   /* Fields protected by the srv_conc_mutex. */
   bool declared_to_be_inside_innodb;
-  /*!< this is TRUE if we have declared
+  /*!< this is true if we have declared
   this transaction in
   srv_conc_enter_innodb to be inside the
   InnoDB engine */
-  ib_uint32_t n_tickets_to_enter_innodb;
+  uint32_t n_tickets_to_enter_innodb;
   /*!< this can be > 0 only when
-  declared_to_... is TRUE; when we come
+  declared_to_... is true; when we come
   to srv_conc_innodb_enter, if the value
   here is > 0, we decrement this by 1 */
-  ib_uint32_t dict_operation_lock_mode;
+  uint32_t dict_operation_lock_mode;
   /*!< 0, RW_S_LATCH, or RW_X_LATCH:
   the latch mode trx currently holds
   on dict_operation_lock. Protected
   by dict_operation_lock. */
 
-  time_t start_time; /*!< time the state last time became
-                     TRX_STATE_ACTIVE */
+  /** Time the state last time became TRX_STATE_ACTIVE. */
+  std::atomic<std::chrono::system_clock::time_point> start_time{
+      std::chrono::system_clock::time_point{}};
+  static_assert(decltype(start_time)::is_always_lock_free);
 
   lsn_t commit_lsn; /*!< lsn at the time of the commit */
 
@@ -1087,21 +947,19 @@ struct trx_t {
   field contains the end offset of the
   binlog entry */
   /*------------------------------*/
-  ib_uint32_t n_mysql_tables_in_use; /*!< number of Innobase tables
+  uint32_t n_mysql_tables_in_use; /*!< number of Innobase tables
                               used in the processing of the current
                               SQL statement in MySQL */
-  ib_uint32_t mysql_n_tables_locked;
+  uint32_t mysql_n_tables_locked;
   /*!< how many tables the current SQL
   statement uses, except those
   in consistent read */
   /*------------------------------*/
 #ifdef UNIV_DEBUG
-  /** The following two fields are mutually exclusive. */
-  /** @{ */
+  /** True iff in trx_sys->rw_trx_list */
+  bool in_rw_trx_list;
 
-  bool in_rw_trx_list; /*!< true if in trx_sys->rw_trx_list */
-                       /** @} */
-#endif                 /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG */
   UT_LIST_NODE_T(trx_t)
   mysql_trx_list; /*!< list of transactions created for
                   MySQL; protected by trx_sys->mutex */
@@ -1111,11 +969,13 @@ struct trx_t {
   trx_sys->mysql_trx_list */
 #endif /* UNIV_DEBUG */
   /*------------------------------*/
-  dberr_t error_state;             /*!< 0 if no error, otherwise error
-                                   number; NOTE That ONLY the thread
-                                   doing the transaction is allowed to
-                                   set this field: this is NOT protected
-                                   by any mutex */
+
+  /** DB_SUCCESS if no error, otherwise error number.
+  Accessed without any mutex only by the thread doing the transaction or, if it
+  is suspended (waiting for a lock), by the thread holding this->mutex which
+  has changed trx->lock.wait_lock to nullptr and will wake up the transaction.*/
+  dberr_t error_state;
+
   const dict_index_t *error_index; /*!< if the error number indicates a
                                    duplicate key error, a pointer to
                                    the problematic index is stored here */
@@ -1130,9 +990,8 @@ struct trx_t {
                                    it is a stored procedure with a COMMIT
                                    WORK statement, for instance */
   /*------------------------------*/
-  UT_LIST_BASE_NODE_T(trx_named_savept_t)
-  trx_savepoints; /*!< savepoints set with SAVEPOINT ...,
-                  oldest first */
+  UT_LIST_BASE_NODE_T_EXTERN(trx_named_savept_t, trx_savepoints)
+  trx_savepoints{}; /*!< savepoints set with SAVEPOINT ..., oldest first */
   /*------------------------------*/
   UndoMutex undo_mutex; /*!< mutex protecting the fields in this
                         section (down to undo_no_arr), EXCEPT
@@ -1169,16 +1028,16 @@ struct trx_t {
                         an SQL statement. This is useful for
                         multi-row INSERTs */
   /*------------------------------*/
-  bool read_only;        /*!< true if transaction is flagged
-                         as a READ-ONLY transaction.
-                         if auto_commit && will_lock == 0
-                         then it will be handled as a
-                         AC-NL-RO-SELECT (Auto Commit Non-Locking
-                         Read Only Select). A read only
-                         transaction will not be assigned an
-                         UNDO log. */
-  bool auto_commit;      /*!< true if it is an autocommit */
-  ib_uint32_t will_lock; /*!< Will acquire some locks. Increment
+  bool read_only;     /*!< true if transaction is flagged
+                      as a READ-ONLY transaction.
+                      if auto_commit && will_lock == 0
+                      then it will be handled as a
+                      AC-NL-RO-SELECT (Auto Commit Non-Locking
+                      Read Only Select). A read only
+                      transaction will not be assigned an
+                      UNDO log. */
+  bool auto_commit;   /*!< true if it is an autocommit */
+  uint32_t will_lock; /*!< Will acquire some locks. Increment
                          each time we determine that a lock will
                          be acquired by the MySQL layer. */
 #ifndef UNIV_HOTBACKUP
@@ -1188,7 +1047,7 @@ struct trx_t {
                             with FTS indexes (yet). */
   doc_id_t fts_next_doc_id; /* The document id used for updates */
   /*------------------------------*/
-  ib_uint32_t flush_tables; /*!< if "covering" the FLUSH TABLES",
+  uint32_t flush_tables; /*!< if "covering" the FLUSH TABLES",
                             count of tables being flushed. */
 
   /*------------------------------*/
@@ -1217,7 +1076,7 @@ struct trx_t {
   instance is re-used in trx_start_low(). It is used to track
   whether a transaction has been restarted since it was tagged
   for asynchronous rollback. */
-  ulint version;
+  std::atomic_uint64_t version;
 
   XID *xid;                    /*!< X/Open XA transaction
                                identification to identify a
@@ -1237,9 +1096,9 @@ struct trx_t {
   this fact. */
   bool purge_sys_trx;
   /*------------------------------*/
-  char *detailed_error;          /*!< detailed error message for last
-                                 error, or empty. */
-  FlushObserver *flush_observer; /*!< flush observer */
+  char *detailed_error;           /*!< detailed error message for last
+                                  error, or empty. */
+  Flush_observer *flush_observer; /*!< flush observer */
 
 #ifdef UNIV_DEBUG
   bool is_dd_trx; /*!< True if the transaction is used for
@@ -1252,6 +1111,10 @@ struct trx_t {
     return (isolation_level == READ_UNCOMMITTED);
   }
 
+  bool releases_gap_locks_at_prepare() const {
+    return isolation_level <= READ_COMMITTED;
+  }
+
   bool skip_gap_locks() const {
     switch (isolation_level) {
       case READ_UNCOMMITTED:
@@ -1261,13 +1124,183 @@ struct trx_t {
       case SERIALIZABLE:
         return (false);
     }
-    ut_ad(0);
-    return (false);
+    ut_d(ut_error);
+    ut_o(return (false));
   }
 
   bool allow_semi_consistent() const { return (skip_gap_locks()); }
+  /** Checks if this transaction releases locks on non matching records due to
+  low isolation level.
+  @return true iff in this transaction's isolation level locks on records which
+               do not match the WHERE clause are released */
+  bool releases_non_matching_rows() const { return skip_gap_locks(); }
 };
+
 #ifndef UNIV_HOTBACKUP
+/**
+Transactions that aren't started by the MySQL server don't set
+the trx_t::mysql_thd field. For such transactions we set the lock
+wait timeout to 0 instead of the user configured value that comes
+from innodb_lock_wait_timeout via trx_t::mysql_thd.
+@param  t transaction
+@return lock wait timeout in seconds */
+static inline std::chrono::seconds trx_lock_wait_timeout_get(const trx_t *t) {
+  return thd_lock_wait_timeout(t->mysql_thd);
+}
+
+/**
+Determine if the transaction is a non-locking autocommit select
+(implied read-only).
+@param t transaction
+@return true if non-locking autocommit select transaction. */
+static inline bool trx_is_autocommit_non_locking(const trx_t *t) {
+  return t->auto_commit && t->will_lock == 0;
+}
+
+/** Check transaction state */
+static inline void check_trx_state(const trx_t *t) {
+  ut_ad(!trx_is_autocommit_non_locking(t));
+  switch (t->state) {
+    case TRX_STATE_PREPARED:
+      /* fall through */
+    case TRX_STATE_ACTIVE:
+    case TRX_STATE_COMMITTED_IN_MEMORY:
+      return;
+    case TRX_STATE_NOT_STARTED:
+    case TRX_STATE_FORCED_ROLLBACK:
+      break;
+  }
+  ut_error;
+}
+
+/**
+Assert that the transaction is in the trx_sys_t::rw_trx_list */
+static inline void assert_trx_in_rw_list(const trx_t *t) {
+  ut_ad(!t->read_only);
+  ut_ad(t->in_rw_trx_list == !(t->read_only || !t->rsegs.m_redo.rseg));
+  check_trx_state(t);
+}
+
+/** Check if transaction is free so that it can be re-initialized.
+@param t transaction handle */
+static inline void assert_trx_is_free(const trx_t *t) {
+  ut_ad(trx_state_eq(t, TRX_STATE_NOT_STARTED) ||
+        trx_state_eq(t, TRX_STATE_FORCED_ROLLBACK));
+  ut_ad(!trx_is_rseg_updated(t));
+  ut_ad(!MVCC::is_view_active(t->read_view));
+  ut_ad((t)->lock.wait_thr == nullptr);
+  ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);
+  ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);
+}
+
+/** Check if transaction is in-active so that it can be freed and put back to
+transaction pool.
+@param t transaction handle */
+static inline void assert_trx_is_inactive(const trx_t *t) {
+  assert_trx_is_free(t);
+  ut_ad(t->dict_operation_lock_mode == 0);
+}
+
+#ifdef UNIV_DEBUG
+/** Assert that an autocommit non-locking select cannot be in the
+ rw_trx_list and that it is a read-only transaction.
+ The tranasction must be in the mysql_trx_list. */
+static inline void assert_trx_nonlocking_or_in_list(const trx_t *t) {
+  if (trx_is_autocommit_non_locking(t)) {
+    trx_state_t t_state = t->state;
+    ut_ad(t->read_only);
+    ut_ad(!t->is_recovered);
+    ut_ad(!t->in_rw_trx_list);
+    ut_ad(t->in_mysql_trx_list);
+    ut_ad(t_state == TRX_STATE_NOT_STARTED ||
+          t_state == TRX_STATE_FORCED_ROLLBACK || t_state == TRX_STATE_ACTIVE);
+  } else {
+    check_trx_state(t);
+  }
+}
+#else /* UNIV_DEBUG */
+/** Assert that an autocommit non-locking slect cannot be in the
+ rw_trx_list and that it is a read-only transaction.
+ The tranasction must be in the mysql_trx_list. */
+#define assert_trx_nonlocking_or_in_list(trx) ((void)0)
+#endif /* UNIV_DEBUG */
+
+/**
+Determine if the transaction is a non-locking autocommit select
+with an explicit check for the read-only status.
+@param t transaction
+@return true if non-locking autocommit read-only transaction. */
+static inline bool trx_is_ac_nl_ro(const trx_t *t) {
+  return t->read_only && trx_is_autocommit_non_locking(t);
+}
+
+/**
+Increase the reference count. If the transaction is in state
+TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered
+committed and the reference count is not incremented.
+@param trx Transaction that is being referenced */
+static inline void trx_reference(trx_t *trx);
+
+/**
+Release the transaction. Decrease the reference count.
+@param trx Transaction that is being released */
+static inline void trx_release_reference(trx_t *trx);
+
+/**
+Check if the transaction is being referenced. */
+static inline bool trx_is_referenced(const trx_t *t) { return t->n_ref > 0; }
+
+/** Calculates the "weight" of a transaction. The weight of one transaction
+ is estimated as the number of altered rows + the number of locked rows.
+ @param t transaction
+ @return transaction weight */
+static inline uint64_t TRX_WEIGHT(const trx_t *t) {
+  return t->undo_no + UT_LIST_GET_LEN(t->lock.trx_locks);
+}
+
+#ifdef UNIV_DEBUG
+static inline void trx_start_if_not_started_xa(trx_t *t, bool rw,
+                                               ut::Location loc) {
+  t->start_line = loc.line;
+  t->start_file = loc.filename;
+  trx_start_if_not_started_xa_low(t, rw);
+}
+
+static inline void trx_start_if_not_started(trx_t *t, bool rw, ut::Location l) {
+  t->start_line = l.line;
+  t->start_file = l.filename;
+  trx_start_if_not_started_low(t, rw);
+}
+
+static inline void trx_start_internal(trx_t *t, ut::Location loc) {
+  t->start_line = loc.line;
+  t->start_file = loc.filename;
+  trx_start_internal_low(t);
+}
+
+static inline void trx_start_internal_read_only(trx_t *t, ut::Location loc) {
+  t->start_line = loc.line;
+  t->start_file = loc.filename;
+  trx_start_internal_read_only_low(t);
+}
+#else
+static inline void trx_start_if_not_started_xa(trx_t *t, bool rw,
+                                               ut::Location loc) {
+  trx_start_if_not_started_low(t, rw);
+}
+
+static inline void trx_start_internal(trx_t *t, ut::Location loc) {
+  trx_start_internal_low(t);
+}
+
+static inline void trx_start_internal_read_only(trx_t *t, ut::Location loc) {
+  trx_start_internal_read_only_low(t);
+}
+
+static inline void trx_start_if_not_started(trx_t *t, bool rw, ut::Location l) {
+  trx_start_if_not_started_xa_low(t, rw);
+}
+#endif /* UNIV_DEBUG */
 
 /* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED trx_t::READ_UNCOMMITTED
@@ -1276,12 +1309,25 @@ struct trx_t {
 #define TRX_ISO_SERIALIZABLE trx_t::SERIALIZABLE
 
 /**
+Check if transaction was started. Note, that after the check
+situation might have already been changed (and note that holding
+the trx_sys->mutex does not prevent state transitions for read-only
+transactions).
+@param[in] trx          Transaction whose state we need to check
+@return true if transaction is in state started */
+inline bool trx_was_started(const trx_t *trx) {
+  const auto trx_state = trx->state.load(std::memory_order_relaxed);
+  return trx_state != TRX_STATE_NOT_STARTED &&
+         trx_state != TRX_STATE_FORCED_ROLLBACK;
+}
+
+/**
 Check if transaction is started.
-@param[in] trx		Transaction whose state we need to check
+@param[in] trx          Transaction whose state we need to check
 @return true if transaction is in state started */
 inline bool trx_is_started(const trx_t *trx) {
-  return (trx->state != TRX_STATE_NOT_STARTED &&
-          trx->state != TRX_STATE_FORCED_ROLLBACK);
+  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+  return trx_was_started(trx);
 }
 
 /** Commit node states */
@@ -1298,10 +1344,11 @@ struct commit_node_t {
   enum commit_node_state state; /*!< node execution state */
 };
 
-/** Test if trx->mutex is owned by the current thread. */
-#define trx_mutex_own(t) mutex_own(&t->mutex)
-
 #ifdef UNIV_DEBUG
+
+/** Test if trx->mutex is owned by the current thread. */
+bool inline trx_mutex_own(const trx_t *trx) { return mutex_own(&trx->mutex); }
+
 /**
 Verifies the invariants and records debug state related to latching rules.
 Called during trx_mutex_enter before the actual mutex acquisition.
@@ -1355,8 +1402,8 @@ like a gate between the Server and InnoDB.  */
 class TrxInInnoDB {
  public:
   /**
-  @param[in,out] trx	Transaction entering InnoDB via the handler
-  @param[in] disable	true if called from COMMIT/ROLLBACK method */
+  @param[in,out] trx    Transaction entering InnoDB via the handler
+  @param[in] disable    true if called from COMMIT/ROLLBACK method */
   TrxInInnoDB(trx_t *trx, bool disable = false) : m_trx(trx) {
     enter(trx, disable);
   }
@@ -1380,24 +1427,28 @@ class TrxInInnoDB {
   @return true if the transaction has been marked for asynchronous
           rollback */
   static bool is_aborted(const trx_t *trx) {
-    if (trx->state == TRX_STATE_NOT_STARTED) {
+    ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+
+    const auto trx_state = trx->state.load(std::memory_order_relaxed);
+
+    if (trx_state == TRX_STATE_NOT_STARTED) {
       return (false);
     }
 
     ut_ad(srv_read_only_mode || trx->in_depth > 0);
     ut_ad(srv_read_only_mode || trx->in_innodb > 0);
 
-    return (trx->abort || trx->state == TRX_STATE_FORCED_ROLLBACK);
+    return (trx->abort || trx_state == TRX_STATE_FORCED_ROLLBACK);
   }
 
   /**
   Start statement requested for transaction.
-  @param[in, out] trx	Transaction at the start of a SQL statement */
+  @param[in, out] trx   Transaction at the start of a SQL statement */
   static void begin_stmt(trx_t *trx) { enter(trx, false); }
 
   /**
   Note an end statement for transaction
-  @param[in, out] trx	Transaction at end of a SQL statement */
+  @param[in, out] trx   Transaction at end of a SQL statement */
   static void end_stmt(trx_t *trx) { exit(trx); }
 
   /**
@@ -1409,14 +1460,15 @@ class TrxInInnoDB {
 
  private:
   /** Note that we have crossed into InnoDB code.
-  @param[in]	trx	transaction
-  @param[in]	disable	true if called from COMMIT/ROLLBACK method */
+  @param[in]    trx     transaction
+  @param[in]    disable true if called from COMMIT/ROLLBACK method */
   static void enter(trx_t *trx, bool disable) {
     if (srv_read_only_mode) {
       return;
     }
 
     ut_ad(!is_async_rollback(trx));
+    ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
 
     /* If it hasn't already been marked for async rollback.
     and it will be committed/rolled back. */
@@ -1523,28 +1575,38 @@ class TrxInInnoDB {
     }
   }
 
+ private:
   /**
   @return true if transaction is started */
   static bool is_started(const trx_t *trx) {
     ut_ad(trx_mutex_own(trx));
 
-    return (trx_is_started(trx));
+    return trx_is_started(trx);
   }
 
- private:
   /**
   Transaction instance crossing the handler boundary from the Server. */
   trx_t *m_trx;
 };
 
 /** Check if transaction is internal XA transaction
-@param[in]	trx	transaction
+@param[in]      trx     transaction
 @return true, iff internal XA transaction. */
 bool trx_is_mysql_xa(const trx_t *trx);
 
 /** Update transaction binlog file name and position from session THD.
-@param[in,out]  trx     current transaction. */
+@param[in,out] trx     current transaction. */
 void trx_sys_update_binlog_position(trx_t *trx);
+
+/** Checks whether or not the transaction has been marked as prepared in TC.
+@param[in]     trx the transaction
+@return true if the transaction is marked as prepared in TC, false otherwise. */
+bool trx_is_prepared_in_tc(trx_t const *trx);
+
+/** Does the 2nd phase of an XA transaction prepare for MySQL.
+@param[in,out] trx Transaction instance to finish prepare
+@return DB_SUCCESS or error number */
+dberr_t trx_set_prepared_in_tc_for_mysql(trx_t *trx);
 
 #include "trx0trx.ic"
 #endif /* !UNIV_HOTBACKUP */

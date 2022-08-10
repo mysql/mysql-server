@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 /**
   Initialize the UDF function that tests character set of return value.
-  It sets the charset of the return value in the UDF_INIT stucture.
+  It sets the charset of the return value in the UDF_INIT structure.
 
   @param [in,out] initid  Return value from xxxx_init
   @param [in,out] args    Array of arguments
@@ -41,7 +41,7 @@ bool test_result_charset_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 /**
   Executes the UDF function that returns the first argument but after
   converting that in to the character set as specified during UDF
-  initializatin time.
+  initialization time.
 
   @param [in,out] initid  Return value from xxxx_init
   @param [in,out] args    Array of arguments
@@ -66,7 +66,7 @@ void test_result_charset_deinit(UDF_INIT *initid);
 
 /**
   Initialize the UDF function that tests character set of arguments.
-  It changes the charactet set of first argument as of a character set
+  It changes the character set of first argument as of a character set
   of second argument.
 
   @param [in,out] initid  Return value from xxxx_init
@@ -201,7 +201,7 @@ bool test_result_charset_with_value_init(UDF_INIT *initid, UDF_ARGS *args,
 /**
   Executes the UDF function that converts the first UDF argument into the
   charset as specified by the user. It reads the charset of return value
-  set by the user during UDF preperation time, converts the first UDF
+  set by the user during UDF preparation time, converts the first UDF
   argument into that charset before returning the same.
 
   @param [in,out] initid  Return value from xxxx_init
@@ -243,7 +243,7 @@ bool test_args_charset_with_value_init(UDF_INIT *initid, UDF_ARGS *args,
 
 /**
   Executes the UDF function to check if server converted the value of
-  fisrt UDF argument as it was specified by the user during UDF
+  first UDF argument as it was specified by the user during UDF
   preparation time. It returns the first UDF argument.
 
   @param [in,out] initid  Return value from xxxx_init
@@ -285,7 +285,7 @@ bool test_result_collation_with_value_init(UDF_INIT *initid, UDF_ARGS *args,
 
 /**
   Executes the UDF function that converts the return value in to the
-  charset as determind during UDF preperation time. It returns the
+  charset as determined during UDF preparation time. It returns the
   converted first UDF argument.
 
   @param [in,out] initid  Return value from xxxx_init
@@ -330,7 +330,7 @@ bool test_args_collation_with_value_init(UDF_INIT *initid, UDF_ARGS *args,
   Executes the UDF function that reads the converted the value of the
   firstUDF argument. Server must have converted the first argument as
   it was specified during UDF preparation time. It returns the first
-  UDF argument as recieved.
+  UDF argument as received.
 
   @param [in,out] initid  Return value from xxxx_init
   @param [in,out] args    Array of arguments

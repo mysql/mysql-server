@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,18 @@
 #include <assert.h>  // IWYU pragma: keep
 #include <stdio.h>
 #endif
+
+/**
+  Calls our own implementation of abort, if specified, or std's abort().
+ */
+[[noreturn]] void my_abort();
+/**
+  Sets a new function to be called on my_abort().
+
+  @param new_my_abort_func pointer to a new my_abort function. It can't be
+  [[noreturn]] as pointers to methods can't have attributes.
+ */
+void set_my_abort(void (*new_my_abort_func)());
 
 #if !defined(NDEBUG)
 
@@ -130,21 +142,8 @@ class AutoDebugTrace {
   _db_stack_frame_ m_stack_frame;
 };
 
-#ifdef __SUNPRO_CC
-// Disable debug tracing for Developer Studio, because we may get
-// a fatal error from ld when linking large executables.
-//   section .eh_frame%__gthread_trigger():
-//   unexpected negative integer encountered: offset 0x630
-#define DBUG_TRACE \
-  do {             \
-  } while (false)
-
-#else
-
 #define DBUG_TRACE \
   AutoDebugTrace _db_trace(DBUG_PRETTY_FUNCTION, __FILE__, __LINE__)
-
-#endif  // __SUNPRO_CC
 
 #endif
 
@@ -199,14 +198,14 @@ class AutoDebugTrace {
 #define DBUG_EXPLAIN(buf, len) _db_explain_(0, (buf), (len))
 #define DBUG_EXPLAIN_INITIAL(buf, len) _db_explain_init_((buf), (len))
 #ifndef _WIN32
-#define DBUG_ABORT() (_db_flush_(), abort())
+#define DBUG_ABORT() (_db_flush_(), my_abort())
 #define DBUG_EXIT() (_db_flush_(), exit(2))
 #else
 #include <crtdbg.h>
 
 #define DBUG_ABORT()                                                     \
   (_db_flush_(), (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE), \
-   (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR), abort())
+   (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR), my_abort())
 #define DBUG_EXIT()                                                      \
   (_db_flush_(), (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE), \
    (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR), _exit(2))
@@ -314,6 +313,7 @@ extern void _db_flush_gcov_();
 
 #define DBUG_LOG(keyword, v)                           \
   do {                                                 \
+    _db_pargs_(__LINE__, keyword);                     \
     if (_db_enabled_()) {                              \
       std::ostringstream sout;                         \
       sout << v;                                       \
@@ -340,8 +340,8 @@ extern void _db_flush_gcov_();
                   called in debug mode if the keyword is enabled.
  */
 template <class DBGCLOS>
-inline void dbug(const char *keyword MY_ATTRIBUTE((unused)),
-                 DBGCLOS &&clos MY_ATTRIBUTE((unused))) {
+inline void dbug(const char *keyword [[maybe_unused]],
+                 DBGCLOS &&clos [[maybe_unused]]) {
   DBUG_EXECUTE_IF(keyword, clos(););
 }
 

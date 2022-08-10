@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,9 @@ extern PSI_statement_key clone_stmt_server_key;
 file to network or destination file. */
 extern uint clone_buffer_size;
 
+/** Clone system variable: If clone should block concurrent DDL */
+extern bool clone_block_ddl;
+
 /** Clone system variable: timeout for DDL lock */
 extern uint clone_ddl_timeout;
 
@@ -96,6 +99,9 @@ extern char *clone_client_ssl_certificate;
 /** Clone system variable: SSL Certificate authority */
 extern char *clone_client_ssl_certficate_authority;
 
+/** Clone system variable: time delay after removing data */
+extern uint clone_delay_after_data_drop;
+
 /** Number of storage engines supporting clone. */
 const uint MAX_CLONE_STORAGE_ENGINE = 16;
 
@@ -122,6 +128,10 @@ const uint32_t CLONE_PROTOCOL_VERSION_V3 = 0x0102;
 
 /**  Clone protocol latest version */
 const uint32_t CLONE_PROTOCOL_VERSION = CLONE_PROTOCOL_VERSION_V3;
+
+/** Flag to indicate no backup lock for DDL. This is multiplexed with
+clone_ddl_timeout and sent to donor server. */
+const uint32_t NO_BACKUP_LOCK_FLAG = 1ULL << 31;
 
 /** Clone protocol commands. Please bump the protocol version before adding
 new command. */

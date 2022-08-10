@@ -211,5 +211,84 @@ drop table db1.t1, db2.t1;
 drop database db1;
 drop database db2;
 
+--echo # Bug#26974491 FIXES DATA RESTORE WITH DISABLE INDEXES
+create database db3;
+use db3;
+create table t4 (
+  id int primary key auto_increment
+) engine=ndb;
+create table t5 (
+  id int primary key auto_increment,
+  val int,
+  constraint fkt3t2 foreign key (val) references t4 (id)
+)engine=ndb;
+insert into t4 values (1), (2), (3), (4), (5);
+insert into t5 values (1,1), (2,2), (3,3), (4,4), (5,5);
+
+-- echo # take backup and drop the tables
+-- source include/ndb_backup.inc
+drop table db3.t5, db3.t4;
+
+-- echo # Create more tables before restore in order to verify that ndb_restore restores foreign keys
+-- echo # appropriately even though the table ids of parent and child tables which make up the name
+-- echo # of the foreign key in the format, <parent_table_id>/<child_table_id>/fk_name are different
+-- echo # in backup files than the table ids restored.
+create table db3.t6 (
+  id int primary key auto_increment
+) engine=ndb;
+create table db3.t7 (
+  id int primary key auto_increment
+) engine=ndb;
+create table db3.t8 (
+  id int primary key auto_increment
+) engine=ndb;
+create table db3.t9 (
+  id int primary key auto_increment
+) engine=ndb;
+
+-- echo # Use case #1: Meta restore done with --disable-indexes (recommended)
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-meta --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-data $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --restore-data $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+-- echo # Drop the tables to retore them again with a different use case
+drop table db3.t5, db3.t4;
+
+-- echo # Use case #2: Separate --disable-indexes step after metadata restore
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-meta --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-data --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --restore-data --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+-- echo # Drop the tables to retore them again with a different use case
+drop table db3.t5, db3.t4;
+
+-- echo # Use case #3: Data restore with --disable-indexes
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-meta --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-data --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --restore-data --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+-- echo # Drop the tables to retore them again with a different use case
+drop table db3.t5, db3.t4;
+
+-- echo # Use case #4: Data restore with --disable-indexes and Data restore with --rebuild-indexes
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-meta --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-data --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --restore-data --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+-- echo # Drop the tables to retore them again with a different use case
+drop table db3.t5, db3.t4;
+
+-- echo # Use case #5: Both metadata and data restore with both --disable-indexes and --rebuild-indexes
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 1 --restore-meta --restore-data --disable-indexes --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --show-part-id -b $the_backup_id -n 2 --restore-data $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo # cleanup
+drop table db3.t6, db3.t7, db3.t8, db3.t9;
+drop database db3;
+
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

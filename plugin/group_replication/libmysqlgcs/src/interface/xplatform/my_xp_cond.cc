@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #ifndef XCOM_STANDALONE
 My_xp_cond_server::My_xp_cond_server()
-    : m_cond(static_cast<mysql_cond_t *>(malloc(sizeof(*m_cond)))) {}
+    : m_cond(static_cast<mysql_cond_t *>(calloc(1, sizeof(*m_cond)))) {}
 
 My_xp_cond_server::~My_xp_cond_server() { free(m_cond); }
 

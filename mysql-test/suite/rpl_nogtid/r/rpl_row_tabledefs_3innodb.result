@@ -38,7 +38,7 @@ ALTER TABLE t8 ADD e1 INT NOT NULL DEFAULT 0, ADD e2 INT NOT NULL DEFAULT 0,
 ADD e3 INT NOT NULL DEFAULT 0, ADD e4 INT NOT NULL DEFAULT 0,
 ADD e5 INT NOT NULL DEFAULT 0, ADD e6 INT NOT NULL DEFAULT 0,
 ADD e7 INT NOT NULL DEFAULT 0, ADD e8 INT NOT NULL DEFAULT 0;
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 INSERT INTO t1_int  VALUES (2, 4, 4711);
 INSERT INTO t1_char VALUES (2, 4, 'Foo is a bar');
 INSERT INTO t1_bit  VALUES (2, 4, b'101', b'11100', b'01');
@@ -62,7 +62,7 @@ a	b
 1	2
 2	5
 **** On Slave ****
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 SELECT a,b,x FROM t1_int ORDER BY a;
 a	b	x
 1	2	42

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,12 @@ DEFINE_BOOL_METHOD(mysql_release_backup_lock, (MYSQL_THD opaque_thd)) {
   else
     thd = current_thd;
 
-  release_backup_lock(thd);
+  // When called from the main thread as part of shutdown, current_thd will be
+  // nullptr. And the MDL system will already have been deinit'ed, so there is
+  // nothing to do.
+  if (thd != nullptr) {
+    release_backup_lock(thd);
+  }
 
   return false;
 }

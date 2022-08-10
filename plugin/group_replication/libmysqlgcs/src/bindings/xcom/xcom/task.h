@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -301,18 +301,6 @@ typedef struct task_queue task_queue;
 
 #define TERMINATE goto task_cleanup
 
-#define TASK_STACK_DEBUG                                          \
-  if (stack->debug) {                                             \
-    char *fnpos = strrchr(__FILE__, DIR_SEP);                     \
-    if (fnpos)                                                    \
-      fnpos++;                                                    \
-    else                                                          \
-      fnpos = __FILE__;                                           \
-    IFDBG(D_NONE, FN; STRLIT("TASK_BEGIN "); STREXP(stack->name); \
-          STRLIT(fnpos); STRLIT(":"); NPUT(stack->sp->state, d);  \
-          NDBG(stack->terminate, d));                             \
-  }
-
 /* Switch on task state. The first time, allocate a new stack frame and check
  * for termination */
 #define TASK_BEGIN                                            \
@@ -330,6 +318,7 @@ typedef struct task_queue task_queue;
       pushp(stack, TASK_ALLOC(stack, struct env));            \
       ep = _ep;                                               \
       assert(ep);                                             \
+      ep->init();                                             \
       TERM_CHECK;
 
 /* This stack frame is finished, deallocate it and return 0 to signal exit */
@@ -498,11 +487,18 @@ void channel_put_front(channel *c,
 /* Define the typeless struct which is the container for all variables in the
  * stack frame */
 #define DECL_ENV struct env {
+/*Define a code block where we can init ENV variables. It only works nested
+  within DECL_ENV
+*/
+#define ENV_INIT void init() {
+/*Ends the default initialization block*/
+#define END_ENV_INIT }
+
 /* Define a pointer to the environment struct */
 #define END_ENV \
   }             \
   ;             \
-  struct env MY_ATTRIBUTE((unused)) * ep
+  [[maybe_unused]] struct env *ep
 
 /* Try to lock a fd for read or write.
    Yield and spin until it succeeds.
@@ -553,12 +549,22 @@ extern void task_delay_until(double time);
 
 extern int unblock_fd(int fd);
 extern int block_fd(int fd);
-extern int connect_tcp(char *server, xcom_port port, int *ret);
-extern result announce_tcp(xcom_port port);
-extern int accept_tcp(int fd, int *ret);
+
+typedef result (*connnection_read_method)(connection_descriptor const *rfd,
+                                          void *buf, int n);
+
+extern result con_read(connection_descriptor const *rfd, void *buf, int n);
+extern result con_pipe_read(connection_descriptor const *rfd, void *buf, int n);
 
 extern int task_read(connection_descriptor const *con, void *buf, int n,
-                     int64_t *ret);
+                     int64_t *ret,
+                     connnection_read_method read_function = con_read);
+
+typedef result (*connnection_write_method)(connection_descriptor const *rfd,
+                                           void *buf, int n);
+result con_write(connection_descriptor const *wfd, void *buf, int n);
+result con_pipe_write(connection_descriptor const *wfd, void *buf, int n);
+
 extern int task_write(connection_descriptor const *con, void *buf, uint32_t n,
                       int64_t *ret);
 extern int is_locked(int fd);
@@ -585,17 +591,14 @@ extern task_env *task_deactivate(task_env *t);
 extern const char *task_name();
 extern task_env *wait_io(task_env *t, int fd, int op);
 
-extern result con_read(connection_descriptor const *rfd, void *buf, int n);
 extern result con_write(connection_descriptor const *wfd, void *buf, int n);
 extern result set_nodelay(int fd);
+
+extern task_env *timed_wait_io(task_env *t, int fd, int op, double timeout);
 
 extern xcom_proto const my_min_xcom_version; /* The minimum protocol version I
                                                 am able to understand */
 extern xcom_proto const
     my_xcom_version; /* The maximum protocol version I am able to understand */
-
-/* Use SSL ? */
-void xcom_enable_ssl();
-void xcom_disable_ssl();
 
 #endif

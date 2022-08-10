@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ static TYPE_LIB password_policy_typelib_t = {array_elements(policy_names) - 1,
 
 typedef std::string string_type;
 typedef std::set<string_type> set_type;
-static set_type dictionary_words;
+static set_type *dictionary_words{nullptr};
 
 static int validate_password_length;
 static int validate_password_number_count;
@@ -131,8 +131,8 @@ static void dictionary_activate(set_type *dict_words) {
      << std::setfill('0') << std::setw(2) << tm.tm_sec;
 
   mysql_rwlock_wrlock(&LOCK_dict_file);
-  std::swap(dictionary_words, *dict_words);
-  validate_password_dictionary_file_words_count = dictionary_words.size();
+  std::swap(*dictionary_words, *dict_words);
+  validate_password_dictionary_file_words_count = dictionary_words->size();
   /*
     We are re-using 'validate_password_dictionary_file_last_parsed'
     so, we need to make sure to free the previously allocated memory.
@@ -204,7 +204,7 @@ static void read_dictionary_file() {
 /* Clear words from std::set */
 static void free_dictionary_file() {
   mysql_rwlock_wrlock(&LOCK_dict_file);
-  if (!dictionary_words.empty()) dictionary_words.clear();
+  if (!dictionary_words->empty()) dictionary_words->clear();
   if (validate_password_dictionary_file_last_parsed) {
     my_free(validate_password_dictionary_file_last_parsed);
     validate_password_dictionary_file_last_parsed = nullptr;
@@ -221,7 +221,7 @@ static int validate_dictionary_check(my_h_string password) {
   char *buffer;
   my_h_string lower_string_handle;
 
-  if (dictionary_words.empty()) return (1);
+  if (dictionary_words->empty()) return (1);
 
   /* New String is allocated */
   if (mysql_service_mysql_string_factory->create(&lower_string_handle)) {
@@ -268,8 +268,8 @@ static int validate_dictionary_check(my_h_string password) {
     substr_pos = 0;
     while (substr_pos + substr_length <= length) {
       password_substr = password_str.substr(substr_pos, substr_length);
-      itr = dictionary_words.find(password_substr);
-      if (itr != dictionary_words.end()) {
+      itr = dictionary_words->find(password_substr);
+      if (itr != dictionary_words->end()) {
         mysql_rwlock_unlock(&LOCK_dict_file);
         my_free(buffer);
         return (0);
@@ -481,7 +481,7 @@ static int validate_password_policy_strength(void *thd, my_h_string password,
     return (0);
   }
   while (mysql_service_mysql_string_iterator->iterator_get_next(
-             iter, &out_iter_char) != true) {
+             iter, &out_iter_char) == 0) {
     n_chars++;
     if (policy > PASSWORD_POLICY_LOW) {
       if (!mysql_service_mysql_string_ctype->is_lower(iter, &out) && out)
@@ -551,7 +551,7 @@ DEFINE_BOOL_METHOD(validate_password_imp::get_strength,
     return true;
   }
   while (mysql_service_mysql_string_iterator->iterator_get_next(
-             iter, &out_iter_char) != true)
+             iter, &out_iter_char) == 0)
     n_chars++;
 
   mysql_service_mysql_string_iterator->iterator_destroy(iter);
@@ -867,6 +867,7 @@ bool log_service_deinit() { return false; }
   @retval true failure
 */
 static mysql_service_status_t validate_password_init() {
+  dictionary_words = new set_type();
   init_validate_password_psi_keys();
   mysql_rwlock_init(key_validate_password_LOCK_dict_file, &LOCK_dict_file);
   if (log_service_init() || register_system_variables() ||
@@ -889,6 +890,8 @@ static mysql_service_status_t validate_password_init() {
 static mysql_service_status_t validate_password_deinit() {
   free_dictionary_file();
   mysql_rwlock_destroy(&LOCK_dict_file);
+  delete dictionary_words;
+  dictionary_words = nullptr;
   if (unregister_system_variables() || unregister_status_variables() ||
       log_service_deinit())
     return true;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <ndb_global.h>
 
+#include <EventLogger.hpp>
 #include <SocketClient.hpp>
 
 #include <TransporterRegistry.hpp>
@@ -38,6 +39,7 @@
 #include <NdbThread.h>
 
 #include "ndb_socket.h"
+
 
 #define DISCONNECT_ERRNO(e, sz) ( \
                 (sz == 0) || \
@@ -241,7 +243,7 @@ protected:
    */
   virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd) = 0;
   virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd) = 0;
-  virtual int pre_connect_options(NDB_SOCKET_TYPE sockfd) { return 0;}
+  virtual int pre_connect_options(NDB_SOCKET_TYPE /*sockfd*/) { return 0;}
   
   /**
    * Blocking
@@ -352,7 +354,6 @@ protected:
     void init() { state = CS_INIT; chksum = 0; pending = 4; }
   private:
     bool compute(const void* bytes, size_t len);
-    static void static_asserts(); // container of static asserts, not to be called
     void dumpBadChecksumInfo(Uint32 inputSum,
                              Uint32 badSum,
                              size_t offset,
@@ -360,6 +361,8 @@ protected:
                              const void* buf,
                              size_t len) const;
 
+    static_assert(MAX_SEND_MESSAGE_BYTESIZE == (Uint16)MAX_SEND_MESSAGE_BYTESIZE);
+    static_assert(SIZE_T_MAX == (size_t)SIZE_T_MAX);
   };
   checksum_state send_checksum_state;
 };
@@ -430,14 +433,6 @@ Transporter::iovec_data_sent(int nBytesSent)
                                                      m_transporter_index,
                                                      nBytesSent);
   update_status_overloaded(used_bytes);
-}
-
-inline
-void
-Transporter::checksum_state::static_asserts()
-{
-  STATIC_ASSERT(MAX_SEND_MESSAGE_BYTESIZE == (Uint16)MAX_SEND_MESSAGE_BYTESIZE);
-  STATIC_ASSERT(SIZE_T_MAX == (size_t)SIZE_T_MAX);
 }
 
 inline
@@ -535,14 +530,10 @@ Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_
     }
     if (!compute(iov[iovi].iov_base, nb))
     {
-      fprintf(stderr,
-              "Transporter::checksum_state::computev() failed on IOV %u/%u "
-              "byteCount %llu off %llu nb %u\n",
-              iovi,
-              iovcnt,
-              Uint64(bytecnt),
-              Uint64(off),
-              nb);
+      g_eventLogger->info(
+          "Transporter::checksum_state::computev() failed on IOV %u/%u "
+          "byteCount %llu off %llu nb %u",
+          iovi, iovcnt, Uint64(bytecnt), Uint64(off), nb);
       /* TODO : Dump more IOV + bytecnt details */
       return false;
     }
@@ -550,11 +541,10 @@ Transporter::checksum_state::computev(const struct iovec *iov, int iovcnt, size_
   }
   if (bytecnt != SIZE_T_MAX && bytecnt != off)
   {
-    fprintf(stderr,
-            "Transporter::checksum_state::computev() failed : "
-            "bytecnt %llu off %llu\n",
-            Uint64(bytecnt),
-            Uint64(off));
+    g_eventLogger->info(
+        "Transporter::checksum_state::computev() failed : "
+        "bytecnt %llu off %llu",
+        Uint64(bytecnt), Uint64(off));
     ok = false;
   }
   return ok;

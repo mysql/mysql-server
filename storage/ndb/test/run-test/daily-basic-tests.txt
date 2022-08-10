@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -2206,3 +2206,6 @@ max-time: 300
 cmd: testSystemRestart
 args: -n OneNodeWithCleanFilesystem T1
 
+cmd: test_event
+args: -n SubscribeNR T1
+max-time: 1200

@@ -1,0 +1,91 @@
+#
+#  Testing reconnecting by slave as specified by `replica_net_timeout'
+#
+#  Bug #50296 Slave reconnects earlier than the prescribed replica_net_timeout value
+#
+--source include/master-slave.inc
+
+
+# save global env
+connection master;
+set @save_general_log = @@global.general_log;
+set @save_log_output = @@global.log_output;
+
+connection slave;
+set @save_replica_net_timeout = @@global.replica_net_timeout;
+
+connection master;
+set @@global.general_log = ON;
+set @@global.log_output = 'table,file';
+
+connection slave;
+--source include/stop_slave.inc
+#
+# if heartbeat is disabled then reconnecting to the idle master
+# should happen with `replica_net_timeout' period.
+# Since it's the real time that is measured, `replica_net_timeout'
+# merely guarantees that reconnecting can *not* happen earlier of a value specified.
+# That is there can't an exact estimate for how many time it will happen.
+#
+# The following lines verify that having idle master
+# for more than 2 * replica_net_timeout seconds and
+# slave.net_read_timeout < replica_net_timeout
+# won't cause reconnecting by the slave within at least
+# replica_net_timeout interval.
+#
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+eval CHANGE REPLICATION SOURCE to SOURCE_HOST = '127.0.0.1',SOURCE_PORT = $MASTER_MYPORT,
+SOURCE_USER = 'root', SOURCE_HEARTBEAT_PERIOD = 0;
+
+set @@global.replica_net_timeout = @@global.net_read_timeout * 2;
+let $idle_time=`select @@global.replica_net_timeout * 2`;
+
+let $replica_net_timeout = `select @@global.replica_net_timeout`;
+
+--source include/start_slave.inc
+
+--disable_query_log
+--disable_result_log
+eval select 'master is idle for ', sleep($idle_time);
+--enable_result_log
+--enable_query_log
+
+# querying general-log
+
+connection master;
+
+# In particular the last reconnection timestamp must be greater or equal to
+# the previous one + replica_net_timeout
+
+--let $ts_last= `select time_to_sec(event_time) from (select event_time from mysql.general_log as t_1 where command_type like 'Connect' order by event_time desc limit 2) as t_2 order by event_time desc limit 1`
+--let $ts_prev= `select time_to_sec(event_time) from (select event_time from mysql.general_log as t_1 where command_type like 'Connect' order by event_time desc limit 2) as t_2 order by event_time asc limit 1`
+
+--let $timeout= $idle_time + 10
+while ($timeout)
+{
+  --let $ts_last= `select time_to_sec(event_time) from (select event_time from mysql.general_log as t_1 where command_type like 'Connect' order by event_time desc limit 2) as t_2 order by event_time desc limit 1`
+  --let $ts_flag= `select $ts_last-$ts_prev>=$replica_net_timeout`
+  if($ts_flag)
+  {
+     --let $timeout=1
+  }
+  --dec $timeout
+  --sleep 1
+}
+
+--let $assert_cond= $ts_flag=1
+--let $assert_text= time between last reconnection and the reconnection before that should be >= replica_net_timeout
+--source include/assert.inc
+
+# cleanup
+
+# restore global env
+connection master;
+set @@global.general_log = @save_general_log;
+set @@global.log_output = @save_log_output;
+TRUNCATE TABLE mysql.general_log;
+connection slave;
+set @@global.replica_net_timeout = @save_replica_net_timeout;
+
+--source include/rpl_end.inc

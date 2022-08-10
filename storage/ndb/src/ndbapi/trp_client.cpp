@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "trp_client.hpp"
 #include "TransporterFacade.hpp"
+#include <EventLogger.hpp>
 
 trp_client::trp_client()
   : m_blockNo(~Uint32(0)),
@@ -79,14 +81,10 @@ trp_client::PollQueue::~PollQueue()
       m_next != 0 ||
       m_prev != 0))
   {
-    ndbout << "ERR: ::~PollQueue: Deleting trp_clnt in use: waiting"
-           << m_waiting
-	   << " locked  " << m_locked
-	   << " poll_owner " << m_poll_owner
-	   << " poll_queue " << m_poll_queue
-	   << " next " << m_next
-	   << " prev " << m_prev
-           << endl;
+    g_eventLogger->info(
+        "ERR: ::~PollQueue: Deleting trp_clnt in use:"
+        " waiting %d locked %u poll_owner %u poll_queue %u next %p prev %p",
+        m_waiting, m_locked, m_poll_owner, m_poll_queue, m_next, m_prev);
     require(false);
   }
   NdbCondition_Destroy(m_condition);
@@ -359,15 +357,11 @@ trp_client::isSendEnabled(NodeId node) const
   return m_enabled_nodes_mask.get(node);
 }
 
-Uint32 *
-trp_client::getWritePtr(NodeId node,
-                        TrpId trp_id,
-                        Uint32 lenBytes,
-                        Uint32 prio,
-                        Uint32 max_use,
-                        SendStatus *error)
+Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
+                                Uint32 prio [[maybe_unused]],
+                                Uint32 /*max_use*/, SendStatus* error)
 {
-  (void)trp_id;
+  assert(prio == 1 /* JBB */);
   assert(isSendEnabled(node));
   
   TFBuffer* b = m_send_buffers+node;
@@ -433,13 +427,10 @@ trp_client::getWritePtr(NodeId node,
   return NULL;
 }
 
-Uint32
-trp_client::updateWritePtr(NodeId node,
-                           TrpId trp_id,
-                           Uint32 lenBytes,
-                           Uint32 prio)
+Uint32 trp_client::updateWritePtr(NodeId node, TrpId /*trp_id*/,
+                                  Uint32 lenBytes, Uint32 prio [[maybe_unused]])
 {
-  (void)trp_id;
+  assert(prio == 1 /* JBB */);
   TFBuffer* b = m_send_buffers+node;
   TFBufferGuard g0(* b);
   assert(m_send_nodes_mask.get(node));

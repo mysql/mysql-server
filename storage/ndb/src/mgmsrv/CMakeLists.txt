@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,21 +20,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+FOREACH(warning
+    "unused-but-set-variable"
+    "unused-parameter"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
-  )
-
-ADD_CONVENIENCE_LIBRARY(ndbconf
-  Config.cpp
-  ConfigInfo.cpp
-  InitConfigFileParser.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigObject.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon/ConfigSection.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm/mt_thr_config.cpp
-  LINK_LIBRARIES ndbmgmapi
   )
 
 IF(WITHOUT_SERVER)
@@ -77,10 +77,10 @@ MYSQL_ADD_EXECUTABLE(ndb_mgmd
   LINK_LIBRARIES
   ${EDITLINE_LIBRARY}
   ndbclient_static
-  ndbconf
+  ndbmgmcommon
   ndbmgmclient
   )
 
 NDB_ADD_TEST(MgmConfig-t testConfig.cpp
-  LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib
+  LIBS ndbmgmapi ndbmgmcommon ndbtrace ndblogger ndbgeneral ndbportlib
   )

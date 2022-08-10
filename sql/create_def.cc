@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,10 @@
 // can't be overridden to be disabled by adding any compile options. Thus we
 // have to disable /RTC1 and enable /O2 (or any level of optimization) using
 // pragmas.
+#ifdef _ITERATOR_DEBUG_LEVEL
+#undef _ITERATOR_DEBUG_LEVEL
+#endif
+
 #define _ITERATOR_DEBUG_LEVEL 0
 #pragma runtime_checks("", off)
 #pragma optimize("g", on)
@@ -65,7 +69,7 @@
 #include <unordered_set>
 #include <vector>
 
-/** Prints an error message supplied and attaches GetLastError with formated
+/** Prints an error message supplied and attaches GetLastError with formatted
  * message. */
 void error(std::string message) {
   DWORD last_error = GetLastError();
@@ -125,7 +129,7 @@ class Process {
   double get_cpu_time() const;
 
  private:
-  /** Creates a big pipe that will receive and buffer data comming from the
+  /** Creates a big pipe that will receive and buffer data coming from the
    * child process. */
   void create_pipe(DWORD pipe_size);
   /** Runs the actual child process */
@@ -322,6 +326,8 @@ void Unique_symbol_map::insert(const std::string &symbol_line) {
       "?_G",         // scalar deleting destructor
       "_VInfreq_?",  // special label (exception handler?) for Intel compiler
       "?_E",         // vector deleting destructor
+      "<lambda_",    // anything that is lambda-related
+      "??$forward",  // std::forward template instantiations
   };
   if (symbol_line.find("External") == std::string::npos) {
     return;

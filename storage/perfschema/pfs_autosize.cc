@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "my_psi_config.h"
 #include "my_thread.h" /* For pthread_t */
 #include "sql/sql_const.h"
+#include "sql/sys_vars.h"
 #include "storage/perfschema/pfs_server.h"
 
 using std::max;

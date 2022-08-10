@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
   Partition_index_impl(const Partition_index_impl &src, Partition_impl *parent,
                        Index *index);
 
-  ~Partition_index_impl() override {}
+  ~Partition_index_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

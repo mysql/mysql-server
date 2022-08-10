@@ -7,20 +7,19 @@ Note	####	Storing MySQL user name or password information in the master info rep
 call mtr.add_suppression("Transaction is tagged with inconsistent logical timestamps");
 call mtr.add_suppression("Cannot execute the current event group in the parallel mode.");
 include/stop_slave.inc
-SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
-SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
-SET @save_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
-SET GLOBAL slave_parallel_type = LOGICAL_CLOCK;
-SET GLOBAL slave_parallel_workers = 3;
-SET GLOBAL slave_transaction_retries = 0;
+SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = 3;
+SET GLOBAL replica_transaction_retries = 0;
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
 SET @save_binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
-SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET GLOBAL transaction_write_set_extraction = XXHASH64;
-SET LOCAL transaction_write_set_extraction = XXHASH64;
-SET LOCAL transaction_write_set_extraction = XXHASH64;
-SET LOCAL transaction_write_set_extraction = XXHASH64;
 CREATE TABLE tests (`id` INT NOT NULL, `description` VARCHAR(50), `results` VARCHAR(100), PRIMARY KEY(`id`));
 INSERT INTO `tests` (`id`, `description`, `results`) VALUES
 (1,  'Writeset',                  '0 1;1 2;1 3;1 4;3 5;3 6;4 7;7 8;6 9;9 10'),
@@ -41,12 +40,10 @@ SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 ######## 1. WRITESET ########
 #### STEP 1.1 TEST Writeset ####
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET	25000
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET	25000
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -98,12 +95,10 @@ FLUSH LOGS;
 include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;3 5;3 6;4 7;7 8;6 9;9 10]
 #### STEP 1.2 TEST Writeset+DDL ####
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET	25000
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET	25000
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -162,12 +157,10 @@ FLUSH LOGS;
 include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;4 5;5 6;6 7;7 8;4 9;7 10;10 11;9 12;12 13]
 #### STEP 1.3 TEST Writeset+rotation ####
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET	25000
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET	25000
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -223,12 +216,10 @@ include/include/assert_logical_timestamps.inc [0 1;0 2;1 3;3 4;2 5;5 6]
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
 History size reduced to 5 to test when it becomes full
 SET GLOBAL binlog_transaction_dependency_history_size=5;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET	5
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET	5
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -282,12 +273,10 @@ SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
 ######## 2. WRITESET_SESSION ########
 #### STEP 2.1 TEST Writeset_session ####
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET_SESSION	25000
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET_SESSION	25000
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -339,12 +328,10 @@ FLUSH LOGS;
 include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;3 6;5 7;7 8;7 9;9 10]
 #### STEP 2.2 TEST Writeset_session+DDL ####
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET_SESSION	25000
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET_SESSION	25000
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -403,12 +390,10 @@ FLUSH LOGS;
 include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;4 5;5 6;6 7;7 8;4 9;8 10;10 11;10 12;12 13]
 #### STEP 2.3 TEST Writeset_session+rotation ####
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET_SESSION	25000
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET_SESSION	25000
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -464,12 +449,10 @@ include/include/assert_logical_timestamps.inc [0 1;0 2;1 3;3 4;3 5;5 6]
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
 History size reduced to 5 to test when it becomes full
 SET GLOBAL binlog_transaction_dependency_history_size=5;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	WRITESET_SESSION	5
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+WRITESET_SESSION	5
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -523,12 +506,10 @@ SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
 ######## 3. COMMIT_ORDER ########
 #### STEP 3.1 TEST Commit_order ####
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	COMMIT_ORDER	25000
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+COMMIT_ORDER	25000
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -580,12 +561,10 @@ FLUSH LOGS;
 include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;3 4;4 5;4 6;6 7;7 8;7 9;9 10]
 #### STEP 3.2 TEST Commit_order+DDL ####
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	COMMIT_ORDER	25000
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+COMMIT_ORDER	25000
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -644,12 +623,10 @@ FLUSH LOGS;
 include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;3 4;4 5;5 6;6 7;7 8;4 9;9 10;10 11;10 12;12 13]
 #### STEP 3.3 TEST Commit_order+rotation ####
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	COMMIT_ORDER	25000
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+COMMIT_ORDER	25000
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -705,12 +682,10 @@ include/include/assert_logical_timestamps.inc [0 1;0 2;2 3;3 4;3 5;5 6]
 SET GLOBAL binlog_transaction_dependency_history_size=25000;
 History size reduced to 5 to test when it becomes full
 SET GLOBAL binlog_transaction_dependency_history_size=5;
-SELECT @@local.transaction_write_set_extraction,
-@@global.transaction_write_set_extraction,
-@@binlog_transaction_dependency_tracking,
+SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
-@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
-XXHASH64	XXHASH64	COMMIT_ORDER	5
+@@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
+COMMIT_ORDER	5
 CREATE TABLE `t1` (`id` int(11) NOT NULL, `val` int(11) NOT NULL,
 PRIMARY KEY (`id`)) ENGINE=InnoDB;
 Warnings:
@@ -811,7 +786,7 @@ FLUSH LOGS;
 CREATE TABLE t1 (c1 VARCHAR(20) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL PRIMARY KEY);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES ('A');
 INSERT INTO t1 VALUES ('b');
@@ -841,7 +816,7 @@ CREATE TABLE t1 (c1 varchar(20) NOT NULL PRIMARY KEY)
 ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES ('á');
 Processing binlog master-bin.000023
@@ -899,12 +874,13 @@ DROP TABLE parent;
 #### CLEANUP ####
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-SET @@GLOBAL.slave_parallel_type= @save_slave_parallel_type;
-SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
-SET @@GLOBAL.slave_transaction_retries= @save_slave_transaction_retries;
+SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
+SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
 include/start_slave.inc
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 SET @@GLOBAL.binlog_transaction_dependency_history_size= @save_binlog_transaction_dependency_history_size;
 include/rpl_end.inc

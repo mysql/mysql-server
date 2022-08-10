@@ -86,8 +86,10 @@ SET global.relay_log_purge = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.relay_log_purge = 1' at line 1
 SELECT global.relay_log_purge;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT relay_log_purge = @@session.relay_log_purge;
+SELECT relay_log_purge;
 ERROR 42S22: Unknown column 'relay_log_purge' in 'field list'
+SELECT @@session.relay_log_purge;
+ERROR HY000: Variable 'relay_log_purge' is a GLOBAL variable
 SET @@global.relay_log_purge = @start_value;
 SELECT @@global.relay_log_purge;
 @@global.relay_log_purge

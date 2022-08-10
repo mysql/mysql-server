@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,12 +73,12 @@ class GcsXComXComCache : public GcsBaseTest {
         m_sd(nullptr),
         m_thread(nullptr),
         m_run(false) {}
-  ~GcsXComXComCache() override {}
+  ~GcsXComXComCache() override = default;
 
   void SetUp() override {
     m_synode = {1, 1, 0};
     m_addr = new std::string("127.0.0.1:12345");
-    char *names[] = {const_cast<char *>(m_addr->c_str())};
+    char const *names[]{m_addr->c_str()};
     m_na = new_node_address(1, names);
     m_sd = new_site_def();
     init_site_def(1, m_na, m_sd);

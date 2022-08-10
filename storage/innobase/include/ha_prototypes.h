@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,15 +62,15 @@ ulint innobase_raw_format(const char *data,   /*!< in: raw data */
                                               in bytes */
 
 /** Quote a standard SQL identifier like tablespace, index or column name.
-@param[in]	file	output stream
-@param[in]	trx	InnoDB transaction, or NULL
-@param[in]	id	identifier to quote */
+@param[in]      file    output stream
+@param[in]      trx     InnoDB transaction, or NULL
+@param[in]      id      identifier to quote */
 void innobase_quote_identifier(FILE *file, trx_t *trx, const char *id);
 
 /** Quote an standard SQL identifier like tablespace, index or column name.
 Return the string as an std:string object.
-@param[in]	trx	InnoDB transaction, or NULL
-@param[in]	id	identifier to quote
+@param[in]      trx     InnoDB transaction, or NULL
+@param[in]      id      identifier to quote
 @return a std::string with id properly quoted. */
 std::string innobase_quote_identifier(trx_t *trx, const char *id);
 
@@ -89,14 +89,14 @@ char *innobase_convert_name(
  differently than other threads. Also used in
  srv_conc_force_exit_innodb().
  @return true if thd is the replication thread */
-ibool thd_is_replication_slave_thread(THD *thd); /*!< in: thread handle */
+bool thd_is_replication_slave_thread(THD *thd); /*!< in: thread handle */
 
 /** Returns true if the transaction this thread is processing has edited
  non-transactional tables. Used by the deadlock detector when deciding
  which transaction to rollback in case of a deadlock - we try to avoid
  rolling back transactions that have edited non-transactional tables.
  @return true if non-transactional tables have been edited */
-ibool thd_has_edited_nontrans_tables(THD *thd); /*!< in: thread handle */
+bool thd_has_edited_nontrans_tables(THD *thd); /*!< in: thread handle */
 
 /** Prints info of a THD object (== user session thread) to the given file.
 @param[in] f Output stream
@@ -108,11 +108,38 @@ void innobase_mysql_print_thd(FILE *f, THD *thd, uint max_query_len);
 /** Converts a MySQL type to an InnoDB type. Note that this function returns
 the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1
 VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
-@param[out]	unsigned_flag		DATA_UNSIGNED if an 'unsigned type';
+@param[out]     unsigned_flag           DATA_UNSIGNED if an 'unsigned type';
 at least ENUM and SET, and unsigned integer types are 'unsigned types'
-@param[in]	f			MySQL Field
+@param[in]      f                       MySQL Field
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f);
+
+#include <sql/dd/types/column.h>
+/** Converts a MySQL data-dictionary type to an InnoDB type. Also returns
+a few attributes which are useful for precise type calculation.
+
+@note This function is version of get_innobase_type_from_mysql_type() with
+added knowledge about how additional attributes calculated (e.g. in
+create_table_info_t::create_table_def()) and about behavior of Field
+class and its descendats.
+
+@note It allows to get InnoDB generic and precise types directly from MySQL
+data-dictionary info, bypassing expensive construction of Field objects.
+
+@param[out] unsigned_flag   DATA_UNSIGNED if an 'unsigned type'.
+@param[out] binary_type     DATA_BINARY_TYPE if a 'binary type'.
+@param[out] charset_no      Collation id for string types.
+@param[in]  dd_type         MySQL data-dictionary type.
+@param[in]  field_charset   Charset.
+@param[in]  is_unsigned     MySQL data-dictionary unsigned flag.
+
+@return DATA_BINARY, DATA_VARCHAR, ... */
+ulint get_innobase_type_from_mysql_dd_type(ulint *unsigned_flag,
+                                           ulint *binary_type,
+                                           ulint *charset_no,
+                                           dd::enum_column_types dd_type,
+                                           const CHARSET_INFO *field_charset,
+                                           bool is_unsigned);
 
 /** Get the variable length bounds of the given character set.
 @param[in] cset Mysql charset-collation code
@@ -126,13 +153,13 @@ int innobase_strcasecmp(const char *a,  /*!< in: first string to compare */
                         const char *b); /*!< in: second string to compare */
 
 /** Strip dir name from a full path name and return only the file name
-@param[in]	path_name	full path name
+@param[in]      path_name       full path name
 @return file name or "null" if no file name */
 const char *innobase_basename(const char *path_name);
 
 /** Returns true if the thread is executing a SELECT statement.
  @return true if thd is executing SELECT */
-ibool thd_is_query_block(const THD *thd); /*!< in: thread handle */
+bool thd_is_query_block(const THD *thd); /*!< in: thread handle */
 
 /** Makes all characters in a NUL-terminated UTF-8 string lower case. */
 void innobase_casedn_str(char *a); /*!< in/out: string to put in lower case */
@@ -147,18 +174,18 @@ const CHARSET_INFO *innobase_get_charset(
 
 /** Determines the current SQL statement.
 Thread unsafe, can only be called from the thread owning the THD.
-@param[in]	thd	MySQL thread handle
-@param[out]	length	Length of the SQL statement
-@return			SQL statement string */
+@param[in]      thd     MySQL thread handle
+@param[out]     length  Length of the SQL statement
+@return                 SQL statement string */
 const char *innobase_get_stmt_unsafe(THD *thd, size_t *length);
 
 /** Determines the current SQL statement.
 Thread safe, can be called from any thread as the string is copied
 into the provided buffer.
-@param[in]	thd	MySQL thread handle
-@param[out]	buf	Buffer containing SQL statement
-@param[in]	buflen	Length of provided buffer
-@return			Length of the SQL statement */
+@param[in]      thd     MySQL thread handle
+@param[out]     buf     Buffer containing SQL statement
+@param[in]      buflen  Length of provided buffer
+@return                 Length of the SQL statement */
 size_t innobase_get_stmt_safe(THD *thd, char *buf, size_t buflen);
 
 /** This function is used to find the storage length in bytes of the first n
@@ -186,29 +213,32 @@ the expected memory pages due to failure in using madvise */
 void innobase_disable_core_dump();
 
 /** Returns the lock wait timeout for the current connection.
- @return the lock wait timeout, in seconds */
-ulong thd_lock_wait_timeout(THD *thd); /*!< in: thread handle, or NULL to query
-                                       the global innodb_lock_wait_timeout */
-/** Add up the time waited for the lock for the current query. */
-void thd_set_lock_wait_time(THD *thd,     /*!< in/out: thread handle */
-                            ulint value); /*!< in: time waited for the lock */
+ @return the lock wait timeout */
+std::chrono::seconds thd_lock_wait_timeout(
+    THD *thd); /*!< in: thread handle, or NULL to query
+the global innodb_lock_wait_timeout */
+
+/** Set the time waited for the lock for the current query.
+@param[in,out] thd Thread handle.
+@param[in] value Time waited for the lock. */
+void thd_set_lock_wait_time(THD *thd,
+                            std::chrono::steady_clock::duration value);
 
 /** Get the value of innodb_tmpdir.
-@param[in]	thd	thread handle, or NULL to query
-                        the global innodb_tmpdir.
-@retval NULL if innodb_tmpdir="" */
+@param[in] thd  thread handle, or nullptr to query the global innodb_tmpdir.
+@return nullptr if innodb_tmpdir="" */
 const char *thd_innodb_tmpdir(THD *thd);
 
 #ifdef UNIV_DEBUG
 /** Obtain the value of the latest output from InnoDB Interpreter/Tester
 module (ib::Tester).
-@param[in]	thd	thread handle
+@param[in]      thd     thread handle
 @return pointer to the output string. */
 char **thd_innodb_interpreter_output(THD *thd);
 
 /** Obtain the latest command executed by InnoDB Interpreter/Tester
 module (ib::Tester).
-@param[in]	thd	thread handle
+@param[in]      thd     thread handle
 @return pointer to the output string. */
 char **thd_innodb_interpreter(THD *thd);
 #endif /* UNIV_DEBUG */
@@ -240,26 +270,27 @@ bool thd_trx_is_read_only(THD *thd); /*!< in/out: thread handle */
 
 /**
 Check if the transaction can be rolled back
-@param[in] requestor	Session requesting the lock
-@param[in] holder	Session that holds the lock
+@param[in] requestor    Session requesting the lock
+@param[in] holder       Session that holds the lock
 @return the session that will be rolled back, null don't care */
 
 THD *thd_trx_arbitrate(THD *requestor, THD *holder);
 
 /**
-@param[in] thd		Session to check
+@param[in] thd          Session to check
 @return the priority */
 
 int thd_trx_priority(THD *thd);
 
-/** Check if the transaction is an auto-commit transaction. TRUE also
+/** Check if the transaction is an auto-commit transaction. true also
  implies that it is a SELECT (read-only) transaction.
  @return true if the transaction is an auto commit read-only transaction. */
-ibool thd_trx_is_auto_commit(THD *thd); /*!< in: thread handle, or NULL */
+bool thd_trx_is_auto_commit(THD *thd); /*!< in: thread handle, or NULL */
 
 /** Get the thread start time.
- @return the thread start time in seconds since the epoch. */
-ulint thd_start_time_in_secs(THD *thd); /*!< in: thread handle, or NULL */
+ @return the thread start time. */
+std::chrono::system_clock::time_point thd_start_time(
+    THD *thd); /*!< in: thread handle, or NULL */
 
 /** A wrapper function of innobase_convert_name(), convert a table name
 to the MySQL system_charset_info (UTF-8) and quote it if needed.
@@ -288,7 +319,7 @@ enum ib_log_level_t {
  */
 void ib_errf(THD *thd,             /*!< in/out: session */
              ib_log_level_t level, /*!< in: warning level */
-             ib_uint32_t code,     /*!< MySQL error code */
+             uint32_t code,        /*!< MySQL error code */
              const char *format,   /*!< printf format */
              ...)                  /*!< Args */
     MY_ATTRIBUTE((format(printf, 4, 5)));
@@ -304,7 +335,7 @@ void ib_errf(THD *thd,             /*!< in/out: session */
  */
 void ib_senderrf(THD *thd,             /*!< in/out: session */
                  ib_log_level_t level, /*!< in: warning level */
-                 ib_uint32_t code,     /*!< MySQL error code */
+                 uint32_t code,        /*!< MySQL error code */
                  ...);                 /*!< Args */
 
 extern const char *TROUBLESHOOTING_MSG;
@@ -341,13 +372,12 @@ const char *innobase_get_err_msg(int error_code); /*!< in: MySQL error code */
  autoinc_lock_mode != TRADITIONAL because we want to reserve 3 values for
  the multi-value INSERT above.
  @return the next value */
-ulonglong innobase_next_autoinc(
-    ulonglong current,   /*!< in: Current value */
-    ulonglong need,      /*!< in: count of values needed */
-    ulonglong step,      /*!< in: AUTOINC increment step */
-    ulonglong offset,    /*!< in: AUTOINC offset */
-    ulonglong max_value) /*!< in: max value for type */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] ulonglong innobase_next_autoinc(
+    ulonglong current,    /*!< in: Current value */
+    ulonglong need,       /*!< in: count of values needed */
+    ulonglong step,       /*!< in: AUTOINC increment step */
+    ulonglong offset,     /*!< in: AUTOINC offset */
+    ulonglong max_value); /*!< in: max value for type */
 
 /**********************************************************************
 Check if the length of the identifier exceeds the maximum allowed.
@@ -381,9 +411,8 @@ void ib_warn_row_too_big(const dict_table_t *table);
 
 #include <my_icp.h>
 
-ICP_RESULT
-innobase_index_cond(ha_innobase *h) /*!< in/out: pointer to ha_innobase */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] ICP_RESULT innobase_index_cond(
+    ha_innobase *h); /*!< in/out: pointer to ha_innobase */
 
 /** Gets information on the durability property requested by thread.
  Used when writing either a prepare or commit record to the log
@@ -392,24 +421,40 @@ innobase_index_cond(ha_innobase *h) /*!< in/out: pointer to ha_innobase */
 
 #include <dur_prop.h>
 
-enum durability_properties thd_requested_durability(
-    const THD *thd) /*!< in: thread handle */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] enum durability_properties thd_requested_durability(
+    const THD *thd); /*!< in: thread handle */
 
 /** Update the system variable with the given value of the InnoDB
 buffer pool size.
-@param[in]	buf_pool_size	given value of buffer pool size.*/
+@param[in]      buf_pool_size   given value of buffer pool size.*/
 void innodb_set_buf_pool_size(long long buf_pool_size);
 
 /** Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one.
-@param[in]	thd	MySQL thd (connection) object
+@param[in]      thd     MySQL thd (connection) object
 @return InnoDB transaction handle */
 trx_t *check_trx_exists(THD *thd);
 
 /** Commits a transaction in an InnoDB database.
-@param[in]	trx	Transaction handle. */
+@param[in]      trx     Transaction handle. */
 void innobase_commit_low(trx_t *trx);
+
+/** Return the number of read threads for this session.
+@param[in]      thd       Session instance, or nullptr to query the global
+                          innodb_parallel_read_threads value. */
+ulong thd_parallel_read_threads(THD *thd);
+
+/** Return the maximum buffer size to use for DDL.
+@param[in]      thd       Session instance, or nullptr to query the global
+                          innodb_parallel_read_threads value.
+@return memory upper limit in bytes. */
+[[nodiscard]] ulong thd_ddl_buffer_size(THD *thd);
+
+/** Whether this is a computed virtual column */
+#define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
+
+/** @return the number of DDL threads to use (global/session). */
+[[nodiscard]] size_t thd_ddl_threads(THD *thd) noexcept;
 
 #endif /* HA_INNODB_PROTOTYPES_H */

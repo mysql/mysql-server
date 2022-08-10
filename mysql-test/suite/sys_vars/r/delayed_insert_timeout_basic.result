@@ -183,8 +183,10 @@ SET global.delayed_insert_timeout = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.delayed_insert_timeout = 1' at line 1
 SELECT global.delayed_insert_timeout;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT delayed_insert_timeout = @@session.delayed_insert_timeout;
+SELECT delayed_insert_timeout;
 ERROR 42S22: Unknown column 'delayed_insert_timeout' in 'field list'
+SELECT @@session.delayed_insert_timeout;
+ERROR HY000: Variable 'delayed_insert_timeout' is a GLOBAL variable
 SET @@global.delayed_insert_timeout = @start_value;
 Warnings:
 Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.

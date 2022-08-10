@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ int hp_rb_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
     keyinfo		key definition of key that we want to delete
     record		row data to be deleted
     recpos		Pointer to heap record in memory
-    flag		Is set if we want's to correct info->current_ptr
+    flag		Is set if we want to correct info->current_ptr
 
   RETURN
     0      Ok
@@ -131,7 +131,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
     gpos = pos;
     if (!(pos = pos->next_key)) {
       set_my_errno(HA_ERR_CRASHED);
-      return HA_ERR_CRASHED; /* This shouldn't happend */
+      return HA_ERR_CRASHED; /* This shouldn't happen */
     }
   }
 
@@ -172,7 +172,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
                       hp_mask(pos_hashnr, share->blength, share->records));
   if (pos != pos3) {               /* pos is on wrong posit */
     empty[0] = pos[0];             /* Save it here */
-    pos[0] = lastpos[0];           /* This shold be here */
+    pos[0] = lastpos[0];           /* This should be here */
     hp_movelink(pos, pos3, empty); /* Fix link to pos */
     return 0;
   }

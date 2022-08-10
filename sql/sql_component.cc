@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,8 +107,10 @@ bool Sql_cmd_uninstall_component::execute(THD *thd) {
   return (end_transaction(thd, false));
 }
 
-Deployed_components::Deployed_components(const std::string program_name)
+Deployed_components::Deployed_components(const std::string program_name,
+                                         const std::string instance_path)
     : program_name_(program_name),
+      instance_path_(instance_path),
       components_(),
       last_error_(),
       valid_(false),
@@ -181,7 +183,7 @@ bool Deployed_components::load() {
   /* Parse program name and load manifest file */
 
   std::unique_ptr<Manifest_reader> current_reader(
-      new Manifest_reader(program_name_));
+      new Manifest_reader(program_name_, {}));
 
   /* It's ok if manifest file is not present or is empty */
   if (current_reader->empty()) return true;
@@ -193,7 +195,8 @@ bool Deployed_components::load() {
   if (current_reader->read_local_manifest() == true) {
     current_reader.reset();
     /* Read manifest file locally */
-    current_reader = std::make_unique<Manifest_reader>(program_name_, true);
+    current_reader =
+        std::make_unique<Manifest_reader>(program_name_, instance_path_);
     /* It is possible that current instance is not using keyring component */
     if (current_reader->empty()) return true;
 

@@ -32,4 +32,6 @@ SET SESSION sql_log_bin = 1;
 SET @@GLOBAL.group_replication_ip_whitelist= GROUP_REPLICATION_IP_WHITELIST;
 Warnings:
 Warning	1287	'group_replication_ip_whitelist' is deprecated and will be removed in a future release. Please use group_replication_ip_allowlist instead
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1
+include/rpl_reconnect.inc
 include/group_replication_end.inc

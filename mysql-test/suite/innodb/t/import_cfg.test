@@ -420,14 +420,12 @@ ALTER TABLE t2 DISCARD TABLESPACE;
 --copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/test/t2.cfg
 --copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/test/t2.ibd
 
---echo # IMPORT should succeed. Target table metadata should have been updated.
+--echo # IMPORT should fail as INSTANT METADATA doesn't match.
+--error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t2 IMPORT TABLESPACE;
-SELECT * from t2 limit 10;
-SELECT COUNT(*) from t2;
-SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
-SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
-
 DROP TABLE t2;
+--remove_file $MYSQLD_DATADIR/test/t2.cfg
+--remove_file $MYSQLD_DATADIR/test/t2.ibd
 
 --echo # Create table t2 with two column added INSTANTly
 CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);

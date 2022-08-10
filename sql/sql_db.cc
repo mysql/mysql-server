@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@
 #include "sql/mysqld.h"          // key_file_misc
 #include "sql/psi_memory_key.h"  // key_memory_THD_db
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
 #include "sql/session_tracker.h"
 #include "sql/sp.h"         // lock_db_routines
 #include "sql/sql_base.h"   // lock_table_names
@@ -614,7 +614,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
 
   /*
     Commit the statement locally instead of relying on caller,
-    in order to be sure that it is  successfull, before changing
+    in order to be sure that it is successful, before changing
     options of current database.
   */
   if (trans_commit_stmt(thd) || trans_commit(thd)) return true;
@@ -838,7 +838,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
       thd->clear_error(); /* @todo Do not ignore errors */
       Disable_binlog_guard binlog_guard(thd);
       error = Events::drop_schema_events(thd, *schema);
-      error = (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
+      error = (error || sp_drop_db_routines(thd, *schema));
     }
     thd->pop_internal_handler();
 
@@ -932,10 +932,8 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
     */
     if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
             ->is_enabled()) {
-      LEX_CSTRING dummy = {STRING_WITH_LEN("")};
-      dummy.length = dummy.length * 1;
       thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
-          ->mark_as_changed(thd, &dummy);
+          ->mark_as_changed(thd, {});
     }
   }
 
@@ -965,7 +963,7 @@ static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
     char *extension;
     DBUG_PRINT("info", ("Examining: %s", file->name));
 
-    /* skiping . and .. */
+    /* skipping . and .. */
     if (file->name[0] == '.' &&
         (!file->name[1] || (file->name[1] == '.' && !file->name[2])))
       continue;
@@ -1146,7 +1144,7 @@ long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path) {
     char *extension, *revision;
     DBUG_PRINT("info", ("Examining: %s", file->name));
 
-    /* skiping . and .. */
+    /* skipping . and .. */
     if (file->name[0] == '.' &&
         (!file->name[1] || (file->name[1] == '.' && !file->name[2])))
       continue;
@@ -1506,15 +1504,13 @@ done:
     Check if current database tracker is enabled. If so, set the 'changed' flag.
   */
   if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled()) {
-    LEX_CSTRING dummy = {STRING_WITH_LEN("")};
-    dummy.length = dummy.length * 1;
     thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
-        ->mark_as_changed(thd, &dummy);
+        ->mark_as_changed(thd, {});
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
           ->is_enabled())
     thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-        ->mark_as_changed(thd, nullptr);
+        ->mark_as_changed(thd, {});
   return false;
 }
 
@@ -1536,7 +1532,7 @@ done:
   forced @see mysql_change_db()
   @param[out]     cur_db_changed  out-flag to indicate whether the current
                                   database has been changed (valid only if
-                                  the function suceeded)
+                                  the function succeeded)
 */
 
 bool mysql_opt_change_db(THD *thd, const LEX_CSTRING &new_db_name,

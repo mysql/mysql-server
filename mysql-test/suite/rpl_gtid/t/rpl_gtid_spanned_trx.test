@@ -75,7 +75,7 @@ COMMIT;
 --inc $restarts
 while ($restarts > 0)
 {
-  # Waiting for slave IO thread to stop
+  # Waiting for replica IO thread to stop
   --source include/wait_for_slave_io_to_stop.inc
   --dec $restarts
   # At this point, the Retrieved_Gtid_Set should have only one GTID

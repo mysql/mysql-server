@@ -174,7 +174,9 @@ SET global.max_binlog_stmt_cache_size = 8000;
 --Error ER_UNKNOWN_TABLE
 SELECT global.max_binlog_stmt_cache_size;
 --Error ER_BAD_FIELD_ERROR
-SELECT max_binlog_stmt_cache_size = @@session.max_binlog_stmt_cache_size;
+SELECT max_binlog_stmt_cache_size;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.max_binlog_stmt_cache_size;
 
 
 ##############################  

@@ -80,14 +80,18 @@ XA END 'trx';
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 INSERT INTO t1 VALUES (1);
---let $sync_slave_connection= server1
---source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo ############################################################
 --echo # 5. Signal the waiting thread on server_1 to resume.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+
+# Wait for the transaction from server 2 to be certified
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member1_uuid' AND count_transactions_checked=2
+--source include/wait_condition.inc
+
 SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG= @debug_save;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class Explain_format_traditional : public Explain_format {
 
 class Explain_format_tree : public Explain_format {
  public:
-  Explain_format_tree() {}
+  Explain_format_tree() = default;
 
   bool is_hierarchical() const override { return false; }
   bool send_headers(Query_result *) override {

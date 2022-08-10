@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 */
 
 #include "ConsoleLogHandler.hpp"
+
+#include <time.h>
 
 ConsoleLogHandler::ConsoleLogHandler(NdbOut& out)
  : LogHandler(), _out(out)
@@ -77,6 +79,7 @@ ConsoleLogHandler::writeFooter()
 
   
 bool
-ConsoleLogHandler::setParam(const BaseString &param, const BaseString &value) {
+ConsoleLogHandler::setParam(const BaseString &/*param*/,
+			    const BaseString &/*value*/) {
   return false;
 }

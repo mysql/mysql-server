@@ -544,6 +544,7 @@ insert into tmp select * from t3;
 insert into t3 select * from tmp;
 insert into tmp select * from t3;
 insert into t3 select * from tmp;
+set session innodb_parallel_read_threads = 1;
 alter table t3 add t2nr int not null auto_increment primary key first;
 drop table tmp;
 SET BIG_TABLES=1;
@@ -641,20 +642,20 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`t2nr` AS `t2nr`,`test`.`t2`.`fld3` AS `fld3` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld1` = `test`.`t3`.`t2nr`)) order by `test`.`t3`.`t2nr`,`test`.`t2`.`fld3`
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	41736	100.00	Using temporary; Using filesort
-1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4173	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	41810	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4181	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t3`.`period`
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	period	NULL	NULL	NULL	41736	100.00	Using temporary; Using filesort
-1	SIMPLE	t1	NULL	ref	period	period	4	test.t3.period	4173	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3	NULL	ALL	period	NULL	NULL	NULL	41810	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ref	period	period	4	test.t3.period	4181	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t1`.`period` = `test`.`t3`.`period`) order by `test`.`t3`.`period` limit 10
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	41736	100.00	Using temporary; Using filesort
-1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4173	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	41810	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4181	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t1`.`period` limit 10
 select period from t1;
@@ -1271,7 +1272,7 @@ test.t3	analyze	status	OK
 EXPLAIN  select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	fld1	NULL	NULL	NULL	1199	10.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY,period	PRIMARY	4	test.t2.fld1	1	20.04	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY,period	PRIMARY	4	test.t2.fld1	1	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`companynr` = 37) and (`test`.`t2`.`fld1` = `test`.`t3`.`t2nr`) and (`test`.`t3`.`period` >= 1001) and (`test`.`t3`.`period` <= 1002)) order by `test`.`t2`.`fld3`,`test`.`t3`.`period`,`test`.`t3`.`price`
 select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
@@ -2118,7 +2119,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
 EXPLAIN
--> Aggregate: min(t2.fld1), max(t2.fld1), count(0)
+-> Aggregate: min(t2.fld1), max(t2.fld1), count(0)  (cost=243.55 rows=1)
     -> Filter: (rand() > 0.5)  (cost=123.65 rows=1199)
         -> Index scan on t2 using fld1  (cost=123.65 rows=1199)
 
@@ -4190,7 +4191,7 @@ CREATE TABLE t1 (name varchar(255)) charset latin1;
 CREATE TABLE t2 (name varchar(255), n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
-INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES (concat('cc ', '!'), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
@@ -4201,7 +4202,7 @@ name	n
 bb	1
 aa	2
 cc   	3
-cc 	4
+cc !	4
 cc	5
 bb 	6
 cc 	7
@@ -4210,19 +4211,19 @@ name	n
 aa	2
 bb	1
 bb 	6
-cc 	4
 cc   	3
 cc	5
 cc 	7
+cc !	4
 SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
 name	LENGTH(name)	n
 aa	2	2
 bb	2	1
 bb 	3	6
-cc 	4	4
 cc   	5	3
 cc	2	5
 cc 	3	7
+cc !	4	4
 EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	name	name	6	const	4	100.00	Using where
@@ -4241,7 +4242,7 @@ Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
 name	LENGTH(name)	n
 cc   	5	3
-cc 	4	4
+cc !	4	4
 cc	2	5
 cc 	3	7
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
@@ -4251,10 +4252,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` like 'cc%') order by `test`.`t2`.`name`
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 name	LENGTH(name)	n
-cc 	4	4
 cc   	5	3
 cc	2	5
 cc 	3	7
+cc !	4	4
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
@@ -4276,7 +4277,7 @@ CREATE TABLE t1 (name text) charset latin1;
 CREATE TABLE t2 (name text, n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
-INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
+INSERT INTO t2 VALUES (concat('cc ', '!'), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
@@ -4287,7 +4288,7 @@ name	n
 bb	1
 aa	2
 cc   	3
-cc 	4
+cc !	4
 cc	5
 bb 	6
 cc 	7
@@ -4296,19 +4297,19 @@ name	n
 aa	2
 bb	1
 bb 	6
-cc 	4
 cc   	3
 cc	5
 cc 	7
+cc !	4
 SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
 name	LENGTH(name)	n
 aa	2	2
 bb	2	1
 bb 	3	6
-cc 	4	4
 cc   	5	3
 cc	2	5
 cc 	3	7
+cc !	4	4
 EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	name	name	6	const	4	100.00	Using where
@@ -4327,7 +4328,7 @@ Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
 name	LENGTH(name)	n
 cc   	5	3
-cc 	4	4
+cc !	4	4
 cc	2	5
 cc 	3	7
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
@@ -4337,10 +4338,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` like 'cc%') order by `test`.`t2`.`name`
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 name	LENGTH(name)	n
-cc 	4	4
 cc   	5	3
 cc	2	5
 cc 	3	7
+cc !	4	4
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
@@ -4525,12 +4526,15 @@ str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
                                                 and '2007/10/20 00:00:00 GMT'
 1
 Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2007/10/01 00:00:00 GMT' at row 1 is deprecated. Prefer the standard '-'.
 Warning	1292	Truncated incorrect date value: '2007/10/01 00:00:00 GMT'
+Warning	4095	Delimiter '/' in position 4 in datetime value '2007/10/20 00:00:00 GMT' at row 1 is deprecated. Prefer the standard '-'.
 Warning	1292	Truncated incorrect date value: '2007/10/20 00:00:00 GMT'
 select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
 str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6'
 1
 Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2007/10/01 00:00:00 GMT-6' at row 1 is deprecated. Prefer the standard '-'.
 Warning	1292	Truncated incorrect date value: '2007/10/01 00:00:00 GMT-6'
 select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
 ERROR HY000: Incorrect DATE value: '2007/10/2000:00:00 GMT-6'
@@ -4538,6 +4542,7 @@ select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6';
 str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6'
 1
 Warnings:
+Warning	4096	Delimiter ' ' in position 18 in datetime value '2007-10-1 00:00:00 GMT-6' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1292	Truncated incorrect date value: '2007-10-1 00:00:00 GMT-6'
 select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 x00:00:00 GMT-6';
 str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 x00:00:00 GMT-6'
@@ -4548,6 +4553,7 @@ select str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 00:00:00 GMT-
 str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 00:00:00 GMT-6'
 1
 Warnings:
+Warning	4096	Delimiter ' ' in position 19 in datetime value '2007-10-01 00:00:00 GMT-6' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1292	Truncated incorrect datetime value: '2007-10-01 00:00:00 GMT-6'
 select str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 00:x00:00 GMT-6';
 str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 00:x00:00 GMT-6'
@@ -4640,17 +4646,17 @@ select str_to_date('','%Y-%m-%d') = '';
 ERROR HY000: Incorrect DATE value: ''
 select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
 str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL
-0
+NULL
 Warnings:
 Warning	1292	Truncated incorrect date value: '0000-00-00'
 select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
 str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00'
-NULL
+0
 Warnings:
 Warning	1292	Truncated incorrect date value: '2000-00-00'
 select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
 str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL
-0
+NULL
 CREATE TABLE t1 (c11 INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY);
 CREATE TABLE t2 (c21 INT UNSIGNED NOT NULL, 
 c22 INT DEFAULT NULL, 
@@ -4980,7 +4986,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT a FROM t1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24404	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 SELECT a FROM t1 ORDER BY a;
@@ -5005,7 +5011,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 5
 SELECT a FROM t1 ORDER BY a LIMIT 5;
@@ -5017,7 +5023,7 @@ a
 
 EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 5
 SELECT * FROM t1 ORDER BY a, b LIMIT 5;
@@ -5029,7 +5035,7 @@ a	b	c
 		2
 EXPLAIN SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c` limit 5
 SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
@@ -5041,7 +5047,7 @@ a	b	c
 		0
 EXPLAIN SELECT * FROM t1 ORDER BY c, a LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`c`,`test`.`t1`.`a` limit 5
 SELECT * FROM t1 ORDER BY c, a LIMIT 5;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@
 #include "sql/sql_class.h"  // THD::killed_state
 #include "thr_lock.h"
 
-struct LEX;
+class Query_tables_list;
 
 namespace dd {
 
@@ -163,7 +163,7 @@ class Update_dictionary_tables_ctx {
 
   DD_kill_immunizer m_kill_immunizer;
 
-  LEX *m_lex_saved;
+  Query_tables_list *m_query_tables_list_backup;
 
   // Stores state before DD operations
   Open_tables_backup m_open_tables_state_backup;

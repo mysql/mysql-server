@@ -1,0 +1,58 @@
+
+#
+# exists as a global only
+#
+# 2010-01-21 OBN - Added 
+#
+source include/have_semisync_plugin.inc;
+# The following is to prevent a mis-match on windows that has the name of of the lib ending with 'dll' 
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
+select @@global.rpl_semi_sync_source_timeout;
+SET @start_global_value = @@global.rpl_semi_sync_source_timeout;
+
+--echo Assuming value will not be more then 100 sec
+select @@global.rpl_semi_sync_source_timeout between 1 and 100000; 
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.rpl_semi_sync_source_timeout;
+show global variables like 'rpl_semi_sync_source_timeout';
+show session variables like 'rpl_semi_sync_source_timeout';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_source_timeout';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_source_timeout';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global rpl_semi_sync_source_timeout=42;
+--error ER_GLOBAL_VARIABLE
+set session rpl_semi_sync_source_timeout=99;
+select @@global.rpl_semi_sync_source_timeout;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.rpl_semi_sync_source_timeout;
+show global variables like 'rpl_semi_sync_source_timeout';
+show session variables like 'rpl_semi_sync_source_timeout';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_source_timeout';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_source_timeout';
+--enable_warnings
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global rpl_semi_sync_source_timeout=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global rpl_semi_sync_source_timeout=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global rpl_semi_sync_source_timeout="some text";
+
+
+#
+# Cleanup
+#
+SET @@global.rpl_semi_sync_source_timeout = @start_global_value;
+select @@global.rpl_semi_sync_source_timeout;
+UNINSTALL PLUGIN rpl_semi_sync_source;
+

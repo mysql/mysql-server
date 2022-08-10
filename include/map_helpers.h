@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,64 +50,34 @@
   against container.end() yourself.
 */
 template <class Container, class Key>
-static inline auto find_or_nullptr(const Container &container, const Key &key)
-    -> typename std::enable_if<
-        std::is_pointer<typename Container::value_type::second_type>::value,
-        typename Container::value_type::second_type>::type {
+static inline auto find_or_nullptr(const Container &container, const Key &key) {
   const auto it = container.find(key);
-  if (it == container.end())
-    return nullptr;
-  else
-    return it->second;
-}
-
-template <class Container, class Key>
-static inline auto find_or_nullptr(const Container &container, const Key &key)
-    -> typename std::enable_if<
-        std::is_pointer<
-            typename Container::value_type::second_type::pointer>::value,
-        typename Container::value_type::second_type::pointer>::type {
-  const auto it = container.find(key);
-  if (it == container.end())
-    return nullptr;
-  else
-    return it->second.get();
+  if constexpr (std::is_pointer_v<typename Container::mapped_type>) {
+    return it == container.end() ? nullptr : it->second;
+  } else {
+    return it == container.end() ? nullptr : it->second.get();
+  }
 }
 
 /**
   For unordered_multimap<Key, Value>, erase the first specific element that
   matches _both_ the given key and value.
 */
-template <class Container>
+template <class Container, class Value>
 typename Container::iterator erase_specific_element(
     Container *container, const typename Container::key_type &key,
-    const typename Container::value_type::second_type &value) {
+    const Value &value) {
   auto it_range = container->equal_range(key);
   for (auto it = it_range.first; it != it_range.second; ++it) {
-    if (it->second == value) return container->erase(it);
+    if constexpr (std::is_pointer_v<typename Container::mapped_type>) {
+      if (it->second == value) return container->erase(it);
+    } else {
+      // For when the container holds unique_ptr elements.
+      if (it->second.get() == value) return container->erase(it);
+    }
   }
   return container->end();
 }
-
-/**
-  Same as regular erase_specific_element(), but for the case where the
-  container holds unique_ptr elements.
-*/
-template <class Container>
-static inline auto erase_specific_element(
-    Container *container, const typename Container::key_type &key,
-    typename Container::value_type::second_type::pointer value) ->
-    typename std::enable_if<
-        std::is_pointer<
-            typename Container::value_type::second_type::pointer>::value,
-        typename Container::iterator>::type {
-  auto it_range = container->equal_range(key);
-  for (auto it = it_range.first; it != it_range.second; ++it) {
-    if (it->second.get() == value) return container->erase(it);
-  }
-  return container->end();
-}
-
 /**
   std::unique_ptr, but with a custom delete function.
   Normally, it is more efficient to have a deleter class instead,
@@ -293,9 +263,10 @@ class mem_root_unordered_set
     In theory, we should be allowed to send in the allocator only, but GCC 4.8
     is missing several unordered_set constructors, so let's give in everything.
   */
-  mem_root_unordered_set(MEM_ROOT *mem_root)
+  explicit mem_root_unordered_set(MEM_ROOT *mem_root, Hash hash = Hash(),
+                                  KeyEqual key_equal_arg = KeyEqual())
       : std::unordered_set<Key, Hash, KeyEqual, Mem_root_allocator<Key>>(
-            /*bucket_count=*/10, Hash(), KeyEqual(),
+            /*bucket_count=*/10, hash, key_equal_arg,
             Mem_root_allocator<Key>(mem_root)) {}
 };
 
@@ -312,6 +283,24 @@ class mem_root_unordered_map
   explicit mem_root_unordered_map(MEM_ROOT *mem_root, Hash hash = Hash())
       : std::unordered_map<Key, Value, Hash, KeyEqual,
                            Mem_root_allocator<std::pair<const Key, Value>>>(
+            /*bucket_count=*/10, hash, KeyEqual(),
+            Mem_root_allocator<std::pair<const Key, Value>>(mem_root)) {}
+};
+
+/**
+  std::unordered_multimap, but allocated on a MEM_ROOT.
+ */
+template <class Key, class Value, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>>
+class mem_root_unordered_multimap
+    : public std::unordered_multimap<
+          Key, Value, Hash, KeyEqual,
+          Mem_root_allocator<std::pair<const Key, Value>>> {
+ public:
+  explicit mem_root_unordered_multimap(MEM_ROOT *mem_root, Hash hash = Hash())
+      : std::unordered_multimap<
+            Key, Value, Hash, KeyEqual,
+            Mem_root_allocator<std::pair<const Key, Value>>>(
             /*bucket_count=*/10, hash, KeyEqual(),
             Mem_root_allocator<std::pair<const Key, Value>>(mem_root)) {}
 };

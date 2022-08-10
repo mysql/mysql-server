@@ -2,8 +2,9 @@
 --source include/master-slave.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
+--source include/only_mts_replica_parallel_workers.inc
 
---let $save_slave_parallel_workers=`SELECT @@global.slave_parallel_workers`
+--let $save_replica_parallel_workers=`SELECT @@global.replica_parallel_workers`
 
 #
 # BUG#20236305: MSR: CRASH ON 'START/STOP SLAVE' CMD I.E. ER1794 -> ER1201 -> CRASH
@@ -33,7 +34,7 @@ RESET SLAVE ALL;
 --echo # RESTART SLAVE SERVER
 --echo #
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --slave-parallel-workers=4 --relay-log-purge=0
+--let $rpl_server_parameters= --relay-log-recovery --skip-replica-start --replica-parallel-workers=4 --relay-log-purge=0
 --source include/rpl_restart_server.inc
 
 # This command earlier failed with error ER_MASTER_INFO and the server would
@@ -73,8 +74,8 @@ START SLAVE;
 --let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 RESET SLAVE ALL;
---replace_result $save_slave_parallel_workers SAVE_PARALLEL_WORKERS
---eval SET @@global.slave_parallel_workers=$save_slave_parallel_workers
+--replace_result $save_replica_parallel_workers SAVE_PARALLEL_WORKERS
+--eval SET @@global.replica_parallel_workers=$save_replica_parallel_workers
 
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
@@ -106,7 +107,7 @@ call mtr.add_suppression("Recovery from master pos");
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
 --source include/stop_slave.inc
 RESET SLAVE ALL;
-SET @@global.slave_parallel_workers=5;
+SET @@global.replica_parallel_workers=5;
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_trunk'
@@ -120,7 +121,7 @@ SET @@global.slave_parallel_workers=5;
 
 --echo === RESTART SLAVE SERVER ===
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --slave-parallel-workers=5
+--let $rpl_server_parameters= --relay-log-recovery --skip-replica-start --replica-parallel-workers=5
 --source include/rpl_restart_server.inc
 --source include/rpl_connection_slave.inc
 START SLAVE;
@@ -128,8 +129,8 @@ START SLAVE;
 # clean up
 --source include/stop_slave.inc
 RESET SLAVE ALL;
---replace_result $save_slave_parallel_workers SAVE_PARALLEL_WORKERS
---eval SET @@global.slave_parallel_workers=$save_slave_parallel_workers
+--replace_result $save_replica_parallel_workers SAVE_PARALLEL_WORKERS
+--eval SET @@global.replica_parallel_workers=$save_replica_parallel_workers
 
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT

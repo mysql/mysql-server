@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ TEST_P(Xcl_session_impl_tests_param_int_option, set_not_supported_combination) {
 }
 
 INSTANTIATE_TEST_SUITE_P(InstantiationNotSupportedIntOptions,
-                         Xcl_session_impl_tests_param_bool_option,
+                         Xcl_session_impl_tests_param_int_option,
                          Values(XSession::Mysqlx_option::Read_timeout,
                                 XSession::Mysqlx_option::Write_timeout,
                                 XSession::Mysqlx_option::Connect_timeout));

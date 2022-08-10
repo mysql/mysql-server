@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,12 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
     IF(UNIX)
       IF(MY_COMPILER_IS_CLANG AND WITH_UBSAN)
         # nothing, clang/ubsan gets confused
+        UNSET(COMPONENT_COMPILE_VISIBILITY CACHE)
       ELSE()
+        # Use this also for component libraries and tests.
+        SET(COMPONENT_COMPILE_VISIBILITY
+          "-fvisibility=hidden" CACHE INTERNAL
+          "Use -fvisibility=hidden for components" FORCE)
         TARGET_COMPILE_OPTIONS(${target} PRIVATE "-fvisibility=hidden")
       ENDIF()
     ENDIF()
@@ -128,7 +133,10 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
         COMPONENT ${INSTALL_COMPONENT})
     ENDIF()
   ENDIF()
-ENDMACRO()
+
+  ADD_DEPENDENCIES(component_all ${target})
+
+ENDMACRO(MYSQL_ADD_COMPONENT)
 
 
 # Add all CMake projects under components

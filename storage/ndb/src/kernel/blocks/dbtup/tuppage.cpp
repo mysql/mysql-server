@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include "tuppage.hpp"
 #include "EventLogger.hpp"
 
-extern EventLogger *g_eventLogger;
 
 #define JAM_FILE_ID 427
 
@@ -322,14 +322,14 @@ Tup_varsize_page::alloc_record(Uint32 alloc_size,
   
   insert_pos += alloc_size;
   free_space -= alloc_size;
-  //ndbout_c("%p->alloc_record(%d%s) -> %d", this,alloc_size, (chain ? " CHAIN" : ""),page_idx);
+  //g_eventLogger->info("%p->alloc_record(%d%s) -> %d", this,alloc_size, (chain ? " CHAIN" : ""),page_idx);
   return page_idx;
 }
   
 Uint32
 Tup_varsize_page::free_record(Uint32 page_idx, Uint32 chain)
 {
-  //ndbout_c("%p->free_record(%d%s)", this, page_idx, (chain ? " CHAIN": ""));
+  //g_eventLogger->info("%p->free_record(%d%s)", this, page_idx, (chain ? " CHAIN": ""));
   Uint32 *index_ptr= get_index_ptr(page_idx);
   Uint32 index_word= * index_ptr;
   Uint32 entry_pos= (index_word & POS_MASK) >> POS_SHIFT;

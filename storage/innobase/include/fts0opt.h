@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,7 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /********************************************************************
 Callback function to fetch the rows in an FTS INDEX record. */
-ibool fts_optimize_index_fetch_node(
+bool fts_optimize_index_fetch_node(
     /* out: always returns non-NULL */
     void *row,       /* in: sel_node_t* */
     void *user_arg); /* in: pointer to ib_vector_t */

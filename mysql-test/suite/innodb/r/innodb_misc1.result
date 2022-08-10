@@ -642,6 +642,8 @@ a	b	c
 SELECT * FROM t2 WHERE BINARY b = 'customer_over';
 a	b	c
 1	customer_over	1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT DISTINCT p0.a FROM t2 p0 WHERE p0.b = 'customer_over';
 a
 1
@@ -649,9 +651,13 @@ a
 SELECT DISTINCT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
 a
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
 a
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t2, t1;
 CREATE TABLE t1 ( a int ) ENGINE=innodb;
 BEGIN;
@@ -690,7 +696,7 @@ DROP TABLE t2,t1;
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
 ENGINE=InnoDB;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES (0xEFBCA4EFBCA4EFBCA4);
 DELETE FROM t1;
 INSERT INTO t1 VALUES ('DDD');

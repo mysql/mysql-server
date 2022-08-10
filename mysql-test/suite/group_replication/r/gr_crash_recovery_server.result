@@ -44,7 +44,7 @@ call dml_operations(100,200);
 [connection server3]
 UNLOCK TABLES;
 # killing
-# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_communication_stack=GROUP_REPLICATION_COMMUNICATION_STACK
 # restarting
 include/rpl_reconnect.inc
 [connection server2]
@@ -67,7 +67,7 @@ call dml_operations(300,400);
 UNLOCK TABLES;
 [connection server3]
 # killing
-# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_communication_stack=GROUP_REPLICATION_COMMUNICATION_STACK
 # restarting
 include/rpl_reconnect.inc
 [connection server2]

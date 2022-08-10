@@ -109,6 +109,9 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1,'2002-02-04 00:00:00'),(3,'2002-05-12 00:00:00'),(5,'2002-05-12 00:00:00'),(6,'2002-06-22
 00:00:00'),(7,'2002-07-22 00:00:00');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-06-22
+00:00:00' at row 4 is deprecated. Prefer the standard ' '.
 delete t1,t2,t3 from t1,t2,t3 where to_days(now())-to_days(t3.mydate)>=30 and t3.id=t1.id and t3.id=t2.id;
 select * from t3;
 id	mydate
@@ -702,9 +705,6 @@ INSERT INTO t3 VALUES (1), (2);
 UPDATE IGNORE
 ( SELECT ( SELECT COUNT(*) FROM t1 GROUP BY a, @v ) a FROM t2 ) x, t3
 SET t3.a = 0;
-Warnings:
-Warning	1242	Subquery returns more than 1 row
-Warning	1242	Subquery returns more than 1 row
 DROP TABLE t1, t2, t3;
 SET SESSION sql_safe_updates = DEFAULT;
 set @@optimizer_switch=@optimizer_switch_saved;

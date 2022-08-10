@@ -1,3 +1,5 @@
+SET @old_log_output= @@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 drop table if exists t1,t2;
 drop table if exists t1aa,t2aa;
 drop database if exists mysqltest;
@@ -70,7 +72,7 @@ test.t1	analyze	status	OK
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def		tables	SHOW_STATISTICS	Table	Table	253	256	2	N	#	0	255
-def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	2	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	256	7	Y	0	0	255
 def		index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	256	1	Y	0	0	255
@@ -131,7 +133,7 @@ show table status from test like "this_doesn't_exists%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def		tables	TABLES	Name	Name	253	256	0	N	#	0	255
 def			TABLES	Engine	Engine	253	256	0	Y	0	0	255
-def			TABLES	Version	Version	3	2	0	Y	32768	0	63
+def			TABLES	Version	Version	3	3	0	Y	32768	0	63
 def		tables	TABLES	Row_format	Row_format	254	40	0	Y	384	0	255
 def			TABLES	Rows	Rows	8	21	0	Y	32800	0	63
 def			TABLES	Avg_row_length	Avg_row_length	8	21	0	Y	32800	0	63
@@ -529,7 +531,7 @@ PRIMARY KEY(field1(750))
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def		tables	SHOW_STATISTICS	Table	Table	253	64	2	N	#	0	63
-def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	2	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	64	7	Y	0	0	63
 def		index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	64	6	Y	0	0	63
@@ -703,12 +705,11 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 ----------------------------------------------------------------
 SHOW CHARACTER SET LIKE 'utf8';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	information_schema	cs	CHARACTER_SETS	Charset	Charset	253	192	4	N	20485	0	33
-def	information_schema	cs	CHARACTER_SETS	Description	Description	253	6144	13	N	4097	0	33
-def	information_schema	col	CHARACTER_SETS	Default collation	Default collation	253	192	15	N	20485	0	33
-def	information_schema	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	1	N	36897	0	63
+def	information_schema	cs	CHARACTER_SETS	Charset	Charset	253	192	0	N	20485	0	33
+def	information_schema	cs	CHARACTER_SETS	Description	Description	253	6144	0	N	4097	0	33
+def	information_schema	col	CHARACTER_SETS	Default collation	Default collation	253	192	0	N	20485	0	33
+def	information_schema	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	0	N	36897	0	63
 Charset	Description	Default collation	Maxlen
-utf8	UTF-8 Unicode	utf8_general_ci	3
 ----------------------------------------------------------------
 SHOW COLLATION LIKE 'latin1_bin';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -748,7 +749,7 @@ t1	CREATE TABLE `t1` (
 SHOW INDEX FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def		tables	SHOW_STATISTICS	Table	Table	253	192	2	N	#	0	33
-def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	2	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	192	7	Y	0	0	33
 def		index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	192	1	Y	0	0	33
@@ -1309,7 +1310,7 @@ LOCK TABLE t1 WRITE;
 # Connection default
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	utf8mb4_0900_ai_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci	#
 # Connection con1
 UNLOCK TABLES;
 # Test 2: ALTER TABLE with SHOW CREATE TRIGGER in transaction
@@ -1317,7 +1318,7 @@ UNLOCK TABLES;
 START TRANSACTION;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	utf8mb4_0900_ai_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci	#
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
 Warnings:
@@ -1392,7 +1393,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` char(3) DEFAULT NULL,
-  `n` char(20) CHARACTER SET utf8 COLLATE utf8_general_ci GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
+  `n` char(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE `t1` (
@@ -1528,15 +1529,15 @@ f2 CHAR(1) COLLATE UTF8_BIN,
 f3 CHAR(1) CHARSET UTF8MB3,
 f4 CHAR(1) CHARSET UTF8MB4);
 Warnings:
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # The SHOW command should show the utf8mb4 charset for f4 after ALTER.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` char(1) DEFAULT NULL,
-  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD COLUMN f5 CHAR(1);
@@ -1546,8 +1547,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` char(1) DEFAULT NULL,
-  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `f5` char(1) DEFAULT NULL,
   `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
@@ -1558,8 +1559,8 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `f1` char(1) DEFAULT NULL,
-  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `f5` char(1) DEFAULT NULL,
   `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
@@ -1570,8 +1571,8 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `f1` char(1) DEFAULT NULL,
-  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `f5` char(1) DEFAULT NULL,
   `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
@@ -1579,3 +1580,6 @@ t3	CREATE TABLE `t3` (
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+SET @@global.log_output = @old_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;

@@ -598,7 +598,7 @@ ERROR 42000: Identifier name '€€€€€€€€€€€€€€€€�
 #
 # A tablespace name containing supplementary UTF characters should be rejected.
 CREATE TABLESPACE `a𐍈` ADD DATAFILE 'x.ibd';
-ERROR HY000: Invalid utf8 character string: 'a\xF0\x90\x8D\x88'
+ERROR HY000: Invalid utf8mb3 character string: 'a\xF0\x90\x8D\x88'
 ###########################################################
 # TC13. Extend test coverage:
 #    i) Run tablespace DDL within lock tables mode.

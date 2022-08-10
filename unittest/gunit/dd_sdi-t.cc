@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,9 @@ static void mock_dd_obj(dd::Column_type_element *cte) {
 
 static void mock_dd_obj(dd::Column *c) {
   static dd::Object_id curid = 10000;
-  dynamic_cast<dd::Entity_object_impl *>(c)->set_id(curid++);
+  dd::Entity_object_impl *object_impl =
+      dynamic_cast<dd::Entity_object_impl *>(c);
+  object_impl->set_id(curid++);
   c->set_type(dd::enum_column_types::ENUM);
   c->set_char_length(42);
   c->set_numeric_precision(42);
@@ -125,10 +127,11 @@ static void mock_column_statistics_obj(dd::Column_statistics *c,
                                              histograms::Value_map_type::INT);
   int_values.add_values(0LL, 10);
 
-  histograms::Equi_height<longlong> *equi_height = new (mem_root)
-      histograms::Equi_height<longlong>(mem_root, "my_schema", "my_table",
-                                        "my_column",
-                                        histograms::Value_map_type::INT);
+  histograms::Equi_height<longlong> *equi_height =
+      histograms::Equi_height<longlong>::create(
+          mem_root, "my_schema", "my_table", "my_column",
+          histograms::Value_map_type::INT);
+  ASSERT_TRUE(equi_height != nullptr);
 
   EXPECT_FALSE(equi_height->build_histogram(int_values, 1024));
   c->set_histogram(equi_height);
@@ -141,7 +144,9 @@ static void mock_dd_obj(dd::Index_element *ie) {
 
 static void mock_dd_obj(dd::Index *i, dd::Column *c = nullptr) {
   static dd::Object_id curid = 10000;
-  dynamic_cast<dd::Entity_object_impl *>(i)->set_id(curid++);
+  dd::Entity_object_impl *object_impl =
+      dynamic_cast<dd::Entity_object_impl *>(i);
+  object_impl->set_id(curid++);
   i->set_comment("mocked index comment");
   mock_properties(i->options(), FANOUT);
   mock_properties(i->se_private_data(), FANOUT);
@@ -242,7 +247,7 @@ class SdiTest : public ::testing::Test {
 
   void TearDown() override {}
 
-  SdiTest() {}
+  SdiTest() = default;
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(SdiTest);
@@ -337,8 +342,7 @@ TEST(SdiTest, Column_statistics) {
   std::unique_ptr<dd::Column_statistics> dd_obj(
       dd::create_object<dd::Column_statistics>());
 
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
 
   mock_column_statistics_obj(dd_obj.get(), &mem_root);
 
@@ -356,7 +360,7 @@ TEST(SdiTest, Column_statistics) {
   EXPECT_TRUE(dd_obj.get()->schema_name() == deserialized.get()->schema_name());
   EXPECT_TRUE(dd_obj.get()->table_name() == deserialized.get()->table_name());
   EXPECT_TRUE(dd_obj.get()->column_name() == deserialized.get()->column_name());
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
 }
 
 TEST(SdiTest, Index_element) { simple_test<dd::Index_element>(); }

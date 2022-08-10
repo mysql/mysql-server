@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
    Use is subject to license terms
 
    This program is free software; you can redistribute it and/or modify
@@ -24,9 +24,17 @@
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
 
-bool
-printGET_TABINFO_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printGET_TABINFO_REQ(FILE* output,
+                          const Uint32* theData,
+                          Uint32 len,
+                          Uint16 /*rbn*/)
 {
+  if (len < GetTabInfoReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const GetTabInfoReq* sig = (const GetTabInfoReq*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -51,9 +59,17 @@ printGET_TABINFO_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn
   return true;
 }
 
-bool
-printGET_TABINFO_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printGET_TABINFO_CONF(FILE* output,
+                           const Uint32* theData,
+                           Uint32 len,
+                           Uint16 /*rbn*/)
 {
+  if (len < GetTabInfoConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const GetTabInfoConf* sig = (const GetTabInfoConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -82,9 +98,17 @@ printGET_TABINFO_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rb
   return true;
 }
 
-bool
-printGET_TABINFO_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printGET_TABINFO_REF(FILE* output,
+                          const Uint32* theData,
+                          Uint32 len,
+                          Uint16 /*rbn*/)
 {
+  if (len < GetTabInfoRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const GetTabInfoRef* sig = (const GetTabInfoRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);

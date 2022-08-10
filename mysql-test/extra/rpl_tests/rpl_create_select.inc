@@ -15,6 +15,9 @@
 #    to apply the binlog from last recovery point and then we should be
 #    able to see the table.
 #
+# R3 Verify that executing CREATE TABLE ... SELECT with sql mode set
+#    to ANSI gets replicated to slave. This test is added for Bug#33064062.
+#
 # ==== Implementation ====
 #
 # 1) Create table t0 on the master and insert a record.
@@ -63,8 +66,6 @@ STOP SLAVE;
 --source include/save_master_pos.inc
 CREATE TABLE t1 AS SELECT * FROM t0;
 FLUSH LOGS;
---replace_column 5 ####
-SHOW MASTER STATUS;
 
 --source include/rpl_connection_slave.inc
 
@@ -81,7 +82,7 @@ START SLAVE;
 --let $rpl_server_number= 2
 --source include/rpl_start_server.inc
 --disable_reconnect
-SET global DEBUG='-d, crash_on_transactional_ddl_insert';
+# Debug point disappeared on restart
 
 --let $assert_text= Make sure there is only table 't0' in schema 'test'.
 let $assert_cond= [SELECT count(table_name) COUNT FROM
@@ -110,4 +111,25 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 --echo # Cleanup
 --source include/rpl_connection_master.inc
 DROP TABLE t0,t1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # R3 Verify that executing CREATE TABLE ... SELECT with sql mode set
+--echo #    to ANSI gets replicated to slave. This test is added for Bug#33064062.
+--echo #
+
+--source include/rpl_connection_master.inc
+SET @orig_sql_mode_session= @@SESSION.sql_mode;
+SET SESSION sql_mode='ANSI';
+CREATE TABLE t1 AS SELECT 1;
+
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+--source include/rpl_connection_master.inc
+SET SESSION sql_mode= @orig_sql_mode_session;
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
 --source include/rpl_end.inc

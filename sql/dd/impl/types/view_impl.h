@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class View_impl : public Abstract_table_impl, public View {
  public:
   View_impl();
 
-  ~View_impl() override {}
+  ~View_impl() override = default;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
@@ -255,6 +255,9 @@ class View_impl : public Abstract_table_impl, public View {
     Abstract_table_impl::set_last_altered(last_altered);
   }
   Column *add_column() override { return Abstract_table_impl::add_column(); }
+  bool drop_column(const String_type &name) override {
+    return Abstract_table_impl::drop_column(name);
+  }
   const Column_collection &columns() const override {
     return Abstract_table_impl::columns();
   }
@@ -300,6 +303,16 @@ class View_impl : public Abstract_table_impl, public View {
 
   View_impl(const View_impl &src);
   View_impl *clone() const override { return new View_impl(*this); }
+
+  // N.B.: returning dd::View from this function confuses MSVC compiler
+  // thanks to diamond inheritance.
+  View_impl *clone_dropped_object_placeholder() const override {
+    View_impl *placeholder = new View_impl();
+    placeholder->set_id(id());
+    placeholder->set_schema_id(schema_id());
+    placeholder->set_name(name());
+    return placeholder;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

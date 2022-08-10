@@ -22,6 +22,8 @@ procs_priv
 proxies_priv
 replication_asynchronous_connection_failover
 replication_asynchronous_connection_failover_managed
+replication_group_configuration_version
+replication_group_member_actions
 role_edges
 server_cost
 servers
@@ -69,6 +71,8 @@ procs_priv
 proxies_priv
 replication_asynchronous_connection_failover
 replication_asynchronous_connection_failover_managed
+replication_group_configuration_version
+replication_group_member_actions
 role_edges
 server_cost
 servers

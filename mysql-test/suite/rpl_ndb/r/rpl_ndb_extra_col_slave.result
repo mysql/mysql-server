@@ -12,8 +12,8 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-SET @saved_slave_type_conversions = @@slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 CREATE TABLE t1 (a INT, b INT PRIMARY KEY, c CHAR(20),
 d FLOAT DEFAULT '2.00', 
 e CHAR(4) DEFAULT 'TEST') 
@@ -36,7 +36,7 @@ a	b	c	d	e
 1	2	TEXAS	2	TEST
 2	1	AUSTIN	2	TEST
 3	4	QA	2	TEST
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 *** Drop t1  ***
 DROP TABLE t1;
 *** Create t2 on slave  ***

@@ -138,7 +138,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,min(`test`.`t1`.`a2`) AS `min(a2)` from `test`.`t1` group by `test`.`t1`.`a1`
 explain format=tree select a1, min(a2) from t1 group by a1;
 EXPLAIN
--> Index range scan on t1 using index_for_group_by(idx_t1_1)  (cost=3.25 rows=5)
+-> Covering index skip scan for grouping on t1 using idx_t1_1  (cost=3.25 rows=5)
 
 explain select a1, max(a2) from t1 group by a1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1697,7 +1697,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2
 explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
 -> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (cost=11.05 rows=17)
-    -> Index range scan on t1 using index_for_group_by(idx_t1_1)  (cost=11.05 rows=17)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.05 rows=17)
 
 explain select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2816,7 +2816,7 @@ a	b
 3	9
 explain select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,index	index	4	NULL	3	100.00	Using where; Using index for group-by; Using temporary
+1	SIMPLE	t1	NULL	range	PRIMARY,index	PRIMARY	4	NULL	1	100.00	Using where; Using index for group-by; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a`,(max(`test`.`t1`.`b`) + 1) AS `max(b)+1` from `test`.`t1` where (`test`.`t1`.`a` = 0) group by `test`.`t1`.`a`
 drop table t1;
@@ -3779,7 +3779,7 @@ INSERT INTO t1(c1,c2) VALUES
 (4,14), (4,15), (4,16), (4,17), (4,18), (4,19), (4,20),(5,5);
 EXPLAIN SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	7	100.00	Using where; Using index for group-by
+1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	1	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`c2`) AS `MAX(c2)`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = 4) group by `test`.`t1`.`c1`
 FLUSH STATUS;
@@ -4478,12 +4478,81 @@ EXPLAIN
 -> Filter: <in_optimizer>(t1.a,<exists>(select #2))  (cost=2.73 rows=2)
     -> Table scan on t1  (cost=2.73 rows=2)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)
-            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))
-                -> Aggregate: max(t1.b)
+        -> Limit: 1 row(s)  (cost=0.10..0.10 rows=1)
+            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))  (cost=0.10..0.10 rows=1)
+                -> Aggregate: max(t1.b)  (cost=0.10..0.10 rows=1)
                     -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t1, t2;
 # End of test for Bug#30242457
+#
+# Bug #32769369: SIG11 IN ITEM_FIELD::ITEM_FIELD|SQL/ITEM.CC WITH HYPERGRAPH
+#
+CREATE TABLE t1 (a INTEGER, KEY (a));
+INSERT INTO t1 VALUES (1);
+SELECT SQL_BUFFER_RESULT MIN(t1.a) FROM t1, t1 AS t2;
+MIN(t1.a)
+1
+DROP TABLE t1;
+# Bug#32266286 : ADDING GROUP BY SLOWS DOWN A QUERY.
+#
+CREATE TABLE t0 (i0 INTEGER);
+INSERT INTO t0 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t0 VALUES (6), (7), (8), (9);
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, KEY (f1,f2));
+INSERT INTO t1 SELECT 1, i0 from t0;
+INSERT INTO t1 SELECT i0+1, i0*rand()*10 from t0;
+INSERT INTO t1 VALUES (1,0);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
+EXPLAIN
+-> Filter: (t1.f1 = 1)
+    -> Covering index skip scan for grouping on t1 using f1 over (f1 = 1)
+
+SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
+MIN(f2)
+0
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+EXPLAIN FORMAT=tree SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Filter: (t1.f1 is null)
+            -> Covering index skip scan for grouping on t1 using f1 over (f1 = NULL)
+
+SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
+MIN(f2)
+1
+DROP TABLE t0,t1;
+#
+# Bug#33139598: REGRESSION: CRASH IN GET_BEST_GROUP_MIN_MAX
+#
+CREATE TABLE t1 (f1 ENUM(''), KEY(f1));
+INSERT INTO t1 VALUES(''),('');
+SELECT 1 FROM t1 WHERE f1=UUID() GROUP BY f1 LIMIT 1;
+1
+DROP TABLE t1;
+#
+# Bug#33139598: Assertion `table_independent_conds == nullptr' failed.
+#
+CREATE TABLE t1 (f1 INTEGER, KEY(f1));
+INSERT INTO t1 VALUES (1), (2);
+CREATE FUNCTION f()
+RETURNS INT DETERMINISTIC
+BEGIN
+SET @f:=1;
+RETURN @f;
+END$
+SELECT MAX(f1) FROM t1 WHERE f() = 1;
+MAX(f1)
+2
+SELECT MAX(f1) FROM t1 WHERE f() = 0;
+MAX(f1)
+NULL
+DROP TABLE t1;
+DROP FUNCTION f;

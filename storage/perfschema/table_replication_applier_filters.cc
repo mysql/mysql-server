@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -60,8 +60,8 @@ Plugin_table table_replication_applier_filters::m_table_def(
     "  CONFIGURED_BY ENUM('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER',\n"
     "                     'STARTUP_OPTIONS_FOR_CHANNEL',\n"
     "                     'CHANGE_REPLICATION_FILTER_FOR_CHANNEL') not null,\n"
-    "  ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0,\n"
-    "  COUNTER bigint(20) unsigned NOT NULL default 0\n",
+    "  ACTIVE_SINCE TIMESTAMP(6) not null,\n"
+    "  COUNTER bigint(20) unsigned not null default 0\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -93,7 +93,8 @@ table_replication_applier_filters::table_replication_applier_filters()
       m_pos(0),
       m_next_pos(0) {}
 
-table_replication_applier_filters::~table_replication_applier_filters() {}
+table_replication_applier_filters::~table_replication_applier_filters() =
+    default;
 
 void table_replication_applier_filters::reset_position(void) {
   m_pos.m_index = 0;

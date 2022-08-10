@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ class Gcs_xcom_statistics_updater {
 
   virtual void update_message_received(long message_length) = 0;
 
-  virtual ~Gcs_xcom_statistics_updater() {}
+  virtual ~Gcs_xcom_statistics_updater() = default;
 };
 
 /**

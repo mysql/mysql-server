@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,62 +27,34 @@
 
 #include "mysqlrouter/metadata_cache.h"
 
+#include "mysqlrouter/metadata_cache_plugin_export.h"
+
 #include <chrono>
 #include <map>
 #include <string>
 #include <vector>
 
-#include <mysqlrouter/plugin_config.h>
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysqlrouter/cluster_metadata_dynamic_state.h"
 #include "tcp_address.h"
 
 extern "C" {
-extern mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache;
+extern mysql_harness::Plugin METADATA_CACHE_PLUGIN_EXPORT
+    harness_plugin_metadata_cache;
 }
 
-class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
+extern const std::array<const char *, 19> metadata_cache_supported_options;
+
+class METADATA_CACHE_PLUGIN_EXPORT MetadataCachePluginConfig final
+    : public mysql_harness::BasePluginConfig {
  public:
   /** @brief Constructor
    *
    * @param section from configuration file provided as ConfigSection
    */
-  MetadataCachePluginConfig(const mysql_harness::ConfigSection *section)
-      : BasePluginConfig(section),
-        metadata_cache_dynamic_state(get_dynamic_state(section)),
-        metadata_servers_addresses(get_metadata_servers(
-            section, metadata_cache::kDefaultMetadataPort)),
-        user(get_option_string(section, "user")),
-        ttl(get_option_milliseconds(section, "ttl", 0.0, 3600.0)),
-        auth_cache_ttl(
-            get_option_milliseconds(section, "auth_cache_ttl", -1, 3600.0)),
-        auth_cache_refresh_interval(get_option_milliseconds(
-            section, "auth_cache_refresh_interval", 0.001, 3600.0)),
-        metadata_cluster(get_option_string(section, "metadata_cluster")),
-        connect_timeout(
-            get_uint_option<uint16_t>(section, "connect_timeout", 1)),
-        read_timeout(get_uint_option<uint16_t>(section, "read_timeout", 1)),
-        thread_stack_size(
-            get_uint_option<uint32_t>(section, "thread_stack_size", 1, 65535)),
-        use_gr_notifications(get_uint_option<uint16_t>(
-                                 section, "use_gr_notifications", 0, 1) == 1),
-        cluster_type(get_cluster_type(section)),
-        router_id(get_uint_option<uint32_t>(section, "router_id")) {
-    if (cluster_type == mysqlrouter::ClusterType::RS_V2 &&
-        section->has("use_gr_notifications")) {
-      throw std::invalid_argument(
-          "option 'use_gr_notifications' is not valid for cluster type 'rs'");
-    }
-    if (auth_cache_ttl > std::chrono::seconds(-1) &&
-        auth_cache_ttl < std::chrono::milliseconds(1)) {
-      throw std::invalid_argument(
-          "'auth_cache_ttl' option value '" +
-          get_option_string(section, "auth_cache_ttl") +
-          "' should be in range 0.001 and 3600 inclusive or -1 for "
-          "auth_cache_ttl disabled");
-    }
-  }
+  MetadataCachePluginConfig(const mysql_harness::ConfigSection *section);
 
   /**
    * @param option name of the option
@@ -93,7 +65,7 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   mutable std::unique_ptr<ClusterMetadataDynamicState>
       metadata_cache_dynamic_state;
   /** @brief MySQL Metadata hosts to connect with */
-  const std::vector<mysql_harness::TCPAddress> metadata_servers_addresses;
+  const metadata_cache::metadata_servers_list_t metadata_servers_addresses;
   /** @brief User used for authenticating with MySQL Metadata */
   const std::string user;
   /** @brief TTL used for storing data in the cache */
@@ -104,8 +76,9 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   /** @brief Refresh rate of the rest user authentication data stored in the
    * cache */
   const std::chrono::milliseconds auth_cache_refresh_interval;
-  /** @brief Cluster in the metadata */
-  const std::string metadata_cluster;
+  /** @brief Name of the Cluster this Router instance was bootstrapped to use.
+   */
+  const std::string cluster_name;
   /** @brief connect_timeout The time in seconds after which trying to connect
    * to metadata server timeouts */
   const unsigned int connect_timeout;
@@ -122,7 +95,7 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   /** @brief  Id of the router in the metadata. */
   const unsigned int router_id;
 
-  /** @brief Gets (Replication Group ID for GR cluster or cluster_id for
+  /** @brief Gets (Group Replication ID for GR cluster or cluster_id for
    * ReplicaSet cluster) if preset in the dynamic configuration.
    *
    * @note  If there is no dynamic configuration (backward compatibility) it
@@ -130,9 +103,11 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
    */
   std::string get_cluster_type_specific_id() const;
 
+  std::string get_clusterset_id() const;
+
   /** @brief Gets last know ReplicaSet cluster metadata view_id stored in the
    * dynamic state file . */
-  unsigned get_view_id() const;
+  uint64_t get_view_id() const;
 
  private:
   /** @brief Gets a list of metadata servers.

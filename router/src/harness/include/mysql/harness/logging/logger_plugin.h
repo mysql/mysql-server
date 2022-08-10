@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
 #define MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
 
+#include <array>
+
 #include "harness_export.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
@@ -33,6 +35,7 @@
 
 constexpr const char *kLoggerPluginName = "logger";
 extern mysql_harness::Plugin HARNESS_EXPORT harness_plugin_logger;
+extern const std::array<const char *, 4> HARNESS_EXPORT sink_supported_options;
 
 /**
  * Creates the logging handler for each plugin from the configuration.

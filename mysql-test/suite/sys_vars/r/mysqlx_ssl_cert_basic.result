@@ -29,6 +29,6 @@ Expected error 'Variable is a GLOBAL variable'
 SELECT COUNT(@@GLOBAL.mysqlx_ssl_cert);
 COUNT(@@GLOBAL.mysqlx_ssl_cert)
 1
-SELECT mysqlx_ssl_cert = @@SESSION.mysqlx_ssl_cert;
+SELECT mysqlx_ssl_cert;
 ERROR 42S22: Unknown column 'mysqlx_ssl_cert' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

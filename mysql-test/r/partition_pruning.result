@@ -5008,3 +5008,1312 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c2` > 4) and multiple equal(2, `test`.`t1`.`c1`))
 DROP TABLE t1;
+#
+# Bug#32134145 - PARTITION PRUNING FAILS WITH EXPLICIT TIME_ZONE
+# OFFSET IN DATETIME LITERAL
+#
+CREATE TABLE tp (
+id int unsigned NOT NULL,
+ts timestamp NOT NULL,
+PRIMARY KEY (id, ts)
+)
+PARTITION BY RANGE (unix_timestamp(ts))
+(
+PARTITION p1 VALUES LESS THAN (1580515200),
+PARTITION p2 VALUES LESS THAN (1583020800)
+);
+SET time_zone = '+00:00';
+INSERT INTO tp VALUES (1, '2020-01-01');
+INSERT INTO tp VALUES (1, '2020-02-01');
+SELECT COUNT(*) FROM tp PARTITION(p1);
+COUNT(*)
+1
+SELECT COUNT(*) FROM tp PARTITION(p2);
+COUNT(*)
+1
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+id	ts
+1	2020-01-01 00:00:00
+1	2020-02-01 00:00:00
+SET time_zone = '+01:00';
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+id	ts
+1	2020-01-01 01:00:00
+1	2020-02-01 01:00:00
+ALTER TABLE tp REMOVE PARTITIONING;
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+id	ts
+1	2020-01-01 01:00:00
+1	2020-02-01 01:00:00
+SET time_zone = DEFAULT;
+DROP TABLE tp;
+#
+# Bug#33060953 - UPGRADE FROM 5.7 TO 8.0 CHANGE EXECTION PLAN
+# IN PARTITIONED TABLE, EVEN AFTER REVERTING NEW OPTIMIZER FLAG
+#
+CREATE TABLE t1 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT)
+PARTITION BY RANGE (pk) (
+PARTITION p0 VALUES LESS THAN (1),
+PARTITION p1 VALUES LESS THAN (2),
+PARTITION p2 VALUES LESS THAN (3),
+PARTITION p3 VALUES LESS THAN (4),
+PARTITION p4 VALUES LESS THAN (100)
+);
+CREATE TABLE t2 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT);
+CREATE TABLE t3 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT)
+PARTITION BY RANGE (pk) (
+PARTITION p0 VALUES LESS THAN (1),
+PARTITION p1 VALUES LESS THAN (2),
+PARTITION p2 VALUES LESS THAN (3),
+PARTITION p3 VALUES LESS THAN (4),
+PARTITION p4 VALUES LESS THAN (100)
+);
+CREATE TABLE t4 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT);
+CREATE TABLE t5 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT);
+INSERT INTO t1(c) VALUES (1),  (2),  (3),  (4),  (5),  (6),  (7),  (8),  (9),  (10);
+INSERT INTO t1(c) VALUES (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+INSERT INTO t2(c) VALUES (21), (22), (23), (24), (25), (26), (27), (28), (29), (30);
+INSERT INTO t3(c) VALUES (31), (32), (33), (34), (35), (36), (37), (38), (39), (40);
+INSERT INTO t4(c) VALUES (41), (42), (43), (44), (45), (46), (47), (48), (49), (50);
+INSERT INTO t5(c) VALUES (51), (52), (53), (54), (55), (56), (57), (58), (59), (60);
+ANALYZE TABLE t1, t2, t3, t4, t5;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+EXPLAIN SELECT * FROM t1 JOIN t2 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))
+SELECT * FROM t1 JOIN t2 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c
+3	3	3	23
+4	4	4	24
+5	5	5	25
+6	6	6	26
+7	7	7	27
+8	8	8	28
+9	9	9	29
+10	10	10	30
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 2))) where true
+SELECT * FROM t1 LEFT JOIN t2 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c
+1	1	NULL	NULL
+2	2	NULL	NULL
+3	3	3	23
+4	4	4	24
+5	5	5	25
+6	6	6	26
+7	7	7	27
+8	8	8	28
+9	9	9	29
+10	10	10	30
+11	11	NULL	NULL
+12	12	NULL	NULL
+13	13	NULL	NULL
+14	14	NULL	NULL
+15	15	NULL	NULL
+16	16	NULL	NULL
+17	17	NULL	NULL
+18	18	NULL	NULL
+19	19	NULL	NULL
+20	20	NULL	NULL
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join `test`.`t1` on(((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) where true
+SELECT * FROM t2 LEFT JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c
+1	21	NULL	NULL
+2	22	NULL	NULL
+3	23	3	3
+4	24	4	4
+5	25	5	5
+6	26	6	6
+7	27	7	7
+8	28	8	8
+9	29	9	9
+10	30	10	10
+EXPLAIN SELECT * FROM t2 JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))
+SELECT * FROM t2 JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c
+3	23	3	3
+4	24	4	4
+5	25	5	5
+6	26	6	6
+7	27	7	7
+8	28	8	8
+9	29	9	9
+10	30	10	10
+EXPLAIN SELECT * FROM t1 JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))
+SELECT * FROM t1 JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c
+3	3	3	23	3	33
+4	4	4	24	4	34
+5	5	5	25	5	35
+6	6	6	26	6	36
+7	7	7	27	7	37
+8	8	8	28	8	38
+9	9	9	29	9	39
+10	10	10	30	10	40
+EXPLAIN SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t1`.`pk`))) on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 2))) where true
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c
+1	1	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL
+3	3	3	23	3	33
+4	4	4	24	4	34
+5	5	5	25	5	35
+6	6	6	26	6	36
+7	7	7	27	7	37
+8	8	8	28	8	38
+9	9	9	29	9	39
+10	10	10	30	10	40
+11	11	NULL	NULL	NULL	NULL
+12	12	NULL	NULL	NULL	NULL
+13	13	NULL	NULL	NULL	NULL
+14	14	NULL	NULL	NULL	NULL
+15	15	NULL	NULL	NULL	NULL
+16	16	NULL	NULL	NULL	NULL
+17	17	NULL	NULL	NULL	NULL
+18	18	NULL	NULL	NULL	NULL
+19	19	NULL	NULL	NULL	NULL
+20	20	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) left join `test`.`t1` on(((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) where true
+SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c
+1	21	1	31	NULL	NULL
+2	22	2	32	NULL	NULL
+3	23	3	33	3	3
+4	24	4	34	4	4
+5	25	5	35	5	5
+6	26	6	36	6	6
+7	27	7	37	7	7
+8	28	8	38	8	8
+9	29	9	39	9	9
+10	30	10	40	10	10
+EXPLAIN SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) join `test`.`t1` where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))
+SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c
+3	23	3	33	3	3
+4	24	4	34	4	4
+5	25	5	35	5	5
+6	26	6	36	6	6
+7	27	7	37	7	7
+8	28	8	38	8	8
+9	29	9	39	9	9
+10	30	10	40	10	10
+EXPLAIN SELECT * FROM t1 JOIN ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15) on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) left join `test`.`t4` on((`test`.`t2`.`c` = (`test`.`t4`.`c` + 15))) where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))
+SELECT * FROM t1 JOIN ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15) on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c	pk	c
+3	3	3	23	3	33	NULL	NULL
+4	4	4	24	4	34	NULL	NULL
+5	5	5	25	5	35	NULL	NULL
+6	6	6	26	6	36	NULL	NULL
+7	7	7	27	7	37	NULL	NULL
+8	8	8	28	8	38	NULL	NULL
+9	9	9	29	9	39	NULL	NULL
+10	10	10	30	10	40	NULL	NULL
+EXPLAIN SELECT * FROM t1 LEFT JOIN ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15) on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t1`.`pk`)) left join `test`.`t4` on((`test`.`t2`.`c` = (`test`.`t4`.`c` + 15)))) on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 2))) where true
+SELECT * FROM t1 LEFT JOIN ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15) on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c	pk	c
+1	1	NULL	NULL	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL	NULL	NULL
+3	3	3	23	3	33	NULL	NULL
+4	4	4	24	4	34	NULL	NULL
+5	5	5	25	5	35	NULL	NULL
+6	6	6	26	6	36	NULL	NULL
+7	7	7	27	7	37	NULL	NULL
+8	8	8	28	8	38	NULL	NULL
+9	9	9	29	9	39	NULL	NULL
+10	10	10	30	10	40	NULL	NULL
+11	11	NULL	NULL	NULL	NULL	NULL	NULL
+12	12	NULL	NULL	NULL	NULL	NULL	NULL
+13	13	NULL	NULL	NULL	NULL	NULL	NULL
+14	14	NULL	NULL	NULL	NULL	NULL	NULL
+15	15	NULL	NULL	NULL	NULL	NULL	NULL
+16	16	NULL	NULL	NULL	NULL	NULL	NULL
+17	17	NULL	NULL	NULL	NULL	NULL	NULL
+18	18	NULL	NULL	NULL	NULL	NULL	NULL
+19	19	NULL	NULL	NULL	NULL	NULL	NULL
+20	20	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15) LEFT JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) left join `test`.`t4` on((`test`.`t2`.`c` = (`test`.`t4`.`c` + 15))) left join `test`.`t1` on(((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) where true
+SELECT * FROM ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15) LEFT JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c	pk	c
+1	21	1	31	NULL	NULL	NULL	NULL
+2	22	2	32	NULL	NULL	NULL	NULL
+3	23	3	33	NULL	NULL	3	3
+4	24	4	34	NULL	NULL	4	4
+5	25	5	35	NULL	NULL	5	5
+6	26	6	36	NULL	NULL	6	6
+7	27	7	37	NULL	NULL	7	7
+8	28	8	38	NULL	NULL	8	8
+9	29	9	39	NULL	NULL	9	9
+10	30	10	40	NULL	NULL	10	10
+EXPLAIN SELECT * FROM ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15) JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) left join `test`.`t4` on((`test`.`t2`.`c` = (`test`.`t4`.`c` + 15))) join `test`.`t1` where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))
+SELECT * FROM ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15) JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c	pk	c
+3	23	3	33	NULL	NULL	3	3
+4	24	4	34	NULL	NULL	4	4
+5	25	5	35	NULL	NULL	5	5
+6	26	6	36	NULL	NULL	6	6
+7	27	7	37	NULL	NULL	7	7
+8	28	8	38	NULL	NULL	8	8
+9	29	9	39	NULL	NULL	9	9
+10	30	10	40	NULL	NULL	10	10
+EXPLAIN SELECT * FROM t1 JOIN (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20) on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t4` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2) and (`test`.`t2`.`c` = (`test`.`t4`.`c` + 20)))
+SELECT * FROM t1 JOIN (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20) on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c	pk	c
+EXPLAIN SELECT * FROM t1 LEFT JOIN (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20) on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t4` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t1`.`pk`))) on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 2) and (`test`.`t2`.`c` = (`test`.`t4`.`c` + 20)))) where true
+SELECT * FROM t1 LEFT JOIN (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20) on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c	pk	c
+1	1	NULL	NULL	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	NULL	NULL
+4	4	NULL	NULL	NULL	NULL	NULL	NULL
+5	5	NULL	NULL	NULL	NULL	NULL	NULL
+6	6	NULL	NULL	NULL	NULL	NULL	NULL
+7	7	NULL	NULL	NULL	NULL	NULL	NULL
+8	8	NULL	NULL	NULL	NULL	NULL	NULL
+9	9	NULL	NULL	NULL	NULL	NULL	NULL
+10	10	NULL	NULL	NULL	NULL	NULL	NULL
+11	11	NULL	NULL	NULL	NULL	NULL	NULL
+12	12	NULL	NULL	NULL	NULL	NULL	NULL
+13	13	NULL	NULL	NULL	NULL	NULL	NULL
+14	14	NULL	NULL	NULL	NULL	NULL	NULL
+15	15	NULL	NULL	NULL	NULL	NULL	NULL
+16	16	NULL	NULL	NULL	NULL	NULL	NULL
+17	17	NULL	NULL	NULL	NULL	NULL	NULL
+18	18	NULL	NULL	NULL	NULL	NULL	NULL
+19	19	NULL	NULL	NULL	NULL	NULL	NULL
+20	20	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20) LEFT JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t4` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`))) on((`test`.`t2`.`c` = (`test`.`t4`.`c` + 20))) left join `test`.`t1` on(((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) where true
+SELECT * FROM (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20) LEFT JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c	pk	c
+1	41	NULL	NULL	NULL	NULL	NULL	NULL
+2	42	NULL	NULL	NULL	NULL	NULL	NULL
+3	43	NULL	NULL	NULL	NULL	NULL	NULL
+4	44	NULL	NULL	NULL	NULL	NULL	NULL
+5	45	NULL	NULL	NULL	NULL	NULL	NULL
+6	46	NULL	NULL	NULL	NULL	NULL	NULL
+7	47	NULL	NULL	NULL	NULL	NULL	NULL
+8	48	NULL	NULL	NULL	NULL	NULL	NULL
+9	49	NULL	NULL	NULL	NULL	NULL	NULL
+10	50	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20) JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t4` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) join `test`.`t1` where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2) and (`test`.`t2`.`c` = (`test`.`t4`.`c` + 20)))
+SELECT * FROM (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20) JOIN t1 on t1.pk = t2.pk AND t1.pk > 2;
+pk	c	pk	c	pk	c	pk	c
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk) JOIN (t3 LEFT JOIN t4 on t3.pk = t4.pk) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) join `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`pk` = `test`.`t1`.`pk`)) where ((`test`.`t3`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 3))
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk) JOIN (t3 LEFT JOIN t4 on t3.pk = t4.pk) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c
+1	1	1	21	1	31	1	41
+2	2	2	22	2	32	2	42
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk) LEFT JOIN (t3 LEFT JOIN t4 on t3.pk = t4.pk) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) left join (`test`.`t3` left join `test`.`t4` on((`test`.`t4`.`pk` = `test`.`t1`.`pk`))) on(((`test`.`t3`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 3))) where true
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk) LEFT JOIN (t3 LEFT JOIN t4 on t3.pk = t4.pk) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c
+1	1	1	21	1	31	1	41
+2	2	2	22	2	32	2	42
+3	3	3	23	NULL	NULL	NULL	NULL
+4	4	4	24	NULL	NULL	NULL	NULL
+5	5	5	25	NULL	NULL	NULL	NULL
+6	6	6	26	NULL	NULL	NULL	NULL
+7	7	7	27	NULL	NULL	NULL	NULL
+8	8	8	28	NULL	NULL	NULL	NULL
+9	9	9	29	NULL	NULL	NULL	NULL
+10	10	10	30	NULL	NULL	NULL	NULL
+11	11	NULL	NULL	NULL	NULL	NULL	NULL
+12	12	NULL	NULL	NULL	NULL	NULL	NULL
+13	13	NULL	NULL	NULL	NULL	NULL	NULL
+14	14	NULL	NULL	NULL	NULL	NULL	NULL
+15	15	NULL	NULL	NULL	NULL	NULL	NULL
+16	16	NULL	NULL	NULL	NULL	NULL	NULL
+17	17	NULL	NULL	NULL	NULL	NULL	NULL
+18	18	NULL	NULL	NULL	NULL	NULL	NULL
+19	19	NULL	NULL	NULL	NULL	NULL	NULL
+20	20	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t3 LEFT JOIN t4 on t3.pk = t4.pk) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`pk` = `test`.`t3`.`pk`)) left join (`test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t3`.`pk`))) on(((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` < 3))) where true
+SELECT * FROM (t3 LEFT JOIN t4 on t3.pk = t4.pk) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c
+1	31	1	41	1	1	1	21
+2	32	2	42	2	2	2	22
+3	33	3	43	NULL	NULL	NULL	NULL
+4	34	4	44	NULL	NULL	NULL	NULL
+5	35	5	45	NULL	NULL	NULL	NULL
+6	36	6	46	NULL	NULL	NULL	NULL
+7	37	7	47	NULL	NULL	NULL	NULL
+8	38	8	48	NULL	NULL	NULL	NULL
+9	39	9	49	NULL	NULL	NULL	NULL
+10	40	10	50	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t3 LEFT JOIN t4 on t3.pk = t4.pk) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p0,p1,p2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`pk` = `test`.`t3`.`pk`)) join `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t3`.`pk`)) where ((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` < 3))
+SELECT * FROM (t3 LEFT JOIN t4 on t3.pk = t4.pk) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c
+1	31	1	41	1	1	1	21
+2	32	2	42	2	2	2	22
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) JOIN ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 2))) join `test`.`t5` join `test`.`t3` left join `test`.`t4` on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 15))) where ((`test`.`t5`.`pk` = `test`.`t1`.`pk`) and (`test`.`t3`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 3))
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) JOIN ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	1	1	21	1	51	1	31	NULL	NULL
+2	2	NULL	NULL	2	52	2	32	NULL	NULL
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) LEFT JOIN ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 2))) left join (`test`.`t5` join `test`.`t3` left join `test`.`t4` on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 15)))) on(((`test`.`t5`.`pk` = `test`.`t1`.`pk`) and (`test`.`t3`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 3))) where true
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) LEFT JOIN ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	1	1	21	1	51	1	31	NULL	NULL
+2	2	NULL	NULL	2	52	2	32	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+4	4	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+5	5	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+6	6	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+7	7	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+8	8	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+9	9	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+10	10	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+11	11	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+12	12	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+13	13	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+14	14	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+15	15	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+16	16	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+17	17	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+18	18	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+19	19	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+20	20	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t5` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t5`.`pk`)) left join `test`.`t4` on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 15))) left join (`test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` < 2)))) on(((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` < 3))) where true
+SELECT * FROM ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	51	1	31	NULL	NULL	1	1	1	21
+2	52	2	32	NULL	NULL	2	2	NULL	NULL
+3	53	3	33	NULL	NULL	NULL	NULL	NULL	NULL
+4	54	4	34	NULL	NULL	NULL	NULL	NULL	NULL
+5	55	5	35	NULL	NULL	NULL	NULL	NULL	NULL
+6	56	6	36	1	41	NULL	NULL	NULL	NULL
+7	57	7	37	2	42	NULL	NULL	NULL	NULL
+8	58	8	38	3	43	NULL	NULL	NULL	NULL
+9	59	9	39	4	44	NULL	NULL	NULL	NULL
+10	60	10	40	5	45	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t5` join `test`.`t3` left join `test`.`t4` on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 15))) join `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t5`.`pk`) and (`test`.`t5`.`pk` < 2))) where ((`test`.`t3`.`pk` = `test`.`t5`.`pk`) and (`test`.`t1`.`pk` = `test`.`t5`.`pk`) and (`test`.`t5`.`pk` < 3))
+SELECT * FROM ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	51	1	31	NULL	NULL	1	1	1	21
+2	52	2	32	NULL	NULL	2	2	NULL	NULL
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) JOIN (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20) on t1.pk = t3.pk AND t1.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	range	PRIMARY	PRIMARY	4	NULL	7	100.00	Using where
+1	SIMPLE	t3	p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t5`.`pk`) and (`test`.`t5`.`pk` > 3))) join `test`.`t4` join `test`.`t5` join `test`.`t3` where ((`test`.`t3`.`pk` = `test`.`t5`.`pk`) and (`test`.`t1`.`pk` = `test`.`t5`.`pk`) and (`test`.`t5`.`pk` > 3) and (`test`.`t5`.`c` = (`test`.`t4`.`c` + 20)))
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) JOIN (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20) on t1.pk = t3.pk AND t1.pk > 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) LEFT JOIN (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20) on t1.pk = t3.pk AND t1.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t3	p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 3))) left join (`test`.`t4` join `test`.`t5` join `test`.`t3`) on(((`test`.`t3`.`pk` = `test`.`t1`.`pk`) and (`test`.`t5`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 3) and (`test`.`t5`.`c` = (`test`.`t4`.`c` + 20)))) where true
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) LEFT JOIN (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20) on t1.pk = t3.pk AND t1.pk > 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+4	4	4	24	NULL	NULL	NULL	NULL	NULL	NULL
+5	5	5	25	NULL	NULL	NULL	NULL	NULL	NULL
+6	6	6	26	NULL	NULL	NULL	NULL	NULL	NULL
+7	7	7	27	NULL	NULL	NULL	NULL	NULL	NULL
+8	8	8	28	NULL	NULL	NULL	NULL	NULL	NULL
+9	9	9	29	NULL	NULL	NULL	NULL	NULL	NULL
+10	10	10	30	NULL	NULL	NULL	NULL	NULL	NULL
+11	11	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+12	12	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+13	13	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+14	14	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+15	15	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+16	16	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+17	17	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+18	18	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+19	19	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+20	20	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) on t1.pk = t3.pk AND t1.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t4` left join (`test`.`t5` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t5`.`pk`))) on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 20))) left join (`test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 3)))) on(((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 3))) where true
+SELECT * FROM (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) on t1.pk = t3.pk AND t1.pk > 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	41	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2	42	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	43	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+4	44	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+5	45	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+6	46	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+7	47	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+8	48	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+9	49	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+10	50	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) on t1.pk = t3.pk AND t1.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	range	PRIMARY	PRIMARY	4	NULL	7	100.00	Using where
+1	SIMPLE	t3	p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t4` join `test`.`t5` join `test`.`t3` join `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t5`.`pk`) and (`test`.`t5`.`pk` > 3))) where ((`test`.`t3`.`pk` = `test`.`t5`.`pk`) and (`test`.`t1`.`pk` = `test`.`t5`.`pk`) and (`test`.`t5`.`pk` > 3) and (`test`.`t5`.`c` = (`test`.`t4`.`c` + 20)))
+SELECT * FROM (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) on t1.pk = t3.pk AND t1.pk > 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+EXPLAIN SELECT * FROM t1 JOIN t2 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t3` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t1 JOIN t2 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+pk	c	pk	c
+3	3	3	23
+4	4	4	24
+5	5	5	25
+6	6	6	26
+7	7	7	27
+8	8	8	28
+9	9	9	29
+10	10	10	30
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t3` join `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t3`.`pk`)) where ((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t1 LEFT JOIN t2 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+pk	c	pk	c
+3	3	3	23
+4	4	4	24
+5	5	5	25
+6	6	6	26
+7	7	7	27
+8	8	8	28
+9	9	9	29
+10	10	10	30
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t2 LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+pk	c	pk	c
+3	23	3	3
+4	24	4	4
+5	25	5	5
+6	26	6	6
+7	27	7	7
+8	28	8	8
+9	29	9	9
+10	30	10	10
+EXPLAIN SELECT * FROM t2 JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t2 JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+pk	c	pk	c
+3	23	3	3
+4	24	4	4
+5	25	5	5
+6	26	6	6
+7	27	7	7
+8	28	8	8
+9	29	9	9
+10	30	10	10
+EXPLAIN SELECT * FROM t1 JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t3` join `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t3`.`pk`)) where ((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t1 JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+pk	c	pk	c	pk	c
+3	3	3	23	3	33
+4	4	4	24	4	34
+5	5	5	25	5	35
+6	6	6	26	6	36
+7	7	7	27	7	37
+8	8	8	28	8	38
+9	9	9	29	9	39
+10	10	10	30	10	40
+EXPLAIN SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t3` join `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t3`.`pk`))) on(((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t2`.`pk` = `test`.`t3`.`pk`))) where ((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+pk	c	pk	c	pk	c
+3	3	3	23	3	33
+4	4	4	24	4	34
+5	5	5	25	5	35
+6	6	6	26	6	36
+7	7	7	27	7	37
+8	8	8	28	8	38
+9	9	9	29	9	39
+10	10	10	30	10	40
+EXPLAIN SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t3`.`pk`)) join `test`.`t1` where ((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+pk	c	pk	c	pk	c
+3	23	3	33	3	3
+4	24	4	34	4	4
+5	25	5	35	5	5
+6	26	6	36	6	6
+7	27	7	37	7	7
+8	28	8	38	8	8
+9	29	9	39	9	9
+10	30	10	40	10	10
+EXPLAIN SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t3`.`pk`)) join `test`.`t1` where ((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2);
+pk	c	pk	c	pk	c
+3	23	3	33	3	3
+4	24	4	34	4	4
+5	25	5	35	5	5
+6	26	6	36	6	6
+7	27	7	37	7	7
+8	28	8	38	8	8
+9	29	9	39	9	9
+10	30	10	40	10	10
+EXPLAIN SELECT * FROM t2 JOIN (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` > 3) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t2 JOIN (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+4	24	4	4
+5	25	5	5
+6	26	6	6
+7	27	7	7
+8	28	8	8
+9	29	9	9
+10	30	10	10
+EXPLAIN SELECT * FROM t2 LEFT JOIN (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t3	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where; Using index
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join (`test`.`t3` join `test`.`t1`) on(((`test`.`t3`.`pk` = `test`.`t2`.`pk`) and (`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t1`.`pk` > 3) and (`test`.`t2`.`pk` > 2))) where true
+SELECT * FROM t2 LEFT JOIN (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+1	21	NULL	NULL
+2	22	NULL	NULL
+3	23	NULL	NULL
+4	24	4	4
+5	25	5	5
+6	26	6	6
+7	27	7	7
+8	28	8	8
+9	29	9	9
+10	30	10	10
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13 LEFT JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t1	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t3` join `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` > 3))) where ((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13 LEFT JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+3	3	NULL	NULL
+4	4	4	24
+5	5	5	25
+6	6	6	26
+7	7	7	27
+8	8	8	28
+9	9	9	29
+10	10	10	30
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13 JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t3` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t1`.`pk` > 3) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13 JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+4	4	4	24
+5	5	5	25
+6	6	6	26
+7	7	7	27
+8	8	8	28
+9	9	9	29
+10	10	10	30
+EXPLAIN SELECT * FROM t1 JOIN t2 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	tx	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where; Not exists; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` anti join (`test`.`t1` `tx`) on(((`test`.`tx`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) where (`test`.`t1`.`pk` = `test`.`t2`.`pk`)
+SELECT * FROM t1 JOIN t2 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+pk	c	pk	c
+1	1	1	21
+2	2	2	22
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	tx	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where; Not exists; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) anti join (`test`.`t1` `tx`) on(((`test`.`tx`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 2))) where true
+SELECT * FROM t1 LEFT JOIN t2 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+pk	c	pk	c
+1	1	1	21
+2	2	2	22
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	PRIMARY	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+2	DEPENDENT SUBQUERY	tx	p3,p4	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index; Full scan on NULL key
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`pk` = `test`.`t2`.`pk`)) where <in_optimizer>(`test`.`t1`.`pk`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`pk`) in t1 on PRIMARY where ((`test`.`tx`.`pk` > 2) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`pk`) = `test`.`tx`.`pk`), true)))) is false)
+SELECT * FROM t2 LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+pk	c	pk	c
+1	21	1	1
+2	22	2	2
+EXPLAIN SELECT * FROM t2 JOIN t1 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	tx	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where; Not exists; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` join `test`.`t1` anti join (`test`.`t1` `tx`) on(((`test`.`tx`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) where (`test`.`t1`.`pk` = `test`.`t2`.`pk`)
+SELECT * FROM t2 JOIN t1 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+pk	c	pk	c
+1	21	1	1
+2	22	2	2
+EXPLAIN SELECT * FROM t1 JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	tx	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where; Not exists; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) anti join (`test`.`t1` `tx`) on(((`test`.`tx`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) where (`test`.`t1`.`pk` = `test`.`t2`.`pk`)
+SELECT * FROM t1 JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+pk	c	pk	c	pk	c
+1	1	1	21	1	31
+2	2	2	22	2	32
+EXPLAIN SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	tx	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where; Not exists; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t1`.`pk`))) on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) anti join (`test`.`t1` `tx`) on(((`test`.`tx`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 2))) where true
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+pk	c	pk	c	pk	c
+1	1	1	21	1	31
+2	2	2	22	2	32
+EXPLAIN SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	PRIMARY	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	PRIMARY	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+2	DEPENDENT SUBQUERY	tx	p3,p4	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index; Full scan on NULL key
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) left join `test`.`t1` on((`test`.`t1`.`pk` = `test`.`t2`.`pk`)) where <in_optimizer>(`test`.`t1`.`pk`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`pk`) in t1 on PRIMARY where ((`test`.`tx`.`pk` > 2) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`pk`) = `test`.`tx`.`pk`), true)))) is false)
+SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+pk	c	pk	c	pk	c
+1	21	1	31	1	1
+2	22	2	32	2	2
+EXPLAIN SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) JOIN t1 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	tx	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where; Not exists; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`pk` = `test`.`t2`.`pk`)) join `test`.`t1` anti join (`test`.`t1` `tx`) on(((`test`.`tx`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) where (`test`.`t1`.`pk` = `test`.`t2`.`pk`)
+SELECT * FROM (t2 LEFT JOIN t3 on t2.pk = t3.pk) JOIN t1 on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2);
+pk	c	pk	c	pk	c
+1	21	1	31	1	1
+2	22	2	32	2	2
+EXPLAIN SELECT * FROM t2 JOIN (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+1	SIMPLE	t3	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where; Not exists; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` join `test`.`t1` anti join (`test`.`t3`) on(((`test`.`t3`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t1`.`pk` > 3))
+SELECT * FROM t2 JOIN (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+EXPLAIN SELECT * FROM t2 LEFT JOIN (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+1	SIMPLE	t3	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where; Not exists; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join (`test`.`t1` anti join (`test`.`t3`) on(((`test`.`t3`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2)))) on(((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t1`.`pk` > 3))) where true
+SELECT * FROM t2 LEFT JOIN (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+1	21	NULL	NULL
+2	22	NULL	NULL
+3	23	NULL	NULL
+4	24	NULL	NULL
+5	25	NULL	NULL
+6	26	NULL	NULL
+7	27	NULL	NULL
+8	28	NULL	NULL
+9	29	NULL	NULL
+10	30	NULL	NULL
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13 LEFT JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.pk	1	100.00	Using where; Not exists
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+3	MATERIALIZED	t3	p3,p4	index	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` anti join (`test`.`t3`) on(((`<subquery3>`.`pk` = `test`.`t1`.`pk`) and (`test`.`t3`.`pk` > 2))) left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 3))) where true
+SELECT * FROM (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13 LEFT JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+1	1	NULL	NULL
+2	2	NULL	NULL
+11	11	NULL	NULL
+12	12	NULL	NULL
+13	13	NULL	NULL
+14	14	NULL	NULL
+15	15	NULL	NULL
+16	16	NULL	NULL
+17	17	NULL	NULL
+18	18	NULL	NULL
+19	19	NULL	NULL
+20	20	NULL	NULL
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13 JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+1	SIMPLE	t3	p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where; Not exists; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` anti join (`test`.`t3`) on(((`test`.`t3`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` > 2))) join `test`.`t2` where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t1`.`pk` > 3))
+SELECT * FROM (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13 JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+EXPLAIN SELECT * FROM t1 JOIN t2 on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.pk	1	100.00	NULL
+2	MATERIALIZED	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3`) where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`<subquery2>`.`c` = `test`.`t2`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t1 JOIN t2 on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2);
+pk	c	pk	c
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.c	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+2	MATERIALIZED	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) semi join (`test`.`t3`) where ((`test`.`t1`.`pk` = `<subquery2>`.`c`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t1 LEFT JOIN t2 on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2);
+pk	c	pk	c
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.pk	1	100.00	NULL
+2	MATERIALIZED	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` join `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`<subquery2>`.`c` = `test`.`t2`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t2 LEFT JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2);
+pk	c	pk	c
+EXPLAIN SELECT * FROM t2 JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.pk	1	100.00	NULL
+2	MATERIALIZED	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` join `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`<subquery2>`.`c` = `test`.`t2`.`pk`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t2 JOIN t1 on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2);
+pk	c	pk	c
+EXPLAIN SELECT * FROM t2 JOIN (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.pk	1	100.00	NULL
+3	MATERIALIZED	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` join `test`.`t1` semi join (`test`.`t3`) where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`<subquery3>`.`c` = `test`.`t2`.`pk`) and (`test`.`t1`.`pk` > 3) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM t2 JOIN (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+EXPLAIN SELECT * FROM t2 LEFT JOIN (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.pk	1	100.00	Using where
+3	MATERIALIZED	t3	p3,p4	ALL	PRIMARY	NULL	NULL	NULL	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c` from `test`.`t2` left join (`test`.`t1` semi join (`test`.`t3`)) on(((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`<subquery3>`.`c` = `test`.`t2`.`pk`) and (`test`.`t1`.`pk` > 3) and (`test`.`t3`.`pk` > 2))) where true
+SELECT * FROM t2 LEFT JOIN (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+1	21	NULL	NULL
+2	22	NULL	NULL
+3	23	NULL	NULL
+4	24	NULL	NULL
+5	25	NULL	NULL
+6	26	NULL	NULL
+7	27	NULL	NULL
+8	28	NULL	NULL
+9	29	NULL	NULL
+10	30	NULL	NULL
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 LEFT JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	<subquery3>.c	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+3	MATERIALIZED	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` semi join (`test`.`t3`) left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 3))) where ((`test`.`t1`.`pk` = `<subquery3>`.`c`) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 LEFT JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	Using where
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.pk	1	100.00	NULL
+3	MATERIALIZED	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t1` semi join (`test`.`t3`) join `test`.`t2` where ((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`<subquery3>`.`c` = `test`.`t2`.`pk`) and (`test`.`t1`.`pk` > 3) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 JOIN t2 on t13.pk = t2.pk AND t13.pk > 3;
+pk	c	pk	c
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk) JOIN (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t3	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	tx	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t3	p3,p4	ALL	PRIMARY	NULL	NULL	NULL	8	100.00	Using where; FirstMatch(tx)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) join `test`.`t3` left join (`test`.`t1` `tx` semi join (`test`.`t3`)) on(((`test`.`tx`.`pk` = `test`.`t1`.`pk`) and (`test`.`t3`.`c` = `test`.`t1`.`pk`) and (`test`.`t3`.`pk` > 2))) where ((`test`.`t3`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 3))
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk) JOIN (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c
+1	1	1	21	1	31	NULL	NULL
+2	2	2	22	2	32	NULL	NULL
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk) LEFT JOIN (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t3	p0,p1,p2	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	tx	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.tx.pk	1	100.00	Using where
+3	MATERIALIZED	t3	p3,p4	ALL	PRIMARY	NULL	NULL	NULL	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) left join (`test`.`t3` left join (`test`.`t1` `tx` semi join (`test`.`t3`)) on(((`test`.`tx`.`pk` = `test`.`t1`.`pk`) and (`<subquery3>`.`c` = `test`.`t1`.`pk`) and (`test`.`t3`.`pk` > 2)))) on(((`test`.`t3`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 3))) where true
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk) LEFT JOIN (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c
+1	1	1	21	1	31	NULL	NULL
+2	2	2	22	2	32	NULL	NULL
+3	3	3	23	NULL	NULL	NULL	NULL
+4	4	4	24	NULL	NULL	NULL	NULL
+5	5	5	25	NULL	NULL	NULL	NULL
+6	6	6	26	NULL	NULL	NULL	NULL
+7	7	7	27	NULL	NULL	NULL	NULL
+8	8	8	28	NULL	NULL	NULL	NULL
+9	9	9	29	NULL	NULL	NULL	NULL
+10	10	10	30	NULL	NULL	NULL	NULL
+11	11	NULL	NULL	NULL	NULL	NULL	NULL
+12	12	NULL	NULL	NULL	NULL	NULL	NULL
+13	13	NULL	NULL	NULL	NULL	NULL	NULL
+14	14	NULL	NULL	NULL	NULL	NULL	NULL
+15	15	NULL	NULL	NULL	NULL	NULL	NULL
+16	16	NULL	NULL	NULL	NULL	NULL	NULL
+17	17	NULL	NULL	NULL	NULL	NULL	NULL
+18	18	NULL	NULL	NULL	NULL	NULL	NULL
+19	19	NULL	NULL	NULL	NULL	NULL	NULL
+20	20	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	tx	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.tx.pk	1	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+3	MATERIALIZED	t3	p3,p4	ALL	PRIMARY	NULL	NULL	NULL	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t3` left join (`test`.`t1` `tx` semi join (`test`.`t3`)) on(((`test`.`tx`.`pk` = `test`.`t3`.`pk`) and (`<subquery3>`.`c` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))) left join (`test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t3`.`pk`))) on(((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` < 3))) where true
+SELECT * FROM (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c
+1	31	NULL	NULL	1	1	1	21
+2	32	NULL	NULL	2	2	2	22
+3	33	NULL	NULL	NULL	NULL	NULL	NULL
+4	34	NULL	NULL	NULL	NULL	NULL	NULL
+5	35	NULL	NULL	NULL	NULL	NULL	NULL
+6	36	NULL	NULL	NULL	NULL	NULL	NULL
+7	37	NULL	NULL	NULL	NULL	NULL	NULL
+8	38	NULL	NULL	NULL	NULL	NULL	NULL
+9	39	NULL	NULL	NULL	NULL	NULL	NULL
+10	40	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk) on t1.pk = t3.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	p0,p1,p2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	tx	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	NULL
+1	SIMPLE	t3	p3,p4	ALL	PRIMARY	NULL	NULL	NULL	8	100.00	Using where; FirstMatch(tx)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t3`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t3` left join (`test`.`t1` `tx` semi join (`test`.`t3`)) on(((`test`.`tx`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`c` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` > 2))) join `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`pk` = `test`.`t3`.`pk`)) where ((`test`.`t1`.`pk` = `test`.`t3`.`pk`) and (`test`.`t3`.`pk` < 3))
+SELECT * FROM (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk) on t1.pk = t3.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c
+1	31	NULL	NULL	1	1	1	21
+2	32	NULL	NULL	2	2	2	22
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) JOIN ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15) on t1.pk = t13.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tx	p0,p1,p2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	12.50	Using where; FirstMatch(tx); Using join buffer (hash join)
+1	SIMPLE	t1	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.tx.pk	1	100.00	NULL
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.tx.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.tx.pk	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`tx`.`pk`) and (`test`.`tx`.`pk` < 2))) join `test`.`t5` join `test`.`t1` `tx` semi join (`test`.`t3`) left join `test`.`t4` on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 15))) where ((`test`.`t3`.`c` = `test`.`tx`.`pk`) and (`test`.`t1`.`pk` = `test`.`tx`.`pk`) and (`test`.`t5`.`pk` = `test`.`tx`.`pk`) and (`test`.`tx`.`pk` < 3) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) JOIN ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15) on t1.pk = t13.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) LEFT JOIN ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15) on t1.pk = t13.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	tx	p0,p1,p2	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.tx.pk	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+3	MATERIALIZED	t3	p3,p4	ALL	PRIMARY	NULL	NULL	NULL	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 2))) left join (`test`.`t5` join `test`.`t1` `tx` semi join (`test`.`t3`) left join `test`.`t4` on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 15)))) on(((`test`.`t5`.`pk` = `test`.`t1`.`pk`) and (`test`.`tx`.`pk` = `test`.`t1`.`pk`) and (`<subquery3>`.`c` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` < 3) and (`test`.`t3`.`pk` > 2))) where true
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) LEFT JOIN ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15) on t1.pk = t13.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	1	1	21	NULL	NULL	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+4	4	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+5	5	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+6	6	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+7	7	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+8	8	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+9	9	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+10	10	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+11	11	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+12	12	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+13	13	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+14	14	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+15	15	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+16	16	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+17	17	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+18	18	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+19	19	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+20	20	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) on t1.pk = t13.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	tx	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.tx.pk	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t1	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.tx.pk	1	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+3	MATERIALIZED	t3	p3,p4	ALL	PRIMARY	NULL	NULL	NULL	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t5` left join (`test`.`t1` `tx` semi join (`test`.`t3`)) on(((`test`.`tx`.`pk` = `test`.`t5`.`pk`) and (`<subquery3>`.`c` = `test`.`t5`.`pk`) and (`test`.`t3`.`pk` > 2))) left join `test`.`t4` on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 15))) left join (`test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`tx`.`pk`) and (`test`.`tx`.`pk` < 2)))) on(((`test`.`t1`.`pk` = `test`.`tx`.`pk`) and (`test`.`tx`.`pk` < 3))) where true
+SELECT * FROM ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) on t1.pk = t13.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	51	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2	52	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	53	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+4	54	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+5	55	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+6	56	NULL	NULL	1	41	NULL	NULL	NULL	NULL
+7	57	NULL	NULL	2	42	NULL	NULL	NULL	NULL
+8	58	NULL	NULL	3	43	NULL	NULL	NULL	NULL
+9	59	NULL	NULL	4	44	NULL	NULL	NULL	NULL
+10	60	NULL	NULL	5	45	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) on t1.pk = t13.pk AND t1.pk < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tx	p0,p1,p2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	12.50	Using where; FirstMatch(tx); Using join buffer (hash join)
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.tx.pk	1	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2	eq_ref	PRIMARY	PRIMARY	4	test.tx.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.tx.pk	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t5` join `test`.`t1` `tx` semi join (`test`.`t3`) left join `test`.`t4` on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 15))) join `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`tx`.`pk`) and (`test`.`tx`.`pk` < 2))) where ((`test`.`t3`.`c` = `test`.`tx`.`pk`) and (`test`.`t5`.`pk` = `test`.`tx`.`pk`) and (`test`.`t1`.`pk` = `test`.`tx`.`pk`) and (`test`.`tx`.`pk` < 3) and (`test`.`t3`.`pk` > 2))
+SELECT * FROM ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2) on t1.pk = t13.pk AND t1.pk < 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) JOIN (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20) on t1.pk = t13.pk AND t1.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	range	PRIMARY	PRIMARY	4	NULL	7	100.00	Using where
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	tx	p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	Using where
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t5.pk	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+3	MATERIALIZED	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t5`.`pk`) and (`test`.`t5`.`pk` > 3))) join `test`.`t4` join `test`.`t5` join `test`.`t1` `tx` semi join (`test`.`t3`) where ((`test`.`t1`.`pk` = `test`.`t5`.`pk`) and (`test`.`tx`.`pk` = `test`.`t5`.`pk`) and (`<subquery3>`.`c` = `test`.`t5`.`pk`) and (`test`.`t5`.`pk` > 3) and (`test`.`t3`.`pk` > 2) and (`test`.`t5`.`c` = (`test`.`t4`.`c` + 20)))
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) JOIN (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20) on t1.pk = t13.pk AND t1.pk > 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+EXPLAIN SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) LEFT JOIN (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20) on t1.pk = t13.pk AND t1.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+1	SIMPLE	tx	p4	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.tx.pk	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+3	MATERIALIZED	t3	p3,p4	ALL	PRIMARY	NULL	NULL	NULL	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c`,`test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 3))) left join (`test`.`t4` join `test`.`t5` join `test`.`t1` `tx` semi join (`test`.`t3`)) on(((`test`.`t5`.`pk` = `test`.`t1`.`pk`) and (`test`.`tx`.`pk` = `test`.`t1`.`pk`) and (`<subquery3>`.`c` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` > 3) and (`test`.`t3`.`pk` > 2) and (`test`.`t5`.`c` = (`test`.`t4`.`c` + 20)))) where true
+SELECT * FROM (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) LEFT JOIN (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20) on t1.pk = t13.pk AND t1.pk > 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+4	4	4	24	NULL	NULL	NULL	NULL	NULL	NULL
+5	5	5	25	NULL	NULL	NULL	NULL	NULL	NULL
+6	6	6	26	NULL	NULL	NULL	NULL	NULL	NULL
+7	7	7	27	NULL	NULL	NULL	NULL	NULL	NULL
+8	8	8	28	NULL	NULL	NULL	NULL	NULL	NULL
+9	9	9	29	NULL	NULL	NULL	NULL	NULL	NULL
+10	10	10	30	NULL	NULL	NULL	NULL	NULL	NULL
+11	11	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+12	12	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+13	13	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+14	14	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+15	15	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+16	16	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+17	17	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+18	18	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+19	19	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+20	20	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) on t1.pk = t13.pk AND t1.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	tx	p0,p1,p2,p3,p4	eq_ref	PRIMARY	PRIMARY	4	test.t5.pk	1	100.00	NULL
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.tx.pk	1	100.00	Using where
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	test.tx.pk	1	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using where
+3	MATERIALIZED	t3	p3,p4	ALL	PRIMARY	NULL	NULL	NULL	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t4` left join (`test`.`t5` left join (`test`.`t1` `tx` semi join (`test`.`t3`)) on(((`test`.`tx`.`pk` = `test`.`t5`.`pk`) and (`<subquery3>`.`c` = `test`.`t5`.`pk`) and (`test`.`t3`.`pk` > 2)))) on((`test`.`t5`.`c` = (`test`.`t4`.`c` + 20))) left join (`test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`tx`.`pk`) and (`test`.`tx`.`pk` > 3)))) on(((`test`.`t1`.`pk` = `test`.`tx`.`pk`) and (`test`.`tx`.`pk` > 3))) where true
+SELECT * FROM (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20) LEFT JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) on t1.pk = t13.pk AND t1.pk > 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+1	41	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2	42	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	43	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+4	44	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+5	45	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+6	46	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+7	47	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+8	48	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+9	49	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+10	50	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+EXPLAIN SELECT * FROM (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) on t1.pk = t13.pk AND t1.pk > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery3>.c	1	100.00	NULL
+1	SIMPLE	tx	p4	eq_ref	PRIMARY	PRIMARY	4	<subquery3>.c	1	100.00	NULL
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	4	<subquery3>.c	1	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery3>.c	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (hash join)
+3	MATERIALIZED	t3	p3,p4	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,`test`.`t5`.`pk` AS `pk`,`test`.`t5`.`c` AS `c`,`test`.`tx`.`pk` AS `pk`,`test`.`tx`.`c` AS `c`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c` AS `c` from `test`.`t4` join `test`.`t5` join `test`.`t1` `tx` semi join (`test`.`t3`) join `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`pk` = `test`.`t5`.`pk`) and (`test`.`t5`.`pk` > 3))) where ((`test`.`t5`.`pk` = `<subquery3>`.`c`) and (`test`.`tx`.`pk` = `<subquery3>`.`c`) and (`test`.`t1`.`pk` = `<subquery3>`.`c`) and (`<subquery3>`.`c` > 3) and (`test`.`t3`.`pk` > 2) and (`test`.`t5`.`c` = (`test`.`t4`.`c` + 20)))
+SELECT * FROM (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) on t1.pk = t13.pk AND t1.pk > 3;
+pk	c	pk	c	pk	c	pk	c	pk	c
+DROP TABLE t1, t2, t3, t4, t5;

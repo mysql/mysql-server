@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3542,7 +3542,7 @@ static int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 }
 
 extern "C" {
-static int my_strnncoll_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_gbk(const CHARSET_INFO *cs [[maybe_unused]],
                             const uchar *a, size_t a_length, const uchar *b,
                             size_t b_length, bool b_is_prefix) {
   size_t length = std::min(a_length, b_length);
@@ -3550,7 +3550,7 @@ static int my_strnncoll_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return res ? res : (int)((b_is_prefix ? length : a_length) - b_length);
 }
 
-static int my_strnncollsp_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncollsp_gbk(const CHARSET_INFO *cs [[maybe_unused]],
                               const uchar *a, size_t a_length, const uchar *b,
                               size_t b_length) {
   size_t length = std::min(a_length, b_length);
@@ -3602,13 +3602,12 @@ static size_t my_strnxfrm_gbk(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
-static uint ismbchar_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const char *p, const char *e) {
+static uint ismbchar_gbk(const CHARSET_INFO *cs [[maybe_unused]], const char *p,
+                         const char *e) {
   return (isgbkhead(*(p)) && (e) - (p) > 1 && isgbktail(*((p) + 1)) ? 2 : 0);
 }
 
-static uint mbcharlen_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                          uint c) {
+static uint mbcharlen_gbk(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (isgbkhead(c) ? 2 : 1);
 }
 }  // extern "C"
@@ -9931,8 +9930,8 @@ static int func_uni_gbk_onechar(int code) {
 }
 
 extern "C" {
-static int my_wc_mb_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_gbk(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                        uchar *s, uchar *e) {
   int code;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -9951,8 +9950,8 @@ static int my_wc_mb_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return 2;
 }
 
-static int my_mb_wc_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        my_wc_t *pwc, const uchar *s, const uchar *e) {
+static int my_mb_wc_gbk(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
+                        const uchar *s, const uchar *e) {
   int hi;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -9974,9 +9973,9 @@ static int my_mb_wc_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 /*
   Returns well formed length of a GBK string.
 */
-static size_t my_well_formed_len_gbk(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_gbk(const CHARSET_INFO *cs [[maybe_unused]],
+                                     const char *b, const char *e, size_t pos,
+                                     int *error) {
   const char *b0 = b;
   const char *emb = e - 1; /* Last possible end of an MB character */
 
@@ -10015,7 +10014,7 @@ static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_gbk,
                                                 mbcharlen_gbk,
                                                 my_numchars_mb,
-                                                my_charpos_mb,
+                                                my_charpos_mb3,
                                                 my_well_formed_len_gbk,
                                                 my_lengthsp_8bit,
                                                 my_numcells_8bit,
@@ -10045,7 +10044,7 @@ CHARSET_INFO my_charset_gbk_chinese_ci = {
     0,                                               /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state      */
     "gbk",                                           /* cs name    */
-    "gbk_chinese_ci",                                /* name */
+    "gbk_chinese_ci",                                /* m_coll_name */
     "GBK Simplified Chinese",                        /* comment    */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
@@ -10080,7 +10079,7 @@ CHARSET_INFO my_charset_gbk_bin = {
     0,                              /* number */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
     "gbk",                          /* cs name    */
-    "gbk_bin",                      /* name */
+    "gbk_bin",                      /* m_coll_name */
     "GBK Simplified Chinese",       /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

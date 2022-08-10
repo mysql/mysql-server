@@ -11,11 +11,11 @@ partitions 3
 (partition x1 values less than (5) nodegroup 12,
 partition x2 values less than (10) nodegroup 13,
 partition x3 values less than (20) nodegroup 14);
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 771 'Given NODEGROUP doesn't exist in this cluster' from NDB
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -47,3 +47,49 @@ Got one of the listed errors
 drop table t1;
 create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
 ERROR HY000: Duplicate partition field name 'a'
+#
+# Bug#32773358 CREATE TABLE PARTITION FUNCTION CLEANUP
+#  - test LIST and RANGE partition setup during CREATE TABLE
+#
+CREATE TABLE t1 ( id INT PRIMARY KEY) ENGINE=NDB
+PARTITION BY LIST(id)
+(PARTITION p0 VALUES IN (0),
+PARTITION p1 VALUES IN (NULL), -- Will not create partition
+PARTITION p2 VALUES IN (2147483647),
+PARTITION p3 VALUES IN (-2147483648));
+INSERT INTO t1 VALUES(0);
+INSERT INTO t1 VALUES(2147483647);
+INSERT INTO t1 VALUES(-2147483648);
+DROP TABLE t1;
+CREATE TABLE t1 ( id INT PRIMARY KEY) ENGINE=NDB
+PARTITION BY LIST(id)
+(PARTITION p0 VALUES IN (0),
+PARTITION p2 VALUES IN (2147483648));
+ERROR HY000: The NDB handler only supports 32 bit integers in VALUES
+CREATE TABLE t1 ( id INT PRIMARY KEY) ENGINE=NDB
+PARTITION BY LIST(id)
+(PARTITION p0 VALUES IN (0),
+PARTITION p2 VALUES IN (-2147483649));
+ERROR HY000: The NDB handler only supports 32 bit integers in VALUES
+CREATE TABLE t1 ( id INT PRIMARY KEY) ENGINE=NDB
+PARTITION BY RANGE(id)
+(PARTITION p1 VALUES LESS THAN (-2147483648),
+PARTITION p2 VALUES LESS THAN (0),
+PARTITION p3 VALUES LESS THAN (256),
+PARTITION p4 VALUES LESS THAN (2147483646),
+PARTITION p5 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES(-2147483648);
+INSERT INTO t1 VALUES(0);
+INSERT INTO t1 VALUES(256);
+INSERT INTO t1 VALUES(2147483647);
+DROP TABLE t1;
+CREATE TABLE t1 ( id INT PRIMARY KEY) ENGINE=NDB
+PARTITION BY RANGE(id)
+(PARTITION p1 VALUES LESS THAN (-2147483649),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ERROR HY000: The NDB handler only supports 32 bit integers in VALUES
+CREATE TABLE t1 ( id INT PRIMARY KEY) ENGINE=NDB
+PARTITION BY RANGE(id)
+(PARTITION p1 VALUES LESS THAN (2147483647),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+ERROR HY000: The NDB handler only supports 32 bit integers in VALUES

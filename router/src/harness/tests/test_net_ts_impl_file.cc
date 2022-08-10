@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,10 @@
  * @test closing an invalid file-descriptor should result in bad_file_desc.
  */
 TEST(NetTS_impl_file, close_invalid_handle) {
+#if !defined(_WIN32)
+  // TODO(jkneschk) investigate why windows returns 'true' in this case
+  // according to the docs it shouldn't
+
   const auto expected_ec =
 #ifdef _WIN32
       std::error_code(ERROR_INVALID_HANDLE, std::system_category())
@@ -40,9 +44,6 @@ TEST(NetTS_impl_file, close_invalid_handle) {
 #endif
       ;
 
-#if !defined(_WIN32)
-  // TODO(jkneschk) investigate why windows returns 'true' in this case
-  // according to the docs it shouldn't
   EXPECT_EQ(net::impl::file::close(net::impl::file::kInvalidHandle),
             stdx::make_unexpected(expected_ec));
 #endif

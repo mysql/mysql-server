@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,7 @@ void Commit_order_trx_dependency_tracker::rotate() {
 
 void Commit_order_trx_dependency_tracker::update_max_committed(
     int64 sequence_number) {
-  mysql_mutex_assert_owner(&LOCK_slave_trans_dep_tracker);
+  mysql_mutex_assert_owner(&LOCK_replica_trans_dep_tracker);
   m_max_committed_transaction.set_if_greater(sequence_number);
 }
 

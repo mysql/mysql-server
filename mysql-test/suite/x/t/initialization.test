@@ -96,4 +96,7 @@ connection default;
 
 
 ## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --source ../include/xplugin_cleanup.inc

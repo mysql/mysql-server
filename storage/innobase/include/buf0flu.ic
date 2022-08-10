@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,14 +53,13 @@ void buf_flush_insert_sorted_into_flush_list(
 /** This function should be called at a mini-transaction commit, if a page was
  modified in it. Puts the block to the list of modified blocks, if it is not
  already in it. */
-UNIV_INLINE
-void buf_flush_note_modification(
-    buf_block_t *block,      /*!< in: block which is modified */
-    lsn_t start_lsn,         /*!< in: start lsn of the mtr that
-                             modified this block */
-    lsn_t end_lsn,           /*!< in: end lsn of the mtr that
-                             modified this block */
-    FlushObserver *observer) /*!< in: flush observer */
+static inline void buf_flush_note_modification(
+    buf_block_t *block,       /*!< in: block which is modified */
+    lsn_t start_lsn,          /*!< in: start lsn of the mtr that
+                              modified this block */
+    lsn_t end_lsn,            /*!< in: end lsn of the mtr that
+                              modified this block */
+    Flush_observer *observer) /*!< in: flush observer */
 {
 #ifdef UNIV_DEBUG
   {
@@ -112,8 +111,7 @@ void buf_flush_note_modification(
 }
 
 /** This function should be called when recovery has modified a buffer page. */
-UNIV_INLINE
-void buf_flush_recv_note_modification(
+static inline void buf_flush_recv_note_modification(
     buf_block_t *block, /*!< in: block which is modified */
     lsn_t start_lsn,    /*!< in: start lsn of the first mtr in a
                         set of mtr's */

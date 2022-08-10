@@ -1,7 +1,7 @@
 #ifndef SQL_JOIN_TYPE_H
 #define SQL_JOIN_TYPE_H
 
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 // Used to describe what kind of join an iterator is executing.
-enum class JoinType { INNER, OUTER, ANTI, SEMI };
+enum class JoinType { INNER, OUTER, ANTI, SEMI, FULL_OUTER };
 
 #endif  // SQL_JOIN_TYPE_H

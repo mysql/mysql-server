@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 
 #include "my_inttypes.h"
 #include "my_table_map.h"
+#include "sql_optimizer.h"
 
 class Cost_model_server;
 class JOIN;
@@ -44,6 +45,15 @@ struct TABLE_LIST;
 struct POSITION;
 
 typedef ulonglong nested_join_map;
+
+/**
+   Find the lateral dependencies of 'tab'.
+*/
+inline table_map get_lateral_deps(const JOIN_TAB &tab) {
+  return (tab.table_ref != nullptr && tab.table_ref->is_derived())
+             ? tab.table_ref->derived_query_expression()->m_lateral_deps
+             : 0;
+}
 
 /**
   This class determines the optimal join order for tables within
@@ -64,7 +74,7 @@ typedef ulonglong nested_join_map;
 class Optimize_table_order {
  public:
   Optimize_table_order(THD *thd_arg, JOIN *join_arg, TABLE_LIST *sjm_nest_arg);
-  ~Optimize_table_order() {}
+  ~Optimize_table_order() = default;
   /**
     Entry point to table join order optimization.
     For further description, see class header and private function headers.
@@ -72,6 +82,10 @@ class Optimize_table_order {
     @return false if successful, true if error
   */
   bool choose_table_order();
+
+  void recalculate_lateral_deps(uint first_tab_no);
+
+  void recalculate_lateral_deps_incrementally(uint first_tab_no);
 
  private:
   THD *const thd;           // Pointer to current THD
@@ -174,6 +188,8 @@ class Optimize_table_order {
                               const double prefix_rowcount,
                               const Cost_model_server *cost_model);
 
+  table_map calculate_lateral_deps_of_final_plan(uint tab_no) const;
+  bool plan_has_duplicate_tabs() const;
   static uint determine_search_depth(uint search_depth, uint table_count);
 };
 
@@ -220,7 +236,7 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
   @param is_join_buffering  Whether or not condition filtering is about
                       to be calculated for an access method using join
                       buffering.
-  @param write_to_trace Wheter we should print the filtering effect calculated
+  @param write_to_trace Whether we should print the filtering effect calculated
                       by histogram statistics and the final aggregated filtering
                       effect to optimizer trace.
   @param parent_trace The parent trace object where the final aggregated

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@ struct ArgHandlerProcessParam {
   std::string test_name;
   std::vector<std::string> args;
   bool allow_rest_arguments;
+  bool ignore_unknown_arguments;
   bool expected_success;
   std::map<std::string, std::vector<std::string>> expected_opts;
   std::vector<std::string> expected_rest_args;
@@ -57,7 +58,8 @@ static void collect_opts(std::map<std::string, std::vector<std::string>> &opts,
 }
 
 TEST_P(ArgHandlerProcessTest, ensure) {
-  CmdArgHandler arg_handler(GetParam().allow_rest_arguments);
+  CmdArgHandler arg_handler(GetParam().allow_rest_arguments,
+                            GetParam().ignore_unknown_arguments);
   std::map<std::string, std::vector<std::string>> captured;
 
   arg_handler.add_option({"--opt"}, "an option", CmdOptionValueReq::optional,
@@ -90,22 +92,45 @@ TEST_P(ArgHandlerProcessTest, ensure) {
 
 const ArgHandlerProcessParam arg_handler_process_params[]{
     // rest args
-    {"rest", {"rest"}, true, true, {}, {"rest"}, ""},
-    {"rest_equal_bar", {"rest=bar"}, true, true, {}, {"rest=bar"}, ""},
+    {"rest", {"rest"}, true, false, true, {}, {"rest"}, ""},
+    {"rest_equal_bar", {"rest=bar"}, true, false, true, {}, {"rest=bar"}, ""},
     {"rest_no_rest_args_allowed",
      {"rest"},
+     false,
      false,
      false,
      {},
      {},
      "invalid argument 'rest'."},
     // option with optional value
-    {"__opt_with_val", {"--opt=bar"}, false, true, {{"opt", {"bar"}}}, {}, ""},
-    {"__opt_eq_no_value", {"--opt="}, false, true, {{"opt", {""}}}, {}, ""},
-    {"__opt_next_empty", {"--opt", ""}, false, true, {{"opt", {""}}}, {}, ""},
-    {"__opt_eol", {"--opt"}, false, true, {{"opt", {""}}}, {}, ""},
+    {"__opt_with_val",
+     {"--opt=bar"},
+     false,
+     false,
+     true,
+     {{"opt", {"bar"}}},
+     {},
+     ""},
+    {"__opt_eq_no_value",
+     {"--opt="},
+     false,
+     false,
+     true,
+     {{"opt", {""}}},
+     {},
+     ""},
+    {"__opt_next_empty",
+     {"--opt", ""},
+     false,
+     false,
+     true,
+     {{"opt", {""}}},
+     {},
+     ""},
+    {"__opt_eol", {"--opt"}, false, false, true, {{"opt", {""}}}, {}, ""},
     {"__opt_multi",
      {"--opt", "--opt", "abc"},
+     false,
      false,
      true,
      {{"opt", {"", "abc"}}},
@@ -113,6 +138,7 @@ const ArgHandlerProcessParam arg_handler_process_params[]{
      ""},
     {"__opt_multi_eq",
      {"--opt=", "--opt", "abc"},
+     false,
      false,
      true,
      {{"opt", {"", "abc"}}},
@@ -122,12 +148,14 @@ const ArgHandlerProcessParam arg_handler_process_params[]{
     {"__required_eq_value",
      {"--required=bar"},
      false,
+     false,
      true,
      {{"required", {"bar"}}},
      {},
      ""},
     {"__required_next_value",
      {"--required", "bar"},
+     false,
      false,
      true,
      {{"required", {"bar"}}},
@@ -136,6 +164,7 @@ const ArgHandlerProcessParam arg_handler_process_params[]{
     {"__required_next_empty",
      {"--required", ""},
      false,
+     false,
      true,
      {{"required", {""}}},
      {},
@@ -143,12 +172,14 @@ const ArgHandlerProcessParam arg_handler_process_params[]{
     {"__required_eq_empty",
      {"--required="},
      false,
+     false,
      true,
      {{"required", {""}}},
      {},
      ""},
     {"__required_eol",
      {"--required"},
+     false,
      false,
      false,
      {},
@@ -159,18 +190,37 @@ const ArgHandlerProcessParam arg_handler_process_params[]{
      {"--none=bar"},
      false,
      false,
+     false,
      {},
      {},
      "option '--none' does not expect a value, but got a value"},
-    {"__none", {"--none"}, false, true, {{"none", {""}}}, {}, ""},
+    {"__none", {"--none"}, false, false, true, {{"none", {""}}}, {}, ""},
     // unknown arg
     {"__not_exists_with_val",
      {"--not-exists=bar"},
      false,
      false,
+     false,
      {},
      {},
      "unknown option '--not-exists'"},
+    // unknown arg ignored
+    {"__not_exists_with_val_ignored",
+     {"--not-exists=bar"},
+     false,
+     true,
+     true,
+     {},
+     {},
+     ""},
+    {"__not_exists_with_no_val_ignored",
+     {"--not-exists"},
+     false,
+     true,
+     true,
+     {},
+     {},
+     ""},
 };
 
 INSTANTIATE_TEST_SUITE_P(

@@ -2,7 +2,7 @@
 USE INFORMATION_SCHEMA;
 SHOW CREATE TABLE INFORMATION_SCHEMA.ROUTINES;
 View	Create View	character_set_client	collation_connection
-ROUTINES	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `ROUTINES` AS select `rtn`.`name` AS `SPECIFIC_NAME`,`cat`.`name` AS `ROUTINE_CATALOG`,`sch`.`name` AS `ROUTINE_SCHEMA`,`rtn`.`name` AS `ROUTINE_NAME`,`rtn`.`type` AS `ROUTINE_TYPE`,if((`rtn`.`type` = 'PROCEDURE'),'',substring_index(substring_index(`rtn`.`result_data_type_utf8`,'(',1),' ',1)) AS `DATA_TYPE`,internal_dd_char_length(`rtn`.`result_data_type`,`rtn`.`result_char_length`,`coll_result`.`name`,0) AS `CHARACTER_MAXIMUM_LENGTH`,internal_dd_char_length(`rtn`.`result_data_type`,`rtn`.`result_char_length`,`coll_result`.`name`,1) AS `CHARACTER_OCTET_LENGTH`,`rtn`.`result_numeric_precision` AS `NUMERIC_PRECISION`,`rtn`.`result_numeric_scale` AS `NUMERIC_SCALE`,`rtn`.`result_datetime_precision` AS `DATETIME_PRECISION`,(case `rtn`.`result_data_type` when 'MYSQL_TYPE_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_SET' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) else NULL end) AS `CHARACTER_SET_NAME`,(case `rtn`.`result_data_type` when 'MYSQL_TYPE_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_SET' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) else NULL end) AS `COLLATION_NAME`,if((`rtn`.`type` = 'PROCEDURE'),NULL,`rtn`.`result_data_type_utf8`) AS `DTD_IDENTIFIER`,'SQL' AS `ROUTINE_BODY`,if(can_access_routine(`sch`.`name`,`rtn`.`name`,`rtn`.`type`,`rtn`.`definer`,true),`rtn`.`definition_utf8`,NULL) AS `ROUTINE_DEFINITION`,NULL AS `EXTERNAL_NAME`,`rtn`.`external_language` AS `EXTERNAL_LANGUAGE`,'SQL' AS `PARAMETER_STYLE`,if((`rtn`.`is_deterministic` = 0),'NO','YES') AS `IS_DETERMINISTIC`,`rtn`.`sql_data_access` AS `SQL_DATA_ACCESS`,NULL AS `SQL_PATH`,`rtn`.`security_type` AS `SECURITY_TYPE`,`rtn`.`created` AS `CREATED`,`rtn`.`last_altered` AS `LAST_ALTERED`,`rtn`.`sql_mode` AS `SQL_MODE`,`rtn`.`comment` AS `ROUTINE_COMMENT`,`rtn`.`definer` AS `DEFINER`,`cs_client`.`name` AS `CHARACTER_SET_CLIENT`,`coll_conn`.`name` AS `COLLATION_CONNECTION`,`coll_db`.`name` AS `DATABASE_COLLATION` from ((((((((`mysql`.`routines` `rtn` join `mysql`.`schemata` `sch` on((`rtn`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll_client` on((`coll_client`.`id` = `rtn`.`client_collation_id`))) join `mysql`.`character_sets` `cs_client` on((`cs_client`.`id` = `coll_client`.`character_set_id`))) join `mysql`.`collations` `coll_conn` on((`coll_conn`.`id` = `rtn`.`connection_collation_id`))) join `mysql`.`collations` `coll_db` on((`coll_db`.`id` = `rtn`.`schema_collation_id`))) left join `mysql`.`collations` `coll_result` on((`coll_result`.`id` = `rtn`.`result_collation_id`))) left join `mysql`.`character_sets` `cs_result` on((`cs_result`.`id` = `coll_result`.`character_set_id`))) where (0 <> can_access_routine(`sch`.`name`,`rtn`.`name`,`rtn`.`type`,`rtn`.`definer`,false))	utf8	utf8_general_ci
+ROUTINES	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `ROUTINES` AS select `rtn`.`name` AS `SPECIFIC_NAME`,`cat`.`name` AS `ROUTINE_CATALOG`,`sch`.`name` AS `ROUTINE_SCHEMA`,`rtn`.`name` AS `ROUTINE_NAME`,`rtn`.`type` AS `ROUTINE_TYPE`,if((`rtn`.`type` = 'PROCEDURE'),'',substring_index(substring_index(`rtn`.`result_data_type_utf8`,'(',1),' ',1)) AS `DATA_TYPE`,internal_dd_char_length(`rtn`.`result_data_type`,`rtn`.`result_char_length`,`coll_result`.`name`,0) AS `CHARACTER_MAXIMUM_LENGTH`,internal_dd_char_length(`rtn`.`result_data_type`,`rtn`.`result_char_length`,`coll_result`.`name`,1) AS `CHARACTER_OCTET_LENGTH`,`rtn`.`result_numeric_precision` AS `NUMERIC_PRECISION`,`rtn`.`result_numeric_scale` AS `NUMERIC_SCALE`,`rtn`.`result_datetime_precision` AS `DATETIME_PRECISION`,(case `rtn`.`result_data_type` when 'MYSQL_TYPE_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) when 'MYSQL_TYPE_SET' then if((`cs_result`.`name` = 'binary'),NULL,`cs_result`.`name`) else NULL end) AS `CHARACTER_SET_NAME`,(case `rtn`.`result_data_type` when 'MYSQL_TYPE_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) when 'MYSQL_TYPE_SET' then if((`cs_result`.`name` = 'binary'),NULL,`coll_result`.`name`) else NULL end) AS `COLLATION_NAME`,if((`rtn`.`type` = 'PROCEDURE'),NULL,`rtn`.`result_data_type_utf8`) AS `DTD_IDENTIFIER`,'SQL' AS `ROUTINE_BODY`,if(can_access_routine(`sch`.`name`,`rtn`.`name`,`rtn`.`type`,`rtn`.`definer`,true),`rtn`.`definition_utf8`,NULL) AS `ROUTINE_DEFINITION`,NULL AS `EXTERNAL_NAME`,`rtn`.`external_language` AS `EXTERNAL_LANGUAGE`,'SQL' AS `PARAMETER_STYLE`,if((`rtn`.`is_deterministic` = 0),'NO','YES') AS `IS_DETERMINISTIC`,`rtn`.`sql_data_access` AS `SQL_DATA_ACCESS`,NULL AS `SQL_PATH`,`rtn`.`security_type` AS `SECURITY_TYPE`,`rtn`.`created` AS `CREATED`,`rtn`.`last_altered` AS `LAST_ALTERED`,`rtn`.`sql_mode` AS `SQL_MODE`,`rtn`.`comment` AS `ROUTINE_COMMENT`,`rtn`.`definer` AS `DEFINER`,`cs_client`.`name` AS `CHARACTER_SET_CLIENT`,`coll_conn`.`name` AS `COLLATION_CONNECTION`,`coll_db`.`name` AS `DATABASE_COLLATION` from ((((((((`mysql`.`routines` `rtn` join `mysql`.`schemata` `sch` on((`rtn`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll_client` on((`coll_client`.`id` = `rtn`.`client_collation_id`))) join `mysql`.`character_sets` `cs_client` on((`cs_client`.`id` = `coll_client`.`character_set_id`))) join `mysql`.`collations` `coll_conn` on((`coll_conn`.`id` = `rtn`.`connection_collation_id`))) join `mysql`.`collations` `coll_db` on((`coll_db`.`id` = `rtn`.`schema_collation_id`))) left join `mysql`.`collations` `coll_result` on((`coll_result`.`id` = `rtn`.`result_collation_id`))) left join `mysql`.`character_sets` `cs_result` on((`cs_result`.`id` = `coll_result`.`character_set_id`))) where (0 <> can_access_routine(`sch`.`name`,`rtn`.`name`,`rtn`.`type`,`rtn`.`definer`,false))	utf8mb3	utf8mb3_general_ci
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
   AND table_name   = 'ROUTINES'
@@ -20,8 +20,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -42,8 +42,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -64,8 +64,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -86,8 +86,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -108,8 +108,8 @@ CHARACTER_OCTET_LENGTH	27
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	enum('FUNCTION','PROCEDURE')
 COLUMN_KEY	
 EXTRA	
@@ -130,8 +130,8 @@ CHARACTER_OCTET_LENGTH	4294967295
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	longtext
 COLUMN_KEY	
 EXTRA	
@@ -262,8 +262,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -284,8 +284,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -306,8 +306,8 @@ CHARACTER_OCTET_LENGTH	4294967295
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	longtext
 COLUMN_KEY	
 EXTRA	
@@ -328,8 +328,8 @@ CHARACTER_OCTET_LENGTH	9
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(3)
 COLUMN_KEY	
 EXTRA	
@@ -350,8 +350,8 @@ CHARACTER_OCTET_LENGTH	4294967295
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	longtext
 COLUMN_KEY	
 EXTRA	
@@ -394,8 +394,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -416,8 +416,8 @@ CHARACTER_OCTET_LENGTH	9
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(3)
 COLUMN_KEY	
 EXTRA	
@@ -438,8 +438,8 @@ CHARACTER_OCTET_LENGTH	9
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(3)
 COLUMN_KEY	
 EXTRA	
@@ -460,8 +460,8 @@ CHARACTER_OCTET_LENGTH	51
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA')
 COLUMN_KEY	
 EXTRA	
@@ -504,8 +504,8 @@ CHARACTER_OCTET_LENGTH	21
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	enum('DEFAULT','INVOKER','DEFINER')
 COLUMN_KEY	
 EXTRA	
@@ -570,8 +570,8 @@ CHARACTER_OCTET_LENGTH	1560
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')
 COLUMN_KEY	
 EXTRA	
@@ -592,8 +592,8 @@ CHARACTER_OCTET_LENGTH	65535
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	text
 COLUMN_KEY	
 EXTRA	
@@ -614,8 +614,8 @@ CHARACTER_OCTET_LENGTH	864
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	varchar(288)
 COLUMN_KEY	
 EXTRA	
@@ -636,8 +636,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -658,8 +658,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -680,8 +680,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -816,7 +816,7 @@ RETURN CONCAT('XYZ, ' ,s);
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-test_func5	def	i_s_routines_test	test_func5	FUNCTION	varchar	30	90	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(30)	SQL	RETURN CONCAT('XYZ, ' ,s)	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
+test_func5	def	i_s_routines_test	test_func5	FUNCTION	varchar	30	90	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(30)	SQL	RETURN CONCAT('XYZ, ' ,s)	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb3_general_ci
 # ========== routines.10 ==========
 DROP DATABASE IF EXISTS i_s_routines_test;
 CREATE DATABASE i_s_routines_test;

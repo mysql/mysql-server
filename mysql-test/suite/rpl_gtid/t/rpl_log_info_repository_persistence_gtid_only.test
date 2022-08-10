@@ -1,0 +1,251 @@
+# ==== Purpose ====
+#
+# This test checks that the replica parameter GTID_ONLY is persisted
+# and also upgraded correctly using either TABLE or FILE repository types.
+#
+# ==== Requirements ====
+#
+# TC1: Verify that the column is added when doing an upgrade
+# TC2: Verify that the column value is 0 for standard channels.
+# TC3: Verify that the column value is 1 for group replication channels.
+# TC4: Verify that TC1 to TC3 is true when upgrading the server version with Table repositories
+# TC5: Verify that TC1 is true when upgrading the server version with File repositories
+# TC6: Verify that TC1 is true when upgrading the server version and at the same time converting repository type from File to Table
+# TC7: Verify that TC1 is true when upgrading the server version and at the same time converting repository type from Table to File
+# TC8: Verify that the column definition is literally identical after an upgrade, compared to a new bootstrapped server.
+#
+# ==== Implementation ====
+#
+# 1. Basic operations with GTID_ONLY
+#
+# 1.1. Check that GTID_ONLY is 0 by default
+#      Check the performance_schema table and file repository are correct
+# 1.2. Set GTID_ONLY to 1
+#      Check the performance_schema table and file repository are correct
+#
+# 2. File to File upgrades
+#
+# 2.1 Upgrade the server while using File repositories
+#     Start the server using a file repository that has no GTID_ONLY
+#     The starting value should be 0 in the file / PFS table
+# 2.2 Check FILE repository corruptions
+#
+# 3. File to Table upgrades
+#
+# 3.1 Upgrade the server to Table repositories from File repositories
+#     Start the server using a file repository that has no GTID_ONLY
+# 3.2 Check the table definiton is the same as when the server was bootstraped
+#
+# 4. Table to Table upgrades
+#
+# 4.1 Upgrade the server while using Table repositories
+#     Have 2 channels:
+#       1. The default channel
+#       2. A group_replication channel (group_replication_recovery)
+#     GTID_ONLY is set to 0 for the default channel, 1 for the group replication one
+#
+# 5. Table to File upgrades
+#
+# 5.1 Upgrade the server to File repositories from Table repositories
+#     Start the server using a file repository that has no GTID_ONLY
+#
+# 6. Cleanup
+#
+# ==== References ====
+#
+# WL#7491: GTID-based replication applier recovery and positioning
+#
+
+--source include/big_test.inc
+--source include/have_binlog_format_row.inc
+--source include/have_slave_repository_type_table.inc
+--source include/skip_config_rpl_gtid_only.inc
+--source include/master-slave.inc
+
+--echo
+--echo # 0.Create a test auxiliary include file to avoid step repetition.
+--echo
+# The purpose of this is to verify the values of GTID_ONLY in the
+# master_info repository and replication_connection_configuration table.
+# This procedure expects the value for
+#
+#  $repo_info_file_path: the master info file name to check
+#
+#  $gtid_only_expected_value: the value for GTID_ONLY the file should contain
+#
+#  $expected_repo_number_lines: the number of lines expected for the repository
+#
+
+--source include/rpl_connection_slave.inc
+
+--write_file $MYSQL_TMP_DIR/check_gtid_only_in_file_repo.inc END_OF_PROCEDURE
+
+  if ($repo_info_file_path == '')
+  {
+    --die !!!ERROR IN TEST: you must set $repo_info_file_path
+  }
+  if ($gtid_only_expected_value == '')
+  {
+    --die !!!ERROR IN TEST: you must set $gtid_only_expected_value
+  }
+
+  --let $count = `SELECT COUNT(*) FROM performance_schema.replication_connection_configuration WHERE Gtid_only = '$gtid_only_expected_value'`
+  --let $assert_text = GTID_ONLY for default channel "" in performance_schema.replication_connection_configuration is $gtid_only_expected_value
+  --let $assert_cond = $count = 1
+  --source include/assert.inc
+
+  CREATE TABLE master_info_file_content (line_content TEXT);
+  --replace_result $repo_info_file_path REPO_FILENAME
+  --eval LOAD DATA INFILE '$repo_info_file_path' INTO TABLE master_info_file_content
+
+  --let $expected_value = `SELECT COUNT(*) FROM master_info_file_content`
+  --let $assert_text = The table should have $expected_repo_number_lines lines
+  --let $assert_cond = $expected_repo_number_lines = $expected_value
+  --source include/assert.inc
+
+  --let $expected_value = `SELECT * FROM master_info_file_content LIMIT 32,33`
+  --let $assert_text = In the file the field is set to $gtid_only_expected_value
+  --let $assert_cond = $gtid_only_expected_value = $expected_value
+  --source include/assert.inc
+  DROP TABLE master_info_file_content;
+
+END_OF_PROCEDURE
+
+# Extract some info the repository table before converting it to a table
+
+--let $expected_repo_number_lines = `SELECT Number_of_lines FROM mysql.slave_master_info`
+
+--let $original_repo_table_definition = `SHOW CREATE TABLE mysql.slave_master_info`
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --master-info-repository=FILE
+--let $explicit_default_counter = 15000
+--source include/rpl_restart_server.inc
+
+--let $repo_info_file_path= query_get_value(SHOW SLAVE STATUS, Master_Info_File, 1)
+
+--echo
+--echo # 1.1. Check that by default GTID_ONLY is 0
+--echo #      Check the performance_schema table and file repository are correct
+
+--let $gtid_only_expected_value = 0
+--source $MYSQL_TMP_DIR/check_gtid_only_in_file_repo.inc
+
+--echo
+--echo # 1.2. Set GTID_ONLY to 1
+--echo #      Check the performance_schema table and file repository are correct
+
+--source include/stop_slave.inc
+
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 1;
+
+--let $gtid_only_expected_value = 1
+--source $MYSQL_TMP_DIR/check_gtid_only_in_file_repo.inc
+
+# Disable GTID_ONLY as all the repo conversions below assume GTID_ONLY being off
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 0;
+
+ # 2. File to File upgrades
+
+--echo
+--echo # 2.1 Upgrade the server while using File repositories
+--echo #     Start the server using a file repository that has no GTID_ONLY
+--echo #     The starting value should be 0 in the file / table
+
+--let $sub_testcase = no_gtid_only
+--let $rpl_server_restart_parameters = --skip_slave_start --master-info-repository=FILE
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_connection_info_repo_file.inc
+
+--let $gtid_only_expected_value = 0
+--source $MYSQL_TMP_DIR/check_gtid_only_in_file_repo.inc
+
+# 3. File to Table upgrades
+
+--echo
+--echo # 3.1 Upgrade the server to Table repositories from File repositories
+--echo #     Start the server using a file repository that has no GTID_ONLY
+
+--let $lines_after_drop = `SELECT $expected_repo_number_lines -1`
+
+ALTER TABLE mysql.slave_master_info DROP COLUMN Gtid_only;
+--eval UPDATE mysql.slave_master_info SET Number_of_lines = $lines_after_drop
+
+--let $sub_testcase = no_gtid_only
+--let $rpl_server_restart_parameters = --skip_slave_start --master-info-repository=TABLE --upgrade=FORCE
+--let $slave_server_num = 2
+--source extra/rpl_tests/restart_slave_with_custom_connection_info_repo_file.inc
+
+--let $assert_text= 'GTID_ONLY is disabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 0
+--source include/assert.inc
+
+--echo
+--echo # 3.2 Check the table definiton is the same as when the server was bootstraped
+--echo #
+
+--let $upgraded_repo_table_definition = `SHOW CREATE TABLE mysql.slave_master_info`
+--let $table_compare_result = `SELECT "$upgraded_repo_table_definition" = "$original_repo_table_definition"`
+
+--let $assert_text = The table definition should be equal on install and upgrades
+--let $assert_cond = $table_compare_result = 1
+--source include/assert.inc
+
+# 4. Table to Table upgrades
+
+--echo
+--echo # 4.1 Upgrade the server while using Table repositories
+--echo #     Have 2 channels:
+--echo #       1. The default channel
+--echo #       2. A group_replication channel (group_replication_recovery)
+--echo #     GTID_ONLY is set to 0 for the default channel, 1 for the group replication one
+
+--disable_warnings
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
+--enable_warnings
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
+
+# Revert the table to 32 lines (pre upgrade)
+ALTER TABLE mysql.slave_master_info DROP COLUMN Gtid_only;
+--eval UPDATE mysql.slave_master_info SET Number_of_lines = $lines_after_drop
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_slave_start --master-info-repository=TABLE --upgrade=FORCE
+--let $explicit_default_counter = 15000
+--source include/rpl_restart_server.inc
+
+# We cannot use performance schema to check this table
+--let $assert_text= 'GTID_ONLY is enabled for group replication'
+--let $assert_cond= [SELECT GTID_ONLY FROM mysql.slave_master_info where channel_name="group_replication_recovery", GTID_ONLY, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'GTID_ONLY is disabled for the default channel'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration where channel_name="", GTID_ONLY, 1] = 0
+--source include/assert.inc
+
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
+
+# 5. Table to File upgrades
+
+--echo
+--echo # 5.1 Upgrade the server to File repositories from Table repositories
+--echo #     Start the server using a file repository that has no GTID_ONLY
+
+# Revert the table to 32 lines (pre upgrade)
+ALTER TABLE mysql.slave_master_info DROP COLUMN Gtid_only;
+--eval UPDATE mysql.slave_master_info SET Number_of_lines = $lines_after_drop
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_slave_start --master-info-repository=FILE --upgrade=FORCE
+--source include/rpl_restart_server.inc
+
+--let $gtid_only_expected_value = 0
+--source $MYSQL_TMP_DIR/check_gtid_only_in_file_repo.inc
+
+--echo
+--echo # Cleanup
+
+--remove_file $MYSQL_TMP_DIR/check_gtid_only_in_file_repo.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

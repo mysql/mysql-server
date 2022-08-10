@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_RESOURCE_MGR_INCLUDED
 #define SYS_VARS_RESOURCE_MGR_INCLUDED
 
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,13 +40,13 @@
   (1) init :
         Creates a copy (memdup()) of global Sys_var_charptr system variable for
         the respective session variable (passed as a  parameter) & inserts it
-        into sysvar_string_alloc_hash (containing the alloced address) to infer
+        into sysvar_string_alloc_hash (containing the allocated address) to infer
         that memory has been allocated for the session. init() is called during
         the initialization of session system variables. (plugin_thdvar_init())
   (2) update :
         When the session variable is updated, the old memory is freed and new
         memory is allocated to hold the new value. The corresponding member in
-        sysvar_string_alloc_hash is also updated to hold the new alloced memory
+        sysvar_string_alloc_hash is also updated to hold the new allocated memory
         address. (Sys_var_charptr::session_update())
   (3) deinit :
         Its a one-shot operation to free all the session Sys_var_charptr system
@@ -79,8 +79,8 @@ class Session_sysvar_resource_manager {
   bool init(char **var);
 
   /**
-    Frees the old alloced memory, memdup()'s the given val to a new memory
-    address & updated the session variable pointer.
+    Frees the old allocated memory, memdup()'s the given val to a new memory
+    address & updates the session variable pointer.
   */
   bool update(char **var, char *val, size_t val_len);
 

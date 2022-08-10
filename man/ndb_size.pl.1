@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_size.pl\fR
+.\"     Title: ndb_size.pl
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_SIZE\&.PL\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_SIZE\&.PL" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -92,10 +92,9 @@ ndb_size\&.pl
 can also be found in the MySQL sources in
 storage/ndb/tools\&.
 .PP
-The following table includes options that are specific to the NDB Cluster program
-\fBndb_size\&.pl\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
-\fBndb_size\&.pl\fR), see
-Options Common to NDB Cluster Programs(1)\&.
+Options that can be used with
+\fBndb_size\&.pl\fR
+are shown in the following table\&. Additional descriptions follow the table\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -126,7 +125,7 @@ lB l l
 lB l l.
 T{
 .PP
-\fB \fR\fB--database=dbname\fR\fB \fR
+\fB \fR\fB--database=string\fR\fB \fR
 T}:T{
 Database or databases to examine; a comma-delimited list; default is ALL
               (use all databases found on server)
@@ -136,16 +135,16 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--hostname[:port]\fR\fB \fR
+\fB \fR\fB--hostname=string\fR\fB \fR
 T}:T{
-Specify host and optional port as host[:port]
+Specify host and optional port in host[:port] format
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
-\fB \fR\fB--socket=file_name\fR\fB \fR
+\fB \fR\fB--socket=path\fR\fB \fR
 T}:T{
 Specify socket to connect to
 T}:T{
@@ -163,7 +162,7 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--password=string\fR\fB \fR
+\fB \fR\fB--password=password\fR\fB \fR
 T}:T{
 Specify MySQL user password
 T}:T{
@@ -181,7 +180,7 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--excludetables=tbl_list\fR\fB \fR
+\fB \fR\fB--excludetables=list\fR\fB \fR
 T}:T{
 Skip any tables in comma-separated list
 T}:T{
@@ -190,7 +189,7 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--excludedbs=db_list\fR\fB \fR
+\fB \fR\fB--excludedbs=list\fR\fB \fR
 T}:T{
 Skip any databases in comma-separated list
 T}:T{
@@ -199,7 +198,7 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--savequeries=file\fR\fB \fR
+\fB \fR\fB--savequeries=path\fR\fB \fR
 T}:T{
 Saves all queries on database into file specified
 T}:T{
@@ -208,7 +207,7 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--loadqueries=file\fR\fB \fR
+\fB \fR\fB--loadqueries=path\fR\fB \fR
 T}:T{
 Loads all queries from file specified; does not connect to database
 T}:T{
@@ -217,7 +216,7 @@ T}:T{
 T}
 T{
 .PP
-\fB \fR\fB--real_table_name=table\fR\fB \fR
+\fB \fR\fB--real_table_name=string\fR\fB \fR
 T}:T{
 Designates table to handle unique index size calculations
 T}:T{
@@ -268,7 +267,7 @@ being the default\&. An example of the text output is shown here:
 .RS 4
 .\}
 .nf
-shell> \fBndb_size\&.pl \-\-database=test \-\-socket=/tmp/mysql\&.sock\fR
+$> \fBndb_size\&.pl \-\-database=test \-\-socket=/tmp/mysql\&.sock\fR
 ndb_size\&.pl report for database: \*(Aqtest\*(Aq (1 tables)
 \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
 Connected to: DBI:mysql:host=localhost;mysql_socket=/tmp/mysql\&.sock
@@ -337,7 +336,7 @@ option and redirect the output to a file, as shown here:
 .RS 4
 .\}
 .nf
-shell> \fBndb_size\&.pl \-\-database=test \-\-socket=/tmp/mysql\&.sock \-\-format=html > ndb_size\&.html\fR
+$> \fBndb_size\&.pl \-\-database=test \-\-socket=/tmp/mysql\&.sock \-\-format=html > ndb_size\&.html\fR
 .fi
 .if n \{\
 .RE
@@ -394,7 +393,7 @@ required per table and table row\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

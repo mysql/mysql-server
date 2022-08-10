@@ -101,7 +101,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
 --source include/rpl_connection.inc
 
 # Make server 4 run with mysqld_safe
---let $mysqld_extra_settings=--skip-slave-start=1
+--let $mysqld_extra_settings=--skip-replica-start=1
 --source include/spawn_monitoring_process.inc
 
 # Install clone
@@ -267,6 +267,7 @@ call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]+\.[
 call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]+\.[0-9]+ for channel 'channel_3'*");
 call mtr.add_suppression("Relay log information for channel 'channel_1' was found after a clone operation. Relay log recovery*");
 call mtr.add_suppression("Relay log information for channel 'channel_3' was found after a clone operation. Relay log recovery*");
+call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 set session sql_log_bin=1;
 
 --let $rpl_skip_sync= 1

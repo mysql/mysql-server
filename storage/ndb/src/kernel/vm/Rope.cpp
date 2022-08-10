@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "Rope.hpp"
 #include "DataBuffer.hpp"
 
@@ -55,9 +56,10 @@ ConstRope::nextSegment(Ptr<Segment> &it) const {
 int
 ConstRope::readBuffered(char* buf, Uint32 bufSize,
                         Uint32 & rope_offset) const {
-   if(DEBUG_ROPE)
-    ndbout_c("ConstRope::readBuffered(sz=%u,offset=%u) head = [ %d 0x%x 0x%x ]",
-            bufSize, rope_offset, head.used, head.firstItem, head.lastItem);
+   if (DEBUG_ROPE)
+     g_eventLogger->info(
+         "ConstRope::readBuffered(sz=%u,offset=%u) head = [ %d 0x%x 0x%x ]",
+         bufSize, rope_offset, head.used, head.firstItem, head.lastItem);
 
   Uint32 offset = rope_offset;
   require(m_length >= offset);
@@ -96,8 +98,8 @@ ConstRope::copy(char* buf) const {
   /* Assume that buffer is big enough */
   Uint32 offset = 0;
   readBuffered(buf, m_length, offset);
-  if(DEBUG_ROPE)
-    ndbout_c("ConstRope::copy()-> %s", buf);
+  if (DEBUG_ROPE)
+    g_eventLogger->info("ConstRope::copy()-> %s", buf);
 }
 
 bool ConstRope::copy(LocalRope & dest) {
@@ -114,17 +116,19 @@ bool ConstRope::copy(LocalRope & dest) {
 
 int
 ConstRope::compare(const char * str, Uint32 len) const {
-  if(DEBUG_ROPE)
-    ndbout_c("ConstRope[ %d  0x%x  0x%x ]::compare(%s, %d)", 
-	     head.used, head.firstItem, head.lastItem, str, (int) len);
+  if (DEBUG_ROPE)
+    g_eventLogger->info("ConstRope[ %d  0x%x  0x%x ]::compare(%s, %d)",
+                        head.used, head.firstItem, head.lastItem, str,
+                        (int)len);
   Uint32 left = m_length > len ? len : m_length;
   Ptr<Segment> it;
   const char * data = firstSegment(it);
   while(left > getSegmentSizeInBytes()){
     int res = memcmp(str, data, getSegmentSizeInBytes());
     if(res != 0){
-      if(DEBUG_ROPE)
-	ndbout_c("ConstRope::compare(%s, %d, %s) -> %d", str, left, data, res);
+      if (DEBUG_ROPE)
+        g_eventLogger->info("ConstRope::compare(%s, %d, %s) -> %d", str, left,
+                            data, res);
       return res;
     }
     data = nextSegment(it);
@@ -135,13 +139,15 @@ ConstRope::compare(const char * str, Uint32 len) const {
   if(left > 0){
     int res = memcmp(str, data, left);
     if(res){
-      if(DEBUG_ROPE)
-	ndbout_c("ConstRope::compare(%s, %d, %s) -> %d", str, left, data, res);
+      if (DEBUG_ROPE)
+        g_eventLogger->info("ConstRope::compare(%s, %d, %s) -> %d", str, left,
+                            data, res);
       return res;
     }
   }
-  if(DEBUG_ROPE)
-    ndbout_c("ConstRope::compare(%s, %d) -> %d", str, (int) len, m_length > len);
+  if (DEBUG_ROPE)
+    g_eventLogger->info("ConstRope::compare(%s, %d) -> %d", str, (int)len,
+                        m_length > len);
   return m_length > len;
 }
 
@@ -190,8 +196,8 @@ bool packFinalWord(const char * src, Uint32 & dest, Uint32 len) {
 
 bool
 LocalRope::appendBuffer(const char * s, Uint32 len) {
-  if(DEBUG_ROPE)
-    ndbout_c("LocalRope::appendBuffer(%d)", (int) len);
+  if (DEBUG_ROPE)
+    g_eventLogger->info("LocalRope::appendBuffer(%d)", (int)len);
   bool ok = append((const Uint32*) s, len >> 2);
   if(ok) {
     Uint32 tail;
@@ -205,8 +211,8 @@ LocalRope::appendBuffer(const char * s, Uint32 len) {
 
 bool
 LocalRope::assign(const char * s, Uint32 len, Uint32 hash){
-  if(DEBUG_ROPE)
-    ndbout_c("LocalRope::assign(%s, %d, 0x%x)", s, (int) len, hash);
+  if (DEBUG_ROPE)
+    g_eventLogger->info("LocalRope::assign(%s, %d, 0x%x)", s, (int)len, hash);
   erase();
   m_hash = hash;
   bool ok = append((const Uint32*) s, len >> 2);
@@ -232,12 +238,12 @@ LocalRope::hash(const char * p, Uint32 len, Uint32 starter){
   const char * data = p;
   for (; len > 0; len--)
     h = (h << 5) + h + (* data++);
-  if(DEBUG_ROPE) {
+  if (DEBUG_ROPE) {
     char msg_buffer[ROPE_COPY_BUFFER_SIZE];
     strncpy(msg_buffer, p, sizeof(msg_buffer));
     msg_buffer[sizeof(msg_buffer)-1] = '\0';
-    ndbout_c("LocalRope::hash(%s, %d) : 0x%x -> 0x%x",
-             msg_buffer, len, starter, h);
+    g_eventLogger->info("LocalRope::hash(%s, %d) : 0x%x -> 0x%x", msg_buffer,
+                        len, starter, h);
   }
   return h;
 }
@@ -369,12 +375,12 @@ int main(int argc, char ** argv) {
      end up with the same hash.
   */
   {
-    ndbout_c("Hash test h3:");
+    g_eventLogger->info("Hash test h3:");
     LocalRope lr3(c_rope_pool, h3);
     lr3.assign(a_string, 16);
     lr3.appendBuffer(a_string + 16, 16);
 
-    ndbout_c("Hash test h4:");
+    g_eventLogger->info("Hash test h4:");
     LocalRope lr4(c_rope_pool, h4);
     lr4.assign(a_string, 32);
   }
@@ -384,7 +390,7 @@ int main(int argc, char ** argv) {
 
   /* Test ConstRope::copy(LocalRope &)
   */
-  ndbout_c(" --> START ConstRope::copy() TEST <--");
+  g_eventLogger->info(" --> START ConstRope::copy() TEST <--");
   ConstRope cr2(c_rope_pool, h2);
   printf("cr2 size: %d \n", cr2.size());
   assert(cr2.size() == 80);
@@ -398,7 +404,7 @@ int main(int argc, char ** argv) {
   assert(cr3.size() == 80);
   assert(h2.hashValue() == h3.hashValue());
   assert(cr2.equal(cr3));
-  ndbout_c(" --> END ConstRope::copy() TEST <--");
+  g_eventLogger->info(" --> END ConstRope::copy() TEST <--");
 
   /* Test that RopeHandles can be assigned */
   h6 = h3;

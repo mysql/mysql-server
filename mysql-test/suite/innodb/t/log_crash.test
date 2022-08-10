@@ -1,0 +1,95 @@
+# This mtr test checks how InnoDB handles corrupted redo log files,
+# if these files were created using the current redo log format.
+#                                   ---------------------------
+#
+# For older redo formats, recovery reports that redo log isn't clean,
+# and clean shutdown must be performed using older version of MySQL.
+# However, scenarios for older redo formats are NOT part of this test.
+# They are located in log_5_7_8.test, log_5_7_9.test, ...
+
+# disabling checkpoints:
+--source include/have_debug.inc
+
+# perl: support for Q> in pack(), and 64-bit int:
+--source include/have_64bit.inc
+
+--source ../include/redo_log_error_patterns.inc
+
+let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
+
+let MYSQLD_DATADIR = $tmp_dir/log_crash;
+let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
+let SEARCH_FILE = $MYSQLD_ERROR_LOG;
+
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+let $MYSQLD_EXTRA_ARGS = --innodb_page_size=$INNODB_PAGE_SIZE;
+--echo # Initialize new data directory...
+--source include/initialize_datadir.inc
+
+--echo # Restart MySQL using the new data directory...
+let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG;
+--replace_result $MYSQLD_ERROR_LOG my_restart.err $MYSQLD_DATADIR tmp/log_crash
+--source include/restart_mysqld.inc
+
+--echo # Prepare schema used in the tests.
+--source include/ib_log_spammer_init.inc
+
+--echo # Ensure there is a lot of free space in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+
+--echo # Disable checkpointing.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+--echo # Create connection which generates spam to the redo log.
+--connect(C1,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Create at least few redo records...
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+INSERT INTO t(a) VALUES(42);
+
+--echo # Kill MySQL...
+--source include/kill_mysqld.inc
+let $restart_parameters = restart:;
+
+--echo # Start MySQL...
+--error 1,42
+--exec $MYSQLD_CMD $MYSQLD_ARGS --$UNKNOWN_PARAM
+
+--echo # Verify...
+
+let SEARCH_PATTERN = $PATTERN_DATABASE_NOT_CLEAN;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_STARTING_CRASH_RECOVERY;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_APPLYING_BATCH;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_APPLY_BATCH_COMPLETED;
+# Expected: found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = $PATTERN_UNKNOWN_PARAM;
+# Expected: found
+--source include/search_pattern.inc
+
+--echo # Remove the data directory...
+--force-rmdir $MYSQLD_DATADIR
+
+--echo ############################################################################################
+
+--echo # Cleanup...
+--remove_file $SEARCH_FILE
+let SEARCH_FILE=;
+let SEARCH_PATTERN=;
+let MYSQLD_ERROR_LOG=;
+let MYSQLD_DATADIR=;
+
+--echo # Start MySQL...
+--source include/start_mysqld.inc

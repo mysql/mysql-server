@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class Foreign_key_element_impl : public Weak_object_impl,
   Foreign_key_element_impl(const Foreign_key_element_impl &src,
                            Foreign_key_impl *parent, Column *column);
 
-  ~Foreign_key_element_impl() override {}
+  ~Foreign_key_element_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

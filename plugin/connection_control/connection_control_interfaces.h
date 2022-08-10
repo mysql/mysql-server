@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class Connection_event_coordinator_services;
 class Error_handler {
  public:
   virtual void handle_error(longlong errcode, ...) = 0;
-  virtual ~Error_handler() {}
+  virtual ~Error_handler() = default;
 };
 
 /**

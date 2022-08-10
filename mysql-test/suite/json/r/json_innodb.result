@@ -181,8 +181,6 @@ SELECT 1 FROM t GROUP BY ST_ASGEOJSON(POINT(1, 1)) WITH ROLLUP;
 1
 1
 1
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, COUNT(DISTINCT a)
 FROM t GROUP BY je WITH ROLLUP;
 je	COUNT(DISTINCT a)

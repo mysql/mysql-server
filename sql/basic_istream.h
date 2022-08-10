@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Basic_istream {
   */
   virtual ssize_t read(unsigned char *buffer, size_t length) = 0;
 
-  virtual ~Basic_istream() {}
+  virtual ~Basic_istream() = default;
 };
 
 /**
@@ -77,7 +77,7 @@ class Basic_seekable_istream : public Basic_istream {
      The total length of the stream.
    */
   virtual my_off_t length() = 0;
-  ~Basic_seekable_istream() override {}
+  ~Basic_seekable_istream() override = default;
 };
 
 /**

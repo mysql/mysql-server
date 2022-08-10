@@ -462,7 +462,7 @@ execute stmt1 using @arg00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index condition; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(1)) order by `test`.`t1`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 1) order by `test`.`t1`.`b`
 drop table if exists t2;
 create table t2 (id smallint, name varchar(20)) ;
 prepare stmt1 from ' insert into t2 values(?, ?) ' ;

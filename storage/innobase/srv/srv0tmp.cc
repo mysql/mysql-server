@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -86,7 +86,7 @@ Tablespace::~Tablespace() {
     ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE)
         << "Failed to delete file " << path();
     os_file_get_last_error(true);
-    ut_ad(0);
+    ut_d(ut_error);
   }
 }
 
@@ -115,8 +115,7 @@ dberr_t Tablespace::create() {
 
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-  bool ret =
-      fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
+  bool ret = fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr);
   mtr_commit(&mtr);
 
   if (!ret) {
@@ -147,7 +146,7 @@ bool Tablespace::truncate() {
 
   mtr_start(&mtr);
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-  fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
+  fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr);
   mtr_commit(&mtr);
 
   return true;
@@ -186,14 +185,14 @@ Tablespace_pool::Tablespace_pool(size_t init_size)
 Tablespace_pool::~Tablespace_pool() {
   mutex_destroy(&m_mutex);
   for (Tablespace *ts : *m_active) {
-    UT_DELETE(ts);
+    ut::delete_(ts);
   }
 
   for (Tablespace *ts : *m_free) {
-    UT_DELETE(ts);
+    ut::delete_(ts);
   }
-  UT_DELETE(m_active);
-  UT_DELETE(m_free);
+  ut::delete_(m_active);
+  ut::delete_(m_free);
 }
 
 Tablespace *Tablespace_pool::get(my_thread_id id, enum tbsp_purpose purpose) {
@@ -238,7 +237,7 @@ void Tablespace_pool::free_ts(Tablespace *ts) {
   if (it != m_active->end()) {
     m_active->erase(it);
   } else {
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   m_free->push_back(ts);
@@ -253,12 +252,12 @@ dberr_t Tablespace_pool::initialize(bool create_new_db) {
 
   ut_ad(m_active == nullptr && m_free == nullptr);
 
-  m_active = UT_NEW_NOKEY(Pool());
+  m_active = ut::new_withkey<Pool>(UT_NEW_THIS_FILE_PSI_KEY);
   if (m_active == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }
 
-  m_free = UT_NEW_NOKEY(Pool());
+  m_free = ut::new_withkey<Pool>(UT_NEW_THIS_FILE_PSI_KEY);
   if (m_free == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }
@@ -276,10 +275,10 @@ dberr_t Tablespace_pool::initialize(bool create_new_db) {
 dberr_t Tablespace_pool::expand(size_t size) {
   ut_ad(!m_pool_initialized || mutex_own(&m_mutex));
   for (size_t i = 0; i < size; i++) {
-    Tablespace *ts = UT_NEW_NOKEY(Tablespace());
+    Tablespace *ts = ut::new_withkey<Tablespace>(UT_NEW_THIS_FILE_PSI_KEY);
 
     if (ts == nullptr) {
-      return (DB_OUT_OF_MEMORY);
+      return DB_OUT_OF_MEMORY;
     }
 
     dberr_t err = ts->create();
@@ -287,11 +286,11 @@ dberr_t Tablespace_pool::expand(size_t size) {
     if (err == DB_SUCCESS) {
       m_free->push_back(ts);
     } else {
-      UT_DELETE(ts);
-      return (err);
+      ut::delete_(ts);
+      return err;
     }
   }
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 void Tablespace_pool::delete_old_pool(bool create_new_db) {
@@ -367,7 +366,8 @@ dberr_t open_or_create(bool create_new_db) {
     return (err);
   }
 
-  tbsp_pool = UT_NEW_NOKEY(Tablespace_pool(INIT_SIZE));
+  tbsp_pool =
+      ut::new_withkey<Tablespace_pool>(UT_NEW_THIS_FILE_PSI_KEY, INIT_SIZE);
   if (tbsp_pool == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }
@@ -382,7 +382,7 @@ void free_tmp(Tablespace *ts) {
   tbsp_pool->free_ts(ts);
 }
 
-void delete_pool_manager() { UT_DELETE(tbsp_pool); }
+void delete_pool_manager() { ut::delete_(tbsp_pool); }
 
 void close_files() {
   auto close = [&](const ibt::Tablespace *ts) { ts->close(); };

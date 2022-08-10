@@ -1,7 +1,7 @@
 #ifndef INPLACE_VECTOR_INCLUDED
 #define INPLACE_VECTOR_INCLUDED
 
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
   *can* assign to elements stored in the container just like using std::vector.
 
   It is similar to STL vector but it is uniquely suitable in below situation:
-  whenever stable element address, or element copy construction/assignement
+  whenever stable element address, or element copy construction/assignment
   behaviors are forbidden. It only has a limited subset of the std::vector
   interface, and especially it doesn't have an iterator interface or element
   elimination interface, we don't need them for now. And this container
@@ -168,7 +168,7 @@ class Inplace_vector {
                objects at the tail are removed and destroyed. If greater,
                new objects are added with default value.
     @param val default value assigned to extended slots in the vector. Unused
-               if the vector is shrinked.
+               if the vector is shrunk.
     @return true if out of memory; false if successful.
     */
   bool resize(size_t new_size, const objtype &val = objtype()) {

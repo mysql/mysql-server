@@ -48,37 +48,43 @@ SET @saved_debug= @@GLOBAL.debug;
 --echo # 1. Simulate an error on copying global replication filters
 --echo #    when executing CHANGE MASTER TO.
 --echo #
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_do_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_do_table';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_ignore_table';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_do_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_ignore_table';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_wild_do_table';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_ignore_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_wild_do_table';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_wild_ignore_table';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_wild_do_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_wild_ignore_table';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_ignore_db';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_wild_ignore_table';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_ignore_db';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_do_db';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_ignore_db';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_do_db';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 
-SET GLOBAL debug='d,simulate_out_of_memory_on_copy_rewrite_db';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_do_db';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_copy_rewrite_db';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 RESET SLAVE ALL FOR CHANNEL 'ch1';
@@ -87,7 +93,8 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 --echo # 2. Simulate an error on creating channel's replication filters
 --echo #    when executing CHANGE MASTER TO.
 --echo #
-SET GLOBAL debug='d,simulate_out_of_memory_on_create_filter';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_rewrite_db';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_create_filter';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 --error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
@@ -97,11 +104,13 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 --echo # 3. Simulate an error on executing CHANGE REPLICATION FILTER
 --echo #    with no FOR CHANNEL clause.
 --echo #
-SET GLOBAL debug='d,simulate_out_of_memory_on_CRF';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_create_filter';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_CRF';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
 
-SET GLOBAL debug='d,simulate_out_of_memory_on_global_CRF';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_CRF';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_global_CRF';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
 
@@ -109,7 +118,8 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
 --echo # 4. Simulate an error on executing CHANGE REPLICATION FILTER
 --echo #    with FOR CHANNEL clause.
 --echo #
-SET GLOBAL debug='d,simulate_out_of_memory_on_CRF_FOR_CHA';
+SET GLOBAL debug='-d,simulate_out_of_memory_on_global_CRF';
+SET GLOBAL debug='+d,simulate_out_of_memory_on_CRF_FOR_CHA';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL '' ;
 

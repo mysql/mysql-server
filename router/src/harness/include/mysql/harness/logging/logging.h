@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -231,6 +231,8 @@ static inline void log_note(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
 static inline void log_debug(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
+static inline void log_custom(const LogLevel log_level, const char *fmt, ...)
+    ATTRIBUTE_GCC_FORMAT(printf, 2, 3);
 
 /*
  * Define inline functions that pick up the log domain defined for the module.
@@ -290,6 +292,15 @@ static inline void log_debug(const char *fmt, ...) {
   va_end(ap);
 }
 
+static inline void log_custom(const LogLevel log_level, const char *fmt, ...) {
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  log_message(log_level, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
+
 /** @} */
 
 #ifdef __cplusplus
@@ -315,6 +326,7 @@ static inline bool log_level_is_handled(LogLevel level) {
   using mysql_harness::logging::log_warning; \
   using mysql_harness::logging::log_info;    \
   using mysql_harness::logging::log_note;    \
-  using mysql_harness::logging::log_debug;
+  using mysql_harness::logging::log_debug;   \
+  using mysql_harness::logging::log_custom;
 
 #endif  // MYSQL_HARNESS_LOGGING_INCLUDED

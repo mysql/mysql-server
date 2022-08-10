@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 
+#include "mysql/harness/tls_context.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 
@@ -46,28 +47,24 @@ class MySQLClassicProtocol : public ProtocolBase {
   stdx::expected<size_t, std::error_code> read_packet(
       std::vector<uint8_t> &payload);
 
-  void send_packet(const std::vector<uint8_t> &payload);
+  // throws std::system_error
+  void encode_error(const ErrorResponse &msg) override;
 
   // throws std::system_error
-  void send_error(const uint16_t error_code, const std::string &error_msg,
-                  const std::string &sql_state = "HY000") override;
+  void encode_ok(const uint64_t affected_rows = 0,
+                 const uint64_t last_insert_id = 0,
+                 const uint16_t server_status = 0,
+                 const uint16_t warning_count = 0) override;
 
   // throws std::system_error
-  void send_ok(const uint64_t affected_rows = 0,
-               const uint64_t last_insert_id = 0,
-               const uint16_t server_status = 0,
-               const uint16_t warning_count = 0) override;
+  void encode_resultset(const ResultsetResponse &response) override;
 
-  // throws std::system_error
-  void send_resultset(const ResultsetResponse &response,
-                      const std::chrono::microseconds delay_ms) override;
+  void encode_auth_fast_message();
 
-  void send_auth_fast_message();
-
-  void send_auth_switch_message(
+  void encode_auth_switch_message(
       const classic_protocol::message::server::AuthMethodSwitch &msg);
 
-  void send_server_greeting(
+  void encode_server_greeting(
       const classic_protocol::message::server::Greeting &greeting);
 
   void seq_no(uint8_t no) { seq_no_ = no; }
@@ -103,59 +100,30 @@ class MySQLClassicProtocol : public ProtocolBase {
 
 class MySQLServerMockSessionClassic : public MySQLServerMockSession {
  public:
-  enum class HandshakeState {
-    INIT,
-    GREETED,
-    AUTH_SWITCHED,
-    DONE,
-  };
-
-  using socket_t = net::impl::socket::native_handle_type;
-
   MySQLServerMockSessionClassic(
-      MySQLClassicProtocol *protocol,
+      MySQLClassicProtocol protocol,
       std::unique_ptr<StatementReaderBase> statement_processor,
       const bool debug_mode, const bool with_tls)
-      : MySQLServerMockSession(protocol, std::move(statement_processor),
-                               debug_mode),
-        protocol_{protocol},
+      : MySQLServerMockSession(std::move(statement_processor), debug_mode),
+        protocol_{std::move(protocol)},
         with_tls_{with_tls} {}
 
-  /**
-   * process the handshake of the current connection.
-   *
-   * @throws std::system_error, std::runtime_error
-   * @returns handshake-success
-   * @retval true handshake succeeded
-   * @retval false handshake failed, close connection
-   */
-  bool process_handshake() override;
+  void run() override;
 
-  /**
-   * process the statements of the current connection.
-   *
-   * @pre connection must be authenticated with process_handshake() first
-   *
-   * @throws std::system_error
-   * @returns handshake-success
-   * @retval true handshake succeeded
-   * @retval false handshake failed, close connection
-   */
-  bool process_statements() override;
-
-  void state(HandshakeState st) { state_ = st; }
-
-  HandshakeState state() const { return state_; }
+  void cancel() override { protocol_.cancel(); }
 
  private:
-  // throws std::system_error, std::runtime_error
-  bool handle_handshake(const std::vector<uint8_t> &payload);
+  void server_greeting();
+  void client_greeting();
+  void auth_switched();
+  void idle();
+  void send_response_then_idle();
+  void send_response_then_disconnect();
+  void finish();
 
   bool authenticate(const std::vector<uint8_t> &client_auth_method_data);
 
-  HandshakeState state_{HandshakeState::INIT};
-
-  MySQLClassicProtocol *protocol_;
+  MySQLClassicProtocol protocol_;
 
   bool with_tls_{false};
 };

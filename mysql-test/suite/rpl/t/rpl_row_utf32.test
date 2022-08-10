@@ -19,7 +19,7 @@ SET SQL_LOG_BIN=1;
 
 -- connection slave
 
-SET @saved_slave_type_conversions= @@global.slave_type_conversions;
+SET @saved_replica_type_conversions= @@global.replica_type_conversions;
 
 #
 #  Force test to cover conversion execution path in the
@@ -27,7 +27,7 @@ SET @saved_slave_type_conversions= @@global.slave_type_conversions;
 #  can ultimately trigger the assertion.
 #
 -- source include/stop_slave.inc
-SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SET GLOBAL REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 -- source include/start_slave.inc
 
 SET SQL_LOG_BIN=0;
@@ -49,7 +49,7 @@ DROP TABLE t1;
 #            before and during slave conversion procedure
 #            Now that is fixed, it wont.
 
-SET GLOBAL SLAVE_TYPE_CONVERSIONS= @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS= @saved_replica_type_conversions;
 -- source include/stop_slave.inc
 -- source include/start_slave.inc
 -- connection master

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,9 +34,9 @@ class ProcessInfoRep {
   friend bool printPROCESSINFO_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 20);
-  STATIC_CONST( PathSectionNum = 0);
-  STATIC_CONST( HostSectionNum = 1);
+  static constexpr Uint32 SignalLength = 20;
+  static constexpr Uint32 PathSectionNum = 0;
+  static constexpr Uint32 HostSectionNum = 1;
 
 private:
   Uint8 process_name[48];

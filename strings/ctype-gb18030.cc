@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19277,7 +19277,7 @@ static inline uint gb18030_4_chs_to_diff(const uchar *src) {
                 0 if not
 */
 extern "C" {
-static uint my_ismbchar_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint my_ismbchar_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
                                 const char *p, const char *e) {
   assert(e > p);
 
@@ -19301,7 +19301,7 @@ static uint my_ismbchar_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @retval       1/2/4 accordingly if the leading byte(s) indicate
                 the code would be gb18030, otherwise 0
 */
-static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
                                  uint c) {
   if (c <= 0xFF)
     /* We use is_mb_odd instead of is_mb_1 here, because in other cs,
@@ -19327,7 +19327,7 @@ static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                     space is too small
                  3) MY_CS_ILUNI if we can't encode unicode to gb18030
 */
-static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs [[maybe_unused]],
                                 my_wc_t wc, uchar *s, uchar *e) {
   uint idx = 0;
   uint len;
@@ -19418,7 +19418,7 @@ static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                   3) MY_CS_ILSEQ if gb18030 code is
                      wrong by sequence
 */
-static int my_mb_wc_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_mb_wc_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
                             my_wc_t *pwc, const uchar *s, const uchar *e) {
   uint idx = 0;
   uint cp = 0;
@@ -19504,9 +19504,10 @@ static int my_mb_wc_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @param[out] error 0 if every gb18030 code we get is correct, otherwise 1
   @return           the length of all well formed bytes
 */
-static size_t my_well_formed_len_gb18030(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_gb18030(const CHARSET_INFO *cs
+                                         [[maybe_unused]],
+                                         const char *b, const char *e,
+                                         size_t pos, int *error) {
   const char *b0 = b;
   const char *emb = e - 1;
 
@@ -20057,7 +20058,7 @@ static int my_strnncollsp_gb18030(const CHARSET_INFO *cs, const uchar *s,
 
 /**
   Make a sort key suitable for memcmp() corresponding to gb18030
-  Sort accroding to UPPER() for non-Chinese chars, and PINYIN
+  Sort according to UPPER() for non-Chinese chars, and PINYIN
   for Chinese chars
 
   @param[in]  cs       charset
@@ -20368,7 +20369,7 @@ static MY_CHARSET_HANDLER my_charset_gb18030_handler = {
     my_ismbchar_gb18030,
     my_mbcharlen_gb18030,
     my_numchars_mb,
-    my_charpos_mb,
+    my_charpos_mb3,
     my_well_formed_len_gb18030,
     my_lengthsp_8bit,
     my_numcells_mb,
@@ -20396,7 +20397,7 @@ MY_CHARSET_HANDLER my_charset_gb18030_uca_handler = {nullptr,
                                                      my_ismbchar_gb18030,
                                                      my_mbcharlen_gb18030,
                                                      my_numchars_mb,
-                                                     my_charpos_mb,
+                                                     my_charpos_mb3,
                                                      my_well_formed_len_gb18030,
                                                      my_lengthsp_8bit,
                                                      my_numcells_mb,
@@ -20426,7 +20427,7 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
     0,                                               /* number        */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state         */
     "gb18030",                                       /* cs name       */
-    "gb18030_chinese_ci",                            /* name          */
+    "gb18030_chinese_ci",                            /* m_coll_name   */
     "China National Standard GB18030",               /* comment       */
     nullptr,                                         /* tailoring     */
     nullptr,                                         /* coll_param    */
@@ -20461,7 +20462,7 @@ CHARSET_INFO my_charset_gb18030_bin = {
     0,                                 /* number        */
     MY_CS_COMPILED | MY_CS_BINSORT,    /* state         */
     "gb18030",                         /* cs name       */
-    "gb18030_bin",                     /* name          */
+    "gb18030_bin",                     /* m_coll_name   */
     "China National Standard GB18030", /* comment       */
     nullptr,                           /* tailoring     */
     nullptr,                           /* coll_param    */

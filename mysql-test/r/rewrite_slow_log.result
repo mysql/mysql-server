@@ -104,5 +104,7 @@ SET SESSION long_query_time=    @old_long_query_time;
 SET GLOBAL  slow_query_log_file=@old_slow_query_log_file;
 SET GLOBAL  slow_query_log=     @old_slow_query_log;
 SET GLOBAL  log_output=         @old_log_output;
+TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;
 SET GLOBAL  master_info_repository= @old_master_info_repository;
 SET GLOBAL  relay_log_info_repository= @old_relay_log_info_repository;

@@ -192,8 +192,10 @@ SET global.expire_logs_days = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.expire_logs_days = 1' at line 1
 SELECT global.expire_logs_days;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT expire_logs_days = @@session.expire_logs_days;
+SELECT expire_logs_days;
 ERROR 42S22: Unknown column 'expire_logs_days' in 'field list'
+SELECT @@session.expire_logs_days;
+ERROR HY000: Variable 'expire_logs_days' is a GLOBAL variable
 SET @@global.expire_logs_days = @start_value;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.

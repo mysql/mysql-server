@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED
 #define SQL_GIS_GEOMETRY_VISITOR_H_INCLUDED
 
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -41,11 +41,11 @@ namespace gis {
 /// The visitor can abort execution at any time. This is done by returning true
 /// from a visit() or visit_leave() function. If these functions return false,
 /// execution will continue. The accept() member function on geometries returns
-/// true if the visitor aborte exectuion and false otherwise.
+/// true if the visitor aborted execution and false otherwise.
 class Geometry_visitor {
  public:
-  Geometry_visitor() {}
-  virtual ~Geometry_visitor() {}
+  Geometry_visitor() = default;
+  virtual ~Geometry_visitor() = default;
 
   /// Enters a compound geometry.
   ///

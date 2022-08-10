@@ -12,6 +12,7 @@
 # ==== Usage ====
 #
 # [--let $rpl_channel_name= 'NAME']
+# [--let $slave_sql_errno= NUMBER[, NUMBER...]]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/stop_slave_sql.inc
@@ -19,6 +20,11 @@
 # Parameters:
 #   $rpl_channel_name
 #     If set, a FOR CHANNEL $rpl_channel_name is added.
+#
+#   $slave_sql_errno
+#     By default, this script fails the test if there is an error in the
+#     applier thread. Set this to a comma-separated list of numeric error
+#     codes, to allow the given values.
 #
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc

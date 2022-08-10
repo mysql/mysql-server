@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -66,9 +66,10 @@ enum enum_prio {
 */
 class PFS_key_error_log_logged : public PFS_key_ulonglong {
  public:
-  PFS_key_error_log_logged(const char *name) : PFS_key_ulonglong(name) {}
+  explicit PFS_key_error_log_logged(const char *name)
+      : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_error_log_logged() override {}
+  ~PFS_key_error_log_logged() override = default;
 
   virtual void read(PFS_key_reader &reader,
                     enum ha_rkey_function find_flag) override {
@@ -87,7 +88,7 @@ class PFS_index_error_log_by_logged : public PFS_index_error_log {
   PFS_index_error_log_by_logged()
       : PFS_index_error_log(&m_key), m_key("LOGGED") {}
 
-  ~PFS_index_error_log_by_logged() override {}
+  ~PFS_index_error_log_by_logged() override = default;
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -98,9 +99,10 @@ class PFS_index_error_log_by_logged : public PFS_index_error_log {
 /// key for the THREAD_ID column
 class PFS_key_error_log_thread_id : public PFS_key_ulonglong {
  public:
-  PFS_key_error_log_thread_id(const char *name) : PFS_key_ulonglong(name) {}
+  explicit PFS_key_error_log_thread_id(const char *name)
+      : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_error_log_thread_id() {}
+  ~PFS_key_error_log_thread_id() = default;
 
   bool match(const log_sink_pfs_event *row);
 };
@@ -111,7 +113,7 @@ class PFS_index_error_log_by_thread_id : public PFS_index_error_log {
   PFS_index_error_log_by_thread_id()
       : PFS_index_error_log(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_error_log_by_thread_id() override {}
+  ~PFS_index_error_log_by_thread_id() override = default;
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -122,10 +124,10 @@ class PFS_index_error_log_by_thread_id : public PFS_index_error_log {
 /// key for the PRIO column
 class PFS_key_error_log_prio : public PFS_key_object_type_enum {
  public:
-  PFS_key_error_log_prio(const char *name)
+  explicit PFS_key_error_log_prio(const char *name)
       : PFS_key_object_type_enum(name), m_prio(PS_ERROR_LOG_PRIO_ERROR) {}
 
-  ~PFS_key_error_log_prio() override {}
+  ~PFS_key_error_log_prio() override = default;
 
   void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override;
 
@@ -140,7 +142,7 @@ class PFS_index_error_log_by_prio : public PFS_index_error_log {
  public:
   PFS_index_error_log_by_prio() : PFS_index_error_log(&m_key), m_key("PRIO") {}
 
-  ~PFS_index_error_log_by_prio() override {}
+  ~PFS_index_error_log_by_prio() override = default;
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -154,7 +156,7 @@ class PFS_index_error_log_by_error_code : public PFS_index_error_log {
   PFS_index_error_log_by_error_code()
       : PFS_index_error_log(&m_key), m_key("ERROR_CODE") {}
 
-  ~PFS_index_error_log_by_error_code() override {}
+  ~PFS_index_error_log_by_error_code() override = default;
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -168,7 +170,7 @@ class PFS_index_error_log_by_subsys : public PFS_index_error_log {
   PFS_index_error_log_by_subsys()
       : PFS_index_error_log(&m_key), m_key("SUBSYSTEM") {}
 
-  ~PFS_index_error_log_by_subsys() override {}
+  ~PFS_index_error_log_by_subsys() override = default;
 
   virtual bool match(log_sink_pfs_event *row) override;
 
@@ -195,7 +197,7 @@ class table_error_log : public cursor_by_error_log {
   virtual int index_init(uint idx, bool sorted) override;
 
  public:
-  ~table_error_log() override {}
+  ~table_error_log() override = default;
 
  private:
   /** Copy an event from the ring-buffer into this class's buffer. */
@@ -207,8 +209,8 @@ class table_error_log : public cursor_by_error_log {
   static Plugin_table m_table_def;
 
   /** Current row. */
-  log_sink_pfs_event m_header;   //< event-header copied from ring-buffer
-  char m_message[LOG_BUFF_MAX];  //< message (DATA column) from ring-buffer
+  log_sink_pfs_event m_header;   ///< event-header copied from ring-buffer
+  char m_message[LOG_BUFF_MAX];  ///< message (DATA column) from ring-buffer
 };
 
 /** @} */

@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmyisamchk\fR
+.\"     Title: myisamchk
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYISAMCHK" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -383,7 +383,7 @@ is used\&. To create
 \&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1003,6 +1003,21 @@ cannot allocate memory to hold them\&.
 .\}
 \fB\-\-parallel\-recover\fR,
 \fB\-p\fR
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option is deprecated in MySQL 8\&.0\&.28 and removed in MySQL 8\&.0\&.30\&.
+.sp .5v
+.RE
 Use the same technique as
 \fB\-r\fR
 and
@@ -1322,7 +1337,7 @@ The
 argument can be either the name of a
 MyISAM
 table or the name of its index file, as described in
-\fBmyisamchk\fR(1)\&. Multiple
+myisamchk(1)\&. Multiple
 \fItbl_name\fR
 arguments can be given\&.
 .PP
@@ -2015,7 +2030,7 @@ and
 Bits
 fields are displayed if the table has been compressed with
 \fBmyisampack\fR\&. See
-\fBmyisampack\fR(1), for an example of this information\&.
+myisampack(1), for an example of this information\&.
 .PP
 Example of
 \fBmyisamchk \-eiv\fR
@@ -2431,7 +2446,7 @@ instead of
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

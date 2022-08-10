@@ -11,8 +11,16 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET SESSION sql_log_bin=0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
 SET SESSION sql_log_bin=1;
 [connection server2]
+SET SESSION sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin=1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 
 ############################################################
@@ -52,6 +60,10 @@ include/assert.inc ['There are 2 values on table t1']
 # 5. Clean up.
 [connection server1]
 DROP TABLE t1;
+SET SESSION sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+SET SESSION sql_log_bin=1;
+[connection server2]
 SET SESSION sql_log_bin=0;
 DROP USER 'rec_ssl_user';
 SET SESSION sql_log_bin=1;

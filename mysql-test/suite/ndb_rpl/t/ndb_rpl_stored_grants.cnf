@@ -1,33 +1,58 @@
-!include suite/ndb_rpl/my.cnf
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
 
-# 2 MySQLDs attached to slave cluster
-[cluster_config.slave]
+[cluster_config.cluster1]
+NoOfReplicas=                  1
+ndbd=
+ndb_mgmd=
 mysqld=,
+ndbapi=,,
+
+[cluster_config.cluster2]
+NoOfReplicas=                  1
+ndbd=
+ndb_mgmd=
+mysqld=,
+ndbapi=,,
 
 [mysqld]
-ndb-cluster-connection-pool=1
-
-[mysqld.1.1]
-ndb-cluster-connection-pool-nodeids=49
-
-[mysqld.2.1]
-ndb-cluster-connection-pool-nodeids=16
-
-[mysqld.1.slave]
-ndb-cluster-connection-pool-nodeids=49
-
-[cluster_config.mysqld.2.slave]
-NodeId=16
-Dedicated=1
-
-# Note binlog on this slave, but not logging slave updates
-[mysqld.2.slave]
-ndb-cluster-connection-pool-nodeids=16
-ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
-disable-log-bin
+ndbcluster
+ndb-wait-connected=30
+ndb-wait-setup=120
+replica-allow-batching
+ndb-log-orig
 ndb-log-bin=1
+replica-parallel-workers=1
+
+[mysqld.1.cluster1]
+server_id=            1
+log-bin=              mysql-A-bin
+
+[mysqld.2.cluster1]
+server_id=            2
+log-bin=              0
+
+[mysqld.1.cluster2]
+server_id=            3
+log-bin=              mysql-C-bin
+relay-log=            mysql-C-relay-bin
+log-replica-updates=  0
+
+[mysqld.2.cluster2]
+server_id=            4
+log-bin=              mysql-D-bin
+relay-log=            mysql-D-relay-bin
+log-replica-updates=  1
 
 [ENV]
-SLAVE_MYPORT1=         @mysqld.2.slave.port
-SLAVE_MYSOCK1=         @mysqld.2.slave.socket
+MYSQL_A_PORT       =  @mysqld.1.cluster1.port
+MYSQL_B_PORT       =  @mysqld.2.cluster1.port
+MYSQL_C_PORT       =  @mysqld.1.cluster2.port
+MYSQL_D_PORT       =  @mysqld.2.cluster2.port
+
+SERVER_MYPORT_1    =  @mysqld.1.cluster1.port
+SERVER_MYPORT_2    =  @mysqld.2.cluster1.port
+SERVER_MYPORT_3    =  @mysqld.1.cluster2.port
+SERVER_MYPORT_4    =  @mysqld.2.cluster2.port
+
 

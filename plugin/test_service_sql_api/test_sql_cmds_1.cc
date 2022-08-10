@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,9 +159,8 @@ static int sql_start_result_metadata(void *, uint num_cols, uint,
                                      const CHARSET_INFO *resultcs) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info",
-             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->m_coll_name));
   row_count = 0;
   sql_num_cols = num_cols;
   sql_resultcs = resultcs;
@@ -331,7 +330,7 @@ const struct st_command_service_cbs sql_cbs = {
 
 /****************************************************************************************/
 
-static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
+static void test_com_query(void *p [[maybe_unused]]) {
   DBUG_TRACE;
 
   /* Session declarations */
@@ -369,7 +368,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
     /* get values */
     WRITE_STR(
         "-----------------------------------------------------------------\n");
-    WRITE_VAL("%s\t\%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
+    WRITE_VAL("%s\t%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
     for (uint row = 0; row < sql_num_rows; row++) {
       for (uint col = 0; col < sql_num_cols; col++) {
         WRITE_VAL("%s\n", sql_str_value[col][row]);
@@ -384,7 +383,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
     } else {
       WRITE_VAL("server status: %d\n", cbd.server_status);
       WRITE_VAL("warn count: %d\n", cbd.warn_count);
-      //           WRITE_VAL("messsage: %s\n",msg);
+      //           WRITE_VAL("message: %s\n",msg);
     }
   }
 
@@ -410,10 +409,10 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
     /* get values */
     WRITE_STR(
         "-----------------------------------------------------------------\n");
-    WRITE_VAL("%s\t\%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
+    WRITE_VAL("%s\t%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
     for (uint row = 0; row < sql_num_rows; row++) {
       for (uint col = 0; col < sql_num_cols; col += 2) {
-        WRITE_VAL("%s\t\%s\n", sql_str_value[col][row],
+        WRITE_VAL("%s\t%s\n", sql_str_value[col][row],
                   sql_str_value[col + 1][row]);
       }
     }
@@ -747,7 +746,7 @@ static int test_priv(void *p) {
   return 0;
 }
 
-static void test_sql(void *p MY_ATTRIBUTE((unused))) {
+static void test_sql(void *p [[maybe_unused]]) {
   DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
@@ -790,7 +789,7 @@ static int test_sql_service_plugin_init(void *p) {
   return 0;
 }
 
-static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
+static int test_sql_service_plugin_deinit(void *p [[maybe_unused]]) {
   DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);

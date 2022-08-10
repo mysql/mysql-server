@@ -1,0 +1,64 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a group on server1.
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+call mtr.add_suppression("Slave SQL for channel 'ch1': Worker 1 failed executing transaction.*");
+call mtr.add_suppression("Slave SQL for channel 'ch1': ... The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Slave SQL for channel 'ch1': Error 'Error on observer while running replication hook 'before_commit'.'.*");
+call mtr.add_suppression("Slave: Error on observer while running replication hook 'before_commit'. Error_code: MY-003100");
+SET SESSION sql_log_bin = 1;
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Configure a channel on server1 that replicates from
+#    server2.
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=SERVER_2_PORT, SOURCE_AUTO_POSITION=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+
+############################################################
+# 3. Stop group on server1, through debug sync block the stop
+#    after acquiring `shared_plugin_stop` lock.
+[connection server_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_hold_stop_before_leave_the_group';
+STOP GROUP_REPLICATION;
+[connection server1]
+SET DEBUG_SYNC='now wait_for signal.stopping_before_leave_the_group';
+
+############################################################
+# 4. Commit a transaction on server2 which will be replicated
+#    to server1 through channel 'ch1'.
+#    Channel 'ch1' will fail since the plugin is stopping.
+[connection server2]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+[connection server1]
+include/wait_for_slave_sql_error.inc [errno=3100 FOR CHANNEL 'ch1']
+
+############################################################
+# 5. Resume STOP GROUP_REPLICATION on server1.
+[connection server1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
+SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
+[connection server_1]
+[connection server1]
+include/gr_wait_for_member_state.inc
+SET DEBUG_SYNC= 'RESET';
+include/assert.inc ['There is no table t1 on server1']
+
+############################################################
+# 6. Clean up.
+[connection server1]
+include/rpl_reset_slave.inc
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,7 @@ FUNCTION(GLOVES_ADD_PLUGIN CORE_NAME)
   TARGET_COMPILE_DEFINITIONS(
     ${CORE_NAME} PUBLIC
     MYSQL_SERVER
+    PLUGIN_GLOVE
     GLOVE_PFS_CATEGORY="plugin-${CORE_NAME}"
     LOG_COMPONENT_TAG="${COMPONENT_TAG}"
   )
@@ -104,8 +105,7 @@ FUNCTION(GLOVES_ADD_UNIT_TESTS CORE_NAME)
     RETURN()
   ENDIF()
 
-  # GUnit/GMock must be requested and available
-  IF(NOT WITH_UNIT_TESTS OR NOT GMOCK_FOUND)
+  IF(NOT WITH_UNIT_TESTS)
     RETURN()
   ENDIF()
 

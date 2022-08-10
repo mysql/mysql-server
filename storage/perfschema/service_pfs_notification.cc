@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ struct PFS_notification_node {
         m_next(nullptr),
         m_cb_map(0) {}
 
-  PFS_notification_node(const PSI_notification &cb)
+  explicit PFS_notification_node(const PSI_notification &cb)
       : m_handle(0),
         m_use_ref_count(false),
         m_refs(0),
@@ -135,8 +135,6 @@ struct PFS_notification_registry {
       node = next;
     }
   }
-
-  bool is_empty() { return m_count > 0; }
 
   /**
     Add a new registration.
@@ -336,7 +334,7 @@ int pfs_unregister_notification(int handle) {
   @param thread  instrumented thread
   @sa pfs_notify_thread_create
 */
-void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_thread_create(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_CREATE);
   if (node == nullptr) {
     return;
@@ -363,7 +361,7 @@ void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   @param thread  instrumented thread
   @sa pfs_notify_thread_destroy
 */
-void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_thread_destroy(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_DESTROY);
   if (node == nullptr) {
     return;
@@ -389,7 +387,7 @@ void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_connect
 */
-void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_connect(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CONNECT);
   if (node == nullptr) {
     return;
@@ -415,7 +413,7 @@ void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_disconnect
 */
-void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_disconnect(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_DISCONNECT);
   if (node == nullptr) {
     return;
@@ -441,7 +439,7 @@ void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_change_user
 */
-void pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_change_user(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CHANGE_USER);
   if (node == nullptr) {
     return;

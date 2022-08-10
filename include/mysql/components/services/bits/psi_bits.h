@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 #define COMPONENTS_SERVICES_BITS_PSI_BITS_H
 
 /**
-  @file include/mysql/components/services/bits/psi_bits.h
+  @file mysql/components/services/bits/psi_bits.h
   Performance schema instrumentation interface.
 
   @defgroup instrumentation_interface Instrumentation Interface
@@ -43,7 +43,15 @@ static constexpr unsigned PSI_INSTRUMENT_ME = 0;
 
 #define PSI_DOCUMENT_ME ""
 
+// Remove 'constexpr' in order to pick the right overload for
+//    Prealloced_array CTOR.
+// See https://bugs.llvm.org/show_bug.cgi?id=51582
+// and TEST_F(PreallocedArrayTest, CorrectOverloadIsChosen)
+#if defined(__clang__) && defined(_WIN32)
+static unsigned PSI_NOT_INSTRUMENTED = 0;
+#else
 static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+#endif
 
 /**
   Singleton flag.
@@ -113,6 +121,23 @@ static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
   Indicates that the instrumented object exists on a system thread.
 */
 #define PSI_FLAG_THREAD_SYSTEM (1 << 9)
+
+/**
+  Automatic sequence number flag.
+  Generate thread instances names automatically.
+*/
+#define PSI_FLAG_AUTO_SEQNUM (1 << 10)
+
+/**
+  No sequence number flag.
+  Use thread instances names without sequence numbers.
+*/
+#define PSI_FLAG_NO_SEQNUM (1 << 11)
+
+/**
+  Enable collecting the memory consumed by threads.
+*/
+#define PSI_FLAG_MEM_COLLECT (1 << 12)
 
 #define PSI_VOLATILITY_UNKNOWN 0
 #define PSI_VOLATILITY_PERMANENT 1

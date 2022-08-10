@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,13 +126,17 @@ class Server {
     return m_protocol_version < CLONE_PROTOCOL_VERSION_V3;
   }
 
-  /** Configuration parameters to be validated by remote. */
-  static Key_Values s_configs;
-
-  /** Additional configuration parameters needed by recipient. */
-  static Key_Values s_other_configs;
-
  private:
+  /** Extract client ddl timeout and backup lock flag.
+  @param[in]	client_timeout	timeout value received from client */
+  void set_client_timeout(uint32_t client_timeout) {
+    m_backup_lock = ((client_timeout & NO_BACKUP_LOCK_FLAG) == 0);
+    m_client_ddl_timeout = client_timeout & ~NO_BACKUP_LOCK_FLAG;
+  }
+
+  /** @return true if clone needs to block concurrent DDL. */
+  bool block_ddl() const { return (m_is_master && m_backup_lock); }
+
   /** Check if network error
   @param[in]	err	error code
   @return true if network error */
@@ -234,6 +238,9 @@ class Server {
 
   /** DDL timeout from client */
   uint32_t m_client_ddl_timeout;
+
+  /** If backup lock should be acquired */
+  bool m_backup_lock;
 };
 
 /** Clone server interface to handle callback from Storage Engine */

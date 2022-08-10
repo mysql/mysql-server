@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ class Plugin_gcs_message {
   enum_cargo_type m_cargo_type;
 
  public:
-  virtual ~Plugin_gcs_message() {}
+  virtual ~Plugin_gcs_message() = default;
 
   /**
    @return the value of the version field.
@@ -258,6 +258,22 @@ class Plugin_gcs_message {
     @param[in] cargo_type Message type to be sent
    */
   explicit Plugin_gcs_message(enum_cargo_type cargo_type);
+
+  /**
+    Encodes the header of this instance into the buffer.
+
+    @param[out] buffer the buffer to encode to.
+  */
+  void encode_header(std::vector<unsigned char> *buffer) const;
+
+  /**
+    Decodes the header of the buffer into this instance.
+
+    @param[out] slider before call `decode_header`: the start of the buffer
+                       after call `decode_header`: the position on which the
+                                                   header ends on the buffer.
+  */
+  void decode_header(const unsigned char **slider);
 
   /**
     Encodes the contents of this instance payload into the buffer.

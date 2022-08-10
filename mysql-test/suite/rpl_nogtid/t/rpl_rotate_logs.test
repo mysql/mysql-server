@@ -243,6 +243,10 @@ drop temporary table temp_table;
 #
 # Bug #29420: crash with show and purge binlogs
 #
+# Wait for sql thread to relase the backup lock acquired during drop tables
+--let $wait_condition = SELECT COUNT(*)= 0 FROM performance_schema.metadata_locks WHERE object_type= 'BACKUP LOCK'
+--source include/wait_condition.inc
+
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events in 'non existing_binlog_file';
 replace_regex /\.[\\\/]slave/slave/;

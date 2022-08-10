@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "sql/rpl_async_conn_failover_add_source_udf.h"
 #include "sql/rpl_async_conn_failover_delete_managed_udf.h"
 #include "sql/rpl_async_conn_failover_delete_source_udf.h"
+#include "sql/rpl_async_conn_failover_reset_udf.h"
 
 bool Udf_service_impl::register_udf(Udf_data &udf) {
   DBUG_TRACE;
@@ -124,6 +125,7 @@ void Udf_load_service::register_udf() {
   add<Rpl_async_conn_failover_delete_source>();
   add<Rpl_async_conn_failover_add_managed>();
   add<Rpl_async_conn_failover_delete_managed>();
+  add<Rpl_async_conn_failover_reset>();
 }
 
 void Udf_load_service::unregister_udf() {

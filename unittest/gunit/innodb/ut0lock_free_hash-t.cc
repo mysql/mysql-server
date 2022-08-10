@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* See http://code.google.com/p/googletest/wiki/Primer */
-
-/* First include (the generated) my_config.h to get correct platform defines. */
-#include "my_config.h"
 
 /* Enable this to have the tests below run lots of iterations, suitable for
 perf testing and comparison, but not suitable for daily automated testing
@@ -85,9 +82,6 @@ unittest/gunit/innodb/CMakeLists.txt */
 #include "storage/innobase/include/ut0dbg.h" /* ut_chrono_t */
 #include "storage/innobase/include/ut0lock_free_hash.h"
 #include "storage/innobase/include/ut0mutex.h" /* SysMutex, mutex_enter() */
-
-/* Thread local counter variable for random backoff for spinlocks */
-extern thread_local ulint ut_rnd_ulint_counter;
 
 namespace innodb_lock_free_hash_unittest {
 
@@ -429,7 +423,7 @@ static void run_multi_threaded(const char *label, size_t initial_hash_size,
 
   ut_hash_interface_t *hash;
 
-  ut_rnd_ulint_counter = 0;
+  ut::detail::random_seed = 0;
 
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
   hash = new std_hash_t();
@@ -682,5 +676,43 @@ TEST_F(ut0lock_free_hash, multi_threaded_100r0w) {
       256 /* n_priv_per_thread */, 64 /* n_threads */,
       thread_100r0w /* thr func */
   );
+}
+TEST_F(ut0lock_free_hash, too_relaxed) {
+  /* Tests race conditions between writer (the main thread) and readers.
+  The writer puts T*CAPACITY elements into the hashmap, which has a smallest
+  possible capacity (2k) of a single node, to force frequent allocation of new
+  nodes. If the capacity was smaller than 2k, then the hashmap would keep
+  doubling the size of new nodes until it reached 2k. Also, there's a heuristic
+  to not double the size if the old node contained lots of deleted elements,
+  thus our writer will mark all inserted elements as deleted. The goal of all
+  this is to execute node allocation logic as often as possible, while the
+  readers are busy calling get(), which will fail with NOT_FOUND for the
+  duration of whole test, until the writer finally calls set(T*CAPACITY,42).
+  Note that due to the way get() implements probing, it takes linear time when
+  a node is full of elements (even deleted), thus these get()s are slow.
+  */
+  constexpr uint64_t CAPACITY = 2048;
+  constexpr uint64_t T = 10000;
+  constexpr uint64_t READERS = 10;
+  ut_lock_free_hash_t hash_table{CAPACITY, false};
+  const auto reading = [&]() {
+    while (hash_table.get(T * CAPACITY) == ut_lock_free_hash_t::NOT_FOUND) {
+      // whatever
+    }
+  };
+  std::vector<std::thread> readers;
+  for (uint64_t i = 0; i < READERS; ++i) {
+    readers.emplace_back(reading);
+  }
+  for (uint64_t i = 0; i < T; ++i) {
+    for (uint64_t j = 0; j < CAPACITY; ++j) {
+      hash_table.set(i * CAPACITY + j, 17);
+      hash_table.del(i * CAPACITY + j);
+    }
+  }
+  hash_table.set(T * CAPACITY, 42);
+  for (auto &reader : readers) {
+    reader.join();
+  }
 }
 }  // namespace innodb_lock_free_hash_unittest

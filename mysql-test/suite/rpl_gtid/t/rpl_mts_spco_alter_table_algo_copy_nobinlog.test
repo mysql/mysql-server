@@ -6,7 +6,7 @@
 #
 # 1. We start replica (server2) with the binary log turned off (--log-bin=OFF)
 #    and applier threads are not logging to its own binary log
-#    (--log-slave-updates=OFF). Replica also has slave_preserve_commit_order
+#    (--log-replica-updates=OFF). Replica also has replica_preserve_commit_order
 #    enabled and running with 2 applier workers.
 #
 # 2. On slave, we add the same first insert statement which will be applied on
@@ -42,7 +42,7 @@
 
 
 --source include/rpl_connection_master.inc
---let $mts_slave_parallel_workers= 8
+--let $mts_replica_parallel_workers= 8
 --let $mts_num_preceding_trans= 6
 
 --let $mts_spco_save_gtid_executed = 1
@@ -60,7 +60,7 @@
 
 --let $mts_spco_save_gtid_executed= 1
 --let $mts_spco_rollback_statement = ROLLBACK
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 
 --echo
@@ -90,9 +90,11 @@ SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_depen
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 
-SET GLOBAL slave_parallel_type= @save_slave_parallel_type;
-SET GLOBAL slave_parallel_workers= @save_slave_parallel_workers;
-SET GLOBAL slave_preserve_commit_order= @save_slave_preserve_commit_order;
+SET GLOBAL replica_parallel_type= @save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order= @save_replica_preserve_commit_order;
 --source include/start_slave.inc
 
 --source include/gtid_utils_end.inc

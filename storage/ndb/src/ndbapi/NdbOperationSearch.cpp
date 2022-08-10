@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-
 
 /******************************************************************************
 Name:          NdbOperationSearch.C
@@ -208,9 +207,17 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
           m_currentTable->m_columns[column_no_current_table]->m_attrId;
 	AttributeHeader::init(&ahValue, attr_id_current_table, sizeInBytes);
       }
-      
-      insertATTRINFO( ahValue );
-      insertATTRINFOloop((Uint32*)aValue, totalSizeInWords);
+      /***********************************************************************
+       * For Insert + Write operations, the values of the key columns also
+       * need to be included in the AttrInfo section. These are copied across
+       * now, except for the interpreted write case, where user should be
+       * allowed to define any initial reads and interpreted program code
+       * before the key column values are copied into the AttrInfo section.
+       **********************************************************************/
+      if (!(theInterpretIndicator && tOpType == WriteRequest)) {
+        insertATTRINFO( ahValue );
+        insertATTRINFOloop((const Uint32*)aValue, totalSizeInWords);
+      }
     }//if
     
     /**************************************************************************
@@ -244,7 +251,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
           }
         }
 
-	if (tOpType == UpdateRequest) {
+	if (tOpType == UpdateRequest || tOpType == WriteRequest) {
 	  if (tInterpretInd == 1) {
 	    theStatus = GetValue;
 	  } else {
@@ -266,7 +273,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
             }
           }
 	  DBUG_RETURN(0);
-	} else if ((tOpType == InsertRequest) || (tOpType == WriteRequest)) {
+	} else if (tOpType == InsertRequest) {
 	  theStatus = SetValue;
 	  DBUG_RETURN(0);
 	} else {
@@ -299,7 +306,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     DBUG_RETURN(-1);
   }//if
 
-  ndbout_c("theStatus: %d", theStatus);
+  g_eventLogger->info("theStatus: %d", theStatus);
   
   // If we come here, set a general errorcode
   // and exit
@@ -352,9 +359,9 @@ NdbOperation::insertKEYINFO(const char* aValue,
   tEndPos = aStartPosition + anAttrSizeInWords - 1;
 
   if ((tEndPos < 9)) {
-    Uint32 tkeyData = *(Uint32*)aValue;
+    Uint32 tkeyData = *(const Uint32*)aValue;
     //TcKeyReq* tcKeyReq = CAST_PTR(TcKeyReq, tTCREQ->getDataPtrSend());
-    Uint32* tDataPtr = (Uint32*)aValue;
+    const Uint32* tDataPtr = (const Uint32*)aValue;
     tAttrPos = 1;
     Uint32* tkeyDataPtr = theKEYINFOptr + aStartPosition - 1;
     // (Uint32*)&tcKeyReq->keyInfo[aStartPosition - 1];
@@ -418,7 +425,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
  *****************************************************************************/
   while (tPosition < 9)
   {
-    theKEYINFOptr[tPosition-1] = * (Uint32*)(aValue + (tAttrPos << 2));
+    theKEYINFOptr[tPosition - 1] = *(const Uint32*)(aValue + (tAttrPos << 2));
     tAttrPos++;
     if (anAttrSizeInWords == tAttrPos)
       goto LastWordLabel;
@@ -453,8 +460,8 @@ NdbOperation::insertKEYINFO(const char* aValue,
       tCurrentKEYINFO = tCurrentKEYINFO->next();
       signalCounter = 4;
     }
-    tCurrentKEYINFO->setData(*(Uint32*)(aValue + (tAttrPos << 2)), 
-			     signalCounter);
+    tCurrentKEYINFO->setData(*(const Uint32*)(aValue + (tAttrPos << 2)),
+                             signalCounter);
     tAttrPos++;
     if (anAttrSizeInWords == tAttrPos)
       goto LastWordLabel;
@@ -525,6 +532,72 @@ NdbOperation::getKeyFromTCREQ(Uint32* data, Uint32 & size)
     }
     data[pos++] = 
       tSignal->getDataPtrSend()[KeyInfo::HeaderLength + n++];
+  }
+  return 0;
+}
+
+/******************************************************************************
+ * Transfers the primary keyinfo data to Attrinfo accepting the key attrs are
+ * in order prior to the invocation.
+ * The key attrs are ordered at the equal() stages(with the help of
+ * NdbOperation::reorderKEYINFO()) where the operation is built up for data
+ * nodes to search the row later.
+ * So, theTupleKeyDefined[] is looked up assuming the attrs are already in
+ * order to determine the columns, and their length is used as offset to
+ * extract the required data which is inserted into Attrinfo.
+ *****************************************************************************/
+int NdbOperation::transferKeyInfoToAttrInfo() {
+  Uint32 data[NDB_MAX_KEYSIZE_IN_WORDS];
+  Uint32 size = NDB_MAX_KEYSIZE_IN_WORDS;
+
+  if (getKeyFromTCREQ(data, size) != 0) {
+    setErrorCodeAbort(4559);
+    return -1;
+  }
+
+  /* Any key disorder has already been fixed, so keys are in-order */
+  Uint32 pos = 0;
+  Uint32 k;
+  for (k = 0; k < m_accessTable->m_noOfKeys; k++) {
+    Uint32 i;
+
+    for (i = 0; i < m_accessTable->m_columns.size(); i++) {
+      NdbColumnImpl* col = m_accessTable->m_columns[i];
+      if (col->m_pk && col->m_keyInfoPos == k) {
+        Uint32 j;
+
+        for (j = 0; j < m_accessTable->m_noOfKeys; j++) {
+          if (theTupleKeyDefined[j][0] == i) {
+            // offset was pre-reorder - ignore
+            Uint32 len = theTupleKeyDefined[j][2];
+            assert(pos < NDB_MAX_KEYSIZE_IN_WORDS &&
+                   pos + len <= NDB_MAX_KEYSIZE_IN_WORDS);
+            Uint32 ahValue;
+            Uint32* aValue = &data[pos];
+            Uint32 attrHdrSize;
+
+            if (!col->get_var_length(aValue, attrHdrSize)) {
+              setErrorCodeAbort(4209);
+            }
+
+            AttributeHeader::init(&ahValue, col->m_attrId, attrHdrSize);
+            if (insertATTRINFO(ahValue) != 0) {
+              setErrorCodeAbort(4559);
+              return -1;
+            }
+            if (insertATTRINFOloop(aValue, len) != 0) {
+              setErrorCodeAbort(4559);
+              return -1;
+            }
+            pos += len;
+            break;
+          }
+        }
+        assert(j < m_accessTable->m_columns.size());
+        break;
+      }
+    }
+    assert(i < m_accessTable->m_columns.size());
   }
   return 0;
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_router_extra.wxs;
 ${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs;
 ${CMAKE_BINARY_DIR}/packaging/WiX/redist_check.wxs")
 
-ADD_CUSTOM_TARGET(
+MY_ADD_CUSTOM_TARGET(
   configure_mysql_router_extra ALL
   COMMAND ${CMAKE_COMMAND}
   -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.conf.in

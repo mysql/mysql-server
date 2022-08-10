@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,7 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <functional>
 
 /** Default number of slots to use in ib_counter_t */
-#define IB_N_SLOTS 64
+constexpr uint32_t IB_N_SLOTS = 64;
 
 /** Get the offset into the counter array. */
 template <typename Type, int N>
@@ -78,7 +78,7 @@ struct counter_indexer_t : public generic_indexer_t<Type, N> {
       /* We may go here if my_timer_cycles() returns 0,
       so we have to have the plan B for the counter. */
 #if !defined(_WIN32)
-      return std::hash<std::thread::id>{}(std::this_thread::get_id());
+      return ut::this_thread_hash;
 #else
       LARGE_INTEGER cnt;
       QueryPerformanceCounter(&cnt);
@@ -97,14 +97,14 @@ struct single_indexer_t {
   enum { fast = 0 };
 
   /** @return offset within m_counter */
-  static size_t offset(size_t index) UNIV_NOTHROW {
-    ut_ad(N == 1);
+  static size_t offset(size_t index [[maybe_unused]]) UNIV_NOTHROW {
+    static_assert(N == 1);
     return ((ut::INNODB_CACHE_LINE_SIZE / sizeof(Type)));
   }
 
   /** @return 1 */
   static size_t get_rnd_index() UNIV_NOTHROW {
-    ut_ad(N == 1);
+    static_assert(N == 1);
     return (1);
   }
 };
@@ -154,8 +154,8 @@ class ib_counter_t {
 
   /** Use this if you can use a unique identifier, saves a
   call to get_rnd_index().
-  @param	index	index into a slot
-  @param	n	amount to increment */
+  @param        index   index into a slot
+  @param        n       amount to increment */
   void add(size_t index, Type n) UNIV_NOTHROW {
     size_t i = m_policy.offset(index);
 
@@ -179,8 +179,8 @@ class ib_counter_t {
 
   /** Use this if you can use a unique identifier, saves a
   call to get_rnd_index().
-  @param	index	index into a slot
-  @param	n	amount to decrement */
+  @param        index   index into a slot
+  @param        n       amount to decrement */
   void sub(size_t index, Type n) UNIV_NOTHROW {
     size_t i = m_policy.offset(index);
 
@@ -251,7 +251,7 @@ struct Shards {
   std::memory_order m_memory_order{Memory_order};
 
   /** Override default memory order.
-  @param[in]	memory_order	memory order */
+  @param[in]    memory_order    memory order */
   void set_order(std::memory_order memory_order) {
     m_memory_order = memory_order;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* The hash functions used for saveing keys */
+/* The hash functions used for saving keys */
 
 #include <inttypes.h>
 #include <sys/types.h>
@@ -360,7 +360,7 @@ uint64 hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec) {
 
   RETURN
     0		Key is identical
-    <> 0 	Key differes
+    <> 0 	Key differs
 */
 
 int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2) {
@@ -448,7 +448,8 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key) {
        key += (seg++)->length) {
     if (seg->null_bit) {
       bool found_null = (rec[seg->null_pos] & seg->null_bit);
-      if (found_null != (int)*key++) return 1;
+      assert(*key == 0x00 || *key == 0x01);
+      if (found_null != (bool)*key++) return 1;
       if (found_null) {
         /* Add key pack length (2) to key for VARCHAR segments */
         if (seg->type == HA_KEYTYPE_VARTEXT1) key += 2;
@@ -686,8 +687,7 @@ uint hp_rb_pack_key(const HP_KEYDEF *keydef, uchar *key, const uchar *old,
   return (uint)(key - start_key);
 }
 
-uint hp_rb_key_length(HP_KEYDEF *keydef,
-                      const uchar *key MY_ATTRIBUTE((unused))) {
+uint hp_rb_key_length(HP_KEYDEF *keydef, const uchar *key [[maybe_unused]]) {
   return keydef->length;
 }
 
@@ -805,7 +805,7 @@ void heap_update_auto_increment(HP_INFO *info, const uchar *record) {
   }
 
   /*
-    The following code works becasue if s_value < 0 then value is 0
+    The following code works because if s_value < 0 then value is 0
     and if s_value == 0 then value will contain either s_value or the
     correct value.
   */

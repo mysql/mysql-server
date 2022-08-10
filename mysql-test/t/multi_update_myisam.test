@@ -1,6 +1,7 @@
 --source include/have_log_bin.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
+--source include/not_hypergraph.inc  # Depends on delete-all-rows optimization.
 
 --echo #
 --echo # BUG#57373: Multi update+InnoDB reports ER_KEY_NOT_FOUND if a

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -104,7 +104,7 @@ check_param(const ConfigInfo::ParamInfo & param)
 bool
 check_params(void)
 {
-  bool ok= true;
+  bool ok [[maybe_unused]] = true;
   for (int j=0; j<g_info.m_NoOfParams; j++) {
     const ConfigInfo::ParamInfo & param= g_info.m_ParamInfo[j];
     printf("Checking %s...\n", param._fname);
@@ -514,7 +514,6 @@ test_hostname_mycnf(void)
 #include <NdbTap.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger* g_eventLogger;
 
 TAPTEST(MgmConfig)
 {

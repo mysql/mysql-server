@@ -2,7 +2,7 @@
 USE INFORMATION_SCHEMA;
 SHOW CREATE TABLE INFORMATION_SCHEMA.PARAMETERS;
 View	Create View	character_set_client	collation_connection
-PARAMETERS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `PARAMETERS` AS select `cat`.`name` AS `SPECIFIC_CATALOG`,`sch`.`name` AS `SPECIFIC_SCHEMA`,`rtn`.`name` AS `SPECIFIC_NAME`,if((`rtn`.`type` = 'FUNCTION'),(`prm`.`ordinal_position` - 1),`prm`.`ordinal_position`) AS `ORDINAL_POSITION`,if(((`rtn`.`type` = 'FUNCTION') and (`prm`.`ordinal_position` = 1)),NULL,`prm`.`mode`) AS `PARAMETER_MODE`,if(((`rtn`.`type` = 'FUNCTION') and (`prm`.`ordinal_position` = 1)),NULL,`prm`.`name`) AS `PARAMETER_NAME`,substring_index(substring_index(`prm`.`data_type_utf8`,'(',1),' ',1) AS `DATA_TYPE`,internal_dd_char_length(`prm`.`data_type`,`prm`.`char_length`,`col`.`name`,0) AS `CHARACTER_MAXIMUM_LENGTH`,internal_dd_char_length(`prm`.`data_type`,`prm`.`char_length`,`col`.`name`,1) AS `CHARACTER_OCTET_LENGTH`,`prm`.`numeric_precision` AS `NUMERIC_PRECISION`,if((`prm`.`numeric_precision` is null),NULL,ifnull(`prm`.`numeric_scale`,0)) AS `NUMERIC_SCALE`,`prm`.`datetime_precision` AS `DATETIME_PRECISION`,(case `prm`.`data_type` when 'MYSQL_TYPE_STRING' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_SET' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) else NULL end) AS `CHARACTER_SET_NAME`,(case `prm`.`data_type` when 'MYSQL_TYPE_STRING' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_SET' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) else NULL end) AS `COLLATION_NAME`,`prm`.`data_type_utf8` AS `DTD_IDENTIFIER`,`rtn`.`type` AS `ROUTINE_TYPE` from (((((`mysql`.`parameters` `prm` join `mysql`.`routines` `rtn` on((`prm`.`routine_id` = `rtn`.`id`))) join `mysql`.`schemata` `sch` on((`rtn`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `col` on((`prm`.`collation_id` = `col`.`id`))) join `mysql`.`character_sets` `cs` on((`col`.`character_set_id` = `cs`.`id`))) where (0 <> can_access_routine(`sch`.`name`,`rtn`.`name`,`rtn`.`type`,`rtn`.`definer`,false))	utf8	utf8_general_ci
+PARAMETERS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `PARAMETERS` AS select `cat`.`name` AS `SPECIFIC_CATALOG`,`sch`.`name` AS `SPECIFIC_SCHEMA`,`rtn`.`name` AS `SPECIFIC_NAME`,if((`rtn`.`type` = 'FUNCTION'),(`prm`.`ordinal_position` - 1),`prm`.`ordinal_position`) AS `ORDINAL_POSITION`,if(((`rtn`.`type` = 'FUNCTION') and (`prm`.`ordinal_position` = 1)),NULL,`prm`.`mode`) AS `PARAMETER_MODE`,if(((`rtn`.`type` = 'FUNCTION') and (`prm`.`ordinal_position` = 1)),NULL,`prm`.`name`) AS `PARAMETER_NAME`,substring_index(substring_index(`prm`.`data_type_utf8`,'(',1),' ',1) AS `DATA_TYPE`,internal_dd_char_length(`prm`.`data_type`,`prm`.`char_length`,`col`.`name`,0) AS `CHARACTER_MAXIMUM_LENGTH`,internal_dd_char_length(`prm`.`data_type`,`prm`.`char_length`,`col`.`name`,1) AS `CHARACTER_OCTET_LENGTH`,`prm`.`numeric_precision` AS `NUMERIC_PRECISION`,if((`prm`.`numeric_precision` is null),NULL,ifnull(`prm`.`numeric_scale`,0)) AS `NUMERIC_SCALE`,`prm`.`datetime_precision` AS `DATETIME_PRECISION`,(case `prm`.`data_type` when 'MYSQL_TYPE_STRING' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_SET' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) else NULL end) AS `CHARACTER_SET_NAME`,(case `prm`.`data_type` when 'MYSQL_TYPE_STRING' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) when 'MYSQL_TYPE_SET' then if((`cs`.`name` = 'binary'),NULL,`col`.`name`) else NULL end) AS `COLLATION_NAME`,`prm`.`data_type_utf8` AS `DTD_IDENTIFIER`,`rtn`.`type` AS `ROUTINE_TYPE` from (((((`mysql`.`parameters` `prm` join `mysql`.`routines` `rtn` on((`prm`.`routine_id` = `rtn`.`id`))) join `mysql`.`schemata` `sch` on((`rtn`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `col` on((`prm`.`collation_id` = `col`.`id`))) join `mysql`.`character_sets` `cs` on((`col`.`character_set_id` = `cs`.`id`))) where (0 <> can_access_routine(`sch`.`name`,`rtn`.`name`,`rtn`.`type`,`rtn`.`definer`,false))	utf8mb3	utf8mb3_general_ci
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
   AND table_name   = 'PARAMETERS'
@@ -20,8 +20,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -42,8 +42,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -64,8 +64,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -108,8 +108,8 @@ CHARACTER_OCTET_LENGTH	15
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	varchar(5)
 COLUMN_KEY	
 EXTRA	
@@ -130,8 +130,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -152,8 +152,8 @@ CHARACTER_OCTET_LENGTH	4294967295
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	longtext
 COLUMN_KEY	
 EXTRA	
@@ -284,8 +284,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -306,8 +306,8 @@ CHARACTER_OCTET_LENGTH	192
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_general_ci
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_general_ci
 COLUMN_TYPE	varchar(64)
 COLUMN_KEY	
 EXTRA	
@@ -328,8 +328,8 @@ CHARACTER_OCTET_LENGTH	16777215
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	mediumtext
 COLUMN_KEY	
 EXTRA	
@@ -350,8 +350,8 @@ CHARACTER_OCTET_LENGTH	27
 NUMERIC_PRECISION	NULL
 NUMERIC_SCALE	NULL
 DATETIME_PRECISION	NULL
-CHARACTER_SET_NAME	utf8
-COLLATION_NAME	utf8_bin
+CHARACTER_SET_NAME	utf8mb3
+COLLATION_NAME	utf8mb3_bin
 COLUMN_TYPE	enum('FUNCTION','PROCEDURE')
 COLUMN_KEY	
 EXTRA	
@@ -505,8 +505,8 @@ RETURN CONCAT('XYZ, ' ,s);
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
-def	i_s_parameters_test	test_func5	0	NULL	NULL	varchar	30	90	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(30)	FUNCTION
-def	i_s_parameters_test	test_func5	1	IN	s	char	20	60	NULL	NULL	NULL	utf8	utf8_general_ci	char(20)	FUNCTION
+def	i_s_parameters_test	test_func5	0	NULL	NULL	varchar	30	90	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(30)	FUNCTION
+def	i_s_parameters_test	test_func5	1	IN	s	char	20	60	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	char(20)	FUNCTION
 # ========== parameters.13 ==========
 DROP DATABASE IF EXISTS i_s_parameters_test;
 CREATE DATABASE i_s_parameters_test;

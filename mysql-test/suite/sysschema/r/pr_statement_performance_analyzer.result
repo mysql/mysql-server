@@ -32,18 +32,18 @@ CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_runtimes_in_95th_percentile');
 CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');
 Next Output
-QUERY_INSERT	test		2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	0	0	2	1	0	0	0	0	DIGEST_INSERT	FIRST_SEEN	LAST_SEEN
-QUERY_SELECT	test	*	2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	3	2	12	6	0	0	0	0	3	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
-QUERY_UPDATE	test		2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	2	1	2	1	0	0	0	0	DIGEST_UPDATE	FIRST_SEEN	LAST_SEEN
+QUERY_INSERT	test		2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	LATENCY	0	0	0	0	2	1	0	0	0	0	DIGEST_INSERT	FIRST_SEEN	LAST_SEEN
+QUERY_SELECT	test	*	2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	LATENCY	3	2	12	6	0	0	0	0	3	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
+QUERY_UPDATE	test		2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	LATENCY	0	0	2	1	2	1	0	0	0	0	DIGEST_UPDATE	FIRST_SEEN	LAST_SEEN
 Top 100 Queries Ordered by Total Latency
-query	db	full_scan	exec_count	err_count	warn_count	total_latency	max_latency	avg_latency	lock_latency	rows_sent	rows_sent_avg	rows_examined	rows_examined_avg	rows_affected	rows_affected_avg	tmp_tables	tmp_disk_tables	rows_sorted	sort_merge_passes	digest	first_seen	last_seen
+query	db	full_scan	exec_count	err_count	warn_count	total_latency	max_latency	avg_latency	lock_latency	cpu_latency	rows_sent	rows_sent_avg	rows_examined	rows_examined_avg	rows_affected	rows_affected_avg	tmp_tables	tmp_disk_tables	rows_sorted	sort_merge_passes	digest	first_seen	last_seen
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');
 Next Output
-QUERY_INSERT	test		1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	0	0	1	1	0	0	0	0	DIGEST_INSERT	FIRST_SEEN	LAST_SEEN
-QUERY_SELECT	test	*	1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	2	2	9	9	0	0	0	0	2	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
-QUERY_UPDATE	test		1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	1	1	1	1	0	0	0	0	DIGEST_UPDATE	FIRST_SEEN	LAST_SEEN
+QUERY_INSERT	test		1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	LATENCY	0	0	0	0	1	1	0	0	0	0	DIGEST_INSERT	FIRST_SEEN	LAST_SEEN
+QUERY_SELECT	test	*	1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	LATENCY	2	2	9	9	0	0	0	0	2	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
+QUERY_UPDATE	test		1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	LATENCY	0	0	1	1	1	1	0	0	0	0	DIGEST_UPDATE	FIRST_SEEN	LAST_SEEN
 Top 100 Queries Ordered by Total Latency
-query	db	full_scan	exec_count	err_count	warn_count	total_latency	max_latency	avg_latency	lock_latency	rows_sent	rows_sent_avg	rows_examined	rows_examined_avg	rows_affected	rows_affected_avg	tmp_tables	tmp_disk_tables	rows_sorted	sort_merge_passes	digest	first_seen	last_seen
+query	db	full_scan	exec_count	err_count	warn_count	total_latency	max_latency	avg_latency	lock_latency	cpu_latency	rows_sent	rows_sent_avg	rows_examined	rows_examined_avg	rows_affected	rows_affected_avg	tmp_tables	tmp_disk_tables	rows_sorted	sort_merge_passes	digest	first_seen	last_seen
 CALL sys.statement_performance_analyzer('overall', NULL, 'with_errors_or_warnings');
 Next Output
 Top 100 Queries with Errors

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ bool Primary_election_validation_handler::initialize_validation_structures() {
   number_of_responses = 0;
   group_members_info.clear();
   if (group_member_mgr != nullptr) {
-    std::vector<Group_member_info *> *all_members_info =
+    Group_member_info_list *all_members_info =
         group_member_mgr->get_all_members();
     for (Group_member_info *member : *all_members_info) {
       bool is_primary =
@@ -308,7 +308,8 @@ int Primary_election_validation_handler::after_view_change(
 }
 
 int Primary_election_validation_handler::after_primary_election(
-    std::string, bool, enum_primary_election_mode, int) {
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0; /* purecov: inspected */
 }
 

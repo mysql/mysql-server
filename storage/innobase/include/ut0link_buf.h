@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ class Link_buf {
   /** Constructs the link buffer. Allocated memory for the links.
   Initializes the tail pointer with 0.
 
-  @param[in]	capacity	number of slots in the ring buffer */
+  @param[in]    capacity        number of slots in the ring buffer */
   explicit Link_buf(size_t capacity);
 
   Link_buf();
@@ -104,8 +104,8 @@ class Link_buf {
   responsibility to ensure that there is space for the link. This is
   because it can be useful to ensure much earlier that there is space.
 
-  @param[in]	from	position where the link starts
-  @param[in]	to	position where the link ends (from -> to) */
+  @param[in]    from    position where the link starts
+  @param[in]    to      position where the link ends (from -> to) */
   void add_link(Position from, Position to);
 
   /** Add a directed link between two given positions. It is user's
@@ -121,7 +121,7 @@ class Link_buf {
   path created by links. Starts at current position of the pointer.
   Stops when the provided function returns true.
 
-  @param[in]	stop_condition	function used as a stop condition;
+  @param[in]    stop_condition  function used as a stop condition;
                                   (lsn_t prev, lsn_t next) -> bool;
                                   returns false if we should follow
                                   the link prev->next, true to stop
@@ -150,7 +150,7 @@ class Link_buf {
   User has to use this function before adding the link, and
   should wait until the free space exists.
 
-  @param[in]	position	position to check
+  @param[in]    position        position to check
 
   @return true if and only if the space is free */
   bool has_space(Position position);
@@ -166,7 +166,7 @@ class Link_buf {
   /** Translates position expressed in original unit to position
   in the m_links (which is a ring buffer).
 
-  @param[in]	position	position in original unit
+  @param[in]    position        position in original unit
 
   @return position in the m_links */
   size_t slot_index(Position position) const;
@@ -174,8 +174,8 @@ class Link_buf {
   /** Computes next position by looking into slots array and
   following single link which starts in provided position.
 
-  @param[in]	position	position to start
-  @param[out]	next		computed next position
+  @param[in]    position        position to start
+  @param[out]   next            computed next position
 
   @return false if there was no link, true otherwise */
   bool next_position(Position position, Position &next);
@@ -203,7 +203,8 @@ Link_buf<Position>::Link_buf(size_t capacity)
 
   ut_a((capacity & (capacity - 1)) == 0);
 
-  m_links = UT_NEW_ARRAY_NOKEY(std::atomic<Distance>, capacity);
+  m_links = ut::new_arr_withkey<std::atomic<Distance>>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                       ut::Count{capacity});
 
   for (size_t i = 0; i < capacity; ++i) {
     m_links[i].store(0);
@@ -242,7 +243,7 @@ Link_buf<Position>::~Link_buf() {
 template <typename Position>
 void Link_buf<Position>::free() {
   if (m_links != nullptr) {
-    UT_DELETE_ARRAY(m_links);
+    ut::delete_arr(m_links);
     m_links = nullptr;
   }
 }
@@ -291,7 +292,7 @@ inline void Link_buf<Position>::add_link_advance_tail(Position from,
     /* add link */
     slot.store(to, std::memory_order_release);
 
-    auto stop_condition = [&](Position prev_pos, Position next_pos) {
+    auto stop_condition = [&](Position prev_pos, Position) {
       return (prev_pos > from);
     };
 
@@ -315,7 +316,7 @@ bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition,
     auto next_load = slot.load(std::memory_order_acquire);
 
     if (next_load >= position + m_capacity) {
-      /* either we wrapped and tail was advanced mean while,
+      /* either we wrapped and tail was advanced meanwhile,
       or there is link start_lsn -> end_lsn of length >= m_capacity */
       position = m_tail.load(std::memory_order_acquire);
       if (position != from) {
@@ -386,7 +387,7 @@ bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition,
 
 template <typename Position>
 inline bool Link_buf<Position>::advance_tail() {
-  auto stop_condition = [](Position from, Position to) { return false; };
+  auto stop_condition = [](Position, Position) { return false; };
 
   return advance_tail_until(stop_condition);
 }
@@ -408,7 +409,7 @@ inline bool Link_buf<Position>::has_space(Position position) {
     return true;
   }
 
-  auto stop_condition = [](Position from, Position to) { return false; };
+  auto stop_condition = [](Position, Position) { return false; };
   advance_tail_until(stop_condition, 0);
 
   tail = m_tail.load(std::memory_order_acquire);

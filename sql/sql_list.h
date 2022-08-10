@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -169,7 +169,8 @@ class base_list {
   */
   base_list(const base_list &rhs, MEM_ROOT *mem_root);
   inline bool push_back(void *info) {
-    if (((*last) = new (*THR_MALLOC) list_node(info, &end_of_list))) {
+    *last = new (*THR_MALLOC) list_node(info, &end_of_list);
+    if (*last) {
       last = &(*last)->next;
       elements++;
       return false;
@@ -177,7 +178,8 @@ class base_list {
     return true;
   }
   inline bool push_back(void *info, MEM_ROOT *mem_root) {
-    if (((*last) = new (mem_root) list_node(info, &end_of_list))) {
+    *last = new (mem_root) list_node(info, &end_of_list);
+    if (*last) {
       last = &(*last)->next;
       elements++;
       return false;
@@ -581,7 +583,10 @@ class List_iterator : public base_list_iterator {
   inline bool after(T *a, MEM_ROOT *mem_root) {
     return base_list_iterator::after(a, mem_root);
   }
-  inline T **ref(void) { return (T **)base_list_iterator::ref(); }
+  inline T **ref(void) {
+    return const_cast<T **>(
+        (std::remove_const_t<T> **)base_list_iterator::ref());
+  }
 };
 
 template <class T>
@@ -642,7 +647,7 @@ class List_STL_Iterator {
   T *operator->() const { return static_cast<T *>(m_current->info); }
 
   // DefaultConstructible (required for ForwardIterator).
-  List_STL_Iterator() {}
+  List_STL_Iterator() = default;
 
   // ForwardIterator.
   List_STL_Iterator operator++(int) {

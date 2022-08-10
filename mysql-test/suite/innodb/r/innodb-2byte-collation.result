@@ -53,24 +53,38 @@ utf8mb4_ru_0900_ai_ci	utf8mb4	306
 utf8mb4_ru_0900_as_cs	utf8mb4	307
 utf8mb4_zh_0900_as_cs	utf8mb4	308
 utf8mb4_0900_bin	utf8mb4	309
+utf8mb4_nb_0900_ai_ci	utf8mb4	310
+utf8mb4_nb_0900_as_cs	utf8mb4	311
+utf8mb4_nn_0900_ai_ci	utf8mb4	312
+utf8mb4_nn_0900_as_cs	utf8mb4	313
+utf8mb4_sr_latn_0900_ai_ci	utf8mb4	314
+utf8mb4_sr_latn_0900_as_cs	utf8mb4	315
+utf8mb4_bs_0900_ai_ci	utf8mb4	316
+utf8mb4_bs_0900_as_cs	utf8mb4	317
+utf8mb4_bg_0900_ai_ci	utf8mb4	318
+utf8mb4_bg_0900_as_cs	utf8mb4	319
+utf8mb4_gl_0900_ai_ci	utf8mb4	320
+utf8mb4_gl_0900_as_cs	utf8mb4	321
+utf8mb4_mn_cyrl_0900_ai_ci	utf8mb4	322
+utf8mb4_mn_cyrl_0900_as_cs	utf8mb4	323
 utf8mb4_test_ci	utf8mb4	326
 utf16_test_ci	utf16	327
 utf8mb4_test_400_ci	utf8mb4	328
-utf8_bengali_standard_ci	utf8	336
-utf8_bengali_traditional_ci	utf8	337
-utf8_phone_ci	utf8	352
-utf8_test_ci	utf8	353
-utf8_5624_1	utf8	354
-utf8_5624_2	utf8	355
-utf8_5624_3	utf8	356
-utf8_5624_4	utf8	357
+utf8_bengali_standard_ci	utf8mb3	336
+utf8_bengali_traditional_ci	utf8mb3	337
+utf8_phone_ci	utf8mb3	352
+utf8_test_ci	utf8mb3	353
+utf8_5624_1	utf8mb3	354
+utf8_5624_2	utf8mb3	355
+utf8_5624_3	utf8mb3	356
+utf8_5624_4	utf8mb3	357
 ucs2_test_ci	ucs2	358
 ucs2_vn_ci	ucs2	359
 ucs2_5624_1	ucs2	360
-utf8_5624_5	utf8	368
+utf8_5624_5	utf8mb3	368
 utf32_test_ci	utf32	391
 latin1_test	latin1	1025
-utf8_maxuserid_ci	utf8	2047
+utf8_maxuserid_ci	utf8mb3	2047
 show collation like '%test%';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 latin1_test	latin1	1025			0	PAD SPACE
@@ -79,12 +93,15 @@ utf16_test_ci	utf16	327			8	PAD SPACE
 utf32_test_ci	utf32	391			8	PAD SPACE
 utf8mb4_test_400_ci	utf8mb4	328			8	PAD SPACE
 utf8mb4_test_ci	utf8mb4	326			8	PAD SPACE
-utf8_test_ci	utf8	353			8	PAD SPACE
+utf8_test_ci	utf8mb3	353			8	PAD SPACE
 show collation like 'ucs2_vn_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 ucs2_vn_ci	ucs2	359			8	PAD SPACE
 create table 2byte_collation (c1 char(1) character set ucs2 collate ucs2_vn_ci)
 engine = InnoDB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_vn_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into 2byte_collation values (0x0061);
 set @@character_set_results=NULL;
 select hex(c1) from 2byte_collation;
@@ -102,6 +119,8 @@ SELECT * FROM 2byte_collation WHERE s1='a' ORDER BY BINARY s1;
 s1
 a
 b
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE 2byte_collation;
 SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
 SET GLOBAL innodb_change_buffering_debug = 1;
@@ -110,7 +129,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show collation like 'utf8_maxuserid_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_maxuserid_ci	utf8	2047			8	PAD SPACE
+utf8_maxuserid_ci	utf8mb3	2047			8	PAD SPACE
 CREATE TABLE 2byte_collation(
 a INT AUTO_INCREMENT PRIMARY KEY,
 b CHAR(100) character set utf8 collate utf8_maxuserid_ci,

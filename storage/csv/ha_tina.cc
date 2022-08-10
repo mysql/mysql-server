@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -779,7 +779,7 @@ int ha_tina::find_current_row(uchar *buf) {
         Thus, for enums we silence the warning, as it doesn't really mean
         an invalid value.
       */
-      if ((*field)->store(buffer.ptr(), buffer.length(), buffer.charset(),
+      if ((*field)->store(buffer.ptr(), buffer.length(), (*field)->charset(),
                           is_enum ? CHECK_FIELD_IGNORE : CHECK_FIELD_WARN)) {
         if (!is_enum) goto err;
       }
@@ -916,7 +916,7 @@ int ha_tina::open(const char *name, int, uint open_options, const dd::Table *) {
 }
 
 /*
-  Close a database file. We remove ourselves from the shared strucutre.
+  Close a database file. We remove ourselves from the shared structure.
   If it is empty we destroy it.
 */
 int ha_tina::close(void) {
@@ -1253,9 +1253,9 @@ int ha_tina::rnd_end() {
 
     /*
       The sort is needed when there were updates/deletes with random orders.
-      It sorts so that we move the firts blocks to the beginning.
+      It sorts so that we move the first blocks to the beginning.
 
-      We assume that intervals do not intersect. So, it is enought to compare
+      We assume that intervals do not intersect. So, it is enough to compare
       any two points. Here we take start of intervals for comparison.
     */
     std::sort(chain, chain_ptr, [](const tina_set &a, const tina_set &b) {

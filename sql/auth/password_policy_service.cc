@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,7 @@ int my_validate_password_policy(const char *password,
 
   Implementation of a plugin service @ref mysql_password_policy_service_st
   method.
-  Typically called when new user is created or exsisting password is changed.
+  Typically called when new user is created or existing password is changed.
   Calls the @ref validate_password_plugin / validate_password_component
   plugin's / component's @ref st_mysql_validate_password::get_password_strength
   method.

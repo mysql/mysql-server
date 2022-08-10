@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,32 +53,31 @@ static char *user = 0;
 static struct my_option my_long_options[] =
 {
   { "work-dir", 'w', "Work directory",
-    (uchar**) &work_dir, (uchar**) &work_dir,  0,
+    &work_dir, &work_dir,  0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "port", 'p', "TCP port to listen on",
-    (uchar**) &port, (uchar**) &port, 0,
+    &port, &port, 0,
     GET_INT, REQUIRED_ARG, CPCD_DEFAULT_TCP_PORT, 0, 0, 0, 0, 0 }, 
   { "syslog", 'S', "Log events to syslog",
-    (uchar**) &use_syslog, (uchar**) &use_syslog, 0,
+    &use_syslog, &use_syslog, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "logfile", 'L', "File to log events to",
-    (uchar**) &logfile, (uchar**) &logfile, 0,
+    &logfile, &logfile, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "debug", 'D', "Enable debug mode",
-    (uchar**) &debug, (uchar**) &debug, 0,
+    &debug, &debug, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "version", 'V', "Output version information and exit",
-    (uchar**) &show_version, (uchar**) &show_version, 0,
+    &show_version, &show_version, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "user", 'u', "Run as user",
-    (uchar**) &user, (uchar**) &user, 0,
+    &user, &user, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-static bool
-get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-	       char *argument)
+static bool get_one_option(int /*optid*/, const struct my_option * /*opt*/,
+                           char * /*argument*/)
 {
   return 0;
 }
@@ -173,7 +172,7 @@ int main(int argc, char** argv){
   unsigned short real_port= port; // correct type
   if(!ss->setup(serv, &real_port)){
     logger.critical("Cannot setup server: %s", strerror(errno));
-    sleep(1);
+    NdbSleep_SecSleep(1);
     delete ss;
     delete serv;
     return 1;

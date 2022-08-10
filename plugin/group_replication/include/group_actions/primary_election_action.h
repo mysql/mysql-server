@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #define PRIMARY_ELECTION_INCLUDED
 
 #include "plugin/group_replication/include/group_actions/group_action.h"
+#include "plugin/group_replication/include/group_actions/group_actions_transaction_controller.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_validation_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
 #include "plugin/group_replication/include/plugin_observers/group_event_observer.h"
@@ -50,6 +51,13 @@ class Primary_election_action : public Group_action, Group_event_observer {
     PRIMARY_ELECTED_PHASE = 4        //  Primary was elected/group in read mode
   };
 
+  /** Enum for the phases on the primary action */
+  enum enum_primary_election_status {
+    PRIMARY_ELECTION_INIT = 0,          // Initiated
+    PRIMARY_ELECTION_END_ELECTION = 1,  // End the election
+    PRIMARY_ELECTION_END_ERROR = 2,     // Error in election
+  };
+
   /**
     Create a new primary election action
   */
@@ -59,8 +67,12 @@ class Primary_election_action : public Group_action, Group_event_observer {
     Create a new primary election action with a given uuid
     @param primary_uuid the primary uuid to elect, can be empty
     @param thread_id the local thread id that is invoking this action
+    @param transaction_wait_timeout The number of seconds to wait before setting
+    the THD::KILL_CONNECTION flag for the transactions that did not reach commit
+    stage.
   */
-  Primary_election_action(std::string primary_uuid, my_thread_id thread_id);
+  Primary_election_action(std::string primary_uuid, my_thread_id thread_id,
+                          int32 transaction_wait_timeout = -1);
 
   ~Primary_election_action() override;
 
@@ -128,8 +140,10 @@ class Primary_election_action : public Group_action, Group_event_observer {
    @param error Did an error occurred
    @param aborted was the action aborted?
    @param mode_changed was the mode changed to single primary?
+   @param error_message details of error
   */
-  void log_result_execution(bool error, bool aborted, bool mode_changed);
+  void log_result_execution(bool error, bool aborted, bool mode_changed,
+                            std::string &error_message);
 
   // The listeners for group events
 
@@ -139,12 +153,22 @@ class Primary_election_action : public Group_action, Group_event_observer {
                         bool is_leaving, bool *skip_election,
                         enum_primary_election_mode *election_mode,
                         std::string &suggested_primary) override;
-  int after_primary_election(std::string primary_uuid, bool primary_changed,
-                             enum_primary_election_mode election_mode,
-                             int error) override;
+  int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error) override;
   int before_message_handling(const Plugin_gcs_message &message,
                               const std::string &message_origin,
                               bool *skip_message) override;
+
+  /**
+   Stop the transaction_monitor_thread if running.
+
+   @return status
+   @retval true failed to stop the thread
+   @retval false thread stopped succesfully.
+  */
+  bool stop_transaction_monitor_thread();
 
   /** Is this an primary change or mode change*/
   enum_action_execution_mode action_execution_mode;
@@ -180,10 +204,8 @@ class Primary_election_action : public Group_action, Group_event_observer {
 
   /** Is the primary election invoked*/
   bool is_primary_election_invoked;
-  /** Is the primary elected*/
-  bool is_primary_elected;
-  /** Did the primary change*/
-  bool primary_changed;
+  /** primary election status*/
+  enum_primary_election_status m_execution_status{PRIMARY_ELECTION_INIT};
   /** Is the transaction back log consumed*/
   bool is_transaction_queue_applied;
 
@@ -197,6 +219,19 @@ class Primary_election_action : public Group_action, Group_event_observer {
 
   /**Place to store result messages*/
   Group_action_diagnostics execution_message_area;
+
+  /**
+    The number of seconds to wait before setting the THD::KILL_CONNECTION flag
+    for the transactions that did not reach commit stage. Client connection is
+    dropped.
+  */
+  int32 m_transaction_wait_timeout = {-1};
+  /**
+    Used to monitor transactions, this stops the new transactions and sets the
+    THD::KILL_CONNECTION flag for the transactions that did not reach commit
+    stage post timeout expire. Client connection is dropped.
+  */
+  Transaction_monitor_thread *transaction_monitor_thread{nullptr};
 };
 
 #endif /* PRIMARY_ELECTION_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include "my_compiler.h"
 
 #include "my_inttypes.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/auth/auth_common.h" /* struct ACL_* */
 #include "sql/key.h"
@@ -85,13 +85,13 @@ class PFS_engine_table {
   int delete_row(TABLE *table, const unsigned char *buf, Field **fields);
 
   /** Initialize table scan. */
-  virtual int rnd_init(bool scan MY_ATTRIBUTE((unused))) { return 0; }
+  virtual int rnd_init(bool scan [[maybe_unused]]) { return 0; }
 
   /** Fetch the next row in this cursor. */
   virtual int rnd_next(void) = 0;
 
-  virtual int index_init(uint idx MY_ATTRIBUTE((unused)),
-                         bool sorted MY_ATTRIBUTE((unused))) {
+  virtual int index_init(uint idx [[maybe_unused]],
+                         bool sorted [[maybe_unused]]) {
     assert(false);
     return HA_ERR_UNSUPPORTED;
   }
@@ -99,9 +99,9 @@ class PFS_engine_table {
   virtual int index_read(KEY *key_infos, uint index, const uchar *key,
                          uint key_len, enum ha_rkey_function find_flag);
 
-  virtual int index_read_last(KEY *key_infos MY_ATTRIBUTE((unused)),
-                              const uchar *key MY_ATTRIBUTE((unused)),
-                              uint key_len MY_ATTRIBUTE((unused))) {
+  virtual int index_read_last(KEY *key_infos [[maybe_unused]],
+                              const uchar *key [[maybe_unused]],
+                              uint key_len [[maybe_unused]]) {
     return HA_ERR_UNSUPPORTED;
   }
 
@@ -127,7 +127,7 @@ class PFS_engine_table {
   virtual void reset_position(void) = 0;
 
   /** Destructor. */
-  virtual ~PFS_engine_table() {}
+  virtual ~PFS_engine_table() = default;
 
  protected:
   /**
@@ -266,9 +266,9 @@ struct PFS_key_reader {
 
 class PFS_engine_key {
  public:
-  PFS_engine_key(const char *name) : m_name(name), m_is_null(true) {}
+  explicit PFS_engine_key(const char *name) : m_name(name), m_is_null(true) {}
 
-  virtual ~PFS_engine_key() {}
+  virtual ~PFS_engine_key() = default;
 
   virtual void read(PFS_key_reader &reader,
                     enum ha_rkey_function find_flag) = 0;
@@ -284,7 +284,7 @@ class PFS_engine_index_abstract {
  public:
   PFS_engine_index_abstract() : m_fields(0), m_key_info(nullptr) {}
 
-  virtual ~PFS_engine_index_abstract() {}
+  virtual ~PFS_engine_index_abstract() = default;
 
   void set_key_info(KEY *key_info) { m_key_info = key_info; }
 
@@ -298,7 +298,7 @@ class PFS_engine_index_abstract {
 
 class PFS_engine_index : public PFS_engine_index_abstract {
  public:
-  PFS_engine_index(PFS_engine_key *key_1)
+  explicit PFS_engine_index(PFS_engine_key *key_1)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(nullptr),
         m_key_ptr_3(nullptr),
@@ -337,7 +337,7 @@ class PFS_engine_index : public PFS_engine_index_abstract {
         m_key_ptr_4(key_4),
         m_key_ptr_5(key_5) {}
 
-  ~PFS_engine_index() override {}
+  ~PFS_engine_index() override = default;
 
   void read_key(const uchar *key, uint key_len,
                 enum ha_rkey_function find_flag) override;
@@ -397,7 +397,7 @@ struct PFS_engine_table_share {
  */
 class PFS_dynamic_table_shares {
  public:
-  PFS_dynamic_table_shares() {}
+  PFS_dynamic_table_shares() = default;
 
   void init_mutex();
 
@@ -431,12 +431,12 @@ extern PFS_dynamic_table_shares pfs_external_table_shares;
 */
 class PFS_readonly_acl : public ACL_internal_table_access {
  public:
-  PFS_readonly_acl() {}
+  PFS_readonly_acl() = default;
 
-  ~PFS_readonly_acl() override {}
+  ~PFS_readonly_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 };
 
 /** Singleton instance of PFS_readonly_acl. */
@@ -448,12 +448,12 @@ extern PFS_readonly_acl pfs_readonly_acl;
 */
 class PFS_truncatable_acl : public ACL_internal_table_access {
  public:
-  PFS_truncatable_acl() {}
+  PFS_truncatable_acl() = default;
 
-  ~PFS_truncatable_acl() override {}
+  ~PFS_truncatable_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 };
 
 /** Singleton instance of PFS_truncatable_acl. */
@@ -465,12 +465,12 @@ extern PFS_truncatable_acl pfs_truncatable_acl;
 */
 class PFS_updatable_acl : public ACL_internal_table_access {
  public:
-  PFS_updatable_acl() {}
+  PFS_updatable_acl() = default;
 
-  ~PFS_updatable_acl() override {}
+  ~PFS_updatable_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 };
 
 /** Singleton instance of PFS_updatable_acl. */
@@ -482,12 +482,12 @@ extern PFS_updatable_acl pfs_updatable_acl;
 */
 class PFS_editable_acl : public ACL_internal_table_access {
  public:
-  PFS_editable_acl() {}
+  PFS_editable_acl() = default;
 
-  ~PFS_editable_acl() override {}
+  ~PFS_editable_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 };
 
 /** Singleton instance of PFS_editable_acl. */
@@ -498,12 +498,12 @@ extern PFS_editable_acl pfs_editable_acl;
 */
 class PFS_unknown_acl : public ACL_internal_table_access {
  public:
-  PFS_unknown_acl() {}
+  PFS_unknown_acl() = default;
 
-  ~PFS_unknown_acl() override {}
+  ~PFS_unknown_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 };
 
 /** Singleton instance of PFS_unknown_acl. */
@@ -514,11 +514,11 @@ extern PFS_unknown_acl pfs_unknown_acl;
 */
 class PFS_readonly_world_acl : public PFS_readonly_acl {
  public:
-  PFS_readonly_world_acl() {}
+  PFS_readonly_world_acl() = default;
 
-  ~PFS_readonly_world_acl() override {}
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ~PFS_readonly_world_acl() override = default;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 };
 
 /** Singleton instance of PFS_readonly_world_acl */
@@ -529,11 +529,11 @@ Privileges for world readable truncatable tables.
 */
 class PFS_truncatable_world_acl : public PFS_truncatable_acl {
  public:
-  PFS_truncatable_world_acl() {}
+  PFS_truncatable_world_acl() = default;
 
-  ~PFS_truncatable_world_acl() override {}
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ~PFS_truncatable_world_acl() override = default;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 };
 
 /** Singleton instance of PFS_readonly_world_acl */
@@ -544,11 +544,11 @@ extern PFS_truncatable_world_acl pfs_truncatable_world_acl;
 */
 class PFS_readonly_processlist_acl : public PFS_readonly_acl {
  public:
-  PFS_readonly_processlist_acl() {}
+  PFS_readonly_processlist_acl() = default;
 
-  ~PFS_readonly_processlist_acl() override {}
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ~PFS_readonly_processlist_acl() override = default;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 };
 
 /** Singleton instance of PFS_readonly_processlist_acl */

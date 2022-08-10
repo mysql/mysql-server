@@ -1,7 +1,7 @@
 #ifndef UNITTEST_GUNIT_FAKE_STRING_ITERATOR_H_
 #define UNITTEST_GUNIT_FAKE_STRING_ITERATOR_H_
 
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 
 #include "m_ctype.h"
 #include "sql/field.h"
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/sql_class.h"
 
 // An implementation of a RowIterator that contains a user defined set of

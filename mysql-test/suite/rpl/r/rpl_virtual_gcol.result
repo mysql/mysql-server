@@ -78,13 +78,17 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 DROP TABLE gtable;
 include/sync_slave_sql_with_master.inc
-SET @slave_parallel_type_saved= @@GLOBAL.SLAVE_PARALLEL_TYPE;
-SET @slave_parallel_workers_saved= @@GLOBAL.SLAVE_PARALLEL_WORKERS;
-SET @slave_preserver_commit_order_saved= @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER;
+SET @replica_parallel_type_saved= @@GLOBAL.REPLICA_PARALLEL_TYPE;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @replica_parallel_workers_saved= @@GLOBAL.REPLICA_PARALLEL_WORKERS;
+SET @slave_preserver_commit_order_saved= @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER;
 include/stop_slave.inc
-SET GLOBAL slave_parallel_type= 'LOGICAL_CLOCK';
-SET GLOBAL slave_parallel_workers= 4;
-SET GLOBAL slave_preserve_commit_order= ON;
+SET GLOBAL replica_parallel_type= 'LOGICAL_CLOCK';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers= 4;
+SET GLOBAL replica_preserve_commit_order= ON;
 include/start_slave.inc
 CALL mtr.add_suppression("This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'");
 [connection master]
@@ -108,8 +112,10 @@ SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/stop_slave.inc
-SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
-SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;
-SET @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
+SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
+SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
 include/start_slave.inc
 include/rpl_end.inc

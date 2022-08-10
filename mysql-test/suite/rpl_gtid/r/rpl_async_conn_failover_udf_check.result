@@ -35,13 +35,13 @@ include/assert.inc ['The performance_schema.replication_asynchronous_connection_
 # 5. Check the weight parameter value is integer value between 1-100.
 #
 SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '', 0);
-ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Wrong arguments: The weight argument value should be integer value between 1-100
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Wrong arguments: The weight argument value should be integer value between 1-100.
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
 SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '', 200);
-ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Wrong arguments: The weight argument value should be integer value between 1-100
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Wrong arguments: The weight argument value should be integer value between 1-100.
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
 SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '', '100');
-ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Wrong arguments: The weight argument value should be integer value between 1-100
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Wrong arguments: The weight argument value should be integer value between 1-100.
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
 #
 # 6. Check the default value of weight parameter is 50.
@@ -140,6 +140,8 @@ SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
 ERROR 42000: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
 SELECT * FROM mysql.replication_asynchronous_connection_failover;
 ERROR 42000: SELECT command denied to user 'async_user'@'localhost' for table 'replication_asynchronous_connection_failover'
+SELECT asynchronous_connection_failover_reset();
+ERROR 42000: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
 #
 # 15. Verify user with REPLICATION_SLAVE_ADMIN privilege can execute
 #     asynchronous_connection_failover_add_source and
@@ -154,6 +156,9 @@ The UDF asynchronous_connection_failover_add_source() executed successfully.
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
 asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100)
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_reset();
+asynchronous_connection_failover_reset()
+The UDF asynchronous_connection_failover_reset() executed successfully.
 [connection master]
 DROP USER 'async_user';
 include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover']

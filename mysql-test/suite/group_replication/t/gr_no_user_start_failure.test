@@ -24,6 +24,12 @@
 #save user timestamps for later restore
 let $date_to_restore=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
 let $date_to_restore_priv=`SELECT timestamp from mysql.tables_priv where user='mysql.session'`;
+USE test;
+CREATE TABLE test.tmp_user AS SELECT * FROM mysql.user;
+INSERT INTO tmp_user SELECT * FROM mysql.user;
+
+CREATE TABLE tmp_global_grants AS SELECT * FROM mysql.global_grants;
+INSERT INTO tmp_global_grants SELECT * FROM mysql.global_grants;
 
 DROP USER "mysql.session"@"localhost";
 
@@ -67,7 +73,15 @@ START GROUP_REPLICATION;
 --echo #
 
 --disable_query_log
---eval INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',"$date_to_restore",NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);
+--disable_result_log
+TRUNCATE TABLE mysql.user;
+INSERT IGNORE INTO mysql.user SELECT * FROM tmp_user;
+DROP TABLE tmp_user;
+
+TRUNCATE TABLE mysql.global_grants;
+INSERT IGNORE INTO mysql.global_grants SELECT * FROM tmp_global_grants;
+DROP TABLE tmp_global_grants;
+--enable_result_log
 
 --eval INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', 'mysql.session', 'user', 'root\@localhost', "$date_to_restore_priv", 'Select', '');
 
@@ -86,5 +100,14 @@ call mtr.add_suppression("Failed to establish an internal server connection to e
 call mtr.add_suppression("It was not possible to establish a connection to server SQL service");
 call mtr.add_suppression("On plugin shutdown it was not possible to reset the server read mode settings.");
 SET SESSION sql_log_bin= 1;
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_start_on_boot=0 --group_replication_group_name=$group_replication_group_name
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
 
 --source include/group_replication_end.inc

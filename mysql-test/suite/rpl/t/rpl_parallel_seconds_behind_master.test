@@ -2,8 +2,8 @@
 # Testing of Seconds_Behind_Master (SBM) to behave as the following
 # SBM changes discretely per some number of processed group of events,
 # e.g transactions.
-# The number is either @@global.slave_checkpoint_group or less if
-# @@global.slave_checkpoint_period timer elapses first.
+# The number is either @@global.replica_checkpoint_group or less if
+# @@global.replica_checkpoint_period timer elapses first.
 # The value updates *after* the last group commit is executed.
 # Resetting to zero behavior when Slave goes to read events is
 # preserved.
@@ -21,12 +21,12 @@
 # restart slave in MTS mode
 connection slave;
 source include/stop_slave.inc;
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-set @@global.slave_parallel_workers= 4;
-set @save.slave_checkpoint_period= @@global.slave_checkpoint_period;
-set @@global.slave_checkpoint_period= 500; # 0.5 sec
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+set @@global.replica_parallel_workers= 4;
+set @save.replica_checkpoint_period= @@global.replica_checkpoint_period;
+set @@global.replica_checkpoint_period= 500; # 0.5 sec
 # to avoid warnings
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @save.replica_transaction_retries= @@global.replica_transaction_retries;
 
 #
 # Idea of demonstration.
@@ -35,7 +35,7 @@ set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 # natural delay, and the 2nd will be locked out of its data.
 # While the first is being processed Coordinator empties the relay-log
 # to enter waiting for more events.
-# It does so being awakened @@global.slave_checkpoint_period-ically 
+# It does so being awakened @@global.replica_checkpoint_period-ically 
 # to check out if some groups of events have been done to update SBM (demo 1). 
 #
 # Resetting of SBM is a possibility whenever Coordinator
@@ -117,9 +117,11 @@ drop tables t1, t2;
 
 --source include/sync_slave_sql_with_master.inc
 
-set @@global.slave_checkpoint_period= @save.slave_checkpoint_period;
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+set @@global.replica_checkpoint_period= @save.replica_checkpoint_period;
+--disable_warnings
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
+set @@global.replica_transaction_retries= @save.replica_transaction_retries;
 
 --source include/rpl_end.inc
 

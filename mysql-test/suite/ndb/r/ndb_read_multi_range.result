@@ -574,6 +574,8 @@ drop table t1;
 create table t1 (a varchar(1536) not null,
 b varchar(1532) not null,
 c int, primary key (a,b)) character set latin1 engine=ndb;
+Warnings:
+Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
 insert into t1 values ('a', 'a', 1), ('b', 'b', 2), ('c', 'c', 3),
 ('d', 'd', 4), ('e', 'e', 5), ('f', 'f', 6),
 ('g', 'g', 7), ('h', 'h', 8), ('i', 'i', 9),
@@ -621,9 +623,9 @@ SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM
 t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	3000	100.00	Using temporary
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	6	100.00	Using where; Using pushed condition ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` <> 6)); Using MRR; Distinct
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	6	100.00	Using pushed condition ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` <> 6)); Using MRR; Distinct
 Warnings:
-Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't2' as child, access type 'Range-scan' not implemented
 Note	1003	/* select#1 */ select straight_join distinct `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` <> 6))) where true
 SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM 
 t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ class OptionalString {
  public:
   OptionalString() : value_(), empty_(true) {}
   OptionalString(const char *s) : value_(s ? s : ""), empty_(!s) {}
-  ~OptionalString() {}
+  ~OptionalString() = default;
   OptionalString(const OptionalString &) = default;
 
   const char *c_str() const { return empty_ ? nullptr : value_.c_str(); }
@@ -61,13 +61,15 @@ class Ssl_init_callback {
                                OptionalString *cipher,
                                OptionalString *ciphersuites,
                                OptionalString *key, OptionalString *crl,
-                               OptionalString *crl_path) = 0;
+                               OptionalString *crl_path,
+                               bool *session_cache_mode,
+                               long *session_cache_timeout) = 0;
 
   virtual bool provision_certs() = 0;
 
   virtual bool warn_self_signed_ca() = 0;
 
-  virtual ~Ssl_init_callback() {}
+  virtual ~Ssl_init_callback() = default;
 };
 
 /**
@@ -80,13 +82,14 @@ class Ssl_init_callback_server_main final : public Ssl_init_callback {
                        OptionalString *version, OptionalString *cert,
                        OptionalString *cipher, OptionalString *ciphersuites,
                        OptionalString *key, OptionalString *crl,
-                       OptionalString *crl_path) override;
+                       OptionalString *crl_path, bool *session_cache_mode,
+                       long *session_cache_timeout) override;
 
   bool provision_certs() override;
 
   bool warn_self_signed_ca() override;
 
-  ~Ssl_init_callback_server_main() override {}
+  ~Ssl_init_callback_server_main() override = default;
 
  private:
   ssl_artifacts_status auto_detect_ssl();
@@ -102,7 +105,8 @@ class Ssl_init_callback_server_admin final : public Ssl_init_callback {
                        OptionalString *version, OptionalString *cert,
                        OptionalString *cipher, OptionalString *ciphersuites,
                        OptionalString *key, OptionalString *crl,
-                       OptionalString *crl_path) override;
+                       OptionalString *crl_path, bool *session_cache_mode,
+                       long *session_cache_timeout) override;
 
   bool provision_certs() override {
     /*
@@ -114,10 +118,14 @@ class Ssl_init_callback_server_admin final : public Ssl_init_callback {
 
   bool warn_self_signed_ca() override;
 
-  ~Ssl_init_callback_server_admin() override {}
+  ~Ssl_init_callback_server_admin() override = default;
 };
 
 extern Ssl_init_callback_server_main server_main_callback;
 extern Ssl_init_callback_server_admin server_admin_callback;
 
+/**
+  Helper method to validate values of --tls-version and --admin-tls-version
+*/
+bool validate_tls_version(const char *val);
 #endif  // !SSL_INIT_CALLBACK_INCLUDED

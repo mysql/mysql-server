@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
-#include "keyring_info.h"
+#include "mysqlrouter/keyring_info.h"
 
 #include <array>
 #include <chrono>
@@ -40,8 +40,6 @@
 #include "mysql/harness/logging/logging.h"
 #include "process_launcher.h"
 #include "random_generator.h"
-#include "router_config.h"
-#include "utils.h"
 
 IMPORT_LOG_FUNCTIONS()
 

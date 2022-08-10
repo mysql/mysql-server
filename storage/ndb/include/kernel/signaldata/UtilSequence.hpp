@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ class UtilSequenceReq {
 
   friend bool printUTIL_SEQUENCE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   enum RequestType {
     NextVal = 1, // Return uniq value
@@ -75,7 +75,7 @@ class UtilSequenceConf {
 
   friend bool printUTIL_SEQUENCE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   
 private:
   Uint32 senderData;
@@ -98,7 +98,7 @@ class UtilSequenceRef {
   
   friend bool printUTIL_SEQUENCE_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   
   enum ErrorCode {
     NoSuchSequence = 1,

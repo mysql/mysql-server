@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_api_disable_rowlock);
 COUNT(@@GLOBAL.innodb_api_disable_rowlock)
 1
 1 Expected
-SELECT innodb_api_disable_rowlock = @@SESSION.innodb_api_enable_binlog;
+SELECT innodb_api_disable_rowlock;
 ERROR 42S22: Unknown column 'innodb_api_disable_rowlock' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

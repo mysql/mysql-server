@@ -72,7 +72,7 @@ SELECT COUNT(@@GLOBAL.Host_Cache_Size);
 COUNT(@@GLOBAL.Host_Cache_Size)
 1
 1 Expected
-SELECT Host_Cache_Size = @@SESSION.Host_Cache_Size;
+SELECT Host_Cache_Size;
 ERROR 42S22: Unknown column 'Host_Cache_Size' in 'field list'
 Expected error 'Unknown column Host_Cache_Size in field list'
 SET @@GLOBAL.Host_Cache_Size=DEFAULT;

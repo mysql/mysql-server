@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include "API.hpp"
 #include <signaldata/TcKeyReq.hpp>
 #include <NdbEnv.h>
@@ -80,7 +81,7 @@ NdbBlob::getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnIm
 {
   DBUG_ENTER("NdbBlob::getBlobTableName");
   assert(t != 0 && c != 0 && c->getBlobType() && c->getPartSize() != 0);
-  memset(btname, 0, NdbBlobImpl::BlobTableNameSize);
+  std::memset(btname, 0, NdbBlobImpl::BlobTableNameSize);
   sprintf(btname, "NDB$BLOB_%d_%d", (int)t->m_id, (int)c->m_column_no);
   DBUG_PRINT("info", ("blob table name: %s", btname));
   DBUG_VOID_RETURN;
@@ -244,14 +245,14 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
 int
 NdbBlob::getBlobEventName(char* bename, Ndb* anNdb, const char* eventName, const char* columnName)
 {
-  NdbEventImpl* e = anNdb->theDictionary->m_impl.getEvent(eventName);
+  std::unique_ptr<NdbEventImpl> e(
+          anNdb->theDictionary->m_impl.getEvent(eventName));
   if (e == NULL)
     return -1;
   NdbColumnImpl* c = e->m_tableImpl->getColumn(columnName);
   if (c == NULL)
     return -1;
-  getBlobEventName(bename, e, c);
-  delete e; // it is from new NdbEventImpl
+  getBlobEventName(bename, e.get(), c);
   return 0;
 }
 
@@ -416,7 +417,7 @@ NdbBlob::Buf::alloc(unsigned n)
     maxsize = n;
   }
 #ifdef VM_TRACE
-  memset(data, 'X', maxsize);
+  std::memset(data, 'X', maxsize);
 #endif
 }
 
@@ -434,7 +435,7 @@ void
 NdbBlob::Buf::zerorest()
 {
   assert(size <= maxsize);
-  memset(data + size, 0, maxsize - size);
+  std::memset(data + size, 0, maxsize - size);
 }
 
 void
@@ -720,9 +721,9 @@ NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
     Uint32 packed_pad= packed_len - len;
     Uint32 unpacked_pad= unpacked_len - len;
     if (packed_pad > 0)
-      bzero(packed + len, packed_pad);
+      std::memset(packed + len, 0, packed_pad);
     if (unpacked_pad > 0)
-      bzero(unpacked + len, unpacked_pad);
+      std::memset(unpacked + len, 0, unpacked_pad);
     packed+= packed_len;
     unpacked+= unpacked_len;
   }
@@ -784,7 +785,7 @@ NdbBlob::getNullOrEmptyBlobHeadDataPtr(const char * & data,
 
   /* Reset affected members */
   theSetBuf=NULL;
-  memset(&theHead, 0, sizeof(theHead));
+  theHead = Head();
 
   /* This column is not null anymore - record the fact so that
    * a setNull() call will modify state
@@ -849,10 +850,10 @@ NdbBlob::unpackBlobHead(Head& head, const char* buf, int blobVersion)
       head.pkid |= ((Uint32)*p++ << n);
     for (i = 0, n = 0; i < 8; i++, n += 8)
       head.length |= ((Uint64)*p++ << n);
-    assert(p - (uchar*)buf == 16);
+    assert(p - (const uchar*)buf == 16);
     assert(head.reserved == 0);
     head.headsize = (NDB_BLOB_V2_HEAD_SIZE << 2);
-    DBUG_DUMP("info", (uchar*)buf, 16);
+    DBUG_DUMP("info", (const uchar*)buf, 16);
   }
   DBUG_PRINT("info", ("unpack: varsize=%u length=%u pkid=%u",
                       (uint)head.varsize, (uint)head.length, (uint)head.pkid));
@@ -923,7 +924,7 @@ NdbBlob::getBlobKeyHash()
 
     const Uint32 numKeyCols = cmpTab->m_noOfKeys;
     uint64 nr1 = 0;
-    uint64 nr2 = 0;
+    uint64 nr2 = 4;
     const uchar* dataPtr = (const uchar*) keyBuf.data;
 
     Uint32 n = 0;
@@ -961,6 +962,12 @@ NdbBlob::getBlobKeyHash()
   DBUG_RETURN(m_keyHash);
 }
 
+/*
+ * Returns:
+ *  0 - if keys are equal for this and other
+ *  1 - if keys are different for this and other
+ *  -1 - on error
+ */
 int
 NdbBlob::getBlobKeysEqual(NdbBlob* other)
 {
@@ -1006,6 +1013,11 @@ NdbBlob::getBlobKeysEqual(NdbBlob* other)
                                       lbA,
                                       lenA);
       assert(ok);
+      if (unlikely(!ok))
+      {
+        DBUG_PRINT("error", ("Corrupt length of key column %u", i));
+        DBUG_RETURN(-1);
+      }
       Uint32 lbB, lenB;
       ok = NdbSqlUtil::get_var_length(colImpl->m_type,
                                       dataPtrB,
@@ -1013,8 +1025,12 @@ NdbBlob::getBlobKeysEqual(NdbBlob* other)
                                       lbB,
                                       lenB);
       assert(ok);
+      if (unlikely(!ok))
+      {
+        DBUG_PRINT("error", ("Corrupt length of key column %u", i));
+        DBUG_RETURN(-1);
+      }
       assert(lbA == lbB);
-
       CHARSET_INFO* cs = colImpl->m_cs ? colImpl->m_cs : &my_charset_bin;
       int res = (cs->coll->strnncollsp)(cs,
                                         dataPtrA + lbA,
@@ -1240,11 +1256,9 @@ NdbBlob::getHeadInlineValue(NdbOperation* anOp)
   }
   /*
    * If we get no data from this op then the operation is aborted
-   * one way or other.  Following hack in 5.0 makes sure we don't read
-   * garbage.  The proper fix exists only in version >= 5.1.
+   * one way or other.
    */
-  // 5.0 theHead->length = 0;
-  memset(&theHead, 0, sizeof(theHead));
+  theHead = Head();
   packBlobHead();
   DBUG_RETURN(0);
 }
@@ -1294,7 +1308,7 @@ NdbBlob::prepareSetHeadInlineValue()
   theHead.length = theLength;
   if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
     if (theLength < theInlineSize)
-      memset(theInlineData + theLength, 0, size_t(theInlineSize - theLength));
+      std::memset(theInlineData + theLength, 0, size_t(theInlineSize - theLength));
   } else {
     // the 2 length bytes are not counted in length
     if (theLength < theInlineSize)
@@ -1538,7 +1552,7 @@ NdbBlob::truncate(Uint64 length)
         DBUG_PRINT("info", ("part %u length old=%u new=%u",
                             part1, (Uint32)len, off));
         if (theFixedDataFlag)
-          memset(thePartBuf.data + off, theFillChar, thePartSize - off);
+          std::memset(thePartBuf.data + off, theFillChar, thePartSize - off);
         if (updatePart(thePartBuf.data, part1, off) == -1)
           DBUG_RETURN(-1);
       }
@@ -1865,7 +1879,7 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
     } else {
       memcpy(thePartBuf.data, buf, len);
       if (theFixedDataFlag) {
-        memset(thePartBuf.data + len, theFillChar, thePartSize - len);
+        std::memset(thePartBuf.data + len, theFillChar, thePartSize - len);
       }
       Uint16 sz = len;
       if (part < getPartCount()) {
@@ -3047,8 +3061,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType)
  * Initialise BlobTask structure based on request parameters
  *
  */
-int
-NdbBlob::initBlobTask(NdbTransaction::ExecType anExecType)
+int NdbBlob::initBlobTask(NdbTransaction::ExecType anExecType [[maybe_unused]])
 {
   DBUG_ENTER("NdbBlob::initBlobTask");
 
@@ -3618,7 +3631,6 @@ NdbBlob::handleBlobTask(NdbTransaction::ExecType anExecType)
                 DBUG_RETURN(BA_ERROR);
               }
             }
-            /* Fall through */
           }
 
           if (oldLenUnknown)

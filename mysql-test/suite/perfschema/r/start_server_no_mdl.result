@@ -8,10 +8,10 @@ sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-4
+5
 select count(*) from performance_schema.setup_consumers;
 count(*)
-15
+16
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 1
@@ -119,9 +119,4 @@ count(*)
 select variable_value > 0 from performance_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_METADATA_LOCK_LOST';
 variable_value > 0
-1
-FLUSH STATUS;
-select variable_value from performance_schema.global_status
-where variable_name like 'PERFORMANCE_SCHEMA_METADATA_LOCK_LOST';
-variable_value
 1

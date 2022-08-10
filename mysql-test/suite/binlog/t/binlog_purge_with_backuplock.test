@@ -1,0 +1,95 @@
+##############################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that with "LOCK INSTANCE FOR BACKUP"
+# taken explicit purge implied by "PURGE BINARY LOGS" is blocked i.e expired
+# binary logs are not removed
+#
+# ==== Requirement ====
+# R1. With "LOCK INSTANCE FOR BACKUP" taken "PURGE BINARY LOGS TO" should not
+#     remove binary logs.
+# R2. With "LOCK INSTANCE FOR BACKUP" taken "PURGE BINARY LOGS BEFORE" should
+#     not remove binary logs.
+#
+# ==== Implementation ====
+# 1. Save current binlog file name
+# 2. Generate new binlogs
+# 3. Case1: Purge binlogs using 'PURGE BINARY LOGS TO'
+#    3.1 Lock instance for backup
+#    3.2 Purge binlogs
+#    3.3 Verify that binlogs are not purged
+#    3.4 Unlock instance
+# 4. Case2: Purge binlogs using 'PURGE BINARY LOGS BEFORE'
+#    4.1 Lock instance for backup
+#    4.2 Purge binlogs
+#    4.3 Verify that binlogs are not purged
+#    4.4 Unlock instance
+#
+# ==== References ====
+# BUG#33437026: BINARY LOGS ARE GETTING REMOVED WHEN PURGE BINARY LOGS
+#               WITH 'BACKUP LOCK'
+###############################################################################
+
+--source include/have_binlog_format_row.inc
+
+RESET MASTER;
+
+--echo #
+--echo # 1. Save current binlog file name
+--source include/save_binlog_position.inc
+--let $first_binlog_file= $binlog_file
+
+--echo #
+--echo # 2. Generate new binlogs
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # 3. Case1: Purge binlogs using 'PURGE BINARY LOGS TO'
+--echo #
+--echo # 3.1 Lock instance for backup
+LOCK INSTANCE FOR BACKUP;
+
+--echo #
+--echo # 3.2 Purge binlogs
+--source include/save_binlog_position.inc
+FLUSH BINARY LOGS;
+--replace_result $binlog_file BINLOG_FILE
+--error ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
+--eval PURGE BINARY LOGS TO '$binlog_file'
+
+--echo #
+--echo # 3.3 Verify that binlogs are not purged
+--let $binlog_name= query_get_value(show master logs, Log_name, 1)
+--let $assert_text = Expected binary log file
+--let $assert_cond = "$binlog_name" = "$first_binlog_file"
+--source include/assert.inc
+
+--echo #
+--echo # 3.4 Unlock instance for backup
+UNLOCK INSTANCE;
+
+--echo #
+--echo # 4. Case2: Purge binlogs using 'PURGE BINARY LOGS BEFORE'
+--echo #
+--echo # 4.1 Lock instance for backup
+LOCK INSTANCE FOR BACKUP;
+
+--echo #
+--echo # 4.2 Purge binlogs
+let $date=`select NOW()`;
+FLUSH BINARY LOGS;
+--disable_query_log
+--error ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
+--eval PURGE BINARY LOGS BEFORE '$date'
+--enable_query_log
+
+--echo #
+--echo # 4.3 Verify that binlogs are not purged
+--let $binlog_name= query_get_value(show master logs, Log_name, 1)
+--let $assert_text = Expected binary log file
+--let $assert_cond = "$binlog_name" = "$first_binlog_file"
+--source include/assert.inc
+
+--echo #
+--echo # 4.4 Unlock instance
+UNLOCK INSTANCE;

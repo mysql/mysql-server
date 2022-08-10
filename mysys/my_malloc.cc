@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,10 @@
 #include <string.h>
 #include <sys/types.h>
 
+#ifdef _WIN32
+#include "jemalloc_win.h"
+#endif  // _WIN32
+
 #include "memory_debugging.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -56,34 +60,207 @@ static void *my_raw_malloc(size_t size, myf my_flags);
 static void my_raw_free(void *ptr);
 extern void my_free(void *ptr);
 
+#ifdef _WIN32
+#include <memory>
+#include <mutex>
+#include <sstream>
+#include <string>
+
+extern "C" bool use_jemalloc_allocations();
+namespace mysys {
+namespace detail {
+void *(*pfn_malloc)(size_t size);
+void *(*pfn_calloc)(size_t number, size_t size);
+void *(*pfn_realloc)(void *ptr, size_t size);
+void (*pfn_free)(void *ptr);
+}  // namespace detail
+}  // namespace mysys
+
+static std::string win_error_to_string(DWORD err) {
+  struct local_freer {
+    void operator()(LPTSTR ptr) { LocalFree(ptr); }
+  };
+  LPTSTR pmsg = nullptr;
+  if (!FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+                         FORMAT_MESSAGE_IGNORE_INSERTS |
+                         FORMAT_MESSAGE_ALLOCATE_BUFFER,
+                     nullptr, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                     (LPTSTR)&pmsg, 0, nullptr)) {
+    return "";
+  }
+  std::unique_ptr<TCHAR, local_freer> scope_guard{pmsg};
+  std::string message(pmsg);
+  // Remove any trailing CRLF
+  if (message.rfind("\r\n") == (message.length() - 2)) {
+    message.resize(message.length() - 2);
+  }
+  return message;
+}
+
+namespace mysys {
+static bool using_jemalloc = false;
+bool is_my_malloc_using_jemalloc() { return using_jemalloc; }
+// This unwieldy add_or_return_messages function is a workaround for the fact
+// that we can't control the order of global initializers, and the server
+// logger is not available at the time the jemalloc allocation
+// functions are loaded. We can't split the add_or_return_messages function
+// into separate add_messages and return_messages functions with the
+// messages stored in a file scoped static vector, as messages stored in
+// that vector during the initialization of _another_ file scoped static
+// object could be lost when a file scoped static vector is itself
+// subsequently initialized.
+// So message codes and strings are stored in a static function scoped vector
+// for subsequent retrieval when the server logger IS available. This static
+// function scoped vector is immune to the order of initialization of file
+// scoped variables.
+// Note also that we can't use error codes from mysqld_error.h
+// here, as the mysys library is used in the generation of those
+// error codes.  To avoid a circular dependency, the codes stored
+// in the LogMessageInfo::m_ecode are offsets to be applied to
+// the base error code ER_MY_MALLOC_USING_JEMALLOC to find the
+// "real" error code.
+static void add_or_return_messages(
+    const LogMessageInfo &msg_info,
+    std::vector<LogMessageInfo> *pvec = nullptr) {
+  static std::vector<LogMessageInfo> vec_messages;
+
+  if (pvec) {
+    *pvec = vec_messages;
+    return;
+  }
+  vec_messages.emplace_back(msg_info);
+}
+
+static void log_err_deferred(loglevel severity, int64_t ecode,
+                             const std::string &message) {
+  add_or_return_messages({severity, ecode, message});
+}
+
+std::vector<LogMessageInfo> fetch_jemalloc_initialization_messages() {
+  std::vector<LogMessageInfo> jemalloc_init_messages;
+  LogMessageInfo dummy;
+  add_or_return_messages(dummy, &jemalloc_init_messages);
+  return jemalloc_init_messages;
+}
+template <class T>
+static T get_proc_address(const char *function_name, HMODULE hlib,
+                          const char *dll_path) {
+  auto tmp_pfn = reinterpret_cast<T>(GetProcAddress(hlib, function_name));
+  if (!tmp_pfn) {
+    DWORD err = GetLastError();
+    std::ostringstream os;
+    os << "GetProcAddress failed for \"" << function_name << "\" from \""
+       << dll_path << "\" with error code " << err << ": \""
+       << win_error_to_string(err) << "\" Falling back to default malloc";
+
+    log_err_deferred(ERROR_LEVEL, MY_MALLOC_GETPROCADDRESS_FAILED_ER, os.str());
+  }
+  return tmp_pfn;
+}
+namespace detail {
+std::once_flag init_malloc_pointers_flag;
+/**
+  Initialize (Windows only) function pointers used for some memory allocations,
+  including the my_malloc family.  Note that these memory allocations can occur
+  early in the process lifecycle (during construction of global objects) and
+  thus init_malloc_pointers is called using std::call_once from the functions
+  that wrap memory allocations rather than from my_win_init, where it would be
+  too late.
+  Note that as this function is invoked very early in the lifetime of the
+  process (typically before main), the logging system is not yet initialized
+  so calls to my_message_local send their output to stderr.
+  Also note that when used from the MySQL server on Windows, there are
+  typically two instances of the MySQL server process launched (see the
+  --no-monitor option for launching a single instance) and thus the information
+  message emitted on not finding the jemalloc dll will typically appear on
+  stderr twice.
+*/
+void init_malloc_pointers() {
+  // Set up to use the MSVC library routines by default.
+  pfn_malloc = std::malloc;
+  pfn_calloc = std::calloc;
+  pfn_realloc = std::realloc;
+  pfn_free = std::free;
+  if (!use_jemalloc_allocations()) {
+    return;
+  }
+  // If we can find the jemalloc library in the same directory as this
+  // executable, and load all the required functions successfully, use the
+  // jemalloc routines instead.
+  // Note that the handle returned by LoadLibraryEx is deliberately NOT
+  // released with a FreeLibrary call, as the functions used from this
+  // library can be called from global object destructors late in the
+  // process lifecycle. Not calling FreeLibrary is benign is this case.
+  HMODULE hlib = LoadLibraryEx(jemalloc_dll_name, NULL,
+                               LOAD_LIBRARY_SEARCH_APPLICATION_DIR);
+  if (NULL == hlib) {
+    DWORD err = GetLastError();
+    if (ERROR_MOD_NOT_FOUND == err) {
+      // Normal behaviour: not finding the jemalloc dll means
+      // we don't want to use it.
+      std::ostringstream os;
+      os << jemalloc_dll_name << " not found. Falling back to default malloc";
+      log_err_deferred(INFORMATION_LEVEL, MY_MALLOC_USING_STD_MALLOC_ER,
+                       os.str());
+      return;
+    }
+
+    std::ostringstream os;
+    os << "LoadLibraryEx(\"" << jemalloc_dll_name
+       << "\", NULL, LOAD_LIBRARY_SEARCH_APPLICATION_DIR) failed with error "
+          "code "
+       << err << ": \"" << win_error_to_string(err)
+       << "\", using default malloc";
+
+    log_err_deferred(ERROR_LEVEL, MY_MALLOC_LOADLIBRARY_FAILED_ER, os.str());
+    return;
+  }
+
+  auto tmp_je_malloc = get_proc_address<decltype(pfn_malloc)>(
+      jemalloc_malloc_function_name, hlib, jemalloc_dll_name);
+  auto tmp_je_calloc = get_proc_address<decltype(pfn_calloc)>(
+      jemalloc_calloc_function_name, hlib, jemalloc_dll_name);
+  auto tmp_je_realloc = get_proc_address<decltype(pfn_realloc)>(
+      jemalloc_realloc_function_name, hlib, jemalloc_dll_name);
+  auto tmp_je_free = get_proc_address<decltype(pfn_free)>(
+      jemalloc_free_function_name, hlib, jemalloc_dll_name);
+
+  if (!tmp_je_malloc || !tmp_je_calloc || !tmp_je_realloc || !tmp_je_free) {
+    return;
+  }
+
+  pfn_malloc = tmp_je_malloc;
+  pfn_calloc = tmp_je_calloc;
+  pfn_realloc = tmp_je_realloc;
+  pfn_free = tmp_je_free;
+  using_jemalloc = true;
+  return;
+}
+}  // namespace detail
+}  // namespace mysys
+
+#define malloc(size) mysys::detail::pfn_malloc((size))
+#define calloc(count, size) mysys::detail::pfn_calloc((count), (size))
+#define realloc(p, size) mysys::detail::pfn_realloc((p), (size))
+#define free(p) mysys::detail::pfn_free((p))
+
+#endif  // _WIN32
+
 #ifdef USE_MALLOC_WRAPPER
-struct my_memory_header {
-  PSI_memory_key m_key;
-  uint m_magic;
-  size_t m_size;
-  PSI_thread *m_owner;
-};
-typedef struct my_memory_header my_memory_header;
-#define HEADER_SIZE 32
-
-#define MAGIC 1234
-
-#define USER_TO_HEADER(P) ((my_memory_header *)(((char *)P) - HEADER_SIZE))
-#define HEADER_TO_USER(P) (((char *)P) + HEADER_SIZE)
 
 void *my_malloc(PSI_memory_key key, size_t size, myf flags) {
   my_memory_header *mh;
   size_t raw_size;
-  static_assert(sizeof(my_memory_header) <= HEADER_SIZE,
+  static_assert(sizeof(my_memory_header) <= PSI_HEADER_SIZE,
                 "We must reserve enough memory to hold the header.");
 
-  raw_size = HEADER_SIZE + size;
+  raw_size = PSI_HEADER_SIZE + size;
   mh = (my_memory_header *)my_raw_malloc(raw_size, flags);
   if (likely(mh != nullptr)) {
     void *user_ptr;
-    mh->m_magic = MAGIC;
+    mh->m_magic = PSI_MEMORY_MAGIC;
     mh->m_size = size;
-    mh->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size, &mh->m_owner);
+    mh->m_key = PSI_MEMORY_CALL(memory_alloc)(key, raw_size, &mh->m_owner);
     user_ptr = HEADER_TO_USER(mh);
     MEM_MALLOCLIKE_BLOCK(user_ptr, size, 0, (flags & MY_ZEROFILL));
     return user_ptr;
@@ -100,8 +277,9 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
   if (ptr == nullptr) return my_malloc(key, size, flags);
 
   old_mh = USER_TO_HEADER(ptr);
-  assert((old_mh->m_key == key) || (old_mh->m_key == PSI_NOT_INSTRUMENTED));
-  assert(old_mh->m_magic == MAGIC);
+  assert((PSI_REAL_MEM_KEY(old_mh->m_key) == key) ||
+         (old_mh->m_key == PSI_NOT_INSTRUMENTED));
+  assert(old_mh->m_magic == PSI_MEMORY_MAGIC);
 
   old_size = old_mh->m_size;
 
@@ -113,8 +291,9 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
     my_memory_header *new_mh = USER_TO_HEADER(new_ptr);
 #endif
 
-    assert((new_mh->m_key == key) || (new_mh->m_key == PSI_NOT_INSTRUMENTED));
-    assert(new_mh->m_magic == MAGIC);
+    assert((PSI_REAL_MEM_KEY(new_mh->m_key) == key) ||
+           (new_mh->m_key == PSI_NOT_INSTRUMENTED));
+    assert(new_mh->m_magic == PSI_MEMORY_MAGIC);
     assert(new_mh->m_size == size);
 
     min_size = (old_size < size) ? old_size : size;
@@ -132,9 +311,9 @@ void my_claim(const void *ptr, bool claim) {
   if (ptr == nullptr) return;
 
   mh = USER_TO_HEADER(const_cast<void *>(ptr));
-  assert(mh->m_magic == MAGIC);
-  mh->m_key =
-      PSI_MEMORY_CALL(memory_claim)(mh->m_key, mh->m_size, &mh->m_owner, claim);
+  assert(mh->m_magic == PSI_MEMORY_MAGIC);
+  mh->m_key = PSI_MEMORY_CALL(memory_claim)(
+      mh->m_key, mh->m_size + PSI_HEADER_SIZE, &mh->m_owner, claim);
 }
 
 void my_free(void *ptr) {
@@ -143,8 +322,9 @@ void my_free(void *ptr) {
   if (ptr == nullptr) return;
 
   mh = USER_TO_HEADER(ptr);
-  assert(mh->m_magic == MAGIC);
-  PSI_MEMORY_CALL(memory_free)(mh->m_key, mh->m_size, mh->m_owner);
+  assert(mh->m_magic == PSI_MEMORY_MAGIC);
+  PSI_MEMORY_CALL(memory_free)
+  (mh->m_key, mh->m_size + PSI_HEADER_SIZE, mh->m_owner);
   /* Catch double free */
   mh->m_magic = 0xDEAD;
   MEM_FREELIKE_BLOCK(ptr, 0);
@@ -153,20 +333,20 @@ void my_free(void *ptr) {
 
 #else
 
-void *my_malloc(PSI_memory_key key MY_ATTRIBUTE((unused)), size_t size,
+void *my_malloc(PSI_memory_key key [[maybe_unused]], size_t size,
                 myf my_flags) {
   return my_raw_malloc(size, my_flags);
 }
 
 static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags);
 
-void *my_realloc(PSI_memory_key key MY_ATTRIBUTE((unused)), void *ptr,
-                 size_t size, myf flags) {
+void *my_realloc(PSI_memory_key key [[maybe_unused]], void *ptr, size_t size,
+                 myf flags) {
   return my_raw_realloc(ptr, size, flags);
 }
 
-void my_claim(const void *ptr MY_ATTRIBUTE((unused)),
-              bool claim MY_ATTRIBUTE((unused))) { /* Empty */
+void my_claim(const void *ptr [[maybe_unused]],
+              bool claim [[maybe_unused]]) { /* Empty */
 }
 
 void my_free(void *ptr) { my_raw_free(ptr); }
@@ -192,11 +372,15 @@ static void *my_raw_malloc(size_t size, myf my_flags) {
   else
     point = _malloc_dbg(size, _CLIENT_BLOCK, __FILE__, __LINE__);
 #else
+#ifdef _WIN32
+  std::call_once(mysys::detail::init_malloc_pointers_flag,
+                 mysys::detail::init_malloc_pointers);
+#endif  // _WIN32
   if (my_flags & MY_ZEROFILL)
     point = calloc(size, 1);
   else
     point = malloc(size);
-#endif
+#endif  // MY_MSCRT_DEBUG
 
   DBUG_EXECUTE_IF("simulate_out_of_memory", {
     free(point);
@@ -246,12 +430,16 @@ static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags) {
 #if defined(MY_MSCRT_DEBUG)
   point = _realloc_dbg(oldpoint, size, _CLIENT_BLOCK, __FILE__, __LINE__);
 #else
+#ifdef _WIN32
+  std::call_once(mysys::detail::init_malloc_pointers_flag,
+                 mysys::detail::init_malloc_pointers);
+#endif  // _WIN32
   point = realloc(oldpoint, size);
-#endif
+#endif  // MY_MSCRT_DEBUG
 #ifndef NDEBUG
 end:
 #endif
-  if (point == NULL) {
+  if (point == nullptr) {
     if (my_flags & MY_HOLD_ON_ERROR) return oldpoint;
     if (my_flags & MY_FREE_ON_ERROR) my_free(oldpoint);
     set_my_errno(errno);
@@ -263,7 +451,7 @@ end:
   DBUG_PRINT("exit", ("ptr: %p", point));
   return point;
 }
-#endif
+#endif  // !USE_MALLOC_WRAPPER
 
 /**
   Free memory allocated with my_raw_malloc.
@@ -276,8 +464,12 @@ static void my_raw_free(void *ptr) {
 #if defined(MY_MSCRT_DEBUG)
   _free_dbg(ptr, _CLIENT_BLOCK);
 #else
+#ifdef _WIN32
+  std::call_once(mysys::detail::init_malloc_pointers_flag,
+                 mysys::detail::init_malloc_pointers);
+#endif  // _WIN32
   free(ptr);
-#endif
+#endif  // MY_MSCRT_DEBUG
 }
 
 void *my_memdup(PSI_memory_key key, const void *from, size_t length,

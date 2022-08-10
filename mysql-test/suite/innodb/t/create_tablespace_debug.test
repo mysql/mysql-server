@@ -127,7 +127,7 @@ call mtr.add_suppression("\\[ERROR\\].* The error means the system cannot find t
 call mtr.add_suppression("\\[ERROR\\].* Cannot open datafile for read-only");
 call mtr.add_suppression("\\[ERROR\\].* Could not find a valid tablespace file for");
 call mtr.add_suppression("\\[ERROR\\].* File .*s_def.ibd: 'delete' returned OS error [0-9]*");
-call mtr.add_suppression("\\[ERROR\\].* Failed to delete the datafile of tablespace [0-9]+, file '.*s_def.ibd'!");
+call mtr.add_suppression("\\[ERROR\\].* Failed to delete the datafile of tablespace ID=[0-9]+, file '.*s_def.ibd'!");
 call mtr.add_suppression("\\[ERROR\\].* Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
 call mtr.add_suppression("\\[ERROR\\].* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression("\\[ERROR\\].* Tablespace [0-9]+, name '.*test.*t[0-9]+', unable to open file '.*test.*t[0-4]+.ibd' - Data structure corruption");

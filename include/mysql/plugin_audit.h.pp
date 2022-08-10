@@ -55,6 +55,7 @@ struct MYSQL_XID {
   long bqual_length;
   char data[128];
 };
+#include <mysql/components/services/bits/system_variables_bits.h>
 struct SYS_VAR;
 struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void * thd, SYS_VAR *var, void *save,
@@ -171,6 +172,7 @@ enum enum_server_command {
   COM_BINLOG_DUMP_GTID,
   COM_RESET_CONNECTION,
   COM_CLONE,
+  COM_SUBSCRIBE_GROUP_REPLICATION_STREAM,
   COM_END
 };
 #include "my_sqlcommand.h"

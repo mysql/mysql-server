@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #include <sys/types.h>
 #include <vector>
 #include "my_alloc.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_const.h"
 
 struct MYSQL_LOCK;
 class MDL_context;
@@ -53,7 +55,7 @@ enum enum_locked_tables_mode {
   Getter for the enum enum_locked_tables_mode
   @param locked_tables_mode enum for types of locked tables mode
 
-  @return The string represantation of that enum value
+  @return The string representation of that enum value
 */
 const char *get_locked_tables_mode_name(
     enum_locked_tables_mode locked_tables_mode);
@@ -85,7 +87,8 @@ const char *get_locked_tables_mode_name(
 
 class Locked_tables_list {
  private:
-  MEM_ROOT m_locked_tables_root;
+  MEM_ROOT m_locked_tables_root{key_memory_locked_table_list,
+                                MEM_ROOT_BLOCK_SIZE};
   TABLE_LIST *m_locked_tables;
   TABLE_LIST **m_locked_tables_last;
   /** An auxiliary array used only in reopen_tables(). */

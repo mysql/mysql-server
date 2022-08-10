@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -234,11 +234,11 @@ bool my_gethwaddr(uchar *to) {
 
 #else /* __FreeBSD__ || __linux__ || _WIN32 */
 /* just fail */
-bool my_gethwaddr(uchar *to MY_ATTRIBUTE((unused))) { return 1; }
+bool my_gethwaddr(uchar *to [[maybe_unused]]) { return 1; }
 #endif
 
 #else /* MAIN */
-int main(int argc MY_ATTRIBUTE((unused)), char **argv) {
+int main(int argc [[maybe_unused]], char **argv) {
   uchar mac[6];
   uint i;
   MY_INIT(argv[0]);

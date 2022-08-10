@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ struct st_replace_regex {
     Temporary storage areas for substitutions. To reduce unnessary copying
     and memory freeing/allocation, we pre-allocate two buffers, and alternate
     their use, one for input/one for output, the roles changing on the next
-    st_regex substition. At the end of substitutions  buf points to the
+    st_regex substitution. At the end of substitutions, buf points to the
     one containing the final result.
   */
   char *buf{nullptr};

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,7 +125,7 @@ int my_copy(const char *from, const char *to, myf MyFlags) {
     /* Copy modes if possible */
 
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
-      return 0; /* File copyed but not stat */
+      return 0; /* File copied but not stat */
     /* Copy modes */
     if (chmod(to, stat_buff.st_mode & 07777)) {
       set_my_errno(errno);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,20 +23,12 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
-#if defined(__SUNPRO_CC)
-/*
-  Solaris Studio 12.5 has a bug where, if you use dynamic_cast
-  and then later #include this file (which Boost does), you will
-  get a compile error. Work around it by just including it right now.
-*/
-#include <cxxabi.h>
-#endif
-
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "lex_string.h"
@@ -50,9 +42,9 @@
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/thread_type.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -62,8 +54,8 @@
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"         // Gtid_set
 #include "sql/rpl_info.h"         // Rpl_info
-#include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
-#include "sql/rpl_slave_until_options.h"
+#include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_replica_until_options.h"
 #include "sql/rpl_tblmap.h"  // table_mapping
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/rpl_utility.h"  // Deferred_log_events
@@ -81,7 +73,7 @@ class String;
 struct LEX_MASTER_INFO;
 struct db_worker_hash_entry;
 
-extern uint sql_slave_skip_counter;
+extern uint sql_replica_skip_counter;
 
 typedef Prealloced_array<Slave_worker *, 4> Slave_worker_array;
 
@@ -111,7 +103,7 @@ class Assign_gtids_to_anonymous_transactions_info {
   */
   enum class enum_type { AGAT_OFF = 1, AGAT_LOCAL, AGAT_UUID };
   /**
-    The default constructor intializes the parameter to their default value
+    The default constructor initializes parameters to their default value
   */
   Assign_gtids_to_anonymous_transactions_info() {
     set_info(enum_type::AGAT_OFF, "");
@@ -146,7 +138,7 @@ Relay_log_info contains:
   - misc information specific to the SQL thread
 
 Relay_log_info is initialized from a repository, i.e. table or file, if there is
-one. Otherwise, data members are intialized with defaults by calling
+one. Otherwise, data members are initialized with defaults by calling
 init_relay_log_info().
 
 The relay.info table/file shall be updated whenever: (i) the relay log file
@@ -235,7 +227,7 @@ class Relay_log_info : public Rpl_info {
      */
     USER_DOES_NOT_EXIST,
     /**
-      Provided user doesn't have the necesary privileges to execute the needed
+      Provided user doesn't have the necessary privileges to execute the needed
       operations.
      */
     USER_DOES_NOT_HAVE_PRIVILEGES,
@@ -307,7 +299,7 @@ class Relay_log_info : public Rpl_info {
   }
 /* Instrumentation key for performance schema for mts_temp_table_LOCK */
 #ifdef HAVE_PSI_INTERFACE
-  PSI_mutex_key m_key_mts_temp_table_LOCK;
+  PSI_mutex_key m_key_mta_temp_table_LOCK;
 #endif
   /*
      Lock to protect race condition while transferring temporary table from
@@ -337,7 +329,7 @@ class Relay_log_info : public Rpl_info {
 
   /*
     Identifies when the recovery process is going on.
-    See sql/rpl_slave.h:init_recovery for further details.
+    See sql/rpl_replica.h:init_recovery for further details.
   */
   bool is_relay_log_recovery;
 
@@ -460,13 +452,6 @@ class Relay_log_info : public Rpl_info {
     SLAVE must be executed and the problem fixed manually.
    */
   bool error_on_rli_init_info;
-
-  /**
-    Variable is set to true as long as
-    original_commit_timestamp > immediate_commit_timestamp so that the
-    corresponding warning is only logged once.
-  */
-  bool gtid_timestamps_warning_logged;
 
   /**
     Retrieves the username part of the `PRIVILEGE_CHECKS_USER` option of `CHANGE
@@ -659,11 +644,26 @@ class Relay_log_info : public Rpl_info {
   */
   Replication_transaction_boundary_parser transaction_parser;
 
+  /**
+    Marks the applier position information as being invalid or not.
+
+    @param invalid value to set the position/file info as invalid or not
+  */
+  void set_applier_source_position_info_invalid(bool invalid);
+
+  /**
+    Returns if the applier positions are marked as being invalid or not.
+
+    @return true if applier position information is not reliable,
+            false otherwise.
+  */
+  bool is_applier_source_position_info_invalid() const;
+
   /*
     Let's call a group (of events) :
       - a transaction
       or
-      - an autocommiting query + its associated events (INSERT_ID,
+      - an autocommitting query + its associated events (INSERT_ID,
     TIMESTAMP...)
     We need these rli coordinates :
     - relay log name and position of the beginning of the group we currently are
@@ -673,7 +673,7 @@ class Relay_log_info : public Rpl_info {
     executed. This event is part of the current group.
     Formerly we only had the immediately above coordinates, plus a 'pending'
     variable, but this dealt wrong with the case of a transaction starting on a
-    relay log and finishing (commiting) on another relay log. Case which can
+    relay log and finishing (committing) on another relay log. Case which can
     happen when, for example, the relay log gets rotated because of
     max_binlog_size.
   */
@@ -787,6 +787,15 @@ class Relay_log_info : public Rpl_info {
   */
   enum_require_table_primary_key m_require_table_primary_key_check;
 
+  /**
+    Are positions invalid. If true it means the applier related position
+    information (group_master_log_name and group_master_log_pos) might
+    be outdated.
+
+    Check also is_group_master_log_pos_invalid
+  */
+  bool m_is_applier_source_position_info_invalid;
+
  public:
   bool is_relay_log_truncated() { return m_relay_log_truncated; }
 
@@ -842,12 +851,14 @@ class Relay_log_info : public Rpl_info {
   void fill_coord_err_buf(loglevel level, int err_code,
                           const char *buff_coord) const;
 
-  /*
+  /**
     Flag that the group_master_log_pos is invalid. This may occur
     (for example) after CHANGE MASTER TO RELAY_LOG_POS.  This will
     be unset after the first event has been executed and the
     group_master_log_pos is valid again.
-   */
+
+    Check also m_is_applier_position_info_invalid
+  */
   bool is_group_master_log_pos_invalid;
 
   /*
@@ -908,7 +919,7 @@ class Relay_log_info : public Rpl_info {
   char cached_charset[6];
 
   /*
-    trans_retries varies between 0 to slave_transaction_retries and counts how
+    trans_retries varies between 0 to replica_transaction_retries and counts how
     many times the slave has retried the present transaction; gets reset to 0
     when the transaction finally succeeds. retried_trans is a cumulative
     counter: how many times the slave has retried a transaction (any) since
@@ -928,7 +939,7 @@ class Relay_log_info : public Rpl_info {
   ulonglong ign_master_log_pos_end;
 
   /*
-    Indentifies where the SQL Thread should create temporary files for the
+    Identifies where the SQL Thread should create temporary files for the
     LOAD DATA INFILE. This is used for security reasons.
    */
   char slave_patternload_file[FN_REFLEN];
@@ -1099,7 +1110,7 @@ class Relay_log_info : public Rpl_info {
     W  - Worker;
     WQ - Worker Queue containing event assignments
   */
-  // number's is determined by global slave_parallel_workers
+  // number's is determined by global replica_parallel_workers
   Slave_worker_array workers;
 
   // To map a database to a worker
@@ -1127,7 +1138,7 @@ class Relay_log_info : public Rpl_info {
   /*
     This flag is turned ON when the workers array is initialized.
     Before destroying the workers array we check this flag to make sure
-    we are not destroying an unitilized array. For the purpose of reporting the
+    we are not destroying an uninitialized array. For the purpose of reporting the
     worker status in performance schema table, we need to preserve the workers
     array after worker thread was killed. So, we copy this array into
     workers_copy_pfs array which is used for reporting until next
@@ -1176,18 +1187,20 @@ class Relay_log_info : public Rpl_info {
      Coordinator in order to avoid reaching WQ limits.
   */
   volatile long mts_wq_excess_cnt;
-  long mts_worker_underrun_level;    // % of WQ size at which W is considered
-                                     // hungry
-  ulong mts_coordinator_basic_nap;   // C sleeps to avoid WQs overrun
-  ulong opt_slave_parallel_workers;  // cache for ::opt_slave_parallel_workers
-  ulong slave_parallel_workers;  // the one slave session time number of workers
+  long mts_worker_underrun_level;   // % of WQ size at which W is considered
+                                    // hungry
+  ulong mts_coordinator_basic_nap;  // C sleeps to avoid WQs overrun
+  ulong
+      opt_replica_parallel_workers;  // cache for ::opt_replica_parallel_workers
+  ulong
+      replica_parallel_workers;  // the one slave session time number of workers
   ulong
       exit_counter;  // Number of workers contributed to max updated group index
   ulonglong max_updated_index;
   ulong recovery_parallel_workers;  // number of workers while recovering
   uint rli_checkpoint_seqno;        // counter of groups executed after the most
                                     // recent CP
-  uint checkpoint_group;            // cache for ::opt_mts_checkpoint_group
+  uint checkpoint_group;            // cache for ::opt_mta_checkpoint_group
   MY_BITMAP recovery_groups;        // bitmap used during recovery
   bool recovery_groups_inited;
   ulong mts_recovery_group_cnt;  // number of groups to execute at recovery
@@ -1195,7 +1208,7 @@ class Relay_log_info : public Rpl_info {
   bool mts_recovery_group_seen_begin;
 
   /*
-    While distibuting events basing on their properties MTS
+    While distributing events based on their properties MTS
     Coordinator changes its mts group status.
     Transition normally flowws to follow `=>' arrows on the diagram:
 
@@ -1230,7 +1243,7 @@ class Relay_log_info : public Rpl_info {
   ulong wq_size_waits_cnt;  // number of times C slept due to WQ:s oversize
   /*
     Counter of how many times Coordinator saw Workers are filled up
-    "enough" with assignements. The enough definition depends on
+    "enough" with assignments. The enough definition depends on
     the scheduler type.
   */
   ulong mts_wq_no_underrun_cnt;
@@ -1325,7 +1338,7 @@ class Relay_log_info : public Rpl_info {
      returns true if events are to be executed in parallel
   */
   inline bool is_parallel_exec() const {
-    bool ret = (slave_parallel_workers > 0) && !is_mts_recovery();
+    bool ret = (replica_parallel_workers > 0) && !is_mts_recovery();
 
     assert(!ret || !workers.empty());
 
@@ -1346,7 +1359,7 @@ class Relay_log_info : public Rpl_info {
      @retval true   It is time to compute MTS checkpoint.
      @retval false  It is not MTS or it is not time for computing checkpoint.
   */
-  bool is_time_for_mts_checkpoint();
+  bool is_time_for_mta_checkpoint();
   /**
      While a group is executed by a Worker the relay log can change.
      Coordinator notifies Workers about this event. Worker is supposed
@@ -1508,7 +1521,15 @@ class Relay_log_info : public Rpl_info {
   */
   int rli_init_info(bool skip_received_gtid_set_recovery = false);
   void end_info();
-  int flush_info(bool force = false);
+
+  /** No flush options given to relay log flush */
+  static constexpr int RLI_FLUSH_NO_OPTION{0};
+  /** Ignore server sync options and flush */
+  static constexpr int RLI_FLUSH_IGNORE_SYNC_OPT{1 << 0};
+  /** Flush disresgarding the value of GTID_ONLY */
+  static constexpr int RLI_FLUSH_IGNORE_GTID_ONLY{1 << 1};
+
+  int flush_info(const int flush_flags);
   /**
    Clears from `this` Relay_log_info object all attribute values that are
    not to be kept.
@@ -1539,16 +1560,28 @@ class Relay_log_info : public Rpl_info {
     future_event_relay_log_pos = log_pos;
   }
 
-  inline const char *get_group_master_log_name() {
+  inline const char *get_group_master_log_name() const {
     return group_master_log_name;
   }
-  inline ulonglong get_group_master_log_pos() { return group_master_log_pos; }
+  inline const char *get_group_master_log_name_info() const {
+    if (m_is_applier_source_position_info_invalid) return "INVALID";
+    return get_group_master_log_name();
+  }
+  inline ulonglong get_group_master_log_pos() const {
+    return group_master_log_pos;
+  }
+  inline ulonglong get_group_master_log_pos_info() const {
+    if (m_is_applier_source_position_info_invalid) return 0;
+    return get_group_master_log_pos();
+  }
   inline void set_group_master_log_name(const char *log_file_name) {
     strmake(group_master_log_name, log_file_name,
             sizeof(group_master_log_name) - 1);
   }
   inline void set_group_master_log_pos(ulonglong log_pos) {
     group_master_log_pos = log_pos;
+    // Whenever the position is set, it means it is no longer invalid
+    m_is_applier_source_position_info_invalid = false;
   }
 
   inline const char *get_group_relay_log_name() { return group_relay_log_name; }
@@ -1595,8 +1628,10 @@ class Relay_log_info : public Rpl_info {
   inline void set_event_relay_log_pos(ulonglong log_pos) {
     event_relay_log_pos = log_pos;
   }
-  inline const char *get_rpl_log_name() {
-    return (group_master_log_name[0] ? group_master_log_name : "FIRST");
+  inline const char *get_rpl_log_name() const {
+    return m_is_applier_source_position_info_invalid
+               ? "INVALID"
+               : (group_master_log_name[0] ? group_master_log_name : "FIRST");
   }
 
   static size_t get_number_info_rli_fields();
@@ -1655,7 +1690,7 @@ class Relay_log_info : public Rpl_info {
   time_t get_row_stmt_start_timestamp() { return row_stmt_start_timestamp; }
 
   time_t set_row_stmt_start_timestamp() {
-    if (row_stmt_start_timestamp == 0) row_stmt_start_timestamp = my_time(0);
+    if (row_stmt_start_timestamp == 0) row_stmt_start_timestamp = time(nullptr);
 
     return row_stmt_start_timestamp;
   }
@@ -1763,7 +1798,7 @@ class Relay_log_info : public Rpl_info {
  private:
   /*
     Commit order manager to order commits made by its workers. In context of
-    Multi Source Replication each worker will be ordered by the coresponding
+    Multi Source Replication each worker will be ordered by the corresponding
     corrdinator's order manager.
    */
   Commit_order_manager *commit_order_mngr;
@@ -1959,7 +1994,7 @@ class Relay_log_info : public Rpl_info {
     which is not atomic DDL and has no XID assigned. Checked at commit
     time to decide whether it is safe to update slave info table
     within the same transaction as the write to binary log or this
-    should be deffered. The deffered scenario applies for not XIDed events
+    should be deferred. The deferred scenario applies for not XIDed events
     in which case such update might be lost on recovery.
   */
   bool ddl_not_atomic;
@@ -1997,7 +2032,7 @@ class Relay_log_info : public Rpl_info {
            until_option->is_satisfied_after_dispatching_event();
   }
   /**
-   Intialize until option object when starting slave.
+   Initialize until option object when starting slave.
 
    @param[in] thd The thread object of current session.
    @param[in] master_param the parameters of START SLAVE.
@@ -2144,7 +2179,7 @@ inline bool is_committed_ddl(Log_event *ev) {
   is always correct.
 
   @param  thd   a pointer to THD describing the transaction context
-  @return true  when a slave applier thread is set to commmit being processed
+  @return true  when a slave applier thread is set to commit being processed
                 DDL query-log-event, otherwise returns false.
 */
 inline bool is_atomic_ddl_commit_on_slave(THD *thd) {
@@ -2346,9 +2381,9 @@ class Applier_security_context_guard {
   /**
     Checks if the `PRIVILEGE_CHECKS_USER` user has access to the privilieges
     passed on by `extra_privileges` parameter as well as to the privileges
-    passed on at initilization time.
+    passed on at initialization time.
 
-    This particular method checks those privileges agains a given table and
+    This particular method checks those privileges against a given table and
     against that table's columns - the ones that are used or changed in the
     event.
 
@@ -2365,7 +2400,7 @@ class Applier_security_context_guard {
   /**
     Checks if the `PRIVILEGE_CHECKS_USER` user has access to the privilieges
     passed on by `extra_privileges` parameter as well as to the privileges
-    passed on at initilization time.
+    passed on at initialization time.
 
     @param extra_privileges set of privileges to check, additionally to those
                             passed on at initialization. It's a list of
@@ -2374,12 +2409,13 @@ class Applier_security_context_guard {
     @return true if the privileges are included in the security context and
             false, otherwise.
    */
-  bool has_access(std::initializer_list<std::string> extra_privileges) const;
+  bool has_access(
+      std::initializer_list<std::string_view> extra_privileges) const;
 
   /**
     Checks if the `PRIVILEGE_CHECKS_USER` user has access to the privilieges
     passed on by `extra_privileges` parameter as well as to the privileges
-    passed on at initilization time.
+    passed on at initialization time.
 
     @param extra_privileges set of privileges to check, additionally to those
                             passed on at initialization. It's a list of

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "myisammrg.h"
+#include "myrg_def.h"
 #include "sql/handler.h"
 #include "sql/table.h"
 
@@ -79,14 +80,15 @@ class ha_myisammrg : public handler {
   bool is_cloned; /* This instance has been cloned */
 
  public:
-  MEM_ROOT children_mem_root; /* mem root for children list */
+  /* mem root for children list */
+  MEM_ROOT children_mem_root{rg_key_memory_children, FN_REFLEN};
   List<Mrg_child_def> child_def_list;
   TABLE_LIST *children_l;       /* children list */
   TABLE_LIST **children_last_l; /* children list end */
   uint test_if_locked;          /* flags from ::open() */
 
   ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_myisammrg() override;
+  ~ha_myisammrg() override = default;
   const char *table_type() const override { return "MRG_MyISAM"; }
   enum ha_key_alg get_default_index_algorithm() const override {
     return HA_KEY_ALG_BTREE;
@@ -108,8 +110,8 @@ class ha_myisammrg : public handler {
   }
   uint max_supported_keys() const override { return MI_MAX_KEY; }
   uint max_supported_key_length() const override { return MI_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
+  uint max_supported_key_part_length(HA_CREATE_INFO *create_info
+                                     [[maybe_unused]]) const override {
     return MI_MAX_KEY_LENGTH;
   }
   double scan_time() override {

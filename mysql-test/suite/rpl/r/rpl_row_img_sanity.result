@@ -744,6 +744,8 @@ UPDATE t SET c2=4 WHERE c2=2;
 DROP TABLE t;
 include/wait_for_slave_sql_error.inc [errno=1032]
 DROP TABLE t;
+include/stop_slave_io.inc
+RESET REPLICA;
 include/rpl_reset.inc
 CON: 'master', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';

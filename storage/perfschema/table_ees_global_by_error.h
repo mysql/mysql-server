@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class PFS_index_ees_global_by_error : public PFS_engine_index {
   PFS_index_ees_global_by_error()
       : PFS_engine_index(&m_key), m_key("ERROR_NUMBER") {}
 
-  ~PFS_index_ees_global_by_error() override {}
+  ~PFS_index_ees_global_by_error() override = default;
 
   virtual bool match_error_index(uint error_index);
 
@@ -111,7 +111,7 @@ class table_ees_global_by_error : public PFS_engine_table {
   table_ees_global_by_error();
 
  public:
-  ~table_ees_global_by_error() override {}
+  ~table_ees_global_by_error() override = default;
 
  protected:
   int make_row(uint error_index);

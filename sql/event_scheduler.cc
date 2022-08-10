@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -34,8 +35,8 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
@@ -55,7 +56,7 @@
 #include "sql/events.h"
 #include "sql/log.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"              // my_localhost slave_net_timeout
+#include "sql/mysqld.h"              // my_localhost replica_net_timeout
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
@@ -185,7 +186,7 @@ bool post_init_event_thread(THD *thd) {
 void deinit_event_thread(THD *thd) {
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
 
-  thd->proc_info = "Clearing";
+  thd->set_proc_info("Clearing");
   thd->get_protocol_classic()->end_net();
   DBUG_PRINT("exit", ("Event thread finishing"));
   thd->release_resources();
@@ -216,7 +217,7 @@ void pre_init_event_thread(THD *thd) {
                                               strlen(my_localhost));
   thd->get_protocol_classic()->init_net(nullptr);
   thd->security_context()->set_user_ptr(STRING_WITH_LEN("event_scheduler"));
-  thd->get_protocol_classic()->get_net()->read_timeout = slave_net_timeout;
+  thd->get_protocol_classic()->get_net()->read_timeout = replica_net_timeout;
   thd->slave_thread = false;
   thd->variables.option_bits |= OPTION_AUTO_IS_NULL;
   thd->get_protocol_classic()->set_client_capabilities(CLIENT_MULTI_RESULTS);
@@ -228,7 +229,7 @@ void pre_init_event_thread(THD *thd) {
     vio is NULL.
   */
 
-  thd->proc_info = "Initialized";
+  thd->set_proc_info("Initialized");
   thd->set_time();
 
   /* Do not use user-supplied timeout value for system threads. */
@@ -277,7 +278,7 @@ static void *event_scheduler_thread(void *arg) {
     if (!res)
       scheduler->run(thd);
     else {
-      thd->proc_info = "Clearing";
+      thd->set_proc_info("Clearing");
       thd->get_protocol_classic()->end_net();
       delete thd;
     }
@@ -351,13 +352,15 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
   res = post_init_event_thread(thd);
 
   DBUG_TRACE;
-  DBUG_PRINT("info", ("Time is %ld, THD: %p", (long)my_time(0), thd));
+  DBUG_PRINT("info", ("Time is %ld, THD: %p", (long)time(nullptr), thd));
 
   if (res) {
     delete event;
     deinit_event_thread(thd);
     return;
   }
+
+  mysql_thread_set_secondary_engine(false);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
@@ -526,7 +529,7 @@ bool Event_scheduler::start(int *err_no) {
     LogErr(ERROR_LEVEL, ER_CANT_CREATE_SCHEDULER_THREAD, *err_no)
         .os_errno(*err_no);
 
-    new_thd->proc_info = "Clearing";
+    new_thd->set_proc_info("Clearing");
     new_thd->get_protocol_classic()->end_net();
 
     state = INITIALIZED;
@@ -668,7 +671,7 @@ bool Event_scheduler::execute_top(Event_queue_element_for_exec *event_name) {
 
     LogErr(ERROR_LEVEL, ER_SCHEDULER_STOPPING_FAILED_TO_CREATE_WORKER, res);
 
-    new_thd->proc_info = "Clearing";
+    new_thd->set_proc_info("Clearing");
     new_thd->get_protocol_classic()->end_net();
 
     goto error;

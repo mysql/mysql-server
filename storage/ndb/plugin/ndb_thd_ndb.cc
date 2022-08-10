@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,18 +44,18 @@ Thd_ndb *Thd_ndb::seize(THD *thd) {
   DBUG_TRACE;
 
   Thd_ndb *thd_ndb = new Thd_ndb(thd);
-  if (thd_ndb == NULL) return NULL;
+  if (thd_ndb == nullptr) {
+    return nullptr;
+  }
 
   if (thd_ndb->ndb->init(MAX_TRANSACTIONS) != 0) {
-    DBUG_PRINT("error", ("Ndb::init failed, error: %d  message: %s",
-                         thd_ndb->ndb->getNdbError().code,
-                         thd_ndb->ndb->getNdbError().message));
-
     delete thd_ndb;
-    thd_ndb = NULL;
-  } else {
-    thd_ndb->ndb->setCustomData64(thd_get_thread_id(thd));
+    return nullptr;
   }
+
+  // Save mapping between Ndb and THD
+  thd_ndb->ndb->setCustomData64(thd_get_thread_id(thd));
+
   return thd_ndb;
 }
 
@@ -72,20 +72,22 @@ bool Thd_ndb::recycle_ndb(void) {
   assert(trans == NULL);
 
   delete ndb;
-  if ((ndb = new Ndb(connection, "")) == NULL) {
-    DBUG_PRINT("error", ("failed to allocate Ndb object"));
+
+  ndb = new Ndb(connection, "");
+  if (ndb == nullptr) {
+    // Dead code, failed new will terminate
     return false;
   }
 
   if (ndb->init(MAX_TRANSACTIONS) != 0) {
+    // Failed to init Ndb object, relase the newly created Ndb
     delete ndb;
-    ndb = NULL;
-    DBUG_PRINT("error", ("Ndb::init failed, %d  message: %s",
-                         ndb->getNdbError().code, ndb->getNdbError().message));
+    ndb = nullptr;
     return false;
-  } else {
-    ndb->setCustomData64(thd_get_thread_id(m_thd));
   }
+
+  // Save mapping between Ndb and THD
+  ndb->setCustomData64(thd_get_thread_id(m_thd));
 
   /* Reset last commit epoch for this 'session'. */
   m_last_commit_epoch_session = 0;
@@ -111,9 +113,94 @@ bool Thd_ndb::valid_ndb(void) const {
   return true;
 }
 
-void Thd_ndb::init_open_tables() {
-  m_error = false;
-  open_tables.clear();
+void Thd_ndb::Trans_tables::dbug_print_elem(
+    const std::pair<NDB_SHARE *, Stats> &elem, bool check_reset) const {
+  const Stats &stat = elem.second;
+
+  std::string records("<invalid>");
+  if (!stat.invalid()) {
+    records = std::to_string(stat.table_rows);
+  }
+
+  DBUG_PRINT("share", ("%p = { records: %s, uncommitted: %d }", elem.first,
+                       records.c_str(), stat.uncommitted_rows));
+  if (check_reset) assert(stat.uncommitted_rows == 0);
+}
+
+void Thd_ndb::Trans_tables::dbug_print(bool check_reset) const {
+  DBUG_TRACE;
+  for (const auto &key_and_value : m_map) {
+    dbug_print_elem(key_and_value, check_reset);
+  }
+}
+
+void Thd_ndb::Trans_tables::clear() { m_map.clear(); }
+
+/**
+  Register table stats for NDB_SHARE pointer.
+
+  @param share   The NDB_SHARE pointer to find or create table stats for.
+
+  @note Usage of the NDB_SHARE pointer as key means that all ha_ndbcluster
+  instances which has been opened for same table in same transaction uses the
+  same table stats instance.
+
+  @return Pointer to table stats or nullptr
+*/
+Thd_ndb::Trans_tables::Stats *Thd_ndb::Trans_tables::register_stats(
+    NDB_SHARE *share) {
+  DBUG_TRACE;
+
+  const auto emplace_res = m_map.emplace(share, Stats());
+  if (emplace_res.second) {
+    // New element inserted, double check initial values
+    DBUG_PRINT("info", ("New element inserted for share: %p", share));
+    assert(emplace_res.first->first == share);
+    assert(emplace_res.first->second.invalid());
+    assert(emplace_res.first->second.uncommitted_rows == 0);
+  } else {
+    DBUG_PRINT("info", ("Existing element found for share: %p", share));
+    dbug_print_elem(*emplace_res.first, false);
+  }
+
+  dbug_print();
+
+  // Return pointer to table stat
+  const auto elem = emplace_res.first;
+  Stats *stat_ptr = &(elem->second);
+  return stat_ptr;
+}
+
+/**
+   Reset counters for all Stats registered as taking part in the transaction.
+
+   This is normally done when failure to execute the NDB transaction has
+   occurred and caused all changes in whole transaction have been aborted. The
+   counters will then be invalid.
+ */
+void Thd_ndb::Trans_tables::reset_stats() {
+  DBUG_TRACE;
+  for (auto &key_and_value : m_map) {
+    Stats &stat = key_and_value.second;
+    stat.uncommitted_rows = 0;
+  }
+  dbug_print(true);
+}
+
+/**
+   Update cached tables stats for all NDB_SHARE's registered as taking part in
+   the transaction. Reset number of uncommitted rows.
+*/
+void Thd_ndb::Trans_tables::update_cached_stats_with_committed() {
+  DBUG_TRACE;
+  dbug_print();
+  for (auto &key_and_value : m_map) {
+    NDB_SHARE *share = key_and_value.first;
+    Stats &stat = key_and_value.second;
+    share->cached_stats.add_changed_rows(stat.uncommitted_rows);
+    stat.uncommitted_rows = 0;
+  }
+  dbug_print(true);
 }
 
 bool Thd_ndb::check_option(Options option) const { return (options & option); }
@@ -121,17 +208,27 @@ bool Thd_ndb::check_option(Options option) const { return (options & option); }
 void Thd_ndb::set_option(Options option) { options |= option; }
 
 /*
-  Used for every additional row operation, to update the guesstimate
-  of pending bytes to send, and to check if it is now time to flush a batch.
+  This function is called after a row operation has been added to
+  the transaction. It will update the unsent byte counter and determine if batch
+  size threshold has been exceeded.
+
+  @param row_size Estimated number of bytes that has been added to transaction.
+
+  @return true Batch size threshold has been exceeded
+
 */
+bool Thd_ndb::add_row_check_if_batch_full(uint row_size) {
+  if (m_unsent_bytes == 0) {
+    // Clear batch buffer
+    m_batch_mem_root.ClearForReuse();
+  }
 
-bool Thd_ndb::add_row_check_if_batch_full(uint size) {
-  if (m_unsent_bytes == 0) free_root(&m_batch_mem_root, MY_MARK_BLOCKS_FREE);
+  // Increment number of unsent bytes. NOTE! The row_size is assumed to be a
+  // fairly small number, basically limited by max record size of a table
+  m_unsent_bytes += row_size;
 
-  uint unsent = m_unsent_bytes;
-  unsent += size;
-  m_unsent_bytes = unsent;
-  return unsent >= m_batch_size;
+  // Return true if unsent bytes has exceeded the batch size threshold.
+  return m_unsent_bytes >= m_batch_size;
 }
 
 bool Thd_ndb::check_trans_option(Trans_options option) const {

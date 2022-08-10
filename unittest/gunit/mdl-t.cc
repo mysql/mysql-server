@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,8 +76,7 @@ extern "C" void test_error_handler_hook(uint err, const char *str, myf) {
   Mock away this global function.
   We don't need DEBUG_SYNC functionality in a unit test.
  */
-void debug_sync(THD *, const char *sync_point_name MY_ATTRIBUTE((unused)),
-                size_t) {
+void debug_sync(THD *, const char *sync_point_name [[maybe_unused]], size_t) {
   DBUG_PRINT("debug_sync_point", ("hit: '%s'", sync_point_name));
   FAIL() << "Not yet implemented.";
 }
@@ -3793,7 +3792,7 @@ TEST_F(MDLTest, ExhaustPinbox) {
 
 class MDLHtonNotifyTest : public MDLTest {
  protected:
-  MDLHtonNotifyTest() {}
+  MDLHtonNotifyTest() = default;
 
   void SetUp() override {
     MDLTest::SetUp();
@@ -4579,7 +4578,7 @@ TEST_F(MDLTest, SkipFindDeadlock) {
 
 class MDLKeyTest : public ::testing::Test {
  protected:
-  MDLKeyTest() {}
+  MDLKeyTest() = default;
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLKeyTest);
@@ -4647,7 +4646,7 @@ TEST_F(MDLKeyTest, TruncateTooLongNames) {
 struct Mock_MDL_context_owner : public Test_MDL_context_owner {
   void notify_shared_lock(MDL_context_owner *in_use,
                           bool needs_thr_lock_abort) final {
-    in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+    in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
   }
 };
 

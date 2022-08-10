@@ -1,0 +1,19 @@
+#############################################################################
+# Test script to test EXPORT/IMPORT for a partitioned table in older version
+# having INSTANT ADD columns.
+#
+# CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 TEXT) row_format=COMPACT
+#                 PARTITION BY RANGE(c1 * 2)
+#                 (PARTITION p0 VALUES LESS THAN (128),
+#                  PARTITION p1 VALUES LESS THAN (256),
+#                  PARTITION p2 VALUES LESS THAN (384),
+#                  PARTITION p3 VALUES LESS THAN MAXVALUE);
+# INSERT INTO t1 VALUES(1, 2, 3, 'abcdefg'), (100, 200, 300, 'qwerty'), (200, 300, 400, 'asdfg');
+# ALTER TABLE t1 ADD COLUMN c5 CHAR(20) default "c5_def", ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES(300, 400, 500, "xxxxxx", "r4c5") ;
+#############################################################################
+
+--source include/have_debug.inc
+let $is_debug=1;
+
+--source suite/innodb/t/instant_ddl_import_old_part.test

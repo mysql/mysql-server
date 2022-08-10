@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -178,7 +178,7 @@ inline void Memory<Source::RAM>::drop(void *ptr, size_t bytes) {
     free(ptr);
   }
 #elif defined(HAVE_WINNUMA)
-  BOOL MY_ATTRIBUTE((unused)) ret = VirtualFree(ptr, 0, MEM_RELEASE);
+  BOOL ret [[maybe_unused]] = VirtualFree(ptr, 0, MEM_RELEASE);
   assert(ret != 0);
 #else
   free(ptr);

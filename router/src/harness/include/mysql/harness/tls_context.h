@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,11 @@ enum class TlsVerify { NONE, PEER };
 class HARNESS_TLS_EXPORT TlsLibraryContext {
  public:
   TlsLibraryContext();
+  TlsLibraryContext(const TlsLibraryContext &) = delete;
+  TlsLibraryContext(TlsLibraryContext &&) = delete;
+  TlsLibraryContext &operator=(const TlsLibraryContext &) = delete;
+  TlsLibraryContext &operator=(TlsLibraryContext &&) = delete;
+  ~TlsLibraryContext();
 };
 
 /**
@@ -182,7 +187,7 @@ class HARNESS_TLS_EXPORT TlsContext {
    * @see RFC 5480
    * @see has_curves()
    *
-   * @param curves colon seperated names of curves
+   * @param curves colon-separated names of curves
    * @throws TlsError
    * @throws std::invalid_argument if API isn't supported
    * @see has_set_curves_list()

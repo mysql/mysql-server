@@ -2,7 +2,7 @@ var common_stmts = require("common_statements");
 
 var options = {
   cluster_type: "gr",
-  innodb_cluster_name: "mycluster",
+  innodb_cluster_name: "my-cluster",
   innodb_cluster_instances:
       [["localhost", 5500], ["localhost", 5510], ["localhost", 5520]],
   bootstrap_report_host_pattern: "host.foo.bar",
@@ -38,6 +38,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_grant_on_routers",
       "router_grant_on_v2_routers",
       "router_update_routers_in_metadata",
+      "router_update_router_options_in_metadata",
 
       // to avoid creating yet another .js just for one test, below entry was
       // added so this .js can be reused by test:

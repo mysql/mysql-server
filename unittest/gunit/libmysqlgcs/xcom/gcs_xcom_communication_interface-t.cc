@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,9 @@ class mock_gcs_xcom_view_change_control_interface
   MOCK_METHOD1(set_belongs_to_group, void(bool));
   MOCK_METHOD1(set_unsafe_current_view, void(Gcs_view *));
   MOCK_METHOD0(get_unsafe_current_view, Gcs_view *());
+
+  MOCK_METHOD0(finalize, void());
+  MOCK_METHOD0(is_finalized, bool());
 };
 
 class mock_gcs_xcom_statistics_updater : public Gcs_xcom_statistics_updater {
@@ -78,7 +81,8 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   }
 
   MOCK_METHOD3(new_node_address_uuid,
-               node_address *(unsigned int n, char *names[], blob uuids[]));
+               node_address *(unsigned int n, char const *names[],
+                              blob uuids[]));
   MOCK_METHOD2(delete_node_address, void(unsigned int n, node_address *na));
   MOCK_METHOD3(xcom_client_add_node, bool(connection_descriptor *con,
                                           node_list *nl, uint32_t group_id));
@@ -89,6 +93,13 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
                bool(uint32_t group_id, xcom_event_horizon &event_horizon));
   MOCK_METHOD2(xcom_client_set_event_horizon,
                bool(uint32_t group_id, xcom_event_horizon event_horizon));
+  MOCK_METHOD2(xcom_client_set_max_leaders,
+               bool(uint32_t group_id, node_no max_leaders));
+  MOCK_METHOD4(xcom_client_set_leaders,
+               bool(uint32_t group_id, u_int n, char const *names[],
+                    node_no max_nr_leaders));
+  MOCK_METHOD2(xcom_client_get_leaders,
+               bool(uint32_t gid, leader_info_data &leaders));
   MOCK_METHOD4(xcom_client_get_synode_app_data,
                bool(connection_descriptor *con, uint32_t group_id_hash,
                     synode_no_array &synodes, synode_app_data_array &reply));
@@ -149,6 +160,30 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD0(xcom_input_try_pop, xcom_input_request_ptr());
 };
 
+class mock_gcs_network_provider_management_interface
+    : public Network_provider_management_interface {
+ public:
+  MOCK_METHOD0(initialize, bool());
+  MOCK_METHOD0(finalize, bool());
+  MOCK_METHOD1(set_running_protocol, void(enum_transport_protocol new_value));
+  MOCK_METHOD1(add_network_provider,
+               void(std::shared_ptr<Network_provider> provider));
+  MOCK_CONST_METHOD0(get_running_protocol, enum_transport_protocol());
+  MOCK_CONST_METHOD0(get_incoming_connections_protocol,
+                     enum_transport_protocol());
+  MOCK_CONST_METHOD0(is_xcom_using_ssl, int());
+  MOCK_METHOD1(xcom_set_ssl_mode, int(int mode));
+  MOCK_METHOD1(xcom_get_ssl_mode, int(const char *mode));
+  MOCK_METHOD0(xcom_get_ssl_mode, int());
+  MOCK_METHOD1(xcom_set_ssl_fips_mode, int(int mode));
+  MOCK_METHOD1(xcom_get_ssl_fips_mode, int(const char *mode));
+  MOCK_METHOD0(xcom_get_ssl_fips_mode, int());
+  MOCK_METHOD0(cleanup_secure_connections_context, void());
+  MOCK_METHOD0(finalize_secure_connections_context, void());
+  MOCK_METHOD0(remove_all_network_provider, void());
+  MOCK_METHOD1(remove_network_provider, void(enum_transport_protocol));
+};
+
 class XComCommunicationTest : public GcsBaseTest {
  protected:
   void SetUp() override {
@@ -164,18 +199,25 @@ class XComCommunicationTest : public GcsBaseTest {
     mock_stats = new mock_gcs_xcom_statistics_updater();
     mock_proxy = new mock_gcs_xcom_proxy();
     mock_vce = new mock_gcs_xcom_view_change_control_interface();
-    xcom_comm_if = new Gcs_xcom_communication(mock_stats, mock_proxy, mock_vce,
-                                              engine, *mock_gid);
+    net_mgr_interface =
+        std::make_unique<mock_gcs_network_provider_management_interface>();
+    xcom_comm_if =
+        new Gcs_xcom_communication(mock_stats, mock_proxy, mock_vce, engine,
+                                   *mock_gid, std::move(net_mgr_interface));
 
     // clang-format off
     xcom_comm_if->get_msg_pipeline().register_stage<Gcs_message_stage_lz4>();
     xcom_comm_if->get_msg_pipeline().register_stage<Gcs_message_stage_lz4_v2>();
+    xcom_comm_if->get_msg_pipeline().register_stage<Gcs_message_stage_lz4_v3>();
     xcom_comm_if->get_msg_pipeline().register_pipeline({
       {
         Gcs_protocol_version::V1, { Stage_code::ST_LZ4_V1 }
       },
       {
         Gcs_protocol_version::V2, { Stage_code::ST_LZ4_V2 }
+      },
+      {
+        Gcs_protocol_version::V3, { Stage_code::ST_LZ4_V3 }
       }
     });
     // clang-format on
@@ -199,6 +241,8 @@ class XComCommunicationTest : public GcsBaseTest {
   Gcs_xcom_node_address *mock_xcom_address;
   Gcs_xcom_engine *engine;
   Gcs_group_identifier *mock_gid;
+  std::unique_ptr<mock_gcs_network_provider_management_interface>
+      net_mgr_interface;
 };
 
 TEST_F(XComCommunicationTest, SetEventListenerTest) {
@@ -337,7 +381,7 @@ TEST_F(XComCommunicationTest, ReceiveMessageTest) {
   packet_synode.msgno = 0;
   packet_synode.node = 0;
   auto packet = Gcs_packet::make_incoming_packet(
-      std::move(buffer), buffer_len, packet_synode,
+      std::move(buffer), buffer_len, packet_synode, packet_synode,
       xcom_comm_if->get_msg_pipeline());
 
   int listener_ref = xcom_comm_if->add_event_listener(ev_listener);
@@ -409,7 +453,7 @@ TEST_F(XComCommunicationTest, BufferMessageTest) {
   packet_synode.msgno = 0;
   packet_synode.node = 0;
   auto packet = Gcs_packet::make_incoming_packet(
-      std::move(buffer), buffer_len, packet_synode,
+      std::move(buffer), buffer_len, packet_synode, packet_synode,
       xcom_comm_if->get_msg_pipeline());
 
   /*
@@ -580,7 +624,7 @@ TEST_F(XComCommunicationTest, SuccessfulSynodRecoveryTest) {
     std::tie(buffer, buffer_len) = packet_out.serialize();
     synode_no const &packet_synode = synodes_in_order.at(i);
     auto packet = Gcs_packet::make_incoming_packet(
-        std::move(buffer), buffer_len, packet_synode, pipeline);
+        std::move(buffer), buffer_len, packet_synode, packet_synode, pipeline);
 
     /* Reassemble the packets. */
     Gcs_pipeline_incoming_result error_code;

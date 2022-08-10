@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,11 +60,11 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/mysql_rwlock_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_rwlock_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/mysql_rwlock_bits.h"
-#include "mysql/components/services/psi_memory_bits.h"
-#include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
@@ -73,14 +73,14 @@
 #include "sql/auth/auth_common.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/psi_memory_key.h"  // key_memory_servers
-#include "sql/records.h"         // init_read_record
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/psi_memory_key.h"   // key_memory_servers
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_base.h"         // close_mysql_tables
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"            // init_read_record
 #include "sql/sql_system_table_check.h"  // System_table_intact
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -175,8 +175,8 @@ static void init_servers_cache_psi_keys(void) {
 
   SYNOPSIS
     servers_init()
-      dont_read_server_table  true if we want to skip loading data from
-                            server table and disable privilege checking.
+      thd thread for reading the servers table and initializing necessary
+          structures.
 
   NOTES
     This function is mostly responsible for preparatory steps, main work
@@ -187,8 +187,7 @@ static void init_servers_cache_psi_keys(void) {
     1	Could not initialize servers
 */
 
-bool servers_init(bool dont_read_servers_table) {
-  THD *thd;
+bool servers_init(THD *thd) {
   bool return_val = false;
   DBUG_TRACE;
 
@@ -205,26 +204,24 @@ bool servers_init(bool dont_read_servers_table) {
       system_charset_info, key_memory_servers);
 
   /* Initialize the mem root for data */
-  init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE);
 
-  if (dont_read_servers_table) goto end;
-
-  /*
-    To be able to run this from boot, we allocate a temporary THD
-  */
-  if (!(thd = new THD)) return true;
-  thd->thread_stack = (char *)&thd;
-  thd->store_globals();
-  /*
-    It is safe to call servers_reload() since servers_* arrays and hashes which
-    will be freed there are global static objects and thus are initialized
-    by zeros at startup.
-  */
-  return_val = servers_reload(thd);
-  delete thd;
-
-end:
-  return return_val;
+  if (thd == nullptr) {
+    /* To be able to run this from boot, we allocate a temporary THD. */
+    thd = new (std::nothrow) THD;
+    if (thd == nullptr) return true;
+    thd->thread_stack = (char *)&thd;
+    thd->store_globals();
+    /*
+      It is safe to call servers_reload() since servers_* arrays and hashes
+      which will be freed there are global static objects and thus are
+      initialized by zeros at startup.
+    */
+    return_val = servers_reload(thd);
+    delete thd;
+    return return_val;
+  }
+  return servers_reload(thd);
 }
 
 /*
@@ -249,12 +246,12 @@ static bool servers_load(THD *thd, TABLE *table) {
   if (servers_cache != nullptr) {
     servers_cache->clear();
   }
-  free_root(&mem, MYF(0));
-  init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
+  mem.Clear();
+  init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE);
 
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
   if (iterator == nullptr) return true;
 
   while (!(iterator->Read())) {
@@ -266,7 +263,7 @@ static bool servers_load(THD *thd, TABLE *table) {
 
 /*
   Forget current servers cache and read new servers
-  from the conneciton table.
+  from the connection table.
 
   SYNOPSIS
     servers_reload()
@@ -884,12 +881,12 @@ void servers_free(bool end) {
   DBUG_TRACE;
   if (servers_cache == nullptr) return;
   if (!end) {
-    free_root(&mem, MYF(MY_MARK_BLOCKS_FREE));
+    mem.ClearForReuse();
     servers_cache->clear();
     return;
   }
   mysql_rwlock_destroy(&THR_LOCK_servers);
-  free_root(&mem, MYF(0));
+  mem.Clear();
   delete servers_cache;
   servers_cache = nullptr;
 }
@@ -941,29 +938,39 @@ static FOREIGN_SERVER *clone_server(MEM_ROOT *mem, const FOREIGN_SERVER *server,
 FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
                                    FOREIGN_SERVER *buff) {
   size_t server_name_length;
-  FOREIGN_SERVER *server;
+  FOREIGN_SERVER *server = nullptr;
   DBUG_TRACE;
-  DBUG_PRINT("info", ("server_name %s", server_name));
 
-  server_name_length = strlen(server_name);
+  DBUG_EXECUTE_IF("bug33962357_simulate_null_server",
+                  { server_name = nullptr; });
+  DBUG_PRINT("info", ("server_name %s", server_name));
 
   if (!server_name || !strlen(server_name)) {
     DBUG_PRINT("info", ("server_name not defined!"));
-    return (FOREIGN_SERVER *)nullptr;
+    return nullptr;
   }
+
+  server_name_length = strlen(server_name);
+  const std::string str_server(server_name, server_name_length);
 
   DBUG_PRINT("info", ("locking servers_cache"));
   mysql_rwlock_rdlock(&THR_LOCK_servers);
-  const auto it =
-      servers_cache->find(std::string(server_name, server_name_length));
-  if (it == servers_cache->end()) {
-    DBUG_PRINT("info", ("server_name %s length %u not found!", server_name,
-                        (unsigned)server_name_length));
-    server = (FOREIGN_SERVER *)nullptr;
+
+  collation_unordered_map<std::string, FOREIGN_SERVER *> *cache = servers_cache;
+  DBUG_EXECUTE_IF("bug33962357_simulate_null_cache", { cache = nullptr; });
+
+  if (!cache) {
+    DBUG_PRINT("error", ("server_cache not initialized!"));
+  } else {
+    const auto it = cache->find(str_server);
+    if (it == cache->end()) {
+      DBUG_PRINT("info", ("server_name %s length %u not found!", server_name,
+                          (unsigned)server_name_length));
+    }
+    /* otherwise, make copy of server */
+    else
+      server = clone_server(mem, it->second, buff);
   }
-  /* otherwise, make copy of server */
-  else
-    server = clone_server(mem, it->second, buff);
 
   DBUG_PRINT("info", ("unlocking servers_cache"));
   mysql_rwlock_unlock(&THR_LOCK_servers);

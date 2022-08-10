@@ -38,11 +38,13 @@ FROM t3;
 
 SELECT c41, LENGTH(c42) FROM t4;
 
+--skip_if_hypergraph  # Multi-table code path gives warning instead of error.
 --error ER_WARN_ALLOWED_PACKET_OVERFLOWED
 UPDATE t3
 SET c32= CONCAT(c32,
                 REPEAT('a', @max_allowed_packet-1));
 
+--skip_if_hypergraph  # Depends on the skipped UPDATE.
 SELECT c31, LENGTH(c32) FROM t3;
 
 DROP TABLE t3, t4;

@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -31,6 +32,7 @@
 #include <sys/types.h>
 
 #include <algorithm>
+#include <optional>
 
 #include "decimal.h"      // E_DEC_OOM
 #include "field_types.h"  // enum_field_types
@@ -40,8 +42,8 @@
 #include "my_alloc.h"
 #include "my_base.h"  // ha_storage_media
 #include "my_bitmap.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"  // MYSQL_TIME_NOTE_TRUNCATED
@@ -49,7 +51,6 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"  // ER_*
-#include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/field_common_properties.h"
 #include "sql/gis/srid.h"
@@ -107,8 +108,6 @@ class Time_zone;
 class my_decimal;
 struct TYPELIB;
 struct timeval;
-
-using Mysql::Nullable;
 
 /*
   Inside an in-memory data record, memory pointers to pieces of the
@@ -256,7 +255,30 @@ enum type_conversion_status {
 #define my_charset_numeric my_charset_latin1
 #define MY_REPERTOIRE_NUMERIC MY_REPERTOIRE_ASCII
 
-type_conversion_status field_conv(Field *to, const Field *from);
+/**
+  Check if one can copy from “from” to “to” with a simple memcpy(), with
+  pack_length() as the length. This is the case if the types of the two fields
+  are the same and we don't have special copying rules for the type
+  (e.g., blobs, which require allocation, or time functions that require
+  checking for special SQL modes).
+
+  You should never call this with to == from, as such copies are no-ops
+  and memcpy() has undefined behavior with overlapping memory areas.
+ */
+bool fields_are_memcpyable(const Field *to, const Field *from);
+
+/**
+  Copy the value in "from" (assumed to be non-NULL) to "to", doing any
+  required conversions in the process.
+
+  Note that you should only call this if fields_are_memcpyable() is false,
+  since it does an actual conversion on the slow path (and it is not properly
+  tested whether it gives the correct result in all cases if
+  fields_are_memcpyable() is true).
+
+  You should never call this with to == from, as they are no-ops.
+ */
+type_conversion_status field_conv_slow(Field *to, const Field *from);
 
 inline uint get_enum_pack_length(int elements) {
   return elements < 256 ? 1 : 2;
@@ -360,7 +382,7 @@ inline bool real_type_with_now_on_update(enum_field_types type) {
 }
 
 /**
-  Convert temporal real types as retuned by field->real_type()
+  Convert temporal real types as returned by field->real_type()
   to field type as returned by field->type().
 
   @param real_type  Real type.
@@ -466,7 +488,7 @@ class Value_generator {
     even if it's a generated column; that makes sense, as an Item tree cannot
     be shared.
   */
-  Item *expr_item;
+  Item *expr_item{nullptr};
   /**
     Text of the expression. Used in only one case:
     - the text read from the DD is put into the Value_generator::expr_str of
@@ -474,40 +496,29 @@ class Value_generator {
     to produce expr_item for the Field of every TABLE derived from this
     TABLE_SHARE.
   */
-  LEX_STRING expr_str;
+  LEX_STRING expr_str{nullptr, 0};
 
   /**
     Bit field indicating the type of statement for binary logging.
     It needs to be saved because this is determined only once when it is parsed
     but it needs to be set on the lex for each statement that uses this
     value generator. And since unpacking is done once on table open, it will
-    be set for the rest of the statements in refix_inner_value_generator_items.
+    be set for the rest of the statements in bind_value_generator_to_fields.
   */
   uint32 m_backup_binlog_stmt_flags{0};
 
   /// List of all items created when parsing and resolving generated expression
-  Item *item_list;
+  Item *item_list{nullptr};
   /// Bitmap records base columns which a generated column depends on.
   MY_BITMAP base_columns_map;
 
-  Value_generator()
-      : expr_item(nullptr),
-        item_list(nullptr),
-        field_type(MYSQL_TYPE_LONG),
-        stored_in_db(false),
-        num_non_virtual_base_cols(0),
-        permanent_changes_completed(false) {
-    expr_str.str = nullptr;
-    expr_str.length = 0;
-  }
-  ~Value_generator() {}
   enum_field_types get_real_type() const { return field_type; }
 
   void set_field_type(enum_field_types fld_type) { field_type = fld_type; }
 
   /**
      Set the binary log flags in m_backup_binlog_stmt_flags
-     @param backup_binlog_stmt_flags the falgs to be backed up
+     @param backup_binlog_stmt_flags the flags to be backed up
   */
   void backup_stmt_unsafe_flags(uint32 backup_binlog_stmt_flags) {
     m_backup_binlog_stmt_flags = backup_binlog_stmt_flags;
@@ -546,23 +557,17 @@ class Value_generator {
   */
   void print_expr(THD *thd, String *out);
 
- private:
   /*
-    The following data is only updated by the parser and read
-    when a Create_field object is created/initialized.
-  */
-  enum_field_types field_type; /* Real field type*/
-  bool stored_in_db;           /* Indication that the field is
-                                  phisically stored in the database*/
+   The following data is only updated by the parser and read
+   when a Create_field object is created/initialized.
+   */
+ private:
+  /// Real field type
+  enum_field_types field_type{MYSQL_TYPE_INVALID};
+  /// Indicates if the field is physically stored in the database
+  bool stored_in_db{false};
   /// How many non-virtual base columns in base_columns_map
-  uint num_non_virtual_base_cols;
-
- public:
-  /**
-     Used to make sure permanent changes to the item tree of expr_item are
-     made only once.
-  */
-  bool permanent_changes_completed;
+  uint num_non_virtual_base_cols{0};
 };
 
 class Field {
@@ -792,8 +797,8 @@ class Field {
  public:
   /* Generated column data */
   Value_generator *gcol_info{nullptr};
-  /*
-    Indication that the field is phycically stored in tables
+  /**
+    Indication that the field is physically stored in tables
     rather than just generated on SQL queries.
     As of now, false can only be set for virtual generated columns.
   */
@@ -1065,8 +1070,7 @@ class Field {
     Useful only for variable length datatypes where it's overloaded.
     By default assume the length is constant.
   */
-  virtual uint32 data_length(
-      ptrdiff_t row_offset MY_ATTRIBUTE((unused)) = 0) const {
+  virtual uint32 data_length(ptrdiff_t row_offset [[maybe_unused]] = 0) const {
     return pack_length();
   }
 
@@ -1092,7 +1096,7 @@ class Field {
     This method was expressly written for `SELECT UNIX_TIMESTAMP(field)`
     to avoid conversion from timestamp to MYSQL_TIME and back.
   */
-  virtual bool get_timestamp(struct timeval *tm, int *warnings) const;
+  virtual bool get_timestamp(my_timeval *tm, int *warnings) const;
   /**
     Stores a timestamp value in timeval format in a field.
 
@@ -1124,7 +1128,7 @@ class Field {
    Since this interface relies on the caller to truncate the value according to
    this Field's scale, it will work with all constructs that we currently allow.
   */
-  virtual void store_timestamp(const timeval *) { assert(false); }
+  virtual void store_timestamp(const my_timeval *) { assert(false); }
 
   virtual void set_default();
 
@@ -1170,12 +1174,12 @@ class Field {
   }
   int cmp(const uchar *str) const { return cmp(ptr, str); }
   virtual int cmp_max(const uchar *a, const uchar *b,
-                      uint max_len MY_ATTRIBUTE((unused))) const {
+                      uint max_len [[maybe_unused]]) const {
     return cmp(a, b);
   }
   virtual int cmp(const uchar *, const uchar *) const = 0;
   virtual int cmp_binary(const uchar *a, const uchar *b,
-                         uint32 max_length MY_ATTRIBUTE((unused)) = ~0L) const {
+                         uint32 max_length [[maybe_unused]] = ~0L) const {
     return memcmp(a, b, pack_length());
   }
   virtual int cmp_offset(ptrdiff_t row_offset) const {
@@ -1187,8 +1191,7 @@ class Field {
   virtual int key_cmp(const uchar *a, const uchar *b) const {
     return cmp(a, b);
   }
-  virtual int key_cmp(const uchar *str,
-                      uint length MY_ATTRIBUTE((unused))) const {
+  virtual int key_cmp(const uchar *str, uint length [[maybe_unused]]) const {
     return cmp(ptr, str);
   }
   virtual uint decimals() const { return 0; }
@@ -1318,6 +1321,10 @@ class Field {
      sort keys based off of Items, not Fields.
   */
   virtual size_t make_sort_key(uchar *buff, size_t length) const = 0;
+  /**
+    Whether this field can be used for index range scans when in
+    the given keypart of the given index.
+   */
   virtual bool optimize_range(uint idx, uint part) const;
   /*
     This should be true for fields which, when compared with constant
@@ -1405,7 +1412,7 @@ class Field {
   */
 
   virtual size_t get_key_image(uchar *buff, size_t length,
-                               imagetype type MY_ATTRIBUTE((unused))) const {
+                               imagetype type [[maybe_unused]]) const {
     get_image(buff, length, &my_charset_bin);
     return length;
   }
@@ -1526,8 +1533,8 @@ class Field {
 
     @retval false The field was written.
   */
-  virtual bool pack_diff(uchar **to MY_ATTRIBUTE((unused)),
-                         ulonglong value_options MY_ATTRIBUTE((unused))) const {
+  virtual bool pack_diff(uchar **to [[maybe_unused]],
+                         ulonglong value_options [[maybe_unused]]) const {
     return true;
   }
 
@@ -1672,8 +1679,8 @@ class Field {
   }
 
   /* Validate the value stored in a field */
-  virtual type_conversion_status validate_stored_val(
-      THD *thd MY_ATTRIBUTE((unused))) {
+  virtual type_conversion_status validate_stored_val(THD *thd
+                                                     [[maybe_unused]]) {
     return TYPE_OK;
   }
 
@@ -1802,8 +1809,8 @@ class Field {
 
      @returns 0 no bytes written.
   */
-  virtual int do_save_field_metadata(
-      uchar *metadata_ptr MY_ATTRIBUTE((unused))) const {
+  virtual int do_save_field_metadata(uchar *metadata_ptr
+                                     [[maybe_unused]]) const {
     return 0;
   }
 
@@ -1830,8 +1837,8 @@ class Field {
 
   When adding a functional index at table creation, we need to resolve the
   expression we are indexing. All functions that references one or more
-  columns expects a Field to be available. But during CREATE TABLE, we only
-  have access to Create_field. So this class acts as a subsitute for the
+  columns expect a Field to be available. But during CREATE TABLE, we only
+  have access to Create_field. So this class acts as a substitute for the
   Field classes so that expressions can be properly resolved. Thus, trying
   to call store or val_* on this class will cause an assertion.
 */
@@ -2192,7 +2199,7 @@ class Field_tiny : public Field_num {
   }
 
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     *to = *from;
     return from + 1;
   }
@@ -2243,7 +2250,7 @@ class Field_short final : public Field_num {
   }
 
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int16(to, from);
   }
 
@@ -2333,7 +2340,7 @@ class Field_long : public Field_num {
     return pack_int32(to, from, max_length);
   }
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int32(to, from);
   }
 
@@ -2383,7 +2390,7 @@ class Field_longlong : public Field_num {
     return pack_int64(to, from, max_length);
   }
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int64(to, from);
   }
 
@@ -2644,8 +2651,7 @@ class Field_temporal : public Field {
 
     @note STRICT mode can convert warnings to error.
    */
-  bool set_warnings(const ErrConvString &str, int warnings)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool set_warnings(const ErrConvString &str, int warnings);
 
   /**
     Flags that are passed as "flag" argument to
@@ -2660,8 +2666,7 @@ class Field_temporal : public Field {
     @param  thd  THD
     @retval      sql_mode flags mixed with the field type flags.
   */
-  virtual my_time_flags_t date_flags(
-      const THD *thd MY_ATTRIBUTE((unused))) const {
+  virtual my_time_flags_t date_flags(const THD *thd [[maybe_unused]]) const {
     return 0;
   }
 
@@ -2689,11 +2694,10 @@ class Field_temporal : public Field {
     truncated fields counter if check_for_truncated_fields == FIELD_CHECK_IGNORE
       for current thread.
   */
-  bool set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
-                            const ErrConvString &val,
-                            enum_mysql_timestamp_type ts_type,
-                            int truncate_increment)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool set_datetime_warning(
+      Sql_condition::enum_severity_level level, uint code,
+      const ErrConvString &val, enum_mysql_timestamp_type ts_type,
+      int truncate_increment);
 
  public:
   /**
@@ -2837,9 +2841,9 @@ class Field_temporal_with_date_and_time : public Field_temporal_with_date {
     The value must be properly rounded or truncated according
     to the number of fractional second digits.
   */
-  virtual void store_timestamp_internal(const struct timeval *tm) = 0;
+  virtual void store_timestamp_internal(const my_timeval *tm) = 0;
   bool convert_TIME_to_timestamp(const MYSQL_TIME *ltime, const Time_zone &tz,
-                                 struct timeval *tm, int *error);
+                                 my_timeval *tm, int *error);
 
  public:
   /**
@@ -2857,7 +2861,7 @@ class Field_temporal_with_date_and_time : public Field_temporal_with_date {
       : Field_temporal_with_date(ptr_arg, null_ptr_arg, null_bit_arg,
                                  auto_flags_arg, field_name_arg,
                                  MAX_DATETIME_WIDTH, dec_arg) {}
-  void store_timestamp(const struct timeval *tm) override;
+  void store_timestamp(const my_timeval *tm) override;
 };
 
 /**
@@ -2915,7 +2919,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
                                         int *error) final;
   bool get_date_internal(MYSQL_TIME *ltime) const final;
   bool get_date_internal_at_utc(MYSQL_TIME *ltime) const final;
-  void store_timestamp_internal(const struct timeval *tm) final;
+  void store_timestamp_internal(const my_timeval *tm) final;
 
  public:
   static const int PACK_LENGTH = 4;
@@ -2933,7 +2937,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
   void sql_type(String &str) const final;
   bool zero_pack() const final { return false; }
   /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
-  bool get_timestamp(struct timeval *tm, int *warnings) const final;
+  bool get_timestamp(my_timeval *tm, int *warnings) const final;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
   Field_timestamp *clone(MEM_ROOT *mem_root) const final {
     assert(type() == MYSQL_TYPE_TIMESTAMP);
@@ -2943,7 +2947,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
     return pack_int32(to, from, max_length);
   }
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int32(to, from);
   }
   /* Validate the value stored in a field */
@@ -2973,7 +2977,7 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
   type_conversion_status store_internal(const MYSQL_TIME *ltime,
                                         int *error) final;
   my_time_flags_t date_flags(const THD *thd) const final;
-  void store_timestamp_internal(const struct timeval *tm) override;
+  void store_timestamp_internal(const my_timeval *tm) override;
 
  public:
   /**
@@ -3017,7 +3021,7 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
   void sql_type(String &str) const final;
 
-  bool get_timestamp(struct timeval *tm, int *warnings) const final;
+  bool get_timestamp(my_timeval *tm, int *warnings) const final;
   /* Validate the value stored in a field */
   type_conversion_status validate_stored_val(THD *thd) final;
 
@@ -3272,7 +3276,7 @@ class Field_datetime : public Field_temporal_with_date_and_time {
                                         int *error) final;
   bool get_date_internal(MYSQL_TIME *ltime) const final;
   my_time_flags_t date_flags(const THD *thd) const final;
-  void store_timestamp_internal(const struct timeval *tm) final;
+  void store_timestamp_internal(const my_timeval *tm) final;
 
  public:
   static const int PACK_LENGTH = 8;
@@ -3317,7 +3321,7 @@ class Field_datetime : public Field_temporal_with_date_and_time {
     return pack_int64(to, from, max_length);
   }
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int64(to, from);
   }
 };
@@ -3331,7 +3335,7 @@ class Field_datetimef : public Field_temporal_with_date_and_timef {
   type_conversion_status store_internal(const MYSQL_TIME *ltime,
                                         int *error) final;
   my_time_flags_t date_flags(const THD *thd) const final;
-  void store_timestamp_internal(const struct timeval *tm) final;
+  void store_timestamp_internal(const my_timeval *tm) final;
 
  public:
   /**
@@ -3485,7 +3489,7 @@ class Field_varstring : public Field_longstr {
   my_decimal *val_decimal(my_decimal *) const final;
   int cmp_max(const uchar *, const uchar *, uint max_length) const final;
   int cmp(const uchar *a, const uchar *b) const final {
-    return cmp_max(a, b, ~0L);
+    return cmp_max(a, b, ~0U);
   }
   size_t make_sort_key(uchar *buff, size_t length) const final;
   size_t get_key_image(uchar *buff, size_t length, imagetype type) const final;
@@ -3664,7 +3668,7 @@ class Field_blob : public Field_longstr {
   my_decimal *val_decimal(my_decimal *) const override;
   int cmp_max(const uchar *, const uchar *, uint max_length) const final;
   int cmp(const uchar *a, const uchar *b) const final {
-    return cmp_max(a, b, ~0L);
+    return cmp_max(a, b, ~0U);
   }
   int cmp(const uchar *a, uint32 a_length, const uchar *b,
           uint32 b_length) const;  // No override.
@@ -3779,7 +3783,7 @@ class Field_blob : public Field_longstr {
   void set_keep_old_value(bool old_value_flag) {
     /*
       We should only need to keep a copy of the blob 'value' in the case
-      where this is a virtual genarated column (that is indexed).
+      where this is a virtual generated column (that is indexed).
     */
     assert(is_virtual_gcol());
 
@@ -3825,7 +3829,7 @@ class Field_blob : public Field_longstr {
   void keep_old_value() {
     /*
       We should only need to keep a copy of the blob value in the case
-      where this is a virtual genarated column (that is indexed).
+      where this is a virtual generated column (that is indexed).
     */
     assert(is_virtual_gcol());
 
@@ -3865,7 +3869,7 @@ class Field_blob : public Field_longstr {
 
 class Field_geom final : public Field_blob {
  private:
-  const Nullable<gis::srid_t> m_srid;
+  const std::optional<gis::srid_t> m_srid;
 
   type_conversion_status store_internal(const char *from, size_t length,
                                         const CHARSET_INFO *cs) final;
@@ -3876,13 +3880,13 @@ class Field_geom final : public Field_blob {
   Field_geom(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
              uchar auto_flags_arg, const char *field_name_arg,
              TABLE_SHARE *share, uint blob_pack_length,
-             enum geometry_type geom_type_arg, Nullable<gis::srid_t> srid)
+             enum geometry_type geom_type_arg, std::optional<gis::srid_t> srid)
       : Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                    field_name_arg, share, blob_pack_length, &my_charset_bin),
         m_srid(srid),
         geom_type(geom_type_arg) {}
   Field_geom(uint32 len_arg, bool is_nullable_arg, const char *field_name_arg,
-             enum geometry_type geom_type_arg, Nullable<gis::srid_t> srid)
+             enum geometry_type geom_type_arg, std::optional<gis::srid_t> srid)
       : Field_blob(len_arg, is_nullable_arg, field_name_arg, &my_charset_bin,
                    false),
         m_srid(srid),
@@ -3917,27 +3921,13 @@ class Field_geom final : public Field_blob {
   }
   uint is_equal(const Create_field *new_field) const final;
 
-  Nullable<gis::srid_t> get_srid() const { return m_srid; }
+  std::optional<gis::srid_t> get_srid() const { return m_srid; }
 };
 
 /// A field that stores a JSON value.
 class Field_json : public Field_blob {
   type_conversion_status unsupported_conversion();
   type_conversion_status store_binary(const char *ptr, size_t length);
-
-  /**
-    Diagnostics utility for ER_INVALID_JSON_TEXT.
-
-    @param err        error message argument for ER_INVALID_JSON_TEXT
-    @param err_offset location in text at which there is an error
-  */
-  void invalid_text(const char *err, size_t err_offset) const {
-    String s;
-    s.append(*table_name);
-    s.append('.');
-    s.append(field_name);
-    my_error(ER_INVALID_JSON_TEXT, MYF(0), err, err_offset, s.c_ptr_safe());
-  }
 
  public:
   Field_json(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
@@ -4261,9 +4251,7 @@ class Field_typed_array final : public Field_json {
   void sql_type(String &str) const final;
   void make_send_field(Send_field *field) const final;
   void set_field_index(uint16 f_index) final override;
-#ifndef NDEBUG
   Field *get_conv_field();
-#endif
 };
 
 class Field_enum : public Field_str {
@@ -4381,7 +4369,7 @@ class Field_set final : public Field_enum {
     This is the reason:
     - Field_bit::cmp_binary() is only implemented in the base class
       (Field::cmp_binary()).
-    - Field::cmp_binary() currenly use pack_length() to calculate how
+    - Field::cmp_binary() currently uses pack_length() to calculate how
       long the data is.
     - pack_length() includes size of the bits stored in the NULL bytes
       of the record.
@@ -4518,7 +4506,7 @@ Field *make_field(MEM_ROOT *mem_root_arg, TABLE_SHARE *share, uchar *ptr,
                   TYPELIB *interval, const char *field_name, bool is_nullable,
                   bool is_zerofill, bool is_unsigned, uint decimals,
                   bool treat_bit_as_char, uint pack_length_override,
-                  Nullable<gis::srid_t> srid, bool is_array);
+                  std::optional<gis::srid_t> srid, bool is_array);
 
 /**
   Instantiates a Field object with the given name and record buffer values.
@@ -4577,16 +4565,8 @@ class Send_field {
     Protocol_classic and descendants.
   */
   bool field;
-  Send_field() {}
+  Send_field() = default;
 };
-
-/**
-  Constitutes a mapping from columns of tables in the from clause to
-  aggregated columns. Typically, this means that they represent the mapping
-  between columns of temporary tables used for aggregation, but not
-  always. They are also used for aggregation that can be executed "on the
-  fly" without a temporary table.
-*/
 
 class Copy_field {
   /**
@@ -4600,18 +4580,16 @@ class Copy_field {
     is called with 'reverse' = true.
   */
   using Copy_func = void(Copy_field *, const Field *, Field *);
-  Copy_func *get_copy_func(bool save);
+  Copy_func *get_copy_func();
 
  public:
   String tmp;  // For items
 
   Copy_field() = default;
 
-  Copy_field(Field *to, Field *from, bool save) : Copy_field() {
-    set(to, from, save);
-  }
+  Copy_field(Field *to, Field *from) : Copy_field() { set(to, from); }
 
-  void set(Field *to, Field *from, bool save);  // Field to field
+  void set(Field *to, Field *from);  // Field to field
 
  private:
   void (*m_do_copy)(Copy_field *, const Field *, Field *);
@@ -4625,9 +4603,9 @@ class Copy_field {
   void invoke_do_copy(bool reverse = false);
   void invoke_do_copy2(const Field *from_field, Field *to_field);
 
-  Field *from_field() { return m_from_field; }
+  Field *from_field() const { return m_from_field; }
 
-  Field *to_field() { return m_to_field; }
+  Field *to_field() const { return m_to_field; }
 };
 
 enum_field_types get_blob_type_from_length(size_t length);
@@ -4705,7 +4683,7 @@ const char *get_field_name_or_expression(THD *thd, const Field *field);
   Perform per item-type checks to determine if the expression is allowed for
   a generated column, default value expression, a functional index or a check
   constraint. Note that validation of the specific function is done later in
-  procedures open_table_from_share and fix_value_generators_fields.
+  procedures open_table_from_share and fix_value_generator_fields.
 
   @param expression           the expression to check for validity
   @param name                 used for error reporting

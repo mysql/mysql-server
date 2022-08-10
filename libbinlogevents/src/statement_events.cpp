@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,17 +145,17 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
   data_len = READER_CALL(available_to_read);
   data_len = data_len - post_header_len;
 
-  READER_TRY_SET(thread_id, read_and_letoh<uint32_t>);
-  READER_TRY_SET(query_exec_time, read_and_letoh<uint32_t>);
+  READER_TRY_SET(thread_id, read<uint32_t>);
+  READER_TRY_SET(query_exec_time, read<uint32_t>);
   READER_TRY_SET(db_len, read<uint8_t>);
-  READER_TRY_SET(error_code, read_and_letoh<uint16_t>);
+  READER_TRY_SET(error_code, read<uint16_t>);
   /*
     5.0 format starts here.
     Depending on the format, we may or not have affected/warnings etc
     The remnant post-header to be parsed has length:
   */
   if (post_header_len > QUERY_HEADER_MINIMAL_LEN) {
-    READER_TRY_SET(status_vars_len, read_and_letoh<uint16_t>);
+    READER_TRY_SET(status_vars_len, read<uint16_t>);
     /*
       Check if status variable length is corrupt and will lead to very
       wrong data. We could be even more strict and require data_len to
@@ -186,11 +186,11 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
     switch (variable_type) {
       case Q_FLAGS2_CODE:
         flags2_inited = true;
-        READER_TRY_SET(flags2, read_and_letoh<uint32_t>);
+        READER_TRY_SET(flags2, read<uint32_t>);
         break;
       case Q_SQL_MODE_CODE:
         sql_mode_inited = true;
-        READER_TRY_SET(sql_mode, read_and_letoh<uint64_t>);
+        READER_TRY_SET(sql_mode, read<uint64_t>);
         break;
       case Q_CATALOG_NZ_CODE:
         READER_TRY_SET(catalog_len, read<uint8_t>);
@@ -200,8 +200,8 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         }
         break;
       case Q_AUTO_INCREMENT:
-        READER_TRY_SET(auto_increment_increment, read_and_letoh<uint16_t>);
-        READER_TRY_SET(auto_increment_offset, read_and_letoh<uint16_t>);
+        READER_TRY_SET(auto_increment_increment, read<uint16_t>);
+        READER_TRY_SET(auto_increment_offset, read<uint16_t>);
         break;
       case Q_CHARSET_CODE:
         charset_inited = true;
@@ -223,16 +223,16 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         }
         break;
       case Q_LC_TIME_NAMES_CODE:
-        READER_TRY_SET(lc_time_names_number, read_and_letoh<uint16_t>);
+        READER_TRY_SET(lc_time_names_number, read<uint16_t>);
         break;
       case Q_CHARSET_DATABASE_CODE:
-        READER_TRY_SET(charset_database_number, read_and_letoh<uint16_t>);
+        READER_TRY_SET(charset_database_number, read<uint16_t>);
         break;
       case Q_TABLE_MAP_FOR_UPDATE_CODE:
-        READER_TRY_SET(table_map_for_update, read_and_letoh<uint64_t>);
+        READER_TRY_SET(table_map_for_update, read<uint64_t>);
         break;
       case Q_MICROSECONDS: {
-        READER_TRY_SET(header()->when.tv_usec, read_and_letoh<uint32_t>, 3);
+        READER_TRY_SET(header()->when.tv_usec, read<uint32_t>, 3);
         break;
       }
       case Q_INVOKER: {
@@ -280,7 +280,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
 #ifndef NDEBUG
           /*
             This is specific to mysql test run on the server
-            for the keyword "query_log_event_mts_corrupt_db_names"
+            for the keyword "query_log_event_mta_corrupt_db_names"
           */
           if (binary_log_debug::debug_query_mts_corrupt_db_names) {
             if (mts_accessed_dbs == 2) {
@@ -318,11 +318,10 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
           Like in Xid_log_event case, the xid value is not used on the slave
           so the number does not really need to respect endiness.
         */
-        READER_TRY_SET(ddl_xid, read_and_letoh<uint64_t>);
+        READER_TRY_SET(ddl_xid, read<uint64_t>);
         break;
       case Q_DEFAULT_COLLATION_FOR_UTF8MB4:
-        READER_TRY_SET(default_collation_for_utf8mb4_number,
-                       read_and_letoh<uint16_t>);
+        READER_TRY_SET(default_collation_for_utf8mb4_number, read<uint16_t>);
         break;
       case Q_SQL_REQUIRE_PRIMARY_KEY:
         READER_TRY_SET(sql_require_primary_key, read<uint8_t>);
@@ -407,7 +406,7 @@ User_var_event::User_var_event(const char *buf,
   READER_ASSERT_POSITION(fde->common_header_len);
   READER_TRY_CALL(forward, fde->post_header_len[USER_VAR_EVENT - 1]);
 
-  READER_TRY_SET(name_len, read_and_letoh<uint32_t>);
+  READER_TRY_SET(name_len, read<uint32_t>);
   if (name_len == 0) READER_THROW("Invalid name length");
   name = READER_CALL(strndup<const char *>, name_len);
   READER_TRY_SET(is_null, read<uint8_t>);
@@ -435,8 +434,8 @@ User_var_event::User_var_event(const char *buf,
       default:
         READER_THROW("Invalid type found while deserializing User_var_event");
     }
-    READER_TRY_SET(charset_number, read_and_letoh<uint32_t>);
-    READER_TRY_SET(val_len, read_and_letoh<uint32_t>);
+    READER_TRY_SET(charset_number, read<uint32_t>);
+    READER_TRY_SET(val_len, read<uint32_t>);
     val = const_cast<char *>(READER_CALL(ptr, val_len));
     // val[0] is precision and val[1] is scale so precision >= scale for decimal
     if (type == DECIMAL_RESULT) {
@@ -488,7 +487,7 @@ Intvar_event::Intvar_event(const char *buf, const Format_description_event *fde)
   READER_TRY_CALL(forward, fde->post_header_len[INTVAR_EVENT - 1]);
 
   READER_TRY_SET(type, read<uint8_t>);
-  READER_TRY_SET(val, read_and_letoh<uint64_t>);
+  READER_TRY_SET(val, read<uint64_t>);
 
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;
@@ -501,8 +500,8 @@ Rand_event::Rand_event(const char *buf, const Format_description_event *fde)
   READER_ASSERT_POSITION(fde->common_header_len);
   READER_TRY_CALL(forward, fde->post_header_len[RAND_EVENT - 1]);
 
-  READER_TRY_SET(seed1, read_and_letoh<uint64_t>);
-  READER_TRY_SET(seed2, read_and_letoh<uint64_t>);
+  READER_TRY_SET(seed1, read<uint64_t>);
+  READER_TRY_SET(seed2, read<uint64_t>);
 
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;

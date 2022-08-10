@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -228,6 +228,8 @@ void System_tables::add_remaining_dd_tables() {
   register_table("replication_asynchronous_connection_failover", system);
   register_table("replication_asynchronous_connection_failover_managed",
                  system);
+  register_table("replication_group_member_actions", system);
+  register_table("replication_group_configuration_version", system);
   register_table("role_edges", system);
   register_table("servers", system);
   register_table("server_cost", system);

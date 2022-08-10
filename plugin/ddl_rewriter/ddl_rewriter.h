@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@
   SHOW CREATE TABLE, e.g. when restoring output from mysqldump.
 
   @param       query            Original query.
-  @param [out] rewritten_query  Rewritten query with clauses rmeoved. If
+  @param [out] rewritten_query  Rewritten query with clauses removed. If
                                 there was no rewrite, rewritten_query will
                                 not be modified.
 

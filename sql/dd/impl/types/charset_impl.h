@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,6 +127,17 @@ class Charset_impl : public Entity_object_impl, public Charset {
   Object_id m_default_collation_id;
 
   Charset *clone() const override { return new Charset_impl(*this); }
+
+  Charset *clone_dropped_object_placeholder() const override {
+    /*
+      Even though we don't drop charsets en masse we still create slimmed
+      down version for consistency sake.
+    */
+    Charset_impl *placeholder = new Charset_impl();
+    placeholder->set_id(id());
+    placeholder->set_name(name());
+    return placeholder;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

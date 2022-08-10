@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@
 class Slot
 {
  public:
-  STATIC_CONST(TYPE_ID = RT_FREE);
+  static constexpr Uint32 TYPE_ID = RT_FREE;
   Slot();
   Uint32 m_magic;
   Uint32 nextList;

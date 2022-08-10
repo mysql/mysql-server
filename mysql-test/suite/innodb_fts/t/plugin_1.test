@@ -58,6 +58,7 @@ INSERT INTO articles (title, body,body1,body2,body3) VALUES (NULL,NULL,NULL,NULL
 # Simple term search
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('mysql');
+--sorted_result
 SELECT * FROM articles WHERE
 	MATCH(title, body) AGAINST('dbms' WITH QUERY EXPANSION);
 SELECT * FROM articles WHERE

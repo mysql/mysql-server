@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ bool SHA256_digest::update_digest(const void *src, unsigned int length) {
 }
 
 /**
-  Retrive generated digest
+  Retrieve generated digest
 
   @param [out] digest Digest text
   @param [in]  length Length of the digest buffer
@@ -433,9 +433,9 @@ bool generate_sha256_scramble(unsigned char *scramble, size_t scramble_size,
 */
 
 bool validate_sha256_scramble(const unsigned char *scramble,
-                              size_t scramble_size MY_ATTRIBUTE((unused)),
+                              size_t scramble_size [[maybe_unused]],
                               const unsigned char *known,
-                              size_t known_size MY_ATTRIBUTE((unused)),
+                              size_t known_size [[maybe_unused]],
                               const unsigned char *rnd, size_t rnd_size) {
   DBUG_TRACE;
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +35,12 @@
 #include <stdexcept>  // logic_error
 #include <thread>
 #include <type_traits>  // decay_t, enable_if
+#include <typeindex>
 #include <unordered_map>
+#include <utility>
 
+#include "my_compiler.h"
 #include "mysql/harness/net_ts/netfwd.h"
-#include "mysql/harness/stdx/type_traits.h"  // conjunction, void_t
 
 namespace net {
 enum class fork_event { prepare, parent, child };
@@ -89,6 +91,9 @@ class async_completion {
 
 // 13.5 [async.assoc.alloc]
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated-declarations")
+
 template <class T, class ProtoAllocator = std::allocator<void>>
 struct associated_allocator;
 
@@ -96,7 +101,9 @@ template <class T, class ProtoAllocator = std::allocator<void>>
 using associated_allocator_t =
     typename associated_allocator<T, ProtoAllocator>::type;
 
-template <class T, class ProtoAllocator, typename = stdx::void_t<>>
+MY_COMPILER_DIAGNOSTIC_POP()
+
+template <class T, class ProtoAllocator, typename = std::void_t<>>
 struct associated_allocator_impl {
   using type = ProtoAllocator;
 
@@ -107,7 +114,7 @@ struct associated_allocator_impl {
 
 template <class T, class ProtoAllocator>
 struct associated_allocator_impl<T, ProtoAllocator,
-                                 stdx::void_t<typename T::allocator_type>> {
+                                 std::void_t<typename T::allocator_type>> {
   using type = typename T::allocator_type;
 
   static type __get(const T &t, const ProtoAllocator & /* a */) noexcept {
@@ -205,16 +212,14 @@ class execution_context {
     std::unique_ptr<service, void (*)(service *)> ptr_;
   };
 
-  using service_key_type = void (*)();
+  using service_key_type = std::type_index;
 
   /**
-   * create one function per Key and return its address.
-   *
-   * As it is static, the address is constant and can be used as key.
+   * maps selected type to unique identifier.
    */
   template <class Key>
   static service_key_type service_key() {
-    return reinterpret_cast<service_key_type>(&service_key<Key>);
+    return std::type_index(typeid(Key));
   }
 
   // mutex for services_, keys_
@@ -318,7 +323,7 @@ class execution_context::service {
 //
 namespace impl {
 
-template <class T, class = stdx::void_t<>>
+template <class T, class = std::void_t<>>
 struct is_executor : std::false_type {};
 
 // checker for the requirements of a executor
@@ -341,7 +346,7 @@ auto executor_requirements(U *__x = nullptr, const U *__const_x = nullptr,
                            void (*f)() = nullptr,
                            const std::allocator<int> &a = {})
     -> std::enable_if_t<
-        stdx::conjunction<
+        std::conjunction<
             std::is_copy_constructible<T>,
             // methods/operators must exist
             std::is_same<decltype(*__const_x == *__const_x), bool>,
@@ -353,7 +358,7 @@ auto executor_requirements(U *__x = nullptr, const U *__const_x = nullptr,
             std::is_void<decltype(__x->defer(std::move(f), a))>>::value,
 
         // context() may either return execution_context & or E&
-        stdx::void_t<decltype(__x->context()), void()>>;
+        std::void_t<decltype(__x->context()), void()>>;
 
 template <class T>
 struct is_executor<T, decltype(executor_requirements<T>())> : std::true_type {};
@@ -374,11 +379,11 @@ constexpr executor_arg_t executor_arg = executor_arg_t();
 
 namespace impl {
 
-template <class T, class Executor, typename = stdx::void_t<>>
+template <class T, class Executor, typename = std::void_t<>>
 struct uses_executor : std::false_type {};
 
 template <class T, class Executor>
-struct uses_executor<T, Executor, stdx::void_t<typename T::executor_type>>
+struct uses_executor<T, Executor, std::void_t<typename T::executor_type>>
     : std::is_convertible<Executor, typename T::executor_type> {};
 
 }  // namespace impl
@@ -390,7 +395,7 @@ template <class T, class Executor>
 constexpr bool uses_executor_v = uses_executor<T, Executor>::value;
 
 // 13.12 [async.assoc.exec]
-template <class T, class Executor, typename = stdx::void_t<>>
+template <class T, class Executor, typename = std::void_t<>>
 struct associated_executor_impl {
   using type = Executor;
 
@@ -401,7 +406,7 @@ struct associated_executor_impl {
 
 template <class T, class Executor>
 struct associated_executor_impl<T, Executor,
-                                stdx::void_t<typename T::executor_type>> {
+                                std::void_t<typename T::executor_type>> {
   using type = typename T::executor_type;
 
   static type __get(const T &t, const Executor & /* a */) noexcept {
@@ -449,7 +454,7 @@ associated_executor_t<T, Executor> get_associated_executor(
 template <class T, class ExecutorContext>
 associated_executor_t<T, typename ExecutorContext::executor_type>
 get_associated_executor(const T &t, const ExecutorContext &ctx) noexcept {
-  return get_assiciated_executor(t, ctx.get_executor());
+  return get_associated_executor(t, ctx.get_executor());
 }
 
 // 13.14 [async.exec.binder] - not implemented
@@ -468,7 +473,7 @@ class executor_work_guard {
     ex_.on_work_started();
   }
   executor_work_guard(const executor_work_guard &other) noexcept
-      : ex_{other.ex}, owns_{other.owns_} {
+      : ex_{other.ex_}, owns_{other.owns_} {
     if (owns_) {
       ex_.on_work_started();
     }
@@ -546,7 +551,7 @@ class system_context;
 // 13.18 [async.system.exec]
 class system_executor {
  public:
-  system_executor() {}
+  system_executor() = default;
 
   system_context &context() const noexcept;
 
@@ -587,6 +592,7 @@ class system_context : public execution_context {
   }
 
   executor_type get_executor() noexcept { return {}; }
+
   void stop() {
     std::lock_guard<std::mutex> lk(mtx_);
     stopped_ = true;
@@ -597,7 +603,9 @@ class system_context : public execution_context {
     std::lock_guard<std::mutex> lk(mtx_);
     return stopped_;
   }
-  void join() { thread_.join(); }
+  void join() {
+    if (thread_.joinable()) thread_.join();
+  }
 
  private:
   struct __tag {};
@@ -611,7 +619,7 @@ class system_context : public execution_context {
       {
         std::unique_lock<std::mutex> lk(mtx_);
 
-        cv_.wait(lk, [this] { return !stopped_ && !tasks_.empty(); });
+        cv_.wait(lk, [this] { return stopped_ || !tasks_.empty(); });
 
         if (stopped_) return;
 
@@ -670,10 +678,39 @@ void system_executor::defer(Func &&f, const ProtoAllocator &a) const {
 // 13.20 [async.bad.exec] - not implemented
 
 // 13.21 [async.executor] - not implemented
-
-// 13.22 [async.dispatch] - partiall implemented
 //
-// futher implementation requires executor_work_guard from [13.16], [13.17]
+//
+namespace impl {
+/**
+ * function object for net::dispatch(), net::post(), net::defer().
+ */
+template <class CompletionHandler>
+class Dispatcher {
+ public:
+  explicit Dispatcher(CompletionHandler &handler)
+      : handler_{std::move(handler)},
+        work_guard_{net::make_work_guard(handler_)} {}
+
+  void operator()() {
+    auto alloc = get_associated_allocator(handler_);
+
+    work_guard_.get_executor().dispatch(std::move(handler_), alloc);
+
+    work_guard_.reset();
+  }
+
+ private:
+  CompletionHandler handler_;
+  decltype(net::make_work_guard(handler_)) work_guard_;
+};
+
+template <class CompletionHandler>
+Dispatcher<CompletionHandler> make_dispatcher(CompletionHandler &handler) {
+  return Dispatcher<CompletionHandler>{handler};
+}
+}  // namespace impl
+
+// 13.22 [async.dispatch]
 
 template <class CompletionToken>
 auto dispatch(CompletionToken &&token) {
@@ -681,29 +718,85 @@ auto dispatch(CompletionToken &&token) {
 
   auto ex = get_associated_executor(completion.completion_handler);
   auto alloc = get_associated_allocator(completion.completion_handler);
-  ex.dispatch(std::move(completion.completion_handler, alloc));
+  ex.dispatch(std::move(completion.completion_handler), alloc);
 
   return completion.result.get();
 }
 
-// 13.23 [async.post] - partially implemented
-//
-// futher implementation requires executor_work_guard from [13.16], [13.17]
+/**
+ * queue a function call for later execution.
+ */
+template <class Executor, class CompletionToken>
+std::enable_if_t<
+    is_executor<Executor>::value,
+    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
+dispatch(const Executor &ex, CompletionToken &&token) {
+  async_completion<CompletionToken, void()> completion(token);
 
+  auto alloc = get_associated_allocator(completion.completion_handler);
+
+  ex.dispatch(impl::make_dispatcher(completion.completion_handler), alloc);
+
+  return completion.result.get();
+}
+
+/**
+ * queue a function call for later execution.
+ */
+template <class ExecutionContext, class CompletionToken>
+std::enable_if_t<
+    std::is_convertible<ExecutionContext &, execution_context &>::value,
+    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
+dispatch(ExecutionContext &ctx, CompletionToken &&token) {
+  return net::dispatch(ctx.get_executor(),
+                       std::forward<CompletionToken>(token));
+}
+
+// 13.23 [async.post]
+
+/**
+ * queue a function call for later execution.
+ */
 template <class CompletionToken>
 auto post(CompletionToken &&token) {
   async_completion<CompletionToken, void()> completion(token);
 
   auto ex = get_associated_executor(completion.completion_handler);
   auto alloc = get_associated_allocator(completion.completion_handler);
-  ex.post(std::move(completion.completion_handler, alloc));
+  ex.post(std::move(completion.completion_handler), alloc);
 
   return completion.result.get();
 }
 
-// 13.24 [async.defer] - partially implemented
-//
-// futher implementation requires executor_work_guard from [13.16], [13.17]
+/**
+ * queue a function call for later execution.
+ */
+template <class Executor, class CompletionToken>
+std::enable_if_t<
+    is_executor<Executor>::value,
+    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
+post(const Executor &ex, CompletionToken &&token) {
+  async_completion<CompletionToken, void()> completion(token);
+
+  auto alloc = get_associated_allocator(completion.completion_handler);
+
+  ex.post(impl::make_dispatcher(completion.completion_handler), alloc);
+
+  return completion.result.get();
+}
+
+/**
+ * queue a function call for later execution.
+ */
+template <class ExecutionContext, class CompletionToken>
+std::enable_if_t<
+    std::is_convertible<ExecutionContext &, execution_context &>::value,
+    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
+post(ExecutionContext &ctx, CompletionToken &&token) {
+  return net::post(ctx.get_executor(), std::forward<CompletionToken>(token));
+}
+
+// 13.24 [async.defer]
 
 template <class CompletionToken>
 auto defer(CompletionToken &&token) {
@@ -711,12 +804,40 @@ auto defer(CompletionToken &&token) {
 
   auto ex = get_associated_executor(completion.completion_handler);
   auto alloc = get_associated_allocator(completion.completion_handler);
-  ex.defer(std::move(completion.completion_handler, alloc));
+  ex.defer(std::move(completion.completion_handler), alloc);
 
   return completion.result.get();
 }
 
-// 13.25 [async.strand] - not implemented
+/**
+ * queue a function call for later execution.
+ */
+template <class Executor, class CompletionToken>
+std::enable_if_t<
+    is_executor<Executor>::value,
+    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
+defer(const Executor &ex, CompletionToken &&token) {
+  async_completion<CompletionToken, void()> completion(token);
+
+  auto alloc = get_associated_allocator(completion.completion_handler);
+
+  ex.defer(impl::make_dispatcher(completion.completion_handler), alloc);
+
+  return completion.result.get();
+}
+
+/**
+ * queue a function call for later execution.
+ */
+template <class ExecutionContext, class CompletionToken>
+std::enable_if_t<
+    std::is_convertible<ExecutionContext &, execution_context &>::value,
+    typename async_result<std::decay_t<CompletionToken>, void()>::return_type>
+defer(ExecutionContext &ctx, CompletionToken &&token) {
+  return net::defer(ctx.get_executor(), std::forward<CompletionToken>(token));
+}
+
+// 13.25 [async.strand] - partially implemented
 
 template <class Executor>
 class strand {

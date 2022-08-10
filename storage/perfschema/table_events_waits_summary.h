@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ class PFS_index_events_waits_summary_by_instance : public PFS_index_all_instr {
   PFS_index_events_waits_summary_by_instance()
       : PFS_index_all_instr(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_events_waits_summary_by_instance() override {}
+  ~PFS_index_events_waits_summary_by_instance() override = default;
 
   bool match(PFS_mutex *pfs) override;
   bool match(PFS_rwlock *pfs) override;
@@ -89,7 +89,7 @@ class PFS_index_events_waits_summary_by_event_name
   PFS_index_events_waits_summary_by_event_name()
       : PFS_index_all_instr(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_events_waits_summary_by_event_name() override {}
+  ~PFS_index_events_waits_summary_by_event_name() override = default;
 
   bool match(PFS_mutex *pfs) override;
   bool match(PFS_rwlock *pfs) override;
@@ -127,7 +127,7 @@ class table_events_waits_summary_by_instance : public table_all_instr {
   table_events_waits_summary_by_instance();
 
  public:
-  ~table_events_waits_summary_by_instance() override {}
+  ~table_events_waits_summary_by_instance() override = default;
 
  private:
   /** Table share lock. */

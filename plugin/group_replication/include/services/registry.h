@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ class Registry_module_interface {
   static const std::string SVC_NAME_REGISTRY_QUERY;
 
  public:
-  virtual ~Registry_module_interface() {}
+  virtual ~Registry_module_interface() = default;
 
   /**
     Initializes the registry handles. It acquires registry handles

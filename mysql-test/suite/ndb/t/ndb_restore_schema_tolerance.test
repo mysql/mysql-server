@@ -215,7 +215,7 @@ drop table test.t1;
 
 --let $dump_file= $MYSQLTEST_VARDIR/tmp/restore_out.txt
 
---echo Test ndb_restore of backup containing unique index, should warn only for data restore
+--echo Test ndb_restore of backup containing unique index, should not warn since indexes are disabled
 
 --echo # print metadata+data+log : should not warn
 --exec $NDB_RESTORE -b $the_backup_id -n 1 --print $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
@@ -241,15 +241,15 @@ drop table test.t1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 --print-log $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
---echo # restore data, but exclude indexed table : should not warn since unique indexes excluded
+--echo # restore data, but exclude indexed table : should not warn since unique indexes excluded and indexes are disabled
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --exclude-tables=test.t1 $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
---echo # restore data, but exclude database containing indexed table : should not warn since unique indexes excluded
+--echo # restore data, but exclude database containing indexed table : should not warn since unique indexes excluded and indexes are disabled
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --exclude-databases=test $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
---echo # restore data : should warn since unique indexes to be restored
+--echo # restore data : should not warn since indexes are disabled in one of the previous steps
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
@@ -260,9 +260,21 @@ drop table test.t1;
 --echo # rebuild-indexes : should not warn
 --exec $NDB_RESTORE -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 --source suite/ndb/include/ndb_restore_check_warn.inc
+drop table test.t1;
+
+--echo Test ndb_restore of backup containing unique index, should warn since indexes are not disabled
+
+--echo # metadata restore without --disable-indexes
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+--source suite/ndb/include/ndb_restore_check_warn.inc
+
+--echo # restore data : should warn since indexes aren't disabled in the previous step
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+--source suite/ndb/include/ndb_restore_check_warn.inc
 
 --remove_file $dump_file
 drop table test.t1;
+
 --echo Restore table with largest possible descriptor
 
 create table grp_hssesmusersstoredbytenant(t1 bigint primary key,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@ std::unique_ptr<Codec> Factory::build_codec(Log_event_type t) {
     case TRANSACTION_PAYLOAD_EVENT:
       return std::make_unique<
           binary_log::codecs::binary::Transaction_payload>();
+    case HEARTBEAT_LOG_EVENT_V2:
+      return std::make_unique<binary_log::codecs::binary::Heartbeat>();
     default:              /* purecov: inspected */
       BAPI_ASSERT(false); /* purecov: inspected */
   }

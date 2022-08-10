@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "include/sql_common.h"
 #include "mysql/components/services/log_builtins.h"
 #include "sql-common/net_ns.h"
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 
 Mysql_connection::Mysql_connection(THD *thd, Master_info *mi, std::string host,
                                    uint port, std::string network_namespace,
@@ -95,7 +95,7 @@ bool Mysql_connection::safe_reconnect(THD *thd, Master_info *mi,
                                       uint port) {
   DBUG_TRACE;
   bool successfully_connected =
-      !connect_to_master(thd, m_conn, mi, 1, suppress_warnings, host.c_str(),
+      !connect_to_master(thd, m_conn, mi, true, suppress_warnings, host.c_str(),
                          port, m_is_io_thread);
   return successfully_connected;
 }
@@ -104,7 +104,7 @@ bool Mysql_connection::reconnect() {
   if (!m_init) return false;
 
   if (!m_connected)
-    m_connected = !safe_reconnect(m_thd, m_mi, 1, m_host, m_port);
+    m_connected = !safe_reconnect(m_thd, m_mi, true, m_host, m_port);
 
   return m_connected;
 }

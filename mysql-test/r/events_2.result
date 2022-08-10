@@ -130,7 +130,7 @@ create event e1 on schedule every 10 hour do select 1;
 lock table t1 read;
 show create event e1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	utf8mb4_0900_ai_ci
+e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 select event_name from information_schema.events;
 EVENT_NAME
 e1

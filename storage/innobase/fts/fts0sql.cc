@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -93,9 +93,9 @@ int fts_get_table_id(
 }
 
 /** Construct the prefix name of an FTS table.
-@param[in]	fts_table	Auxiliary FTS table
-@param[in]	is_5_7		true if we need 5.7 compatible name
-@return own: table name, must be freed with ut_free() */
+@param[in]      fts_table       Auxiliary FTS table
+@param[in]      is_5_7          true if we need 5.7 compatible name
+@return own: table name, must be freed with ut::free() */
 static char *fts_get_table_name_prefix_low(const fts_table_t *fts_table,
                                            bool is_5_7) {
   int len;
@@ -117,7 +117,8 @@ static char *fts_get_table_name_prefix_low(const fts_table_t *fts_table,
 
   prefix_name_len = dbname_len + 4 + len + 1;
 
-  prefix_name = static_cast<char *>(ut_malloc_nokey(prefix_name_len));
+  prefix_name = static_cast<char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, prefix_name_len));
 
   len = sprintf(prefix_name, "%.*s%s%s", dbname_len, fts_table->parent,
                 is_5_7 ? FTS_PREFIX_5_7 : FTS_PREFIX, table_id);
@@ -129,7 +130,7 @@ static char *fts_get_table_name_prefix_low(const fts_table_t *fts_table,
 }
 
 /** Construct the prefix name of an FTS table.
- @return own: table name, must be freed with ut_free() */
+ @return own: table name, must be freed with ut::free() */
 char *fts_get_table_name_prefix(
     const fts_table_t *fts_table) /*!< in: Auxiliary table type */
 {
@@ -137,8 +138,8 @@ char *fts_get_table_name_prefix(
 }
 
 /** Construct the prefix name of an FTS table in 5.7 compatible name
-@param[in]	fts_table	Auxiliary FTS table
-@return own: table name, must be freed with ut_free() */
+@param[in]      fts_table       Auxiliary FTS table
+@return own: table name, must be freed with ut::free() */
 char *fts_get_table_name_prefix_5_7(const fts_table_t *fts_table) {
   return (fts_get_table_name_prefix_low(fts_table, true));
 }
@@ -146,9 +147,9 @@ char *fts_get_table_name_prefix_5_7(const fts_table_t *fts_table) {
 /** Construct the name of an ancillary FTS table for the given table.
 Caller must allocate enough memory(usually size of MAX_FULL_NAME_LEN)
 for param 'table_name'
-@param[in]	fts_table	FTS Aux table
-@param[in,out]	table_name	aux table name
-@param[in]	is_5_7		true if we need 5.7 compatible name */
+@param[in]      fts_table       FTS Aux table
+@param[in,out]  table_name      aux table name
+@param[in]      is_5_7          true if we need 5.7 compatible name */
 static void fts_get_table_name_low(const fts_table_t *fts_table,
                                    char *table_name, bool is_5_7) {
   int len;
@@ -163,7 +164,7 @@ static void fts_get_table_name_low(const fts_table_t *fts_table,
   ut_a(strlen(prefix_name) + 1 + strlen(fts_table->suffix) ==
        static_cast<uint>(len));
 
-  ut_free(prefix_name);
+  ut::free(prefix_name);
 }
 
 /** Construct the name of an ancillary FTS table for the given table.
@@ -180,8 +181,8 @@ void fts_get_table_name(const fts_table_t *fts_table,
 /** Construct the name of an ancillary FTS table for the given table in
 5.7 compatible format. Caller must allocate enough memory(usually size
 of MAX_FULL_NAME_LEN) for param 'table_name'
-@param[in]	fts_table	Auxiliary table object
-@param[in,out]	table_name	aux table name */
+@param[in]      fts_table       Auxiliary table object
+@param[in,out]  table_name      aux table name */
 void fts_get_table_name_5_7(const fts_table_t *fts_table, char *table_name) {
   fts_get_table_name_low(fts_table, table_name, true);
 }
@@ -212,10 +213,10 @@ que_t *fts_parse_sql(
     aux_table = dd_table_open_on_name_in_mem(table_name, false);
     DBUG_EXECUTE_IF(
         "force_evict_fts_aux_table_and_reload", if (aux_table != nullptr) {
-          mutex_enter(&dict_sys->mutex);
+          dict_sys_mutex_enter();
           dd_table_close(aux_table, nullptr, nullptr, true);
           dict_table_remove_from_cache(aux_table);
-          mutex_exit(&dict_sys->mutex);
+          dict_sys_mutex_exit();
           aux_table = nullptr;
         });
 
@@ -237,7 +238,7 @@ que_t *fts_parse_sql(
     dd_table_close(aux_table, thd, &mdl, false);
   }
 
-  ut_free(str);
+  ut::free(str);
 
   return (graph);
 }
@@ -247,12 +248,11 @@ que_t *fts_parse_sql(
 dberr_t fts_eval_sql(trx_t *trx,   /*!< in: transaction */
                      que_t *graph) /*!< in: Query graph to evaluate */
 {
-  que_thr_t *thr;
-
   graph->trx = trx;
   graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-  ut_a(thr = que_fork_start_command(graph));
+  auto thr = que_fork_start_command(graph);
+  ut_a(thr);
 
   que_run_threads(thr);
 
@@ -288,8 +288,8 @@ const char *fts_get_select_columns_str(
 
     sel_str = mem_heap_printf(heap, "sel%lu", (ulong)i);
 
-    /* Set copy_name to TRUE since it's dynamic. */
-    pars_info_bind_id(info, TRUE, sel_str, field->name);
+    /* Set copy_name to true since it's dynamic. */
+    pars_info_bind_id(info, true, sel_str, field->name);
 
     str = mem_heap_printf(heap, "%s%s$%s", str, (*str) ? ", " : "", sel_str);
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -328,7 +328,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 
   /*
     Number of digits in the exponent from the 'e' conversion.
-     The sign of the exponent is taken into account separetely, we don't need
+     The sign of the exponent is taken into account separately, we don't need
      to count it here.
    */
   exp_len = 1 + (decpt >= 101 || decpt <= -99) + (decpt >= 11 || decpt <= -9);
@@ -355,7 +355,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
     Assume that we don't have enough space to place all significant digits in
     the 'f' format. We have to choose between the 'e' format and the 'f' one
     to keep as many significant digits as possible.
-    Let E and F be the lengths of decimal representaion in the 'e' and 'f'
+    Let E and F be the lengths of decimal representation in the 'e' and 'f'
     formats, respectively. We want to use the 'f' format if, and only if F <= E.
     Consider the following cases:
     1. decpt <= 0.
@@ -1295,7 +1295,7 @@ static double my_strtod_int(const char *s00, const char **se, int *error,
   for (s = s00; s < end; s++) switch (*s) {
       case '-':
         sign = 1;
-        // Fall through.
+        [[fallthrough]];
       case '+':
         s++;
         goto break2;
@@ -1312,6 +1312,7 @@ static double my_strtod_int(const char *s00, const char **se, int *error,
 break2:
   if (s >= end) goto ret0;
 
+  // Gobble up leading zeros.
   if (*s == '0') {
     nz0 = 1;
     while (++s < end && *s == '0')
@@ -1328,6 +1329,7 @@ break2:
   nd0 = nd;
   if (s < end && c == '.') {
     if (++s < end) c = *s;
+    // Only leading zeros, now count number of leading zeros after the '.'
     if (!nd) {
       for (; s < end; ++s) {
         c = *s;
@@ -1344,6 +1346,13 @@ break2:
     for (; s < end; ++s) {
       c = *s;
       if (c < '0' || c > '9') break;
+
+      // We have seen some digits, but not enough of them are non-zero.
+      // Gobble up all the rest of the digits, and look for exponent.
+      if (nd > 0 && nz > DBL_MAX_10_EXP) {
+        continue;
+      }
+
       /*
         Here we are parsing the fractional part.
         We can stop counting digits after a while: the extra digits
@@ -1377,7 +1386,7 @@ dig_done:
     if (++s < end) switch (c = *s) {
         case '-':
           esign = 1;
-          // Fall through.
+          [[fallthrough]];
         case '+':
           if (++s < end) c = *s;
       }
@@ -2087,14 +2096,14 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
       break;
     case 2:
       leftright = 0;
-      // Fall through.
+      [[fallthrough]];
     case 4:
       if (ndigits <= 0) ndigits = 1;
       ilim = ilim1 = i = ndigits;
       break;
     case 3:
       leftright = 0;
-      // Fall through.
+      [[fallthrough]];
     case 5:
       i = ndigits + k + 1;
       ilim = i;

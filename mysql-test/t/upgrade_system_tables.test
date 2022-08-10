@@ -1,5 +1,6 @@
 --source include/have_case_sensitive_file_system.inc
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 
 ###############################################################################
 #
@@ -9,6 +10,18 @@
 # Part 1 : Dump the system table information from the newly initialized
 #          data directory
 ###############################################################################
+
+--echo # Create and initialize new data directory
+--mkdir $MYSQLTEST_VARDIR/tmp/data_80_clean
+--let $MYSQLD_DATADIR    = $MYSQLTEST_VARDIR/tmp/data_80_clean/db
+--let $MYSQLD_ERROR_LOG  = $MYSQLTEST_VARDIR/tmp/data_80_clean/error.log
+--let $MYSQLD_EXTRA_ARGS =
+--source include/initialize_datadir.inc
+
+--echo # Restart server on the newly initialized data directory.
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_ERROR_LOG MYSQLD_ERROR_LOG
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG
+--source include/restart_mysqld.inc
 
 --let $select_system_tables  = SELECT t.* FROM mysql.tables t JOIN mysql.schemata s JOIN mysql.tablespaces ts WHERE t.schema_id = s.id AND t.tablespace_id = ts.id AND s.name = "mysql" AND ts.name = "mysql" ORDER BY t.name
 # Ignore columns: id(1), schema_id(2), mysql_version_id(6), se_private_data(12), se_private_id(13), created(23), last_altered(24), last_checked_for_upgrade_version_id(35)
@@ -80,7 +93,7 @@
 
 --echo # Set data directory and log file
 --let $MYSQLD_DATADIR1 = $MYSQLTEST_VARDIR/tmp/data_57_clean/db
---let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/log/data_57_clean.log
+--let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/tmp/data_57_clean/error.log
 
 --echo # Restart server to trigger upgrade.
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
@@ -139,22 +152,22 @@
 
 --echo
 --echo # Compare fresh and upgraded tables
-# TODO : Replace with --diff_files after Bug#32250735 is fixed
---error 0,1
---exec diff $tables_fresh_datadir $tables_upgraded_datadir
+--diff_files $tables_fresh_datadir $tables_upgraded_datadir
 
 --echo
 --echo # Compare fresh and upgraded columns
 --diff_files $columns_fresh_datadir $columns_upgraded_datadir
 
 --echo
---echo # Cleanup.
+--echo # Stop server and cleanup.
+--source include/shutdown_mysqld.inc
 --remove_file $tables_fresh_datadir
 --remove_file $tables_upgraded_datadir
 --remove_file $columns_fresh_datadir
 --remove_file $columns_upgraded_datadir
 --remove_file $MYSQLTEST_VARDIR/tmp/data_57_clean.zip
 --force-rmdir $MYSQLTEST_VARDIR/tmp/data_57_clean
+--force-rmdir $MYSQLTEST_VARDIR/tmp/data_80_clean
 
 ###############################################################################
 #
@@ -187,7 +200,7 @@
 
 --echo # Set data directory and log file
 --let $MYSQLD_DATADIR1 = $MYSQLTEST_VARDIR/tmp/data_57_help_tables/db
---let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/log/data_57_help_tables.log
+--let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/tmp/data_57_help_tables/error.log
 
 --echo # Restart server to trigger upgrade.
 --echo # Upgrade of help tables should succeed.
@@ -195,7 +208,7 @@
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
 --let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
 --let $wait_counter       = 10000
---source include/restart_mysqld.inc
+--source include/start_mysqld.inc
 
 --echo # Check for errors in the error log.
 --let SEARCH_FILE    = $MYSQLD_LOG
@@ -205,10 +218,11 @@
 --echo # Check for mysql_upgrade_info file in data directory.
 --file_exists $MYSQLD_DATADIR1/mysql_upgrade_info
 
---echo # Cleanup.
+--echo # Stop server and cleanup.
+--source include/shutdown_mysqld.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/data_57_help_tables.zip
 --force-rmdir $MYSQLTEST_VARDIR/tmp/data_57_help_tables
 
 --echo # Restart the server with default options.
 --let $restart_parameters=
---source include/restart_mysqld.inc
+--source include/start_mysqld.inc

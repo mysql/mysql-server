@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,15 +21,20 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-
 #include <signaldata/FsOpenReq.hpp>
 
-bool 
-printFSOPENREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
-  
-  const FsOpenReq * const sig = (FsOpenReq *) theData;
-  
+bool printFSOPENREQ(FILE *output,
+                    const Uint32 *theData,
+                    Uint32 len,
+                    Uint16 /*receiverBlockNo*/)
+{
+  if (len < FsOpenReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const FsOpenReq *const sig = (const FsOpenReq *)theData;
 
   fprintf(output, " UserReference: H\'%.8x, userPointer: H\'%.8x\n", 
 	  sig->userReference, sig->userPointer);
@@ -83,8 +88,19 @@ printFSOPENREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, ", read size");
   if (flags & FsOpenReq::OM_DIRECT_SYNC)
     fprintf(output, ", O_DIRECT_SYNC");
-  if (flags & FsOpenReq::OM_ENCRYPT)
-    fprintf(output, ", encrypted");
+  if (flags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) fprintf(output, ", encrypted");
+  if ((flags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) == FsOpenReq::OM_ENCRYPT_CBC)
+    fprintf(output, ", with cbc");
+  if ((flags & FsOpenReq::OM_ENCRYPT_CIPHER_MASK) == FsOpenReq::OM_ENCRYPT_XTS)
+    fprintf(output, ", with xts");
+  if ((flags & FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK) ==
+      FsOpenReq::OM_ENCRYPT_PASSWORD)
+    fprintf(output, ", with password");
+  if ((flags & FsOpenReq::OM_ENCRYPT_KEY_MATERIAL_MASK) ==
+      FsOpenReq::OM_ENCRYPT_KEY)
+    fprintf(output, ", with key");
+  if (flags & FsOpenReq::OM_READ_FORWARD)
+    fprintf(output, ", read forward");
 
   fprintf(output, "\n");
   return true;

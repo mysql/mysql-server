@@ -4,9 +4,13 @@
 # --xa-prepared-rollback-at-disconnect option.
 ###############################################################################
 
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 0
+--source include/only_with_option.inc
+
 --source include/not_valgrind.inc
 # Common part with XA binlogging testing
-call mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
+call mtr.add_suppression("You need to use --log-bin to make --log-replica-updates work.");
 # When log-bin, skip-log-bin and binlog-format options are specified, mask the warning.
 --disable_query_log
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ namespace Dump {
  */
 class I_object_reader_wrapper {
  public:
-  virtual ~I_object_reader_wrapper() {}
+  virtual ~I_object_reader_wrapper() = default;
   /**
     Add new Object Reader to supply direct execution of dump tasks to.
    */

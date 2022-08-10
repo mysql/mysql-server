@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.hostname);
 COUNT(@@GLOBAL.hostname)
 1
 1 Expected
-SELECT hostname = @@SESSION.hostname;
+SELECT hostname;
 ERROR 42S22: Unknown column 'hostname' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

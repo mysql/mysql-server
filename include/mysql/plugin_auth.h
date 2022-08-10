@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_INCLUDED
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 #include <mysql/plugin.h>
 
-#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0200
+#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0201
 
 #include "plugin_auth_common.h"
 
@@ -47,6 +47,22 @@
 
 #define AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE (1L << 0)
 #define AUTH_FLAG_USES_INTERNAL_STORAGE (1L << 1)
+#define AUTH_FLAG_REQUIRES_REGISTRATION (1L << 2)
+
+struct auth_factor_desc {
+  /**
+    authentication string for 1st, 2nd and 3rd factor auth plugins
+  */
+  const char *auth_string;
+  /**
+    Length of authentication string for 1st, 2nd and 3rd factor auth plugins
+  */
+  unsigned long auth_string_length;
+  /**
+    Flag which tells if connecting user has performed registration or not.
+  */
+  unsigned int is_registration_required;
+};
 
 /**
   Provides server plugin access to authentication information
@@ -64,8 +80,8 @@ struct MYSQL_SERVER_AUTH_INFO {
   unsigned int user_name_length;
 
   /**
-    A corresponding column value from the mysql.user table for the
-    matching account name
+    Refers to multi_factor_auth_info based on which factor is being
+    authenticated.
   */
   const char *auth_string;
 
@@ -118,6 +134,16 @@ struct MYSQL_SERVER_AUTH_INFO {
     Length of additional password
   */
   unsigned long additional_auth_string_length;
+
+  /**
+    Refers to which factor auth_string to consider during authentication.
+  */
+  unsigned int current_auth_factor;
+  /**
+    Refers to authentication details of 1st, 2nd or 3rd factor authentication
+    method
+  */
+  auth_factor_desc *multi_factor_auth_info;
 };
 
 /**

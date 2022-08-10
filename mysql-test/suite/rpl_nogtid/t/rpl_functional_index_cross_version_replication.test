@@ -34,7 +34,6 @@
 --source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
---source include/not_mts_slave_parallel_workers.inc
 
 --echo #
 --echo # TC1. Apply OLD-generated relay log on NEW server
@@ -44,6 +43,7 @@
 # 1) Stop the slave.
 #
 --source include/rpl_connection_slave.inc
+call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
 
 #
 # 2) Setup the previous saved log as the slave relay log which contains:
@@ -67,7 +67,7 @@ START SLAVE SQL_THREAD;
 # relay-logs.
 #
 --let $slave_param = Slave_SQL_Running_State
---let $slave_param_value= Slave has read all relay log; waiting for more updates
+--let $slave_param_value= Replica has read all relay log; waiting for more updates
 --let $slave_io_running_check_disable = 1
 --source include/wait_for_slave_param.inc
 
@@ -75,6 +75,11 @@ START SLAVE SQL_THREAD;
 # bipass _OLD_ relay-logs. Therefore, making the test fail if the table doesn't
 # exist.
 #
+
+--let $wait_timeout= 60
+--let $wait_condition= SELECT count(*) = 1 FROM t
+--source include/wait_condition_or_abort.inc
+
 --let $table_t = `SHOW TABLES LIKE "t"`
 --let $assert_text = Slave was able to apply the provided relay log.
 --let $assert_cond = "$table_t" = "t"

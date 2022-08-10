@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ namespace service_implementation {
     @retval  1 Key found, check out parameters
 */
 template <typename Backend, typename Data_extension = data::Data>
-bool init_reader_template(
+int init_reader_template(
     const char *data_id, const char *auth_id,
     std::unique_ptr<Iterator<Data_extension>> &it,
     Keyring_operations<Backend, Data_extension> &keyring_operations,

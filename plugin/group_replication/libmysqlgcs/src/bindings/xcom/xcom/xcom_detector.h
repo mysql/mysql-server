@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #define XCOM_DETECTOR_H
 
 #include "xcom/xcom_limits.h"
+#include "xdr_gen/xcom_vp.h"
 
 #define DETECTOR_LIVE_TIMEOUT 5.0
 

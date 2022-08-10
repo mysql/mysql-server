@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,7 +125,8 @@ class Database_rewrite {
       unsigned char **m_buffer{nullptr};
 
      public:
-      Buffer_realloc_manager(unsigned char **buffer) : m_buffer{buffer} {}
+      explicit Buffer_realloc_manager(unsigned char **buffer)
+          : m_buffer{buffer} {}
       ~Buffer_realloc_manager() {
         if (m_buffer != nullptr) free(*m_buffer);
       }
@@ -209,7 +210,7 @@ class Database_rewrite {
     }
 
    public:
-    Transaction_payload_content_rewriter(Database_rewrite &rewriter)
+    explicit Transaction_payload_content_rewriter(Database_rewrite &rewriter)
         : m_event_rewriter(rewriter) {}
 
     /**
@@ -312,7 +313,7 @@ class Database_rewrite {
     database name that is to be rewritten into the target one.
 
     The key of the map is the "from" database name. The value of the
-    map is is the "to" database name that we are rewritting the
+    map is is the "to" database name that we are rewriting the
     name into.
    */
   std::map<std::string, std::string> m_dict;
@@ -563,7 +564,7 @@ class Database_rewrite {
   /**
     Shall unregister a rewrite rule for a given database. If the name is
     not registered, then no action is taken and no error reported.
-    The name of database to be used in this invokation is the original
+    The name of database to be used in this invocation is the original
     database name.
 
     @param from the original database name used when the rewrite rule
@@ -666,10 +667,10 @@ char server_version[SERVER_VERSION_LENGTH];
 ulong filter_server_id = 0;
 
 /*
-  This strucure is used to store the event and the log postion of the events
-  which is later used to print the event details from correct log postions.
+  This structure is used to store the event and the log position of the events
+  which is later used to print the event details from correct log positions.
   The Log_event *event is used to store the pointer to the current event and
-  the event_pos is used to store the current event log postion.
+  the event_pos is used to store the current event log position.
 */
 struct buff_event_info {
   Log_event *event;
@@ -681,7 +682,7 @@ struct buff_event_info {
   User_var_log_events, and Rand_log_events, followed by one
   Query_log_event. If statements are filtered out, the filter has to be
   checked for the Query_log_event. So we have to buffer the Intvar,
-  User_var, and Rand events and their corresponding log postions until we see
+  User_var, and Rand events and their corresponding log positions until we see
   the Query_log_event. This dynamic array buff_ev is used to buffer a structure
   which stores such an event and the corresponding log position.
 */
@@ -755,7 +756,7 @@ static ulonglong start_position, stop_position;
 #define stop_position_mot ((my_off_t)stop_position)
 
 static char *start_datetime_str, *stop_datetime_str;
-static my_time_t start_datetime = 0, stop_datetime = MY_TIME_T_MAX;
+static my_time_t start_datetime = 0, stop_datetime = MYTIME_MAX_VALUE;
 static ulonglong rec_count = 0;
 static MYSQL *mysql = nullptr;
 static char *dirname_for_local_load = nullptr;
@@ -852,7 +853,7 @@ class Load_log_processor {
 
  public:
   Load_log_processor() : file_names() {}
-  ~Load_log_processor() {}
+  ~Load_log_processor() = default;
 
   void init_by_dir_name(const char *dir) {
     target_dir_name_len =
@@ -1601,7 +1602,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
           goto end;
         }
       }
-      // Fall through
+        [[fallthrough]];
       case binary_log::ROWS_QUERY_LOG_EVENT:
       case binary_log::WRITE_ROWS_EVENT:
       case binary_log::DELETE_ROWS_EVENT:
@@ -1754,7 +1755,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
               "any case. If you want to exclude or include transactions, "
               "you should use the options --exclude-gtids or "
               "--include-gtids, respectively, instead.");
-        /* fall through */
+        [[fallthrough]];
       default:
         ev->print(result_file, print_event_info);
         if (head->error == -1) goto err;
@@ -1815,14 +1816,14 @@ static struct my_option my_long_options[] = {
      &rewrite, &rewrite, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr,
      0, nullptr},
 #ifdef NDEBUG
-    {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
-     GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
+     nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-info", OPT_DEBUG_INFO,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #else
     {"debug", '#', "Output debug log.", &default_dbug_option,
      &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
@@ -1889,16 +1890,21 @@ static struct my_option my_long_options[] = {
      nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"read-from-remote-server", 'R',
      "Read binary logs from a MySQL server. "
-     "This is an alias for read-from-remote-master=BINLOG-DUMP-NON-GTIDS.",
+     "This is an alias for read-from-remote-source=BINLOG-DUMP-NON-GTIDS.",
      &opt_remote_alias, &opt_remote_alias, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-    {"read-from-remote-master", OPT_REMOTE_PROTO,
+    {"read-from-remote-master", OPT_READ_FROM_REMOTE_MASTER_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use read-from-remote-source instead.",
+     &opt_remote_proto_str, &opt_remote_proto_str, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"read-from-remote-source", OPT_REMOTE_PROTO,
      "Read binary logs from a MySQL server through the COM_BINLOG_DUMP or "
      "COM_BINLOG_DUMP_GTID commands by setting the option to either "
      "BINLOG-DUMP-NON-GTIDS or BINLOG-DUMP-GTIDS, respectively. If "
-     "--read-from-remote-master=BINLOG-DUMP-GTIDS is combined with "
-     "--exclude-gtids, transactions can be filtered out on the master "
-     "avoiding unnecessary network traffic.",
+     "--read-from-remote-source=BINLOG-DUMP-GTIDS is combined with "
+     "--exclude-gtids, transactions are filtered out on the source, to "
+     "avoid unnecessary network traffic.",
      &opt_remote_proto_str, &opt_remote_proto_str, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"raw", OPT_RAW_OUTPUT,
@@ -1970,13 +1976,16 @@ static struct my_option my_long_options[] = {
      &stop_never, &stop_never, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
-     "The slave server_id used for --read-from-remote-server --stop-never."
-     " This option cannot be used together with connection-server-id.",
+     "The server_id that is reported when connecting to a source server "
+     "when using --read-from-remote-server --stop-never. "
+     "This option is deprecated and will be removed in a future version. "
+     "Use connection-server-id instead.",
      &stop_never_slave_server_id, &stop_never_slave_server_id, nullptr, GET_LL,
      REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, nullptr, 0, nullptr},
     {"connection-server-id", OPT_CONNECTION_SERVER_ID,
-     "The slave server_id used for --read-from-remote-server."
-     " This option cannot be used together with stop-never-slave-server-id.",
+     "The server_id that will be reported when connecting to a source server "
+     "when using --read-from-remote-server. "
+     "This option cannot be used together with stop-never-slave-server-id.",
      &connection_server_id, &connection_server_id, nullptr, GET_LL,
      REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, nullptr, 0, nullptr},
     {"stop-position", OPT_STOP_POSITION,
@@ -2154,7 +2163,7 @@ the mysql command line client.\n\n");
 static my_time_t convert_str_to_timestamp(const char *str) {
   MYSQL_TIME_STATUS status;
   MYSQL_TIME l_time;
-  long dummy_my_timezone;
+  my_time_t dummy_my_timezone;
   bool dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
   if (str_to_datetime(str, strlen(str), &l_time, 0, &status) ||
@@ -2230,6 +2239,10 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       opt_remote_alias = true;
       opt_remote_proto = BINLOG_DUMP_NON_GTID;
       break;
+    case OPT_READ_FROM_REMOTE_MASTER_DEPRECATED:
+      warning(CLIENT_WARN_DEPRECATED_MSG("--read-from-remote-master",
+                                         "--read-from-remote-source"));
+      [[fallthrough]];
     case OPT_REMOTE_PROTO:
       opt_remote_proto = (enum_remote_proto)(
           find_type_or_exit(argument, &remote_proto_typelib, opt->name) - 1);
@@ -2351,6 +2364,10 @@ static Exit_status safe_connect() {
     error("Failed on connect: %s", mysql_error(mysql));
     return ERROR_STOP;
   }
+
+  if (ssl_client_check_post_connect_ssl_setup(
+          mysql, [](const char *err) { error("%s", err); }))
+    return ERROR_STOP;
   mysql->reconnect = true;
   return OK_CONTINUE;
 }
@@ -2475,23 +2492,21 @@ static Exit_status check_master_version() {
 
   if (mysql_query(mysql, "SELECT VERSION()") ||
       !(res = mysql_store_result(mysql))) {
-    error(
-        "Could not find server version: "
-        "Query failed when checking master version: %s",
-        mysql_error(mysql));
+    error("Could not find server version: Query failed: %s",
+          mysql_error(mysql));
     return ERROR_STOP;
   }
   if (!(row = mysql_fetch_row(res))) {
     error(
         "Could not find server version: "
-        "Master returned no rows for SELECT VERSION().");
+        "Server returned no rows for SELECT VERSION().");
     goto err;
   }
 
   if (!(version = row[0])) {
     error(
         "Could not find server version: "
-        "Master reported NULL for the version.");
+        "Server reported NULL for the version.");
     goto err;
   }
   /*
@@ -2500,10 +2515,12 @@ static Exit_status check_master_version() {
      necessary checksummed.
      That preference is specified below.
   */
-  if (mysql_query(mysql, "SET @master_binlog_checksum='NONE'")) {
+  if (mysql_query(mysql,
+                  "SET @master_binlog_checksum = 'NONE', "
+                  "@source_binlog_checksum = 'NONE'")) {
     error(
-        "Could not notify master about checksum awareness."
-        "Master returned '%s'",
+        "Could not notify source server about checksum awareness."
+        "Server returned '%s'",
         mysql_error(mysql));
     goto err;
   }
@@ -2519,7 +2536,7 @@ static Exit_status check_master_version() {
     default:
       error(
           "Could not find server version: "
-          "Master reported unrecognized MySQL version '%s'.",
+          "Server reported unrecognized MySQL version '%s'.",
           version);
       goto err;
   }
@@ -2563,7 +2580,7 @@ static void fix_gtid_set(MYSQL_RPL *rpl, uchar *packet_gtid_set) {
 class Destroy_log_event_guard {
  public:
   Log_event **ev_del;
-  Destroy_log_event_guard(Log_event **ev_arg) { ev_del = ev_arg; }
+  explicit Destroy_log_event_guard(Log_event **ev_arg) { ev_del = ev_arg; }
   ~Destroy_log_event_guard() {
     if (*ev_del != nullptr) delete *ev_del;
   }
@@ -2605,7 +2622,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   if ((retval = check_master_version()) != OK_CONTINUE) return retval;
 
   /*
-    Fake a server ID to log continously. This will show as a
+    Fake a server ID to log continuously. This will show as a
     slave on the mysql server.
   */
   if (to_last_remote_log && stop_never) {
@@ -2624,7 +2641,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     running with:
 
       --read-from-remote-server
-      --read-from-remote-master=BINLOG-DUMP-GTIDS'
+      --read-from-remote-source=BINLOG-DUMP-GTIDS'
       --stop-never
       --stop-never-slave-server-id
 
@@ -3089,7 +3106,7 @@ static int args_post_process(void) {
   if (opt_remote_alias && opt_remote_proto != BINLOG_DUMP_NON_GTID) {
     error(
         "The option read-from-remote-server cannot be used when "
-        "read-from-remote-master is defined and is not equal to "
+        "read-from-remote-source is defined and is not equal to "
         "BINLOG-DUMP-NON-GTIDS");
     return ERROR_STOP;
   }
@@ -3100,7 +3117,7 @@ static int args_post_process(void) {
 
     if (opt_remote_proto == BINLOG_LOCAL) {
       error(
-          "The --raw flag requires one of --read-from-remote-master or "
+          "The --raw flag requires one of --read-from-remote-source or "
           "--read-from-remote-server");
       return ERROR_STOP;
     }
@@ -3115,14 +3132,14 @@ static int args_post_process(void) {
       error(
           "You cannot use both of --exclude-gtids and --raw together "
           "with one of --read-from-remote-server or "
-          "--read-from-remote-master=BINLOG-DUMP-NON-GTID.");
+          "--read-from-remote-source=BINLOG-DUMP-NON-GTID.");
       return ERROR_STOP;
     }
 
     if (stop_position != (ulonglong)(~(my_off_t)0))
       warning("The --stop-position option is ignored in raw mode");
 
-    if (stop_datetime != MY_TIME_T_MAX)
+    if (stop_datetime != MYTIME_MAX_VALUE)
       warning("The --stop-datetime option is ignored in raw mode");
   } else if (output_file) {
     if (!(result_file =
@@ -3263,7 +3280,12 @@ int main(int argc, char **argv) {
     load_processor.init_by_cur_dir();
 
   if (!raw_mode) {
-    fprintf(result_file, "/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;\n");
+    fprintf(
+        result_file,
+        "# The proper term is pseudo_replica_mode, but we use this "
+        "compatibility alias\n"
+        "# to make the statement usable on server versions 8.0.24 and older.\n"
+        "/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;\n");
 
     if (disable_log_bin)
       fprintf(
@@ -3446,7 +3468,7 @@ void Transaction_payload_log_event::print(FILE *,
     process_event(info, ev, header()->log_pos, "", true);
 
     // lets make the buffer be allocated again, as the current
-    // buffer ownership has been handed over to the defferred event
+    // buffer ownership has been handed over to the deferred event
     if (is_deferred_event) {
       buffer = nullptr;        /* purecov: inspected */
       current_buffer_size = 0; /* purecov: inspected */

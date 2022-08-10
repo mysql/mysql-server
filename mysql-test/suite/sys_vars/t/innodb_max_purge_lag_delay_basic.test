@@ -34,7 +34,7 @@ SELECT COUNT(@@SESSION.innodb_max_purge_lag_delay);
 --echo Expected error 'Variable is a GLOBAL variable'
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_max_purge_lag_delay = @@SESSION.innodb_max_purge_lag_delay;
+SELECT innodb_max_purge_lag_delay;
 
 set global innodb_max_purge_lag_delay = -1;
 set global innodb_max_purge_lag_delay = 1000000;

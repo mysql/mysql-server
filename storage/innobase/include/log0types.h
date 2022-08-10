@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -33,31 +33,46 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /**************************************************/ /**
  @file include/log0types.h
 
- Redo log types
+ Redo log basic types
 
- Created 2013-03-15 Sunny Bains
  *******************************************************/
 
 #ifndef log0types_h
 #define log0types_h
 
+/* std::atomic<X> */
 #include <atomic>
+
+/* std::chrono::X */
 #include <chrono>
-#include <condition_variable>
-#include <memory>
-#include <mutex>
+
+/* std::string */
 #include <string>
 
-#include "my_compiler.h"
-#include "os0event.h"
-#include "os0file.h"
-#include "sync0rw.h"
+/* byte */
 #include "univ.i"
-#include "ut0link_buf.h"
-#include "ut0mutex.h"
+
+/* os_offset_t */
+#include "os0file.h"
+
+/* ut::INNODB_CACHE_LINE_SIZE */
+#include "ut0cpu_cache.h"
 
 /** Type used for all log sequence number storage and arithmetics. */
 typedef uint64_t lsn_t;
+
+/** Log file id (0 for ib_redo0) */
+typedef size_t Log_file_id;
+
+/** Log flags (stored in file header of log file). */
+typedef uint32_t Log_flags;
+
+/** Number which tries to uniquely identify a created set of redo log files.
+Redo log files, which have different values of Log_uuid, most likely have been
+created for different directories and cannot be mixed. This way foreign redo
+files might be easily recognized. When that is the case, most likely something
+went wrong when copying files. */
+typedef uint32_t Log_uuid;
 
 /** Print format for lsn_t values, used in functions like printf. */
 #define LSN_PF UINT64PF
@@ -72,16 +87,45 @@ typedef uint64_t sn_t;
 /** Alias for atomic based on sn_t. */
 using atomic_sn_t = std::atomic<sn_t>;
 
-/** Type used for checkpoint numbers (consecutive checkpoints receive
-a number which is increased by one). */
-typedef uint64_t checkpoint_no_t;
+/* The lsn_t, sn_t, Log_file_id are known so constants can be expressed. */
+#include "log0constants.h"
+
+/** Enumerates checkpoint headers in the redo log file. */
+enum class Log_checkpoint_header_no : uint32_t {
+  /** The first checkpoint header. */
+  HEADER_1,
+
+  /** The second checkpoint header. */
+  HEADER_2
+};
 
 /** Type used for counters in log_t: flushes_requested and flushes_expected.
 They represent number of requests to flush the redo log to disk. */
 typedef std::atomic<int64_t> log_flushes_t;
 
+/** Type of redo log file. */
+enum class Log_file_type {
+  /** Usual redo log file, most likely with important redo data. */
+  NORMAL,
+  /** Unused redo log file, might always be removed. */
+  UNUSED
+};
+
+/** Callback called on each read or write operation on a redo log file.
+@param[in]  file_id    id of the redo log file (target of the IO operation)
+@param[in]  file_type  type of the redo log file
+@param[in]  offset     offset in the file, at which read or write operation
+                       is going to start (expressed in bytes and computed
+                       from the beginning of the file)
+@param[in]  size       size of data that is going to be read or written in
+                       the IO operation */
+typedef std::function<void(Log_file_id file_id, Log_file_type file_type,
+                           os_offset_t offset, os_offset_t size)>
+    Log_file_io_callback;
+
 /** Function used to calculate checksums of log blocks. */
-typedef std::atomic<uint32_t (*)(const byte *log_block)> log_checksum_func_t;
+typedef std::atomic<uint32_t (*)(const byte *log_block)>
+    Log_checksum_algorithm_atomic_ptr;
 
 /** Clock used to measure time spent in redo log (e.g. when flushing). */
 using Log_clock = std::chrono::high_resolution_clock;
@@ -90,656 +134,477 @@ using Log_clock = std::chrono::high_resolution_clock;
 using Log_clock_point = std::chrono::time_point<Log_clock>;
 
 /** Supported redo log formats. Stored in LOG_HEADER_FORMAT. */
-enum log_header_format_t {
+enum class Log_format : uint32_t {
+  /** Unknown format of redo file. */
+  LEGACY = 0,
+
   /** The MySQL 5.7.9 redo log format identifier. We can support recovery
   from this format if the redo log is clean (logically empty). */
-  LOG_HEADER_FORMAT_5_7_9 = 1,
+  VERSION_5_7_9 = 1,
 
   /** Remove MLOG_FILE_NAME and MLOG_CHECKPOINT, introduce MLOG_FILE_OPEN
   redo log record. */
-  LOG_HEADER_FORMAT_8_0_1 = 2,
+  VERSION_8_0_1 = 2,
 
   /** Allow checkpoint_lsn to point any data byte within redo log (before
   it had to point the beginning of a group of log records). */
-  LOG_HEADER_FORMAT_8_0_3 = 3,
+  VERSION_8_0_3 = 3,
 
   /** Expand ulint compressed form. */
-  LOG_HEADER_FORMAT_8_0_19 = 4,
+  VERSION_8_0_19 = 4,
+
+  /** Row versioning header. */
+  VERSION_8_0_28 = 5,
+
+  /** Introduced with innodb_redo_log_capacity:
+   - write LSN does not re-enter file with checkpoint_lsn,
+   - epoch_no is checked strictly during recovery. */
+  VERSION_8_0_30 = 6,
 
   /** The redo log format identifier
   corresponding to the current format version. */
-  LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_19
+  CURRENT = VERSION_8_0_30
 };
 
-/** The state of a log group */
-enum class log_state_t {
-  /** No corruption detected */
-  OK,
-  /** Corrupted */
-  CORRUPTED
+/** Ruleset defining how redo log files are named, where they are stored,
+when they are created and what sizes could they have. */
+enum class Log_files_ruleset {
+  /** Redo log files were named ib_logfile0, ib_logfile1, ... ib_logfile99.
+  Redo log files were pre-created during startup and re-used after wrapping.
+  Redo log files had the same file size and supported formats < VERSION_8_0_30.
+  The non-initialized set of redo log files was denoted by existence of the
+  ib_logfile101. The log files were located directly in the root directory
+  (innodb_log_group_home_dir if specified; else: datadir). */
+  PRE_8_0_30,
+
+  /** Redo log files are named #ib_redo0, #ib_redo1, ... and no longer wrapped.
+  Redo log files are created on-demand during runtime and might have different
+  sizes. Formats >= VERSION_8_0_30 are supported. The redo log files are located
+  in #innodb_redo subdirectory in the root directory - for example:
+    - if innodb_log_group_home_dir = '/srv/my_db/logs', then redo files are in
+      '/srv/my_db/logs/#innodb_redo/',
+    - if innodb_log_group_home_dir is not specified and datadir='/srv/my_db',
+      then redo files are in '/srv/my_db/#innodb_redo'. */
+  CURRENT
 };
 
-/** The recovery implementation. */
-struct redo_recover_t;
+/** Direction of resize operation. */
+enum class Log_resize_mode {
+  /** No pending resize. */
+  NONE,
 
-struct Log_handle {
-  lsn_t start_lsn;
-
-  lsn_t end_lsn;
+  /** Resizing down. */
+  RESIZING_DOWN
 };
 
-/** Redo log - single data structure with state of the redo log system.
-In future, one could consider splitting this to multiple data structures. */
-struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
-  /**************************************************/ /**
-
-   @name Users writing to log buffer
-
-   *******************************************************/
-
-  /** @{ */
-
-#ifndef UNIV_HOTBACKUP
-  /** Event used for locking sn */
-  os_event_t sn_lock_event;
-
-#ifdef UNIV_PFS_RWLOCK
-  /** The instrumentation hook */
-  struct PSI_rwlock *pfs_psi;
-#endif /* UNIV_PFS_RWLOCK */
-#ifdef UNIV_DEBUG
-  /** The rw_lock instance only for the debug info list */
-  /* NOTE: Just "rw_lock_t sn_lock_inst;" and direct minimum initialization
-  seem to hit the bug of Sun Studio of Solaris. */
-  rw_lock_t *sn_lock_inst;
-#endif /* UNIV_DEBUG */
-
-  /** Current sn value. Used to reserve space in the redo log,
-  and used to acquire an exclusive access to the log buffer.
-  Represents number of data bytes that have ever been reserved.
-  Bytes of headers and footers of log blocks are not included.
-  Its highest bit is used for locking the access to the log buffer. */
-  MY_COMPILER_DIAGNOSTIC_PUSH()
-  MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
-  /**
-  @see @ref subsect_redo_log_sn */
-  MY_COMPILER_DIAGNOSTIC_PUSH()
-  alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_sn_t sn;
-
-  /** Intended sn value while x-locked. */
-  atomic_sn_t sn_locked;
-
-  /** Mutex which can be used for x-lock sn value */
-  mutable ib_mutex_t sn_x_lock_mutex;
-
-  /** Padding after the _sn to avoid false sharing issues for
-  constants below (due to changes of sn). */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** Pointer to the log buffer, aligned up to OS_FILE_LOG_BLOCK_SIZE.
-      The alignment is to ensure that buffer parts specified for file IO write
-      operations will be aligned to sector size, which is required e.g. on
-      Windows when doing unbuffered file access.
-      Protected by: locking sn not to add. */
-      aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
-
-  /** Size of the log buffer expressed in number of data bytes,
-  that is excluding bytes for headers and footers of log blocks. */
-  atomic_sn_t buf_size_sn;
-
-  /** Size of the log buffer expressed in number of total bytes,
-  that is including bytes for headers and footers of log blocks. */
-  size_t buf_size;
-
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** The recent written buffer.
-      Protected by: locking sn not to add. */
-      Link_buf<lsn_t> recent_written;
-
-  /** Used for pausing the log writer threads.
-  When paused, each user thread should write log as in the former version. */
-  std::atomic_bool writer_threads_paused;
-
-  /** Some threads waiting for the ready for write lsn by closer_event. */
-  lsn_t current_ready_waiting_lsn;
-
-  /** current_ready_waiting_lsn is waited using this sig_count. */
-  int64_t current_ready_waiting_sig_count;
-
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** The recent closed buffer.
-      Protected by: locking sn not to add. */
-      Link_buf<lsn_t> recent_closed;
-
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** @} */
-
-      /**************************************************/ /**
-
-       @name Users <=> writer
-
-       *******************************************************/
-
-      /** @{ */
-
-      /** Maximum sn up to which there is free space in both the log buffer
-      and the log files. This is limitation for the end of any write to the
-      log buffer. Threads, which are limited need to wait, and possibly they
-      hold latches of dirty pages making a deadlock possible.
-      Protected by: writer_mutex (writes). */
-      atomic_sn_t buf_limit_sn;
-
-  /** Up to this lsn, data has been written to disk (fsync not required).
-  Protected by: writer_mutex (writes). */
-  MY_COMPILER_DIAGNOSTIC_PUSH()
-  MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
-  /*
-  @see @ref subsect_redo_log_write_lsn */
-  MY_COMPILER_DIAGNOSTIC_POP()
-  alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_lsn_t write_lsn;
-
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** Unaligned pointer to array with events, which are used for
-      notifications sent from the log write notifier thread to user threads.
-      The notifications are sent when write_lsn is advanced. User threads
-      wait for write_lsn >= lsn, for some lsn. Log writer advances the
-      write_lsn and notifies the log write notifier, which notifies all users
-      interested in nearby lsn values (lsn belonging to the same log block).
-      Note that false wake-ups are possible, in which case user threads
-      simply retry waiting. */
-      os_event_t *write_events;
-
-  /** Number of entries in the array with writer_events. */
-  size_t write_events_size;
-
-  /** Approx. number of requests to write/flush redo since startup. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-      std::atomic<uint64_t> write_to_file_requests_total;
-
-  /** How often redo write/flush is requested in average.
-  Measures in microseconds. Log threads do not spin when
-  the write/flush requests are not frequent. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-      std::atomic<uint64_t> write_to_file_requests_interval;
-
-  /** This padding is probably not needed, left for convenience. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** @} */
-
-      /**************************************************/ /**
-
-       @name Users <=> flusher
-
-       *******************************************************/
-
-      /** @{ */
-
-      /** Unaligned pointer to array with events, which are used for
-      notifications sent from the log flush notifier thread to user threads.
-      The notifications are sent when flushed_to_disk_lsn is advanced.
-      User threads wait for flushed_to_disk_lsn >= lsn, for some lsn.
-      Log flusher advances the flushed_to_disk_lsn and notifies the
-      log flush notifier, which notifies all users interested in nearby lsn
-      values (lsn belonging to the same log block). Note that false
-      wake-ups are possible, in which case user threads simply retry
-      waiting. */
-      os_event_t *flush_events;
-
-  /** Number of entries in the array with events. */
-  size_t flush_events_size;
-
-  /** This event is in the reset state when a flush is running;
-  a thread should wait for this without owning any of redo mutexes,
-  but NOTE that to reset this event, the thread MUST own the writer_mutex */
-  os_event_t old_flush_event;
-
-  /** Padding before the frequently updated flushed_to_disk_lsn. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** Up to this lsn data has been flushed to disk (fsynced). */
-      atomic_lsn_t flushed_to_disk_lsn;
-
-  /** Padding after the frequently updated flushed_to_disk_lsn. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** @} */
-
-      /**************************************************/ /**
-
-       @name Log flusher thread
-
-       *******************************************************/
-
-      /** @{ */
-
-      /** Last flush start time. Updated just before fsync starts. */
-      Log_clock_point last_flush_start_time;
-
-  /** Last flush end time. Updated just after fsync is finished.
-  If smaller than start time, then flush operation is pending. */
-  Log_clock_point last_flush_end_time;
-
-  /** Flushing average time (in microseconds). */
-  double flush_avg_time;
-
-  /** Mutex which can be used to pause log flusher thread. */
-  mutable ib_mutex_t flusher_mutex;
-
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      os_event_t flusher_event;
-
-  /** Padding to avoid any dependency between the log flusher
-  and the log writer threads. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** @} */
-
-      /**************************************************/ /**
-
-       @name Log writer thread
-
-       *******************************************************/
-
-      /** @{ */
-
-      /** Space id for pages with log blocks. */
-      space_id_t files_space_id;
-
-  /** Size of buffer used for the write-ahead (in bytes). */
-  uint32_t write_ahead_buf_size;
-
-  /** Aligned pointer to buffer used for the write-ahead. It is aligned to
-  system page size (why?) and is currently limited by constant 64KB. */
-  aligned_array_pointer<byte, 64 * 1024> write_ahead_buf;
-
-  /** Up to this file offset in the log files, the write-ahead
-  has been done or is not required (for any other reason). */
-  uint64_t write_ahead_end_offset;
-
-  /** Aligned buffers for file headers. */
-  aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> *file_header_bufs;
-#endif /* !UNIV_HOTBACKUP */
-
-  /** Some lsn value within the current log file. */
-  lsn_t current_file_lsn;
-
-  /** File offset for the current_file_lsn. */
-  uint64_t current_file_real_offset;
-
-  /** Up to this file offset we are within the same current log file. */
-  uint64_t current_file_end_offset;
-
-  /** Number of performed IO operations (only for printing stats). */
-  uint64_t n_log_ios;
-
-  /** Size of each single log file (expressed in bytes, including
-  file header). */
-  uint64_t file_size;
-
-  /** Number of log files. */
-  uint32_t n_files;
-
-  /** Total capacity of all the log files (file_size * n_files),
-  including headers of the log files. */
-  uint64_t files_real_capacity;
-
-  /** Capacity of redo log files for log writer thread. The log writer
-  does not to exceed this value. If space is not reclaimed after 1 sec
-  wait, it writes only as much as can fit the free space or crashes if
-  there is no free space at all (checkpoint did not advance for 1 sec). */
-  lsn_t lsn_capacity_for_writer;
-
-  /** When this margin is being used, the log writer decides to increase
-  the concurrency_margin to stop new incoming mini-transactions earlier,
-  on bigger margin. This is used to provide adaptive concurrency margin
-  calculation, which we need because we might have unlimited thread
-  concurrency setting or we could miss some log_free_check() calls.
-  It is just best effort to help getting out of the troubles. */
-  lsn_t extra_margin;
-
-  /** True if we haven't increased the concurrency_margin since we entered
-  (lsn_capacity_for_margin_inc..lsn_capacity_for_writer] range. This allows
-  to increase the margin only once per issue and wait until the issue becomes
-  resolved, still having an option to increase margin even more, if new issue
-  comes later. */
-  bool concurrency_margin_ok;
-
-  /** Maximum allowed concurrency_margin. We never set higher, even when we
-  increase the concurrency_margin in the adaptive solution. */
-  lsn_t max_concurrency_margin;
-
-#ifndef UNIV_HOTBACKUP
-  /** Mutex which can be used to pause log writer thread. */
-  mutable ib_mutex_t writer_mutex;
-
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      os_event_t writer_event;
-
-  /** Padding after section for the log writer thread, to avoid any
-  dependency between the log writer and the log closer threads. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** @} */
-
-      /**************************************************/ /**
-
-       @name Log closer thread
-
-       *******************************************************/
-
-      /** @{ */
-
-      /** Event used by the log closer thread to wait for tasks. */
-      os_event_t closer_event;
-
-  /** Mutex which can be used to pause log closer thread. */
-  mutable ib_mutex_t closer_mutex;
-
-  /** Padding after the log closer thread and before the memory used
-  for communication between the log flusher and notifier threads. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** @} */
-
-      /**************************************************/ /**
-
-       @name Log flusher <=> flush_notifier
-
-       *******************************************************/
-
-      /** @{ */
-
-      /** Event used by the log flusher thread to notify the log flush
-      notifier thread, that it should proceed with notifying user threads
-      waiting for the advanced flushed_to_disk_lsn (because it has been
-      advanced). */
-      os_event_t flush_notifier_event;
-
-  /** The next flushed_to_disk_lsn can be waited using this sig_count. */
-  int64_t current_flush_sig_count;
-
-  /** Mutex which can be used to pause log flush notifier thread. */
-  mutable ib_mutex_t flush_notifier_mutex;
-
-  /** Padding. */
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** @} */
-
-      /**************************************************/ /**
-
-       @name Log writer <=> write_notifier
-
-       *******************************************************/
-
-      /** @{ */
-
-      /** Mutex which can be used to pause log write notifier thread. */
-      mutable ib_mutex_t write_notifier_mutex;
-
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** Event used by the log writer thread to notify the log write
-      notifier thread, that it should proceed with notifying user threads
-      waiting for the advanced write_lsn (because it has been advanced). */
-      os_event_t write_notifier_event;
-
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
-
-      /** @} */
-
-      /**************************************************/ /**
-
-       @name Maintenance
-
-       *******************************************************/
-
-      /** @{ */
-
-      /** Used for stopping the log background threads. */
-      std::atomic_bool should_stop_threads;
-
-  /** Event used for pausing the log writer threads. */
-  os_event_t writer_threads_resume_event;
-
-  /** Used for resuming write notifier thread */
-  atomic_lsn_t write_notifier_resume_lsn;
-
-  /** Used for resuming flush notifier thread */
-  atomic_lsn_t flush_notifier_resume_lsn;
-
-  /** Number of total I/O operations performed when we printed
-  the statistics last time. */
-  mutable uint64_t n_log_ios_old;
-
-  /** Wall time when we printed the statistics last time. */
-  mutable time_t last_printout_time;
-
-  /** @} */
-
-  /**************************************************/ /**
-
-   @name Recovery
-
-   *******************************************************/
-
-  /** @{ */
-
-  /** Lsn from which recovery has been started. */
-  lsn_t recovered_lsn;
-
-  /** Format of the redo log: e.g., LOG_HEADER_FORMAT_CURRENT. */
-  uint32_t format;
-
-  /** Corruption status. */
-  log_state_t state;
-
-  /** Used only in recovery: recovery scan succeeded up to this lsn. */
-  lsn_t scanned_lsn;
+/** Configures path to the root directory, where redo subdirectory might be
+located (or redo log files if the ruleset is older). Configures the ruleset
+that should be used when locating redo log files. */
+struct Log_files_context {
+  explicit Log_files_context(
+      const std::string &root_path = "",
+      Log_files_ruleset files_ruleset = Log_files_ruleset::CURRENT);
+
+  /** Path to the root directory. */
+  std::string m_root_path;
+
+  /** Ruleset determining how file paths are built. */
+  Log_files_ruleset m_files_ruleset;
+};
+
+/** Meta data stored in log file header. */
+struct Log_file_header {
+  /** Format of the log file. */
+  uint32_t m_format;
+
+  /** LSN of the first log block (%512 == 0). */
+  lsn_t m_start_lsn;
+
+  /** Creator name. */
+  std::string m_creator_name;
+
+  /** Log flags. Meaning of bit positions is to be found in documentation
+  of LOG_HEADER_FLAG_* constants in log0constants.h. */
+  Log_flags m_log_flags;
+
+  /** UUID value describing the whole group of log files. */
+  Log_uuid m_log_uuid;
+};
+
+/** Meta data stored in one of two checkpoint headers. */
+struct Log_checkpoint_header {
+  /** Checkpoint LSN (oldest_lsn_lwm from the moment of checkpoint). */
+  lsn_t m_checkpoint_lsn;
+};
+
+/** Meta data stored in header of a log data block. */
+struct Log_data_block_header {
+  /** Together with m_hdr_no form unique identifier of this block,
+  @see LOG_BLOCK_EPOCH_NO. */
+  uint32_t m_epoch_no;
+
+  /** Together with m_epoch_no form unique identifier of this block,
+  @see log_block_get_hdr_no. Each next log data block has hdr_no
+  incremented by 1 (unless wrapped). */
+  uint32_t m_hdr_no;
+
+  /** Offset up to which this block has data inside, computed from the
+  beginning of the block. */
+  uint16_t m_data_len;
+
+  /** Offset to the first mtr starting in this block, or 0 if there is no
+  mtr starting in this block. */
+  uint16_t m_first_rec_group;
+};
+
+/** Pair of: log file id and log file size (expressed in bytes). */
+struct Log_file_id_and_size {
+  Log_file_id_and_size() = default;
+
+  Log_file_id_and_size(Log_file_id id, os_offset_t size)
+      : m_id(id), m_size_in_bytes(size) {}
+
+  /** Id of the file. */
+  Log_file_id m_id{};
+
+  /** Size of file, expressed in bytes. */
+  os_offset_t m_size_in_bytes{};
+};
+
+/** Pair of: log file id and log file header. */
+struct Log_file_id_and_header {
+  Log_file_id_and_header() = default;
+
+  Log_file_id_and_header(Log_file_id id, Log_file_header header)
+      : m_id(id), m_header(header) {}
+
+  /** Id of the file. */
+  Log_file_id m_id{};
+
+  /** Main header of the file. */
+  Log_file_header m_header{};
+};
+
+/** Type of access allowed for the opened redo log file. */
+enum class Log_file_access_mode {
+  /** The opened file can be both read and written. */
+  READ_WRITE,
+  /** The opened file can be only read. */
+  READ_ONLY,
+  /** The opened file can be only written. */
+  WRITE_ONLY,
+};
+
+/** Handle which allows to do reads / writes for the opened file.
+For particular kind of reads or writes (for checkpoint headers,
+data blocks, main file header or encryption header) there are helper
+functions defined outside this class. Unless you wanted to transfer
+the whole file as-is, you should rather use those functions for
+read/write operations. */
+class Log_file_handle {
+ public:
+  explicit Log_file_handle(Encryption_metadata &encryption_metadata);
+
+  Log_file_handle(Log_file_handle &&other);
+  Log_file_handle &operator=(Log_file_handle &&rhs);
+
+  /** Closes handle if was opened (calling fsync if was modified).
+  Destructs the handle object. */
+  ~Log_file_handle();
+
+  /** @return true iff file is opened (by this handle) */
+  bool is_open() const;
+
+  /** Closes file represented by this handle (must be opened). */
+  void close();
+
+  /** @return id of the log file */
+  Log_file_id file_id() const;
+
+  /** @return path to the log file (including the file name) */
+  const std::string &file_path() const;
+
+  /** @return file size in bytes */
+  os_offset_t file_size() const;
+
+  /** Reads from the log file at the given offset (to the provided buffer).
+  @param[in]   read_offset     offset in bytes from the beginning of the file
+  @param[in]   read_size       number of bytes to read
+  @param[out]  buf             allocated buffer to fill when reading
+  @return DB_SUCCESS or error */
+  dberr_t read(os_offset_t read_offset, os_offset_t read_size, byte *buf);
+
+  /** Writes the provided buffer to the log file at the given offset.
+  @param[in]   write_offset    offset in bytes from the beginning of the file
+  @param[in]   write_size      number of bytes to write
+  @param[in]   buf             buffer to write
+  @return DB_SUCCESS or error */
+  dberr_t write(os_offset_t write_offset, os_offset_t write_size,
+                const byte *buf);
+
+  /** Executes fsync operation for this redo log file. */
+  void fsync();
+
+  /** @return number of fsyncs in-progress */
+  static uint64_t fsyncs_in_progress() { return s_fsyncs_in_progress.load(); }
+
+  /** @return total number of fsyncs that have been started since
+              the server has started */
+  static uint64_t total_fsyncs() { return s_total_fsyncs.load(); }
+
+  /** Callback called on each read operation. */
+  static Log_file_io_callback s_on_before_read;
+
+  /** Callback called on each write operation. */
+  static Log_file_io_callback s_on_before_write;
+
+  /** True iff all fsyncs should be no-op. */
+  static bool s_skip_fsyncs;
+
+ private:
+  friend struct Log_file;
+
+  /** Tries to open a given redo log file with with a given access mode.
+  If succeeded then this handle represents the opened file and allows to
+  performs reads and/or writes (depends on the requested access mode).
+  If encountered error during the attempt to open, error message is emitted
+  to the error log, in which case this handle remains closed.
+  @param[in]  files_ctx            context within which files exist
+  @param[in]  id                   id of the log file
+  @param[in]  access_mode          access mode for the opened file
+  @param[in]  encryption_metadata  encryption metadata
+  @param[in]  file_type            type of redo file */
+  Log_file_handle(const Log_files_context &files_ctx, Log_file_id id,
+                  Log_file_access_mode access_mode,
+                  Encryption_metadata &encryption_metadata,
+                  Log_file_type file_type);
+
+  Log_file_handle(const Log_file_handle &other) = delete;
+  Log_file_handle &operator=(const Log_file_handle &rhs) = delete;
+
+  /** Open the log file with the configured access mode.
+  @return DB_SUCCESS or error */
+  dberr_t open();
+
+  /** Configures a given io request object accordingly to currently configured
+  encryption metadata (m_encryption_*) and m_block_size.
+  @param[in,out]  io_request      io request object to configure
+  @param[in]      encrypted_area  true iff IO request is done to the fragment
+                                  of file that potentially might be encrypted;
+                                  it's based on offset only - does not depend
+                                  on current m_encryption_metadata */
+  void prepare_io_request(IORequest &io_request, bool encrypted_area);
+
+  /** Performs a given IO operation on the opened file.
+  NOTE: io_req internals are ignored (except type), because io_req is copied
+  and overwritten by prepare_io_request().
+  @param[in]   io_req  defines type of IO operation (read or write)
+  @param[in]   offset  offset in bytes from the beginning of the file
+  @param[in]   size    number of bytes to write or read
+  @param[in]   buf     buffer to write or fill (if read operation)
+  @return DB_SUCCESS or error */
+  dberr_t do_io(const IORequest &io_req, os_offset_t offset, os_offset_t size,
+                byte *buf);
 
 #ifdef UNIV_DEBUG
-
-  /** When this is set, writing to the redo log should be disabled.
-  We check for this in functions that write to the redo log. */
-  bool disable_redo_writes;
-
-  /** DEBUG only - if we copied or initialized the first block in buffer,
-  this is set to lsn for which we did that. We later ensure that we start
-  the redo log at the same lsn. Else it is zero and we would crash when
-  trying to start redo then. */
-  lsn_t first_block_is_correct_for_lsn;
-
+  /** Number of all opened Log_file_handle existing currently. */
+  static std::atomic<size_t> s_n_open;
 #endif /* UNIV_DEBUG */
 
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
+  /** Number of fsyncs in-progress. */
+  static std::atomic<uint64_t> s_fsyncs_in_progress;
 
-      /** @} */
+  /** Total number of fsyncs that have been started since
+  the server has started. */
+  static std::atomic<uint64_t> s_total_fsyncs;
 
-      /**************************************************/ /**
+  /** Id of the redo log file (part of its file name) */
+  Log_file_id m_file_id;
 
-       @name Fields protected by the log_limits mutex.
-             Related to free space in the redo log.
+  /** Access mode allowed for this handle (if not yet closed). */
+  Log_file_access_mode m_access_mode;
 
-       *******************************************************/
+  /** Encryption metadata to be used for all IO operations on this file
+  except those related to the first LOG_FILE_HDR_SIZE bytes.
+  @remarks If Encryption::set_key() and Encryption::set_initial_vector()
+  started to accept their arguments as const pointers, this could become
+  a const pointer too). In such case, all usages of Encryption_metadata*
+  inside redo log code, could also become changed to usages of the const
+  pointer. */
+  Encryption_metadata &m_encryption_metadata;
 
-      /** @{ */
+  /** Type of redo log file. */
+  Log_file_type m_file_type;
 
-      /** Mutex which protects fields: available_for_checkpoint_lsn,
-      requested_checkpoint_lsn. It also synchronizes updates of:
-      free_check_limit_sn, concurrency_margin and dict_persist_margin.
-      It also protects the srv_checkpoint_disabled (together with the
-      checkpointer_mutex). */
-      mutable ib_mutex_t limits_mutex;
+  /** Whether file is opened */
+  bool m_is_open;
 
-  /** A new checkpoint could be written for this lsn value.
-  Up to this lsn value, all dirty pages have been added to flush
-  lists and flushed. Updated in the log checkpointer thread by
-  taking minimum oldest_modification out of the last dirty pages
-  from each flush list. However it will not be bigger than the
-  current value of log.buf_dirty_pages_added_up_to_lsn.
-  Read by: user threads when requesting fuzzy checkpoint
-  Read by: log_print() (printing status of redo)
-  Updated by: log_checkpointer
-  Protected by: limits_mutex. */
-  MY_COMPILER_DIAGNOSTIC_PUSH()
-  MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
-  /**
-  @see @ref subsect_redo_log_available_for_checkpoint_lsn */
-  MY_COMPILER_DIAGNOSTIC_POP()
-  lsn_t available_for_checkpoint_lsn;
+  /** Whether file has been modified using this handle since it was opened. */
+  bool m_is_modified;
 
-  /** When this is larger than the latest checkpoint, the log checkpointer
-  thread will be forced to write a new checkpoint (unless the new latest
-  checkpoint lsn would still be smaller than this value).
-  Read by: log_checkpointer
-  Updated by: user threads (log_free_check() or for sharp checkpoint)
-  Protected by: limits_mutex. */
-  lsn_t requested_checkpoint_lsn;
+  /** File name */
+  std::string m_file_path;
 
-  /** Maximum lsn allowed for checkpoint by dict_persist or zero.
-  This will be set by dict_persist_to_dd_table_buffer(), which should
-  be always called before really making a checkpoint.
-  If non-zero, up to this lsn value, dynamic metadata changes have been
-  written back to mysql.innodb_dynamic_metadata under dict_persist->mutex
-  protection. All dynamic metadata changes after this lsn have to
-  be kept in redo logs, but not discarded. If zero, just ignore it.
-  Updated by: DD (when persisting dynamic meta data)
-  Updated by: log_checkpointer (reset when checkpoint is written)
-  Protected by: limits_mutex. */
-  lsn_t dict_max_allowed_checkpoint_lsn;
+  /** OS handle for file (if opened) */
+  pfs_os_file_t m_raw_handle;
 
-  /** If should perform checkpoints every innodb_log_checkpoint_every ms.
-  Disabled during startup / shutdown. Enabled in srv_start_threads.
-  Updated by: starting thread (srv_start_threads)
-  Read by: log_checkpointer */
-  bool periodical_checkpoints_enabled;
+  /** Size of single physical block (if opened) */
+  os_offset_t m_block_size;
 
-  /** Maximum sn up to which there is free space in the redo log.
-  Threads check this limit and compare to current log.sn, when they
-  are outside mini-transactions and hold no latches. The formula used
-  to compute the limitation takes into account maximum size of mtr and
-  thread concurrency to include proper margins and avoid issues with
-  race condition (in which all threads check the limitation and then
-  all proceed with their mini-transactions). Also extra margin is
-  there for dd table buffer cache (dict_persist_margin).
-  Read by: user threads (log_free_check())
-  Updated by: log_checkpointer (after update of checkpoint_lsn)
-  Updated by: log_writer (after increasing concurrency_margin)
-  Updated by: DD (after update of dict_persist_margin)
-  Protected by (updates only): limits_mutex. */
-  atomic_sn_t free_check_limit_sn;
+  /** Size of file in bytes (if opened) */
+  os_offset_t m_file_size;
+};
 
-  /** Margin used in calculation of @see free_check_limit_sn.
-  Read by: page_cleaners, log_checkpointer
-  Updated by: log_writer
-  Protected by (updates only): limits_mutex. */
-  atomic_sn_t concurrency_margin;
+/** Meta information about single log file. */
+struct Log_file {
+  Log_file(const Log_files_context &files_ctx,
+           Encryption_metadata &encryption_metadata);
 
-  /** Margin used in calculation of @see free_check_limit_sn.
-  Read by: page_cleaners, log_checkpointer
-  Updated by: DD
-  Protected by (updates only): limits_mutex. */
-  atomic_sn_t dict_persist_margin;
+  Log_file(const Log_files_context &files_ctx, Log_file_id id, bool consumed,
+           bool full, os_offset_t size_in_bytes, lsn_t start_lsn, lsn_t end_lsn,
+           Encryption_metadata &encryption_metadata);
 
-  alignas(ut::INNODB_CACHE_LINE_SIZE)
+  Log_file(const Log_file &other) = default;
 
-      /** @} */
+  Log_file &operator=(const Log_file &other);
 
-      /**************************************************/ /**
+  /** Context within which this file exists. */
+  const Log_files_context &m_files_ctx;
 
-       @name Log checkpointer thread
+  /** ID of the file. */
+  Log_file_id m_id;
 
-       *******************************************************/
+  /** Set to true when file becomes consumed. */
+  bool m_consumed;
 
-      /** @{ */
+  /** Set to true when file became full and next file exists. */
+  bool m_full;
 
-      /** Event used by the log checkpointer thread to wait for requests. */
-      os_event_t checkpointer_event;
+  /** Size, expressed in bytes, including LOG_FILE_HDR_SIZE. */
+  os_offset_t m_size_in_bytes;
 
-  /** Mutex which can be used to pause log checkpointer thread.
-  This is used by log_position_lock() together with log_buffer_x_lock(),
-  to pause any changes to current_lsn or last_checkpoint_lsn. */
-  mutable ib_mutex_t checkpointer_mutex;
+  /** LSN of the first byte within the file, aligned to
+  OS_FILE_LOG_BLOCK_SIZE. */
+  lsn_t m_start_lsn;
 
-  /** Latest checkpoint lsn.
-  Read by: user threads, log_print (no protection)
-  Read by: log_writer (under writer_mutex)
-  Updated by: log_checkpointer (under both mutexes)
-  Protected by (updates only): checkpointer_mutex + writer_mutex. */
-  MY_COMPILER_DIAGNOSTIC_PUSH()
-  MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
-  /**
-  @see @ref subsect_redo_log_last_checkpoint_lsn */
-  MY_COMPILER_DIAGNOSTIC_POP()
-  atomic_lsn_t last_checkpoint_lsn;
+  /** LSN of the first byte after the file, aligned to
+  OS_FILE_LOG_BLOCK_SIZE. */
+  lsn_t m_end_lsn;
 
-  /** Next checkpoint number.
-  Read by: log_get_last_block (no protection)
-  Read by: log_writer (under writer_mutex)
-  Updated by: log_checkpointer (under both mutexes)
-  Protected by: checkpoint_mutex + writer_mutex. */
-  std::atomic<checkpoint_no_t> next_checkpoint_no;
+  /** Encryption metadata passed to opened file handles
+  @see Log_file_handle::m_encryption_metadata */
+  Encryption_metadata &m_encryption_metadata;
 
-  /** Latest checkpoint wall time.
-  Used by (private): log_checkpointer. */
-  Log_clock_point last_checkpoint_time;
+  /** Checks if this object is equal to a given another object.
+  @param[in]  rhs   the object to compare against
+  @return true iff all related fields of the two objects are equal */
+  bool operator==(const Log_file &rhs) const {
+    return m_id == rhs.m_id && m_consumed == rhs.m_consumed &&
+           m_full == rhs.m_full && m_size_in_bytes == rhs.m_size_in_bytes &&
+           m_start_lsn == rhs.m_start_lsn && m_end_lsn == rhs.m_end_lsn;
+  }
 
-  /** Aligned buffer used for writing a checkpoint header. It is aligned
-  similarly to log.buf.
-  Used by (private): log_checkpointer, recovery code */
-  aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> checkpoint_buf;
+  /** Validates that lsn fields seem correct (m_start_lsn, m_end_lsn) */
+  void lsn_validate() const {
+    ut_a(m_start_lsn == 0 || LOG_START_LSN <= m_start_lsn);
+    ut_a(m_start_lsn < m_end_lsn);
+    ut_a(m_start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
+    ut_a(m_end_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
+  }
 
-  /** @} */
+  /** Checks if a given lsn belongs to [m_start_lsn, m_end_lsn).
+  In other words, checks that the given lsn belongs to this file.
+  @param[in]  lsn   lsn to test against lsn range
+  @return true iff lsn is in the file */
+  bool contains(lsn_t lsn) const {
+    return m_start_lsn <= lsn && lsn < m_end_lsn;
+  }
 
-  /**************************************************/ /**
+  /** Provides offset for the given LSN (from the beginning of the log file).
+  @param[in]  lsn   lsn to locate (must exist in the file)
+  @return offset from the beginning of the file for the given lsn */
+  os_offset_t offset(lsn_t lsn) const {
+    lsn_validate();
+    ut_a(contains(lsn) || lsn == m_end_lsn);
+    return offset(lsn, m_start_lsn);
+  }
 
-   @name Fields considered constant, updated when log system
-         is initialized (log_sys_init()) and not assigned to
-         particular log thread.
+  /** Provides offset for the given LSN and log file with the given start_lsn
+  (offset from the beginning of the log file).
+  @param[in]  lsn              lsn to locate (must be >= file_start_lsn)
+  @param[in]  file_start_lsn   start lsn of the log file
+  @return offset from the beginning of the file for the given lsn */
+  static os_offset_t offset(lsn_t lsn, lsn_t file_start_lsn) {
+    return LOG_FILE_HDR_SIZE + (lsn - file_start_lsn);
+  }
 
-   *******************************************************/
+  /** Computes id of the next log file. Does not check if such file exists.
+  @return id of the next log file */
+  Log_file_id next_id() const { return next_id(m_id, 1); }
 
-  /** @{ */
+  /** Opens this file and provides handle that allows to read from this file
+  and / or write to this file (depends on the requested access mode).
+  @param[in]  access_mode      requested access mode (reads and/or writes)
+  @return handle to the opened file or empty handle with error information */
+  Log_file_handle open(Log_file_access_mode access_mode) const;
 
-  /** Capacity of the log files available for log_free_check(). */
-  lsn_t lsn_capacity_for_free_check;
+  /** Opens a given redo log file and provides handle that allows to read from
+  that file and / or write to that file (depends on the requested access mode).
+  @param[in]  files_ctx            context within which file exists
+  @param[in]  file_id              id of the redo log file to open
+  @param[in]  access_mode          requested access mode (reads and/or writes)
+  @param[in]  encryption_metadata  encryption metadata
+  @param[in]  file_type            type of underlying file on disk to open
+  @return handle to the opened file or empty handle with error information */
+  static Log_file_handle open(const Log_files_context &files_ctx,
+                              Log_file_id file_id,
+                              Log_file_access_mode access_mode,
+                              Encryption_metadata &encryption_metadata,
+                              Log_file_type file_type = Log_file_type::NORMAL);
 
-  /** Capacity of log files excluding headers of the log files.
-  If the checkpoint age exceeds this, it is a serious error,
-  because in such case we have already overwritten redo log. */
-  lsn_t lsn_real_capacity;
+  /** Computes id + inc, asserting it does not overflow the maximum value.
+  @param[in]  id    base id of file, to which inc is added
+  @param[in]  inc   number of log files ahead (1 = directly next one)
+  @return id + inc */
+  static Log_file_id next_id(Log_file_id id, size_t inc = 1) {
+    constexpr Log_file_id MAX_FILE_ID = std::numeric_limits<Log_file_id>::max();
+    ut_a(0 < inc);
+    ut_a(inc <= MAX_FILE_ID);
+    ut_a(id <= MAX_FILE_ID - inc);
+    return id + inc;
+  }
+};
 
-  /** When the oldest dirty page age exceeds this value, we start
-  an asynchronous preflush of dirty pages. */
-  lsn_t max_modified_age_async;
+struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t;
 
-  /** When the oldest dirty page age exceeds this value, we start
-  a synchronous flush of dirty pages. */
-  lsn_t max_modified_age_sync;
+/** Runtime statistics related to redo log files management. These stats are
+not persisted to disk. */
+struct Log_files_stats {
+  /** Last time stats were updated (last successful call to @see update()). */
+  Log_clock_point m_last_update_time{};
 
-  /** When checkpoint age exceeds this value, we write checkpoints
-  if lag between oldest_lsn and checkpoint_lsn exceeds max_checkpoint_lag. */
-  lsn_t max_checkpoint_age_async;
+  /** LSN difference by which result of log_files_oldest_needed_lsn() advanced
+  during last second. This is basically average consumption speed.
+  Updated by successful calls to @see update(). */
+  lsn_t m_lsn_consumption_per_1s{0};
 
-  /** @} */
+  /** LSN difference by which result of log_files_newest_needed_lsn() advanced
+  during last second. This is basically average production speed.
+  Updated by successful calls to @see update(). */
+  lsn_t m_lsn_production_per_1s{0};
 
-  /** true if redo logging is disabled. Read and write with writer_mutex  */
-  bool m_disable;
+  /** Oldest LSN returned by log_files_oldest_needed_lsn() during last
+  successful call to @see update(). */
+  lsn_t m_oldest_lsn_on_update{0};
 
-  /** true, if server is not recoverable. Read and write with writer_mutex */
-  bool m_crash_unsafe;
+  /** Newest LSN returned by log_files_newest_needed_lsn() during last
+  successful call to @see update(). */
+  lsn_t m_newest_lsn_on_update{0};
 
-  /** start LSN of first redo log file. */
-  lsn_t m_first_file_lsn;
-
-#endif /* !UNIV_HOTBACKUP */
+  /** Tries to update stats. Fails and skips updating if less than 1s elapsed
+  since last successful update, else: updates the stats and succeeds.
+  @param[in]  log   redo log */
+  void update(const log_t &log);
 };
 
 #endif /* !log0types_h */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ static inline void escape_str(const string &src, size_t start, size_t end,
     switch (src[i]) {
       case '`': /* Escape backtick character. */
         res += '`';
-        /* Fall through. */
+        [[fallthrough]];
       default:
         res += src[i];
     }

@@ -935,6 +935,12 @@ select * from t1;
 # Range key (in t1)
 update t1,t2 set t1.b=t1.b+2,t2.b=t1.b+10 where t1.b between 3 and 5 and t1.a=t2.a+100;
 select * from t1;
+# It is unspecified whether the assignment of t2.b sees the
+# modification of t1.b on the same row. The hypergraph optimizer
+# chooses a different plan (not using range scan on t1.b, as that
+# prevents immediate update) and does the assignments in a different
+# order.
+--skip_if_hypergraph
 select * from t2;
 
 drop table t1,t2;

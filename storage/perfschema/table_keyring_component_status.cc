@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,7 @@ void table_keyring_component_status::materialize() {
         size_t key_buffer_length = 0;
         size_t value_buffer_length = 0;
         if (metadata_query_service->get_length(iterator, &key_buffer_length,
-                                               &value_buffer_length) == true)
+                                               &value_buffer_length) != 0)
           break;
         std::unique_ptr<char[]> key_buffer(new char[key_buffer_length]);
         std::unique_ptr<char[]> value_buffer(new char[value_buffer_length]);
@@ -121,7 +121,7 @@ void table_keyring_component_status::materialize() {
 
         if (metadata_query_service->get(iterator, key_buffer.get(),
                                         key_buffer_length, value_buffer.get(),
-                                        value_buffer_length) == true)
+                                        value_buffer_length) != 0)
           break;
 
         m_row_keyring_component_status.push_back(

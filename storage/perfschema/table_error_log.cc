@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -224,7 +224,7 @@ bool PFS_index_error_log_by_subsys::match(log_sink_pfs_event *row) {
 
   @retval 0    success
 */
-int table_error_log::index_init(uint idx, bool sorted MY_ATTRIBUTE((unused))) {
+int table_error_log::index_init(uint idx, bool sorted [[maybe_unused]]) {
   PFS_index_error_log *result = nullptr;
 
   switch (idx) {

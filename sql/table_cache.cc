@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -282,9 +282,9 @@ void Table_cache_manager::assert_owner_all_and_tdc() {
    @note Caller should own LOCK_open and locks on all table cache
          instances.
 */
-void Table_cache_manager::free_table(THD *thd MY_ATTRIBUTE((unused)),
+void Table_cache_manager::free_table(THD *thd [[maybe_unused]],
                                      enum_tdc_remove_table_type remove_type
-                                         MY_ATTRIBUTE((unused)),
+                                     [[maybe_unused]],
                                      TABLE_SHARE *share) {
   Table_cache_element *cache_el[MAX_TABLE_CACHES];
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include <algorithm>
 
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_byteorder.h"
 
 #include "my_inttypes.h"
@@ -553,10 +554,16 @@ static int cs_value(MY_XML_PARSER *st, const char *attr, size_t len) {
       i->cs.primary_number = strtol(attr, (char **)nullptr, 10);
       break;
     case _CS_COLNAME:
-      i->cs.name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
+      i->cs.m_coll_name = mstr(i->name, attr, len, MY_CS_NAME_SIZE - 1);
       break;
     case _CS_CSNAME:
-      i->cs.csname = mstr(i->csname, attr, len, MY_CS_NAME_SIZE - 1);
+      // Replace "utf8" with "utf8mb3" for external character sets.
+      if (0 == strncmp(attr, "utf8", len))
+        i->cs.csname =
+            mstr(i->csname, STRING_WITH_LEN("utf8mb3"), MY_CS_NAME_SIZE - 1);
+      else
+        i->cs.csname = mstr(i->csname, attr, len, MY_CS_NAME_SIZE - 1);
+      assert(0 != strcmp(i->cs.csname, "utf8"));
       break;
     case _CS_CSDESCRIPT:
       i->cs.comment = mstr(i->comment, attr, len, MY_CS_CSDESCR_SIZE - 1);

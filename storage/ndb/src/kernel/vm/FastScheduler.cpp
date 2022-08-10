@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "FastScheduler.hpp"
 #include "ThreadConfig.hpp"
 #include "RefConvert.hpp"
@@ -135,6 +136,7 @@ FastScheduler::doJob(Uint32 loopStartCount)
       if (reg_bnr > 0) {
         Uint32 tJobCounter = globalData.JobCounter;
         Uint64 tJobLap = globalData.JobLap;
+        require(reg_bnr >= MIN_BLOCK_NO && reg_bnr <= MAX_BLOCK_NO);
         SimulatedBlock* b = globalData.getBlock(reg_bnr);
         theJobPriority[tJobCounter] = (Uint8)tHighPrio;
         globalData.JobCounter = (tJobCounter + 1) & 4095;

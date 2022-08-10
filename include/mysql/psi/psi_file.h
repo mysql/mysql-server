@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@
 #include "my_psi_config.h"  // IWYU pragma: keep
 
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_file_bits.h"
+#include "mysql/components/services/bits/psi_file_bits.h"
 
 /**
   @def PSI_FILE_VERSION_1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option) {
                         FIND_TYPE_ALLOW_NUMBER
                         FIND_TYPE_COMMA_TERM.
                         FIND_TYPE_NO_OVERWRITE can be passed but is
-                        superfluous (is always implicitely on).
+                        redundant (is always implicitly on).
 
   @retval
     -1  Too many matching values
@@ -144,7 +144,7 @@ const char *get_type(TYPELIB *typelib, uint nr) {
 }
 
 /**
-  Create an integer value to represent the supplied comma-seperated
+  Create an integer value to represent the supplied comma-separated
   string where each string in the TYPELIB denotes a bit position.
 
   @param x      string to decompose

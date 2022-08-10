@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "sql/derror.h"
 #include "sql/item_subselect.h"
 #include "sql/mysqld.h"  // table_alias_charset
+#include "sql/parse_tree_helpers.h"
 #include "sql/query_options.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_mgr.h"
@@ -128,7 +129,7 @@ static Opt_hints_qb *find_qb_hints(Parse_context *pc,
       sys_name.length = snprintf(buff, sizeof(buff), "%s%x", "select#",
                                  select->select_number);
 
-      if (!cmp_lex_string(&sys_name, qb_name, system_charset_info)) {
+      if (!cmp_lex_string(sys_name, *qb_name, system_charset_info)) {
         qb = get_qb_hints(pc, select);
         break;
       }
@@ -414,7 +415,8 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
   if (key_list.empty())  // Table level hint
   {
     if ((is_compound_hint(type()) &&
-         tab->get_compound_key_hint(type())->is_hint_conflicting(tab, NULL)) ||
+         tab->get_compound_key_hint(type())->is_hint_conflicting(tab,
+                                                                 nullptr)) ||
         tab->set_switch(switch_on(), type(), false)) {
       print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &table_name.opt_query_block,
                  &table_name.table, nullptr, this);
@@ -452,7 +454,7 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
          tab->get_compound_key_hint(type())->is_hint_conflicting(tab, key))) {
       is_conflicting = true;
       print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &table_name.opt_query_block,
-                 &table_name.table, NULL, this);
+                 &table_name.table, nullptr, this);
       break;
     }
     key_hints.push_back(key);
@@ -524,12 +526,13 @@ bool PT_hint_sys_var::contextualize(Parse_context *pc) {
     return false;
   }
 
-  sys_var *sys_var = find_sys_var_ex(pc->thd, sys_var_name.str,
-                                     sys_var_name.length, true, false);
-  if (!sys_var) {
+  System_variable_tracker var_tracker =
+      System_variable_tracker::make_tracker(to_string_view(sys_var_name));
+  if (var_tracker.access_system_variable(pc->thd, {},
+                                         Suppress_not_found_error::YES)) {
     String str;
     str.append(STRING_WITH_LEN("'"));
-    str.append(sys_var_name.str, sys_var_name.length);
+    str.append(sys_var_name);
     str.append(STRING_WITH_LEN("'"));
     push_warning_printf(
         pc->thd, Sql_condition::SL_WARNING, ER_UNRESOLVED_HINT_NAME,
@@ -537,7 +540,7 @@ bool PT_hint_sys_var::contextualize(Parse_context *pc) {
     return false;
   }
 
-  if (!sys_var->is_hint_updateable()) {
+  if (!var_tracker.is_hint_updateable()) {
     String str;
     str.append(STRING_WITH_LEN("'"));
     str.append(sys_var_name.str, sys_var_name.length);
@@ -555,7 +558,8 @@ bool PT_hint_sys_var::contextualize(Parse_context *pc) {
         new (pc->thd->mem_root) Sys_var_hint(pc->thd->mem_root);
   if (!global_hint->sys_var_hint) return true;
 
-  return global_hint->sys_var_hint->add_var(pc->thd, sys_var, sys_var_value);
+  return global_hint->sys_var_hint->add_var(pc->thd, var_tracker,
+                                            sys_var_value);
 }
 
 bool PT_hint_resource_group::contextualize(Parse_context *pc) {

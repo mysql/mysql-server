@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,15 +43,6 @@
 #define STDX_NONNULL [[gnu::nonnull]]
 #else
 #define STDX_NONNULL
-#endif
-
-// STDX_NODISCARD
-#if __has_cpp_attribute(nodiscard)
-#define STDX_NODISCARD [[nodiscard]]
-#elif __has_cpp_attribute(gnu::warn_unused_result)
-#define STDX_NODISCARD [[gnu::warn_unused_result]]
-#else
-#define STDX_NODISCARD
 #endif
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,8 @@
   @{
 */
 
+namespace {
+
 /**
   @defgroup Instantiators Instantiator functions
 
@@ -123,10 +125,8 @@
 
   @see Function_factory::create_func()
 */
-static const auto MAX_ARGLIST_SIZE =
+constexpr auto MAX_ARGLIST_SIZE =
     std::numeric_limits<decltype(PT_item_list().elements())>::max();
-
-namespace {
 
 /**
   Instantiates a function class with the list of arguments.
@@ -518,6 +518,43 @@ class Instantiator<Function_class, 2, 4> {
 };
 
 /**
+  Instantiates a function class with between two and six arguments.
+
+  @tparam Function_class The class that implements the function. Does not need
+  to inherit Item_func.
+*/
+template <typename Function_class>
+class Instantiator<Function_class, 2, 6> {
+ public:
+  static const uint Min_argcount = 2;
+  static const uint Max_argcount = 6;
+
+  Item *instantiate(THD *thd, PT_item_list *args) {
+    switch (args->elements()) {
+      case 2:
+        return new (thd->mem_root)
+            Function_class(POS(), (*args)[0], (*args)[1]);
+      case 3:
+        return new (thd->mem_root)
+            Function_class(POS(), (*args)[0], (*args)[1], (*args)[2]);
+      case 4:
+        return new (thd->mem_root) Function_class(POS(), (*args)[0], (*args)[1],
+                                                  (*args)[2], (*args)[3]);
+      case 5:
+        return new (thd->mem_root) Function_class(
+            POS(), (*args)[0], (*args)[1], (*args)[2], (*args)[3], (*args)[4]);
+      case 6:
+        return new (thd->mem_root)
+            Function_class(POS(), (*args)[0], (*args)[1], (*args)[2],
+                           (*args)[3], (*args)[4], (*args)[5]);
+      default:
+        assert(false);
+        return nullptr;
+    }
+  }
+};
+
+/**
   Instantiates a function class with two or three arguments.
 
   @tparam Function_class The class that implements the function. Does not need
@@ -640,8 +677,6 @@ using Multipolygonfromwkb_instantiator =
 using Pointfromwkb_instantiator = G_i<I_wkb, wkb_ft::POINTFROMWKB>;
 using Polyfromwkb_instantiator = G_i<I_wkb, wkb_ft::POLYFROMWKB>;
 using Polygonfromwkb_instantiator = G_i<I_wkb, wkb_ft::POLYGONFROMWKB>;
-
-}  // namespace
 
 class Bin_instantiator {
  public:
@@ -934,6 +969,27 @@ class Make_set_instantiator {
   }
 };
 
+/// Instantiates a call to JSON_LENGTH, which may take either one or
+/// two arguments. The two-argument variant is rewritten from
+/// JSON_LENGTH(doc, path) to JSON_LENGTH(JSON_EXTRACT(doc, path)).
+class Json_length_instantiator {
+ public:
+  static constexpr int Min_argcount = 1;
+  static constexpr int Max_argcount = 2;
+
+  Item *instantiate(THD *thd, PT_item_list *args) {
+    if (args->elements() == 1) {
+      return new (thd->mem_root) Item_func_json_length(POS(), (*args)[0]);
+    } else {
+      assert(args->elements() == 2);
+      auto arg = new (thd->mem_root)
+          Item_func_json_extract(thd, POS(), (*args)[0], (*args)[1]);
+      if (arg == nullptr) return nullptr;
+      return new (thd->mem_root) Item_func_json_length(POS(), arg);
+    }
+  }
+};
+
 /// @} (end of group Instantiators)
 
 uint arglist_length(const PT_item_list *args) {
@@ -951,8 +1007,6 @@ bool check_argcount_bounds(THD *, LEX_STRING function_name,
   }
   return false;
 }
-
-namespace {
 
 /**
   Factory for creating function objects. Performs validation check that the
@@ -986,7 +1040,7 @@ class Function_factory : public Create_func {
   }
 
  private:
-  Function_factory() {}
+  Function_factory() = default;
   Instantiator_fn m_instantiator;
 };
 
@@ -1013,7 +1067,7 @@ class Odd_argcount_function_factory : public Create_func {
   }
 
  private:
-  Odd_argcount_function_factory() {}
+  Odd_argcount_function_factory() = default;
   Instantiator_fn m_instantiator;
 };
 
@@ -1040,7 +1094,7 @@ class Even_argcount_function_factory : public Create_func {
   }
 
  private:
-  Even_argcount_function_factory() {}
+  Even_argcount_function_factory() = default;
   Instantiator_fn m_instantiator;
 };
 
@@ -1075,7 +1129,7 @@ class Internal_function_factory : public Create_func {
   }
 
  private:
-  Internal_function_factory() {}
+  Internal_function_factory() = default;
   Instantiator_fn m_instantiator;
 };
 
@@ -1097,9 +1151,9 @@ class Create_sp_func : public Create_qfunc {
 
  protected:
   /** Constructor. */
-  Create_sp_func() {}
+  Create_sp_func() = default;
   /** Destructor. */
-  ~Create_sp_func() override {}
+  ~Create_sp_func() override = default;
 };
 
 Item *Create_qfunc::create_func(THD *thd, LEX_STRING name,
@@ -1123,7 +1177,7 @@ Item *Create_udf_func::create(THD *thd, udf_func *udf,
   assert((udf->type == UDFTYPE_FUNCTION) || (udf->type == UDFTYPE_AGGREGATE));
 
   Item *func = nullptr;
-  POS pos;
+  POS pos{};
 
   switch (udf->returns) {
     case STRING_RESULT:
@@ -1175,7 +1229,7 @@ Item *Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 
 /**
   Shorthand macro to reference the singleton instance when there is a
-  specialized intantiatior.
+  specialized instantiator.
 
   @param INSTANTIATOR The instantiator class.
 */
@@ -1317,8 +1371,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ABS", SQL_FN(Item_func_abs, 1)},
     {"ACOS", SQL_FN(Item_func_acos, 1)},
     {"ADDTIME", SQL_FN(Item_func_add_time, 2)},
-    {"AES_DECRYPT", SQL_FN_V(Item_func_aes_decrypt, 2, 3)},
-    {"AES_ENCRYPT", SQL_FN_V(Item_func_aes_encrypt, 2, 3)},
+    {"AES_DECRYPT", SQL_FN_V(Item_func_aes_decrypt, 2, 6)},
+    {"AES_ENCRYPT", SQL_FN_V(Item_func_aes_encrypt, 2, 6)},
     {"ANY_VALUE", SQL_FN(Item_func_any_value, 1)},
     {"ASIN", SQL_FN(Item_func_asin, 1)},
     {"ATAN", SQL_FN_V(Item_func_atan, 1, 2)},
@@ -1384,7 +1438,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"JSON_CONTAINS", SQL_FN_V_LIST_THD(Item_func_json_contains, 2, 3)},
     {"JSON_CONTAINS_PATH",
      SQL_FN_V_THD(Item_func_json_contains_path, 3, MAX_ARGLIST_SIZE)},
-    {"JSON_LENGTH", SQL_FN_V_THD(Item_func_json_length, 1, 2)},
+    {"JSON_LENGTH", SQL_FACTORY(Json_length_instantiator)},
     {"JSON_DEPTH", SQL_FN(Item_func_json_depth, 1)},
     {"JSON_PRETTY", SQL_FN(Item_func_json_pretty, 1)},
     {"JSON_TYPE", SQL_FN(Item_func_json_type, 1)},
@@ -1488,6 +1542,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"SIN", SQL_FN(Item_func_sin, 1)},
     {"SLEEP", SQL_FN(Item_func_sleep, 1)},
     {"SOUNDEX", SQL_FN(Item_func_soundex, 1)},
+    {"SOURCE_POS_WAIT", SQL_FN_V(Item_source_pos_wait, 2, 4)},
     {"SPACE", SQL_FN(Item_func_space, 1)},
     {"STATEMENT_DIGEST", SQL_FN(Item_func_statement_digest, 1)},
     {"STATEMENT_DIGEST_TEXT", SQL_FN(Item_func_statement_digest_text, 1)},
@@ -1504,7 +1559,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_ASTEXT", SQL_FN_V(Item_func_as_wkt, 1, 2)},
     {"ST_ASWKB", SQL_FN_V(Item_func_as_wkb, 1, 2)},
     {"ST_ASWKT", SQL_FN_V(Item_func_as_wkt, 1, 2)},
-    {"ST_BUFFER", SQL_FN_V_LIST(Item_func_buffer, 2, 5)},
+    {"ST_BUFFER", SQL_FN_V_LIST(Item_func_st_buffer, 2, 5)},
     {"ST_BUFFER_STRATEGY", SQL_FN_V_LIST(Item_func_buffer_strategy, 1, 2)},
     {"ST_CENTROID", SQL_FN(Item_func_centroid, 1)},
     {"ST_CONTAINS", SQL_FN(Item_func_st_contains, 2)},
@@ -1649,7 +1704,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
      SQL_FN_INTERNAL(Item_func_can_access_resource_group, 1)},
     {"CONVERT_CPU_ID_MASK", SQL_FN_INTERNAL(Item_func_convert_cpu_id_mask, 1)},
     {"IS_VISIBLE_DD_OBJECT",
-     SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 2)},
+     SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 3)},
     {"INTERNAL_TABLE_ROWS",
      SQL_FN_LIST_INTERNAL_V(Item_func_internal_table_rows, 8, 9)},
     {"INTERNAL_AVG_ROW_LENGTH",
@@ -1912,7 +1967,7 @@ static bool validate_cast_type_and_extract_length(
         len = my_strtoll10(c_len, nullptr, &error);
         if ((error != 0) || (len > MAX_FIELD_BLOBLENGTH)) {
           my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char",
-                   MAX_FIELD_BLOBLENGTH);
+                   static_cast<unsigned long>(MAX_FIELD_BLOBLENGTH));
           return true;
         }
       }
@@ -2134,8 +2189,10 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
       if (!propagate_datetime_overflow(
               thd, &status.warnings,
               str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
-          ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings)
+          ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings) {
+        check_deprecated_datetime_format(thd, cs, status);
         item = new (thd->mem_root) Item_date_literal(&ltime);
+      }
       break;
     case MYSQL_TYPE_DATETIME:
       if (!propagate_datetime_overflow(
@@ -2144,6 +2201,7 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
           (ltime.time_type == MYSQL_TIMESTAMP_DATETIME ||
            ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) &&
           !status.warnings) {
+        check_deprecated_datetime_format(thd, cs, status);
         if (convert_time_zone_displacement(thd->time_zone(), &ltime))
           return nullptr;
         item = new (thd->mem_root) Item_datetime_literal(
@@ -2152,9 +2210,11 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
       break;
     case MYSQL_TYPE_TIME:
       if (!str_to_time(cs, str, length, &ltime, 0, &status) &&
-          ltime.time_type == MYSQL_TIMESTAMP_TIME && !status.warnings)
+          ltime.time_type == MYSQL_TIMESTAMP_TIME && !status.warnings) {
+        check_deprecated_datetime_format(thd, cs, status);
         item = new (thd->mem_root)
             Item_time_literal(&ltime, status.fractional_digits);
+      }
       break;
     default:
       assert(0);

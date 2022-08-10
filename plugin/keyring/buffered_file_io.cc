@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,7 @@ bool Buffered_file_io::check_file_structure(File file, size_t file_size) {
 
 /**
   loads keyring file content into a Buffer serialized object
-  - only called when keyring is initalizing
+  - only called when keyring is initializing
 
   @param file       - file handle of keyring file
   @param buffer     - serializable object to store file content to
@@ -349,8 +349,9 @@ bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
                     MYF(MY_WME)) == file_version.length() &&
       file_io.write(file, data, data_size, MYF(MY_WME)) == data_size &&
       file_io.write(
-          file, reinterpret_cast<const uchar *>(Checker::eofTAG.c_str()),
-          Checker::eofTAG.length(), MYF(MY_WME)) == Checker::eofTAG.length() &&
+          file, reinterpret_cast<const uchar *>(Checker::get_eofTAG().c_str()),
+          Checker::get_eofTAG().length(),
+          MYF(MY_WME)) == Checker::get_eofTAG().length() &&
       file_io.write(file, reinterpret_cast<const uchar *>(buffer_digest->value),
                     SHA256_DIGEST_LENGTH, MYF(0)) == SHA256_DIGEST_LENGTH)
     return false;

@@ -24,6 +24,7 @@
 #
 
 --source include/not_group_replication_plugin.inc
+--source include/not_rpl_gtid_only.inc
 # This test should run only on debug build
 --source include/have_debug.inc
 # This test uses debug sync to stop the IO thread in the middle of a transaction

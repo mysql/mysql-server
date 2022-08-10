@@ -66,12 +66,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -144,12 +145,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
@@ -235,12 +237,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 1)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -371,12 +374,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = 1)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	4
 Handler_read_rnd_next	8
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -507,12 +511,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` where (`test`.`t11`.`a` = 1)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	4
 Handler_read_rnd_next	8
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -648,12 +653,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`b` < 3)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	4
 Handler_read_rnd_next	5
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -796,12 +802,13 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	4
 Handler_read_rnd_next	8
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	3
@@ -974,12 +981,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	3
 Handler_read_key	5
 Handler_read_rnd_next	12
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	5
@@ -1108,12 +1116,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	4
 Handler_read_rnd_next	8
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	4
@@ -1263,13 +1272,14 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,'1' AS `1` from `test`.`t1` `t11`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	5
 Handler_write	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -1402,12 +1412,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` where (`test`.`t11`.`a` > 1)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	4
 Handler_read_rnd_next	8
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	3
@@ -1480,12 +1491,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 1) limit 1
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	2
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -1532,10 +1544,11 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -1579,10 +1592,11 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -1674,10 +1688,11 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select '3' AS `a`,'3' AS `b` from `test`.`t1` where true
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -1769,10 +1784,11 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 3)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	3
@@ -1867,11 +1883,12 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 0) order by `test`.`t1`.`a`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -1964,12 +1981,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 0) order by `test`.`t1`.`a`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_next	3
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
@@ -2065,13 +2083,14 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (0 <> (@a:=`test`.`t1`.`a`)) order by `test`.`t1`.`a` limit 1
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -2150,7 +2169,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 1
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -2158,6 +2177,7 @@ Handler_read_key	4
 Handler_read_rnd_next	11
 Sort_rows	1
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -2388,13 +2408,14 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`a3` AS `a3`,`test`.`t3`.`b3` AS `b3` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b3` = `test`.`t1`.`b1`) and (`test`.`t3`.`a3` = `test`.`t2`.`b2`) and (`test`.`t2`.`a2` = `test`.`t1`.`a1`))
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	13
 Handler_read_next	3
 Handler_read_rnd_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	8
@@ -2532,12 +2553,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	4
 Handler_read_rnd_next	8
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	4
@@ -2685,12 +2707,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	6
 Handler_read_key	8
 Handler_read_rnd_next	30
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
@@ -2823,12 +2846,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a2` > 2) and (cast(`test`.`t1`.`a1` as double) = cast(`test`.`t2`.`a2` as double)))
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	4
 Handler_read_rnd_next	12
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
@@ -2900,12 +2924,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	3
 Handler_read_rnd_next	6
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -2978,12 +3003,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	3
 Handler_read_rnd_next	6
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
@@ -3084,12 +3110,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	5
 Handler_read_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
@@ -3181,12 +3208,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -3322,12 +3350,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	3
 Handler_read_rnd_next	8
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -3419,12 +3448,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -3461,6 +3491,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	insert into `test`.`t1` (`test`.`t1`.`i`) values (10)
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -3495,6 +3526,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	replace into `test`.`t1` (`test`.`t1`.`i`) values (10)
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -3593,10 +3625,11 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 1
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -3688,7 +3721,7 @@ Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -3696,6 +3729,7 @@ Handler_read_key	3
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
@@ -3791,12 +3825,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	5
 Handler_read_next	26
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -3900,12 +3935,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	5
 Handler_read_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
@@ -3997,7 +4033,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -4005,6 +4041,7 @@ Handler_read_key	5
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -4100,13 +4137,14 @@ EXPLAIN
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -4209,7 +4247,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	9
@@ -4217,6 +4255,7 @@ Handler_read_next	7
 Handler_read_rnd	4
 Sort_rows	4
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
@@ -4323,10 +4362,11 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -4407,7 +4447,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -4415,6 +4455,7 @@ Handler_read_key	4
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
@@ -4514,12 +4555,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
 Handler_read_last	1
 Handler_read_prev	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
@@ -4623,10 +4665,11 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 1
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -4721,7 +4764,7 @@ Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -4729,6 +4772,7 @@ Handler_read_key	3
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -4824,12 +4868,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	5
 Handler_read_next	26
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -4934,12 +4979,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	5
 Handler_read_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -5032,7 +5078,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -5040,6 +5086,7 @@ Handler_read_key	5
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -5134,13 +5181,14 @@ EXPLAIN
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -5242,7 +5290,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	9
@@ -5250,6 +5298,7 @@ Handler_read_next	7
 Handler_read_rnd	4
 Sort_rows	4
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	13
@@ -5357,10 +5406,11 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -5442,7 +5492,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -5450,6 +5500,7 @@ Handler_read_key	4
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -5550,12 +5601,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
 Handler_read_last	1
 Handler_read_prev	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	9
@@ -5668,11 +5720,12 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
 Handler_read_prev	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	6
@@ -5773,11 +5826,12 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
 Handler_read_prev	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	2
@@ -5870,11 +5924,12 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 34)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
 Handler_read_next	2
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	4
@@ -6011,12 +6066,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`c1` = `test`.`t1`.`c1`)) where true
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	7
 Handler_read_rnd_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	3
@@ -6150,12 +6206,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`c1` = `test`.`t1`.`c1`)) where (`test`.`t1`.`c3` = 10)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	7
 Handler_read_rnd_next	4
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -6312,13 +6369,14 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t2`.`f4`) from `test`.`t2` where (`test`.`t2`.`f3` = `test`.`t1`.`f1`)) AS `(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1)` from `test`.`t1`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	7
 Handler_read_next	2
 Handler_read_rnd_next	3
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -6364,7 +6422,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t12	NULL	index	NULL	a	5	NULL	2	100.00	Using index
 Warnings:
-Note	1003	update ignore (`test`.`t1` `t11` join `test`.`t1` `t12`) set `t11`.`a` = 1
+Note	1003	update ignore (`test`.`t1` `t11` join `test`.`t1` `t12`) set `test`.`t11`.`a` = 1
 UPDATE IGNORE v1 SET a = 1;
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 SET SESSION sql_safe_updates = DEFAULT;
@@ -6383,7 +6441,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	update (`test`.`t1` `t11` join `test`.`t1` `t12`) set `t11`.`a` = 1 where (`t11`.`a` > 0)
+Note	1003	update (`test`.`t1` `t11` join `test`.`t1` `t12`) set `test`.`t11`.`a` = 1 where (`test`.`t11`.`a` > 0)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -6491,12 +6549,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` > 0)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	3
 Handler_read_rnd_next	6
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -6660,12 +6719,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` join `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` = `test`.`t1`.`a`)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	3
 Handler_read_key	4
 Handler_read_rnd_next	9
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	5
@@ -6762,12 +6822,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 4)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_next	3
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
@@ -6926,12 +6987,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	8
 Handler_read_rnd_next	5
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
@@ -7091,12 +7153,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	8
 Handler_read_rnd_next	5
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
@@ -7149,9 +7212,10 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select NULL AS `NULL`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	1
@@ -7243,12 +7307,13 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -7474,7 +7539,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) where (`x`.`b` = `test`.`t1`.`a`)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -7483,6 +7548,7 @@ Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -7740,7 +7806,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) where (`x`.`b` = `test`.`t1`.`a`)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -7749,6 +7815,7 @@ Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -8005,7 +8072,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) where (`x`.`b` = `test`.`t1`.`a`)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -8014,6 +8081,7 @@ Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -8155,10 +8223,11 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `t1` from `test`.`t1` where (`test`.`t1`.`a` > 10)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -8254,11 +8323,12 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `t1` from `test`.`t1` where (`test`.`t1`.`a` > 10) order by (`test`.`t1`.`a` + 20)
-#
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
 Sort_scan	1
+# This line exists only to help --skip_if_hypergraph diffing.
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2

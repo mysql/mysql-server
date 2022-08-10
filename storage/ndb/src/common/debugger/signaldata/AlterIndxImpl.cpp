@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
    Use is subject to license terms
 
    This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,12 @@
 bool
 printALTER_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < AlterIndxImplReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const AlterIndxImplReq* sig = (const AlterIndxImplReq*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -44,6 +50,12 @@ printALTER_INDX_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16
 bool
 printALTER_INDX_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < AlterIndxImplConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const AlterIndxImplConf* sig = (const AlterIndxImplConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -54,6 +66,12 @@ printALTER_INDX_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint1
 bool
 printALTER_INDX_IMPL_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < AlterIndxImplRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const AlterIndxImplRef* sig = (const AlterIndxImplRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);

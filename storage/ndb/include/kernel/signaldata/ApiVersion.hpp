@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ class ApiVersionReq {
 
   friend bool printAPI_VERSION_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderRef;
   Uint32 nodeId; //api node id
@@ -66,10 +66,10 @@ class ApiVersionConf {
 
   friend bool printAPI_VERSION_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
-  STATIC_CONST( SignalLengthWithoutSingleUser =  5 );
-  STATIC_CONST( SignalLengthIPv4 = 6);
-  STATIC_CONST( AddrLenWords = (16 * sizeof(unsigned char)) / sizeof(Uint32) );
-  STATIC_CONST( SignalLength = 6 + AddrLenWords );
+  static constexpr Uint32 SignalLengthWithoutSingleUser = 5;
+  static constexpr Uint32 SignalLengthIPv4 = 6;
+  static constexpr Uint32 AddrLenWords = (16 * sizeof(unsigned char)) / sizeof(Uint32);
+  static constexpr Uint32 SignalLength = 6 + AddrLenWords;
 
   Uint32 senderRef;
   Uint32 nodeId; //api node id

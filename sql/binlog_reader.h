@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class Binlog_event_data_istream {
   Binlog_event_data_istream(const Binlog_event_data_istream &) = delete;
   Binlog_event_data_istream &operator=(const Binlog_event_data_istream &) =
       delete;
-  virtual ~Binlog_event_data_istream() {}
+  virtual ~Binlog_event_data_istream() = default;
 
   /**
      Read an event data from the stream and verify its checksum if
@@ -186,7 +186,7 @@ class Binlog_event_object_istream {
       delete;
 
   /**
-     Read an event ojbect from the stream
+     Read an event object from the stream
 
      @param[in] fde The Format_description_event for deserialization.
      @param[in] verify_checksum Verify the checksum of the event_data before
@@ -234,7 +234,7 @@ class Binlog_event_object_istream {
 
    It maintains the Format_description_event which is needed for reading the
    following binlog events. A default format_description_event is initialized
-   at the begining. Then it will be replaced by the one read from the binlog
+   at the beginning. Then it will be replaced by the one read from the binlog
    file.
 
    Some convenient functions is added to encapsulate the access of IFILE,

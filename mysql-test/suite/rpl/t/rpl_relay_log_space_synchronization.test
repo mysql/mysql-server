@@ -43,7 +43,7 @@ INSERT INTO t1 VALUES (1);
 --source include/rpl_connection_slave.inc
 
 # Wait until IO thread tries to take a log_space_lock.
---let $io_thread_id = `SELECT THREAD_ID FROM performance_schema.threads WHERE NAME like '%slave_io%'`
+--let $io_thread_id = `SELECT THREAD_ID FROM performance_schema.threads WHERE NAME like '%replica_io%'`
 --let $wait_condition= SELECT EVENT_NAME= 'wait/synch/mutex/sql/Relay_log_info::log_space_lock' FROM performance_schema.events_waits_current WHERE THREAD_ID=$io_thread_id
 --source include/wait_condition.inc
 

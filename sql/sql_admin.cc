@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"  // Variable_scope_guard
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -74,9 +75,9 @@
 #include "sql/protocol_classic.h"
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
-#include "sql/sp.h"                              // Sroutine_hash_entry
-#include "sql/sp_rcontext.h"                     // sp_rcontext
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
+#include "sql/sp.h"                                // Sroutine_hash_entry
+#include "sql/sp_rcontext.h"                       // sp_rcontext
 #include "sql/sql_alter.h"
 #include "sql/sql_alter_instance.h"  // Alter_instance
 #include "sql/sql_backup_lock.h"     // acquire_shared_backup_lock
@@ -189,8 +190,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   /*
     Check if this is a table type that stores index and data separately,
     like ISAM or MyISAM. We assume fixed order of engine file name
-    extentions array. First element of engine file name extentions array
-    is meta/index file extention. Second element - data file extention.
+    extensions array. First element of engine file name extensions array
+    is meta/index file extension. Second element - data file extension.
   */
   ext = table->file->ht->file_extensions;
   if (!ext || !ext[0] || !ext[1]) goto end;  // No data file
@@ -303,7 +304,8 @@ bool Sql_cmd_analyze_table::drop_histogram(THD *thd, TABLE_LIST *table,
 
   for (const auto column : get_histogram_fields())
     fields.emplace(column->ptr(), column->length());
-  return histograms::drop_histograms(thd, *table, fields, results);
+
+  return histograms::drop_histograms(thd, *table, fields, true, results);
 }
 
 /**
@@ -388,7 +390,7 @@ bool Sql_cmd_analyze_table::send_histogram_results(
         message.append(pair.first);
         message.append("'.");
         break;
-      // Errror messages
+      // Error messages
       case histograms::Message::FIELD_NOT_FOUND:
         message_type.assign("Error");
         message.assign("The column '");
@@ -1342,7 +1344,7 @@ static bool mysql_admin_table(
       /*
         It allows saving GTID and invoking commit order i.e. set
         thd->is_operating_substatement_implicitly = false, when
-        slave-preserve-commit-order is enabled and any of OPTIMIZE TABLE,
+        replica-preserve-commit-order is enabled and any of OPTIMIZE TABLE,
         ANALYZE TABLE and REPAIR TABLE command is getting executed,
         otherwise saving GTID and invoking commit order is disabled.
       */
@@ -1400,7 +1402,7 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD *thd, TABLE_LIST *tables) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  if (!(key_cache = get_key_cache(&m_key_cache_name))) {
+  if (!(key_cache = get_key_cache(to_string_view(m_key_cache_name)))) {
     mysql_mutex_unlock(&LOCK_global_system_variables);
     my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), m_key_cache_name.str);
     return true;
@@ -1487,6 +1489,21 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
           thd, enum_implicit_substatement_guard_mode ::
                    DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
 
+      /*
+        This statement will be written to the binary log even if it fails. But a
+        failing statement calls trans_rollback_stmt which calls
+        gtid_state->update_on_rollback, which releases GTID ownership. And GTID
+        ownership must be held when the statement is being written to the binary
+        log. Therefore, we set this flag before executing the statement. The
+        flag tells gtid_state->update_on_rollback to skip releasing ownership.
+      */
+      Variable_scope_guard<bool> skip_gtid_rollback_guard(
+          thd->skip_gtid_rollback);
+      if ((thd->variables.gtid_next.type == ASSIGNED_GTID ||
+           thd->variables.gtid_next.type == ANONYMOUS_GTID) &&
+          (!thd->skip_gtid_rollback))
+        thd->skip_gtid_rollback = true;
+
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
       switch (get_histogram_command()) {
         case Histogram_command::UPDATE_HISTOGRAM:
@@ -1519,7 +1536,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
         /*
           If a histogram was added, updated or removed, we will request the old
           TABLE_SHARE to go away from the table definition cache. This is
-          beacuse histogram data is cached in the TABLE_SHARE, so we want new
+          because histogram data is cached in the TABLE_SHARE, so we want new
           transactions to fetch the updated data into the TABLE_SHARE before
           using it again.
         */
@@ -1530,7 +1547,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
   }
 
   thd->clear_error();
-  send_histogram_results(thd, results, table);
+  res = send_histogram_results(thd, results, table);
   thd->get_stmt_da()->reset_condition_info(thd);
   my_eof(thd);
   return res;
@@ -1690,7 +1707,7 @@ class Alter_instance_reload_tls : public Alter_instance {
                                      &server_admin_callback, &error, force_);
         break;
       case Ssl_acceptor_context_type::context_last:
-        // Fall through
+        [[fallthrough]];
       default:
         assert(false);
         return false;
@@ -1711,7 +1728,7 @@ class Alter_instance_reload_tls : public Alter_instance {
     if (!res) my_ok(m_thd);
     return res;
   }
-  ~Alter_instance_reload_tls() override {}
+  ~Alter_instance_reload_tls() override = default;
 
  protected:
   bool match_channel_name() {
@@ -1792,7 +1809,7 @@ Sql_cmd_clone::Sql_cmd_clone(LEX_USER *user_info, ulong port,
     : m_port(port), m_data_dir(data_dir), m_clone(), m_is_local(false) {
   m_host = user_info->host;
   m_user = user_info->user;
-  m_passwd = user_info->auth;
+  m_passwd = user_info->first_factor_auth_info.auth;
 }
 
 bool Sql_cmd_clone::execute(THD *thd) {
@@ -2046,18 +2063,17 @@ bool Sql_cmd_create_role::execute(THD *thd) {
   List_iterator<LEX_USER> it(*const_cast<List<LEX_USER> *>(roles));
   LEX_USER *role;
   while ((role = it++)) {
-    role->uses_identified_by_clause = false;
-    role->uses_identified_with_clause = false;
-    role->uses_authentication_string_clause = false;
+    role->first_factor_auth_info.uses_identified_by_clause = false;
+    role->first_factor_auth_info.uses_identified_with_clause = false;
+    role->first_factor_auth_info.uses_authentication_string_clause = false;
     role->alter_status.expire_after_days = 0;
     role->alter_status.account_locked = true;
     role->alter_status.update_account_locked_column = true;
     role->alter_status.update_password_expired_fields = true;
     role->alter_status.use_default_password_lifetime = true;
     role->alter_status.update_password_expired_column = true;
-    role->auth.str = nullptr;
-    role->auth.length = 0;
-    role->has_password_generator = false;
+    role->first_factor_auth_info.auth = {};
+    role->first_factor_auth_info.has_password_generator = false;
   }
   if (!(mysql_create_user(thd, *const_cast<List<LEX_USER> *>(roles),
                           if_not_exists, true))) {
@@ -2119,9 +2135,12 @@ bool Sql_cmd_set_role::execute(THD *thd) {
 
     Update the flag in THD if invoker has SYSTEM_USER privilege not if the
     definer user has that privilege.
+    Do the same for the CONNECTION_ADMIN user privilege flag.
   */
-  if (!ret) set_system_user_flag(thd, true);
-
+  if (!ret) {
+    set_system_user_flag(thd, true);
+    set_connection_admin_flag(thd, true);
+  }
   return ret;
 }
 

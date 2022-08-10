@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Acl_table {
       : m_thd(thd), m_table(table), m_operation(operation), m_error(0) {
     assert(m_table);
   }
-  virtual ~Acl_table() {}
+  virtual ~Acl_table() = default;
 
   /* Don't allow copy */
   Acl_table(const Acl_table &) = delete;

@@ -15,8 +15,8 @@ call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_ro
 call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 call mtr.add_suppression("Error writing relay log configuration.");
 --source include/stop_slave.inc
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=2;
+SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers=2;
 --source include/start_slave.inc
 
 --connection master
@@ -101,13 +101,14 @@ let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
 --error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
 
-SET @@global.slave_parallel_workers= @save.slave_parallel_workers; # cleanup
-
+--disable_warnings
+SET @@global.replica_parallel_workers= @save.replica_parallel_workers; # cleanup
+--enable_warnings
 #
 # --relay-log-recovery= 1 and MTS gaps is handled similarly to Change-Master
 #
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start
+--let $rpl_server_parameters= --relay-log-recovery --skip-replica-start
 --source include/rpl_restart_server.inc
 
 --connection slave
@@ -124,7 +125,7 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 #
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories");
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --skip-slave-start
+--let $rpl_server_parameters= --skip-replica-start
 --source include/rpl_restart_server.inc
 
 SELECT @@global.relay_log_recovery as 'must be OFF';
@@ -160,8 +161,8 @@ DROP DATABASE d2;
 ###############################################################################
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=2;
+SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers=2;
 SET @save.relay_log_info_repository=@@global.relay_log_info_repository;
 SET @@global.relay_log_info_repository='TABLE';
 --source include/start_slave.inc
@@ -222,7 +223,7 @@ reset slave;
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $pos ;
 
 --disable_warnings
-SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 SET @@global.relay_log_info_repository= @save.relay_log_info_repository;
 --enable_warnings
 --source include/start_slave.inc

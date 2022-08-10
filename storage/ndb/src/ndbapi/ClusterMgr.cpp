@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
+#include <EventLogger.hpp>
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -97,7 +98,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   Uint32 ret = this->open(&theFacade, API_CLUSTERMGR);
   if (unlikely(ret == 0))
   {
-    ndbout_c("Failed to register ClusterMgr! ret: %d", ret);
+    g_eventLogger->info("Failed to register ClusterMgr! ret: %d", ret);
     abort();
   }
   DBUG_VOID_RETURN;
@@ -239,7 +240,9 @@ ClusterMgr::startThread()
                                          NDB_THREAD_PRIO_HIGH);
   if (theClusterMgrThread == NULL)
   {
-    ndbout_c("ClusterMgr::startThread: Failed to create thread for cluster management.");
+    g_eventLogger->info(
+        "ClusterMgr::startThread:"
+        " Failed to create thread for cluster management.");
     assert(theClusterMgrThread != NULL);
     DBUG_VOID_RETURN;
   }
@@ -452,7 +455,8 @@ ClusterMgr::threadMain()
           signal.theReceiversBlockNumber = QMGR;
 
 #ifdef DEBUG_REG
-	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
+        g_eventLogger->info("ClusterMgr: Sending API_REGREQ to node %d",
+                            (int)nodeId);
 #endif
         if (nodeId == getOwnNodeId())
         {
@@ -754,7 +758,7 @@ ClusterMgr::sendProcessInfoReport(NodeId nodeId)
   m_process_info->buildProcessInfoReport(report);
 
   const char * uri_path = m_process_info->getUriPath();
-  pathSection.p = (Uint32 *) uri_path;
+  pathSection.p = (const Uint32*)uri_path;
   pathSection.sz = ProcessInfo::UriPathLengthInWords;
   if(uri_path[0])
   {
@@ -765,7 +769,7 @@ ClusterMgr::sendProcessInfoReport(NodeId nodeId)
   if(hostAddress[0])
   {
     nsections = 2;
-    hostSection.p = (Uint32 *) hostAddress;
+    hostSection.p = (const Uint32*)hostAddress;
     hostSection.sz = ProcessInfo::AddressStringLengthInWords;
   }
   safe_noflush_sendSignal(&signal, nodeId, ptr, nsections);
@@ -778,11 +782,11 @@ ClusterMgr::sendProcessInfoReport(NodeId nodeId)
 
 void
 ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
-  const ApiRegReq * const apiRegReq = (ApiRegReq *)&theData[0];
+  const ApiRegReq* const apiRegReq = (const ApiRegReq*)&theData[0];
   const NodeId nodeId = refToNode(apiRegReq->ref);
 
 #ifdef DEBUG_REG
-  ndbout_c("ClusterMgr: Recd API_REGREQ from node %d", nodeId);
+  g_eventLogger->info("ClusterMgr: Recd API_REGREQ from node %d", nodeId);
 #endif
 
   assert(nodeId > 0 && nodeId < MAX_NODES);
@@ -851,7 +855,7 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
   const NodeId nodeId = refToNode(apiRegConf->qmgrRef);
   
 #ifdef DEBUG_REG
-  ndbout_c("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
+  g_eventLogger->info("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
 #endif
 
   assert(nodeId > 0 && nodeId < MAX_NODES);
@@ -965,9 +969,8 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
 
 void
 ClusterMgr::execAPI_REGREF(const Uint32 * theData){
-  
-  ApiRegRef * ref = (ApiRegRef*)theData;
-  
+  const ApiRegRef* ref = (const ApiRegRef*)theData;
+
   const NodeId nodeId = refToNode(ref->ref);
 
   assert(nodeId > 0 && nodeId < MAX_NODES);
@@ -987,7 +990,8 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
 
   switch(ref->errorCode){
   case ApiRegRef::WrongType:
-    ndbout_c("Node %d reports that this node should be a NDB node", nodeId);
+    g_eventLogger->info("Node %d reports that this node should be a NDB node",
+                        nodeId);
     abort();
   case ApiRegRef::UnsupportedVersion:
   default:
@@ -1075,7 +1079,6 @@ ClusterMgr::execDUMP_STATE_ORD(const NdbApiSignal* signal,
     {
       return;
     }
-    Uint32 tot_len = length;
     LinearSectionPtr ptr[3];
     Uint32 sec_max_len = 0;
     for (Uint32 i = 0; i < num_secs; i++)
@@ -1086,7 +1089,6 @@ ClusterMgr::execDUMP_STATE_ORD(const NdbApiSignal* signal,
         sec_max_len = sec_len;
       }
       ptr[i].sz = sec_len;
-      tot_len += sec_len;
     }
     Uint32* dummy_data = new Uint32[sec_max_len];
     for (Uint32 i = 0; i < sec_max_len; i++)
@@ -1572,28 +1574,25 @@ ClusterMgr::setProcessInfoUri(const char * scheme, const char * address_string,
 /******************************************************************************
  * Arbitrator
  ******************************************************************************/
-ArbitMgr::ArbitMgr(ClusterMgr & c)
-  : m_clusterMgr(c)
+ArbitMgr::ArbitMgr(ClusterMgr& c)
+    : m_clusterMgr(c),
+      theRank(0),
+      theDelay(0),
+      theThread(nullptr),
+      theInputTimeout(0),
+      theInputFull(false),
+      theInputBuffer(),
+      theState(StateInit),
+      theStartReq(),
+      theChooseReq1(),
+      theChooseReq2(),
+      theStopOrd()
 {
   DBUG_ENTER("ArbitMgr::ArbitMgr");
 
   theThreadMutex = NdbMutex_Create();
   theInputCond = NdbCondition_Create();
   theInputMutex = NdbMutex_Create();
-  
-  theRank = 0;
-  theDelay = 0;
-  theThread = 0;
-
-  theInputTimeout = 0;
-  theInputFull = false;
-  memset(&theInputBuffer, 0, sizeof(theInputBuffer));
-  theState = StateInit;
-
-  memset(&theStartReq, 0, sizeof(theStartReq));
-  memset(&theChooseReq1, 0, sizeof(theChooseReq1));
-  memset(&theChooseReq2, 0, sizeof(theChooseReq2));
-  memset(&theStopOrd, 0, sizeof(theStopOrd));
 
   DBUG_VOID_RETURN;
 }
@@ -1635,7 +1634,8 @@ ArbitMgr::doStart(const Uint32* theData)
     NDB_THREAD_PRIO_HIGH);
   if (theThread == NULL)
   {
-    ndbout_c("ArbitMgr::doStart: Failed to create thread for arbitration.");
+    g_eventLogger->info(
+        "ArbitMgr::doStart: Failed to create thread for arbitration.");
     assert(theThread != NULL);
   }
   NdbMutex_Unlock(theThreadMutex);

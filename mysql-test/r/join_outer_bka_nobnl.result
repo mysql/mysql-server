@@ -1957,7 +1957,7 @@ EXPLAIN
             -> Nested loop inner join  (cost=0.70 rows=1)
                 -> Filter: (t3.col_varchar_10 = t2.col_varchar_10)  (cost=0.35 rows=1)
                     -> Table scan on t3  (cost=0.35 rows=1)
-                -> Single-row index lookup on t4 using PRIMARY (pk=t3.col_int)  (cost=0.35 rows=1)
+                -> Single-row covering index lookup on t4 using PRIMARY (pk=t3.col_int)  (cost=0.35 rows=1)
 
 DROP TABLE t1,t2,t3,t4;
 
@@ -3641,7 +3641,7 @@ EXPLAIN
         -> Nested loop inner join  (cost=1.15 rows=2)
             -> Filter: (t1.pk < 5)  (cost=0.45 rows=2)
                 -> Table scan on t1  (cost=0.45 rows=2)
-            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.30 rows=1)
+            -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.30 rows=1)
     -> Multi-range index lookup on t3 using k2 (f2=t1.pk)
 
 SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
@@ -3749,5 +3749,17 @@ id	b	id
 17	NULL	NULL
 136	564	564
 137	NULL	NULL
+DROP TABLE t1, t2;
+#
+# Bug#33639644: sig11 in CreateIteratorFromAccessPath
+#
+CREATE TABLE t1 (x INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (x INTEGER);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+WITH subq(x) AS (SELECT 1 AS x FROM t1 AS t1a, t1 AS t1b, t2 WHERE FALSE)
+SELECT 1 FROM t1 LEFT JOIN subq ON t1.x = subq.x ORDER BY subq.x;
+1
+1
 DROP TABLE t1, t2;
 set optimizer_switch=default;

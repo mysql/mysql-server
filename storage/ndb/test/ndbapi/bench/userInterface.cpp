@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,8 +124,8 @@ userDbCommit(UserHandle *uh){
 }
 
 /**
- * TRUE - Normal table
- * FALSE - Table w.o. checkpoing and logging
+ * true - Normal table
+ * false - Table w.o. checkpoing and logging
  */
 extern int useTableLogging;
 

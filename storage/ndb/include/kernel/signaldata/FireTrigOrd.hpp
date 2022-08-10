@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,9 +64,9 @@ class FireTrigOrd {
   friend bool printFIRE_TRIG_ORD(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 11 );
-  STATIC_CONST( SignalWithGCILength = 9 );
-  STATIC_CONST( SignalLengthSuma = 14 );
+  static constexpr Uint32 SignalLength = 11;
+  static constexpr Uint32 SignalWithGCILength = 9;
+  static constexpr Uint32 SignalLengthSuma = 14;
 
 private:
   Uint32 m_connectionPtr;
@@ -232,7 +232,7 @@ void FireTrigOrd::setAnyValue(Uint32 any_value)
 
 struct FireTrigReq
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 tcOpRec;
   Uint32 transId[2];
@@ -241,7 +241,7 @@ struct FireTrigReq
 
 struct FireTrigRef
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 tcOpRec;
   Uint32 transId[2];
@@ -256,7 +256,7 @@ struct FireTrigRef
 
 struct FireTrigConf
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 tcOpRec;
   Uint32 transId[2];

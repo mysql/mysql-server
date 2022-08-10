@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ class GetNumMultiTrpReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 public:
   Uint32 numMultiTrps;
   Uint32 nodeId;
@@ -43,7 +43,7 @@ class GetNumMultiTrpConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
 public:
   Uint32 numMultiTrps;
@@ -59,7 +59,7 @@ class GetNumMultiTrpRef {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   enum ErrorCode
   {
     NotReadyYet = 1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,7 +265,7 @@ static const uchar sort_order_euc_kr[] = {
   (iseuc_kr_tail1(c) || iseuc_kr_tail2(c) || iseuc_kr_tail3(c))
 
 extern "C" {
-static uint ismbchar_euc_kr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint ismbchar_euc_kr(const CHARSET_INFO *cs [[maybe_unused]],
                             const char *p, const char *e) {
   return ((static_cast<uchar>(*p) < 0x80)
               ? 0
@@ -275,8 +275,7 @@ static uint ismbchar_euc_kr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                     : 0);
 }
 
-static uint mbcharlen_euc_kr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                             uint c) {
+static uint mbcharlen_euc_kr(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (iseuc_kr_head(c) ? 2 : 1);
 }
 }  // extern "C"
@@ -9347,8 +9346,8 @@ static int func_uni_ksc5601_onechar(int code) {
 }
 
 extern "C" {
-static int my_wc_mb_euc_kr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_euc_kr(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                           uchar *s, uchar *e) {
   int code;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -9368,7 +9367,7 @@ static int my_wc_mb_euc_kr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return 2;
 }
 
-static int my_mb_wc_euc_kr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_mb_wc_euc_kr(const CHARSET_INFO *cs [[maybe_unused]],
                            my_wc_t *pwc, const uchar *s, const uchar *e) {
   int hi;
 
@@ -9389,9 +9388,9 @@ static int my_mb_wc_euc_kr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 /*
   Returns well formed length of a EUC-KR string.
 */
-static size_t my_well_formed_len_euckr(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_euckr(const CHARSET_INFO *cs [[maybe_unused]],
+                                       const char *b, const char *e, size_t pos,
+                                       int *error) {
   const char *b0 = b;
   const char *emb = e - 1; /* Last possible end of an MB character */
 
@@ -9432,7 +9431,7 @@ static MY_CHARSET_HANDLER my_charset_handler = {
     ismbchar_euc_kr,
     mbcharlen_euc_kr,
     my_numchars_mb,
-    my_charpos_mb,
+    my_charpos_mb3,
     my_well_formed_len_euckr,
     my_lengthsp_8bit,
     my_numcells_8bit,
@@ -9462,7 +9461,7 @@ CHARSET_INFO my_charset_euckr_korean_ci = {
     0,                              /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state      */
     "euckr",                        /* cs name    */
-    "euckr_korean_ci",              /* name */
+    "euckr_korean_ci",              /* m_coll_name */
     "EUC-KR Korean",                /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */
@@ -9497,7 +9496,7 @@ CHARSET_INFO my_charset_euckr_bin = {
     0,                              /* number */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
     "euckr",                        /* cs name    */
-    "euckr_bin",                    /* name */
+    "euckr_bin",                    /* m_coll_name */
     "EUC-KR Korean",                /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

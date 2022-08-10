@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,9 @@ Revision history:
 
  * *************************************************** */
 
+#include "util/require.h"
 #include <ndb_global.h>
+#include <cstring>
 #include <NdbApi.hpp>
 
 #include <NdbThread.h>
@@ -362,7 +364,7 @@ flexHammerThread(void* pArg)
   int tThreadResult = 0;
   MyOpType tMyOpType = otLast;
   int pkValue = 0;
-  int readValue[MAXATTR][MAXATTRSIZE]; bzero(readValue, sizeof(readValue));
+  int readValue[MAXATTR][MAXATTRSIZE]; std::memset(readValue, 0, sizeof(readValue));
   int attrValue[MAXATTRSIZE];
   NdbRecAttr* tTmp = NULL;
   int tNoOfAttempts = 0;

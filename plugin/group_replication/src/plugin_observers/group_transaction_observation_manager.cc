@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
-Group_transaction_listener::~Group_transaction_listener() {}
+Group_transaction_listener::~Group_transaction_listener() = default;
 
 Group_transaction_observation_manager::Group_transaction_observation_manager() {
   transaction_observer_list_lock = new Checkable_rwlock(

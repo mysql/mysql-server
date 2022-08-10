@@ -1,0 +1,52 @@
+#
+# Bug#28714864: Running 'analyze' on table with unsupported index length crashes the data nodes
+#
+#setup
+create table t1(
+a int auto_increment primary key,
+b varchar(3053),
+c varchar(3056),
+d varchar(3072),
+col1 varchar(762) not null,
+col2 varchar(762) not null,
+col3 varchar(762) not null,
+col4 varchar(762) not null
+) engine ndb charset latin1;
+# populate enough rows to generate index stats
+# create index on b - it has the maximum key size supported by ndb index stat
+create index idxb on t1(b);
+# analyze should run fine and create statistics
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+drop index idxb on t1;
+# create index on c - it has a key size unsupported by ndb index stat
+# a warning should be returned
+create index idxc on t1(c);
+Warnings:
+Warning	1296	Specified key 'idxc' was too long (max = 3056 bytes); statistics will not be generated
+# analyze should run fine but statistics aren't created
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+drop index idxc on t1;
+# create index on d - it has the maximum key size allowed by mysql(3072)
+# but the key size is unsupported by ndb index stat
+# a warning should be returned
+create index idxd on t1(d);
+Warnings:
+Warning	1296	Specified key 'idxd' was too long (max = 3056 bytes); statistics will not be generated
+# analyze should run fine but statistics aren't created
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+drop index idxd on t1;
+# create index on col1..col4 - it has the maximum key size supported by ndb index stat
+create index idxcol on t1(col1, col2, col3, col4);
+# analyze should run fine
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+drop index idxcol on t1;
+#cleanup
+drop table t1;

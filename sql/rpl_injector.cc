@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -250,7 +250,7 @@ injector::transaction::binlog_pos injector::transaction::next_pos() const {
 */
 
 /* This constructor is called below */
-inline injector::injector() {}
+inline injector::injector() = default;
 
 static injector *s_injector = nullptr;
 injector *injector::instance() {

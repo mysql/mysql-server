@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -147,7 +147,7 @@ class PFS_buffer_default_allocator {
  public:
   typedef PFS_buffer_default_array<T> array_type;
 
-  PFS_buffer_default_allocator(PFS_builtin_memory_class *klass)
+  explicit PFS_buffer_default_allocator(PFS_builtin_memory_class *klass)
       : m_builtin_class(klass) {}
 
   int alloc_array(array_type *array) {
@@ -191,7 +191,7 @@ class PFS_buffer_container {
   typedef PFS_buffer_processor<T> processor_type;
   typedef void (*function_type)(value_type *);
 
-  PFS_buffer_container(allocator_type *allocator) {
+  explicit PFS_buffer_container(allocator_type *allocator) {
     m_array.m_full = true;
     m_array.m_ptr = NULL;
     m_array.m_max = 0;
@@ -385,7 +385,7 @@ class PFS_buffer_scalable_container {
 
   static const size_t MAX_SIZE = PFS_PAGE_SIZE * PFS_PAGE_COUNT;
 
-  PFS_buffer_scalable_container(allocator_type *allocator) {
+  explicit PFS_buffer_scalable_container(allocator_type *allocator) {
     m_allocator = allocator;
     m_initialized = false;
   }
@@ -968,7 +968,7 @@ class PFS_buffer_scalable_iterator {
 template <class T>
 class PFS_buffer_processor {
  public:
-  virtual ~PFS_buffer_processor<T>() {}
+  virtual ~PFS_buffer_processor<T>() = default;
   virtual void operator()(T *element) = 0;
 };
 
@@ -985,7 +985,8 @@ class PFS_partitioned_buffer_scalable_container {
   typedef typename B::processor_type processor_type;
   typedef typename B::function_type function_type;
 
-  PFS_partitioned_buffer_scalable_container(allocator_type *allocator) {
+  explicit PFS_partitioned_buffer_scalable_container(
+      allocator_type *allocator) {
     for (int i = 0; i < PFS_PARTITION_COUNT; i++) {
       m_partitions[i] = new B(allocator);
     }

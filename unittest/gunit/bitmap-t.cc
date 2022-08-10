@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ const int BITMAP_SIZE = 128;
 
 class BitmapTest : public ::testing::Test {
  protected:
-  BitmapTest() {}
+  BitmapTest() = default;
 
   void SetUp() override { bitmap.init(); }
 

@@ -61,7 +61,7 @@ source include/assert.inc;
 --connection slave
 
 --let $slave_param= Slave_SQL_Running_State
---let $slave_param_value= Slave has read all relay log; waiting for more updates
+--let $slave_param_value= Replica has read all relay log; waiting for more updates
 source include/wait_for_slave_param.inc;
 
 --echo
@@ -72,7 +72,7 @@ source include/wait_for_slave_param.inc;
 # the thread.
 # Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
 # table for applier status.
-let $worker_count= `select @@global.slave_parallel_workers`;
+let $worker_count= `select @@global.replica_parallel_workers`;
 if ($worker_count == 0)
 {
   let $thread_name= `select name from performance_schema.threads where
@@ -87,7 +87,7 @@ if ($worker_count != 0)
 thread_id= (select Thread_Id from performance_schema.replication_applier_status_by_coordinator)`;
 }
 let $assert_text= thread_name should should indicate sql thread.;
-let $assert_cond= "$thread_name" = "thread/sql/slave_sql";
+let $assert_cond= "$thread_name" = "thread/sql/replica_sql";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
@@ -150,7 +150,7 @@ source include/wait_for_slave_sql_error.inc;
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 # Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
 # table for applier status.
-let $worker_count= `select @@global.slave_parallel_workers`;
+let $worker_count= `select @@global.replica_parallel_workers`;
 if ($worker_count == 0)
 {
   let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_worker, Last_Error_Number, 1);
@@ -174,7 +174,7 @@ source include/assert.inc;
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
 # Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
 # table for applier status.
-let $worker_count= `select @@global.slave_parallel_workers`;
+let $worker_count= `select @@global.replica_parallel_workers`;
 if ($worker_count == 0)
 {
   let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_worker, Last_Error_Message, 1);
@@ -217,7 +217,7 @@ EOF
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 # Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
 # table for applier status.
-let $worker_count= `select @@global.slave_parallel_workers`;
+let $worker_count= `select @@global.replica_parallel_workers`;
 if ($worker_count == 0)
 {
   let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_worker, Last_Error_Timestamp, 1);
@@ -265,7 +265,7 @@ source include/assert.inc;
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 # Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
 # table for applier status.
-let $worker_count= `select @@global.slave_parallel_workers`;
+let $worker_count= `select @@global.replica_parallel_workers`;
 if ($worker_count == 0)
 {
   let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_worker, Last_Error_Number, 1);
@@ -288,7 +288,7 @@ source include/assert.inc;
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
 # Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
 # table for applier status.
-let $worker_count= `select @@global.slave_parallel_workers`;
+let $worker_count= `select @@global.replica_parallel_workers`;
 if ($worker_count == 0)
 {
   let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_worker, Last_Error_Message, 1);
@@ -331,7 +331,7 @@ EOF
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 # Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
 # table for applier status.
-let $worker_count= `select @@global.slave_parallel_workers`;
+let $worker_count= `select @@global.replica_parallel_workers`;
 if ($worker_count == 0)
 {
   let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_worker, Last_Error_Timestamp, 1);
@@ -379,21 +379,21 @@ eval CHANGE REPLICATION SOURCE to
   SOURCE_HOST='127.0.0.1',
   SOURCE_PORT=$MASTER_MYPORT,
   SOURCE_USER='root';
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=1;
+SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers=1;
 # to avoid warnings
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @save.replica_transaction_retries= @@global.replica_transaction_retries;
 source include/start_slave.inc;
 
 --let $slave_param= Slave_SQL_Running_State
---let $slave_param_value= Slave has read all relay log; waiting for more updates
+--let $slave_param_value= Replica has read all relay log; waiting for more updates
 source include/wait_for_slave_param.inc;
 
 # To verify the correctness of thread_id field, we check for the name of
 # the thread.
 let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_applier_status_by_coordinator)`;
 let $assert_text= thread_name should should indicate sql thread.;
-let $assert_cond= "$thread_name" = "thread/sql/slave_sql";
+let $assert_cond= "$thread_name" = "thread/sql/replica_sql";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
@@ -425,8 +425,10 @@ source include/assert.inc;
 --echo
 
 source include/stop_slave.inc;
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+--disable_warnings
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
+set @@global.replica_transaction_retries= @save.replica_transaction_retries;
 source include/start_slave.inc;
 
 source include/rpl_end.inc;

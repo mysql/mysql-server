@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,17 @@
 
 #include <signaldata/DropFK.hpp>
 
-bool
-printDROP_FK_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printDROP_FK_REQ(FILE* output,
+                      const Uint32* theData,
+                      Uint32 len,
+                      Uint16 /*rbn*/)
 {
+  if (len < DropFKReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropFKReq* sig = (const DropFKReq*)theData;
   fprintf(output, " clientData: %u", sig->clientData);
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
@@ -41,9 +49,17 @@ printDROP_FK_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
   return true;
 }
 
-bool
-printDROP_FK_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printDROP_FK_REF(FILE* output,
+                      const Uint32* theData,
+                      Uint32 len,
+                      Uint16 /*rbn*/)
 {
+  if (len < DropFKReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropFKRef* sig = (const DropFKRef*)theData;
   fprintf(output, " clientData: %u", sig->senderData);
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
@@ -57,9 +73,17 @@ printDROP_FK_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
   return true;
 }
 
-bool
-printDROP_FK_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+bool printDROP_FK_CONF(FILE* output,
+                       const Uint32* theData,
+                       Uint32 len,
+                       Uint16 /*rbn*/)
 {
+  if (len < DropFKConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropFKConf* sig = (const DropFKConf*)theData;
   fprintf(output, " senderData: %u", sig->senderData);
   fprintf(output, " senderRef: 0%x", sig->senderRef);

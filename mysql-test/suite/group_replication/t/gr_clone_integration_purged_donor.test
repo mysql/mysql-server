@@ -75,6 +75,7 @@ FLUSH BINARY LOGS;
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 
 --let $plugin_list= $GROUP_REPLICATION
 --source include/spawn_monitoring_process.inc
@@ -84,6 +85,8 @@ FLUSH BINARY LOGS;
 --eval SET PERSIST  group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST  group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST  group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST  group_replication_communication_stack= "$_group_replication_comm_stack"
+
 --enable_query_log
 
 --echo
@@ -116,6 +119,8 @@ START GROUP_REPLICATION;
 RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+
 
 DROP TABLE t1;
 --source include/gtid_utils_end.inc

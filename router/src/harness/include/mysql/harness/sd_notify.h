@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,11 @@
 
 #include "harness_export.h"
 
+#include <string>
+
 namespace mysql_harness {
 
+bool HARNESS_EXPORT notify_status(const std::string &msg);
 bool HARNESS_EXPORT notify_ready();
 bool HARNESS_EXPORT notify_stopping();
 

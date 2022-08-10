@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ namespace Dump {
 class Thread_specific_connection_provider
     : public Abstract_connection_provider {
  public:
-  Thread_specific_connection_provider(
+  explicit Thread_specific_connection_provider(
       Mysql::Tools::Base::I_connection_factory *connection_factory);
   ~Thread_specific_connection_provider() override;
 

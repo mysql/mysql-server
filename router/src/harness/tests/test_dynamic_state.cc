@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,33 +25,29 @@
 #include "mysql/harness/dynamic_state.h"
 
 ////////////////////////////////////////
-// Test system include files
-#include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
-////////////////////////////////////////
 // Standard include files
-#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
+////////////////////////////////////////
+// Third-party include files
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "test/helpers.h"
+
 using mysql_harness::DynamicState;
 
-class DynamicConfigTest : public ::testing::Test {
- protected:
-  void SetUp() override {}
-};
+class DynamicConfigTest : public ::testing::Test {};
 
 namespace {
 
 std::string conf_to_str(DynamicState &conf, bool pretty = false) {
   std::stringstream ss;
-  conf.save_to_stream(ss, pretty);
+  conf.save_to_stream(ss, false, pretty);
   return ss.str();
 }
 
@@ -88,8 +84,6 @@ TEST_F(DynamicConfigTest, MultipleSectionsUpdate) {
   EXPECT_EQ("{\"a\":\"b2\",\"c\":\"d2\",\"version\":\"1.0.0\"}",
             conf_to_str(conf));
 }
-
-// TODO: more tests
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

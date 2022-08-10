@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,12 +43,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define UT_RANDOM_3 1.0132677
 
 /*************************************************************/ /**
- Folds a pair of ib_ulint_ts.
+ Folds a pair of uint64_ts.
  @return folded value */
-static ib_ulint_t ut_fold_ib_ulint_t_pair(
+static uint64_t ut_fold_uint64_t_pair(
     /*====================*/
-    ib_ulint_t n1, /*!< in: ib_ulint_t */
-    ib_ulint_t n2) /*!< in: ib_ulint_t */
+    uint64_t n1, /*!< in: uint64_t */
+    uint64_t n2) /*!< in: uint64_t */
 {
   return (
       ((((n1 ^ n2 ^ UT_HASH_RANDOM_MASK2) << 8) + n1) ^ UT_HASH_RANDOM_MASK) +
@@ -58,14 +58,14 @@ static ib_ulint_t ut_fold_ib_ulint_t_pair(
 /*************************************************************/ /**
  Folds a character string ending in the null character.
  @return folded value */
-ib_ulint_t ut_fold_string(
+uint64_t ut_fold_string(
     /*===========*/
     const char *str) /*!< in: null-terminated string */
 {
-  ib_ulint_t fold = 0;
+  uint64_t fold = 0;
 
   while (*str != '\0') {
-    fold = ut_fold_ib_ulint_t_pair(fold, (ib_ulint_t)(*str));
+    fold = ut_fold_uint64_t_pair(fold, (uint64_t)(*str));
     str++;
   }
 
@@ -76,12 +76,12 @@ ib_ulint_t ut_fold_string(
  Looks for a prime number slightly greater than the given argument.
  The prime is chosen so that it is not near any power of 2.
  @return prime */
-static ib_ulint_t ut_find_prime(
+static uint64_t ut_find_prime(
     /*==========*/
-    ib_ulint_t n) /*!< in: positive number > 100 */
+    uint64_t n) /*!< in: positive number > 100 */
 {
-  ib_ulint_t pow2;
-  ib_ulint_t i;
+  uint64_t pow2;
+  uint64_t i;
 
   n += 100;
 
@@ -91,13 +91,13 @@ static ib_ulint_t ut_find_prime(
   }
 
   if ((double)n < 1.05 * (double)pow2) {
-    n = (ib_ulint_t)((double)n * UT_RANDOM_1);
+    n = (uint64_t)((double)n * UT_RANDOM_1);
   }
 
   pow2 = 2 * pow2;
 
   if ((double)n > 0.95 * (double)pow2) {
-    n = (ib_ulint_t)((double)n * UT_RANDOM_2);
+    n = (uint64_t)((double)n * UT_RANDOM_2);
   }
 
   if (n > pow2 - 20) {
@@ -108,7 +108,7 @@ static ib_ulint_t ut_find_prime(
   n more random (especially, if it was not near
   a power of 2), we then multiply it by a random number. */
 
-  n = (ib_ulint_t)((double)n * UT_RANDOM_3);
+  n = (uint64_t)((double)n * UT_RANDOM_3);
 
   for (;; n++) {
     i = 2;
@@ -133,10 +133,10 @@ static ib_ulint_t ut_find_prime(
  @return own: created table */
 hash_table_t *hash_create(
     /*========*/
-    ib_ulint_t n) /*!< in: number of array cells */
+    uint64_t n) /*!< in: number of array cells */
 {
   hash_cell_t *array;
-  ib_ulint_t prime;
+  uint64_t prime;
   hash_table_t *table;
 
   prime = ut_find_prime(n);
@@ -161,10 +161,10 @@ hash_table_t *hash_create(
  to a hash table of size table_size, which should be a prime
  or some random number for the hash table to work reliably.
  @return hash value */
-static ib_ulint_t ut_hash_ulint(
+static uint64_t ut_hash_ulint(
     /*==========*/
-    ib_ulint_t key,        /*!< in: value to be hashed */
-    ib_ulint_t table_size) /*!< in: hash table size */
+    uint64_t key,        /*!< in: value to be hashed */
+    uint64_t table_size) /*!< in: hash table size */
 {
   key = key ^ UT_HASH_RANDOM_MASK2;
 
@@ -174,9 +174,9 @@ static ib_ulint_t ut_hash_ulint(
 /**************************************************************/ /**
  Calculates the hash value from a folded value.
  @return hashed value */
-ib_ulint_t hash_calc_hash(
+uint64_t hash_calc_hash(
     /*===========*/
-    ib_ulint_t fold,     /*!< in: folded value */
+    uint64_t fold,       /*!< in: folded value */
     hash_table_t *table) /*!< in: hash table */
 {
   return (ut_hash_ulint(fold, table->n_cells));
@@ -188,7 +188,7 @@ ib_ulint_t hash_calc_hash(
 hash_cell_t *hash_get_nth_cell(
     /*==============*/
     hash_table_t *table, /*!< in: hash table */
-    ib_ulint_t n)        /*!< in: cell index */
+    uint64_t n)          /*!< in: cell index */
 {
   return (table->array + n);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@ bool channel_imp::factory_init() {
        "A mutex to guard access to the channels list"}};
 
   mysql_mutex_register(PSI_category, all_mutex, 1);
-  mysql_mutex_init(key_LOCK_channels, &LOCK_channels, NULL);
+  mysql_mutex_init(key_LOCK_channels, &LOCK_channels, nullptr);
   return false;
 }
 

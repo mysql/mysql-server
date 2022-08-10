@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Function : virtual public Routine {
                               const String_type &name);
 
  public:
-  ~Function() override {}
+  ~Function() override = default;
 
  public:
   /////////////////////////////////////////////////////////////////////////
@@ -121,12 +121,20 @@ class Function : virtual public Routine {
   virtual void set_result_collation_id(Object_id collation_id) = 0;
 
   /**
-    Allocate a new object graph and invoke the copy contructor for
+    Allocate a new object graph and invoke the copy constructor for
     each object. Only used in unit testing.
 
     @return pointer to dynamically allocated copy
   */
   Function *clone() const override = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  Function *clone_dropped_object_placeholder() const override = 0;
 
   static void create_mdl_key(const String_type &schema_name,
                              const String_type &name, MDL_key *key) {

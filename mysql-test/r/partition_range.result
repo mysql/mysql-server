@@ -138,6 +138,9 @@ explain select * from t1 where a <= '2004-01-01 11:59.59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
+Warning	4095	Delimiter '.' in position 16 in datetime value '2004-01-01 11:59.59' at row 1 is deprecated. Prefer the standard ':'.
+Warning	4095	Delimiter '.' in position 16 in datetime value '2004-01-01 11:59.59' at row 1 is deprecated. Prefer the standard ':'.
+Warning	4095	Delimiter '.' in position 16 in datetime value '2004-01-01 11:59.59' at row 1 is deprecated. Prefer the standard ':'.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= TIMESTAMP'2004-01-01 11:59:59')
 select * from t1 where a <= '2004-01-01 11:59:59';
 a

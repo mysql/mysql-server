@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #define MYSQL_HARNESS_COMMON_INCLUDED
 
 #include <cstdlib>
+#include <functional>
+#include <map>
 #include <sstream>
 #include <string>
 #include "harness_export.h"
@@ -37,19 +39,6 @@
  */
 
 namespace mysql_harness {
-
-/** @brief Wrapper for thread safe function returning error string.
- *
- * @param err error number
- * @return string describing the error
- */
-std::string HARNESS_EXPORT get_strerror(int err);
-
-/** @brief Rename a thread (useful for debugging purposes).
- *
- * @param thread_name thread name, 15 chars max
- */
-void HARNESS_EXPORT rename_thread(const char thread_name[16]);
 
 /** @brief Return a truncated version of input string (fast version)
  *
@@ -206,6 +195,18 @@ template <class Collection>
 std::string list_elements(Collection collection,
                           const std::string &delim = ",") {
   return list_elements(collection.begin(), collection.end(), delim);
+}
+
+/**
+ * Gets a Value from std::map for given Key. Returns provided default if the Key
+ * is not in the map.
+ */
+template <class Key, class Value>
+Value get_from_map(const std::map<Key, Value> &map, const Key &key,
+                   const Value &default_value) {
+  auto iter = map.find(key);
+  if (iter == map.end()) return default_value;
+  return iter->second;
 }
 
 }  // namespace mysql_harness

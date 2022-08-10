@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,8 +39,7 @@ class Spatial_reference_system;
 
 /** Copy mbr of dimension n_dim from src to dst. */
 inline static void copy_coords(double *dst,       /*!< in/out: destination. */
-                               const double *src, /*!< in: source. */
-                               int n_dim)         /*!< in: dimensions. */
+                               const double *src) /*!< in: source. */
 {
   memcpy(dst, src, DATA_MBR_LEN);
 }
@@ -78,19 +77,9 @@ static void pick_seeds(
   }
 }
 
-/** Generates a random iboolean value.
+/** Generates a random boolean value.
  @return the random value */
-static ibool ut_rnd_gen_ibool(void) {
-  ulint x;
-
-  x = ut_rnd_gen_ulint();
-
-  if (((x >> 20) + (x >> 15)) & 1) {
-    return (TRUE);
-  }
-
-  return (FALSE);
-}
+static bool ut_rnd_gen_bool(void) { return ut::random_64() & 1; }
 
 /** Select next node and group where to add. */
 static void pick_next(
@@ -125,7 +114,7 @@ static void pick_next(
       /* Introduce some randomness if the record
       is identical */
       if (diff == 0) {
-        diff = static_cast<double>(ut_rnd_gen_ibool());
+        diff = static_cast<double>(ut_rnd_gen_bool());
       }
 
       *n_group = 1 + (diff > 0);
@@ -190,9 +179,9 @@ int split_rtree_node(
   a->n_node = 1;
   b->n_node = 2;
 
-  copy_coords(g1, a->coords, n_dim);
+  copy_coords(g1, a->coords);
   size1 += key_size;
-  copy_coords(g2, b->coords, n_dim);
+  copy_coords(g2, b->coords);
   size2 += key_size;
 
   for (i = n_entries - 2; i > 0; --i) {
@@ -263,8 +252,8 @@ bool rtree_key_cmp(page_cur_mode_t mode, const uchar *a, int a_len,
       return (mbr_disjoint_cmp(srs, &x, &y));
     default:
       /* if unknown comparison operator */
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
-  return (false);
+  ut_o(return (false));
 }

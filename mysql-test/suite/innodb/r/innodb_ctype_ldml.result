@@ -10,7 +10,7 @@ Variable_name	Value
 character_sets_dir	MYSQL_TEST_DIR/std_data/
 show collation like 'utf8_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_phone_ci	utf8	352			8	PAD SPACE
+utf8_phone_ci	utf8mb3	352			8	PAD SPACE
 CREATE TABLE t1 (
 name VARCHAR(64),
 phone VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_phone_ci
@@ -42,7 +42,7 @@ Bar	+7-912-800-80-01
 DROP TABLE t1;
 show collation like 'utf8_test_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_test_ci	utf8	353			8	PAD SPACE
+utf8_test_ci	utf8mb3	353			8	PAD SPACE
 create table t1 (c1 char(1) character set utf8 collate utf8_test_ci);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -56,6 +56,9 @@ show collation like 'ucs2_test_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 ucs2_test_ci	ucs2	358			8	PAD SPACE
 create table t1 (c1 char(1) character set ucs2 collate ucs2_test_ci);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_test_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into t1 values ('a');
 select * from t1 where c1='b';
 c1
@@ -135,12 +138,18 @@ hex(weight_string(_utf8mb4 0x64 collate utf8mb4_test_ci))
 SELECT hex(weight_string(convert(_ucs2 0x0064017e using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_ucs2 0x0064017e using utf8mb4) collate utf8mb4_test_ci))
 1251
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT hex(weight_string(convert(_ucs2 0x0044017e using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_ucs2 0x0044017e using utf8mb4) collate utf8mb4_test_ci))
 1251
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT hex(weight_string(convert(_ucs2 0x0044017d using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_ucs2 0x0044017d using utf8mb4) collate utf8mb4_test_ci))
 1251
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Bug#45645 Mysql server close all connection and restart using lower function
 #
@@ -180,6 +189,9 @@ show collation like 'ucs2_vn_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 ucs2_vn_ci	ucs2	359			8	PAD SPACE
 create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_vn_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 insert into t1 values (0x0061),(0x0041),(0x00E0),(0x00C0),(0x1EA3),(0x1EA2),
 (0x00E3),(0x00C3),(0x00E1),(0x00C1),(0x1EA1),(0x1EA0);
 insert into t1 values (0x0103),(0x0102),(0x1EB1),(0x1EB0),(0x1EB3),(0x1EB2),
@@ -507,24 +519,38 @@ utf8mb4_ru_0900_ai_ci	utf8mb4	306
 utf8mb4_ru_0900_as_cs	utf8mb4	307
 utf8mb4_zh_0900_as_cs	utf8mb4	308
 utf8mb4_0900_bin	utf8mb4	309
+utf8mb4_nb_0900_ai_ci	utf8mb4	310
+utf8mb4_nb_0900_as_cs	utf8mb4	311
+utf8mb4_nn_0900_ai_ci	utf8mb4	312
+utf8mb4_nn_0900_as_cs	utf8mb4	313
+utf8mb4_sr_latn_0900_ai_ci	utf8mb4	314
+utf8mb4_sr_latn_0900_as_cs	utf8mb4	315
+utf8mb4_bs_0900_ai_ci	utf8mb4	316
+utf8mb4_bs_0900_as_cs	utf8mb4	317
+utf8mb4_bg_0900_ai_ci	utf8mb4	318
+utf8mb4_bg_0900_as_cs	utf8mb4	319
+utf8mb4_gl_0900_ai_ci	utf8mb4	320
+utf8mb4_gl_0900_as_cs	utf8mb4	321
+utf8mb4_mn_cyrl_0900_ai_ci	utf8mb4	322
+utf8mb4_mn_cyrl_0900_as_cs	utf8mb4	323
 utf8mb4_test_ci	utf8mb4	326
 utf16_test_ci	utf16	327
 utf8mb4_test_400_ci	utf8mb4	328
-utf8_bengali_standard_ci	utf8	336
-utf8_bengali_traditional_ci	utf8	337
-utf8_phone_ci	utf8	352
-utf8_test_ci	utf8	353
-utf8_5624_1	utf8	354
-utf8_5624_2	utf8	355
-utf8_5624_3	utf8	356
-utf8_5624_4	utf8	357
+utf8_bengali_standard_ci	utf8mb3	336
+utf8_bengali_traditional_ci	utf8mb3	337
+utf8_phone_ci	utf8mb3	352
+utf8_test_ci	utf8mb3	353
+utf8_5624_1	utf8mb3	354
+utf8_5624_2	utf8mb3	355
+utf8_5624_3	utf8mb3	356
+utf8_5624_4	utf8mb3	357
 ucs2_test_ci	ucs2	358
 ucs2_vn_ci	ucs2	359
 ucs2_5624_1	ucs2	360
-utf8_5624_5	utf8	368
+utf8_5624_5	utf8mb3	368
 utf32_test_ci	utf32	391
 latin1_test	latin1	1025
-utf8_maxuserid_ci	utf8	2047
+utf8_maxuserid_ci	utf8mb3	2047
 show collation like '%test%';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 latin1_test	latin1	1025			0	PAD SPACE
@@ -533,11 +559,14 @@ utf16_test_ci	utf16	327			8	PAD SPACE
 utf32_test_ci	utf32	391			8	PAD SPACE
 utf8mb4_test_400_ci	utf8mb4	328			8	PAD SPACE
 utf8mb4_test_ci	utf8mb4	326			8	PAD SPACE
-utf8_test_ci	utf8	353			8	PAD SPACE
+utf8_test_ci	utf8mb3	353			8	PAD SPACE
 show collation like 'ucs2_vn_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 ucs2_vn_ci	ucs2	359			8	PAD SPACE
 create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_vn_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -560,6 +589,8 @@ SELECT * FROM t1 WHERE s1='a' ORDER BY BINARY s1;
 s1
 a
 b
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 SET NAMES utf8 COLLATE utf8_phone_ci;
 Warnings:
@@ -567,7 +598,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW COLLATION LIKE 'utf8_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_phone_ci	utf8	352			8	PAD SPACE
+utf8_phone_ci	utf8mb3	352			8	PAD SPACE
 SET NAMES utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -634,8 +665,21 @@ INSERT INTO t1 VALUES ('lp-fv'),('lp-lv');
 INSERT INTO t1 VALUES ('lb-fni'),('lb-lni');
 INSERT INTO t1 VALUES ('lb-fv'),('lb-lv');
 INSERT INTO t1 VALUES (_ucs2 0x3106),(_ucs2 0x3110), (_ucs2 0x3111), (_ucs2 0x3112);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (_ucs2 0x32A3), (_ucs2 0x3231);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (_ucs2 0x84D9), (_ucs2 0x98F5), (_ucs2 0x7CF3), (_ucs2 0x5497);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY a;
 a	HEX(WEIGHT_STRING(a))
 lp-ft	0001
@@ -760,10 +804,15 @@ lp-lni	233E
 飵	753D
 糳	753E
 咗	753F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 #
 # WL#5624, the same test with UCS2
 #
 ALTER TABLE t1 CONVERT TO CHARACTER SET ucs2 COLLATE ucs2_5624_1;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_5624_1' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY(a);
 a	HEX(WEIGHT_STRING(a))
 lp-ft	0001
@@ -888,6 +937,8 @@ lp-lni	233E
 飵	753D
 糳	753E
 咗	753F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # WL#5624, unsupported features
@@ -924,6 +975,8 @@ a	HEX(WEIGHT_STRING(a))
 x	02CE101F
 u	101F
 X	105A
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # WL#5624, testing Bengali collations
@@ -934,9 +987,23 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8_bengali_standard_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES (_ucs2 0x09FA), (_ucs2 0x09F8), (_ucs2 0x09F9), (_ucs2 0x09F2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (_ucs2 0x09DC), (_ucs2 0x09A109BC);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (_ucs2 0x09A2), (_ucs2 0x09DD), (_ucs2 0x09A209BC);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (_ucs2 0x09A3);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(WEIGHT_STRING(a)), HEX(CONVERT(a USING ucs2)), HEX(a)
 FROM t1 ORDER BY a, BINARY a;
 HEX(WEIGHT_STRING(a))	HEX(CONVERT(a USING ucs2))	HEX(a)
@@ -950,6 +1017,9 @@ HEX(WEIGHT_STRING(a))	HEX(CONVERT(a USING ucs2))	HEX(a)
 0376	09A209BC	E0A6A2E0A6BC
 0376	09DD	E0A79D
 0377	09A3	E0A6A3
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 SET NAMES utf8, collation_connection=utf8_bengali_traditional_ci;
 Warnings:
@@ -961,6 +1031,20 @@ INSERT INTO t1 VALUES
 (_ucs2 0x0989),(_ucs2 0x098A),(_ucs2 0x098B),(_ucs2 0x09E0),
 (_ucs2 0x098C),(_ucs2 0x09E1),(_ucs2 0x098F),(_ucs2 0x0990),
 (_ucs2 0x0993);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES
 (_ucs2 0x0994),(_ucs2 0x0982),(_ucs2 0x0983),(_ucs2 0x0981),
 (_ucs2 0x099509CD), (_ucs2 0x099609CD), (_ucs2 0x099709CD), (_ucs2 0x099809CD),
@@ -973,6 +1057,47 @@ INSERT INTO t1 VALUES
 (_ucs2 0x09AC09CD), (_ucs2 0x09AD09CD), (_ucs2 0x09AE09CD), (_ucs2 0x09AF09CD),
 (_ucs2 0x09B009CD), (_ucs2 0x09F009CD), (_ucs2 0x09B209CD), (_ucs2 0x09F109CD),
 (_ucs2 0x09B609CD), (_ucs2 0x09B709CD), (_ucs2 0x09B809CD), (_ucs2 0x09B909CD);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES 
 (_ucs2 0x099509CD0985),(_ucs2 0x0995),
 (_ucs2 0x099509CD0986),(_ucs2 0x099509BE),
@@ -988,6 +1113,35 @@ INSERT INTO t1 VALUES
 (_ucs2 0x099509CD0990),(_ucs2 0x099509C8),
 (_ucs2 0x099509CD0993),(_ucs2 0x099509CB),
 (_ucs2 0x099509CD0994),(_ucs2 0x099509CC);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(WEIGHT_STRING(a)), HEX(CONVERT(a USING ucs2)), HEX(a)
 FROM t1 ORDER BY a, BINARY(a);
 HEX(WEIGHT_STRING(a))	HEX(CONVERT(a USING ucs2))	HEX(a)
@@ -1072,6 +1226,9 @@ HEX(WEIGHT_STRING(a))	HEX(CONVERT(a USING ucs2))	HEX(a)
 15D2	09B709CD	E0A6B7E0A78D
 15D3	09B809CD	E0A6B8E0A78D
 15D4	09B909CD	E0A6B9E0A78D
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT HEX(WEIGHT_STRING(a)) as wa,
 GROUP_CONCAT(HEX(CONVERT(a USING ucs2)) ORDER BY LENGTH(a), BINARY a)
 FROM t1 GROUP BY a ORDER BY a;
@@ -1141,6 +1298,9 @@ wa	GROUP_CONCAT(HEX(CONVERT(a USING ucs2)) ORDER BY LENGTH(a), BINARY a)
 15D2	09B709CD
 15D3	09B809CD
 15D4	09B909CD
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # WL#5624, shift after, using expansion
@@ -1151,6 +1311,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8_5624_5' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('0'),('1'),('0z'),(_ucs2 0x0030FF9D);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('a'),('b'),('c'),('d'),('e'),('f'),('g'),('h'),('i');
 INSERT INTO t1 VALUES ('j'),('k'),('l'),('m'),('n'),('o'),('p'),('q'),('r');
 INSERT INTO t1 VALUES ('s'),('t'),('u'),('v'),('w'),('x'),('y'),('z');
@@ -1221,6 +1383,8 @@ Z	0E293357
 AA	0E293358
 AAA	0E293359
 1	0E2A
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # End of WL#5624

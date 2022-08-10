@@ -16,15 +16,14 @@ create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
 reset master;
 
 --connection slave
-# Add a suppression for the warning that will appear in the
-# Slave's .err file
+# Add a suppression for the warning that will appear in the slave's .err file
 --disable_query_log
 call mtr.add_suppression("NDB Replica: At SQL thread start applying epoch .*");
 --enable_query_log
 
-STOP SLAVE;
+STOP REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
-START SLAVE;
+START REPLICA;
 
 --echo Capture current count of epoch decline warnings
 --let mysqld_name=mysqld.1.slave
@@ -71,10 +70,9 @@ select count(1) - @init_repeat_err_count as repeat_err_count from test.server_er
 select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Replica%SQL thread stopped%has not been committed%';
 --enable_query_log
 --echo Now stop and manually replay old binlog.
-stop slave;
+STOP REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
-
-start slave;
+START REPLICA;
 
 --connection master
 --sync_slave_with_master
@@ -91,10 +89,9 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 --enable_query_log
 
 --echo Repeat
-stop slave;
+STOP REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
-
-start slave;
+START REPLICA;
 
 --connection master
 --sync_slave_with_master
@@ -112,8 +109,8 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 
 
 --echo Now try re-positioning after RESET SLAVE
-STOP SLAVE;
-RESET SLAVE;
+STOP REPLICA;
+RESET REPLICA;
 
 --source include/rpl_start_slaves.inc
 --connection master
@@ -189,11 +186,11 @@ set global debug = @old_debug;
 reset master;
 
 --connection slave
-stop slave;
-
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
+sleep 1.5;
+STOP REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
-
-start slave;
+START REPLICA;
 
 --connection master
 insert into test.t1 values (13, repeat('A', 1000));
@@ -243,8 +240,8 @@ while($i)
 --connection slave
 --disable_query_log
 call mtr.add_suppression("NDB Replica: SQL thread stopped as attempted to reapply already committed epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression("Slave: Got error 173 .*");
+call mtr.add_suppression("Slave SQL for channel '': Worker 1 failed executing .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*MY-001756");
 --enable_query_log
 
 --echo Check that slave stopped with an error
@@ -270,11 +267,11 @@ set global debug = @old_debug;
 reset master;
 
 --connection slave
-stop slave;
-
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
+sleep 1.5;
+STOP REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
-
-start slave;
+START REPLICA;
 
 --connection master
 insert into test.t1 values (13, repeat('A', 1000));
@@ -303,7 +300,7 @@ delete from test.t1;
 
 set @old_debug = @@global.debug;
 set global debug="";
-set global debug="+d,ndb_slave_fail_marking_epoch_committed";
+set global debug="+d,ndb_replica_fail_marking_epoch_committed";
 show variables like 'debug';
 
 --connection master
@@ -354,11 +351,11 @@ set global debug = @old_debug;
 reset master;
 
 --connection slave
-stop slave;
-
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
+sleep 1.5;
+STOP REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
-
-start slave;
+START REPLICA;
 
 --connection master
 insert into test.t1 values (13, repeat('A', 1000));

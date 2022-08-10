@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,13 +31,11 @@
 ::testing::AssertionResult AssertLoaderSectionAvailable(
     const char *loader_expr, const char *section_expr,
     mysql_harness::Loader *loader, const std::string &section_name) {
-  using std::pair;
-  using std::string;
-
   auto lst = loader->available();
-  auto match_example = [&section_name](const pair<string, string> &elem) {
-    return elem.first == section_name;
-  };
+  auto match_example =
+      [&section_name](const std::pair<std::string, std::string> &elem) {
+        return elem.first == section_name;
+      };
 
   if (std::count_if(lst.begin(), lst.end(), match_example) > 0)
     return ::testing::AssertionSuccess();

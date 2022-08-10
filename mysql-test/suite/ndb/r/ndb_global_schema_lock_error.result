@@ -18,10 +18,7 @@ Warning	1296	Schema distribution is not ready
 CREATE TABLE t1(a int not null primary key);
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
-Warning	1296	Failed to discover table 't1' from NDB
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Could not acquire global schema lock
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 RENAME TABLE t1 TO t2;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
@@ -29,15 +26,11 @@ Warning	1296	Could not acquire global schema lock
 CREATE TABLE t3 LIKE t2;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
-Warning	1296	Failed to discover table 't3' from NDB
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Could not acquire global schema lock
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 ALTER TABLE t3 ADD COLUMN b int default NULL;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Could not acquire global schema lock
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 INSERT INTO t2 VALUES(1);
 TRUNCATE TABLE t2;
 Warnings:
@@ -46,10 +39,7 @@ Warning	1296	Could not acquire global schema lock
 CREATE TABLE t4 AS SELECT * FROM t2;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
-Warning	1296	Failed to discover table 't4' from NDB
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Could not acquire global schema lock
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 DROP TABLE t2;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
@@ -66,10 +56,7 @@ Warning	1296	Could not acquire global schema lock
 CREATE TABLE t5 (a INT PRIMARY KEY) TABLESPACE ts1;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
-Warning	1296	Failed to discover table 't5' from NDB
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Could not acquire global schema lock
-Warning	1296	Got error 4009 'Cluster Failure' from NDB
 DROP TABLE t5;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB

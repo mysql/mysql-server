@@ -33,7 +33,7 @@ drop table t1;
 create table t1 (a mediumtext, fulltext key key1(a)) charset utf8 collate utf8_general_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('hello');
 analyze table t1;
 Table	Op	Msg_type	Msg_text
@@ -59,3 +59,16 @@ optimize table t1 extended;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'extended' at line 1
 drop table t1;
 End of 5.0 tests
+#
+# Bug#33079073 - sql_cmd_call::execute_inner(thd*): assertion
+#                `thd->is_error() || thd->killed' failed.
+# Assertion to check if error state is set in the diagnostics area
+# on ANALYZE TABLE to UPDATE HISTOGRAM non-success in SP is failed.
+#
+CREATE PROCEDURE p() ANALYZE TABLE v UPDATE HISTOGRAM ON w;
+# Without fix, assert condition fails for following statement in the debug
+# build. Statement executes successfully in the non-debug build.
+CALL p();
+Table	Op	Msg_type	Msg_text
+test.v	histogram	Error	Table 'test.v' doesn't exist
+DROP PROCEDURE p;

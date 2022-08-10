@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class Dummy_notification : public Parameterized_notification<false> {
   Dummy_notification(void (*functor)(int &), int &val)
       : m_functor(functor), m_val(val) {}
 
-  ~Dummy_notification() override {}
+  ~Dummy_notification() override = default;
 
   void (*m_functor)(int &);
   int &m_val;

@@ -19,15 +19,16 @@
 
 # the test in binlog format agnostic
 --source include/have_binlog_format_row.inc
+--source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 
 CREATE TABLE t1 (a INT);
 --source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_connection_slave.inc
-SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 --source include/stop_slave.inc
-SET @@GLOBAL.slave_parallel_workers = 0;
+SET @@GLOBAL.replica_parallel_workers = 0;
 --source include/start_slave.inc
 
 # Four scenarios are tested:
@@ -48,17 +49,17 @@ SET @@GLOBAL.slave_parallel_workers = 0;
 
 --let $ps_table = performance_schema.replication_applier_status_by_worker
 --let $scenario = 1
---let $new_slave_parallel_workers = 0
+--let $new_replica_parallel_workers = 0
 
 while ($scenario < 5)
 {
   if ($scenario == 2)
   {
-    --let $new_slave_parallel_workers = 1
+    --let $new_replica_parallel_workers = 1
   }
   if ($scenario == 4)
   {
-    --let $new_slave_parallel_workers = 0
+    --let $new_replica_parallel_workers = 0
   }
 
   --source include/rpl_connection_master.inc
@@ -72,7 +73,7 @@ while ($scenario < 5)
   --let $last_applied_trx_end_apply_1 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP, 1)
 
   --source include/stop_slave.inc
-  --eval SET @@GLOBAL.slave_parallel_workers = $new_slave_parallel_workers
+  --eval SET @@GLOBAL.replica_parallel_workers = $new_replica_parallel_workers
 
   --let $last_applied_trx_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM $ps_table, LAST_APPLIED_TRANSACTION, 1)
   --let $last_applied_trx_OCT_2 = query_get_value(SELECT LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP FROM $ps_table, LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP, 1)
@@ -176,6 +177,8 @@ while ($scenario < 5)
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
-SET @@GLOBAL.slave_parallel_workers = @saved_slave_parallel_workers;
+--disable_warnings
+SET @@GLOBAL.replica_parallel_workers = @saved_replica_parallel_workers;
+--enable_warnings
 --source include/start_slave.inc
 --source include/rpl_end.inc

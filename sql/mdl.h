@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,11 +37,11 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_systime.h"  // Timout_type
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/mysql_rwlock_bits.h"
-#include "mysql/components/services/psi_mdl_bits.h"
-#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_rwlock_bits.h"
+#include "mysql/components/services/bits/psi_mdl_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"
 #include "sql/sql_plist.h"
@@ -83,7 +83,7 @@ bool test_drive_fix_pins(MDL_context *);
 
 class MDL_context_owner {
  public:
-  virtual ~MDL_context_owner() {}
+  virtual ~MDL_context_owner() = default;
 
   /**
     Enter a condition wait.
@@ -608,23 +608,25 @@ struct MDL_key {
 
     @remark The key for a routine/event/resource group/trigger is
       @<mdl_namespace@>+@<database name@>+@<normalized object name@>
-      additionaly @<object name@> is stored in the same buffer for information
-      purpose if buffer has sufficent space.
+      additionally @<object name@> is stored in the same buffer for information
+      purpose if buffer has sufficient space.
 
     Routine, Event and Resource group names are case sensitive and accent
     sensitive. So normalized object name is used to form a MDL_key.
 
-    With the UTF8MB3 charset space reserved for the db name/object name is
-    64 * 3  bytes. utf8_general_ci collation is used for the Routine, Event and
-    Resource group names. With this collation, the normalized object name uses
-    just 2 bytes for each character (max length = 64 * 2 bytes). MDL_key has
-    still some space to store the object names. If there is a sufficient space
-    for the object name in the MDL_key then it is stored in the MDL_key (similar
-    to the column names in the MDL_key). Actual object name is used by the PFS.
-    Not listing actual object name from the PFS should be OK when there is no
-    space to store it (instead of increasing the MDL_key size). Object name is
-    not used in the key comparisons. So only (mdl_namespace + strlen(db) + 1 +
-    normalized_name_len + 1) value is stored in the m_length member.
+    With the UTF8MB3 charset space reserved for the db name/object
+    name is 64 * 3 bytes. utf8mb3_general_ci collation is used for the
+    Routine, Event and Resource group names. With this collation, the
+    normalized object name uses just 2 bytes for each character (max
+    length = 64 * 2 bytes). MDL_key has still some space to store the
+    object names. If there is a sufficient space for the object name
+    in the MDL_key then it is stored in the MDL_key (similar to the
+    column names in the MDL_key). Actual object name is used by the
+    PFS.  Not listing actual object name from the PFS should be OK
+    when there is no space to store it (instead of increasing the
+    MDL_key size). Object name is not used in the key comparisons. So
+    only (mdl_namespace + strlen(db) + 1 + normalized_name_len + 1)
+    value is stored in the m_length member.
 
     @param  mdl_namespace       Id of namespace of object to be locked.
     @param  db                  Name of database to which the object belongs.
@@ -754,7 +756,7 @@ struct MDL_key {
           const char *name_arg) {
     mdl_key_init(namespace_arg, db_arg, name_arg);
   }
-  MDL_key() {} /* To use when part of MDL_request. */
+  MDL_key() = default; /* To use when part of MDL_request. */
 
   /**
     Get thread state name to be used in case when we have to
@@ -821,8 +823,8 @@ class MDL_request {
 
  public:
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
 
@@ -888,7 +890,7 @@ class MDL_request {
       Locked_tables_list::rename_locked_table(), a move assignment is actually
       what is intended.
   */
-  MDL_request() {}
+  MDL_request() = default;
 
   MDL_request(const MDL_request &rhs)
       : type(rhs.type), duration(rhs.duration), ticket(nullptr), key(rhs.key) {}
@@ -1311,7 +1313,7 @@ class MDL_ticket_store {
 
 class MDL_savepoint {
  public:
-  MDL_savepoint() {}
+  MDL_savepoint() = default;
 
  private:
   MDL_savepoint(MDL_ticket *stmt_ticket, MDL_ticket *trans_ticket)
@@ -1374,7 +1376,7 @@ class MDL_wait {
 
 class MDL_release_locks_visitor {
  public:
-  virtual ~MDL_release_locks_visitor() {}
+  virtual ~MDL_release_locks_visitor() = default;
   /**
     Check if the given ticket represents a lock that should be released.
 
@@ -1389,7 +1391,7 @@ class MDL_release_locks_visitor {
 
 class MDL_context_visitor {
  public:
-  virtual ~MDL_context_visitor() {}
+  virtual ~MDL_context_visitor() = default;
   virtual void visit_context(const MDL_context *ctx) = 0;
 };
 
@@ -1755,7 +1757,7 @@ class MDL_lock_is_owned_visitor : public MDL_context_visitor {
     m_exists to true is enough.
   */
 
-  void visit_context(const MDL_context *ctx MY_ATTRIBUTE((unused))) override {
+  void visit_context(const MDL_context *ctx [[maybe_unused]]) override {
     m_exists = true;
   }
 

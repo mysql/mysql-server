@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,6 +124,7 @@ TEST_F(Handler_test, SimpleTableCreate) {
 }
 
 #ifndef NDEBUG
+#ifndef _WIN32
 TEST_F(
     Handler_test,
     TableCreateReturnsRecordFileFullWhenTempTableAllocatorThrowsRecordFileFull) {
@@ -141,7 +142,9 @@ TEST_F(
             HA_ERR_RECORD_FILE_FULL);
   DBUG_SET("-d,temptable_allocator_record_file_full");
 }
+#endif /* _WIN32 */
 
+#ifndef _WIN32
 TEST_F(Handler_test,
        TableCreateReturnsOutOfMemoryWhenTempTableAllocatorThrowsOutOfMemory) {
   const char *table_name = "t1";
@@ -158,6 +161,7 @@ TEST_F(Handler_test,
             HA_ERR_OUT_OF_MEM);
   DBUG_SET("-d,temptable_allocator_oom");
 }
+#endif /* _WIN32 */
 
 TEST_F(Handler_test,
        TableCreateReturnsOutOfMemoryWhenCatchAllHandlerIsActivated) {

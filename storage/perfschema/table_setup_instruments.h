@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ class PFS_index_setup_instruments : public PFS_engine_index {
  public:
   PFS_index_setup_instruments() : PFS_engine_index(&m_key), m_key("NAME") {}
 
-  ~PFS_index_setup_instruments() override {}
+  ~PFS_index_setup_instruments() override = default;
 
   bool match_view(uint view);
   bool match(PFS_instr_class *klass);
@@ -112,7 +112,7 @@ class table_setup_instruments : public PFS_engine_table {
   table_setup_instruments();
 
  public:
-  ~table_setup_instruments() override {}
+  ~table_setup_instruments() override = default;
 
  private:
   int make_row(PFS_instr_class *klass, bool update_enabled);

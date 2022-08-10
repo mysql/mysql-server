@@ -38,11 +38,11 @@ XA COMMIT'';
 # either rollback or commit mode.
 # Rollback is done two ways: explicit and implicit through connection close.
 #
-SET @sav.pseudo_slave_mode= @@session.pseudo_slave_mode;
-SELECT  @@session.pseudo_slave_mode;
+SET @sav.pseudo_replica_mode= @@session.pseudo_replica_mode;
+SELECT  @@session.pseudo_replica_mode;
 # A warning out of the following query is improper and caused by a combination
 # of the above BINLOG processing and side effect of BUG#15891524.
-SET @@session.pseudo_slave_mode=1;
+SET @@session.pseudo_replica_mode=1;
 
 # In order to simulate dressing up as the binlog applier the current connection needs
 # to process at least one BINLOG carrying Format-Descriptor log-event.
@@ -62,7 +62,7 @@ XA ROLLBACK 'xa_rollback';
 # The same but XA END as above in a new connection which is closed to rollback xa
 #
 --connect(con1,localhost,root,,)
-SET @@session.pseudo_slave_mode=1;
+SET @@session.pseudo_replica_mode=1;
 BINLOG '
 SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
@@ -82,7 +82,7 @@ INSERT INTO t1 VALUES(10);
 XA END 'xa_commit';
 XA PREPARE 'xa_commit';
 XA COMMIT 'xa_commit';
-SET @@session.pseudo_slave_mode= @sav.pseudo_slave_mode;
+SET @@session.pseudo_replica_mode= @sav.pseudo_replica_mode;
 
 DROP TABLE t1;
 

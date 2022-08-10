@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,18 +40,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 struct os_event;
 typedef struct os_event *os_event_t;
 
-/** Denotes an infinite delay for os_event_wait_time() */
-#define OS_SYNC_INFINITE_TIME ULINT_UNDEFINED
-
 /** Return value of os_event_wait_time() when the time is exceeded */
-#define OS_SYNC_TIME_EXCEEDED 1
+constexpr uint32_t OS_SYNC_TIME_EXCEEDED = 1;
 
 #ifndef UNIV_HOTBACKUP
 /**
 Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
 explicitly by calling os_event_reset().
-@return	the event handle */
+@return the event handle */
 os_event_t os_event_create();
 
 /**
@@ -67,7 +64,7 @@ Check if the event is set.
 bool os_event_is_set(const os_event_t event); /*!< in: event to set */
 
 /**
-Resets an event semaphore to the nonsignaled state. Waiting threads will
+Resets an event semaphore to the non-signaled state. Waiting threads will
 stop to wait for the event.
 The return value should be passed to os_even_wait_low() if it is desired
 that this thread should not wait in case of an intervening call to
@@ -83,13 +80,13 @@ void os_event_destroy(os_event_t &event); /*!< in/own: event to free */
 Waits for an event object until it is in the signaled state.
 
 Typically, if the event has been signalled after the os_event_reset()
-we'll return immediately because event->is_set == TRUE.
+we'll return immediately because event->is_set == true.
 There are, however, situations (e.g.: sync_array code) where we may
 lose this information. For example:
 
 thread A calls os_event_reset()
-thread B calls os_event_set()   [event->is_set == TRUE]
-thread C calls os_event_reset() [event->is_set == FALSE]
+thread B calls os_event_set()   [event->is_set == true]
+thread C calls os_event_reset() [event->is_set == false]
 thread A calls os_event_wait()  [infinite wait!]
 thread C calls os_event_wait()  [infinite wait!]
 
@@ -101,27 +98,28 @@ void os_event_wait_low(os_event_t event,         /*!< in/out: event to wait */
                                                 returned by previous call of
                                                 os_event_reset(). */
 
-/** Blocking infinite wait on an event, until signealled.
+/** Blocking infinite wait on an event, until signalled.
 @param e - event to wait on. */
-#define os_event_wait(e) os_event_wait_low((e), 0)
+static inline void os_event_wait(os_event_t e) { os_event_wait_low(e, 0); }
 
-/**
-Waits for an event object until it is in the signaled state or
+/** Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite.
+@param[in,out] event       Event to wait for.
+@param[in] timeout         Timeout, or std::chrono::microseconds::max().
+@param[in] reset_sig_count Zero or the value returned by previous call of
+os_event_reset().
 @return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-ulint os_event_wait_time_low(
-    os_event_t event,         /*!< in/out: event to wait */
-    ulint time_in_usec,       /*!< in: timeout in
-                              microseconds, or
-                              OS_SYNC_INFINITE_TIME */
-    int64_t reset_sig_count); /*!< in: zero or the value
-                              returned by previous call of
-                              os_event_reset(). */
+ulint os_event_wait_time_low(os_event_t event,
+                             std::chrono::microseconds timeout,
+                             int64_t reset_sig_count);
 
 /** Blocking timed wait on an event.
 @param e - event to wait on.
-@param t - timeout in microseconds */
-#define os_event_wait_time(e, t) os_event_wait_time_low((e), (t), 0)
+@param t - timeout */
+static inline ulint os_event_wait_time(os_event_t e,
+                                       std::chrono::microseconds t) {
+  return os_event_wait_time_low(e, t, 0);
+}
 
 #include "os0event.ic"
 

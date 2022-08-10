@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
 
   Foreign_key_impl(const Foreign_key_impl &src, Table_impl *parent);
 
-  ~Foreign_key_impl() override {}
+  ~Foreign_key_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

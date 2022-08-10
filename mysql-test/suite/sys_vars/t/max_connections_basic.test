@@ -167,7 +167,9 @@ SET global.max_connections = 8000;
 --Error ER_UNKNOWN_TABLE
 SELECT global.max_connections;
 --Error ER_BAD_FIELD_ERROR
-SELECT max_connections = @@session.max_connections;
+SELECT max_connections;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.max_connections;
 
 
 ##############################  

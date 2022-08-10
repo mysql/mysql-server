@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,8 @@ struct row_table_handles {
 
 class PFS_index_table_handles : public PFS_engine_index {
  public:
-  PFS_index_table_handles(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_table_handles(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
   PFS_index_table_handles(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
@@ -77,7 +78,7 @@ class PFS_index_table_handles : public PFS_engine_index {
                           PFS_engine_key *key_3)
       : PFS_engine_index(key_1, key_2, key_3) {}
 
-  ~PFS_index_table_handles() override {}
+  ~PFS_index_table_handles() override = default;
 
   virtual bool match(PFS_table *table) = 0;
 };
@@ -90,7 +91,7 @@ class PFS_index_table_handles_by_object : public PFS_index_table_handles {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_table_handles_by_object() override {}
+  ~PFS_index_table_handles_by_object() override = default;
 
   bool match(PFS_table *table) override;
 
@@ -105,7 +106,7 @@ class PFS_index_table_handles_by_instance : public PFS_index_table_handles {
   PFS_index_table_handles_by_instance()
       : PFS_index_table_handles(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_table_handles_by_instance() override {}
+  ~PFS_index_table_handles_by_instance() override = default;
 
   bool match(PFS_table *table) override;
 
@@ -120,7 +121,7 @@ class PFS_index_table_handles_by_owner : public PFS_index_table_handles {
         m_key_1("OWNER_THREAD_ID"),
         m_key_2("OWNER_EVENT_ID") {}
 
-  ~PFS_index_table_handles_by_owner() override {}
+  ~PFS_index_table_handles_by_owner() override = default;
 
   bool match(PFS_table *table) override;
 
@@ -152,7 +153,7 @@ class table_table_handles : public PFS_engine_table {
   table_table_handles();
 
  public:
-  ~table_table_handles() override {}
+  ~table_table_handles() override = default;
 
  protected:
   int make_row(PFS_table *table);

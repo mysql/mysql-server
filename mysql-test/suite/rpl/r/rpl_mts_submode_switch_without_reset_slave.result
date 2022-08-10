@@ -4,14 +4,18 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
+SET @saved_rpco= @@GLOBAL.replica_preserve_commit_order;
 include/stop_slave.inc
+SET GLOBAL replica_preserve_commit_order=OFF;
 #setup the databases and tables
 CREATE DATABASE db1;
 CREATE TABLE db1.t (a int) engine=innodb;
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 INSERT INTO db1.t values (1),(2),(3);
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db1.t,slave:db1.t]
@@ -19,7 +23,9 @@ include/stop_slave.inc
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 INSERT INTO db1.t values (1),(2),(3);
-SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db1.t,slave:db1.t]
@@ -27,7 +33,9 @@ include/stop_slave.inc
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 INSERT INTO db1.t values (1),(2),(3);
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db1.t,slave:db1.t]

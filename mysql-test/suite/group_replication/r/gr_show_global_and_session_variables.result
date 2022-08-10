@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
-# Test#1: Basic check that there are 58 GR variables.
-include/assert.inc [There are 58 GR variables at present.]
+# Test#1: Basic check that there are 61 GR variables.
+include/assert.inc [There are 61 GR variables at present.]
 
 # Test#2: Verify group replication related variables at GLOBAL scope.
 SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
@@ -95,6 +95,10 @@ SET @@SESSION.group_replication_recovery_tls_version= "";
 ERROR HY000: Variable 'group_replication_recovery_tls_version' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_recovery_tls_ciphersuites= "";
 ERROR HY000: Variable 'group_replication_recovery_tls_ciphersuites' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_view_change_uuid= "AUTOMATIC";
+ERROR HY000: Variable 'group_replication_view_change_uuid' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_paxos_single_leader= 1;
+ERROR HY000: Variable 'group_replication_paxos_single_leader' is a GLOBAL variable and should be set with SET GLOBAL
 
 # Test#3: Verify group replication related variables at SESSION scope.
 SET @@SESSION.group_replication_consistency= "EVENTUAL";
@@ -102,6 +106,8 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 
 # Test#4: Verify GLOBAL and SESSION variables
 include/start_group_replication.inc
+SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
+SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 include/assert.inc [Verify GLOBAL value of group_replication_allow_local_lower_version_join]
 include/assert.inc [Verify GLOBAL value of group_replication_allow_local_lower_version_join]
 include/assert.inc [Verify SESSION value of group_replication_allow_local_lower_version_join]
@@ -274,6 +280,11 @@ include/assert.inc [Verify GLOBAL value of group_replication_recovery_tls_cipher
 include/assert.inc [Verify GLOBAL value of group_replication_recovery_tls_ciphersuites]
 include/assert.inc [Verify SESSION value of group_replication_recovery_tls_ciphersuites]
 include/assert.inc [Verify SESSION value of group_replication_recovery_tls_ciphersuites]
+include/assert.inc [Verify SESSION value of group_replication_view_change_uuid]
+include/assert.inc [Verify GLOBAL value of group_replication_paxos_single_leader]
+include/assert.inc [Verify GLOBAL value of group_replication_paxos_single_leader]
+include/assert.inc [Verify SESSION value of group_replication_paxos_single_leader]
+include/assert.inc [Verify SESSION value of group_replication_paxos_single_leader]
 
 # Clean up
 include/stop_group_replication.inc

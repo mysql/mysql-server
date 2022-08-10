@@ -11,6 +11,7 @@ let $fixed_bug38124 = 0;
 
 # Several subtests modify global variables. Save the initial values only here,
 # but reset to the initial values per subtest.
+SET @old_log_output= @@global.log_output;
 SET @old_general_log= @@global.general_log;
 SET @old_general_log_file= @@global.general_log_file;
 SET @old_slow_query_log= @@global.slow_query_log;
@@ -25,6 +26,7 @@ SET @old_slow_query_log_file= @@global.slow_query_log_file;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 
 # set logging to our specific bug log to control the entries added
+SET @@global.log_output = 'FILE,TABLE';
 SET @@global.general_log = ON;
 SET @@global.general_log_file = 'bug45387_general.log';
 
@@ -102,6 +104,7 @@ SELECT rows_examined,db,query_time,lock_time,sql_text FROM mysql.slow_log WHERE 
 --echo #
 
 # Reset global system variables to initial values if forgotten somewhere above.
+SET global log_output = @old_log_output;
 SET global general_log = @old_general_log;
 SET global general_log_file = @old_general_log_file;
 SET global slow_query_log = @old_slow_query_log;
@@ -115,3 +118,5 @@ if(!$fixed_bug38124)
    eval SET @@global.slow_query_log_file = '$my_var';
    --enable_query_log
 }
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;

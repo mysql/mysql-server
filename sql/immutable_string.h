@@ -1,7 +1,7 @@
 #ifndef IMMUTABLE_STRING_H
 #define IMMUTABLE_STRING_H
 
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include <stdint.h>
 
 #include <limits>
+#include <string_view>
 
 #include "my_compiler.h"
 
@@ -60,15 +61,10 @@ MY_COMPILER_DIAGNOSTIC_POP()
  */
 class ImmutableStringWithLength {
  public:
-  // TODO(sgunders): Replace with std::string_view when we get C++17.
-  struct Decoded {
-    const char *data;
-    size_t size;
-  };
   ImmutableStringWithLength() = default;
   explicit ImmutableStringWithLength(const char *encoded) : m_ptr(encoded) {}
 
-  inline Decoded Decode() const;
+  inline std::string_view Decode() const;
 
   /// Encode the given string as an ImmutableStringWithLength, and returns
   /// a new object pointing to it. *dst must contain at least the number
@@ -130,12 +126,10 @@ inline const char *VarintParse64(const char *p, uint64_t *out) {
   return tmp.first;
 }
 
-ImmutableStringWithLength::Decoded ImmutableStringWithLength::Decode() const {
-  ImmutableStringWithLength::Decoded decoded;
+std::string_view ImmutableStringWithLength::Decode() const {
   uint64_t size;
-  decoded.data = VarintParse64(m_ptr, &size);
-  decoded.size = size;
-  return decoded;
+  const char *data = VarintParse64(m_ptr, &size);
+  return {data, static_cast<size_t>(size)};
 }
 
 ImmutableStringWithLength ImmutableStringWithLength::Encode(const char *data,
@@ -156,15 +150,7 @@ ImmutableStringWithLength ImmutableStringWithLength::Encode(const char *data,
 
 bool ImmutableStringWithLength::operator==(
     ImmutableStringWithLength other) const {
-  ImmutableStringWithLength::Decoded str1 = Decode();
-  ImmutableStringWithLength::Decoded str2 = other.Decode();
-  if (str1.size != str2.size) {
-    return false;
-  } else if (str1.size == 0) {
-    return true;
-  } else {
-    return memcmp(str1.data, str2.data, str1.size) == 0;
-  }
+  return Decode() == other.Decode();
 }
 
 /**

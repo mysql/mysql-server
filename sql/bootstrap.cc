@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // dispatch_sql_command
 #include "sql/sql_profile.h"
-#include "sql/sys_vars_shared.h"  // intern_find_sys_var
+#include "sql/sys_vars_shared.h"  // find_static_system_variable
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction_info.h"
@@ -94,7 +94,7 @@ static char *mysql_file_fgets_fn(char *buffer, size_t size, MYSQL_FILE *input,
   return line;
 }
 
-File_command_iterator::~File_command_iterator() {}
+File_command_iterator::~File_command_iterator() = default;
 
 static void bootstrap_log_error(const char *message) {
   my_printf_error(ER_UNKNOWN_ERROR, "%s", MYF(0), message);
@@ -181,15 +181,14 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
 }
 
 static int process_iterator(THD *thd, Command_iterator *it,
-                            bool enforce_invariants MY_ATTRIBUTE((unused))) {
+                            bool enforce_invariants [[maybe_unused]]) {
   std::string query;
   Key_length_error_handler error_handler;
   bool error = false;
 
-  const bool saved_sql_log_bin MY_ATTRIBUTE((unused)) =
-      thd->variables.sql_log_bin;
-  const ulonglong invariant_bits MY_ATTRIBUTE((unused)) = OPTION_BIN_LOG;
-  const ulonglong saved_option_bits MY_ATTRIBUTE((unused)) =
+  const bool saved_sql_log_bin [[maybe_unused]] = thd->variables.sql_log_bin;
+  const ulonglong invariant_bits [[maybe_unused]] = OPTION_BIN_LOG;
+  const ulonglong saved_option_bits [[maybe_unused]] =
       thd->variables.option_bits & invariant_bits;
 
   it->begin();
@@ -269,7 +268,7 @@ static int process_iterator(THD *thd, Command_iterator *it,
       break;
     }
 
-    free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+    thd->mem_root->ClearForReuse();
 
     /*
       Make sure bootstrap statements do not change binlog options.
@@ -374,7 +373,8 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
 
   // Set server default sql_mode irrespective of mysqld server command line
   // argument.
-  thd->variables.sql_mode = intern_find_sys_var("sql_mode", 0)->get_default();
+  thd->variables.sql_mode =
+      find_static_system_variable("sql_mode")->get_default();
 
   // Set session server and connection collation irrespective of
   // mysqld server command line argument.
@@ -387,7 +387,7 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
   // avoid problems due to transactions being active when they are
   // not supposed to.
   thd->variables.completion_type =
-      intern_find_sys_var("completion_type", 0)->get_default();
+      find_static_system_variable("completion_type")->get_default();
 
   /*
     Set default value for explicit_defaults_for_timestamp variable. Bootstrap
@@ -396,7 +396,8 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
     the user.
   */
   thd->variables.explicit_defaults_for_timestamp =
-      intern_find_sys_var("explicit_defaults_for_timestamp", 0)->get_default();
+      find_static_system_variable("explicit_defaults_for_timestamp")
+          ->get_default();
 
   /*
     The global table encryption default setting applies to user threads.

@@ -1,0 +1,110 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap group on server1.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+############################################################
+# 2. Validate that a given SELECT that access tables goes
+#    through the `trans_begin` hook on Group Replication on
+#    server1.
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SELECT * FROM t1;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+############################################################
+# 3. Validate that a given SELECT that calls a UDF goes
+#    through the `trans_begin` hook on Group Replication on
+#    server1.
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+############################################################
+# 4. Validate that a given DO that calls a UDF goes
+#    through the `trans_begin` hook on Group Replication on
+#    server1.
+
+# Instrument GR to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
+
+# Execute the statement on server1.
+[connection server1]
+DO group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");;
+
+# Validate that the statement went on
+# `trans_begin` hook on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
+
+# Release the statement from
+# `trans_begin` hook on server1.
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
+
+# Reap the statement on server1.
+[connection server1]
+
+# Remove GR instrumentaion to hold the statement on
+# `trans_begin` hook on server1.
+[connection server_1]
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+
+############################################################
+# 5. Clean up.
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,16 +40,16 @@ Ldap_logger *g_logger_client = NULL;
 #endif
 
 #if defined(KERBEROS_LIB_CONFIGURED)
-Sasl_mechanism_kerberos::Sasl_mechanism_kerberos() {}
+Sasl_mechanism_kerberos::Sasl_mechanism_kerberos() = default;
 
-Sasl_mechanism_kerberos::~Sasl_mechanism_kerberos() {}
+Sasl_mechanism_kerberos::~Sasl_mechanism_kerberos() = default;
 
 bool Sasl_mechanism_kerberos::pre_authentication() {
   m_kerberos = std::unique_ptr<Kerberos>(
       new Kerberos(m_user.c_str(), m_password.c_str()));
   /**
      Both user name and password are empty.
-     Exisiting TGT will be used for authentication.
+     Existing TGT will be used for authentication.
      Main user case.
   */
   if (m_user.empty() && m_password.empty()) {
@@ -111,9 +111,9 @@ void Sasl_mechanism::set_user_info(std::string user, std::string password) {
   m_password = password;
 }
 
-Sasl_mechanism::Sasl_mechanism() {}
+Sasl_mechanism::Sasl_mechanism() = default;
 
-Sasl_mechanism::~Sasl_mechanism() {}
+Sasl_mechanism::~Sasl_mechanism() = default;
 
 bool Sasl_mechanism::pre_authentication() { return true; }
 

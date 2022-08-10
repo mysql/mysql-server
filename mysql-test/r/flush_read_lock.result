@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 1]
 # FTWRL takes two global metadata locks -- a global shared
 # metadata lock and the commit blocker lock.
 # The first lock prevents DDL from taking place.
@@ -1374,7 +1375,7 @@ insert into t3_trans values (1);
 xa end 'test1';
 xa prepare 'test1';
 set debug_sync='RESET';
-set debug_sync='trans_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+set debug_sync='detached_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
 xa commit 'test1';
 # Switching to connection 'con1'.
 set debug_sync='now WAIT_FOR parked';

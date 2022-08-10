@@ -45,6 +45,6 @@ SELECT COUNT(@@GLOBAL.mysqlx_ssl_capath);
 --echo 0 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT mysqlx_ssl_capath = @@SESSION.mysqlx_ssl_capath;
---echo Expected error 'Readonly variable'
+SELECT mysqlx_ssl_capath;
+--echo Expected error 'Unknown column'
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ static int compare_bin(const uchar *a, uint a_length, const uchar *b,
     /*
       We are using space compression. We have to check if longer key
       has next character < ' ', in which case it's less than the shorter
-      key that has an implicite space afterwards.
+      key that has an implicit space afterwards.
 
       This code is identical to the one in
       strings/ctype-simple.c:my_strnncollsp_simple
@@ -108,12 +108,12 @@ static int compare_bin(const uchar *a, uint a_length, const uchar *b,
    Example1: if the function is called for tuples
      ('aaa','bbb') and ('eee','fff'), then
      diff_pos[0] = 1 (as 'aaa' != 'eee')
-     diff_pos[1] = 0 (offset from beggining of tuple b to 'eee' keypart).
+     diff_pos[1] = 0 (offset from beginning of tuple b to 'eee' keypart).
 
    Example2: if the index function is called for tuples
      ('aaa','bbb') and ('aaa','fff'),
      diff_pos[0] = 2 (as 'aaa' != 'eee')
-     diff_pos[1] = 3 (offset from beggining of tuple b to 'fff' keypart,
+     diff_pos[1] = 3 (offset from beginning of tuple b to 'fff' keypart,
                       here we assume that first key part is CHAR(3) NOT NULL)
 
   NOTES

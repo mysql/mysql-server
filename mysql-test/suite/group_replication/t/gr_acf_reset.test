@@ -1,0 +1,121 @@
+###############################################################################
+# Validate several scenarios on the UDF:
+#   asynchronous_connection_failover_reset
+#
+# Test:
+#   0. This test requires three servers
+#      server1: group primary
+#      server2: group secondary
+#      server3: standalone server
+#
+#   1. Try to reset asynchronous reconnection configuration on
+#      a server running GR.
+#      It will not be allowed.
+#   2. Try to reset asynchronous reconnection configuration on
+#      a server not running GR.
+#      It will be allowed.
+#   3. Clean up
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Try to reset asynchronous reconnection configuration on
+--echo #    a server running GR.
+--echo #    It will not be allowed.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_reset();
+
+
+--echo
+--echo ############################################################
+--echo # 2. Try to reset asynchronous reconnection configuration on
+--echo #    a server not running GR.
+--echo #    It will be allowed.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2 $group_replication_group_name FAILOVER_GROUP_NAME
+--eval SELECT asynchronous_connection_failover_add_managed('ch1_3', 'GroupReplication', '$group_replication_group_name', '127.0.0.1', $SERVER_MYPORT_2, '', 80, 60)
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 1
+--source include/assert.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 FOR CHANNEL 'ch1_3'
+
+--let $rpl_channel_name='ch1_3'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 2 or greater'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] >= 2
+--source include/assert.inc
+
+--let $rpl_channel_name='ch1_3'
+--source include/stop_slave.inc
+--let $rpl_channel_name=
+
+# Reset asynchronous reconnection configuration
+SELECT asynchronous_connection_failover_reset();
+
+--let $assert_text= 'There is no row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--let $rpl_channel_name='ch1_3'
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/group_replication_end.inc

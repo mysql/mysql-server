@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,34 +106,6 @@ class Sql_service_commands {
   */
   long internal_get_server_read_only(Sql_service_interface *sql_interface,
                                      void *arg = nullptr);
-
-  /**
-    Method to return the server gtid_executed by executing the corresponding
-    sql query.
-
-    @param sql_interface        the server session interface for query execution
-    @param [out] gtid_executed  The string where the result will be appended
-
-    @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  long internal_get_server_gtid_executed(Sql_service_interface *sql_interface,
-                                         void *gtid_executed);
-
-  /**
-    Method to return the server gtid_purged by executing the corresponding
-    sql query.
-
-    @param sql_interface        the server session interface for query execution
-    @param [out] gtid_purged    The string where the result will be appended
-
-    @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  long internal_get_server_gtid_purged(Sql_service_interface *sql_interface,
-                                       void *gtid_purged);
 
   /**
     Method to wait for the server gtid_executed to match the given GTID string
@@ -440,30 +412,6 @@ class Sql_service_command_interface {
       @retval >0 - failure
   */
   long reset_read_only();
-
-  /**
-    Method to return the server gtid_executed by executing the corresponding
-    sql query.
-
-    @param [out] gtid_executed The string where the result will be appended
-
-    @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  int get_server_gtid_executed(std::string &gtid_executed);
-
-  /**
-    Method to return the server gtid_purged by executing the corresponding
-    sql query.
-
-    @param [out] gtid_purged The string where the result will be appended
-
-    @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  int get_server_gtid_purged(std::string &gtid_purged);
 
   /**
     Method to wait for the server gtid_executed to match the given GTID string

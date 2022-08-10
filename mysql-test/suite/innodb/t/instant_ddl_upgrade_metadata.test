@@ -1,0 +1,216 @@
+##########################################################################
+# Test script to test DD Metadata after UPGRADE from older version table
+# (not) having INSTANT ADD columns.
+##########################################################################
+
+--source include/not_valgrind.inc
+--source include/have_lowercase0.inc
+
+# ------------------------------------------------------------
+# Tables created on earlier version with following
+# ------------------------------------------------------------
+#  Create table t1 (c1 char(10), c2 char(10), c3 char(10));
+#  Insert into t1 values ("r1c1", "r1c2", "r1c3");
+#  SELECT * from t1;
+#
+#  Create table t2 (c1 char(10), c2 char(10), c3 char(10));
+#  Insert into t2 values ("r1c1", "r1c2", "r1c3");
+#  SELECT * from t2;
+#
+#  Create table t3 (c1 char(10), c2 char(10));
+#  Insert into t3 values ("r1c1", "r1c2");
+#  SELECT * from t3;
+#  ALTER table t3 add column c3 char(10) DEFAULT NULL, algorithm=instant;
+#  SELECT * from t3;
+#  ALTER table t3 add column c4 char(10) DEFAULT "c4_def", algorithm=instant;
+#  SELECT * from t3;
+# ------------------------------------------------------------
+
+--echo # ------------------------------------------------------------
+--echo # Start server with old datadir with
+--echo #   Table t1 and t2
+--echo #     having c1, c2, c3 normal columns
+--echo #       +------+------+------+
+--echo #       | c1   | c2   | c3   |
+--echo #       +------+------+------+
+--echo #       | r1c1 | r1c2 | r1c3 |
+--echo #       +------+------+------+
+--echo #
+--echo #   Table t3
+--echo #     having c1, c2 normal columns
+--echo #     having c3 INSTANT ADD column with NULL default value
+--echo #     having c4 INSTANT ADD column with default value
+--echo #       +------+------+------+--------+
+--echo #       | c1   | c2   | c3   | c4     |
+--echo #       +------+------+------+--------+
+--echo #       | r1c1 | r1c2 | NULL | c4_def |
+--echo #       +------+------+------+--------+
+--echo # ------------------------------------------------------------
+
+--echo # Stop the running the server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy and unzip the datadir.
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/data_instant_ddl_upgrade.zip $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server against the unzipped datadir
+--replace_result $DATADIR DATADIR
+--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+--echo # ------------------------------------------------------------
+--echo # TEST 1 : Old version tables have no INSTANT ADD Columns
+--echo # ------------------------------------------------------------
+
+--echo # ------------------------------------------------------------
+--echo # Check metadat of upgraded table t1 [c1, c2, c3]
+--echo # Expectation : New INSTANT METADATA is not present.
+--echo # ------------------------------------------------------------
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # ------------------------------------------------------------
+--echo # INSTANT DROP a column and check metadata t1 [c1, c3, -c2]
+--echo # Expectation : New INSTANT METADATA is populated.
+--echo # ------------------------------------------------------------
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # ------------------------------------------------------------
+--echo # Check metadat of upgraded table t2 [c1, c2, c3]
+--echo # Expectation : New INSTANT METADATA is not present.
+--echo # ------------------------------------------------------------
+--let $table_name=t2
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # ------------------------------------------------------------
+--echo # INSTANT ADD a column and check metadata t2 [c1, c2, c3, +c4]
+--echo # Expectation : New INSTANT METADATA is populated.
+--echo # ------------------------------------------------------------
+ALTER TABLE t2 ADD COLUMN c4 CHAR(10) DEFAULT "c4_def", ALGORITHM=INSTANT;
+--let $table_name=t2
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # ------------------------------------------------------------
+--echo # INSTANT DROP a column and check metadata t2 [c1, c2, -c3, c4]
+--echo # Expectation : New INSTANT METADATA is updated.
+--echo # ------------------------------------------------------------
+ALTER TABLE t2 DROP COLUMN c3, ALGORITHM=INSTANT;
+--let $table_name=t2
+--source suite/innodb/include/print_instant_metadata.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo # ------------------------------------------------------------
+--echo # TEST 2 : Old version tables have INSTANT ADD Columns
+--echo # ------------------------------------------------------------
+
+--echo # ------------------------------------------------------------
+--echo # Check metadat of upgraded table t3 [c1, c2, c3, c4]
+--echo # Expectation : Old INSTANT METADATA is present
+--echo #               New INSTANT METADATA is not present.
+--echo # ------------------------------------------------------------
+--let $table_name=t3
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # --------------------------------------------------------------------
+--echo # INSTANT DROP a normal column and check metadata t3 [c1, -c2, c3, c4]
+--echo # Expectation : Old INSTANT METADATA stays same.
+--echo #               New INSTANT METADATA is populated.
+--echo # ---------------------------------------------------------------------
+ALTER TABLE t3 DROP COLUMN c2, ALGORITHM=INSTANT;
+--let $table_name=t3
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # -----------------------------------------------------------------------
+--echo # INSTANT DROP an INSTANT column and check metadata t3 [c1, ~c2, -c3, c4]
+--echo # Expectation : Old INSTANT METADATA stays same.
+--echo #               New INSTANT METADATA is updated.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t3 DROP COLUMN c3, ALGORITHM=INSTANT;
+--let $table_name=t3
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # -----------------------------------------------------------------------
+--echo # INSTANT ADD a new column and check metadata t3 [c1, ~c2, ~c3, c4, +c5]
+--echo # Expectation : Old INSTANT METADATA stays same.
+--echo #               New INSTANT METADATA is updated.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t3 ADD COLUMN c5 CHAR(10) DEFAULT "c5_def", ALGORITHM=INSTANT;
+--let $table_name=t3
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # -----------------------------------------------------------------------------
+--echo # INSTANT DROP newly added column and check metadata t3 [c1, ~c2, ~c3, c4, -c5]
+--echo # Expectation : Old INSTANT METADATA stays same.
+--echo #               New INSTANT METADATA is updated.
+--echo # -----------------------------------------------------------------------------
+ALTER TABLE t3 DROP COLUMN c5, ALGORITHM=INSTANT;
+--let $table_name=t3
+--source suite/innodb/include/print_instant_metadata.inc
+
+DROP TABLE t3;
+
+--echo # -------------------------------------------------
+--echo # TEST 3 : New tables with INSTANT ADD/DROP Columns
+--echo # -------------------------------------------------
+CREATE TABLE t1 (c1 char(10), c2 char(10), c3 char(10));
+
+--echo # ------------------------------------------------------------
+--echo # Check metadat of table t1 [c1, c2, c3]
+--echo # Expectation : Old INSTANT METADATA is not present
+--echo #               New INSTANT METADATA is not present.
+--echo # ------------------------------------------------------------
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # -----------------------------------------------------------------------
+--echo # INSTANT DROP a column and check metadata t1 [c1, -c2, c3]
+--echo # Expectation : Old INSTANT METADATA is not present.
+--echo #               New INSTANT METADATA is populated.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t1 DROP COLUMN c2, ALGORITHM=INSTANT;
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # -----------------------------------------------------------------------
+--echo # INSTANT ADD a column and check metadata t1 [+c0, c1, ~c2, c3]
+--echo # Expectation : Old INSTANT METADATA not present.
+--echo #               New INSTANT METADATA is updated.
+--echo # -----------------------------------------------------------------------
+ALTER TABLE t1 ADD COLUMN c0 CHAR(10) DEFAULT "c0_def" FIRST, ALGORITHM=INSTANT;
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+--echo # ----------------------------------------------------------------------------
+--echo # INSTANT DROP the INSTANT ADD column and check metadata t1 [-c0, c1, ~c2, c3]
+--echo # Expectation : Old INSTANT METADATA is not present.
+--echo #               New INSTANT METADATA is updated.
+--echo # ----------------------------------------------------------------------------
+ALTER TABLE t1 DROP COLUMN c0, ALGORITHM=INSTANT;
+--let $table_name=t1
+--source suite/innodb/include/print_instant_metadata.inc
+
+DROP TABLE t1;
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/data_instant_ddl_upgrade.zip
+
+--echo # Restarting server to restore server state
+let $restart_parameters =;
+--source include/start_mysqld.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <SimpleProperties.hpp>
 #include <NdbOut.hpp>
@@ -59,12 +60,10 @@ bool
 SimpleProperties::Writer::add(const char * value, int len){
   const Uint32 valLen = (len + 3) / 4;
 
-  if ((len % 4) == 0)
-    return putWords((Uint32*)value, valLen);
+  if ((len % 4) == 0) return putWords((const Uint32 *)value, valLen);
 
   const Uint32 putLen= valLen - 1;
-  if (!putWords((Uint32*)value, putLen))
-    return false;
+  if (!putWords((const Uint32 *)value, putLen)) return false;
 
   // Special handling of last bytes
   union {
@@ -305,13 +304,13 @@ SimpleProperties::pack(Writer & it, const void * __src,
         ok = true;
         break;
       case SimpleProperties::Uint32Value:{
-        Uint32 val = * ((Uint32*)src);
+        Uint32 val = *((const Uint32 *)src);
         ok = it.add(key, val);
       }
         break;
       case SimpleProperties::BinaryValue:{
         const char * src_len = _src + _map[i].Length_Offset;
-        Uint32 len = *((Uint32*)src_len);
+        Uint32 len = *((const Uint32 *)src_len);
         if((!ignoreMinMax) && _map[i].maxLength && len > _map[i].maxLength)
           return ValueTooLong;
         ok = it.add(key, src, len);
@@ -333,7 +332,7 @@ SimpleProperties::pack(Writer & it, const void * __src,
 
 void
 SimpleProperties::Reader::printAll(NdbOut& ndbout){
-  char tmp[1024];
+  char tmp[MAX_LOG_MESSAGE_SIZE];
   for(first(); valid(); next()){
     switch(getValueType()){
     case SimpleProperties::Uint32Value:
@@ -343,7 +342,7 @@ SimpleProperties::Reader::printAll(NdbOut& ndbout){
       break;
     case SimpleProperties::BinaryValue:
     case SimpleProperties::StringValue:
-      if(getValueLen() < 1024){
+      if(getValueLen() < MAX_LOG_MESSAGE_SIZE){
 	getString(tmp);
 	ndbout << "Key: " << getKey()
 	       << " value(" << getValueLen() << ") : " 
@@ -362,6 +361,31 @@ SimpleProperties::Reader::printAll(NdbOut& ndbout){
   }
 }
 
+void SimpleProperties::Reader::printAll(EventLogger *logger) {
+  char tmp[MAX_LOG_MESSAGE_SIZE];
+  for (first(); valid(); next()) {
+    switch (getValueType()) {
+      case SimpleProperties::Uint32Value:
+        logger->info("Key: %u value(%u) : %u", getKey(), getValueLen(),
+                     getUint32());
+        break;
+      case SimpleProperties::BinaryValue:
+      case SimpleProperties::StringValue:
+        if (getValueLen() < MAX_LOG_MESSAGE_SIZE) {
+          getString(tmp);
+          logger->info("Key: %u value(%u) : \"%s\"", getKey(), getValueLen(),
+                       tmp);
+        } else {
+          logger->info("Key: %u value(%u) : \"<TOO LONG>\"", getKey(),
+                       getValueLen());
+        }
+        break;
+      default:
+        logger->info("Unknown type for key: %u type: %u", getKey(),
+                     (Uint32)getValueType());
+    }
+  }
+}
 SimplePropertiesLinearReader::SimplePropertiesLinearReader
 (const Uint32 * src, Uint32 len){
   m_src = src;

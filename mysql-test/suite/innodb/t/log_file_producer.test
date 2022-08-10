@@ -1,0 +1,69 @@
+# Test for recovery based on multiple log files of different
+# sizes. The sizes of log files are randomly chosen within
+# the range 64kB .. 1 MB. Checkpointing is disabled and once
+# we ran out of free log files, we crash and recover.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo # Prepare schema used in the tests.
+--source include/ib_log_spammer_init.inc
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+
+--echo # Ensure there is a lot of free space in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+
+--echo # Disable checkpointing
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+SET GLOBAL DEBUG = '+d,log_force_consumption';
+
+--echo # Pause any new log file productions
+SET GLOBAL DEBUG = '+d,syncpoint_log_before_file_produced';
+
+--echo # Get notified when a new log file is produced (since now).
+SET GLOBAL DEBUG = '+d,syncpoint_log_after_file_produced';
+
+--echo # Waiting until we have exactly 1 redo log file.
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let MYSQLD_IB_REDO_LOG_NON_TMP_FILES_COUNT_MAX = 1;
+--source include/ib_redo_log_files_count_wait.inc
+
+--echo # Create connection which generates spam to the redo log.
+--connect(C1,localhost,root,,test)
+--send CALL log_spammer()
+--connection default
+
+--echo # Redo log data is being generated.
+--sleep 1
+
+--echo # Wait until few log files are produced.
+let $i = 5;
+while ($i > 0) {
+    SET DEBUG_SYNC = 'now SIGNAL continue_log_before_file_produced WAIT_FOR reached_log_before_file_produced';
+    SET DEBUG_SYNC = 'now SIGNAL continue_log_after_file_produced WAIT_FOR reached_log_after_file_produced';
+    dec $i;
+}
+
+perl;
+require 'include/ib_redo_log_files.inc';
+my $n_files = scalar(log_get_non_tmp_files());
+print "Redo files: $n_files\n";
+EOF
+
+SET GLOBAL DEBUG = '-d,syncpoint_log_before_file_produced';
+SET GLOBAL DEBUG = '-d,syncpoint_log_after_file_produced';
+SET DEBUG_SYNC = 'now SIGNAL continue_log_before_file_produced,continue_log_after_file_produced';
+
+--echo # Create 1 row in t.
+INSERT INTO t(a) VALUES(42);
+
+--echo # Kill the MySQL and recover to see all is fine
+--source include/kill_and_restart_mysqld.inc
+
+SELECT * FROM t;
+
+--echo # Cleanup.
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t;
+--source include/ib_log_spammer_cleanup.inc

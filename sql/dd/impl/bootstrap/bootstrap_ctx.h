@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ class DD_bootstrap_ctx {
   uint m_actual_I_S_version = 0;
 
  public:
-  DD_bootstrap_ctx() {}
+  DD_bootstrap_ctx() = default;
 
   static DD_bootstrap_ctx &instance();
 

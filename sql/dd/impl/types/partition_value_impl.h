@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ class Partition_value_impl : public Weak_object_impl, public Partition_value {
 
   Partition_value_impl(const Partition_value_impl &src, Partition_impl *parent);
 
-  ~Partition_value_impl() override {}
+  ~Partition_value_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

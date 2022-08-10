@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,10 +25,12 @@
 
 #include <signaldata/NdbSttor.hpp>
 
-bool
-printNDB_STTOR(FILE * output, const Uint32 * theData, 
-	       Uint32 len, Uint16 receiverBlockNo) {
-  const NdbSttor * const sig = (NdbSttor *)theData;
+bool printNDB_STTOR(FILE *output,
+                    const Uint32 *theData,
+                    Uint32 len,
+                    Uint16 /*receiverBlockNo*/)
+{
+  const NdbSttor *const sig = (const NdbSttor *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   fprintf(output, " nodeId: %x\n", sig->nodeId);
   fprintf(output, " internalStartPhase: %x\n", sig->internalStartPhase);
@@ -49,11 +51,18 @@ printNDB_STTOR(FILE * output, const Uint32 * theData,
   return true;
 }
 
-bool
-printNDB_STTORRY(FILE * output, const Uint32 * theData, 
-		Uint32 len, Uint16 receiverBlockNo) {
-  const NdbSttorry * const sig = (NdbSttorry *)theData;
+bool printNDB_STTORRY(FILE *output,
+                      const Uint32 *theData,
+                      Uint32 len,
+                      Uint16 /*receiverBlockNo*/)
+{
+  if (len < NdbSttorry::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const NdbSttorry *const sig = (const NdbSttorry *)theData;
   fprintf(output, " senderRef: %x\n", sig->senderRef);
   return true;
 }
-

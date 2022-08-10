@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,7 +40,7 @@ std::uniform_real_distribution<double> Histogram_sampler::m_distribution(0,
 Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
                                      double sampling_percentage,
                                      enum_sampling_method sampling_method)
-    : m_parallel_reader(max_threads, false),
+    : m_parallel_reader(max_threads),
       m_random_generator(sampling_seed),
       m_sampling_method(sampling_method),
       m_sampling_percentage(sampling_percentage),
@@ -56,13 +56,21 @@ Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
   m_n_sampled = 0;
 
   m_parallel_reader.set_start_callback(
-      [=](Parallel_reader::Thread_ctx *reader_thread_ctx) {
-        return start_callback(reader_thread_ctx);
+      [=](Parallel_reader::Thread_ctx *thread_ctx) {
+        if (thread_ctx->get_state() == Parallel_reader::State::THREAD) {
+          return start_callback(thread_ctx);
+        } else {
+          return DB_SUCCESS;
+        }
       });
 
   m_parallel_reader.set_finish_callback(
-      [&](Parallel_reader::Thread_ctx *reader_thread_ctx) {
-        return finish_callback(reader_thread_ctx);
+      [=](Parallel_reader::Thread_ctx *thread_ctx) {
+        if (thread_ctx->get_state() == Parallel_reader::State::THREAD) {
+          return finish_callback(thread_ctx);
+        } else {
+          return DB_SUCCESS;
+        }
       });
 }
 
@@ -75,6 +83,7 @@ Histogram_sampler::~Histogram_sampler() {
 
 dberr_t Histogram_sampler::start_callback(
     Parallel_reader::Thread_ctx *reader_thread_ctx) {
+  ut_a(reader_thread_ctx->get_state() == Parallel_reader::State::THREAD);
   /** There are data members in row_prebuilt_t that cannot be accessed in
   multi-threaded mode e.g., blob_heap.
 
@@ -82,9 +91,9 @@ dberr_t Histogram_sampler::start_callback(
   it among threads is not recommended unless "you know what you are doing".
   This is very fragile code as it stands.
 
-  To solve the blob heap issue in prebuilt we request parallel reader thread to
-  use blob heap per thread and we pass this blob heap to the InnoDB to MySQL
-  row format conversion function. */
+  To solve the blob heap issue in prebuilt we request parallel reader thread
+  to use blob heap per thread and we pass this blob heap to the InnoDB to
+  MySQL row format conversion function. */
   reader_thread_ctx->create_blob_heap();
 
   return DB_SUCCESS;
@@ -92,6 +101,8 @@ dberr_t Histogram_sampler::start_callback(
 
 dberr_t Histogram_sampler::finish_callback(
     Parallel_reader::Thread_ctx *reader_thread_ctx) {
+  ut_a(reader_thread_ctx->get_state() == Parallel_reader::State::THREAD);
+
   DBUG_PRINT("histogram_sampler_buffering_print", ("-> Buffering complete."));
 
   DBUG_LOG("histogram_sampler_buffering_print",
@@ -100,7 +111,7 @@ dberr_t Histogram_sampler::finish_callback(
 
   if (is_error_set()) {
     signal_end_of_buffering();
-    return (m_err);
+    return m_err;
   }
 
   wait_for_start_of_buffering();
@@ -111,14 +122,14 @@ dberr_t Histogram_sampler::finish_callback(
 
   signal_end_of_buffering();
 
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 bool Histogram_sampler::init(trx_t *trx, dict_index_t *index,
                              row_prebuilt_t *prebuilt) {
   mtr_t mtr;
   mtr_start(&mtr);
-  mtr_sx_lock(dict_index_get_lock(index), &mtr);
+  mtr_sx_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
 
   /* Read pages from one level above the leaf page. */
   ulint read_level = btr_height_get(index, &mtr);
@@ -187,8 +198,8 @@ bool Histogram_sampler::skip() {
     } break;
 
     default:
-      ut_ad(0);
-      break;
+      ut_d(ut_error);
+      ut_o(break);
   }
 
   return (ret);
@@ -223,7 +234,7 @@ void Histogram_sampler::buffer_end() {
 }
 
 dberr_t Histogram_sampler::run() {
-  return m_parallel_reader.run(m_parallel_reader.max_threads());
+  return m_parallel_reader.spawn(m_parallel_reader.max_threads());
 }
 
 dberr_t Histogram_sampler::sample_rec(const Parallel_reader::Ctx *reader_ctx,
@@ -248,7 +259,7 @@ dberr_t Histogram_sampler::sample_rec(const Parallel_reader::Ctx *reader_ctx,
     m_n_sampled.fetch_add(1, std::memory_order_relaxed);
   } else {
     err = DB_ERROR;
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   DBUG_EXECUTE_IF("simulate_sample_read_error", err = DB_ERROR;);
@@ -296,7 +307,7 @@ dberr_t Histogram_sampler::process_non_leaf_rec(
   page_cur_set_before_first(leaf_block, &cur);
   page_cur_move_to_next(&cur);
 
-  auto heap = mem_heap_create(srv_page_size / 4);
+  auto heap = mem_heap_create(srv_page_size / 4, UT_LOCATION_HERE);
   dberr_t err{DB_SUCCESS};
 
   for (;;) {
@@ -309,7 +320,8 @@ dberr_t Histogram_sampler::process_non_leaf_rec(
     rec_offs_init(offsets_);
 
     const rec_t *rec = page_cur_get_rec(&cur);
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
 
     if (ctx->is_rec_visible(rec, offsets, heap, &mtr)) {
       err = sample_rec(ctx, rec, offsets, index, prebuilt);

@@ -6,7 +6,7 @@
 # can be created with many partitions (> 8)
 # Max: #nodes * #LDM * NoOfFragmentLogParts / NoOfReplicas
 ######
-ThreadConfig=ldm={count=4}
+ThreadConfig=main,rep,recv,ldm={count=4}
 
 ######
 # Tune some more  configs as test load is 

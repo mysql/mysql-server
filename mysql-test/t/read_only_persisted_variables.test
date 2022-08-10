@@ -5,8 +5,8 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
-# This test is also meant to check read-only persisted value of log-slave-updates,
-# thus, it makes sense to run this test when log-bin and log-slave-updates are enabled.
+# This test is also meant to check read-only persisted value of log-replica-updates,
+# thus, it makes sense to run this test when log-bin and log-replica-updates are enabled.
 -- source include/have_log_bin.inc
 
 --echo # Syntax check for PERSIST_ONLY option
@@ -58,7 +58,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-CALL mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
+CALL mtr.add_suppression("You need to use --log-bin to make --log-replica-updates work.");
 
 --echo # default values
 SELECT @@global.binlog_gtid_simple_recovery;
@@ -118,12 +118,11 @@ SELECT @@global.ft_query_expansion_limit;
 SELECT @@global.innodb_api_enable_mdl;
 
 SELECT @@global.innodb_read_io_threads;
-SELECT @@global.innodb_log_file_size;
-SELECT @@global.log_slave_updates;
+SELECT @@global.log_replica_updates;
 
 --echo # modify existing persisted variables and add new
 SET PERSIST_ONLY innodb_read_io_threads= 16;
-SET PERSIST_ONLY innodb_log_file_size= 4194304, log_slave_updates= 1;
+SET PERSIST_ONLY log_replica_updates= 1;
 
 --echo # Restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -137,8 +136,7 @@ SET PERSIST_ONLY innodb_log_file_size= 4194304, log_slave_updates= 1;
 SELECT @@global.ft_query_expansion_limit;
 SELECT @@global.innodb_api_enable_mdl;
 SELECT @@global.innodb_read_io_threads;
-SELECT @@global.innodb_log_file_size;
-SELECT @@global.log_slave_updates;
+SELECT @@global.log_replica_updates;
 
 --echo # check contents of persistent config file
 --echo
@@ -187,7 +185,7 @@ SELECT @@global.transaction_isolation;
 SELECT VARIABLE_NAME FROM performance_schema.variables_info
   WHERE VARIABLE_SOURCE = 'PERSISTED';
 
-SET PERSIST_ONLY slave_type_conversions= ALL_UNSIGNED;
+SET PERSIST_ONLY replica_type_conversions= ALL_UNSIGNED;
 SET @@persist_only.relay_log_space_limit=4096;
 
 --echo # Restart server with persisted_globals_load disabled.
@@ -210,7 +208,7 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-SELECT @@global.relay_log_space_limit, @@global.slave_type_conversions;
+SELECT @@global.relay_log_space_limit, @@global.replica_type_conversions;
 SELECT VARIABLE_NAME FROM performance_schema.variables_info
   WHERE VARIABLE_SOURCE = 'PERSISTED';
 
@@ -266,23 +264,20 @@ SET PERSIST_ONLY ft_query_expansion_limit=80;
 RESET PERSIST;
 
 --echo # test reset on readonly persisted variables
-SET @@persist_only.innodb_log_file_size= 4194304;
-SET @@persist_only.slave_type_conversions = ALL_UNSIGNED;
+SET @@persist_only.replica_type_conversions = ALL_UNSIGNED;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 SET PERSIST auto_increment_increment=10;
 SET PERSIST innodb_checksum_algorithm=strict_crc32;
-SET @@persist_only.innodb_log_file_size= DEFAULT;
 SET PERSIST_ONLY ft_query_expansion_limit= DEFAULT;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
---echo # reset slave_type_conversions
-RESET PERSIST slave_type_conversions;
+--echo # reset replica_type_conversions
+RESET PERSIST replica_type_conversions;
 --echo # return 0 rows.
 SELECT * FROM performance_schema.persisted_variables
-  WHERE VARIABLE_NAME = 'slave_type_conversions';
+  WHERE VARIABLE_NAME = 'replica_type_conversions';
 RESET PERSIST auto_increment_increment;
-RESET PERSIST innodb_log_file_size;
 SELECT * FROM performance_schema.persisted_variables
-  WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size')
+  WHERE VARIABLE_NAME IN ('auto_increment_increment')
   ORDER BY 1;
 RESET PERSIST;
 --echo # return 0 rows.
@@ -314,7 +309,7 @@ SET @@persist_only.plugin_dir= "/";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.secure_file_priv= "/";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.slave_load_tmpdir= "/";
+SET @@persist_only.replica_load_tmpdir= "/";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.tmpdir= "/";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
@@ -416,12 +411,12 @@ SET PERSIST_ONLY gtid_executed='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 --echo # Bug#30094645: SET PERSIST_ONLY TO 0/1 BOOLEAN GLOBAL VARIABLES HAVING SESSION, RESTART FAILS
 --echo #
 
-SET PERSIST_ONLY log_slave_updates = 1,super_read_only=1, end_markers_in_json = 1;
+SET PERSIST_ONLY log_replica_updates = 1,super_read_only=1, end_markers_in_json = 1;
 
 --echo # Restart server
 --source include/restart_mysqld.inc
 
-select @@global.log_slave_updates, @@global.super_read_only, @@global.end_markers_in_json;
+select @@global.log_replica_updates, @@global.super_read_only, @@global.end_markers_in_json;
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET PERSIST_ONLY super_read_only="invalid value";

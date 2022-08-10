@@ -917,6 +917,18 @@ info: Rows matched: 2  Changed: 0  Warnings: 2
 Warnings:
 Warning	1369	CHECK OPTION failed 'test.v2'
 Warning	1369	CHECK OPTION failed 'test.v2'
+UPDATE IGNORE v2 STRAIGHT_JOIN (SELECT 1) AS t0 SET f2 = 400;
+affected rows: 0
+info: Rows matched: 2  Changed: 0  Warnings: 2
+Warnings:
+Warning	1369	CHECK OPTION failed 'test.v2'
+Warning	1369	CHECK OPTION failed 'test.v2'
+UPDATE IGNORE (SELECT 1) AS t0 STRAIGHT_JOIN v2 SET f2 = 400;
+affected rows: 0
+info: Rows matched: 2  Changed: 0  Warnings: 2
+Warnings:
+Warning	1369	CHECK OPTION failed 'test.v2'
+Warning	1369	CHECK OPTION failed 'test.v2'
 UPDATE IGNORE t2 SET f2 = 400;
 affected rows: 2
 info: Rows matched: 2  Changed: 2  Warnings: 0

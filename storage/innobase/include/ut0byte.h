@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,62 +37,54 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0ut.h"
 
 /** Creates a 64-bit integer out of two 32-bit integers.
-@param[in]	high		high-order 32 bits
-@param[in]	low		low-order 32 bits
+@param[in]      high            high-order 32 bits
+@param[in]      low             low-order 32 bits
 @return created integer */
-UNIV_INLINE
-ib_uint64_t ut_ull_create(ulint high, ulint low);
+constexpr uint64_t ut_ull_create(uint32_t high, uint32_t low);
 
 /** Rounds a 64-bit integer downward to a multiple of a power of 2.
-@param[in]	n		number to be rounded
-@param[in]	align_no	align by this number
+@param[in]      n               number to be rounded
+@param[in]      align_no        align by this number
 @return rounded value */
-UNIV_INLINE
-ib_uint64_t ut_uint64_align_down(ib_uint64_t n, ulint align_no);
+static inline uint64_t ut_uint64_align_down(uint64_t n, ulint align_no);
 
-/** Rounds ib_uint64_t upward to a multiple of a power of 2.
-@param[in]	n		number to be rounded
-@param[in]	align_no	align by this number
+/** Rounds uint64_t upward to a multiple of a power of 2.
+@param[in]      n               number to be rounded
+@param[in]      align_no        align by this number
 @return rounded value */
-UNIV_INLINE
-ib_uint64_t ut_uint64_align_up(ib_uint64_t n, ulint align_no);
+static inline uint64_t ut_uint64_align_up(uint64_t n, ulint align_no);
 
 /** The following function rounds up a pointer to the nearest aligned address.
-@param[in]	ptr		pointer
-@param[in]	align_no	align by this number
+@param[in]      ptr             pointer
+@param[in]      align_no        align by this number
 @return aligned pointer */
-UNIV_INLINE
-void *ut_align(const void *ptr, ulint align_no);
+static inline void *ut_align(const void *ptr, ulint align_no);
 
 /** The following function rounds down a pointer to the nearest aligned address.
-@param[in]	ptr		pointer
-@param[in]	align_no	align by this number
+@param[in]      ptr             pointer
+@param[in]      align_no        align by this number
 @return aligned pointer */
-UNIV_INLINE
-void *ut_align_down(const void *ptr, ulint align_no);
+static inline void *ut_align_down(const void *ptr, ulint align_no);
 
 /** The following function computes the offset of a pointer from the nearest
 aligned address.
-@param[in]	ptr		pointer
-@param[in]	align_no	align by this number
+@param[in]      ptr             pointer
+@param[in]      align_no        align by this number
 @return distance from aligned pointer */
-UNIV_INLINE
-ulint ut_align_offset(const void *ptr, ulint align_no);
+static inline ulint ut_align_offset(const void *ptr, ulint align_no);
 
 /** Gets the nth bit of a ulint.
-@param[in]	a	ulint
-@param[in]	n	nth bit requested
+@param[in]      a       ulint
+@param[in]      n       nth bit requested
 @return true if nth bit is 1; 0th bit is defined to be the least significant */
-UNIV_INLINE
-ibool ut_bit_get_nth(ulint a, ulint n);
+static inline bool ut_bit_get_nth(ulint a, ulint n);
 
 /** Sets the nth bit of a ulint.
-@param[in]	a	ulint
-@param[in]	n	nth bit requested
-@param[in]	val	value for the bit to set
+@param[in]      a       ulint
+@param[in]      n       nth bit requested
+@param[in]      val     value for the bit to set
 @return the ulint with the bit set as requested */
-UNIV_INLINE
-ulint ut_bit_set_nth(ulint a, ulint n, ibool val);
+static inline ulint ut_bit_set_nth(ulint a, ulint n, bool val);
 
 #include "ut0byte.ic"
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "API.hpp"
 
+#include <cstring>
 #include <NdbSqlUtil.hpp>
 #include <AttributeHeader.hpp>
 
@@ -1059,7 +1061,7 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
      * To encode this, we'll request all rows where the first
      * key column value is >= NULL
      */
-    insert_open_bound(key_record, firstRangeWord);
+    insert_open_bound(firstRangeWord);
   }
 
   /* Set the length of this range
@@ -1615,9 +1617,8 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
 void
 NdbScanOperation::receiver_delivered(NdbReceiver* tRec){
   if(theError.code == 0){
-    if(DEBUG_NEXT_RESULT)
-      ndbout_c("receiver_delivered");
-    
+    if (DEBUG_NEXT_RESULT) g_eventLogger->info("receiver_delivered");
+
     Uint32 idx = tRec->m_list_index;
     Uint32 last = m_sent_receivers_count - 1;
     if(idx != last){
@@ -1639,9 +1640,8 @@ NdbScanOperation::receiver_delivered(NdbReceiver* tRec){
 void
 NdbScanOperation::receiver_completed(NdbReceiver* tRec){
   if(theError.code == 0){
-    if(DEBUG_NEXT_RESULT)
-      ndbout_c("receiver_completed");
-    
+    if (DEBUG_NEXT_RESULT) g_eventLogger->info("receiver_completed");
+
     Uint32 idx = tRec->m_list_index;
     Uint32 last = m_sent_receivers_count - 1;
     if(idx != last){
@@ -1977,7 +1977,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
   case 2:
     return retVal;
   case -1:
-    ndbout << "1:4008 on connection " << theNdbCon->ptr2int() << endl;
+    g_eventLogger->info("1:4008 on connection %d", theNdbCon->ptr2int());
     setErrorCode(4008); // Timeout
     break;
   case -2:
@@ -2052,20 +2052,15 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
   return 0;
 }
 
-int 
-NdbScanOperation::prepareSend(Uint32  TC_ConnectPtr,
-                              Uint64  TransactionId,
-                              NdbOperation::AbortOption)
+int NdbScanOperation::prepareSend(Uint32 /*TC_ConnectPtr*/,
+                                  Uint64 /*TransactionId*/,
+                                  NdbOperation::AbortOption)
 {
   abort();
   return 0;
 }
 
-int 
-NdbScanOperation::doSend(int ProcessorId)
-{
-  return 0;
-}
+int NdbScanOperation::doSend(int /*ProcessorId*/) { return 0; }
 
 void NdbScanOperation::close(bool forceSend, bool releaseOp)
 {
@@ -2078,15 +2073,14 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   if (theNdbCon != NULL)
   {
     if(DEBUG_NEXT_RESULT)
-      ndbout_c("close() theError.code = %d "
-               "m_api_receivers_count = %d "
-               "m_conf_receivers_count = %d "
-               "m_sent_receivers_count = %d",
-               theError.code, 
-               m_api_receivers_count,
-               m_conf_receivers_count,
-               m_sent_receivers_count);
-    
+      g_eventLogger->info(
+          "close() theError.code = %d "
+          "m_api_receivers_count = %d "
+          "m_conf_receivers_count = %d "
+          "m_sent_receivers_count = %d",
+          theError.code, m_api_receivers_count, m_conf_receivers_count,
+          m_sent_receivers_count);
+
     /*
       The PollGuard has an implicit call of unlock_and_signal through the
       ~PollGuard method. This method is called implicitly by the compiler
@@ -2118,7 +2112,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   {
     NdbIndexScanOperation* tOp = (NdbIndexScanOperation*)this;
 
-    bool ret = true;
+    bool ret [[maybe_unused]];
     if (theStatus != WaitResponse)
     {
       /**
@@ -2329,9 +2323,9 @@ Parameters:     aTC_ConnectPtr: the Connect pointer to TC.
 Remark:         Puts the the final data into ATTRINFO signal(s)  after this 
                 we know the how many signal to send and their sizes
 ***************************************************************************/
-int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
-                                      Uint64 aTransactionId,
-                                      const Uint32 * readMask)
+int NdbScanOperation::prepareSendScan(Uint32 /*aTC_ConnectPtr*/,
+                                      Uint64 /*aTransactionId*/,
+                                      const Uint32* readMask)
 {
   if (theInterpretIndicator != 1 ||
       (theOperationType != OpenScanRequest &&
@@ -2415,13 +2409,11 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   assert(theParallelism > 0);
   const Uint32 alloc_size = ((full_rowsize+bufsize)*theParallelism) / sizeof(Uint32);
   Uint32 *buf= new Uint32[alloc_size];
-  DBUG_EXECUTE_IF("ndb_scanbuff_oom",
-                  {
-                    ndbout_c("DBUG_EXECUTE_IF(ndb_scanbuff_oom...");
-                    delete[] buf;
-                    buf = NULL;
-                  }
-  );
+  DBUG_EXECUTE_IF("ndb_scanbuff_oom", {
+    g_eventLogger->info("DBUG_EXECUTE_IF(ndb_scanbuff_oom...");
+    delete[] buf;
+    buf = NULL;
+  });
   if (!buf)
   {
     setErrorCodeAbort(4000); // "Memory allocation error"
@@ -2717,7 +2709,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
   switch (opType) {
   case (ReadRequest):
     newOp->theLockMode = theLockMode;
-    // Fall through
+    [[fallthrough]];
   case (DeleteRequest):
     newOp->theStatus = GetValue;
     break;
@@ -3130,16 +3122,10 @@ NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo,
  * Key bound information is stored in the operation for later
  * processing using the normal NdbRecord setBound interface.
  */
-int
-NdbIndexScanOperation::setBoundHelperOldApi(OldApiBoundInfo& boundInfo,
-                                            Uint32 maxKeyRecordBytes,
-                                            Uint32 index_attrId,
-                                            Uint32 valueLen,
-                                            bool inclusive,
-                                            Uint32 byteOffset,
-                                            Uint32 nullbit_byte_offset,
-                                            Uint32 nullbit_bit_in_byte,
-                                            const void *aValue)
+int NdbIndexScanOperation::setBoundHelperOldApi(
+    OldApiBoundInfo& boundInfo, Uint32 maxKeyRecordBytes [[maybe_unused]],
+    Uint32 index_attrId, Uint32 valueLen, bool inclusive, Uint32 byteOffset,
+    Uint32 nullbit_byte_offset, Uint32 nullbit_bit_in_byte, const void* aValue)
 {
   Uint32 presentBitMask= (1 << (index_attrId & 0x1f));
 
@@ -3276,8 +3262,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
 
       boundsDef->oldBound.lowBound.highestKey = 0;
       boundsDef->oldBound.lowBound.highestSoFarIsStrict = false;
-      /* Should be STATIC_ASSERT */
-      assert(NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY == 32);
+      static_assert(NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY == 32);
       boundsDef->oldBound.lowBound.keysPresentBitmap = 0;
       
       boundsDef->oldBound.highBound= boundsDef->oldBound.lowBound;
@@ -3518,9 +3503,7 @@ NdbIndexScanOperation::ndbrecord_insert_bound(const NdbRecord *key_record,
   return 0;
 }
 
-int
-NdbIndexScanOperation::insert_open_bound(const NdbRecord *key_record,
-                                         Uint32*& firstWordOfBound)
+int NdbIndexScanOperation::insert_open_bound(Uint32*& firstWordOfBound)
 {
   /* We want to insert an open bound into a scan
    * This is done by requesting all rows with first key column
@@ -3545,10 +3528,9 @@ NdbIndexScanOperation::insert_open_bound(const NdbRecord *key_record,
   /* Grab ptr to first word of this bound if caller wants it */
   if (firstWordOfBound == NULL)
     firstWordOfBound= theKEYINFOptr - 1;
-  
+
   /*
-   * bug#57396 wrong attr id inserted.
-   * First index attr id is 0, key_record not used.
+   * First index attr id is 0.
    * Create NULL attribute header.
    */
   AttributeHeader ah(0, 0);
@@ -3893,7 +3875,7 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
       if (ret_code == 0 && seq == impl->getNodeSequence(nodeId))
         continue;
       if(ret_code == -1){
-        ndbout << "2:4008 on connection " << theNdbCon->ptr2int() << endl;
+        g_eventLogger->info("2:4008 on connection %d", theNdbCon->ptr2int());
         setErrorCode(4008);
       } else {
         setErrorCode(4028);
@@ -3945,7 +3927,7 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
   if((prep_array[0] = tRec->m_tcPtrI) == RNIL)
   {
     if(DEBUG_NEXT_RESULT)
-      ndbout_c("receiver completed, don't send");
+      g_eventLogger->info("receiver completed, don't send");
     return 0;
   }
   
@@ -4018,9 +4000,9 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
-      ndbout << "3:4008 on connection " << theNdbCon->ptr2int() << endl;
+      g_eventLogger->info("3:4008 on connection %d", theNdbCon->ptr2int());
       setErrorCode(4008);
-      // Fall through
+      [[fallthrough]];
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;
@@ -4056,10 +4038,11 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
   }
   
   if(DEBUG_NEXT_RESULT)
-    ndbout_c("close_impl: [order api conf sent curr parr] %d %d %d %d %d %d",
-             m_ordered, api, conf, 
-             m_sent_receivers_count, m_current_api_receiver, theParallelism);
-  
+    g_eventLogger->info(
+        "close_impl: [order api conf sent curr parr] %d %d %d %d %d %d",
+        m_ordered, api, conf, m_sent_receivers_count, m_current_api_receiver,
+        theParallelism);
+
   if(api+conf)
   {
     /**
@@ -4089,9 +4072,9 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
-      ndbout << "4:4008 on connection " << theNdbCon->ptr2int() << endl;
+      g_eventLogger->info("4:4008 on connection %d", theNdbCon->ptr2int());
       setErrorCode(4008);
-      // Fall through
+      [[fallthrough]];
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;
@@ -4104,8 +4087,8 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
   return 0;
 }
 
-void
-NdbScanOperation::reset_receivers(Uint32 parallell, Uint32 ordered){
+void NdbScanOperation::reset_receivers(Uint32 parallell, Uint32 /*ordered*/)
+{
   for(Uint32 i = 0; i<parallell; i++){
     m_receivers[i]->m_list_index = i;
     m_prepared_receivers[i] = m_receivers[i]->getId();
@@ -4200,7 +4183,7 @@ NdbScanOperation::lockCurrentTuple(NdbTransaction *takeOverTrans,
   /* Default is to not read any attributes, just take over the lock. */
   if (!result_row)
   {
-    bzero(empty_mask, sizeof(empty_mask));
+    std::memset(empty_mask, 0, sizeof(empty_mask));
     result_mask= &empty_mask[0];
   }
   OperationType takeoverOpType = NdbOperation::ReadRequest;

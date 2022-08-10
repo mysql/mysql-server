@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -41,10 +41,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef UNIV_LIBRARY
 #include "sync0types.h"
-#include "univ.i"
+
+#include <string>
+#include <vector>
 
 /** Initializes the synchronization data structures.
-@param[in]	max_threads	Maximum threads that can be created. */
+@param[in]      max_threads     Maximum threads that can be created. */
 void sync_check_init(size_t max_threads);
 
 /** Frees the resources in synchronization data structures. */
@@ -55,16 +57,16 @@ void sync_check_close();
 void sync_check_enable();
 
 /** Check if it is OK to acquire the latch.
-@param[in]	latch	latch type */
+@param[in]      latch   latch type */
 void sync_check_lock_validate(const latch_t *latch);
 
 /** Note that the lock has been granted
-@param[in]	latch	latch type */
+@param[in]      latch   latch type */
 void sync_check_lock_granted(const latch_t *latch);
 
 /** Check if it is OK to acquire the latch.
-@param[in]	latch	latch type
-@param[in]	level	the level of the mutex */
+@param[in]      latch   latch type
+@param[in]      level   the level of the mutex */
 void sync_check_lock(const latch_t *latch, latch_level_t level);
 
 /**
@@ -72,18 +74,18 @@ Check if it is OK to re-acquire the lock. */
 void sync_check_relock(const latch_t *latch);
 
 /** Removes a latch from the thread level array if it is found there.
-@param[in]	latch		The latch to unlock */
+@param[in]      latch           The latch to unlock */
 void sync_check_unlock(const latch_t *latch);
 
 /** Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
-@param[in]	level	to find
-@return	a matching latch, or NULL if not found */
+@param[in]      level   to find
+@return a matching latch, or NULL if not found */
 const latch_t *sync_check_find(latch_level_t level);
 
 /** Checks that the level array for the current thread is empty.
 Terminate iteration if the functor returns true.
-@param[in,out]	 functor	called for each element.
+@param[in,out]   functor        called for each element.
 @return true if the functor returns true */
 bool sync_check_iterate(sync_check_functor_t &functor);
 
@@ -97,6 +99,57 @@ void rw_lock_debug_mutex_enter();
 /** Releases the debug mutex. */
 void rw_lock_debug_mutex_exit();
 
+/** For handling sync points in child threads spawned by a foreground thread. */
+class Sync_point {
+ public:
+  /** Constructor.
+  @param[in,out] thd            Server connection/session context. */
+  explicit Sync_point(const THD *thd) noexcept : m_thd(thd) {}
+
+  Sync_point(const Sync_point &) = default;
+
+  Sync_point &operator=(const Sync_point &) = default;
+
+  /** Destructor. */
+  ~Sync_point() = default;
+
+  /** Add a target to the list of sync points, nop for duplicates.
+  @param[in] thd                Server conenction/session context.
+  @param[in] target             Target to add. */
+  static void add(const THD *thd, const std::string &target) noexcept;
+
+  /** Check if a target is enabled. Disable it if found.
+  @param[in] thd                Server conenction/session context.
+  @param[in] target             Check if target is enabled.
+  @return true if was enabled. */
+  static bool enabled(const THD *thd, const std::string &target) noexcept;
+
+  /** Check if a target is enabled. Disable it if found.
+  @param[in] target             Check if target is enabled.
+  @return true if was enabled. */
+  static bool enabled(const std::string &target) noexcept;
+
+  /** Clear the named target.
+  @param[in] thd                Server conenction/session context.
+  @param[in] target             Check if target is enabled. */
+  static void erase(const THD *thd, const std::string &target) noexcept;
+
+ private:
+  using Targets = std::vector<std::string, ut::allocator<std::string>>;
+  using Sync_points = std::vector<Sync_point, ut::allocator<Sync_point>>;
+
+  /** Mutex protecting access to Sync_point infrastructure. */
+  static std::mutex s_mutex;
+
+  /** Sync points. */
+  static Sync_points s_sync_points;
+
+  /** Server connection/session context. */
+  const THD *m_thd{};
+
+  /** List of enabled targets. */
+  Targets m_targets{};
+};
 #endif /* UNIV_DEBUG */
 
 #endif /* !UNIV_LIBRARY */

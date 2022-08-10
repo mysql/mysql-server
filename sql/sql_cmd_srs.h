@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ struct Sql_cmd_srs_attributes {
 
 class Sql_cmd_create_srs final : public Sql_cmd {
  public:
-  Sql_cmd_create_srs() {}
+  Sql_cmd_create_srs() = default;
   void init(bool or_replace, bool if_not_exists, gis::srid_t srid,
             MYSQL_LEX_STRING srs_name, MYSQL_LEX_STRING definition,
             MYSQL_LEX_STRING organization, gis::srid_t organization_coordsys_id,

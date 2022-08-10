@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,8 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Check if undo numbering is maintained while processing undo records
  for rollback.
  @return true if undo numbering is maintained. */
-UNIV_INLINE
-bool trx_roll_check_undo_rec_ordering(
+static inline bool trx_roll_check_undo_rec_ordering(
     undo_no_t curr_undo_rec_no,    /*!< in: record number of
                                    undo record to process. */
     space_id_t curr_undo_space_id, /*!< in: space-id of rollback

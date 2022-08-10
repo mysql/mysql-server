@@ -1,0 +1,87 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+[connection server1]
+CREATE TABLE t1(c1 int primary key);
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Execute a transaction on server1 and block it in committing state.
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+INSERT INTO t1 values(1);
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+
+# 3. Execute change primary on server2 and block the operation.
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+SELECT group_replication_set_as_primary("SERVER2_UUID", 0);;
+[connection server_1]
+
+# 4. Unblock transaction running on sever1 and reap result.
+#    Unblock change primary operation and reap result.
+[connection server_1]
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+[connection server1]
+[connection server_2]
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+[connection server2]
+group_replication_set_as_primary("SERVER2_UUID", 0)
+Primary server switched to: SERVER2_UUID
+
+# 5. Assert primary and secondary status are correct.
+#    Assert data is present on both members.
+[connection server2]
+include/gr_assert_primary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+include/assert.inc ['There is a value 1 in table t1']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# 6. Execute a transaction on server2 and block it in committing state.
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+INSERT INTO t1 values(2);
+[connection server_2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+
+# 7. Execute change primary on server2 and block the operation.
+[connection server_2]
+SELECT group_replication_set_as_primary("SERVER1_UUID", 0);;
+[connection server_2_1]
+
+# 8. Unblock transaction running on sever2 and reap result.
+#    Unblock change primary operation and reap result.
+[connection server_2_1]
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+[connection server2]
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+[connection server_2]
+group_replication_set_as_primary("SERVER1_UUID", 0)
+Primary server switched to: SERVER1_UUID
+
+# 9. Assert primary and secondary status are correct.
+#    Assert data is present on both members.
+[connection server1]
+include/gr_assert_primary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+include/assert.inc ['There is a value 2 in table t1']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+# 10. Cleanup.
+[connection server1]
+DROP TABLE t1;
+include/rpl_sync.inc
+[connection server2]
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+include/group_replication_end.inc

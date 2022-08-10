@@ -1,0 +1,30 @@
+# create table t1
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b INT UNIQUE KEY
+)ENGINE = NDB;
+INSERT INTO t1 VALUES (1,10), (2,20), (3,30), (4,40);
+# verify that no temporary named table exists
+SELECT count(*) FROM ndbinfo.dict_obj_info WHERE REGEXP_LIKE(fq_name, '#sql');
+count(*)
+0
+SET debug='+d,ndb_simulate_alter_failure_rename1,ndb_simulate_failure_during_rollback';
+# simulated failure during copy alter table
+ALTER TABLE t1 ALGORITHM=COPY;
+ERROR HY000: Internal error: Simulated : Failed to rename original table to a temp name.
+# verify that the temporary named table has been left behind - required to reproduce the bug
+SELECT count(*) FROM ndbinfo.dict_obj_info WHERE REGEXP_LIKE(fq_name, '#sql');
+count(*)
+1
+ALTER TABLE t1 ALGORITHM=COPY;
+Warnings:
+Warning	1296	The temporary named table #sql-XXXX_X.test already exists, it will be removed
+# verify that original data has not been affected
+SELECT a, b FROM t1 ORDER BY a;
+a	b
+1	10
+2	20
+3	30
+4	40
+# cleanup
+DROP TABLE t1;

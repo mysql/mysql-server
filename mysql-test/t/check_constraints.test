@@ -1786,7 +1786,7 @@ INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
     VALUES(B'1111111',0,5,5,5,1,1,1.2,1.2,1.2);
 INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
     VALUES(B'1111111',0,5,5,5,11,11,10.2,10.2,10.2);
-SELECT * FROM t1;
+SELECT HEX(c1), c2, c3, c4, c5, c6, c7, c8, c9, c10, c11 FROM t1;
 DROP TABLE t1;
 DROP DATABASE test1;
 --remove_file $MYSQLTEST_VARDIR/tmp/test1_db.sql
@@ -1820,7 +1820,7 @@ INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
     VALUES(B'1111000',0,10,10,10,5,5,9.1,9.1,9.1);
 INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
     VALUES(B'1111000',1,11,11,11,5,5,9.1,9.1,9.1);
-SELECT * FROM t2;
+SELECT HEX(c1), c2, c3, c4, c5, c6, c7, c8, c9, c10 FROM t2;
 DROP TABLE t2;
 DROP DATABASE test2;
 --remove_file $MYSQLTEST_VARDIR/tmp/test2_db.sql
@@ -2766,6 +2766,39 @@ SHOW CREATE TABLE t1;
 --echo # column being renamed. Table is altered in this case.
 ALTER TABLE t1 DROP CONSTRAINT t1_chk_1, RENAME COLUMN f1 to f11,
                ADD CONSTRAINT t1_chk_1 CHECK (f11 < 10);
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#33394135 - adding CHECK constraint with alter table CHANGE column
+--echo #                name is not working
+--echo #
+
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 1);
+
+--echo # Without fix, adding check constraint to a column with ALTER TABLE
+--echo # CHANGE column doesn't work. With fix, check constraint is added
+--echo # to the column with COPY algorithm. This alter operation is not
+--echo # supported with the INPLACE and INSTANT algorithm.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = INSTANT;
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+
+--echo # Without fix, adding check constraint to a column with ALTER TABLE
+--echo # MODIFY column doesn't work. With fix, check constraint is added
+--echo # to the column with COPY algorithm. This alter operation is not
+--echo # supported with the INPLACE and INSTANT algorithm.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = INSTANT;
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = COPY;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;

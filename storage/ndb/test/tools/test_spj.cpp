@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,10 +47,10 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("spj_test"),
   { "database", 'd', "Name of database table is in",
-    (uchar**) &_dbname, (uchar**) &_dbname, 0,
+    &_dbname, &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "scan", 's', "Table scan followed by key lookup",
-    (uchar**) &_scan, (uchar**) &_scan, 0,
+    &_scan, &_scan, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -179,7 +179,7 @@ int main(int argc, char** argv)
     0x00000009, // bits
     0x10000018, // result data
     0x00000005, // #len subroutine / #len interpreted program
-    0x00043017, // p0: BRANCH_ATTR_OP_COL | LE | OFFSET-JUMP
+    0x00043017, // p0: BRANCH_ATTR_OP_ARG | LE | OFFSET-JUMP
     0x00010004, // p0: ATTRID / LEN of VALUE
     0x00000064, // p1: VALUE (100)
     0x00000012, // p2: EXIT_OK
@@ -194,7 +194,7 @@ int main(int argc, char** argv)
     0x1000001c, // result data
 
     0x00020004, // #len subroutine / #len interpreted program
-    0x0003301a, // p0: BRANCH_ATTR_OP_COL2 | LE | OFFSET-JUMP
+    0x0003301a, // p0: BRANCH_ATTR_OP_PARAM | LE | OFFSET-JUMP
     0x00010000, // p0: attrid: 1, param ref 0
     0x00000012, // p1: EXIT_OK
     0x03830013, // p2: EXIT_NOK
@@ -239,7 +239,7 @@ int main(int argc, char** argv)
     0x00000001, // key pattern: #parameters/#len
     QueryPattern::col(0), // P_COL col = 0
     0x00010004, // attrinfo pattern: #len-pattern / #len interpreted program
-    0x0003301a, // p0: BRANCH_ATTR_OP_COL_2 | LE | OFFSET-JUMP
+    0x0003301a, // p0: BRANCH_ATTR_OP_PARAM | LE | OFFSET-JUMP
     0x00010000, // p0: attrid: 1 / program param 0
     0x00000012, // p1: EXIT_OK
     0x03830013, // p2: EXIT_NOK
@@ -251,7 +251,7 @@ int main(int argc, char** argv)
     0x00000009, // bits
     0x10000018, // result data
     0x00000005, // #len subroutine / #len interpreted program
-    0x00043017, // p0: BRANCH_ATTR_OP_COL | LE | OFFSET-JUMP
+    0x00043017, // p0: BRANCH_ATTR_OP_ARG | LE | OFFSET-JUMP
     0x00010004, // p1: ATTRID / LEN of VALUE
     0x00000064, // p2: VALUE (100)
     0x00000012, // p3: EXIT_OK
@@ -304,7 +304,7 @@ int main(int argc, char** argv)
     0x00000001, // key pattern: #parameters/#len
     QueryPattern::col(0), // P_COL col = 0
     0x00010004, // attrinfo pattern: #len-pattern / #len interpreted program
-    0x0003301a, // p0: BRANCH_ATTR_OP_COL_2 | LE | OFFSET-JUMP
+    0x0003301a, // p0: BRANCH_ATTR_OP_PARAM | LE | OFFSET-JUMP
     0x00010000, // p0: attrid: 1 / program param 0
     0x00000012, // p1: EXIT_OK
     0x03830013, // p2: EXIT_NOK
@@ -316,7 +316,7 @@ int main(int argc, char** argv)
     0x00000009, // bits
     0x10000018, // result data
     0x00000005, // #len subroutine / #len interpreted program
-    0x00043017, // p0: BRANCH_ATTR_OP_COL | LE | OFFSET-JUMP
+    0x00043017, // p0: BRANCH_ATTR_OP_ARG | LE | OFFSET-JUMP
     0x00010004, // p1: ATTRID / LEN of VALUE
     0x00000064, // p2: VALUE (100)
     0x00000012, // p3: EXIT_OK

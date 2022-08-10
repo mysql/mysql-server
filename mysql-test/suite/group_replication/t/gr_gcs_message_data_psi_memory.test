@@ -1,0 +1,130 @@
+###############################################################################
+# This test verifies following for 'Gcs_message_data::m_buffer' event name:
+# - Verify that entries corresponding to the 'Gcs_message_data::m_buffer'
+#   performance schema instrumented memory are in the memory table only during
+#   the execution of the group replication plugin.
+# - Verify that the sum of bytes allocated is greater than zero for a
+#   transaction and zero after transaction is finished.
+#
+# Test:
+# 0. The test requires one Server: M1
+# 1. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables.
+# 2. Verify that the sum of bytes allocated is greater than
+#    zero for a transaction and zero after transaction is
+#    finished.
+# 3. Stop GR.
+# 4. Verify that the entries corresponding to the instrumented
+#    Gcs_message_data::m_buffer remain in the tables after stopping GR.
+# 5. Assert that the number of bytes allocated for
+#    Gcs_message_data::m_buffer event must be 0.
+# 6. Cleanup
+###############################################################################
+
+--source include/not_binlog_transaction_compression_on.inc
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Verify that the entries corresponding to the
+--echo #    instrumented memory are in the setup instruments
+--echo #    table and the memory summary tables.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
+--let $assert_text= 'There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the setup_instruments table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer"
+--source include/assert.inc
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
+--let $assert_text= 'There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the memory_summary_global_by_event_name table after starting GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Verify that the sum of bytes allocated is greater than
+--echo #    zero for a transaction and zero after transaction is
+--echo #    finished.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=innodb;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_message_broadcast';
+# insert size: 1 MB
+BEGIN;
+INSERT INTO t1 VALUES (1, repeat('a',1024*1024));
+--send COMMIT
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+
+--let $assert_text= 'The sum of bytes allocated must be greater than 1MB'
+--let $assert_cond= [SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer"] > 1000000
+--source include/assert.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_after_before_commit_hook';
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_message_broadcast';
+SET DEBUG_SYNC= "now SIGNAL waiting";
+
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--let $assert_text= 'The sum of bytes allocated must be 0'
+--let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer"
+--source include/assert.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_after_before_commit_hook';
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_after_before_commit_hook_continue";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+
+DROP TABLE t1;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Stop GR
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ##############################################################
+--echo # 4. Verify that the entries corresponding to the instrumented
+--echo #    Gcs_message_data::m_buffer remain in the tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
+--let $assert_text= 'There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the setup_instruments table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.setup_instruments WHERE NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer"
+--source include/assert.inc
+
+SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
+--let $assert_text= 'There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the memory_summary_global_by_event_name table after stopping GR'
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer"
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 5. Assert that the number of bytes allocated for
+--echo #    Gcs_message_data::m_buffer event must be 0.
+--let $assert_text= 'The sum of bytes allocated must be zero after stopping GR'
+--let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/Gcs_message_data::m_buffer"
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 6. Cleanup
+--source include/group_replication_end.inc

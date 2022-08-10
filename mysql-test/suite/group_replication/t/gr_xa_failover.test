@@ -1,0 +1,109 @@
+###############################################################################
+# Validate that XA transactions can be prepared on a group primary (server1)
+# and committed on a different primary (server2) after a failover.
+# Also validate that the old primary (server1) can rejoin the group as a
+# secondary and commit the XA transaction that it did prepare.
+# Both situations happen while the old primary (server1) keep the
+# client session that did the XA PREPATE active.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap a group with server1 as the primary.
+# 2. Join server2 to the group.
+# 3. Do the XA PREPARE on the initial primary (server1)
+# 4. server1 will leave the group, server2 will be elected
+#    primary.
+#    The client session that did the XA PREPARE will remain
+#    active.
+# 5. server2 is the new primary, the XA transaction will be
+#    resumed on it.
+#    This mimics a load balancer behavior.
+# 6. server1 rejoins the group, now as a secondary, it will
+#    receive the XA COMMIT through distributed recovery.
+# 7. Clean up.
+###############################################################################
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_skip_group_replication_start= 1
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 1
+--source include/only_with_option.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap a group with server1 as the primary.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+
+--echo
+--echo ############################################################
+--echo # 2. Join server2 to the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Do the XA PREPARE on the initial primary (server1)
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+FLUSH LOGS;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. server1 will leave the group, server2 will be elected
+--echo #    primary.
+--echo #    The client session that did the XA PREPARE will remain
+--echo #    active.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. server2 is the new primary, the XA transaction will be
+--echo #    resumed on it.
+--echo #    This mimics a load balancer behavior.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+XA COMMIT '1';
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. server1 rejoins the group, now as a secondary, it will
+--echo #    receive the XA COMMIT through distributed recovery.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Clean up.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -139,7 +139,7 @@ void insert_generic(ulint size) {
   lob::insert(trxid, ref, lob, size);
 
   /* Fetch the LOB that has been inserted. */
-  std::unique_ptr<byte> buf(new byte[size]);
+  std::unique_ptr<byte[]> buf(new byte[size]);
   lob::read(trxid, ref, 0, size, buf.get());
 
   ASSERT_TRUE(memcmp(buf.get(), lob, size) == 0);
@@ -378,7 +378,7 @@ void lob_tester_t::replace_generic(ulint lob_size, ulint offset,
   /* Fetch the LOB that has been inserted. */
   ulint fetch_offset = 0;
   ulint fetch_bytes = SIZE;
-  std::unique_ptr<byte> buf(new byte[fetch_bytes]);
+  std::unique_ptr<byte[]> buf(new byte[fetch_bytes]);
   lob::read(trx1, ref, fetch_offset, fetch_bytes, buf.get());
   ut_ad(memcmp(buf.get(), lob, SIZE) == 0);
 
@@ -391,7 +391,7 @@ void lob_tester_t::replace_generic(ulint lob_size, ulint offset,
 
   /* Fetch the older LOB that has been originally inserted. */
   trx_id_t trx3 = 250;
-  std::unique_ptr<byte> buf2(new byte[SIZE]);
+  std::unique_ptr<byte[]> buf2(new byte[SIZE]);
   lob::read(trx3, ref, fetch_offset, fetch_bytes, buf2.get());
   ut_ad(memcmp(buf2.get(), lob, SIZE) == 0);
 
@@ -556,7 +556,7 @@ void lob_tester_t::insert_middle_generic(ulint lob_size, ulint offset,
   const ulint size2 = lob_size + len;
   ulint ret_len = 0;
 
-  std::unique_ptr<byte> buf2(new byte[size2]);
+  std::unique_ptr<byte[]> buf2(new byte[size2]);
 
   lobid_t lobid;
   byte *lob = lob_data::generate_lob(&lobid, SIZE);
@@ -573,7 +573,7 @@ void lob_tester_t::insert_middle_generic(ulint lob_size, ulint offset,
   /* Fetch the LOB that has been inserted. */
   ulint fetch_offset = 0;
   ulint fetch_bytes = SIZE;
-  std::unique_ptr<byte> buf(new byte[fetch_bytes]);
+  std::unique_ptr<byte[]> buf(new byte[fetch_bytes]);
   lob::read(trx1, ref, fetch_offset, fetch_bytes, buf.get());
   ut_ad(memcmp(buf.get(), lob, SIZE) == 0);
 

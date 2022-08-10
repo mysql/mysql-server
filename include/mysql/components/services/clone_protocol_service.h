@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ struct mysql_clone_ssl_context {
   NET_SERVER *m_server_extn;
 };
 
-/** Vector of sting Values */
+/** Vector of string values */
 using Mysql_Clone_Values = std::vector<std::string>;
 
 /** Vector of string Key-Value pairs. */

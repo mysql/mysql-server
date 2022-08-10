@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,7 +194,7 @@ static bool is_blank_string(char *input) {
   Check if user either has SUPER or VERSION_TOKEN_ADMIN privileges
   @param thd Thread handle
 
-  @return succcess state
+  @return success state
     @retval true User has the required privileges
     @retval false User has not the required privileges
 */
@@ -420,7 +420,7 @@ static int parse_vtokens(char *input, enum command type) {
 }
 
 /**
-  Audit API entry point for the version token pluign
+  Audit API entry point for the version token plugin
 
   Plugin audit function to compare session version tokens with
   the global ones.
@@ -431,15 +431,15 @@ static int parse_vtokens(char *input, enum command type) {
   compare their values with the ones found. Throws errors if not
   found or the version values do not match. See parse_vtokens().
   At query end (MYSQL_AUDIT_GENERAL_STATUS currently) it releases
-  the GET_LOCK shared locks it has aquired.
+  the GET_LOCK shared locks it has acquired.
 
   @param thd          The current thread
   @param event_class  audit API event class
   @param event        pointer to the audit API event data
 */
-static int version_token_check(
-    MYSQL_THD thd, mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
-    const void *event) {
+static int version_token_check(MYSQL_THD thd,
+                               mysql_event_class_t event_class [[maybe_unused]],
+                               const void *event) {
   char *sess_var;
 
   const struct mysql_event_general *event_general =
@@ -512,7 +512,7 @@ class vtoken_lock_cleanup {
   atomic_boolean activated;
 
  public:
-  vtoken_lock_cleanup() {}
+  vtoken_lock_cleanup() = default;
   ~vtoken_lock_cleanup() {
     if (activated.is_set()) mysql_rwlock_destroy(&LOCK_vtoken_hash);
   }
@@ -537,7 +537,7 @@ static struct st_mysql_audit version_token_descriptor = {
 };
 
 /** Plugin init. */
-static int version_tokens_init(void *arg MY_ATTRIBUTE((unused))) {
+static int version_tokens_init(void *arg [[maybe_unused]]) {
 #ifdef HAVE_PSI_INTERFACE
   // Initialize psi keys.
   vtoken_init_psi_keys();
@@ -553,7 +553,7 @@ static int version_tokens_init(void *arg MY_ATTRIBUTE((unused))) {
     // Lock for version number.
     cleanup_lock.activate();
   }
-  bool ret = false;
+  mysql_service_status_t ret = 0;
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   {
     my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
@@ -568,7 +568,7 @@ static int version_tokens_init(void *arg MY_ATTRIBUTE((unused))) {
 }
 
 /** Plugin deinit. */
-static int version_tokens_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int version_tokens_deinit(void *arg [[maybe_unused]]) {
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   {
     my_service<SERVICE_TYPE(dynamic_privilege_register)> service(

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ namespace dd {
 // Check_constraint_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-Check_constraint_impl::Check_constraint_impl() {}
+Check_constraint_impl::Check_constraint_impl() = default;
 
 Check_constraint_impl::Check_constraint_impl(Table_impl *table)
     : m_table(table) {}

@@ -43,11 +43,13 @@ BEGIN
 
 			WHEN 0 THEN
 				SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
-				INSERT INTO t1 VALUES(v_key, v_key * 10,
+				INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+                                        v_key, v_key * 10,
 					@clol3_text, REPEAT('Large Column Data ', 2048))
 					ON DUPLICATE KEY UPDATE col2 = col2 + 1;
 
-				INSERT INTO t2 VALUES(v_key, v_key * 10,
+				INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+				        v_key, v_key * 10,
 					@clol3_text, REPEAT('Large Column Data ', 2048))
 					ON DUPLICATE KEY UPDATE col2 = col2 + 1;
 
@@ -80,6 +82,34 @@ BEGIN
 		END IF;
 
 	END WHILE;
+	COMMIT;
 END|
+
+if ($clone_ddl) {
+
+# Procedure to execute ddl rebuild in loop
+#	p_loop_count	[IN]	Number of times to execute
+
+CREATE PROCEDURE execute_ddl(
+	p_loop_count	INT)
+BEGIN
+	DECLARE v_idx		INT DEFAULT 0;
+
+	/* Loop and execute DDL. */
+        /* Concurrent DDL and DML creates MDL deadlock. Disabled till fixed. */
+	WHILE(v_idx < p_loop_count) DO
+
+		ALTER TABLE t1 ENGINE = InnoDB;
+
+		ALTER TABLE t2 ENGINE = InnoDB;
+
+		DO SLEEP(0.1);
+
+		SET v_idx = v_idx + 1;
+
+	END WHILE;
+END|
+
+}
 
 DELIMITER ;|

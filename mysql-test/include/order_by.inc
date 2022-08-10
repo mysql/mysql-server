@@ -810,7 +810,8 @@ EXPLAIN SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 4000;
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2 BETWEEN 10 AND 12 ORDER BY c3 LIMIT 20;
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2 BETWEEN 20 AND 30 ORDER BY c3 LIMIT 4000;
 
-SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 20;
+--partially_sorted_result 1
+SELECT c3,id FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 20;
 
 DROP TABLE t1,t2;
 
@@ -1375,7 +1376,7 @@ INSERT INTO t2 (a, b, c, d) VALUES
 --enable_query_log
 
 INSERT INTO t3 SELECT * FROM t1;
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN
 SELECT d FROM t1, t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
@@ -1919,3 +1920,40 @@ SHOW CREATE TABLE z2;
 SHOW CREATE TABLE z3;
 
 DROP TABLE z1, z2, z3;
+
+--echo #
+--echo # Bug#32695670: ASSERTION `M_CURRENT_ROLLUP_LEVEL >= 0 && M_CURRENT_ROLLUP_LEVEL < M_NUM_LEVELS'
+--echo #
+CREATE TABLE t(
+  m MEDIUMTEXT,   # must be blob, CHAR(1), TEXT works....
+  pk INT PRIMARY KEY
+);
+
+INSERT INTO t VALUES ('s',1);
+
+# Used to hit assert in debug mode
+SELECT MIN(alias2.m) AS field2,
+       alias2.pk AS field3
+FROM t AS alias1
+     LEFT JOIN
+     t AS alias2
+     ON alias1.m = alias2.m
+GROUP BY field3 WITH ROLLUP
+ORDER BY UPPER(field2); # The alias must be a function argument
+
+DROP TABLE t;
+
+CREATE TABLE t1 ( a INTEGER, b LONGTEXT );
+INSERT INTO t1 VALUES (1,'z');
+INSERT INTO t1 VALUES (2,'y');
+INSERT INTO t1 VALUES (3,'x');
+
+# Used to give correct result
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(MIN(b), 'a');
+# Used to give wrong result
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(min_b, 'a');
+
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(MIN(b), 'a') DESC;
+SELECT MIN(b) AS min_b FROM t1 GROUP BY a ORDER BY COALESCE(min_b, 'a') DESC;
+
+DROP TABLE t1;

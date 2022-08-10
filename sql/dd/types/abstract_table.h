@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ class Abstract_table : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  ~Abstract_table() override {}
+  ~Abstract_table() override = default;
 
  public:
   /**
@@ -166,6 +166,7 @@ class Abstract_table : virtual public Entity_object {
   /////////////////////////////////////////////////////////////////////////
 
   virtual Column *add_column() = 0;
+  virtual bool drop_column(const String_type &name) = 0;
 
   virtual const Column_collection &columns() const = 0;
 
@@ -174,12 +175,20 @@ class Abstract_table : virtual public Entity_object {
   virtual const Column *get_column(const String_type &name) const = 0;
 
   /**
-    Allocate a new object graph and invoke the copy contructor for
+    Allocate a new object graph and invoke the copy constructor for
     each object.
 
     @return pointer to dynamically allocated copy
   */
   virtual Abstract_table *clone() const = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  virtual Abstract_table *clone_dropped_object_placeholder() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

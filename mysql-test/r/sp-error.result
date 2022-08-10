@@ -1165,12 +1165,6 @@ END;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS PROCEDURE bug14702()
 BEGIN
 END' at line 1
-CREATE PROCEDURE IF NOT EXISTS bug14702()
-BEGIN
-END;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS bug14702()
-BEGIN
-END' at line 1
 CREATE TABLE t1 (i INT);
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO @a;
 ERROR HY000: View's SELECT contains a 'INTO' clause
@@ -2858,24 +2852,24 @@ ERROR 42000: Identifier name 'oooooooooooooooooooooooooooooooooooooooooooooooooo
 ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
 ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
 # Case 2: Test case to validate stored routine name.
-ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
-ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+ERROR HY000: Invalid utf8mb3 character string: 'test\xF0\x9D\x8C\x86'
+ERROR HY000: Invalid utf8mb3 character string: 'test\xF0\x9D\x8C\x86'
 # Case 3: Test case to verify routine's parameter length.
 ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
 ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
 # Case 4: Test case to validate routine's parameter name.
-ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
-ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+ERROR HY000: Invalid utf8mb3 character string: 'test\xF0\x9D\x8C\x86'
+ERROR HY000: Invalid utf8mb3 character string: 'test\xF0\x9D\x8C\x86'
 # Case 5: Test case to verify comment string length.
 ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
 ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
 ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
 ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
 # Case 6: Test case to validate comment string.
-ERROR HY000: Invalid utf8 character string: 'F09D8C'
-ERROR HY000: Invalid utf8 character string: 'F09D8C'
-ERROR HY000: Invalid utf8 character string: 'F09D8C'
-ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Comment for stored routine 'test.p2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
+ERROR HY000: Comment for stored routine 'test.f2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
+ERROR HY000: Comment for stored routine 'test.p2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
+ERROR HY000: Comment for stored routine 'test.f2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
 # Cleanup
 #
 # Bug #24357244: CANNOT CREATE A STORED FUNCTION IF A DATABASE IS NOT

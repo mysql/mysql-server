@@ -176,12 +176,12 @@ Field	Type	Null	Key	Default	Extra
 DROP TABLE t1;
 SET NAMES binary;
 CREATE TABLE `good–Ãœ»œ` (a int);
-ERROR HY000: Invalid utf8 character string: 'good\xD0\xCC\xCF\xC8\xCF'
+ERROR HY000: Invalid utf8mb3 character string: 'good\xD0\xCC\xCF\xC8\xCF'
 SET NAMES utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `good–Ãœ»œ` (a int);
-ERROR HY000: Invalid utf8 character string: 'good\xD0\xCC\xCF\xC8\xCF'
+ERROR HY000: Invalid utf8mb3 character string: 'good\xD0\xCC\xCF\xC8\xCF'
 set names latin1;
 create table t1 (a char(10) character set koi8r, b text character set koi8r);
 insert into t1 values ('test','test');
@@ -214,7 +214,7 @@ set names latin1;
 create table t1 (a char(10) character set utf8 collate utf8_bin);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('       xxx');
 select * from t1 where a=lpad('xxx',10,' ');
 a

@@ -21,7 +21,7 @@ let $str = `SELECT SUBSTRING_INDEX(SUBSTRING(properties,
 --echo # deterministic when running mtr. Mask collations that
 --echo # depend on the lower case table names setting.
 --echo ########################################################################
-replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
+replace_regex /`name` varchar\(64\) (CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci|CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 let $str = `SHOW CREATE TABLE mysql.catalogs`;
 --source include/write_line.inc
@@ -32,8 +32,8 @@ let $str = `SHOW CREATE TABLE mysql.character_sets`;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 let $str = `SHOW CREATE TABLE mysql.collations`;
 --source include/write_line.inc
-replace_regex /`schema_name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`schema_name` varchar(64) <LCTN dependent collation> NOT NULL/
-              /`table_name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`table_name` varchar(64) <LCTN dependent collation> NOT NULL/
+replace_regex /`schema_name` varchar\(64\) (CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci|CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) NOT NULL/`schema_name` varchar(64) <LCTN dependent collation> NOT NULL/
+              /`table_name` varchar\(64\) (CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci|CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) NOT NULL/`table_name` varchar(64) <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 let $str = `SHOW CREATE TABLE mysql.column_statistics`;
 --source include/write_line.inc
@@ -52,7 +52,7 @@ let $str = `SHOW CREATE TABLE mysql.events`;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 let $str = `SHOW CREATE TABLE mysql.foreign_key_column_usage`;
 --source include/write_line.inc
-replace_regex /(`referenced_table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+replace_regex /(`referenced_table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci|CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 let $str = `SHOW CREATE TABLE mysql.foreign_keys`;
 --source include/write_line.inc
@@ -92,7 +92,7 @@ let $str = `SHOW CREATE TABLE mysql.resource_groups`;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 let $str = `SHOW CREATE TABLE mysql.routines`;
 --source include/write_line.inc
-replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
+replace_regex /`name` varchar\(64\) (CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci|CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 let $str = `SHOW CREATE TABLE mysql.schemata`;
 --source include/write_line.inc
@@ -108,7 +108,7 @@ let $str = `SHOW CREATE TABLE mysql.table_partitions`;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 let $str = `SHOW CREATE TABLE mysql.table_stats`;
 --source include/write_line.inc
-replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
+replace_regex /`name` varchar\(64\) (CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci|CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 let $str = `SHOW CREATE TABLE mysql.tables`;
 --source include/write_line.inc
@@ -121,12 +121,12 @@ let $str = `SHOW CREATE TABLE mysql.tablespaces`;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 let $str = `SHOW CREATE TABLE mysql.triggers`;
 --source include/write_line.inc
-replace_regex /(`routine_catalog` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
-              /(`routine_schema` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+replace_regex /(`routine_catalog` varchar\(64\)) (CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci|CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+              /(`routine_schema` varchar\(64\)) (CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci|CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 let $str = `SHOW CREATE TABLE mysql.view_routine_usage`;
 --source include/write_line.inc
-replace_regex /(`table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+replace_regex /(`table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8mb3 COLLATE utf8mb3_tolower_ci|CHARACTER SET utf8mb3 COLLATE utf8mb3_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 let $str = `SHOW CREATE TABLE mysql.view_table_usage`;
 --source include/write_line.inc

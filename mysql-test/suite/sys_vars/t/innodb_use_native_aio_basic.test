@@ -81,7 +81,7 @@ SELECT @@innodb_use_native_aio = @@GLOBAL.innodb_use_native_aio;
 
 --echo '#---------------------BS_STVARS_035_05----------------------#'
 ################################################################################
-#   Check if innodb_log_file_size can be accessed with and without @@ sign     #
+#   Check if innodb_use_native_aio can be accessed with and without @@ sign    #
 ################################################################################
 
 SELECT COUNT(@@innodb_use_native_aio);
@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_use_native_aio);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_use_native_aio = @@SESSION.innodb_use_native_aio;
---echo Expected error 'Readonly variable'
+SELECT innodb_use_native_aio;
+--echo Expected error 'Unknown column'
 
 

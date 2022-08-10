@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
   Table log_status (declarations).
 */
 
-#include "sql/json_dom.h"
+#include "sql-common/json_dom.h"
 #include "sql/sql_const.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
@@ -43,7 +43,7 @@ struct st_row_log_status {
   Json_wrapper w_replication;
   Json_wrapper w_storage_engines;
 
-  st_row_log_status() {}
+  st_row_log_status() = default;
 
   void cleanup() {}
 };

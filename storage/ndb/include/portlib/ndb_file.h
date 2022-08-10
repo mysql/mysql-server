@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,6 +99,13 @@
  *   writes automatically, not for consistency but to not build up large use
  *   of file buffers while nothing is written to disk.
  *
+ * Note, currently one can not open a file in sync mode. A valid encrypted file
+ * need both a header and a trailer, keeping a valid trailer updated in append
+ * mode will be tricky, it should be possible to do but Ndb does not need that
+ * functionality now. For fixed sized files one typically have an
+ * initialization phase that does not gain from having each write synced, and
+ * using reopen_with_sync() after initialization is good enough for Ndb.
+ *
  * Usage phase
  * -----------
  *
@@ -125,7 +132,7 @@ public:
   using size_t = uint64_t;
   using off_t = int64_t;
 
-  static constexpr unsigned long OFF_T_MAX = LONG_MAX;
+  static constexpr uint64_t OFF_T_MAX = UINT64_MAX;
 
 #ifndef _WIN32
   using os_handle = int;
@@ -147,7 +154,7 @@ public:
   static int create(const char name[]);
   static int remove(const char name[]);
 
-  // Values for flags are taken from FsOpenReq
+  // Valid flags are FsOpenReq::OM_READONLY,OM_READWRITE,OM_WRITEONLY,OM_APPEND
   int open(const char name[], unsigned flags);
   int reopen_with_sync(const char name[]);
   int close();
@@ -180,7 +187,6 @@ public:
    * TODO: ensure effects of extend(), truncate(), and, allocate() are synced.
    */
   int sync();
-  int sync_on_write();
 
   bool is_open() const;
 
@@ -222,16 +228,17 @@ private:
   int detect_direct_io_block_size_and_alignment();
   bool check_block_size_and_alignment(const void* buf, size_t count, off_t offset) const;
   bool is_regular_file() const;
+  int do_sync_after_write(size_t written_bytes);
 
   os_handle m_handle;
   int m_open_flags;
-  bool m_sync_on_write;
-  bool m_synced_on_write;
+  bool m_write_need_sync;
+  bool m_os_syncs_each_write;
   size_t m_block_size;
   size_t m_block_alignment;
   size_t m_direct_io_block_size;
   size_t m_direct_io_block_alignment;
-  size_t m_autosync_freq;
+  size_t m_autosync_period;
   std::atomic<size_t> m_write_byte_count; // writes since last sync
 };
 

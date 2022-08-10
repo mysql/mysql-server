@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,8 @@ class Communication_protocol_action final : public Group_action {
   Group_action_diagnostics *get_execution_info() final;
 
  private:
+  int set_consensus_leaders() const;
+
   /** Stores textual information about the action's execution. */
   Group_action_diagnostics m_diagnostics;
 

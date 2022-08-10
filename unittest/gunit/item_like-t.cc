@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
 #include <gmock/gmock.h>
@@ -70,24 +69,6 @@ TEST_F(ItemLikeTest, TestOne) {
       new Item_func_like(it_haystack, it_needle, it_escape);
   EXPECT_FALSE(item_BM->fix_fields(thd(), nullptr));
   EXPECT_EQ(1, item_BM->val_int());
-}
-
-// Increase number when doing performance comparisons.
-// Run with ./unittest/gunit/item_like-t --disable-tap-output
-//   to get timings from googletest.
-const int num_executions = 1;  // 100000;
-
-TEST_F(ItemLikeTest, PerfBasic) {
-  const char needle[] = "%CAAAACCACTATGAGATATCATCTCACACCAGTTA%";
-  Item_string *it_needle =
-      new Item_string(STRING_WITH_LEN(needle), &my_charset_latin1);
-
-  Item_func_like *item_BM =
-      new Item_func_like(it_haystack, it_needle, it_escape);
-  EXPECT_FALSE(item_BM->fix_fields(thd(), nullptr));
-  for (int ix = 0; ix < num_executions; ++ix) {
-    EXPECT_EQ(1, item_BM->val_int());
-  }
 }
 
 class ItemLikeTestP : public ::testing::TestWithParam<const char *> {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -215,7 +215,7 @@ int table_os_global_by_type::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_os_global_by_type::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_os_global_by_type::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_os_global_by_type *result;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_os_global_by_type);
@@ -339,12 +339,10 @@ int table_os_global_by_type::read_row_values(TABLE *table, unsigned char *buf,
           set_field_object_type(f, m_row.m_object.m_object_type);
           break;
         case 1: /* SCHEMA_NAME */
-          set_field_varchar_utf8(f, m_row.m_object.m_schema_name,
-                                 m_row.m_object.m_schema_name_length);
+          set_nullable_field_schema_name(f, &m_row.m_object.m_schema_name);
           break;
         case 2: /* OBJECT_NAME */
-          set_field_varchar_utf8(f, m_row.m_object.m_object_name,
-                                 m_row.m_object.m_object_name_length);
+          set_nullable_field_object_name(f, &m_row.m_object.m_object_name);
           break;
         case 3: /* COUNT */
           set_field_ulonglong(f, m_row.m_stat.m_count);

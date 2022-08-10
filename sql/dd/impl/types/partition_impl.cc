@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ Partition_impl::Partition_impl(Table_impl *table, Partition_impl *parent)
   m_table->add_leaf_partition(this);
 }
 
-Partition_impl::~Partition_impl() {}
+Partition_impl::~Partition_impl() = default;
 
 ///////////////////////////////////////////////////////////////////////////
 

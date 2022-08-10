@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ int Uuid::parse(const char *in_string, size_t len,
     case TEXT_LENGTH + 2:
       if (*in_string != '{' || in_string[TEXT_LENGTH + 1] != '}') return 1;
       in_string++;
-      // intentionally fall through
+      [[fallthrough]];
     // standard UUID ex 12345678-1234-5678-1234-567812345678
     case TEXT_LENGTH:
       for (int i = 0; i < NUMBER_OF_SECTIONS - 1; i++) {

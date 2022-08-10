@@ -16,6 +16,7 @@ thread/innodb/io_log_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Y
 thread/innodb/io_read_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/io_write_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/log_checkpointer_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
+thread/innodb/log_files_governor_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/log_flush_notifier_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/log_flusher_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/log_write_notifier_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES

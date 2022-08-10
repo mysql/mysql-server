@@ -1,0 +1,33 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.innodb_redo_log_files;
+--enable_result_log
+
+select * from performance_schema.innodb_redo_log_files
+  where file_name='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.innodb_redo_log_files
+  set file_name='#ib_redo1', file_id=1, start_lsn=8192, end_lsn=10240, size_in_bytes=4096,
+      is_full='YES', consumer_level=0;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.innodb_redo_log_files
+  set file_name='#ib_redo2' where file_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.innodb_redo_log_files;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.innodb_redo_log_files
+  where file_name='#ib_redo1';
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.innodb_redo_log_files READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.innodb_redo_log_files WRITE;
+UNLOCK TABLES;
+

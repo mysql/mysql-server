@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,18 @@ ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="InnoDB")
 # Expand PSI_XXX_CALL into direct calls to the performance_schema.
 ADD_DEFINITIONS(-DPFS_DIRECT_CALL)
 
+IF(MSVC AND NOT WIN32_CLANG)
+  # Treat warnings as errors on MSVC for InnoDB
+  ADD_COMPILE_OPTIONS("/WX")
+  # Add warnings from level 4
+  ADD_COMPILE_OPTIONS("/W4")
+  # Disable C4324: structure was padded due to __declspec(align())
+  ADD_COMPILE_OPTIONS("/wd4324")
+  # Disable C4589: Constructor of abstract class 'dd::Entity_object_impl'
+  # ignores initializer for virtual base class 'dd::Weak_object'
+  ADD_COMPILE_OPTIONS("/wd4589")
+ENDIF()
+
 # TODO: Fix up all non-canonical include paths and remove this.
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
@@ -51,8 +63,10 @@ SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
   os/os0thread.cc
   page/zipdecompress.cc
   rem/rec.cc
+  rem/rem0wrec.cc
   ut/crc32.cc
-  ut/ut.cc)
+  ut/ut.cc
+  ut/ut0new.cc)
 
 SET(INNOBASE_SOURCES
   api/api0api.cc
@@ -65,13 +79,13 @@ SET(INNOBASE_SOURCES
   btr/btr0cur.cc
   btr/btr0pcur.cc
   btr/btr0sea.cc
-  btr/btr0bulk.cc
   buf/buf0block_hint.cc
   buf/buf0buddy.cc
   buf/buf0buf.cc
   buf/buf0dblwr.cc
   buf/buf0dump.cc
   buf/buf0flu.cc
+  btr/btr0load.cc
   buf/buf0lru.cc
   buf/buf0rea.cc
   clone/clone0api.cc
@@ -87,12 +101,23 @@ SET(INNOBASE_SOURCES
   dict/dict0crea.cc
   dict/dict0dict.cc
   dict/dict0dd.cc
+  dict/dict0inst.cc
   dict/dict0load.cc
   dict/dict0mem.cc
   dict/dict0sdi.cc
   dict/dict0stats.cc
   dict/dict0stats_bg.cc
   dict/dict0upgrade.cc
+  ddl/ddl0buffer.cc
+  ddl/ddl0builder.cc
+  ddl/ddl0ctx.cc
+  ddl/ddl0ddl.cc
+  ddl/ddl0fts.cc
+  ddl/ddl0file-reader.cc
+  ddl/ddl0loader.cc
+  ddl/ddl0merge.cc
+  ddl/ddl0rtree.cc
+  ddl/ddl0par-scan.cc
   eval/eval0eval.cc
   eval/eval0proc.cc
   fil/fil0fil.cc
@@ -147,9 +172,18 @@ SET(INNOBASE_SOURCES
   lock/lock0wait.cc
   log/log0buf.cc
   log/log0chkp.cc
+  log/log0consumer.cc
   log/log0ddl.cc
+  log/log0encryption.cc
+  log/log0files_capacity.cc
+  log/log0files_dict.cc
+  log/log0files_finder.cc
+  log/log0files_governor.cc
+  log/log0files_io.cc
   log/log0log.cc
   log/log0meb.cc
+  log/log0pfs.cc
+  log/log0pre_8_0_30.cc
   log/log0recv.cc
   log/log0test.cc
   log/log0write.cc
@@ -172,11 +206,10 @@ SET(INNOBASE_SOURCES
   read/read0read.cc
   rem/rem0cmp.cc
   rem/rem0rec.cc
+  rem/rem0wrec.cc
   row/row0ext.cc
-  row/row0ftsort.cc
   row/row0import.cc
   row/row0ins.cc
-  row/row0merge.cc
   row/row0mysql.cc
   row/row0log.cc
   row/row0pread.cc
@@ -211,6 +244,7 @@ SET(INNOBASE_SOURCES
   usr/usr0sess.cc
   ut/ut0dbg.cc
   ut/ut0list.cc
+  ut/ut0math.cc
   ut/ut0mem.cc
   ut/ut0new.cc
   ut/ut0rbt.cc
@@ -219,6 +253,34 @@ SET(INNOBASE_SOURCES
   ut/ut0ut.cc
   ut/ut0vec.cc
   ut/ut0wqueue.cc)
+
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_COMPILE_FLAGS(
+    pars/pars0grm.cc
+    COMPILE_FLAGS "-Wno-free-nonheap-object")
+ENDIF()
+
+IF(MSVC AND NOT WIN32_CLANG)
+  # Disable C4505: unreferenced local function has been removed
+  ADD_COMPILE_FLAGS(pars/lexyy.cc COMPILE_FLAGS "/wd4505")
+  # Disable C4702: unreachable code
+  ADD_COMPILE_FLAGS(pars/lexyy.cc pars/pars0grm.cc COMPILE_FLAGS "/wd4702")
+  # Disable C4100: unreferenced formal parameter
+  # Disable C4701: potentially uninitialized local variable used
+  # Disable C4702: unreachable code
+  ADD_COMPILE_FLAGS(fts/fts0pars.cc COMPILE_FLAGS "/wd4100 /wd4701 /wd4702")
+
+  # Temporary disables for warnings that are not yet fixed:
+  # C4456: declaration of 'X' hides local declaration
+  ADD_COMPILE_OPTIONS("/wd4456")
+  # C4457: declaration of 'X' hides function parameter
+  ADD_COMPILE_OPTIONS("/wd4457")
+  # C4458: declaration of 'X' hides class member
+  ADD_COMPILE_OPTIONS("/wd4458")
+  # C4459: declaration of 'X' hides global declaration
+  ADD_COMPILE_OPTIONS("/wd4459")
+ENDIF()
 
 # There seems to be a bug in gcc for Oracle Linux 8 on ARM.
 # storage/innobase/ut/ut0test.cc:213:76:
@@ -237,7 +299,7 @@ ENDIF()
 
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 TARGET_COMPILE_DEFINITIONS(
-  innodb_zipdecompress PRIVATE UNIV_LIBRARY UNIV_NO_ERR_MSGS)
+    innodb_zipdecompress PRIVATE DISABLE_PSI_MEMORY UNIV_LIBRARY UNIV_NO_ERR_MSGS)
 ADD_DEPENDENCIES(innodb_zipdecompress GenError)
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
@@ -256,18 +318,6 @@ MYSQL_ADD_PLUGIN(innobase
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES sql_dd sql_gis ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
-
-
-# Avoid generating Hardware Capabilities due to crc32 instructions
-IF(SOLARIS_INTEL)
-  MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
-  IF(HAVE_WA_NH)
-    ADD_COMPILE_FLAGS(
-      ut/crc32.cc
-      COMPILE_FLAGS "-Wa,-nH"
-    )
-  ENDIF()
-ENDIF()
 
 # On linux: /usr/include/stdio.h:#define BUFSIZ 8192
 # On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024
@@ -289,4 +339,16 @@ MY_CHECK_CXX_COMPILER_WARNING("-Wcast-function-type" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(fts/fts0pars.cc
     COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()
+
+IF(MSVC AND NOT WIN32_CLANG)
+  # Disable C4100: unreferenced formal parameter
+  # for release builds and other non-innobase targets, as many parameters are
+  # server-only and debug-only.
+  FOREACH(flag
+     CMAKE_CXX_FLAGS_MINSIZEREL
+     CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+   SET("${flag}" "${${flag}} /wd4100")
+  ENDFOREACH()
+  TARGET_COMPILE_OPTIONS(innodb_zipdecompress PRIVATE "/wd4100")
 ENDIF()

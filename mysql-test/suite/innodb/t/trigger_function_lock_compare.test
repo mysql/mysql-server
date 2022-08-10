@@ -1,0 +1,80 @@
+--echo #
+--echo # BUG#32636792: IN THE TRIGGER, INSERT INTO SELECT LOCKS THE SELECTED
+--echo #               ROWS, EVEN READ-COMMITTED
+--echo #
+
+--disable_query_log
+SET @saved_binlog_format= @@GLOBAL.binlog_format;
+CREATE TABLE cases (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  statements TEXT NOT NULL
+);
+INSERT INTO cases (statements) VALUES
+("SELECT id FROM t1 WHERE val = 'a' INTO @v1"),
+("SELECT id FROM t1 WHERE val = 'a' FOR SHARE INTO @v1"),
+("SELECT id FROM t1 WHERE val = 'a' FOR UPDATE INTO @v1"),
+("UPDATE t1 SET val='A' WHERE val = 'a'"),
+("INSERT INTO t1 SELECT id+100,val FROM t2"),
+("INSERT INTO t1 ( id, val ) SELECT 2, id FROM t1 WHERE val = 'a'"),
+("REPLACE INTO t1 ( id, val ) SELECT 2, id FROM t1 WHERE val = 'a'"),
+("INSERT INTO t1 VALUES (30, 'b');
+  UPDATE t2 SET val='c' WHERE val IN (SELECT val FROM t1 where id = 30)"),
+("INSERT INTO t1 VALUES (2, 'A');
+  SELECT val FROM t1 WHERE id = 10 INTO @v1");
+
+
+--let $binlog_formats=ROW,STATEMENT
+while ($binlog_formats)
+{
+  --let $binlog_format= `SELECT SUBSTRING_INDEX('$binlog_formats', ',', 1)`
+  --let $binlog_formats= `SELECT SUBSTRING('$binlog_formats', LENGTH('$binlog_format') + 2)`
+  --eval SET GLOBAL BINLOG_FORMAT='$binlog_format'
+  --echo ########## BINLOG FORMAT: $binlog_format ###########
+
+  --let $cases_cnt = `SELECT COUNT(1) FROM cases`
+  --let $case_id = 1
+  while($case_id <= $cases_cnt)
+  {
+    --let $statements = `SELECT statements FROM cases WHERE id = $case_id`
+	--echo # Query: $statements
+    --source include/trigger_function_lock_compare.inc
+    --inc $case_id
+  }
+}
+
+# Because of Bug#33307684, under REPEATABLE READ, the below queries have a
+# discrepancy in the locks taken when executed inside a stored function. Hence
+# skipping the lock comparison.
+
+TRUNCATE TABLE cases;
+INSERT INTO cases (statements) VALUES
+("INSERT INTO t2 SELECT id+100,val FROM t1"),
+("CREATE TEMPORARY TABLE t3 SELECT id FROM t1;
+  DROP TEMPORARY TABLE t3");
+
+--let $binlog_formats=ROW,STATEMENT
+while ($binlog_formats)
+{
+  --let $binlog_format= `SELECT SUBSTRING_INDEX('$binlog_formats', ',', 1)`
+  --let $binlog_formats= `SELECT SUBSTRING('$binlog_formats', LENGTH('$binlog_format') + 2)`
+  --eval SET GLOBAL BINLOG_FORMAT='$binlog_format'
+  --echo ########## BINLOG FORMAT: $binlog_format ###########
+
+  --let $cases_cnt = `SELECT COUNT(1) FROM cases`
+  --let $case_id = 1
+  --let $skip_lock_check = 1
+  while($case_id <= $cases_cnt)
+  {
+    --let $statements = `SELECT statements FROM cases WHERE id = $case_id`
+    --echo # Query: $statements
+    --source include/trigger_function_lock_compare.inc
+    --inc $case_id
+  }
+}
+
+# Cleanup
+DROP TABLE cases;
+SET GLOBAL BINLOG_FORMAT=@saved_binlog_format;
+# Remove this when Bug#33594199 has been fixed
+RESET MASTER;
+--enable_query_log

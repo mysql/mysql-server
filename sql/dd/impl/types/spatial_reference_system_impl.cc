@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 #include "sql/dd/impl/types/spatial_reference_system_impl.h"
 
 #include <stdint.h>
+
+#include <optional>
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
@@ -144,25 +146,25 @@ bool Spatial_reference_system_impl::deserialize(Sdi_rcontext *rctx,
   Entity_object_impl::deserialize(rctx, val);
   read(&m_last_altered, val, "last_altered");
   read(&m_created, val, "created");
-  bool is_null;
+  bool is_null{false};
   read(&is_null, val, "organization_null");
   if (!is_null) {
     String_type s;
     read(&s, val, "organization");
-    m_organization = Mysql::Nullable<String_type>(s);
+    m_organization = std::optional<String_type>(s);
   }
   read(&is_null, val, "organization_coordsys_id_null");
   if (!is_null) {
     gis::srid_t id = 0;
     read(&id, val, "organization_coordsys_id");
-    m_organization_coordsys_id = Mysql::Nullable<gis::srid_t>(id);
+    m_organization_coordsys_id = std::optional<gis::srid_t>(id);
   }
   read(&m_definition, val, "definition");
   read(&is_null, val, "description_null");
   if (!is_null) {
     String_type s;
     read(&s, val, "description");
-    m_description = Mysql::Nullable<String_type>(s);
+    m_description = std::optional<String_type>(s);
   }
 
   return parse_definition();

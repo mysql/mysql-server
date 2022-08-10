@@ -1,5 +1,5 @@
 # Aim of the testcase is to check if different operations on partition tables
-# respect slave-preserve-commit-order.
+# respect replica-preserve-commit-order.
 #
 # Commands tested are:
 # 1) ALTER TABLE TRUNCATE PARTITION
@@ -16,7 +16,7 @@
 # 12) ALTER TABLE ADD PARTITION
 # 13) ALTER TABLE DROP PARTITION
 #
-# This test uses extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+# This test uses extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 # to check the ordering of commits.
 
 --let $rpl_skip_start_slave = 1
@@ -24,7 +24,7 @@
 --source include/master-slave.inc
 
 # Starts slave with 8 worker threads
---let $mts_slave_parallel_workers= 8
+--let $mts_replica_parallel_workers= 8
 --let $mts_spco_save_gtid_executed = 1
 --let $mts_spco_check_gtid_executed_before_rollback = 0
 
@@ -35,12 +35,12 @@
 CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 CALL mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
 
-SET @save_slave_parallel_workers= @@global.slave_parallel_workers;
-SET @save_slave_parallel_type= @@global.slave_parallel_type;
-SET @save_slave_preserve_commit_order= @@global.slave_preserve_commit_order;
-SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
---eval SET GLOBAL slave_parallel_workers= $mts_slave_parallel_workers
-SET GLOBAL slave_preserve_commit_order= ON;
+SET @save_replica_parallel_workers= @@global.replica_parallel_workers;
+SET @save_replica_parallel_type= @@global.replica_parallel_type;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
+SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
+--eval SET GLOBAL replica_parallel_workers= $mts_replica_parallel_workers
+SET GLOBAL replica_preserve_commit_order= ON;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master1.inc
@@ -91,7 +91,7 @@ CREATE TABLE t_part1 (i INTEGER) PARTITION BY RANGE(i)(
 
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2;
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -142,7 +142,7 @@ UNLOCK TABLES;
 
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2;
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -185,7 +185,7 @@ UNLOCK TABLES;
 
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2;
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -219,7 +219,7 @@ UNLOCK TABLES;
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2;
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 
 --echo
@@ -245,7 +245,7 @@ UNLOCK TABLES;
 
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2;
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -274,7 +274,7 @@ UNLOCK TABLES;
 
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2;
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -304,7 +304,7 @@ UNLOCK TABLES;
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2; truncate table t_part;
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -337,7 +337,7 @@ UNLOCK TABLES;
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2; DROP TABLE t_nopart1;
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 
 --echo
@@ -363,7 +363,7 @@ UNLOCK TABLES;
 
 --let $mts_spco_end_statement = drop table t1; drop table t2; DROP TABLE t_nopart1;
 --let $mts_spco_rollback_statement = ROLLBACK;
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -394,7 +394,7 @@ UNLOCK TABLES;
 
 --let $mts_spco_end_statement = drop table t1; drop table t2;
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -428,7 +428,7 @@ UNLOCK TABLES;
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2;
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 
 --echo
@@ -456,7 +456,7 @@ UNLOCK TABLES;
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = drop table t1; drop table t2;
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 
 --echo
@@ -484,7 +484,7 @@ UNLOCK TABLES;
 --let $mts_spco_rollback_statement = ROLLBACK;
 --let $mts_spco_end_statement = DROP TABLE t1,t2,t_hash,t_part,t_part1,t_nopart2;
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 
 --echo
@@ -497,9 +497,11 @@ SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_depen
 
 --source include/stop_slave.inc
 
-SET GLOBAL slave_parallel_type=@save_slave_parallel_type;
-SET GLOBAL slave_parallel_workers=@save_slave_parallel_workers;
-SET GLOBAL slave_preserve_commit_order=@save_slave_preserve_commit_order;
+SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

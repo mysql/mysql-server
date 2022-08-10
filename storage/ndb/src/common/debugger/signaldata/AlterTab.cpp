@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -28,6 +28,12 @@
 bool
 printALTER_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < AlterTabReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const AlterTabReq* sig = (const AlterTabReq*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -50,6 +56,12 @@ printALTER_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printALTER_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < AlterTabConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const AlterTabConf* sig = (const AlterTabConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -61,6 +73,12 @@ printALTER_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printALTER_TAB_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < AlterTabRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const AlterTabRef* sig = (const AlterTabRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);

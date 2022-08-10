@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef __NDB_TUP_PAGE_HPP
 #define __NDB_TUP_PAGE_HPP
 
+#include "util/require.h"
 #include <pc.hpp>
 #include <ndb_types.h>
 #include "../diskpage.hpp"
@@ -72,13 +73,13 @@ struct Tup_page
   Uint32 m_create_table_version;
   Uint32 m_change_map[4];
 
-  STATIC_CONST( HEADER_WORDS = 32 );
-  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
-                             HEADER_WORDS );
+  static constexpr Uint32 HEADER_WORDS = 32;
+  static constexpr Uint32 DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                                       HEADER_WORDS;
   
   Uint32 m_data[DATA_WORDS];
 
-  STATIC_CONST ( LCP_SKIP_FLAG = 1 );
+  static constexpr Uint32 LCP_SKIP_FLAG = 1;
 
   bool is_page_to_skip_lcp() const
   {
@@ -143,13 +144,13 @@ struct Tup_fixsize_page
    * also scans deleted rows to ensure that any deleted rows since last LCP
    * are tracked.
    */
-  STATIC_CONST( FREE_RECORD = 0xeeffffff );
-  STATIC_CONST( HEADER_WORDS = 32 );
-  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
-                             HEADER_WORDS );
-  STATIC_CONST( FIRST_BIT_CHANGE_MAP = 24);
-  STATIC_CONST( PAGE_CHANGED_WHILE_LCP_SCAN_BIT = 23);
-  STATIC_CONST( PAGE_IS_BEING_LCP_SCANNED_BIT = 22);
+  static constexpr Uint32 FREE_RECORD = 0xeeffffff;
+  static constexpr Uint32 HEADER_WORDS = 32;
+  static constexpr Uint32 DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                                       HEADER_WORDS;
+  static constexpr Uint32 FIRST_BIT_CHANGE_MAP = 24;
+  static constexpr Uint32 PAGE_CHANGED_WHILE_LCP_SCAN_BIT = 23;
+  static constexpr Uint32 PAGE_IS_BEING_LCP_SCANNED_BIT = 22;
   
   Uint32 m_data[DATA_WORDS];
   
@@ -406,7 +407,7 @@ struct Tup_fixsize_page
     {
       Uint32 sum_small_maps =
         m_change_map[0] + m_change_map[1] + m_change_map[2] + m_change_map[3];
-      assert(sum_small_maps == 0);
+      require(sum_small_maps == 0);
     }
 #endif
     return (map_val != 0);
@@ -537,21 +538,21 @@ struct Tup_varsize_page
   Uint32 m_schema_version;
   Uint32 m_change_map[4];
   
-  STATIC_CONST( HEADER_WORDS = 32 );
-  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
-                             HEADER_WORDS );
-  STATIC_CONST( CHAIN    = 0x80000000 );
-  STATIC_CONST( FREE     = 0x40000000 );
-  STATIC_CONST( LEN_MASK = 0x3FFF8000 );
-  STATIC_CONST( POS_MASK = 0x00007FFF );
-  STATIC_CONST( LEN_SHIFT = 15 );
-  STATIC_CONST( POS_SHIFT = 0  );
-  STATIC_CONST( END_OF_FREE_LIST = POS_MASK );
+  static constexpr Uint32 HEADER_WORDS = 32;
+  static constexpr Uint32 DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                                       HEADER_WORDS;
+  static constexpr Uint32 CHAIN = 0x80000000;
+  static constexpr Uint32 FREE = 0x40000000;
+  static constexpr Uint32 LEN_MASK = 0x3FFF8000;
+  static constexpr Uint32 POS_MASK = 0x00007FFF;
+  static constexpr Uint32 LEN_SHIFT = 15;
+  static constexpr Uint32 POS_SHIFT = 0;
+  static constexpr Uint32 END_OF_FREE_LIST = POS_MASK;
 
-  STATIC_CONST( NEXT_MASK = POS_MASK );
-  STATIC_CONST( NEXT_SHIFT = POS_SHIFT );
-  STATIC_CONST( PREV_MASK = LEN_MASK );
-  STATIC_CONST( PREV_SHIFT = LEN_SHIFT );
+  static constexpr Uint32 NEXT_MASK = POS_MASK;
+  static constexpr Uint32 NEXT_SHIFT = POS_SHIFT;
+  static constexpr Uint32 PREV_MASK = LEN_MASK;
+  static constexpr Uint32 PREV_SHIFT = LEN_SHIFT;
   
   Uint32 m_data[DATA_WORDS];
   

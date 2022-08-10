@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ class BitIteratorAdaptor {
   const uint64_t m_initial_state;
 };
 
-static inline size_t FindLowestBitSet(uint64_t x) {
+inline size_t FindLowestBitSet(uint64_t x) {
   assert(x != 0);
 #ifdef _MSC_VER
   unsigned long idx;
@@ -127,8 +127,13 @@ class CountBitsDescending {
   }
 };
 
-using BitsSetIn = BitIteratorAdaptor<CountBitsAscending>;
-using BitsSetInDescending = BitIteratorAdaptor<CountBitsDescending>;
+inline BitIteratorAdaptor<CountBitsAscending> BitsSetIn(uint64_t state) {
+  return BitIteratorAdaptor<CountBitsAscending>{state};
+}
+inline BitIteratorAdaptor<CountBitsDescending> BitsSetInDescending(
+    uint64_t state) {
+  return BitIteratorAdaptor<CountBitsDescending>{state};
+}
 
 // An iterator (for range-based for loops) that returns all non-zero subsets of
 // a given set. This includes the set itself.
@@ -155,7 +160,7 @@ class NonzeroSubsetsOf {
       assert(m_set == other.m_set);
       return m_state != other.m_state;
     }
-    size_t operator*() const { return m_state; }
+    uint64_t operator*() const { return m_state; }
     iterator &operator++() {
       m_state = (m_state - m_set) & m_set;
       return *this;
@@ -177,12 +182,31 @@ class NonzeroSubsetsOf {
 };
 
 // Returns a bitmap representing a single table.
-static inline uint64_t TableBitmap(unsigned x) { return uint64_t{1} << x; }
+inline uint64_t TableBitmap(unsigned x) { return uint64_t{1} << x; }
 
 // Returns a bitmap representing the semi-open interval [start, end).
-static inline uint64_t TablesBetween(unsigned start, unsigned end) {
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4146 unary minus operator applied to unsigned type,
+// result still unsigned
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
+inline uint64_t BitsBetween(unsigned start, unsigned end) {
   assert(end >= start);
-  return (uint64_t{1} << end) - (uint64_t{1} << start);
+  assert(end <= 64);
+  if (end == 64) {
+    if (start == 64) {
+      return 0;
+    } else {
+      return -(uint64_t{1} << start);
+    }
+  } else {
+    return (uint64_t{1} << end) - (uint64_t{1} << start);
+  }
+}
+MY_COMPILER_DIAGNOSTIC_POP()
+
+// The same, just with a different name for clarity.
+inline uint64_t TablesBetween(unsigned start, unsigned end) {
+  return BitsBetween(start, end);
 }
 
 // Isolates the LSB of x. Ie., if x = 0b110001010, returns 0b000000010.
@@ -191,20 +215,30 @@ MY_COMPILER_DIAGNOSTIC_PUSH()
 // Suppress warning C4146 unary minus operator applied to unsigned type,
 // result still unsigned
 MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
-static inline uint64_t IsolateLowestBit(uint64_t x) { return x & (-x); }
+inline uint64_t IsolateLowestBit(uint64_t x) { return x & (-x); }
 MY_COMPILER_DIAGNOSTIC_POP()
 
 // Returns whether X is a subset of Y.
-static inline bool IsSubset(uint64_t x, uint64_t y) { return (x & y) == x; }
+inline bool IsSubset(uint64_t x, uint64_t y) { return (x & y) == x; }
+
+/// Returns whether X is a proper subset of Y.
+inline bool IsProperSubset(uint64_t x, uint64_t y) {
+  return IsSubset(x, y) && x != y;
+}
 
 // Returns whether X and Y overlap. Symmetric.
-static inline bool Overlaps(uint64_t x, uint64_t y) { return (x & y) != 0; }
+inline bool Overlaps(uint64_t x, uint64_t y) { return (x & y) != 0; }
 
 // Returns whether X is a power of two.
-static inline bool IsSingleBitSet(uint64_t x) { return (x & (x - 1)) == 0; }
+inline bool IsSingleBitSet(uint64_t x) { return (x & (x - 1)) == 0; }
+
+// Returns whether the given bit is set in X.
+inline bool IsBitSet(int bit_num, uint64_t x) {
+  return Overlaps(x, uint64_t{1} << bit_num);
+}
 
 // Fairly slow implementation of population count (number of bits set).
-static inline int PopulationCount(uint64_t x) {
+inline int PopulationCount(uint64_t x) {
   int count = 0;
   while (x != 0) {
     x &= x - 1;

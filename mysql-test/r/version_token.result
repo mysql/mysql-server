@@ -255,7 +255,9 @@ ERROR HY000: Can't initialize function 'version_tokens_show'; version_token plug
 SHOW PRIVILEGES;
 Privilege	Context	Comment
 APPLICATION_PASSWORD_ADMIN	Server Admin	
+AUDIT_ABORT_EXEMPT	Server Admin	
 AUDIT_ADMIN	Server Admin	
+AUTHENTICATION_POLICY_ADMIN	Server Admin	
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 BACKUP_ADMIN	Server Admin	
@@ -276,18 +278,21 @@ Drop role	Server Admin	To drop roles
 ENCRYPTION_KEY_ADMIN	Server Admin	
 Event	Server Admin	To create, alter, drop and execute events
 Execute	Functions,Procedures	To execute stored routines
+FIREWALL_EXEMPT	Server Admin	
 FLUSH_OPTIMIZER_COSTS	Server Admin	
 FLUSH_STATUS	Server Admin	
 FLUSH_TABLES	Server Admin	
 FLUSH_USER_RESOURCES	Server Admin	
 File	File access on server	To read and write files on the server
 GROUP_REPLICATION_ADMIN	Server Admin	
+GROUP_REPLICATION_STREAM	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
 INNODB_REDO_LOG_ARCHIVE	Server Admin	
 INNODB_REDO_LOG_ENABLE	Server Admin	
 Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+PASSWORDLESS_USER_ADMIN	Server Admin	
 PERSIST_RO_VARIABLES_ADMIN	Server Admin	
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
@@ -300,6 +305,7 @@ References	Databases,Tables	To have references on tables
 Reload	Server Admin	To reload or refresh tables, logs and privileges
 Replication client	Server Admin	To ask where the slave or master servers are
 Replication slave	Server Admin	To read binary log events from the master
+SENSITIVE_VARIABLES_OBSERVER	Server Admin	
 SERVICE_CONNECTION_ADMIN	Server Admin	
 SESSION_VARIABLES_ADMIN	Server Admin	
 SET_USER_ID	Server Admin	

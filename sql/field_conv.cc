@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <optional>
 
 #include "field_types.h"
 #include "m_ctype.h"
@@ -43,7 +44,6 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/item_timefunc.h"  // Item_func_now_local
@@ -87,15 +87,6 @@ static void set_to_is_null(Field *to_field, bool is_null) {
     } else {
       to_field->set_notnull();
     }
-  } else {
-    // This is used in the case of window functions, where
-    // bring_back_frame_row() may want to set TABLE::null_row to be what it was
-    // when the row was buffered.
-    if (is_null) {
-      to_field->table->set_null_row();
-    } else {
-      to_field->table->reset_null_row();
-    }
   }
 }
 
@@ -129,7 +120,7 @@ type_conversion_status set_field_to_null(Field *field) {
   switch (current_thd->check_for_truncated_fields) {
     case CHECK_FIELD_WARN:
       field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-      /* fall through */
+      [[fallthrough]];
     case CHECK_FIELD_IGNORE:
       return TYPE_OK;
     case CHECK_FIELD_ERROR_FOR_NULL:
@@ -223,7 +214,7 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
   switch (thd->check_for_truncated_fields) {
     case CHECK_FIELD_WARN:
       field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
-      /* fall through */
+      [[fallthrough]];
     case CHECK_FIELD_IGNORE:
       if (field->type() == MYSQL_TYPE_BLOB) {
         /*
@@ -319,28 +310,6 @@ static void do_conv_blob(Copy_field *copy, const Field *from_field,
   from_field->val_str(&copy->tmp);
   static_cast<Field_blob *>(to_field)->store(
       copy->tmp.ptr(), copy->tmp.length(), copy->tmp.charset());
-}
-
-/** Save blob in copy->tmp for GROUP BY. */
-
-static void do_save_blob(Copy_field *copy, const Field *from_field,
-                         Field *to_field) {
-  char buff[MAX_FIELD_WIDTH];
-  String res(buff, sizeof(buff), copy->tmp.charset());
-  from_field->val_str(&res);
-  copy->tmp.copy(res);
-  down_cast<Field_blob *>(to_field)->store(copy->tmp.ptr(), copy->tmp.length(),
-                                           copy->tmp.charset());
-}
-
-/**
-  Copy the contents of one Field_json into another Field_json.
-*/
-static void do_save_json(Copy_field *, const Field *from_field,
-                         Field *to_field) {
-  const Field_json *from = down_cast<const Field_json *>(from_field);
-  Field_json *to = down_cast<Field_json *>(to_field);
-  to->store(from);
 }
 
 static void do_field_string(Copy_field *, const Field *from_field,
@@ -562,7 +531,7 @@ void Copy_field::invoke_do_copy2(const Field *from, Field *to) {
   (*(m_do_copy2))(this, from, to);
 }
 
-void Copy_field::set(Field *to, Field *from, bool save) {
+void Copy_field::set(Field *to, Field *from) {
   if (to->type() == MYSQL_TYPE_NULL) {
     m_do_copy = do_skip;
     return;
@@ -570,7 +539,7 @@ void Copy_field::set(Field *to, Field *from, bool save) {
   m_from_field = from;
   m_to_field = to;
 
-  m_do_copy2 = get_copy_func(save);
+  m_do_copy2 = get_copy_func();
 
   if (m_from_field->is_nullable() || m_from_field->table->is_nullable()) {
     if (m_to_field->is_nullable() || m_to_field->is_tmp_nullable())
@@ -588,28 +557,9 @@ void Copy_field::set(Field *to, Field *from, bool save) {
   }
 }
 
-/*
-  To do:
-
-  If 'save' is set to true and the 'from' is a blob field, m_do_copy is set to
-  do_save_blob rather than do_conv_blob.  The only differences between them
-  appears to be:
-
-  - do_save_blob allocates and uses an intermediate buffer before calling
-    Field_blob::store. Is this in order to trigger the call to
-    well_formed_copy_nchars, by changing the pointer copy->tmp.ptr()?
-    That call will take place anyway in all known cases.
- */
-Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
+Copy_field::Copy_func *Copy_field::get_copy_func() {
   THD *thd = current_thd;
-  if ((m_to_field->is_flag_set(BLOB_FLAG)) && save) {
-    if (m_to_field->real_type() == MYSQL_TYPE_JSON &&
-        m_from_field->real_type() == MYSQL_TYPE_JSON)
-      return do_save_json;
-    else
-      return do_save_blob;
-  }
-  if (m_to_field->is_array() && m_from_field->is_array()) return do_save_blob;
+  if (m_to_field->is_array() && m_from_field->is_array()) return do_copy_blob;
 
   bool compatible_db_low_byte_first =
       (m_to_field->table->s->db_low_byte_first ==
@@ -624,8 +574,8 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
     const Field_geom *from_geom = down_cast<const Field_geom *>(m_from_field);
 
     // If changing the SRID property of the field, we must do a full conversion.
-    if (to_geom->get_srid() != from_geom->get_srid() &&
-        to_geom->get_srid().has_value())
+    if (to_geom->get_srid().has_value() &&
+        to_geom->get_srid() != from_geom->get_srid())
       return do_conv_blob;
 
     // to is same as or a wider type than from
@@ -747,57 +697,95 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
   return do_field_eq;
 }
 
-static inline bool is_blob_type(Field *to) {
-  return (to->type() == MYSQL_TYPE_BLOB || to->type() == MYSQL_TYPE_GEOMETRY);
+static inline bool is_blob_type(enum_field_types to_type) {
+  return (to_type == MYSQL_TYPE_BLOB || to_type == MYSQL_TYPE_GEOMETRY);
 }
 
-/** Simple quick field convert that is called on insert. */
+bool fields_are_memcpyable(const Field *to, const Field *from) {
+  assert(to != from);
 
-type_conversion_status field_conv(Field *to, const Field *from) {
-  const enum_field_types from_type = from->type();
   const enum_field_types to_type = to->type();
+  const enum_field_types from_real_type = from->real_type();
+  const enum_field_types to_real_type = to->real_type();
 
   THD *thd = current_thd;
+
+  if (to_real_type != from_real_type) {
+    return false;
+  }
+  if (to_type == MYSQL_TYPE_JSON || to_real_type == MYSQL_TYPE_GEOMETRY ||
+      to_real_type == MYSQL_TYPE_VARCHAR || to_real_type == MYSQL_TYPE_ENUM ||
+      to_real_type == MYSQL_TYPE_SET || to_real_type == MYSQL_TYPE_BIT) {
+    return false;
+  }
+  if (from->is_array()) {
+    return false;
+  }
+  if (is_blob_type(to_type) && to->table->copy_blobs) {
+    return false;
+  }
+  if (to->charset() != from->charset()) {
+    return false;
+  }
+  if (to->pack_length() != from->pack_length()) {
+    return false;
+  }
+  if (to->is_flag_set(UNSIGNED_FLAG) != from->is_flag_set(UNSIGNED_FLAG)) {
+    return false;
+  }
+  if (to->table->s->db_low_byte_first != from->table->s->db_low_byte_first) {
+    return false;
+  }
+  if (to_real_type == MYSQL_TYPE_NEWDECIMAL) {
+    if (to->field_length != from->field_length ||
+        down_cast<const Field_num *>(to)->dec !=
+            down_cast<const Field_num *>(from)->dec) {
+      return false;
+    }
+  }
+  if (is_temporal_type_with_time(to_type)) {
+    if (to->decimals() != from->decimals()) {
+      return false;
+    }
+  }
+  if (thd->variables.sql_mode &
+      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) {
+    if (to_type == MYSQL_TYPE_DATE || to_type == MYSQL_TYPE_DATETIME) {
+      return false;
+    }
+    if (thd->variables.explicit_defaults_for_timestamp &&
+        to_type == MYSQL_TYPE_TIMESTAMP) {
+      return false;
+    }
+  }
+  return true;
+}
+
+type_conversion_status field_conv_slow(Field *to, const Field *from) {
+  const enum_field_types from_type = from->type();
+  const enum_field_types to_type = to->type();
+  const enum_field_types from_real_type = from->real_type();
+  const enum_field_types to_real_type = to->real_type();
 
   if ((to_type == MYSQL_TYPE_JSON) && (from_type == MYSQL_TYPE_JSON)) {
     Field_json *to_json = down_cast<Field_json *>(to);
     const Field_json *from_json = down_cast<const Field_json *>(from);
     return to_json->store(from_json);
   }
-
-  if (to->real_type() == from->real_type() &&
-      !((is_blob_type(to)) && to->table->copy_blobs) &&
-      to->charset() == from->charset() && to_type != MYSQL_TYPE_GEOMETRY) {
-    if (to->real_type() == MYSQL_TYPE_VARCHAR &&
-        from->real_type() == MYSQL_TYPE_VARCHAR) {
-      Field_varstring *to_vc = down_cast<Field_varstring *>(to);
-      const Field_varstring *from_vc = down_cast<const Field_varstring *>(from);
-      if (to_vc->get_length_bytes() == from_vc->get_length_bytes()) {
-        copy_field_varstring(to_vc, from_vc);
-        return TYPE_OK;
-      }
-    }
-    if (to->pack_length() == from->pack_length() &&
-        !(to->is_flag_set(UNSIGNED_FLAG) &&
-          !from->is_flag_set(UNSIGNED_FLAG)) &&
-        to->real_type() != MYSQL_TYPE_ENUM &&
-        to->real_type() != MYSQL_TYPE_SET &&
-        to->real_type() != MYSQL_TYPE_BIT &&
-        (!is_temporal_type_with_time(to_type) ||
-         to->decimals() == from->decimals()) &&
-        (to->real_type() != MYSQL_TYPE_NEWDECIMAL ||
-         (to->field_length == from->field_length &&
-          (down_cast<Field_num *>(to)->dec ==
-           down_cast<const Field_num *>(from)->dec))) &&
-        to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
-        (!(thd->variables.sql_mode &
-           (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
-         (to_type != MYSQL_TYPE_DATE && to_type != MYSQL_TYPE_DATETIME &&
-          (!thd->variables.explicit_defaults_for_timestamp ||
-           to_type != MYSQL_TYPE_TIMESTAMP))) &&
-        (from->real_type() != MYSQL_TYPE_VARCHAR)) {  // Identical fields
-      // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
-      memmove(to->field_ptr(), from->field_ptr(), to->pack_length());
+  if (from->is_array()) {
+    assert(to->is_array() && from_real_type == to_real_type &&
+           from->charset() == to->charset());
+    const Field_blob *from_blob = down_cast<const Field_blob *>(from);
+    Field_blob *to_blob = down_cast<Field_blob *>(to);
+    return to_blob->store(from_blob);
+  }
+  if (to_real_type == MYSQL_TYPE_VARCHAR &&
+      from_real_type == MYSQL_TYPE_VARCHAR &&
+      to->charset() == from->charset()) {
+    Field_varstring *to_vc = down_cast<Field_varstring *>(to);
+    const Field_varstring *from_vc = down_cast<const Field_varstring *>(from);
+    if (to_vc->get_length_bytes() == from_vc->get_length_bytes()) {
+      copy_field_varstring(to_vc, from_vc);
       return TYPE_OK;
     }
   }
@@ -805,8 +793,8 @@ type_conversion_status field_conv(Field *to, const Field *from) {
     Field_blob *blob = (Field_blob *)to;
     return blob->store(from);
   }
-  if (from->real_type() == MYSQL_TYPE_ENUM &&
-      to->real_type() == MYSQL_TYPE_ENUM && from->val_int() == 0) {
+  if (from_real_type == MYSQL_TYPE_ENUM && to_real_type == MYSQL_TYPE_ENUM &&
+      from->val_int() == 0) {
     ((Field_enum *)(to))->store_type(0);
     return TYPE_OK;
   } else if (is_temporal_type(from_type) && from_type != MYSQL_TYPE_YEAR &&
@@ -877,8 +865,8 @@ type_conversion_status field_conv(Field *to, const Field *from) {
     return res ? TYPE_ERR_BAD_VALUE : store_res;
   } else if ((from->result_type() == STRING_RESULT &&
               (to->result_type() == STRING_RESULT ||
-               (from->real_type() != MYSQL_TYPE_ENUM &&
-                from->real_type() != MYSQL_TYPE_SET))) ||
+               (from_real_type != MYSQL_TYPE_ENUM &&
+                from_real_type != MYSQL_TYPE_SET))) ||
              to_type == MYSQL_TYPE_DECIMAL) {
     char buff[MAX_FIELD_WIDTH];
     String result(buff, sizeof(buff), from->charset());

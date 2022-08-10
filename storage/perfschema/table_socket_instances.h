@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
 
 #include "my_base.h"
 #include "my_inttypes.h"
-#include "mysql/components/services/psi_socket_bits.h"
+#include "mysql/components/services/bits/psi_socket_bits.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
@@ -80,12 +80,13 @@ struct row_socket_instances {
 
 class PFS_index_socket_instances : public PFS_engine_index {
  public:
-  PFS_index_socket_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_socket_instances(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
   PFS_index_socket_instances(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_socket_instances() override {}
+  ~PFS_index_socket_instances() override = default;
 
   virtual bool match(const PFS_socket *pfs) = 0;
 };
@@ -96,7 +97,7 @@ class PFS_index_socket_instances_by_instance
   PFS_index_socket_instances_by_instance()
       : PFS_index_socket_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_socket_instances_by_instance() override {}
+  ~PFS_index_socket_instances_by_instance() override = default;
 
   bool match(const PFS_socket *pfs) override;
 
@@ -109,7 +110,7 @@ class PFS_index_socket_instances_by_thread : public PFS_index_socket_instances {
   PFS_index_socket_instances_by_thread()
       : PFS_index_socket_instances(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_socket_instances_by_thread() override {}
+  ~PFS_index_socket_instances_by_thread() override = default;
 
   bool match(const PFS_socket *pfs) override;
 
@@ -122,7 +123,7 @@ class PFS_index_socket_instances_by_socket : public PFS_index_socket_instances {
   PFS_index_socket_instances_by_socket()
       : PFS_index_socket_instances(&m_key), m_key("SOCKET_ID") {}
 
-  ~PFS_index_socket_instances_by_socket() override {}
+  ~PFS_index_socket_instances_by_socket() override = default;
 
   bool match(const PFS_socket *pfs) override;
 
@@ -138,7 +139,7 @@ class PFS_index_socket_instances_by_ip_port
         m_key_1("IP"),
         m_key_2("PORT") {}
 
-  ~PFS_index_socket_instances_by_ip_port() override {}
+  ~PFS_index_socket_instances_by_ip_port() override = default;
 
   bool match(const PFS_socket *pfs) override;
 
@@ -169,7 +170,7 @@ class table_socket_instances : public PFS_engine_table {
   table_socket_instances();
 
  public:
-  ~table_socket_instances() override {}
+  ~table_socket_instances() override = default;
 
  protected:
   int make_row(PFS_socket *pfs);

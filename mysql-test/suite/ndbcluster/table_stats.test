@@ -1,0 +1,226 @@
+--source include/have_ndb.inc
+
+--echo # ###################################################################
+--echo # Show that local table stats are correctly reflecting number of
+--echo # records in table at failure to insert, both with and without trans
+--echo # - in particular this shows how the "uncomitted rows" value in Thd_ndb
+--echo #   is handled
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE = NDB;
+INSERT INTO t1 VALUES (1, "this is in the way");
+SELECT COUNT(*) as "count should be 1" FROM t1;
+
+# Autocommit, one uncommitted row when failure occurs
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1, "duplicate key");
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+
+# Autocommit, three uncommitted rows when failure occurs
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES
+  (2, "val2"), (3, "val3"), (4, "val4"),
+  (1, "duplicate key, 3 uncommitted");
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+
+# Transaction, one uncommitted row when failure occurs
+BEGIN;
+  --error ER_DUP_ENTRY
+  INSERT INTO t1 VALUES (1, "duplicate key, inside transaction");
+  SELECT COUNT(*) as "count should still be 1" FROM t1;
+COMMIT;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+
+# Transaction, three uncommitted rows when failure occurs
+BEGIN;
+  # Add three uncommitted to trans
+  INSERT INTO t1 VALUES
+    (2, "val2"), (3, "val3"), (4, "val4");
+  SELECT COUNT(*) as "count should be 4" FROM t1;
+
+  --error ER_DUP_ENTRY
+  INSERT INTO t1 VALUES (1, "duplicate key, inside transaction, 3 uncommitted");
+  SELECT COUNT(*) as "count should still be 1, whole trans aborted" FROM t1;
+COMMIT;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+
+# Transaction, one uncommitted row when failure occurs, rollback
+BEGIN;
+  --error ER_DUP_ENTRY
+  INSERT INTO t1 VALUES (1, "duplicate key, inside transaction");
+  SELECT COUNT(*) as "count should still be 1" FROM t1;
+ROLLBACK;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+
+# Transaction, three uncommitted rows when failure occurs, rollback
+BEGIN;
+  # Add three uncommitted to trans
+  INSERT INTO t1 VALUES
+    (2, "val2"), (3, "val3"), (4, "val4");
+  SELECT COUNT(*) as "count should be 4" FROM t1;
+
+  --error ER_DUP_ENTRY
+  INSERT INTO t1 VALUES (1, "duplicate key, inside transaction, 3 uncommitted");
+  SELECT COUNT(*) as "count should still be 1, whole trans aborted" FROM t1;
+ROLLBACK;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+
+
+# Transaction, four uncommitted rows in other table when failure occurs
+CREATE TABLE t2 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE = NDB;
+INSERT INTO t2 VALUES
+  (10, "val10"), (12, "val12"), (13, "val13"), (14, "val14"), (15, "val15");
+BEGIN;
+  # Add four uncommitted to other table
+  INSERT INTO t2 VALUES (1, "val1"), (2, "val2"), (3, "val3"), (4, "val4");
+  SELECT COUNT(*) as "count should be 9" FROM t2;
+
+  --error ER_DUP_ENTRY
+  INSERT INTO t1 VALUES (1, "duplicate key, inside transaction");
+  SELECT COUNT(*) as "count should still be 1" FROM t1;
+
+  # Check count for other table
+  SELECT COUNT(*) as "count should be 5, trans aborted" FROM t2;
+COMMIT;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+SELECT COUNT(*) as "count should be 5" FROM t2;
+DROP TABLE t2;
+
+DROP TABLE t1;
+
+--echo # ###################################################################
+--echo # Test I_S and SHOW commands that present table stats
+--echo #
+--echo # Test with 0, 1, 2 and 10 rows in the table since special case exists
+--echo # for masking out 0 and 1 row for other queries.
+--echo #
+--echo # NOTE! This test shows that only SHOW INDEX and SHOW TABLE STATUS
+--echo # bypass the "records = min(records, 2)" while all the I_S queries
+--echo # never show less than 2 rows.
+--echo #
+--echo # Turn off "cached statistics" in INFORMATION_SCHEMA to always fetch
+--echo # latest stats from storage engine
+set @save_information_schema_stats_expiry = @@information_schema_stats_expiry;
+set @@information_schema_stats_expiry=0;
+
+--echo #
+--echo # Create table with only one primary key index
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255),
+  c int NOT NULL
+) ENGINE = NDB;
+
+let $loop = 0;
+while ($loop <= 4)
+{
+  --echo #### TEST LOOP $loop ####
+  SELECT COUNT(*) as "rows in table" FROM t1;
+
+  --echo # SELECT .. FROM INFORMATION_SCHEMA.TABLES
+  # The stats.records value is visible as TABLE_ROWS
+  SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+  --echo # SHOW TABLE STATUS
+  # Implemented as query from SELECT ... FROM I_S.TABLES
+  # The stats.records value is visible as Rows
+  let $table_rows =
+    query_get_value(SHOW TABLE STATUS FROM test LIKE 't1', Rows, 1);
+  echo Rows: $table_rows;
+
+  --echo # SELECT ... FROM INFORMATION_SCHEMA.STATISTICS
+  # Cardinality is calculated by dividing stats.records with "records per key"
+  # (which is 1 for unique index) -> records
+  SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+  --echo # SHOW INDEX (aka. SHOW INDEXES or SHOW KEYS)
+  # Implemented as query from SELECT ... FROM I_S.STATISTICS
+  let $index_cardinality =
+    query_get_value(SHOW INDEX FROM test.t1, Cardinality, 1);
+  echo Cardinality: $index_cardinality;
+
+  # Insert more rows for next lap
+  eval INSERT INTO t1 VALUES ($loop, "Row $loop", 37+$loop);
+
+  if ($loop == 3)
+  {
+    # Insert extra rows for last lap
+    INSERT INTO t1 VALUES
+      (14, "extra row 4", 44), (15, "extra row 5", 45), (16, "extra row 6", 46),
+      (17, "extra row 7", 47), (18, "extra row 8", 48), (19, "extra row 9", 49);
+  }
+
+  inc $loop;
+}
+
+DROP TABLE t1;
+
+# Restore setting for "cached statistics" in information_schema
+set @@information_schema_stats_expiry = @save_information_schema_stats_expiry;
+
+--echo # ###################################################################
+--echo #
+--echo # Test table stats with several tables updated in transaction.
+--echo # - when transaction is committed the "cached table stats" for all
+--echo #   tables registered in the transaction will be updated with number
+--echo #   of rows changed by transaction, nothing is updated during rollback.
+--echo # - This test exercise the logic for maintaining "cached table stats"
+--echo #   by using 32 different tables in same transaction, however
+--echo #   it's not possible to check the value from SQL level
+--echo #
+
+# No need to fill up result file with anything but the printous of this test
+--disable_query_log
+--disable_result_log
+
+let $num_tables = 32;
+
+--echo # Create tables and load data
+let $i = $num_tables;
+while ($i) {
+  let $tab_name = t$i;
+  --error 0,1005
+  eval CREATE TABLE $tab_name (pk int PRIMARY KEY, b int) engine = ndbcluster;
+  if ($mysql_errno) {
+   SHOW WARNINGS;
+  }
+  eval INSERT INTO $tab_name VALUES
+    (1,2),(2,2),(3,2),(4,2),(5,2),(6,2),(7,2),(8,2),(9,2),(10,2);
+  dec $i;
+}
+
+--echo # Run transaction with update of all tables, commit
+let $i = $num_tables;
+BEGIN;
+  while ($i) {
+    let $tab_name = t$i;
+    eval UPDATE $tab_name SET b = 3 WHERE pk = 4;
+    dec $i;
+  }
+COMMIT;
+
+--echo # Run transaction with update of all tables, rollback
+let $i = $num_tables;
+BEGIN;
+  while ($i) {
+    let $tab_name = t$i;
+    eval UPDATE $tab_name SET b = 5 WHERE pk = 2;
+    dec $i;
+  }
+ROLLBACK;
+
+--echo # Drop tables
+let $i = $num_tables;
+while ($i) {
+  eval DROP TABLE t$i;
+  dec $i;
+}
+--enable_query_log
+--enable_result_log
+

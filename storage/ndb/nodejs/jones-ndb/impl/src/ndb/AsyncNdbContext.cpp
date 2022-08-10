@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2013, 2022, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,10 +30,9 @@
 
 /* Thread starter, for pthread_create()
 */
-PTHREAD_RETURN_TYPE run_ndb_listener_thread(void *v) {
+void run_ndb_listener_thread(void *v) {
   AsyncNdbContext * ctx = (AsyncNdbContext *) v;
   ctx->runListenerThread();
-  return PTHREAD_RETURN_VAL;
 }
 
 /* ioCompleted will run in the JavaScript main thread.
@@ -140,11 +139,7 @@ int AsyncNdbContext::executeAsynch(TransactionImpl *txc,
                     (NdbOperation::AbortOption) abortOption,
                     forceSend);
 
-#ifdef USE_OLD_MULTIWAIT_API
-  sent_queue.produce(new ListNode<Ndb>(ndb));
-#else
   waitgroup->push(ndb);
-#endif
 
   /* Notify the waitgroup that there is a new Ndb to wait on */
   /* TODO: This could depend on forceSend? */
@@ -153,8 +148,6 @@ int AsyncNdbContext::executeAsynch(TransactionImpl *txc,
   return 1;
 }
 
-
-#ifndef USE_OLD_MULTIWAIT_API
 
 void * AsyncNdbContext::runListenerThread() {
   DEBUG_MARKER(UDEB_DEBUG);
@@ -199,111 +192,3 @@ void AsyncNdbContext::completeCallbacks() {
     ndb = waitgroup->pop();
   }
 }
-
-#else     /* Old Multiwait */
-
-/* ====== Signals ===== */
-static int SignalShutdown = 1;
-
-void * AsyncNdbContext::runListenerThread() {
-  DEBUG_MARKER(UDEB_DEBUG);
-  ListNode<Ndb> * sentNdbs, * completedNdbs, * currentNode;
-  Ndb * ndb;
-  Ndb ** ready_list;
-  int wait_timeout_millisec = 5000;
-  int min_ready, nwaiting, npending = 0;
-  bool running = true;
-
-  while(running) {  // Listener thread main loop
-  
-    /* Add new Ndbs to the wait group */
-    sentNdbs = sent_queue.consumeAll();
-    while(sentNdbs != 0) {
-      currentNode = sentNdbs;
-      sentNdbs = sentNdbs->next;
-
-      if(currentNode->signalinfo == SignalShutdown) {
-        running = false;
-      }
-      else {
-        waitgroup->addNdb(currentNode->item);
-        npending++;
-        DEBUG_PRINT("Listener: %d pending", npending);
-      }
-      delete currentNode;   // Frees the ListNode from executeAsynch() 
-    }
-
-    /* What's the minimum number of ready Ndb's to wake up for? */
-    if(! running) {
-      min_ready = npending;  // Wait one final time for all outstanding Ndbs
-      wait_timeout_millisec = 200;
-    }
-    else {
-      int n = npending / 4;
-      min_ready = n > 0 ? n : 1;
-    }
-    
-    /* Wait until something is ready to poll */
-    nwaiting = waitgroup->wait(ready_list, wait_timeout_millisec, min_ready);
-
-    completedNdbs = 0;
-    if(nwaiting > 0) {
-      /* Poll the ones that are ready */
-      DEBUG_PRINT("Listener: %d ready", nwaiting);
-      for(int i = 0 ; i < nwaiting ; i++) {
-        npending--;
-        assert(npending >= 0);
-        ndb = ready_list[i];
-        ndb->pollNdb(0, 1);  /* runs ndbTxCompleted() */
-        currentNode = new ListNode<Ndb>(ndb);
-        currentNode->next = completedNdbs;
-        completedNdbs = currentNode;
-      }
-
-      /* Publish the completed ones */
-      completed_queue.produce(completedNdbs);
-
-      /* Notify the main thread */
-      uv_async_send(& async_handle);
-    }
-  } // Listener thread main loop
-
-  return 0;
-}
-
-
-/* Shut down the context 
-*/
-void AsyncNdbContext::shutdown() {
-  DEBUG_MARKER(UDEB_DEBUG);
-  ListNode<Ndb> * finalNode = new ListNode<Ndb>((Ndb *) 0);
-  finalNode->signalinfo = SignalShutdown;
-
-  /* Queue the shutdown node, and wake up the listener thread for it */
-  sent_queue.produce(finalNode);
-  waitgroup->wakeup();
-}
-  
-
-/* This runs in the JavaScript main thread, at most once per uv_async_send().
-   It dispatches JavaScript callbacks for completed operations.
-*/
-void AsyncNdbContext::completeCallbacks() {
-  ListNode<Ndb> * completedNdbs, * currentNode;
-  
-  completedNdbs = completed_queue.consumeAll();
-
-  while(completedNdbs != 0) {
-    currentNode = completedNdbs;
-    Ndb * ndb = currentNode->item;
-    AsyncExecCall * mcallptr = static_cast<AsyncExecCall *>(ndb->getCustomData());
-    ndb->setCustomData(0);
-
-    main_thd_complete_async_call(mcallptr);
-    completedNdbs = currentNode->next;
-
-    delete currentNode;  // Frees the ListNode from runListenerThread()
-  }
-}
-
-#endif

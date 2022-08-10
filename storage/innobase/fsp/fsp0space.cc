@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_sys.h"
 
 /** Check if two tablespaces have common data file names.
-@param[in]	other_space	Tablespace to check against this.
+@param[in]      other_space     Tablespace to check against this.
 @return true if they have the same data filenames and paths */
 bool Tablespace::intersection(const Tablespace *other_space) {
   files_t::const_iterator end = other_space->m_files.end();
@@ -69,7 +69,7 @@ void Tablespace::shutdown() {
 }
 
 /** Note that the data file was found.
-@param[in,out] file	Data file object to set */
+@param[in,out] file     Data file object to set */
 void Tablespace::file_found(Datafile &file) {
   /* Note that the file exists and can be opened
   in the appropriate mode. */
@@ -77,76 +77,6 @@ void Tablespace::file_found(Datafile &file) {
 
   file.set_open_flags(&file == &m_files.front() ? OS_FILE_OPEN_RETRY
                                                 : OS_FILE_OPEN);
-}
-
-/** Open or Create the data files if they do not exist.
-@param[in]	is_temp	whether this is a temporary tablespace
-@return DB_SUCCESS or error code */
-dberr_t Tablespace::open_or_create(bool is_temp) {
-  fil_space_t *space = nullptr;
-  dberr_t err = DB_SUCCESS;
-
-  ut_ad(!m_files.empty());
-
-  files_t::iterator begin = m_files.begin();
-  files_t::iterator end = m_files.end();
-
-  for (files_t::iterator it = begin; it != end; ++it) {
-    if (it->m_exists) {
-      err = it->open_or_create(m_ignore_read_only ? false : srv_read_only_mode);
-    } else {
-      err = it->open_or_create(m_ignore_read_only ? false : srv_read_only_mode);
-
-      /* Set the correct open flags now that we have
-      successfully created the file. */
-      if (err == DB_SUCCESS) {
-        file_found(*it);
-      }
-    }
-
-    if (err != DB_SUCCESS) {
-      break;
-    }
-
-    bool atomic_write;
-
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-    if (!dblwr::enabled) {
-      atomic_write = fil_fusionio_enable_atomic_write(it->m_handle);
-    } else {
-      atomic_write = false;
-    }
-#else
-    atomic_write = false;
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
-
-    /* We can close the handle now and open the tablespace
-    the proper way. */
-    it->close();
-
-    if (it == begin) {
-      /* First data file. */
-
-      uint32_t flags = fsp_flags_set_page_size(0, univ_page_size);
-
-      /* Create the tablespace entry for the multi-file
-      tablespace in the tablespace manager. */
-      space =
-          fil_space_create(m_name, m_space_id, flags,
-                           is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
-    }
-
-    ut_ad(fil_validate());
-
-    /* Create the tablespace node entry for this data file. */
-    if (!fil_node_create(it->m_filepath, it->m_size, space, false,
-                         atomic_write)) {
-      err = DB_ERROR;
-      break;
-    }
-  }
-
-  return (err);
 }
 
 /** Find a filename in the list of Datafiles for a tablespace
@@ -189,7 +119,7 @@ may be an absolute or relative path, but it must end with the
 extension .ibd and have a basename of at least 1 byte.
 
 Set tablespace m_path member and add a Datafile with the filename.
-@param[in]	datafile_added	full path of the tablespace file. */
+@param[in]      datafile_added  full path of the tablespace file. */
 dberr_t Tablespace::add_datafile(const char *datafile_added) {
   /* The path provided ends in ".ibd".  This was assured by
   validate_create_tablespace_info() */

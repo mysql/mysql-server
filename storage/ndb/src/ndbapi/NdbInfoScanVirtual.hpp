@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,15 @@
 #ifndef NDBINFO_SCAN_VIRTUAL_HPP
 #define NDBINFO_SCAN_VIRTUAL_HPP
 
+#include <map>
+
 #include "NdbInfo.hpp"
 #include "NdbInfoScanOperation.hpp"
 
 /*
   Scan implementation for retrieving rows from a virtual table. The table does
   not exist in the data nodes, instead it return hardcoded information or
-  retrieves inrormation from the cluster using NdbApi.
+  retrieves information from the cluster using NdbApi.
 */
 class NdbInfoScanVirtual : public NdbInfoScanOperation {
 public:
@@ -46,6 +48,8 @@ public:
                      const NdbInfo::Table *table,
                      const class VirtualTable *virt);
   int init();
+  void initIndex(Uint32) override;
+  bool seek(NdbInfoScanOperation::Seek, int) override;
 
   static bool create_virtual_tables(Vector<NdbInfo::Table*> &list);
   static void delete_virtual_tables(Vector<NdbInfo::Table*> &list);
@@ -65,6 +69,7 @@ private:
   Uint32 m_row_counter; // Current row
 
   class VirtualScanContext* m_ctx;
+  std::map<int, int>::const_iterator m_index_pos;
 };
 
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,15 +43,17 @@ class Transaction_message : public Transaction_message_interface {
   };
 
   /**
-   Default constructor
+   Constructor
+
+   @param[in] payload_capacity  The transaction data size
    */
-  Transaction_message();
+  Transaction_message(uint64_t payload_capacity);
   ~Transaction_message() override;
 
   /**
      Overrides Basic_ostream::write().
-     Transaction_message is a Basic_ostream. Callers can write data into
-     Transaction_message's data buffer though this method.
+     Transaction_message is a Basic_ostream, which appends
+     data into the a Gcs_message_data.
 
      @param[in] buffer  where the data will be read
      @param[in] length  the length of the data to write
@@ -61,11 +63,22 @@ class Transaction_message : public Transaction_message_interface {
   bool write(const unsigned char *buffer, my_off_t length) override;
 
   /**
-     Length of data in data vector
+     Length of the message.
 
-     @return data length
+     @return message length
   */
-  my_off_t length() override;
+  uint64_t length() override;
+
+  /**
+     Get the Gcs_message_data object, which contains the serialized
+     transaction data.
+     The internal Gcs_message_data is nullified, to avoid further usage
+     of this Transaction object and the caller receives a pointer to the
+     previously internal Gcs_message_data, which whom it is now responsible.
+
+     @return the serialized transaction data in a Gcs_message_data object
+  */
+  Gcs_message_data *get_message_data_and_reset() override;
 
  protected:
   /*
@@ -76,7 +89,7 @@ class Transaction_message : public Transaction_message_interface {
                       const unsigned char *) override;
 
  private:
-  std::vector<uchar> m_data;
+  Gcs_message_data *m_gcs_message_data{nullptr};
 };
 
 #endif /* TRANSACTION_MESSAGE_INCLUDED */

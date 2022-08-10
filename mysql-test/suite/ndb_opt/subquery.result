@@ -163,26 +163,22 @@ INSERT INTO `v` VALUES
 ('on',NULL,'say',33,23,'about','izjphzzxquxwwrxan','I\'ll',7,'2009-02-10 20:02:17','2005-03-05 21:18:45','are','my',4,'lizjphzzxq','out'),
 ('just',NULL,'with',22,8,'rmap','something','something',4,NULL,'2006-01-14 09:08:21','or','mean',31,'frmapuikkd','here'),
 ('who','2000-07-21 09:51:12','or',28,10,'fcnuiisfrmapuikk','for','me',13,'2001-03-20 15:30:14','2003-09-12 10:09:54','is','qfcn',3,'when','well');
-analyze table i,v;
-Table	Op	Msg_type	Msg_text
-test.i	analyze	status	OK
-test.v	analyze	status	OK
 set ndb_join_pushdown = off;
-set optimizer_switch= 'firstmatch=off';
-set optimizer_switch= 'materialization=off';
 explain
 SELECT pk, col_int_key
 FROM v AS table1 
-WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)
+WHERE table1.col_int_key IN (
+SELECT /*+ SEMIJOIN(DUPSWEEDOUT) */ col_int_key AS field2 FROM i as table1s)
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	col_int_key	NULL	NULL	NULL	###	100.00	Using pushed condition (`test`.`table1`.`col_int_key` is not null)
 1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	col_int_key	col_int_key	5	test.table1.col_int_key	###	100.00	Start temporary; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`table1`.`pk` AS `pk`,`test`.`table1`.`col_int_key` AS `col_int_key` from `test`.`v` `table1` semi join (`test`.`i` `table1s`) where (`test`.`table1s`.`col_int_key` = `test`.`table1`.`col_int_key`)
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ `test`.`table1`.`pk` AS `pk`,`test`.`table1`.`col_int_key` AS `col_int_key` from `test`.`v` `table1` semi join (`test`.`i` `table1s`) where (`test`.`table1s`.`col_int_key` = `test`.`table1`.`col_int_key`)
 SELECT pk, col_int_key
 FROM v AS table1 
-WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)
+WHERE table1.col_int_key IN (
+SELECT /*+ SEMIJOIN(DUPSWEEDOUT) */ col_int_key AS field2 FROM i as table1s)
 ;
 pk	col_int_key
 10	3
@@ -190,6 +186,5 @@ pk	col_int_key
 20	13
 23	4
 24	13
-set optimizer_switch= default;
 DROP TABLE IF EXISTS i,v;
 End of 5.6 tests

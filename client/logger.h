@@ -1,7 +1,7 @@
 #ifndef LOGGER_UTIL_INCLUDED
 #define LOGGER_UTIL_INCLUDED
 /*
-   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ std::ostream &operator<<(std::ostream &os, const Datetime &dt);
 
 class Gen_spaces {
  public:
-  Gen_spaces(int s) { m_spaces.assign(s, ' '); }
+  explicit Gen_spaces(int s) { m_spaces.assign(s, ' '); }
   std::ostream &operator<<(std::ostream &os) { return os; }
   friend std::ostream &operator<<(std::ostream &os, const Gen_spaces &gen);
 

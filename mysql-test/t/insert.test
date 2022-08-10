@@ -68,15 +68,20 @@ select * from t1;
 drop table t1;
 
 #
-# Test if insert ... select distinct
+# Test of insert ... select distinct
 #
 
 create table t1 (email varchar(50));
 insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
 create table t2(id int not null auto_increment primary key, t2 varchar(50), unique(t2));
 insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
+# Different ordering from SELECT DISTINCT leads to different (id,t2)
+# pairs. Check each column separately so that the test doesn't rely on
+# a particular ordering.
 --sorted_result
-select * from t2;
+select id from t2;
+--sorted_result
+select t2 from t2;
 drop table t1,t2;
 
 #
@@ -986,3 +991,68 @@ DEALLOCATE PREPARE stmt;
 DROP VIEW v1;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug #32169656: MYSQL GIVING QUERY RESULT FOR WRONG COLUMN
+--echo #
+
+CREATE TABLE t1 (
+  Ñ INTEGER,
+  N INTEGER,
+  a INTEGER,
+  b INTEGER,
+  c INTEGER,
+  d INTEGER,
+  e INTEGER,
+  f INTEGER,
+  g INTEGER,
+  h INTEGER,
+  i INTEGER,
+  j INTEGER,
+  k INTEGER,
+  l INTEGER,
+  m INTEGER,
+  na INTEGER,
+  o INTEGER,
+  p INTEGER,
+  q INTEGER,
+  r INTEGER,
+  s INTEGER,
+  t INTEGER,
+  u INTEGER,
+  v INTEGER,
+  w INTEGER,
+  x INTEGER,
+  y INTEGER,
+  z INTEGER,
+  aa INTEGER,
+  ab INTEGER,
+  ac INTEGER,
+  ad INTEGER
+);
+
+INSERT INTO t1 (Ñ, N) VALUES (1, 2);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32774799: ASSERTION `ITEM->TYPE() != ITEM::FIELD_ITEM ||
+--echo #              !STATIC_CAST<CONST ITEM_FIELD *>(ITEM)->
+--echo #              FIELD->IS_HIDDEN_BY_SYSTEM()' FAILED.
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, KEY k1 ((1)));
+# An empty VALUES list prompts server to create fields list.
+# The following query should not crash trying to resolve a
+# hidden field in the fields list. Note that the hidden field
+# is added to the table by the server.
+INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+# No hidden fields are created by the server. So this should not
+# be affected.
+INSERT INTO v1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INTEGER, b INTEGER AS ((1)) INVISIBLE, KEY k1(b));
+# User added hidden field. Should not be affected.
+INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
+DROP TABLE t1;

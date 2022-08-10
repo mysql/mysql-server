@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "Undo_buffer.hpp"
 #define DBTUP_C
 #include "Dbtup.hpp"
@@ -34,7 +35,7 @@ struct UndoPage
   Uint32 m_ref_count;
   Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS-2];
   
-  STATIC_CONST( DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-2 );
+  static constexpr Uint32 DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-2;
 };
 
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -146,11 +147,11 @@ Undo_buffer::free_copy_tuple(Local_key* key)
     page->m_words_used= 0;
     if (m_first_free == key->m_page_no)
     {
-      //ndbout_c("resetting page");
+      // g_eventLogger->info("resetting page");
     }
     else 
     {
-      //ndbout_c("returning page");
+      // g_eventLogger->info("returning page");
       m_mm->release_page(RT_DBTUP_COPY_PAGE, key->m_page_no);
     }
   }

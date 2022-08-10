@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -298,9 +298,23 @@ void Gcs_xcom_communication_protocol_changer::decrement_nr_packets_in_transit(
   assert(packet.get_cargo_type() != Cargo_type::CT_INTERNAL_STATE_EXCHANGE);
 
   /* Get the packet's origin. */
-  auto node_id = packet.get_delivery_synode().get_synod().node;
+  auto node_id = packet.get_origin_synode().get_synod().node;
   auto const *node = xcom_nodes.get_node(node_id);
-  Gcs_member_identifier origin(node->get_member_id());
+
+  if (!node) {
+    MYSQL_GCS_LOG_INFO(
+        "Not able to decrement number of packets in transit. Non-existing node "
+        "from incoming packet.");
+  }
+
+  const Gcs_member_identifier origin_member_id = node->get_member_id();
+  if (origin_member_id.get_member_id().empty()) {
+    MYSQL_GCS_LOG_INFO(
+        "Not able to decrement number of packets in transit. Non-existing "
+        "member identifier from incoming packet.");
+  }
+
+  Gcs_member_identifier origin(origin_member_id);
 
   /*
    If the packet comes from me, decrement the number of packets in transit.
@@ -311,8 +325,26 @@ void Gcs_xcom_communication_protocol_changer::decrement_nr_packets_in_transit(
   Gcs_xcom_interface *const xcom_interface =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
   if (xcom_interface != nullptr) {
-    Gcs_member_identifier myself{
-        xcom_interface->get_node_address()->get_member_address()};
+    Gcs_xcom_node_address *myself_node_address =
+        xcom_interface->get_node_address();
+
+    if (!myself_node_address) {
+      MYSQL_GCS_LOG_INFO(
+          "Not able to decrement number of packets in transit. Non-existing "
+          "own address from currently installed configuration.")
+    }
+
+    std::string myself_node_address_string =
+        myself_node_address->get_member_address();
+
+    if (myself_node_address_string.empty()) {
+      MYSQL_GCS_LOG_INFO(
+          "Not able to decrement number of packets in transit. Non-existing "
+          "own address representation from currently installed configuration.")
+    }
+
+    Gcs_member_identifier myself{myself_node_address_string};
+
     bool const message_comes_from_me = (origin == myself);
     if (message_comes_from_me) {
       assert(get_nr_packets_in_transit() > 0 &&

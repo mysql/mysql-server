@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -27,10 +27,10 @@
 #include <DebuggerNames.hpp>
 #include <RefConvert.hpp>
 
-bool
-printLOCAL_ROUTE_ORD(FILE* output,
-                     const Uint32* theData, Uint32 len,
-                     Uint16 rbn)
+bool printLOCAL_ROUTE_ORD(FILE* output,
+                          const Uint32* theData,
+                          Uint32 len,
+                          Uint16 /*rbn*/)
 {
   const LocalRouteOrd * sig = (const LocalRouteOrd*)theData;
   Uint32 pathcnt = sig->cnt >> 16;

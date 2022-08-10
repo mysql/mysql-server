@@ -1855,6 +1855,120 @@ select * from t3 as t1
  left outer join t3 as t3 on t3.a3 = t2.d3
  where t1.d3 is not null;
 
+################################
+# Bug#33451256 AbstractQueryPlan (AQP) return incorrect
+#              access type to be used for a table.
+#
+# If the column(s) an unique index is specified over
+# are nullable, _and_ the key contains a NULL value,
+# multiple NULL-valued rows may still be returned from the UNIQUE index.
+# (All the non-NULL columns are unique though)
+#
+# Note that the optimizer correctly set the access type to REF (-> non-unique)
+# However, the AQP still decided it was 'unique' as all key values
+# was specified.
+#
+# Note that none of the 4 test cases added for this bug should
+# emit the Warning '1296 Prepared pushed join could not be executed'
+# with the patch for this bug. (It does without the patch)
+
+# Insert an additional NULL value, such that the unique index on column d3
+# now has 2 null values - Should not fail.
+insert into t3 values (0x5f, 0x5f, 4, null);
+
+# Need a non-unique index
+alter table t3 add index ix(b3);
+
+###################################
+# AQP incorrectly clasified 'where t1.d3 is null' as a
+# single row lookup operation (Even if explain says 'REF').
+#
+# As pushdown of index scans with a lookup root is not supported,
+# we could not push 't3 as t1' as a root in query below.
+# (t2 join t3) was pushed though.
+#
+# Correctly classifying t1-access as a index access would have
+# allowed all 3 tables to be pushed.
+
+let $query1 =
+select straight_join *
+from t3 as t1
+  left join t3 as t2 on t2.b3 = t1.a3
+  left join t3 as t3 on t3.b3 = t2.d3
+where t1.d3 is null;
+
+eval explain $query1;
+--sorted_result
+eval $query1;
+
+#################################
+# The other way around, making t2 and t3 acccess an EQ_REF:
+# t1 is still incorrectly believed to be a single row operation
+#
+# A pushed join was now prepared for the full 't1 join t2 join t3' -
+# ... with t1 as single row lookup operation.
+#
+# At execution time it turns out that t1 had a NULL in its key,
+# which required an index scan access type. Thus the prepared pushed join
+# ends up being unsuitable, and is dropped from being executed
+
+let $query2 =
+select straight_join *
+from t3 as t1
+  left join t3 as t2 on t2.d3 = t1.a3
+  left join t3 as t3 on t3.d3 = t2.d3
+where t1.d3 is null;
+
+eval explain $query2;
+--sorted_result
+eval $query2;
+
+
+# The only time where the optimizer set up a REF access, and
+# we still do a unique single row access against it, is when
+# we are using a HASH index. Then there is no ordered index
+# available for doing a range type access:
+
+alter table t3 drop index d3;
+
+# Note that a 'using hash' index will warn about doing full table scans
+# if the key has NULL values
+alter table t3 add unique key(d3) using hash;
+
+######################################
+# Use the same two queries a above, now with a redefined HASH index:
+# t1 access will now either be a unique single row acces, if key
+# has no NULLs, or a full table scan. Which of them we can't really
+# know until execution time when the key values are known, unless
+# they are a const-literal.
+#
+# The first one now fails to push t1 as root as it belived it was
+# a lookup type operation with t2 & t3 as scan child.
+#
+# As the t1 key is constructed from 't1.d3 is null', we should be
+# able to detect early that t1 will be accessed using a full table scan.
+# Thus preparing a scan type pushed join for all 3 tables
+
+eval explain $query1;
+--sorted_result
+eval $query1;
+
+####################################
+# The other query was, and still is, asuming t1 to be a single row lookup.
+# Thus we may prepare a pushed lookup join for all 3 tables.
+#
+# However, as the t1 condition 't1.d3 is null' turns out to need a
+# full table scan, the pushed join is rejected at execution time
+#
+# We should be able to detect at prepare time that the key contain
+# a NULL value, thus needing a table scan.
+
+eval explain $query2;
+--sorted_result
+eval $query2;
+
+# Bug#33451256 ... end
+###################################
 
 connection ddl;
 drop table t3;
@@ -4161,13 +4275,18 @@ create table t (k int primary key, uq int) engine = ndb
 connection spj;
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
 
-explain
-select * from t as a left join t as b 
+--echo #############
+--echo # WL#14370: AccessPath will contain a 'zero rows'-AccessPath in place
+--echo #           of the known 'false' condition.
+let $query =
+select * from t as a left join t as b
   on a.k is null and a.uq=b.uq;
 
+eval explain $query;
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
 --sorted_result
-select * from t as a left join t as b 
-  on a.k is null and a.uq=b.uq;
+eval $query;
 
 connection ddl;
 drop table t;
@@ -4371,23 +4490,39 @@ select count(*) from t1 as x1
       cross join t1 as x3) 
    on x1.d=x2.a;
 
+--echo #################
+--echo # Prior to WL#14370 we did 'pending condition' analysis inside the
+--echo # join pushdown handler. That code took a too conservative approach
+--echo # in identifying such pending conditions, somethimes resulting in pushdown
+--echo # to be rejected due to 'table condition can not be fully evaluated...'
+--echo # The AccessPath construction code does a much better job of identifying
+--echo # these pending condition, and placing them at the correct branch level.
+--echo # As this information is now available to us through the AccessPath
+--echo # integration, we eliminated our own (incomplete) code for doing such
+--echo # analysis and could avoid such false rejections at the same time.
+--echo #
+--echo # Note the diff in the traditional and tree format explain below:
+--echo # The traditional explain says table x4 is 'using where', which was
+--echo # incorrectly identified as a trigger condition on join(x2,x4).
+--echo # The tree format explain shows that it has been liftet out of that
+--echo # join scope as a 'filter' on the entire x1..x4 join - Thus there is
+--echo # noting preventing the left-join(x2,x4)
+--echo #################
 
-explain select count(*) from t1 as x0
-   left join (t1 as x1 
-      join (t1 as x2 
-         left join (t1 as x3 
-            join t1 as x4 on x3.d=x4.a) 
-         on x2.d=x3.a) 
-      on x2.c is null or x1.a=x4.d) 
+let $query =
+select count(*) from t1 as x0
+   left join (t1 as x1
+      join (t1 as x2
+         left join (t1 as x3
+            join t1 as x4 on x3.d=x4.a)
+         on x2.d=x3.a)
+      on x2.c is null or x1.a=x4.d)
    on x0.d=x1.a;
-select count(*) from t1 as x0 
-   left join (t1 as x1 
-      join (t1 as x2 
-         left join (t1 as x3 
-            join t1 as x4 on x3.d=x4.a) 
-         on x2.d=x3.a) 
-      on x2.c is null or x1.a=x4.d) 
-   on x0.d=x1.a;
+
+eval explain $query;
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 connection ddl;
 drop table t1;
@@ -4538,6 +4673,30 @@ insert into t1 values (2, 2, 'Dole');
 insert into t1 values (3, 3, 'Doffen');
 insert into t1 values (4, 4, 'row# 999');
 
+###################################################
+# In the IN-value tests below we use regex filtering to
+# avoid having the entire IN-value list in the result-file.
+# We filter out all IN-values except the first 'foo' value
+# and the last 'row# <last value', leaving the result:
+#
+#   in ('foo' .... 'row# <last value')
+#
+# Note, there is a regex bug:
+#  Bug 86164 - std::regex crashes when matching long lines
+#  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164
+#
+# The root cause is a too deep recursion when matching '+' and '*' patterns.
+# in combination with a too long text to match. We hit that bug when
+# regex-matching such long lines as generated in these IN-value lists.
+#
+# As a workaround for that bug we do the regex matching in two steps:
+#
+# 1) Consume all 'row# nnn' with a trailing ',' - Keeping just the last
+#    row# nnn which has no trailing  ','
+# 2) Add ' .... ' in front of the last remaining 'row#"
+#
+#######################################################
+
 # These queries with large IN clauses exceeds the default memory limit of the
 # range optimizer on 64 bit but not on 32 bit, thus cauing different result.
 # Fix by setting a fairly low value in order to get consistent behaviour
@@ -4548,18 +4707,20 @@ echo ------------------------------------------------------------------;
 echo;
 # Build SPJ query with 2000 IN values
 # This used to result in buffer overflow, but will now
-# pass as buffer size is incresed from 32K -> 64K
+# pass as buffer size is increased from 32K -> 64K
 #
 let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
 let $values = 0;
 while ($values < 2000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query );
 
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4574,12 +4735,14 @@ let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
 let $values = 0;
 while ($values < 4000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query );
 
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4590,12 +4753,14 @@ let $query = select * from t1 x where x.name in ('foo';
 let $values = 0;
 while ($values < 4000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query );
 
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 
@@ -4621,12 +4786,14 @@ let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in
 let $values = 0;
 while ($values < 1000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query ) order by x.k1;
 
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4639,30 +4806,34 @@ let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in
 let $values = 0;
 while ($values < 4000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query ) order by x.k1;
 
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 
 echo ------------------------------------------------------------------;
 echo;
-# A pushed condition with size between 32K - 64K was not not 'Too large',
+# A pushed condition with size between 32K - 64K was not 'Too large',
 # but would require fragmented sending in order to work -> Crashed.
 #
 let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
 let $values = 0;
 while ($values < 2000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query ) order by x.k1;
 
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 set range_optimizer_max_mem_size = @save_range_opt_max;
@@ -5024,69 +5195,78 @@ set optimizer_switch=@save_optimizer_switch;
 # then later used to access a 'tableno-bitmask'.
 ###################################################
 
+--echo ####################################################################
+--echo # WL#14370: Change EXPLAIN to use 'format=tree'. Traditional explain
+--echo # didn't correctly represent the order of tables in MATERIALIZED
+--echo # sub queries. That resulted in some confusing 'EXPLAIN_NO_PUSH' diffs
+--echo # where the reported root/child order didn't make sense.
+--echo # As the tree-format explain will show, the changed output
+--echo # make more sense related to the query plan represented by the
+--echo # AccessPath tree.
+--echo # WL#14370: Materialized semijoin's is not the only SJ-strategi
+--echo # where we do no pushdown across main-query -> sub-query border.
+--echo # (The sub-query itself may be pushed though)
+--echo ###################################################################
+
 connection spj;
 set @save_optimizer_switch = @@optimizer_switch;
 set @@optimizer_switch='semijoin=on';
 set @@optimizer_switch='materialization=on';
 
-explain
+let $query =
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
-select count(*)
-from t1
-join t1 as t2 on t2.a = t1.b
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 
-explain
-select count(*)
-from t1
-join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
-
+let $query =
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
-explain
+
+let $query =
 select count(*)
 from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
-select count(*)
-from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
-join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 
-explain
-select count(*)
-from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
-join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
-
+let $query =
 select count(*)
 from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t4);
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 
 set optimizer_switch='block_nested_loop=off';
 
-explain
+let $query =
 select count(*)
 from t1 cross join t1 as t2
 where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
   from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
 
-select count(*)
-from t1 cross join t1 as t2
-where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
-  from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 set optimizer_switch=@save_optimizer_switch;
 
@@ -5219,7 +5399,14 @@ set optimizer_switch=@save_optimizer_switch;
 # subqueries can now be pushed down, and materialized.
 #
 ###################################################
-explain
+
+--echo ###########
+--echo # WL#14370: EXPLAIN need to use 'format=tree as table access order
+--echo # in MATERIALIZED execution is not currectly represented by
+--echo # the traditional explain.
+--echo ###########
+
+let $query =
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -5227,15 +5414,12 @@ where t1.c IN (
   select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
   join t1 as t4s on t4s.a = t3s.b);
 
-select count(*)
-from t1
-join t1 as t2 on t2.a = t1.b
-where t1.c IN (
-  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
-  join t1 as t4s on t4s.a = t3s.b);
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 
-explain
+let $query =
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -5248,23 +5432,58 @@ and t1.d IN (
   join t1 as t4s2 on t4s2.a = t3s2.b
  );
 
-select count(*)
-from t1
-join t1 as t2 on t2.a = t1.b
-where t1.c IN(
-  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
-  join t1 as t4s1 on t4s1.a = t3s1.b
- )
-and t1.d IN (
-  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
-  join t1 as t4s2 on t4s2.a = t3s2.b
- );
-
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 #############################################
 # Subqueries-end
 #############################################
 
+
+###################################################
+# Bug#33416308
+#    Incorrect result for pushed join in combination with batched_key_access
+#
+# SPJ API / handler integration didn't implement retrieval of the
+# RANGE_NO pseudo column. Thus, when MRR specified multiple Bound's,
+# and that MRR operation was the root of a pushed join, we failed
+# to related the returned SPJ rows with the correct 'Batched Key'
+#
+##################################################
+
+# We use optimizer hints to ensure:
+#  - t2 is BKA joined (using MRR) with t1.
+#  - t3 is _not_ BKA joined with t2, thus enabling
+#      t2 join t3 to be pushed.
+#
+# 't1 BKA_JOIN t2' will use MRR access for the
+# pushed join root t2, which will need RANGE_NO's from t2 results
+# in order to relate them to the correct batched t1 row.
+#
+explain
+select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
+from t1
+  straight_join t1 as t2 on t2.a = t1.c
+  straight_join t1 as t3 on t3.a = t2.c and t3.b=t2.d;
+--sorted_result
+select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
+from t1
+  straight_join t1 as t2 on t2.a = t1.c
+  straight_join t1 as t3 on t3.a = t2.c and t3.b=t2.d;
+
+# Variant where t3 join condition refers t1.
+# That will hit an assert(key_cmp... added as part of patch
+explain
+select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
+from t1
+  straight_join t1 as t2 on t2.a = t1.c
+  straight_join t1 as t3 on t3.a = t1.c and t3.b=t2.d;
+--sorted_result
+select /*+ BKA(t2) NO_BKA(t3) */ t1.a, t2.a, t3.a
+from t1
+  straight_join t1 as t2 on t2.a = t1.c
+  straight_join t1 as t3 on t3.a = t1.c and t3.b=t2.d;
 
 connection ddl;
 drop table t1;
@@ -5398,6 +5617,151 @@ straight_join t1 as t2 on t2.a = t1.a
   order by t1.d;
 
 drop table t1;
+
+--echo ##################
+--echo #
+--echo # Specific WL-14370, 'AccessPath' tests
+--echo # (Unknown if/how this worked pre-wl-14370)
+--echo #
+--echo ##################
+
+--echo Testcase for AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL
+--echo Expect explain: 'Nested loop semijoin with duplicate removal on...'
+--echo   (Hardly ever used unless forced to...)
+
+
+--echo Testcase for AccessPath::WINDOWING
+# (Picked from main.subquery_scalar_to_derived_correlation.test)
+
+create table t2(a int) engine=ndbcluster;
+insert into t2 values(1), (2);
+create table t3(a int, b int) engine=ndbcluster;
+insert into t3 values(1, 3), (2, 3);
+
+let $query =
+  select a,
+       (select sum(a) over w from t2 window w as(order by t3.a) limit 1)
+  from t3;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+drop table t2,t3;
+
+#WL#14370: Query_expression with multiple Query_blocks:
+# (Testing Accesspath::APPEND of multiple STREAMs.)
+# The constructed AQP::Join_plan is limited to handling single
+# Query_blocks, which is implemented by just iterating over the
+# 'block' in the Query_expression. Thus we dont have to handle
+# Accesspath::APPEND and multiple 'blocks' in the 'plan'.
+#
+
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`)
+) engine=ndbcluster
+partition by key() partitions 8;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+let $query =
+  select *
+  from t1
+    straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
+    straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b
+  where t1.a=1 and t1.d=1;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query union all $query;
+--sorted_result
+eval $query union all $query;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query union $query;
+--sorted_result
+eval $query union $query;
+
+drop table t1;
+
+--echo ##################
+--echo #
+--echo # Bug#33669039 Stale rows returned from SPJ API,
+--echo #              hit assert(key_cmp_if_same(...)) in debug build
+--echo #
+--echo ##################
+
+create table t (
+pk int primary key,
+a int,
+b int,
+c int,
+d int
+) engine = ndbcluster;
+
+
+##############################
+# The inserted rows, in combination with query,
+# will do a self-join between all rows, except
+# the row where pk=7, containing a=-1
+insert into t values (0,0,0,0,0);
+insert into t values (1,1,1,1,1);
+insert into t values (2,2,2,2,2);
+insert into t values (3,3,3,3,3);
+insert into t values (4,4,4,4,4);
+insert into t values (5,5,5,5,5);
+insert into t values (6,6,6,6,6);
+insert into t values (7,-1,7,7,7);
+insert into t values (8,8,8,8,8);
+insert into t values (9,9,9,9,9);
+insert into t values (10,10,10,10,10);
+insert into t values (11,11,11,11,11);
+insert into t values (12,12,12,12,12);
+insert into t values (13,13,13,13,13);
+insert into t values (14,14,14,14,14);
+insert into t values (15,15,15,15,15);
+
+
+##############################
+# The query below has the join nests t1 oj (t2,t3) oj (t4,t5). In addition
+# There are join condition dependencies between the (t4,t5) nests, and t3
+# in the other outer-nest.
+# When the iterator executor evaluate the join for the row with pk=7 it
+# will not find any t2 rows where t2.pk = t1.a. This will also conclude
+# with a 'non match' for the nest (t2,t3)... *without* a new t3 row needed
+# to be read.
+# The iterator executor will then continue with trying to find matches
+# for the (t4,t5) nest. This nest will have join dependencies on t3, which
+# now has an old (invalid) 'current row' as read from t3 was skipped in the
+# previous step.
+#
+let $query=
+select t1.pk, t2.pk, t3.pk, t4.pk, t5.pk
+from t as t1
+  left join (
+    t as t2
+      straight_join t as t3 on t3.pk = t2.b
+  ) on t2.pk = t1.a
+  left join (
+    t as t4
+      straight_join t as t5
+  ) on t4.pk = t1.c and t5.pk = t3.d;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+drop table t;
 
 ########################################
 # Verify counters for entire test:

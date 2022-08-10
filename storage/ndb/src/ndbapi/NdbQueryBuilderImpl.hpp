@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #ifndef NdbQueryBuilderImpl_H
 #define NdbQueryBuilderImpl_H
+
+#include <cstring>
 
 /* Query-related error codes. */
 #define QRY_REQ_ARG_IS_NULL 4800
@@ -104,9 +106,9 @@ public:
 //#define TEST_Uint32Buffer
 
 #if defined(TEST_Uint32Buffer)
-  STATIC_CONST(initSize = 1);  // Small size to force test of buffer expand.
+  static constexpr Uint32 initSize = 1;  // Small size to force test of buffer expand.
 #else
-  STATIC_CONST(initSize = 32); // Initial buffer size, extend on demand but probably sufficent
+  static constexpr Uint32 initSize = 32; // Initial buffer size, extend on demand but probably sufficent
 #endif
 
   explicit Uint32Buffer():
@@ -222,7 +224,7 @@ public:
         memcpy(start, src, len);
         m_bytesLeft = (m_bytesLeft - len) % sizeof(Uint32);
         // Make sure that any trailing bytes in the last word are zero.
-        bzero(start + len, m_bytesLeft);
+        std::memset(start + len, 0, m_bytesLeft);
       }
     }
   }
@@ -282,7 +284,8 @@ public:
     m_parent(nullptr),
     m_firstUpper(nullptr),
     m_firstInner(nullptr),
-    m_interpretedCode(nullptr)
+    m_interpretedCode(nullptr),
+    m_parameters(0)
   {}
   NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
   ~NdbQueryOptionsImpl();
@@ -297,6 +300,7 @@ private:
   NdbQueryOperationDefImpl*      m_firstUpper;   //First in upper nest
   NdbQueryOperationDefImpl*      m_firstInner;   //First in this (inner-)nest
   const NdbInterpretedCode*      m_interpretedCode;
+  Vector<const NdbQueryOperandImpl*> m_parameters;
 
   /**
    * Assign NdbInterpretedCode by taking a deep copy of 'src'
@@ -331,7 +335,8 @@ public:
   Uint32 getNoOfParentOperations() const
   { return (m_parent) ? 1 : 0; }
 
-  const NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
+  const NdbQueryOperationDefImpl& getParentOperation(Uint32 i
+                                                     [[maybe_unused]]) const
   { assert(i==0 && m_parent!=NULL);
     return *m_parent;
   }
@@ -387,6 +392,9 @@ public:
 
   const NdbInterpretedCode* getInterpretedCode() const
   { return m_options.m_interpretedCode; }
+
+  const Vector<const NdbQueryOperandImpl*>& getInterpretedParams() const
+  { return m_options.m_parameters; }
 
   // Establish a linked parent <-> child relationship with this operation
   int linkWithParent(NdbQueryOperationDefImpl* parentOp);
@@ -452,10 +460,10 @@ public:
     return m_spjProjection;
   }
 
-  virtual int checkPrunable(const Uint32Buffer& keyInfo,
-                            Uint32  shortestBound,
-                            bool&   isPruned,
-			    Uint32& hashValue) const {
+  virtual int checkPrunable(const Uint32Buffer& /*keyInfo*/,
+                            Uint32 /*shortestBound*/, bool& isPruned,
+                            Uint32& /*hashValue*/) const
+  {
     isPruned = false;
     return 0;
   }
@@ -503,6 +511,8 @@ protected:
 
   // Append list of columns required by SPJ to instantiate child operations.
   Uint32 appendChildProjection(Uint32Buffer& serializedDef) const;
+
+  Uint32 appendParamConstructor(Uint32Buffer& serializedDef) const;
 
 protected:
   /** True if enclosing query has been prepared.*/
@@ -579,11 +589,11 @@ protected:
                 Uint32Buffer& serializedDef,
                 const NdbTableImpl& tableOrIndex);
 
-  // Append pattern for creating complete range bounds to serialized code 
-  virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const
+  // Append pattern for creating complete range bounds to serialized code
+  virtual Uint32 appendBoundPattern(Uint32Buffer& /*serializedDef*/) const
   { return 0; }
 
-  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef)
+  virtual Uint32 appendPrunePattern(Uint32Buffer& /*serializedDef*/)
   { return 0; }
 
 }; // class NdbQueryScanOperationDefImpl
@@ -754,7 +764,8 @@ private:
   }
 
   NdbQueryBuilder m_interface;
-  NdbError m_error;
+  // Allow update error from const methods
+  mutable NdbError m_error;
 
   Vector<NdbQueryOperationDefImpl*> m_operations;
   Vector<NdbQueryOperandImpl*> m_operands;
@@ -787,7 +798,7 @@ public:
   { return m_column; }
 
   virtual int bindOperand(const NdbColumnImpl& column,
-                          NdbQueryOperationDefImpl& operation)
+                          NdbQueryOperationDefImpl& /*operation*/)
   { if (m_column  && m_column != &column)
       // Already bounded to a different column
       return QRY_OPERAND_ALREADY_BOUND;
@@ -966,7 +977,7 @@ protected:
       return dst;
     }
 
-    STATIC_CONST(maxShortChar = 32);
+    static constexpr Uint32 maxShortChar = 32;
 
     union
     {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ using thread::Thread;
 
 class MDLSyncTest : public ::testing::Test {
  protected:
-  MDLSyncTest() {}
+  MDLSyncTest() = default;
 
   void SetUp() override {
     /* Set debug sync timeout of 60 seconds. */

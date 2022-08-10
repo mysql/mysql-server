@@ -25,9 +25,13 @@ v='a'
 select binary v='a' from t1;
 binary v='a'
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select binary v='a ' from t1;
 binary v='a '
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 insert into t1 values('a');
 alter table t1 add primary key (v);
 ERROR 23000: Duplicate entry 'a ' for key 't1.PRIMARY'

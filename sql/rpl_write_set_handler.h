@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,6 @@ const char *get_write_set_algorithm_string(unsigned int algorithm);
 
   @return true if an issues exists adding the pke, false otherwise
 */
-bool add_pke(TABLE *table, THD *thd, uchar *record);
+bool add_pke(TABLE *table, THD *thd, const uchar *record);
 
 #endif

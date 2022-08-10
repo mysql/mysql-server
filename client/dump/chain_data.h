@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ namespace Dump {
 
 class Chain_data {
  public:
-  Chain_data(uint64 chain_id);
+  explicit Chain_data(uint64 chain_id);
 
   void abort();
 

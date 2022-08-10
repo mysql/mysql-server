@@ -1,0 +1,93 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Bug#33974581 Update of table with hidden key stops applier
+#
+# When Applier process changes to a hidden key table it need to read
+# from NDB instead of just defining another update or write. Before the
+# read can take place, any already defined operations need to be sent to
+# NDB. This is done both in order to "read your own writes" as well as
+# handle constraint violation and missing row errors in the same way as
+# if the table with hidden key was not changed.
+#
+#
+# 1) This test shows "read your own write" for table with hidden pk.
+# Since the table has hidden pk the UPDATE will need to read rows
+# from NDB, find the ones that match the condition and then update those.
+# In order to make it possible for NDB to return the first INSERT it
+# need to be prepared/flushed before starting to read.
+#
+[connection master]
+CREATE TABLE t1 (a INT, b INT) engine = NDB;
+INSERT INTO t1 VALUES (1, 1);
+UPDATE t1 SET a=NULL where b=1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+#
+# 2) This tests show that applying changes to table with hidden pk
+# ignore error(s) from previously defined changes (in the same epoch
+# transaction) as they should.
+#
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) engine = NDB;
+CREATE TABLE t2_hidden_pk (a INT, b INT) engine = NDB;
+CREATE TABLE t3_hidden_pk_unique (a INT, b INT, unique(b)) engine = NDB;
+CREATE TABLE t4_hidden_pk_index (a INT, b INT, index(b)) engine = NDB;
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
+INSERT INTO t2_hidden_pk VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
+INSERT INTO t3_hidden_pk_unique VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
+INSERT INTO t4_hidden_pk_index VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
+include/sync_slave_sql_with_master.inc
+[connection slave]
+## Delete rows on replica to make it possible to change something
+## on the source that would then fail when applied on the replica.
+DELETE FROM t1 WHERE a = 5;
+DELETE FROM t2_hidden_pk WHERE a = 5;
+DELETE FROM t3_hidden_pk_unique WHERE a = 5;
+DELETE FROM t4_hidden_pk_index WHERE a = 5;
+## Case 1, pk table (the "normal" case)
+## - update row that does not exist on replica
+## - update pk table -> direct update
+[connection master]
+BEGIN;
+UPDATE t1 SET b = 0 WHERE a = 5;
+UPDATE t1 SET b = 10 WHERE a = 1;
+COMMIT;
+include/sync_slave_sql_with_master.inc
+## Case 2, hidden pk table
+## - update row that does not exist on replica
+## - update hidden pk table -> uses scan
+[connection master]
+BEGIN;
+UPDATE t1 SET b = 0 WHERE a = 5;
+UPDATE t2_hidden_pk SET b = 10 WHERE a = 1;
+COMMIT;
+include/sync_slave_sql_with_master.inc
+## Case 3, hidden pk table with unique index
+## - update row that does not exist on replica
+## - update hidden pk table with unique index -> uses index scan
+[connection master]
+BEGIN;
+UPDATE t1 SET b = 0 WHERE a = 5;
+UPDATE t3_hidden_pk_unique SET a = 30 WHERE b < 3;
+COMMIT;
+include/sync_slave_sql_with_master.inc
+## Case 4, hidden pk table with index
+## - update row that does not exist on replica
+## - update hidden pk table with index -> uses index scan
+[connection master]
+BEGIN;
+UPDATE t1 SET b = 0 WHERE a = 5;
+UPDATE t4_hidden_pk_index SET a = 40 WHERE b < 4;
+COMMIT;
+include/sync_slave_sql_with_master.inc
+# Cleanup
+[connection master]
+DROP TABLE t1, t2_hidden_pk, t3_hidden_pk_unique, t4_hidden_pk_index;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

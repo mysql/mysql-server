@@ -16,6 +16,7 @@ use My::Find;
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
+my $version = $ENV{MYSQL_SERVER_VERSION};
 
 # In the RPM case, binaries and libraries are installed in the
 # default system locations, instead of having our own private base
@@ -38,27 +39,36 @@ my $clusterj_jar = my_find_file($bindir,
                                   "share/java",
                                   "share/mysql/java",
                                   "share/mysql-8.0/java",
-                                  "lib/java" ],
-                                "clusterj-*.jar", NOT_REQUIRED);
+                                  "lib/java"
+                                ],
+                                "clusterj-$version.jar",
+                                NOT_REQUIRED);
 
 my $clusterj_test_jar = my_find_file($bindir,
                                      [ "storage/ndb/clusterj/clusterj-test",
                                        "share/java",
                                        "share/mysql/java",
                                        "share/mysql-8.0/java",
-                                       "lib/java" ],
-                                     "clusterj-test-*.jar", NOT_REQUIRED);
+                                       "lib/java"
+                                     ],
+                                     "clusterj-test-$version.jar",
+                                     NOT_REQUIRED);
 
 # The expected installation locations are lib, lib/mysql, lib64/mysql, lib/x86_64-linux-gnu
 my $ndbclient_lib = my_find_file($bindir,
-                                ["storage/ndb/src/.libs", 
-                                 "library_output_directory",
-                                 "lib*/*",
-                                 "lib"],
-                                ["ndbclient.dll", "libndbclient.so", "libndbclient.dylib"],
+                                [ "library_output_directory",
+                                  "lib*/*",
+                                  "lib"
+                                ],
+                                [ "ndbclient.dll",
+                                  "libndbclient.so",
+                                  "libndbclient.dylib"
+                                ],
                                 NOT_REQUIRED);
 
 my $F = IO::File->new("$vardir/tmp/have_clusterj_result.inc", 'w') or die;
+print $F "# Looking for clusterj-$version.jar\n";
+
 if ($clusterj_jar) {
   print $F "--let \$CLUSTERJ_JAR= $clusterj_jar\n"; 
   print $F "--echo Found clusterj.jar\n"

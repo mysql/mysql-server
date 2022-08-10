@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 
 #include <cstddef>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "my_inttypes.h"         // uint
 #include "sql/parse_location.h"  // POS
@@ -47,7 +48,6 @@ class THD;
 struct Cast_type;
 struct CHARSET_INFO;
 struct udf_func;
-enum enum_field_types : int;
 enum class Json_on_response_type : uint16;
 
 /* For type casts */
@@ -112,7 +112,7 @@ class Create_func {
 
  protected:
   Create_func() = default;
-  virtual ~Create_func() {}
+  virtual ~Create_func() = default;
 };
 
 /**
@@ -148,9 +148,9 @@ class Create_qfunc : public Create_func {
 
  protected:
   /** Constructor. */
-  Create_qfunc() {}
+  Create_qfunc() = default;
   /** Destructor. */
-  ~Create_qfunc() override {}
+  ~Create_qfunc() override = default;
 };
 
 /**
@@ -191,21 +191,21 @@ class Create_udf_func : public Create_func {
 
  protected:
   /** Constructor. */
-  Create_udf_func() {}
+  Create_udf_func() = default;
   /** Destructor. */
-  ~Create_udf_func() override {}
+  ~Create_udf_func() override = default;
 };
 
 /**
   Builder for cast expressions.
   @param thd The current thread
   @param pos Location of casting expression
-  @param a The item to cast
+  @param arg The item to cast
   @param type the type casted into
   @param as_array Cast to array
 */
-Item *create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type &type,
-                       bool as_array);
+Item *create_func_cast(THD *thd, const POS &pos, Item *arg,
+                       const Cast_type &type, bool as_array);
 
 Item *create_func_cast(THD *thd, const POS &pos, Item *a,
                        Cast_target cast_target, const CHARSET_INFO *cs_arg);

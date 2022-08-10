@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,8 +118,7 @@ static int sp_mbr_from_wkb(uchar *wkb, uint size, uint n_dims, double *mbr) {
 */
 
 static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims,
-                               uchar byte_order MY_ATTRIBUTE((unused)),
-                               double *mbr) {
+                               uchar byte_order [[maybe_unused]], double *mbr) {
   double *mbr_end = mbr + n_dims * 2;
 
   while (mbr < mbr_end) {

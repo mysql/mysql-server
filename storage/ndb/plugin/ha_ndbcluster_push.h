@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,11 +53,7 @@ class ndb_table_access_map : public table_bitmap {
  public:
   explicit ndb_table_access_map() : table_bitmap() {}
 
-  void add(const ndb_table_access_map
-               &table_map) {  // Require const_cast as signature of class
-                              // Bitmap::merge is not const correct
-    merge(table_map);
-  }
+  void add(const ndb_table_access_map &table_map) { merge(table_map); }
   void add(uint table_no) { set_bit(table_no); }
 
   bool contain(const ndb_table_access_map &table_map) const {
@@ -89,7 +85,7 @@ class ndb_pushed_join {
    * of operation specified by the arguments.
    */
   bool match_definition(int type,  // NdbQueryOperationDef::Type,
-                        const NDB_INDEX_DATA *idx) const;
+                        const NDB_INDEX_DATA *idx, const char *&reason) const;
 
   /** Create an executable instance of this defined query. */
   NdbQuery *make_query_instance(NdbTransaction *trans,
@@ -109,7 +105,7 @@ class ndb_pushed_join {
   const NdbQueryDef &get_query_def() const { return *m_query_def; }
 
   /** Get the table that is accessed by the i'th table access operation.*/
-  TABLE *get_table(uint i) const {
+  const TABLE *get_table(uint i) const {
     assert(i < m_operation_count);
     return m_tables[i];
   }
@@ -118,24 +114,30 @@ class ndb_pushed_join {
    * This is the maximal number of fields in the key of any pushed table
    * access operation.
    */
-  static const uint MAX_KEY_PART = MAX_KEY;
+  static constexpr uint MAX_KEY_PART = MAX_KEY;
   /**
    * In a pushed join, fields in lookup keys and scan bounds may refer to
    * result fields of table access operation that execute prior to the pushed
    * join. This constant specifies the maximal number of such references for
    * a query.
    */
-  static const uint MAX_REFERRED_FIELDS = 16;
+  static constexpr uint MAX_REFERRED_FIELDS = 16;
   /**
    * For each table access operation in a pushed join, this is the maximal
-   * number of key fields that may refer to the fields of the parent operation.
+   * number of key fields that may refer to the fields from ancestor operation.
    */
-  static const uint MAX_LINKED_KEYS = MAX_KEY;
+  static constexpr uint MAX_LINKED_KEYS = MAX_KEY;
+  /**
+   * Pushed conditions within the pushed join may refer Field values from
+   * ancestor operations. This is the maximum number of such linkedValues
+   * supported.
+   */
+  static constexpr uint MAX_LINKED_PARAMS = 16;
   /**
    * This is the maximal number of table access operations there can be in a
    * single pushed join.
    */
-  static const uint MAX_PUSHED_OPERATIONS = MAX_TABLES;
+  static constexpr uint MAX_PUSHED_OPERATIONS = MAX_TABLES;
 
  private:
   const NdbQueryDef *const m_query_def;  // Definition of pushed join query
@@ -144,7 +146,7 @@ class ndb_pushed_join {
   uint m_operation_count;
 
   /** This is the tables that are accessed by the pushed join.*/
-  TABLE *m_tables[MAX_PUSHED_OPERATIONS];
+  const TABLE *m_tables[MAX_PUSHED_OPERATIONS];
 
   /**
    * This is the number of referred fields of table access operation that
@@ -173,7 +175,9 @@ class ndb_pushed_builder_ctx {
       const ndb_pushed_builder_ctx &builder_ctx, const NdbQueryDef *query_def);
 
  public:
-  ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb, AQP::Table_access *table);
+  ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb, AQP::Join_plan &plan,
+                         AQP::Table_access *root);
+
   ~ndb_pushed_builder_ctx();
 
   /**
@@ -181,9 +185,8 @@ class ndb_pushed_builder_ctx {
    * Returns:
    *   = 0: A NdbQueryDef has successfully been prepared for execution.
    *   > 0: Returned value is the error code.
-   *   < 0: There is a pending NdbError to be retrieved with getNdbError()
    */
-  int make_pushed_join(const ndb_pushed_join *&pushed_join);
+  static int make_pushed_join(Thd_ndb *thd_ndb, AQP::Join_plan &plan);
 
   const NdbError &getNdbError() const;
 
@@ -197,6 +200,8 @@ class ndb_pushed_builder_ctx {
   };
 
   bool maybe_pushable(AQP::Table_access *table, join_pushability check);
+
+  int make_pushed_join(const ndb_pushed_join *&pushed_join);
 
   /**
    * Collect all tables which may be pushed together with 'root'.
@@ -245,7 +250,7 @@ class ndb_pushed_builder_ctx {
  private:
   const Thd_ndb *const m_thd_ndb;
 
-  const AQP::Join_plan &m_plan;
+  AQP::Join_plan &m_plan;
   AQP::Table_access *const m_join_root;
 
   // Scope of tables covered by this pushed join
@@ -279,6 +284,7 @@ class ndb_pushed_builder_ctx {
           m_last_inner(0),
           m_first_upper(-1),
           m_sj_nest(),
+          m_first_sj_upper(-1),
           m_key_parents(nullptr),
           m_ancestors(),
           m_parent(MAX_TABLES),
@@ -447,8 +453,24 @@ class ndb_pushed_builder_ctx {
      * A similar, but simpler, nest topology exists for the semi-joins.
      * Tables in the semi-join nest are semi joined with any tables outside
      * the sj_nest.
+     *
+     * Note that tables can still be inner- and outer-joined inside the sj_nest.
+     * Unlike the inner_ and upper_nest maps representing these joins, the
+     * sj_nest for a particular table contains all tables in the sj_nest. (Not
+     * only the preceeding tables.)
      */
     ndb_table_access_map m_sj_nest;
+
+    /**
+     * The semi-join nests may be nested inside each other as well.
+     * In such cases 'm_first_sj_upper' will refer the start of the sj_nest
+     * we are inside.
+     *
+     * Note that for nested sj_nests, the 'upper' 'm_sj_nest' bitmap will also
+     * contain any semi-join'ed tables in sj_nest's inside it - Contrary to
+     * the inner_nest bitmaps which only contain the tables in each inner-nest.
+     */
+    int m_first_sj_upper;
 
     /**
      * For each KEY_PART referred in the join conditions, we find the set of

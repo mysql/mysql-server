@@ -1,0 +1,30 @@
+# 1. Skip the group start
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+# 2. Start and bootstrap the group with server 1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+# 3. Change server 2 group_replication_local_address to be the same as
+#    server 1
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+call mtr.add_suppression("Timeout on wait for view after joining group");
+SET SESSION sql_log_bin= 1;
+SET @local_address_save= @@GLOBAL.group_replication_local_address;
+SET GLOBAL group_replication_local_address= "GROUP_REPLICATION_SERVER_1_ADDRESS";
+# 4. Manually start server 2 and expect it to fail while joining the
+#    group
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+# 5. Restore server 2 original address
+SET @@GLOBAL.group_replication_local_address= @local_address_save;
+# 6. Server 2 must successfully join the group
+include/start_group_replication.inc
+# 7. Clean up.
+include/group_replication_end.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,11 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCSourceRuns)
 
-IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+IF(LZ4_LIBRARY)
   ADD_DEFINITIONS(-DHAVE_LZ4=1)
-  INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
 ENDIF()
+
+#ADD_DEFINITIONS("-O0")
 
 # OS tests
 IF(UNIX AND NOT IGNORE_AIO_CHECK)
@@ -79,7 +80,7 @@ IF(MY_COMPILER_IS_GNU)
     IF (HAVE_NO_BUILTIN_MEMCMP)
       # Work around http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43052
       SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_SOURCE_DIR}/rem/rem0cmp.cc
-	PROPERTIES COMPILE_FLAGS -fno-builtin-memcmp)
+        PROPERTIES COMPILE_FLAGS -fno-builtin-memcmp)
     ENDIF()
   ENDIF()
 ENDIF()
@@ -202,24 +203,24 @@ IF(NOT MSVC AND NOT CMAKE_CROSSCOMPILING)
   #include <sys/syscall.h>
 
    int futex_wait(int* futex, int v) {
-	return(syscall(SYS_futex, futex, FUTEX_WAIT_PRIVATE, v, NULL, NULL, 0));
+        return(syscall(SYS_futex, futex, FUTEX_WAIT_PRIVATE, v, NULL, NULL, 0));
    }
 
    int futex_signal(int* futex) {
-	return(syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0));
+        return(syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0));
    }
 
   int main() {
-	int	ret;
-	int	m = 1;
+        int     ret;
+        int     m = 1;
 
-	/* It is setup to fail and return EWOULDBLOCK. */
-	ret = futex_wait(&m, 0);
-	assert(ret == -1 && errno == EWOULDBLOCK);
-	/* Shouldn't wake up any threads. */
-	assert(futex_signal(&m) == 0);
+        /* It is setup to fail and return EWOULDBLOCK. */
+        ret = futex_wait(&m, 0);
+        assert(ret == -1 && errno == EWOULDBLOCK);
+        /* Shouldn't wake up any threads. */
+        assert(futex_signal(&m) == 0);
 
-	return(0);
+        return(0);
   }"
   HAVE_IB_LINUX_FUTEX)
 ENDIF()
@@ -260,6 +261,6 @@ ENDIF()
 
 # Include directories under innobase
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/
-		    ${CMAKE_SOURCE_DIR}/storage/innobase/include
-		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
+                    ${CMAKE_SOURCE_DIR}/storage/innobase/include
+                    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
                     )

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 Recovery_endpoints::Recovery_endpoints()
     : m_mysqld_port(0), m_mysqld_admin_port(0), m_endpoints(), m_remote(true) {}
 
-Recovery_endpoints::~Recovery_endpoints() {}
+Recovery_endpoints::~Recovery_endpoints() = default;
 
 std::vector<std::pair<std::string, uint>> Recovery_endpoints::get_endpoints() {
   DBUG_TRACE;
@@ -356,9 +356,9 @@ Recovery_endpoints::check(const char *endpoints_arg) {
   return std::make_pair(check_res, err_string);
 }
 
-Advertised_recovery_endpoints::Advertised_recovery_endpoints() {}
+Advertised_recovery_endpoints::Advertised_recovery_endpoints() = default;
 
-Advertised_recovery_endpoints::~Advertised_recovery_endpoints() {}
+Advertised_recovery_endpoints::~Advertised_recovery_endpoints() = default;
 
 bool Advertised_recovery_endpoints::check(const char *endpoints,
                                           enum_log_context where) {
@@ -420,9 +420,9 @@ bool Advertised_recovery_endpoints::check(const char *endpoints,
   return error != Recovery_endpoints::enum_status::OK;
 }
 
-Donor_recovery_endpoints::Donor_recovery_endpoints() {}
+Donor_recovery_endpoints::Donor_recovery_endpoints() = default;
 
-Donor_recovery_endpoints::~Donor_recovery_endpoints() {}
+Donor_recovery_endpoints::~Donor_recovery_endpoints() = default;
 
 std::vector<std::pair<std::string, uint>>
 Donor_recovery_endpoints::get_endpoints(Group_member_info *donor) {

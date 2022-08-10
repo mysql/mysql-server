@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -281,7 +281,7 @@ my_long_options[] =
 {
   {"host", 'h',
    "Hostname of MySQL Server",
-   (uchar**) &opt_host, (uchar**) &opt_host, 0, GET_STR,
+   &opt_host, &opt_host, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P',
    "Port of MySQL Server",
@@ -292,7 +292,7 @@ my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u',
    "Username to log into MySQL Server",
-   (uchar**) &opt_user, (uchar**) &opt_user, 0, GET_STR,
+   &opt_user, &opt_user, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to log into MySQL Server (default is NULL)",
@@ -390,7 +390,7 @@ static void usage(void)
 
 static bool
 get_one_option(int optid,
-               const struct my_option *opt MY_ATTRIBUTE((unused)),
+               const struct my_option *opt [[maybe_unused]],
                char *argument)
 {
   switch (optid) {
@@ -448,7 +448,7 @@ get_one_option(int optid,
     break;
   }
   }
-  return FALSE;
+  return false;
 }
 
 #define SORT_ORDER_ENTRIES 128

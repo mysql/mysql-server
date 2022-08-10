@@ -38,7 +38,6 @@
 
 # Needed so that sleeps get executed in the slave SQL thread.
 --source include/have_binlog_format_statement.inc
---source include/not_mts_slave_parallel_workers.inc
 
 --source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc

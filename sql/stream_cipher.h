@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ typedef std::basic_string<unsigned char> Key_string;
 */
 class Stream_cipher {
  public:
-  virtual ~Stream_cipher() {}
+  virtual ~Stream_cipher() = default;
 
   /**
     Open the cipher with given password.

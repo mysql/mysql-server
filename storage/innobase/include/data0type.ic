@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,8 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Gets the MySQL charset-collation code for MySQL string types.
  @return MySQL charset-collation code */
-UNIV_INLINE
-ulint dtype_get_charset_coll(ulint prtype) /*!< in: precise data type */
+static inline ulint dtype_get_charset_coll(
+    ulint prtype) /*!< in: precise data type */
 {
   return ((prtype >> 16) & CHAR_COLL_MASK);
 }
@@ -46,39 +46,37 @@ ulint dtype_get_charset_coll(ulint prtype) /*!< in: precise data type */
  may return false negatives, in case further character-set collation
  codes are introduced in MySQL later.
  @return true if a subset of UTF-8 */
-UNIV_INLINE
-ibool dtype_is_utf8(ulint prtype) /*!< in: precise data type */
+static inline bool dtype_is_utf8(ulint prtype) /*!< in: precise data type */
 {
-  /* These codes have been copied from strings/ctype-extra.c
-  and strings/ctype-utf8.c. */
+  /* These codes have been copied from strings/ctype-extra.cc
+  and strings/ctype-utf8.cc. */
   switch (dtype_get_charset_coll(prtype)) {
-    case 11:  /* ascii_general_ci */
-    case 65:  /* ascii_bin */
-    case 33:  /* utf8_general_ci */
-    case 83:  /* utf8_bin */
-    case 254: /* utf8_general_cs */
-      return (TRUE);
+    case 11: /* ascii_general_ci */
+    case 65: /* ascii_bin */
+    case 33: /* utf8mb3_general_ci */
+    case 83: /* utf8mb3_bin */
+      return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Gets the MySQL type code from a dtype.
  @return MySQL type code; this is NOT an InnoDB type code! */
-UNIV_INLINE
-ulint dtype_get_mysql_type(const dtype_t *type) /*!< in: type struct */
+static inline ulint dtype_get_mysql_type(
+    const dtype_t *type) /*!< in: type struct */
 {
   return (type->prtype & 0xFFUL);
 }
 
 /** Compute the mbminlen and mbmaxlen members of a data type structure. */
-UNIV_INLINE
-void dtype_get_mblen(ulint mtype,     /*!< in: main type */
-                     ulint prtype,    /*!< in: precise type (and collation) */
-                     ulint *mbminlen, /*!< out: minimum length of a
-                                      multi-byte character */
-                     ulint *mbmaxlen) /*!< out: maximum length of a
-                                      multi-byte character */
+static inline void dtype_get_mblen(
+    ulint mtype,     /*!< in: main type */
+    ulint prtype,    /*!< in: precise type (and collation) */
+    ulint *mbminlen, /*!< out: minimum length of a
+                     multi-byte character */
+    ulint *mbmaxlen) /*!< out: maximum length of a
+                     multi-byte character */
 {
   if (dtype_is_string_type(mtype)) {
     innobase_get_cset_width(dtype_get_charset_coll(prtype), mbminlen, mbmaxlen);
@@ -91,14 +89,14 @@ void dtype_get_mblen(ulint mtype,     /*!< in: main type */
 }
 
 /** Sets the minimum and maximum length of a character, in bytes. */
-UNIV_INLINE
-void dtype_set_mbminmaxlen(dtype_t *type,  /*!< in/out: type */
-                           ulint mbminlen, /*!< in: minimum length of a char,
-                                           in bytes, or 0 if this is not
-                                           a character type */
-                           ulint mbmaxlen) /*!< in: maximum length of a char,
-                                           in bytes, or 0 if this is not
-                                           a character type */
+static inline void dtype_set_mbminmaxlen(
+    dtype_t *type,  /*!< in/out: type */
+    ulint mbminlen, /*!< in: minimum length of a char,
+                    in bytes, or 0 if this is not
+                    a character type */
+    ulint mbmaxlen) /*!< in: maximum length of a char,
+                    in bytes, or 0 if this is not
+                    a character type */
 {
   ut_ad(mbminlen < DATA_MBMAX);
   ut_ad(mbmaxlen < DATA_MBMAX);
@@ -108,8 +106,7 @@ void dtype_set_mbminmaxlen(dtype_t *type,  /*!< in/out: type */
 }
 
 /** Compute the mbminlen and mbmaxlen members of a data type structure. */
-UNIV_INLINE
-void dtype_set_mblen(dtype_t *type) /*!< in/out: type */
+static inline void dtype_set_mblen(dtype_t *type) /*!< in/out: type */
 {
   ulint mbminlen;
   ulint mbmaxlen;
@@ -124,11 +121,10 @@ void dtype_set_mblen(dtype_t *type) /*!< in/out: type */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Sets a data type structure. */
-UNIV_INLINE
-void dtype_set(dtype_t *type, /*!< in: type struct to init */
-               ulint mtype,   /*!< in: main data type */
-               ulint prtype,  /*!< in: precise type */
-               ulint len)     /*!< in: precision of type */
+static inline void dtype_set(dtype_t *type, /*!< in: type struct to init */
+                             ulint mtype,   /*!< in: main data type */
+                             ulint prtype,  /*!< in: precise type */
+                             ulint len)     /*!< in: precision of type */
 {
   ut_ad(type);
   ut_ad(mtype <= DATA_MTYPE_MAX);
@@ -141,9 +137,9 @@ void dtype_set(dtype_t *type, /*!< in: type struct to init */
 }
 
 /** Copies a data type structure. */
-UNIV_INLINE
-void dtype_copy(dtype_t *type1,       /*!< in: type struct to copy to */
-                const dtype_t *type2) /*!< in: type struct to copy from */
+static inline void dtype_copy(
+    dtype_t *type1,       /*!< in: type struct to copy to */
+    const dtype_t *type2) /*!< in: type struct to copy from */
 {
   *type1 = *type2;
 
@@ -152,8 +148,7 @@ void dtype_copy(dtype_t *type1,       /*!< in: type struct to copy to */
 
 /** Gets the SQL main data type.
  @return SQL main data type */
-UNIV_INLINE
-ulint dtype_get_mtype(const dtype_t *type) /*!< in: data type */
+static inline ulint dtype_get_mtype(const dtype_t *type) /*!< in: data type */
 {
   ut_ad(type);
 
@@ -162,8 +157,7 @@ ulint dtype_get_mtype(const dtype_t *type) /*!< in: data type */
 
 /** Gets the precise data type.
  @return precise data type */
-UNIV_INLINE
-ulint dtype_get_prtype(const dtype_t *type) /*!< in: data type */
+static inline ulint dtype_get_prtype(const dtype_t *type) /*!< in: data type */
 {
   ut_ad(type);
 
@@ -172,8 +166,7 @@ ulint dtype_get_prtype(const dtype_t *type) /*!< in: data type */
 
 /** Gets the type length.
  @return fixed length of the type, in bytes, or 0 if variable-length */
-UNIV_INLINE
-ulint dtype_get_len(const dtype_t *type) /*!< in: data type */
+static inline ulint dtype_get_len(const dtype_t *type) /*!< in: data type */
 {
   ut_ad(type);
 
@@ -184,8 +177,7 @@ ulint dtype_get_len(const dtype_t *type) /*!< in: data type */
 /** Gets the minimum length of a character, in bytes.
  @return minimum length of a char, in bytes, or 0 if this is not a
  character type */
-UNIV_INLINE
-ulint dtype_get_mbminlen(const dtype_t *type) /*!< in: type */
+static inline ulint dtype_get_mbminlen(const dtype_t *type) /*!< in: type */
 {
   ut_ad(type);
   return (DATA_MBMINLEN(type->mbminmaxlen));
@@ -193,8 +185,7 @@ ulint dtype_get_mbminlen(const dtype_t *type) /*!< in: type */
 /** Gets the maximum length of a character, in bytes.
  @return maximum length of a char, in bytes, or 0 if this is not a
  character type */
-UNIV_INLINE
-ulint dtype_get_mbmaxlen(const dtype_t *type) /*!< in: type */
+static inline ulint dtype_get_mbmaxlen(const dtype_t *type) /*!< in: type */
 {
   ut_ad(type);
   return (DATA_MBMAXLEN(type->mbminmaxlen));
@@ -203,8 +194,7 @@ ulint dtype_get_mbmaxlen(const dtype_t *type) /*!< in: type */
 /** Stores for a type the information which determines its alphabetical ordering
  and the storage size of an SQL NULL value. This is the >= 4.1.x storage
  format. */
-UNIV_INLINE
-void dtype_new_store_for_order_and_null_size(
+static inline void dtype_new_store_for_order_and_null_size(
     byte *buf,           /*!< in: buffer for
                          DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
                          bytes where we store the info */
@@ -212,9 +202,8 @@ void dtype_new_store_for_order_and_null_size(
     ulint prefix_len)    /*!< in: prefix length to
                       replace type->len, or 0 */
 {
-#if 6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
-#error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
-#endif
+  static_assert(DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE == 6,
+                "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE");
   ulint len;
 
   ut_ad(type);
@@ -227,7 +216,7 @@ void dtype_new_store_for_order_and_null_size(
     buf[0] |= 128;
   }
 
-  /* In versions < 4.1.2 we had:	if (type->prtype & DATA_NONLATIN1) {
+  /* In versions < 4.1.2 we had:        if (type->prtype & DATA_NONLATIN1) {
   buf[0] |= 64;
   }
   */
@@ -252,14 +241,12 @@ void dtype_new_store_for_order_and_null_size(
 /** Reads to a type the stored information which determines its alphabetical
  ordering and the storage size of an SQL NULL value. This is the < 4.1.x
  storage format. */
-UNIV_INLINE
-void dtype_read_for_order_and_null_size(
+static inline void dtype_read_for_order_and_null_size(
     dtype_t *type,   /*!< in: type struct */
     const byte *buf) /*!< in: buffer for stored type order info */
 {
-#if 4 != DATA_ORDER_NULL_TYPE_BUF_SIZE
-#error "4 != DATA_ORDER_NULL_TYPE_BUF_SIZE"
-#endif
+  static_assert(DATA_ORDER_NULL_TYPE_BUF_SIZE == 4,
+                "4 != DATA_ORDER_NULL_TYPE_BUF_SIZE");
 
   type->mtype = buf[0] & 63;
   type->prtype = buf[1];
@@ -278,16 +265,14 @@ void dtype_read_for_order_and_null_size(
 /** Reads to a type the stored information which determines its alphabetical
  ordering and the storage size of an SQL NULL value. This is the >= 4.1.x
  storage format. */
-UNIV_INLINE
-void dtype_new_read_for_order_and_null_size(
+static inline void dtype_new_read_for_order_and_null_size(
     dtype_t *type,   /*!< in: type struct */
     const byte *buf) /*!< in: buffer for stored type order info */
 {
   ulint charset_coll;
 
-#if 6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
-#error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
-#endif
+  static_assert(DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE == 6,
+                "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE");
 
   type->mtype = buf[0] & 63;
   type->prtype = buf[1];
@@ -328,12 +313,12 @@ void dtype_new_read_for_order_and_null_size(
 
 /** Returns the type's SQL name (e.g. BIGINT UNSIGNED) from mtype,prtype,len
  @return the SQL type name */
-UNIV_INLINE
-char *dtype_sql_name(unsigned mtype,   /*!< in: mtype */
-                     unsigned prtype,  /*!< in: prtype */
-                     unsigned len,     /*!< in: len */
-                     char *name,       /*!< out: SQL name */
-                     unsigned name_sz) /*!< in: size of the name buffer */
+static inline char *dtype_sql_name(
+    unsigned mtype,   /*!< in: mtype */
+    unsigned prtype,  /*!< in: prtype */
+    unsigned len,     /*!< in: len */
+    char *name,       /*!< out: SQL name */
+    unsigned name_sz) /*!< in: size of the name buffer */
 {
 #define APPEND_UNSIGNED()                                                 \
   do {                                                                    \
@@ -418,14 +403,13 @@ char *dtype_sql_name(unsigned mtype,   /*!< in: mtype */
 
 /** Returns the size of a fixed size data type, 0 if not a fixed size type.
  @return fixed size, or 0 */
-UNIV_INLINE
-ulint dtype_get_fixed_size_low(
+static inline ulint dtype_get_fixed_size_low(
     ulint mtype,       /*!< in: main type */
     ulint prtype,      /*!< in: precise type */
     ulint len,         /*!< in: length */
     ulint mbminmaxlen, /*!< in: minimum and maximum length of
                        a multibyte character, in bytes */
-    ulint comp)        /*!< in: nonzero=ROW_FORMAT=COMPACT  */
+    bool comp)         /*!< in: nonzero=ROW_FORMAT=COMPACT  */
 {
   switch (mtype) {
     case DATA_SYS:
@@ -441,11 +425,11 @@ ulint dtype_get_fixed_size_low(
           ut_ad(len == DATA_ROLL_PTR_LEN);
           break;
         default:
-          ut_ad(0);
-          return (0);
+          ut_d(ut_error);
+          ut_o(return (0));
       }
+      [[fallthrough]];
 #endif /* UNIV_DEBUG */
-    // Fall through.
     case DATA_CHAR:
     case DATA_FIXBINARY:
     case DATA_INT:
@@ -477,7 +461,8 @@ ulint dtype_get_fixed_size_low(
 #else  /* !UNIV_LIBRARY */
       return (len);
 #endif /* !UNIV_LIBRARY */
-       /* fall through for variable-length charsets */
+      /* fall through for variable-length charsets */
+      [[fallthrough]];
     case DATA_VARCHAR:
     case DATA_BINARY:
     case DATA_DECIMAL:
@@ -493,8 +478,7 @@ ulint dtype_get_fixed_size_low(
 
 /** Returns the minimum size of a data type.
  @return minimum size */
-UNIV_INLINE
-ulint dtype_get_min_size_low(
+static inline ulint dtype_get_min_size_low(
     ulint mtype,       /*!< in: main type */
     ulint prtype,      /*!< in: precise type */
     ulint len,         /*!< in: length */
@@ -515,11 +499,11 @@ ulint dtype_get_min_size_low(
           ut_ad(len == DATA_ROLL_PTR_LEN);
           break;
         default:
-          ut_ad(0);
-          return (0);
+          ut_d(ut_error);
+          ut_o(return (0));
       }
 #endif /* UNIV_DEBUG */
-    // Fall through.
+      [[fallthrough]];
     case DATA_CHAR:
     case DATA_FIXBINARY:
     case DATA_INT:
@@ -559,12 +543,11 @@ ulint dtype_get_min_size_low(
 
 /** Returns the maximum size of a data type. Note: types in system tables may
 be incomplete and return incorrect information.
-@param[in]	mtype	main type
-@param[in]	len	length
+@param[in]      mtype   main type
+@param[in]      len     length
 @return maximum size */
-UNIV_INLINE
-ulint dtype_get_max_size_low(ulint mtype, /*!< in: main type */
-                             ulint len)   /*!< in: length */
+static inline ulint dtype_get_max_size_low(ulint mtype, /*!< in: main type */
+                                           ulint len)   /*!< in: length */
 {
   switch (mtype) {
     case DATA_SYS:
@@ -593,9 +576,9 @@ ulint dtype_get_max_size_low(ulint mtype, /*!< in: main type */
 /** Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a type.
  For fixed length types it is the fixed length of the type, otherwise 0.
  @return SQL null storage size in ROW_FORMAT=REDUNDANT */
-UNIV_INLINE
-ulint dtype_get_sql_null_size(const dtype_t *type, /*!< in: type */
-                              ulint comp) /*!< in: nonzero=ROW_FORMAT=COMPACT */
+static inline ulint dtype_get_sql_null_size(
+    const dtype_t *type, /*!< in: type */
+    bool comp)           /*!< in: nonzero=ROW_FORMAT=COMPACT */
 {
 #ifndef UNIV_HOTBACKUP
   return (dtype_get_fixed_size_low(type->mtype, type->prtype, type->len,

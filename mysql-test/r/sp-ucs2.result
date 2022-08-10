@@ -1,11 +1,16 @@
 drop function if exists bug17615|
 create table t3 (a varchar(256) unicode)|
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 create function bug17615() returns varchar(256) unicode
 begin
 declare tmp_res varchar(256) unicode;
 set tmp_res= 'foo string';
 return tmp_res;
 end|
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 insert into t3 values(bug17615())|
 select * from t3|
 a
@@ -20,9 +25,23 @@ DECLARE f3 VARCHAR(64) CHARACTER SET ucs2 COLLATE ucs2_bin;
 SET f1= concat(collation(f1), ' ', collation(f2), ' ', collation(f3));
 RETURN f1;
 END|
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT f('a')|
 f('a')
 ucs2_unicode_ci ucs2_swedish_ci ucs2_bin
+Warnings:
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT collation(f('a'))|
 collation(f('a'))
 ucs2_danish_ci
@@ -33,6 +52,7 @@ BEGIN
 RETURN '';
 END|
 Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
@@ -48,6 +68,7 @@ RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 Warnings:
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #
@@ -64,6 +85,7 @@ BEGIN
 RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
@@ -79,6 +101,7 @@ RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 Warnings:
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #
@@ -95,6 +118,11 @@ f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
 BEGIN
 RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 CREATE FUNCTION f1()
 RETURNS VARCHAR(64) CHARACTER SET ucs2
 BEGIN
@@ -104,9 +132,16 @@ SET f1='str';
 CALL p1(f1, f2);
 RETURN f2;
 END|
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT f1()|
 f1()
 ucs2_czech_ci ucs2_polish_ci
+Warnings:
+Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 DROP PROCEDURE p1|
 DROP FUNCTION f1|
 CREATE FUNCTION f(f1 VARCHAR(64) COLLATE ucs2_unicode_ci)
@@ -135,10 +170,12 @@ DROP FUNCTION IF EXISTS bug48766;
 CREATE FUNCTION bug48766 ()
 RETURNS ENUM( 'w' ) CHARACTER SET ucs2
 RETURN 0;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW CREATE FUNCTION bug48766;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('w') CHARSET ucs2
-RETURN 0	utf8	utf8_general_ci	utf8mb4_0900_ai_ci
+RETURN 0	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_NAME='bug48766';
 DTD_IDENTIFIER
@@ -147,10 +184,12 @@ DROP FUNCTION bug48766;
 CREATE FUNCTION bug48766 ()
 RETURNS ENUM('а','б','в','г') CHARACTER SET ucs2
 RETURN 0;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW CREATE FUNCTION bug48766;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('а','б','в','г') CHARSET ucs2
-RETURN 0	utf8	utf8_general_ci	utf8mb4_0900_ai_ci
+RETURN 0	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_NAME='bug48766';
 DTD_IDENTIFIER

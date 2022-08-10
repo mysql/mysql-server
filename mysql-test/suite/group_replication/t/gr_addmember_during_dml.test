@@ -26,6 +26,7 @@
 --echo
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 --source include/start_group_replication.inc
 
 # Make sure number of servers in the group is 2

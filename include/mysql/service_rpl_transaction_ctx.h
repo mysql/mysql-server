@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,8 @@
 #include <stdlib.h>
 #endif
 
+#include <cstdint>
+
 struct Transaction_termination_ctx {
   unsigned long m_thread_id;
   unsigned int m_flags;  // reserved
@@ -49,12 +51,12 @@ struct Transaction_termination_ctx {
   bool m_rollback_transaction;
 
   /*
-    If the plugin has generated a GTID, then the follwoing
+    If the plugin has generated a GTID, then the following
     fields MUST be set.
    */
   bool m_generated_gtid;
   int m_sidno;
-  long long int m_gno;
+  std::int64_t m_gno;
 };
 
 extern "C" struct rpl_transaction_ctx_service_st {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -42,9 +42,17 @@ type2string(UtilSequenceReq::RequestType type){
   }
 }
 
-bool 
-printUTIL_SEQUENCE_REQ(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
-  UtilSequenceReq* sig = (UtilSequenceReq*)data;
+bool printUTIL_SEQUENCE_REQ(FILE* out,
+                            const Uint32* data,
+                            Uint32 l,
+                            Uint16 /*b*/)
+{
+  if (l < UtilSequenceReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+  const UtilSequenceReq* sig = (const UtilSequenceReq*)data;
   fprintf(out, " senderData: %d sequenceId: %d RequestType: %s\n",
 	  sig->senderData,
 	  sig->sequenceId,
@@ -52,9 +60,17 @@ printUTIL_SEQUENCE_REQ(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
   return true;
 }
 
-bool 
-printUTIL_SEQUENCE_CONF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
-  UtilSequenceConf* sig = (UtilSequenceConf*)data;
+bool printUTIL_SEQUENCE_CONF(FILE* out,
+                             const Uint32* data,
+                             Uint32 l,
+                             Uint16 /*b*/)
+{
+  if (l < UtilSequenceConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+  const UtilSequenceConf* sig = (const UtilSequenceConf*)data;
   fprintf(out, " senderData: %d sequenceId: %d RequestType: %s\n",
 	  sig->senderData,
 	  sig->sequenceId,
@@ -65,9 +81,17 @@ printUTIL_SEQUENCE_CONF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
   return true;
 }
 
-bool 
-printUTIL_SEQUENCE_REF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
-  UtilSequenceRef* sig = (UtilSequenceRef*)data;
+bool printUTIL_SEQUENCE_REF(FILE* out,
+                            const Uint32* data,
+                            Uint32 l,
+                            Uint16 /*b*/)
+{
+  if (l < UtilSequenceRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+  const UtilSequenceRef* sig = (const UtilSequenceRef*)data;
   fprintf(out, " senderData: %d sequenceId: %d RequestType: %s\n",
 	  sig->senderData,
 	  sig->sequenceId,

@@ -39,10 +39,11 @@ Table	Create Table
 ndb$tables	CREATE TABLE `ndb$tables` (
   `table_id` int unsigned DEFAULT NULL,
   `table_name` varchar(512) DEFAULT NULL,
-  `comment` varchar(512) DEFAULT NULL
+  `comment` varchar(512) DEFAULT NULL,
+  `rows_estimate` int unsigned DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='metadata for tables available through ndbinfo'
 
-SELECT * FROM ndb$tables;
+SELECT table_id, table_name, comment FROM ndb$tables;
 table_id	table_name	comment
 0	tables	metadata for tables available through ndbinfo
 1	columns	metadata for columns available through ndbinfo 
@@ -97,9 +98,9 @@ SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
 49
 SELECT * FROM ndb$tables WHERE table_id = 2;
-table_id	table_name	comment
-2	test	for testing
-SELECT * FROM ndb$tables WHERE table_id > 5;
+table_id	table_name	comment	rows_estimate
+2	test	for testing	8000
+SELECT table_id, table_name, comment FROM ndb$tables WHERE table_id > 5;
 table_id	table_name	comment
 6	logbuffers	logbuffer usage
 7	resources	resources usage (a.k.a superpool)
@@ -145,7 +146,7 @@ table_id	table_name	comment
 47	cpudata_1sec	Data about CPU usage per second last 20 seconds
 48	cpudata_20sec	Data about CPU usage per 20 sec last 400 seconds
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
-table_id	table_name	comment
+table_id	table_name	comment	rows_estimate
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
   WHERE t.table_id = c.table_id AND
     t.table_id in (1,2,3,4,5,6);
@@ -218,10 +219,10 @@ table_id	column_id	column_name
 0	0	table_id
 0	1	table_name
 0	2	comment
+0	3	rows_estimate
 1	0	table_id
 1	1	column_id
 1	2	column_name
-1	3	column_type
 
 UPDATE ndb$tables SET table_id=2 WHERE table_id=3;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -457,9 +458,11 @@ Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existi
 Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
 DROP TABLE ndb$test;
 
-## 4) Table with primary key/indexes not supported
-CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
-ERROR 42000: Too many keys specified; max 0 keys allowed
+## 4) Primary key is supported after the fix for bug#28658625,
+##    but tables are still limited to a single index.
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY,
+                       index(node_id)) ENGINE = ndbinfo;
+ERROR 42000: Too many keys specified; max 1 keys allowed
 
 ## 5) Table with blobs not supported
 CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
@@ -953,7 +956,6 @@ SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
 node_id
 Warnings:
 Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
-Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
 
 DROP VIEW view_on_table_which_does_not_exist_in_ndb;
 DROP TABLE ndb$does_not_exist_in_ndb;
@@ -1359,7 +1361,7 @@ tot_key_keyinfo_bytes	0
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	0
-tot_frag_scans	0
+tot_frag_scans	1
 tot_scan_rows_examined	0
 tot_scan_rows_returned	0
 tot_scan_bytes_returned	0
@@ -1510,7 +1512,7 @@ drop table t2;
 
 
 ## Check that the new tables return data and exists.
-select count(*) > 10 from ndb$blocks;
+select count(*) > 10 from blocks;
 count(*) > 10
 1
 select param_number, param_name, param_description, param_default,

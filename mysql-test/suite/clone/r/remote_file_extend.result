@@ -24,10 +24,12 @@ END IF;
 CASE p_dml_type
 WHEN 0 THEN
 SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
-INSERT INTO t1 VALUES(v_key, v_key * 10,
+INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
-INSERT INTO t2 VALUES(v_key, v_key * 10,
+INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
 WHEN 1 THEN
@@ -53,6 +55,7 @@ START TRANSACTION;
 END IF;
 END IF;
 END WHILE;
+COMMIT;
 END|
 DROP TABLE t1;
 DROP TABLE t2;
@@ -164,7 +167,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 SELECT count(*) from t1;
 count(*)
-20
+40
 SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 LIMIT 10;
 col1	col3	SUBSTRING(col4, 1000, 32)
 0	Clone Test Row - 0	umn Data Large Column Data Large
@@ -179,16 +182,16 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 9	Clone Test Row - 9	umn Data Large Column Data Large
 SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 DESC LIMIT 10;
 col1	col3	SUBSTRING(col4, 1000, 32)
-19	Clone Test Row - 19	umn Data Large Column Data Large
-18	Clone Test Row - 18	umn Data Large Column Data Large
-17	Clone Test Row - 17	umn Data Large Column Data Large
-16	Clone Test Row - 16	umn Data Large Column Data Large
-15	Clone Test Row - 15	umn Data Large Column Data Large
-14	Clone Test Row - 14	umn Data Large Column Data Large
-13	Clone Test Row - 13	umn Data Large Column Data Large
-12	Clone Test Row - 12	umn Data Large Column Data Large
-11	Clone Test Row - 11	umn Data Large Column Data Large
-10	Clone Test Row - 10	umn Data Large Column Data Large
+69	Clone Test Row - 69	umn Data Large Column Data Large
+68	Clone Test Row - 68	umn Data Large Column Data Large
+67	Clone Test Row - 67	umn Data Large Column Data Large
+66	Clone Test Row - 66	umn Data Large Column Data Large
+65	Clone Test Row - 65	umn Data Large Column Data Large
+64	Clone Test Row - 64	umn Data Large Column Data Large
+63	Clone Test Row - 63	umn Data Large Column Data Large
+62	Clone Test Row - 62	umn Data Large Column Data Large
+61	Clone Test Row - 61	umn Data Large Column Data Large
+60	Clone Test Row - 60	umn Data Large Column Data Large
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -200,7 +203,7 @@ t2	CREATE TABLE `t2` (
 ) /*!50100 TABLESPACE `tbs1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT count(*) from t2;
 count(*)
-20
+40
 SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 10;
 col1	col3	SUBSTRING(col4, 1000, 32)
 0	Clone Test Row - 0	umn Data Large Column Data Large
@@ -215,16 +218,16 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 9	Clone Test Row - 9	umn Data Large Column Data Large
 SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LIMIT 10;
 col1	col3	SUBSTRING(col4, 1000, 32)
-19	Clone Test Row - 19	umn Data Large Column Data Large
-18	Clone Test Row - 18	umn Data Large Column Data Large
-17	Clone Test Row - 17	umn Data Large Column Data Large
-16	Clone Test Row - 16	umn Data Large Column Data Large
-15	Clone Test Row - 15	umn Data Large Column Data Large
-14	Clone Test Row - 14	umn Data Large Column Data Large
-13	Clone Test Row - 13	umn Data Large Column Data Large
-12	Clone Test Row - 12	umn Data Large Column Data Large
-11	Clone Test Row - 11	umn Data Large Column Data Large
-10	Clone Test Row - 10	umn Data Large Column Data Large
+69	Clone Test Row - 69	umn Data Large Column Data Large
+68	Clone Test Row - 68	umn Data Large Column Data Large
+67	Clone Test Row - 67	umn Data Large Column Data Large
+66	Clone Test Row - 66	umn Data Large Column Data Large
+65	Clone Test Row - 65	umn Data Large Column Data Large
+64	Clone Test Row - 64	umn Data Large Column Data Large
+63	Clone Test Row - 63	umn Data Large Column Data Large
+62	Clone Test Row - 62	umn Data Large Column Data Large
+61	Clone Test Row - 61	umn Data Large Column Data Large
+60	Clone Test Row - 60	umn Data Large Column Data Large
 call execute_dml(3, 0, 1, 1, 1, 0);
 call execute_dml(0, 0, 10, 10, 2, 0);
 commit;
@@ -315,7 +318,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 SELECT count(*) from t1;
 count(*)
-20
+40
 SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 LIMIT 10;
 col1	col3	SUBSTRING(col4, 1000, 32)
 0	Clone Test Row - 0	umn Data Large Column Data Large
@@ -330,16 +333,16 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 9	Clone Test Row - 9	umn Data Large Column Data Large
 SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 DESC LIMIT 10;
 col1	col3	SUBSTRING(col4, 1000, 32)
-19	Clone Test Row - 19	umn Data Large Column Data Large
-18	Clone Test Row - 18	umn Data Large Column Data Large
-17	Clone Test Row - 17	umn Data Large Column Data Large
-16	Clone Test Row - 16	umn Data Large Column Data Large
-15	Clone Test Row - 15	umn Data Large Column Data Large
-14	Clone Test Row - 14	umn Data Large Column Data Large
-13	Clone Test Row - 13	umn Data Large Column Data Large
-12	Clone Test Row - 12	umn Data Large Column Data Large
-11	Clone Test Row - 11	umn Data Large Column Data Large
-10	Clone Test Row - 10	umn Data Large Column Data Large
+69	Clone Test Row - 69	umn Data Large Column Data Large
+68	Clone Test Row - 68	umn Data Large Column Data Large
+67	Clone Test Row - 67	umn Data Large Column Data Large
+66	Clone Test Row - 66	umn Data Large Column Data Large
+65	Clone Test Row - 65	umn Data Large Column Data Large
+64	Clone Test Row - 64	umn Data Large Column Data Large
+63	Clone Test Row - 63	umn Data Large Column Data Large
+62	Clone Test Row - 62	umn Data Large Column Data Large
+61	Clone Test Row - 61	umn Data Large Column Data Large
+60	Clone Test Row - 60	umn Data Large Column Data Large
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -351,7 +354,7 @@ t2	CREATE TABLE `t2` (
 ) /*!50100 TABLESPACE `tbs1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT count(*) from t2;
 count(*)
-20
+40
 SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 10;
 col1	col3	SUBSTRING(col4, 1000, 32)
 0	Clone Test Row - 0	umn Data Large Column Data Large
@@ -366,16 +369,16 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 9	Clone Test Row - 9	umn Data Large Column Data Large
 SELECT col1, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LIMIT 10;
 col1	col3	SUBSTRING(col4, 1000, 32)
-19	Clone Test Row - 19	umn Data Large Column Data Large
-18	Clone Test Row - 18	umn Data Large Column Data Large
-17	Clone Test Row - 17	umn Data Large Column Data Large
-16	Clone Test Row - 16	umn Data Large Column Data Large
-15	Clone Test Row - 15	umn Data Large Column Data Large
-14	Clone Test Row - 14	umn Data Large Column Data Large
-13	Clone Test Row - 13	umn Data Large Column Data Large
-12	Clone Test Row - 12	umn Data Large Column Data Large
-11	Clone Test Row - 11	umn Data Large Column Data Large
-10	Clone Test Row - 10	umn Data Large Column Data Large
+69	Clone Test Row - 69	umn Data Large Column Data Large
+68	Clone Test Row - 68	umn Data Large Column Data Large
+67	Clone Test Row - 67	umn Data Large Column Data Large
+66	Clone Test Row - 66	umn Data Large Column Data Large
+65	Clone Test Row - 65	umn Data Large Column Data Large
+64	Clone Test Row - 64	umn Data Large Column Data Large
+63	Clone Test Row - 63	umn Data Large Column Data Large
+62	Clone Test Row - 62	umn Data Large Column Data Large
+61	Clone Test Row - 61	umn Data Large Column Data Large
+60	Clone Test Row - 60	umn Data Large Column Data Large
 call execute_dml(3, 0, 1, 1, 1, 0);
 call execute_dml(0, 0, 10, 10, 2, 0);
 commit;

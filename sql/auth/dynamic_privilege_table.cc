@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -48,10 +48,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/key.h"
-#include "sql/records.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"
 #include "sql/table.h"
 
 class THD;
@@ -96,16 +96,16 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
 
   TABLE *table = tablelst[0].table;
   table->use_all_columns();
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
   if (iterator == nullptr) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
     return true;
   }
   int read_rec_errcode;
-  MEM_ROOT tmp_mem;
+  MEM_ROOT tmp_mem(PSI_NOT_INSTRUMENTED, 256);
   char percentile_character[2] = {'%', '\0'};
   char empty_str = '\0';
   /*
@@ -119,7 +119,6 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
     if (!service.is_valid()) {
       return true;
     }
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
     while (!error && !(read_rec_errcode = iterator->Read())) {
       char *host =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]);

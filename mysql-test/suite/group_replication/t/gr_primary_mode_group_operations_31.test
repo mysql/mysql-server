@@ -37,10 +37,12 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
 --source include/start_group_replication.inc
 
 --echo
@@ -117,6 +119,13 @@ COMMIT;
 --echo # 9. Cleanup
 
 DROP TABLE t1;
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
 
 --let $rpl_group_replication_reset_persistent_vars=1
 --source include/group_replication_end.inc

@@ -1,0 +1,52 @@
+--source include/have_ndb.inc
+
+--echo # ######################################################################
+--echo # * General information *
+--echo # Instruments in the ndbcluster plugin uses the "ndbcluster"
+--echo # identifier plus a name which normally is the name of the
+--echo # object in the code. The prefix is decided by performance_schema and
+--echo # depends on the objects type.
+--echo #   ie. <prefix>/ndbcluster/<variable_name>.
+--echo # All available instruments, their doc string etc are listed in the
+--echo # setup_instruments table.
+
+--echo # The system variables are prefixed with "ndb" and can be
+--echo # queried to see either global or session variables
+SELECT COUNT(*) > 10 FROM performance_schema.global_variables
+  WHERE VARIABLE_NAME LIKE 'ndb%';
+SELECT * FROM performance_schema.session_variables
+  WHERE VARIABLE_NAME = 'ndb_use_copying_alter_table';
+--echo # It's possible to see values of session variable for each thread
+--replace_column 1 <thread_id>
+SELECT * FROM performance_schema.variables_by_thread
+  WHERE VARIABLE_NAME = 'ndb_use_transactions';
+--echo # It's possible to query information about each variable
+SELECT VARIABLE_NAME FROM performance_schema.variables_info
+    WHERE VARIABLE_NAME = 'ndb_version';
+
+--echo # The status variables are prefixed with "Ndb" and can be
+--echo # queried to see either global or session status
+SELECT COUNT(*) > 10 FROM performance_schema.global_status
+  WHERE VARIABLE_NAME LIKE 'Ndb%';
+SELECT * FROM performance_schema.session_status
+  WHERE VARIABLE_NAME = 'Ndb_replica_max_replicated_epoch';
+
+--echo # The threads created by the ndbcluster plugin can be queried, this
+--echo # provide a mapping to OS thread id
+--replace_column 1 <thread_id> 4 <thread_os_id>
+SELECT THREAD_ID, NAME, TYPE, THREAD_OS_ID FROM performance_schema.threads
+  WHERE NAME LIKE "thread/ndbcluster/%" ORDER BY NAME;
+
+--echo # The threads created by the ndbcluster plugin can be used to query
+--echo # the amount of memory allocated by those from the mem_root arena
+SELECT IF(PFS_MEM.SUM_NUMBER_OF_BYTES_ALLOC > 0, "true", "false") AS has_alloc_mem
+  FROM performance_schema.memory_summary_by_thread_by_event_name PFS_MEM
+  JOIN performance_schema.threads PFS_THR
+  ON PFS_MEM.THREAD_ID = PFS_THR.THREAD_ID
+  WHERE PFS_THR.name LIKE '%ndb_binlog%' AND EVENT_NAME LIKE '%THD::main_mem_root%';
+
+--echo # The instrumented memory roots can be queried
+SELECT EVENT_NAME
+  FROM performance_schema.memory_summary_by_thread_by_event_name
+  WHERE THREAD_ID = PS_CURRENT_THREAD_ID() AND
+    EVENT_NAME LIKE 'memory/ndbcluster/%';

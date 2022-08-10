@@ -92,7 +92,7 @@ get_variable failed.
 test_component_sys_var_int end of deinit:
 test_component_sys_var_str init:
 character_set_server=[utf8mb4]
-get_variable mysql_server.character_set_server failed. The variable requires buffer 7 bytes long.
+get_variable mysql_server.character_set_server failed. The variable requires buffer 8 bytes long.
 character_set_server=[utf8mb4]
 get_variable mysql_server.datadir success.
 test_component_sys_var_str end of init:

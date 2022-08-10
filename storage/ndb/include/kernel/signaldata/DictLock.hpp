@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ class DictLockReq {
   friend class Dbdih;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   enum LockType {
     NoLock = 0
     ,NodeRestartLock = 1 // S-lock
@@ -62,7 +62,7 @@ class DictLockConf {
   friend class Dbdih;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 private:
   Uint32 userPtr;
   Uint32 lockType;
@@ -74,7 +74,7 @@ class DictLockRef {
   friend class Dbdih;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   enum ErrorCode {
     NotMaster = 1,
     InvalidLockType = 2,
@@ -93,7 +93,7 @@ class DictUnlockOrd {
   friend class Dbdih;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 lockPtr;
   Uint32 lockType;

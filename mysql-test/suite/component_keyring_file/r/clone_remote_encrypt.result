@@ -70,26 +70,26 @@ SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
 SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
-# In connection con1 - Trying to set redo and undo encryption
+# In connection con1 - Set redo and undo encryption
 SET DEBUG_SYNC = 'now WAIT_FOR set_encryption';
 SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
 Variable_name	Value
 innodb_redo_log_encrypt	OFF
 SET GLOBAL innodb_redo_log_encrypt = ON;
-ERROR HY000: Concurrent clone in progress. Please try after clone is complete.
 SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
 Variable_name	Value
-innodb_redo_log_encrypt	OFF
+innodb_redo_log_encrypt	ON
 SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
 Variable_name	Value
 innodb_undo_log_encrypt	OFF
 SET GLOBAL innodb_undo_log_encrypt = ON;
-ERROR HY000: Concurrent clone in progress. Please try after clone is complete.
 SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
 Variable_name	Value
-innodb_undo_log_encrypt	OFF
+innodb_undo_log_encrypt	ON
 SET DEBUG_SYNC = 'now SIGNAL resume_clone';
 # In connection default - finishing Clone
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+SET GLOBAL innodb_undo_log_encrypt = OFF;
 DROP TABLE t1;
 DROP TABLE t2;
 CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)

@@ -1,0 +1,110 @@
+--echo ##
+--echo ## Test the Performance Schema-based implementation of SHOW PROCESSLIST.
+--echo ## Verify behavior for anonymous users and PROCESS_ACL.
+--echo ##
+
+--source include/no_protocol.inc
+
+SELECT @@global.performance_schema_show_processlist INTO @save_processlist;
+
+--source include/add_anonymous_users.inc
+
+SET @@global.performance_schema_show_processlist = OFF;
+
+connect (anon,localhost,test,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+
+SHOW GRANTS;
+
+# Empty
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Empty
+SELECT * FROM performance_schema.processlist;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SHOW PROCESSLIST;
+
+connection default;
+
+SET @@global.performance_schema_show_processlist = ON;
+
+connection anon;
+
+SHOW GRANTS;
+
+# Empty
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Empty
+SELECT * FROM performance_schema.processlist;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SHOW PROCESSLIST;
+
+disconnect anon;
+connection default;
+
+GRANT PROCESS ON *.* TO ''@'localhost';
+
+SET @@global.performance_schema_show_processlist = OFF;
+
+connect (anon2,localhost,test,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+
+SHOW GRANTS;
+
+# Full rows
+SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Full rows
+SELECT count(*) >= 2 FROM performance_schema.processlist;
+
+# Full rows
+--disable_result_log
+SHOW PROCESSLIST;
+--enable_result_log
+
+SELECT "Previous statement is now completed." as status;
+
+connection default;
+# Returns ROWS_SENT = 0 even when SHOW PROCESSLIST has rows
+SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT as BROKEN_ROWS_SENT
+  FROM performance_schema.events_statements_history
+  WHERE SQL_TEXT = "SHOW PROCESSLIST";
+connection anon2;
+
+
+connection default;
+
+TRUNCATE TABLE performance_schema.events_statements_history;
+set @@global.performance_schema_show_processlist = ON;
+
+
+connection anon2;
+
+SHOW GRANTS;
+
+# Full rows
+SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Full rows
+SELECT count(*) >= 2 FROM performance_schema.processlist;
+
+# Full rows
+--disable_result_log
+SHOW PROCESSLIST;
+--enable_result_log
+
+SELECT "Previous statement is now completed." as status;
+
+connection default;
+SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT >= 2
+  FROM performance_schema.events_statements_history
+  WHERE SQL_TEXT = "SHOW PROCESSLIST";
+
+disconnect anon2;
+connection default;
+
+--source include/delete_anonymous_users.inc
+
+SET @@global.performance_schema_show_processlist = @save_processlist;
+

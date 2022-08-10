@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include <algorithm>  // std::min
 #include <chrono>
 #include <cstdio>  // std::sprintf()
+#include <ctime>
 #include <limits>  // std::numeric_limits
 
 // Note that timespec is in time.h in C99, but std::timespec will not
@@ -109,7 +110,7 @@ void get_date(char *to, int flag, time_t date) {
   time_t skr;
   struct tm tm_tmp;
 
-  skr = date ? (time_t)date : my_time(0);
+  skr = date ? date : time(nullptr);
   if (flag & GETDATE_GMT)
     gmtime_r(&skr, &tm_tmp);
   else

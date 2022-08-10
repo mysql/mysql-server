@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,8 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replciation */
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
@@ -53,7 +53,7 @@ Plugin_table table_replication_asynchronous_connection_failover::m_table_def(
     /* Name */
     "replication_asynchronous_connection_failover",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci "
+    "  CHANNEL_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
     "NOT NULL COMMENT 'The replication channel name that connects source and "
     "replica.',\n"
     "  HOST CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The source "
@@ -70,11 +70,9 @@ Plugin_table table_replication_asynchronous_connection_failover::m_table_def(
     "replica shall try to switch the connection over to when there are "
     "failures. Weight can be set to a number between 1 and 100, where 100 is "
     "the highest weight and 1 the lowest.',\n"
-    " MANAGED_NAME CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci "
+    " MANAGED_NAME CHAR(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci "
     "NOT NULL DEFAULT '' COMMENT 'The name of the group which this server "
-    "belongs to.',\n"
-    "  PRIMARY KEY(CHANNEL_NAME, HOST, PORT, NETWORK_NAMESPACE, MANAGED_NAME), "
-    "  KEY(Channel_name, Managed_name) \n",
+    "belongs to.'\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -98,59 +96,6 @@ PFS_engine_table_share
         false /* m_in_purgatory */
     };
 
-bool PFS_index_rpl_async_conn_failover::match(
-    RPL_FAILOVER_SOURCE_TUPLE source_conn_detail) {
-  DBUG_TRACE;
-  st_row_rpl_async_conn_failover row;
-  std::string channel_name;
-  std::string host;
-  uint port;
-  std::string network_namespace{};
-  std::string managed_name;
-
-  std::tie(channel_name, host, port, std::ignore, std::ignore, std::ignore) =
-      source_conn_detail;
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_mi(channel_name.c_str());
-  if (nullptr != mi) {
-    network_namespace.assign(mi->network_namespace_str());
-  }
-  channel_map.unlock();
-
-  row.channel_name_length = channel_name.length();
-  memcpy(row.channel_name, channel_name.c_str(), row.channel_name_length);
-  if (!m_key_1.match_not_null(row.channel_name, row.channel_name_length)) {
-    return false;
-  }
-
-  row.host_length = host.length();
-  memcpy(row.host, host.c_str(), row.host_length);
-  if (!m_key_2.match_not_null(row.host, row.host_length)) {
-    return false;
-  }
-
-  row.port = port;
-  if (!m_key_3.match(row.port)) {
-    return false;
-  }
-
-  row.network_namespace_length = network_namespace.length();
-  memcpy(row.network_namespace, network_namespace.c_str(),
-         row.network_namespace_length);
-  if (!m_key_4.match_not_null(row.network_namespace,
-                              row.network_namespace_length)) {
-    return false;
-  }
-
-  row.managed_name_length = managed_name.length();
-  memcpy(row.managed_name, managed_name.c_str(), row.managed_name_length);
-  if (!m_key_5.match_not_null(row.managed_name, row.managed_name_length)) {
-    return false;
-  }
-
-  return true;
-}
-
 PFS_engine_table *table_replication_asynchronous_connection_failover::create(
     PFS_engine_table_share *) {
   return new table_replication_asynchronous_connection_failover();
@@ -158,44 +103,48 @@ PFS_engine_table *table_replication_asynchronous_connection_failover::create(
 
 table_replication_asynchronous_connection_failover::
     table_replication_asynchronous_connection_failover()
-    : PFS_engine_table(&m_share, &m_pos),
-      m_pos(0),
-      m_next_pos(0),
-      read_error{false} {}
+    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_replication_asynchronous_connection_failover::
-    ~table_replication_asynchronous_connection_failover() {}
+    ~table_replication_asynchronous_connection_failover() = default;
 
 void table_replication_asynchronous_connection_failover::reset_position(void) {
   DBUG_TRACE;
-  m_pos = 0;
-  m_next_pos = 0;
+  m_pos.m_index = 0;
+  m_next_pos.m_index = 0;
+  m_source_conn_detail.clear();
+  table_replication_asynchronous_connection_failover::num_rows = 0;
 }
 
 ha_rows table_replication_asynchronous_connection_failover::get_row_count() {
   DBUG_TRACE;
-  return (ha_rows)table_replication_asynchronous_connection_failover::num_rows;
+  return table_replication_asynchronous_connection_failover::num_rows;
 }
 
 int table_replication_asynchronous_connection_failover::rnd_init(bool) {
   DBUG_TRACE;
+  bool error{true};
+
   Rpl_async_conn_failover_table_operations table_op(TL_READ);
-  std::tie(read_error, source_conn_detail) = table_op.read_source_random_rows();
+  std::tie(error, m_source_conn_detail) = table_op.read_source_random_rows();
+  if (error) {
+    table_replication_asynchronous_connection_failover::num_rows = 0;
+    m_source_conn_detail.clear();
+    return HA_ERR_INTERNAL_ERROR;
+  }
+
+  table_replication_asynchronous_connection_failover::num_rows =
+      m_source_conn_detail.size();
   return 0;
 }
 
 int table_replication_asynchronous_connection_failover::rnd_next(void) {
   DBUG_TRACE;
-  if (read_error) return 1;
 
-  table_replication_asynchronous_connection_failover::num_rows =
-      source_conn_detail.size();
-
-  for (m_pos.set_at(&m_next_pos); m_pos.m_index < source_conn_detail.size();
-       m_pos.next()) {
-    auto source_conn_tuple = source_conn_detail[m_pos.m_index];
+  m_pos.set_at(&m_next_pos);
+  if (m_pos.m_index < m_source_conn_detail.size()) {
     m_next_pos.set_after(&m_pos);
-    return make_row(source_conn_tuple);
+    return make_row(m_pos.m_index);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -204,92 +153,64 @@ int table_replication_asynchronous_connection_failover::rnd_next(void) {
 int table_replication_asynchronous_connection_failover::rnd_pos(
     const void *pos) {
   DBUG_TRACE;
-  RPL_FAILOVER_SOURCE_TUPLE source_conn_tuple;
-  bool error{false};
-  int res{HA_ERR_RECORD_DELETED};
 
   set_position(pos);
-  auto upos = std::to_string(m_pos.m_index);
-  Rpl_async_conn_failover_table_operations table_op(TL_READ);
-  std::tie(error, source_conn_tuple) =
-      table_op.read_source_random_rows_pos(upos);
-
-  table_replication_asynchronous_connection_failover::num_rows = 1;
-  if (error) return res;
-
-  res = make_row(source_conn_tuple);
-  return res;
-}
-
-int table_replication_asynchronous_connection_failover::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
-  DBUG_TRACE;
-  PFS_index_rpl_async_conn_failover *result = nullptr;
-  assert(idx == 0);
-  result = PFS_NEW(PFS_index_rpl_async_conn_failover);
-  m_opened_index = result;
-  m_index = result;
-
-  Rpl_async_conn_failover_table_operations table_op(TL_READ);
-  std::tie(read_error, source_conn_detail) = table_op.read_source_all_rows();
-
-  return 0;
-}
-
-int table_replication_asynchronous_connection_failover::index_next(void) {
-  DBUG_TRACE;
-  if (read_error) return 1;
-
-  table_replication_asynchronous_connection_failover::num_rows =
-      source_conn_detail.size();
-
-  for (m_pos.set_at(&m_next_pos); m_pos.m_index < source_conn_detail.size();
-       m_pos.next()) {
-    auto source_conn_tuple = source_conn_detail[m_pos.m_index];
-    if (m_opened_index->match(source_conn_tuple)) {
-      m_next_pos.set_after(&m_pos);
-      return make_row(source_conn_tuple);
-    }
+  assert(m_pos.m_index < m_source_conn_detail.size());
+  if (m_pos.m_index < m_source_conn_detail.size()) {
+    return make_row(m_pos.m_index);
   }
 
   return HA_ERR_END_OF_FILE;
 }
 
-int table_replication_asynchronous_connection_failover::make_row(
-    RPL_FAILOVER_SOURCE_TUPLE source_tuple) {
+int table_replication_asynchronous_connection_failover::make_row(uint index) {
   DBUG_TRACE;
-  std::string channel{};
-  std::string host{};
-  std::string network_namespace{};
-  uint port;
-  uint weight;
-  std::string managed_name{};
 
-  std::tie(channel, host, port, std::ignore, weight, managed_name) =
-      source_tuple;
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_mi(channel.c_str());
-  if (nullptr != mi) {
-    network_namespace.assign(mi->network_namespace_str());
+  m_row.channel_name_length = 0;
+  m_row.host_length = 0;
+  m_row.port = 0;
+  m_row.network_namespace_length = 0;
+  m_row.weight = 0;
+  m_row.managed_name_length = 0;
+
+  if (index >= m_source_conn_detail.size()) {
+    return HA_ERR_END_OF_FILE;
+  } else {
+    std::string channel{};
+    std::string host{};
+    std::string network_namespace{};
+    uint port;
+    uint weight;
+    std::string managed_name{};
+
+    auto source_tuple = m_source_conn_detail[index];
+    std::tie(channel, host, port, std::ignore, weight, managed_name) =
+        source_tuple;
+
+    channel_map.rdlock();
+    Master_info *mi = channel_map.get_mi(channel.c_str());
+    if (nullptr != mi) {
+      network_namespace.assign(mi->network_namespace_str());
+    }
+    channel_map.unlock();
+
+    m_row.channel_name_length = channel.length();
+    memcpy(m_row.channel_name, channel.c_str(), channel.length());
+
+    m_row.host_length = host.length();
+    memcpy(m_row.host, host.c_str(), host.length());
+
+    m_row.port = port;
+
+    m_row.network_namespace_length = network_namespace.length();
+    memcpy(m_row.network_namespace, network_namespace.c_str(),
+           network_namespace.length());
+
+    m_row.weight = weight;
+
+    m_row.managed_name_length = managed_name.length();
+    memcpy(m_row.managed_name, managed_name.c_str(), managed_name.length());
   }
-  channel_map.unlock();
-
-  m_row.channel_name_length = channel.length();
-  memcpy(m_row.channel_name, channel.c_str(), channel.length());
-
-  m_row.host_length = host.length();
-  memcpy(m_row.host, host.c_str(), host.length());
-
-  m_row.port = port;
-
-  m_row.network_namespace_length = network_namespace.length();
-  memcpy(m_row.network_namespace, network_namespace.c_str(),
-         network_namespace.length());
-
-  m_row.weight = weight;
-
-  m_row.managed_name_length = managed_name.length();
-  memcpy(m_row.managed_name, managed_name.c_str(), managed_name.length());
 
   return 0;
 }
@@ -300,6 +221,10 @@ int table_replication_asynchronous_connection_failover::read_row_values(
   /* Set the null bits */
   assert(table->s->null_bytes == 1);
   buf[0] = 0;
+
+  if (m_pos.m_index >= m_source_conn_detail.size()) {
+    return HA_ERR_END_OF_FILE;
+  }
 
   for (Field *f = nullptr; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {

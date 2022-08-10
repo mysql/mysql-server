@@ -25,14 +25,14 @@ include/stop_slave.inc
 # of heartbeats and last heartbeat timestamp!= zeros.
 
 CHANGE REPLICATION SOURCE to SOURCE_HEARTBEAT_PERIOD= 0.5;
-set @restore_slave_net_timeout= @@global.slave_net_timeout;
-set @@global.slave_net_timeout= 10;
+set @restore_replica_net_timeout= @@global.replica_net_timeout;
+set @@global.replica_net_timeout= 10;
 include/start_slave.inc
 
 A heartbeat has been received by the slave
 
 include/assert.inc [last_heartbeat_timestamp should NOT be zero]
-set @@global.slave_net_timeout= @restore_slave_net_timeout;
+set @@global.replica_net_timeout= @restore_replica_net_timeout;
 
 # We now introduce an error in the IO thread and check for the correctness
 # of error number, message and timestamp fields.
@@ -107,4 +107,9 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Received_Transaction_Set should be empty after RESET SLAVE]
 include/start_slave.inc
+drop table t;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '';
+include/rpl_set_gtid_mode.inc
 include/rpl_end.inc

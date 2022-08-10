@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@ Group_validation_message::Group_validation_message(bool has_channels,
       has_channels(has_channels),
       member_weight(member_weight_arg) {}
 
-Group_validation_message::~Group_validation_message() {}
+Group_validation_message::~Group_validation_message() = default;
 
 Group_validation_message::Group_validation_message(const uchar *buf, size_t len)
     : Plugin_gcs_message(CT_GROUP_VALIDATION_MESSAGE) {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef DATA_BUFFER_HPP
 #define DATA_BUFFER_HPP
 
+#include "util/require.h"
 #include <ndb_limits.h>
 #include <ErrorReporter.hpp>
 #include <NdbOut.hpp>
@@ -42,7 +43,7 @@
 template<Uint32 sz, Uint32 Type_id = 0>
   struct DataBufferSegment
   {
-    STATIC_CONST( TYPE_ID = Type_id );
+    static constexpr Uint32 TYPE_ID = Type_id;
 
     DataBufferSegment()
       : m_magic(Magic::make(TYPE_ID))
@@ -406,8 +407,8 @@ DataBuffer<sz, Pool, Type_id>::seize(Uint32 n)
   }
 
   if (0)
-    ndbout_c("seize(%u) used: %u rest: %u firstItem: 0x%x",
-             n, head.used, rest, head.firstItem);
+    g_eventLogger->info("seize(%u) used: %u rest: %u firstItem: 0x%x", n,
+                        head.used, rest, head.firstItem);
 
   if (rest >= n)
   {

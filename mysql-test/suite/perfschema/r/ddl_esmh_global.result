@@ -10,3 +10,8 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 DROP INDEX `SCHEMA_NAME`
   ON performance_schema.events_statements_histogram_global;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.events_statements_histogram_global;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+DROP TABLE test.create_select;

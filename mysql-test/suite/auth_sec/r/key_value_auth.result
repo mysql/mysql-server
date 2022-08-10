@@ -5,6 +5,8 @@ Checking the password authentication with @default_plugin plugin
 =======================================================================
 
 set @default_plugin= @@global.default_authentication_plugin;
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'abc';
 select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')=@default_plugin;

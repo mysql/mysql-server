@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -322,7 +322,7 @@ typedef struct MY_CHARSET_HANDLER {
   my_charset_conv_case caseup;
   my_charset_conv_case casedn;
 
-  /* Charset dependant snprintf() */
+  /* Charset dependent snprintf() */
   size_t (*snprintf)(const CHARSET_INFO *, char *to, size_t n, const char *fmt,
                      ...) MY_ATTRIBUTE((format(printf, 4, 5)));
   size_t (*long10_to_str)(const CHARSET_INFO *, char *to, size_t n, int radix,
@@ -362,7 +362,7 @@ struct CHARSET_INFO {
   uint binary_number;
   uint state;
   const char *csname;
-  const char *name;
+  const char *m_coll_name;
   const char *comment;
   const char *tailoring;
   struct Coll_param *coll_param;
@@ -424,7 +424,6 @@ extern CHARSET_INFO my_charset_utf8_bin;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
 
-#define MY_UTF8MB3 "utf8"
 #define MY_UTF8MB4 "utf8mb4"
 
 /* declarations for simple charsets */
@@ -560,8 +559,8 @@ int my_wildcmp_mb(const CHARSET_INFO *, const char *str, const char *str_end,
                   int w_one, int w_many);
 size_t my_numchars_mb(const CHARSET_INFO *, const char *b, const char *e);
 size_t my_numcells_mb(const CHARSET_INFO *, const char *b, const char *e);
-size_t my_charpos_mb(const CHARSET_INFO *, const char *b, const char *e,
-                     size_t pos);
+size_t my_charpos_mb3(const CHARSET_INFO *, const char *b, const char *e,
+                      size_t pos);
 size_t my_well_formed_len_mb(const CHARSET_INFO *, const char *b, const char *e,
                              size_t pos, int *error);
 uint my_instr_mb(const CHARSET_INFO *, const char *b, size_t b_length,
@@ -578,10 +577,10 @@ int my_wildcmp_mb_bin(const CHARSET_INFO *cs, const char *str,
                       const char *str_end, const char *wildstr,
                       const char *wildend, int escape, int w_one, int w_many);
 
-int my_strcasecmp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const char *s, const char *t);
+int my_strcasecmp_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], const char *s,
+                         const char *t);
 
-void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+void my_hash_sort_mb_bin(const CHARSET_INFO *cs [[maybe_unused]],
                          const uchar *key, size_t len, uint64 *nr1,
                          uint64 *nr2);
 
@@ -645,7 +644,7 @@ bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
 
 /* The following macros makes sense only for one-byte character sets.
 They will not fail for multibyte character sets, but will not produce
-the expected results. They may have som limited usability like
+the expected results. They may have some limited usability like
 e.g. for utf8mb3/utf8mb4, meaningful results will be produced for
 values < 0x7F. */
 #define my_isascii(c) (!((c) & ~0177))

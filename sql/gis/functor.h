@@ -1,6 +1,6 @@
 #ifndef SQL_GIS_FUNCTOR_H_INCLUDED
 #define SQL_GIS_FUNCTOR_H_INCLUDED
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -164,7 +164,7 @@ template <typename T>
 class Functor {
  public:
   virtual T operator()(const Geometry *g1, const Geometry *g2) const = 0;
-  virtual ~Functor() {}
+  virtual ~Functor() = default;
 
  protected:
   template <typename F>
@@ -614,7 +614,7 @@ template <typename T>
 class Unary_functor {
  public:
   virtual T operator()(const Geometry &) const = 0;
-  virtual ~Unary_functor() {}
+  virtual ~Unary_functor() = default;
 
  protected:
   template <class F>

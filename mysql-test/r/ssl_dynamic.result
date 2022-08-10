@@ -139,6 +139,7 @@ SET GLOBAL ssl_crlpath = 'gizmo';
 SET GLOBAL ssl_cipher = 'gizmo';
 SET GLOBAL tls_ciphersuites = 'gizmo';
 SET GLOBAL tls_version = 'gizmo';
+ERROR 42000: Variable 'tls_version' can't be set to the value of 'gizmo'
 # Must fail
 SET SESSION ssl_ca = 'gizmo';
 ERROR HY000: Variable 'ssl_ca' is a GLOBAL variable and should be set with SET GLOBAL

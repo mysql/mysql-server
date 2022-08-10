@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,28 @@ PSI_memory_key key_memory_string_service_iterator;
 struct my_h_string_imp {};
 
 struct my_h_string_iterator_imp {};
+
+static const CHARSET_INFO *from_api(CHARSET_INFO_h api) {
+  return reinterpret_cast<const CHARSET_INFO *>(api);
+}
+
+static CHARSET_INFO_h to_api(const CHARSET_INFO *impl) {
+  return reinterpret_cast<CHARSET_INFO_h>(const_cast<CHARSET_INFO *>(impl));
+}
+
+static String *from_api(my_h_string api) {
+  return reinterpret_cast<String *>(api);
+}
+
+DEFINE_METHOD(CHARSET_INFO_h, mysql_string_imp::get_charset_utf8mb4, ()) {
+  return to_api(&my_charset_utf8mb4_0900_ai_ci);
+}
+
+DEFINE_METHOD(CHARSET_INFO_h, mysql_string_imp::get_charset_by_name,
+              (const char *name)) {
+  CHARSET_INFO *cs = ::get_charset_by_name(name, MYF(0));
+  return to_api(cs);
+}
 
 DEFINE_BOOL_METHOD(mysql_string_imp::create, (my_h_string * out_string)) {
   try {
@@ -107,6 +129,8 @@ DEFINE_BOOL_METHOD(mysql_string_imp::toupper,
   return true;
 }
 
+/* mysql_string_converter service, deprecated. */
+
 DEFINE_BOOL_METHOD(mysql_string_imp::convert_from_buffer,
                    (my_h_string * out_string, const char *in_buffer,
                     uint64 length, const char *charset_name)) {
@@ -139,6 +163,50 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer,
     size_t len = my_convert(out_buffer, length - 1, cs, str->ptr(),
                             str->length(), str->charset(), &error);
     out_buffer[len] = '\0';
+
+    return false;
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
+/* mysql_string_converter_v2 service. */
+
+DEFINE_BOOL_METHOD(mysql_string_imp::convert_from_buffer_v2,
+                   (my_h_string dest_string, const char *src_buffer,
+                    uint64 src_length, CHARSET_INFO_h src_charset)) {
+  try {
+    assert(dest_string != nullptr);
+    assert(src_buffer != nullptr);
+    assert(src_charset != nullptr);
+
+    const CHARSET_INFO *src_cs = from_api(src_charset);
+    String *dest = from_api(dest_string);
+    dest->copy(src_buffer, src_length, src_cs);
+
+    return false;
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer_v2,
+                   (my_h_string src_string, char *dest_buffer,
+                    uint64 dest_length, CHARSET_INFO_h dest_charset)) {
+  try {
+    assert(src_string != nullptr);
+    assert(dest_buffer != nullptr);
+    assert(dest_length != 0);
+    assert(dest_charset != nullptr);
+
+    uint error;
+    const CHARSET_INFO *dest_cs = from_api(dest_charset);
+    String *src = from_api(src_string);
+    size_t len = my_convert(dest_buffer, dest_length - 1, dest_cs, src->ptr(),
+                            src->length(), src->charset(), &error);
+    dest_buffer[len] = 0;
 
     return false;
   } catch (...) {
@@ -308,6 +376,70 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_digit,
     st_string_iterator *iterator = (st_string_iterator *)iter;
     if (iterator == nullptr) return true;
     *out = (iterator->ctype & _MY_NMR);
+    return false;
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_string_imp::reset, (my_h_string s)) {
+  try {
+    String *str = from_api(s);
+    assert(str != nullptr);
+    str->length(0);
+    return false;
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_string_imp::append, (my_h_string s1, my_h_string s2)) {
+  try {
+    String *str1 = from_api(s1);
+    String *str2 = from_api(s2);
+    assert(str1 != nullptr);
+    assert(str2 != nullptr);
+    str1->append(*str2);
+    return false;
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_string_imp::compare,
+                   (my_h_string s1, my_h_string s2, int *cmp)) {
+  try {
+    String *str1 = from_api(s1);
+    String *str2 = from_api(s2);
+    assert(str1 != nullptr);
+    assert(str1 != nullptr);
+    assert(cmp != nullptr);
+    const CHARSET_INFO *cs = str1->charset();
+    *cmp = sortcmp(str1, str2, cs);
+    return false;
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_string_imp::get_data,
+                   (my_h_string s, const char **buffer_pointer,
+                    size_t *buffer_length, CHARSET_INFO_h *buffer_charset)) {
+  try {
+    const String *str = from_api(s);
+    assert(str != nullptr);
+    assert(buffer_pointer != nullptr);
+    assert(buffer_length != nullptr);
+    assert(buffer_charset != nullptr);
+
+    *buffer_pointer = str->ptr();
+    *buffer_length = str->length();
+    const CHARSET_INFO *cs = str->charset();
+    *buffer_charset = to_api(cs);
     return false;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);

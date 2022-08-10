@@ -8,7 +8,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  length: 1
+  length: 2
   flags: 16
 }
 

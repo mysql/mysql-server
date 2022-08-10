@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ typedef Mem_root_array_YY<Hint_param_table> Hint_param_table_list;
 /**
   The class is a base class for representation of the
   different types of the hints. For the complex hints
-  it is also used as a container for additional argumnets.
+  it is also used as a container for additional arguments.
 */
 class PT_hint : public Parse_tree_node {
   opt_hints_enum hint_type;  // Hint type
@@ -83,8 +83,8 @@ class PT_hint : public Parse_tree_node {
     @param thd             Pointer to THD object
     @param str             Pointer to String object
   */
-  virtual void append_args(const THD *thd MY_ATTRIBUTE((unused)),
-                           String *str MY_ATTRIBUTE((unused))) const {}
+  virtual void append_args(const THD *thd [[maybe_unused]],
+                           String *str [[maybe_unused]]) const {}
   bool supports_view() {
     /*
       Only index hints are supported to be used in views.

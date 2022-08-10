@@ -1,0 +1,64 @@
+# ==== Purpose ====
+#
+# This test checks that if a table name is bigger than 64 bytes but has
+# less than 64 character it can still be replicated.
+#
+# ==== Implementation ====
+#
+# 0. The test needs 2 servers, source and replica
+# 1. Create a database and table on the source with a size above 64
+#    Check that SHOW BINLOG EVENTS works
+# 2. Check the data was replicated
+# 3. Cleanup
+#
+# ==== References ====
+#
+# Bug#33305975 Replica fails to read table map events with table name larger than 64 bytes
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # 1. Create a database and table on the source with a size above 64
+--echo #    Check that SHOW BINLOG EVENTS works
+
+# Database and table names are kept separated so we don't hit system path restrictions.
+
+CREATE DATABASE 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测;
+CREATE TABLE 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测.t1 (c1 INT);
+INSERT INTO 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测.t1 VALUES(1);
+
+CREATE TABLE test.测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试 (c1 INT);
+INSERT INTO test.测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试 VALUES(1);
+
+--disable_result_log
+SHOW BINLOG EVENTS;
+--enable_result_log
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 2. Check the data was replicated
+
+--let $expected_value = `SELECT COUNT(*) FROM 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测.t1`
+--let $assert_text = The table with a big database name has 1 line
+--let $assert_cond = $expected_value = 1
+--source include/assert.inc
+
+--let $expected_value = `SELECT COUNT(*) FROM test.测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试`
+--let $assert_text = The table with a big name has 1 line
+--let $assert_cond = $expected_value = 1
+--source include/assert.inc
+
+--echo #
+--echo # 3. Cleanup
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测.t1;
+DROP DATABASE 试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测;
+
+DROP TABLE test.测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试;
+
+--source include/rpl_end.inc

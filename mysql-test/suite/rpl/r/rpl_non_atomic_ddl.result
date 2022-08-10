@@ -16,7 +16,7 @@ include/sync_slave_io_with_master.inc
 [connection slave]
 include/stop_slave_io.inc
 *** Query: 'CREATE TABLE tm (a int) ENGINE=MYISAM'. Crash right after the non-atomic DDL's event has updated slave relay log info. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit_no_atomic_ddl";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit_no_atomic_ddl";
 START SLAVE SQL_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

@@ -9,7 +9,7 @@ include/stop_slave.inc
 # Explicitly simulate a NULL master_uuid return value i.e., fake as a pre-5.6 master.
 #
 SET @save_debug= @@GLOBAL.debug;
-SET GLOBAL debug= '+d,dbug.return_null_MASTER_UUID';
+SET GLOBAL debug= '+d,dbug.return_null_SOURCE_UUID';
 #
 # We should still have the master_uuid value.
 #
@@ -24,7 +24,7 @@ include/start_slave.inc
 #
 # de-activate the debug behaviour.
 #
-SET GLOBAL debug= '-d,dbug.return_null_MASTER_UUID';
+SET GLOBAL debug= '-d,dbug.return_null_SOURCE_UUID';
 SET GLOBAL debug= @save_debug;
 #
 # After de-activating, the master_uuid value should be there.

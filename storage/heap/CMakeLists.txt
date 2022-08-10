@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,12 @@ MYSQL_ADD_PLUGIN(heap ha_heap.cc
   )
 
 IF(WITH_UNIT_TESTS)
-  MYSQL_ADD_EXECUTABLE(hp_test1 hp_test1.cc _check.cc ADD_TEST hp_test1)
-  TARGET_LINK_LIBRARIES(hp_test1 heap_library)
-
-  MYSQL_ADD_EXECUTABLE(hp_test2 hp_test2.cc _check.cc hp_rsame.cc ADD_TEST hp_test2)
-  TARGET_LINK_LIBRARIES(hp_test2 heap_library)
+  MYSQL_ADD_EXECUTABLE(hp_test1 hp_test1.cc _check.cc
+    ADD_TEST hp_test1
+    LINK_LIBRARIES heap_library
+    )
+  MYSQL_ADD_EXECUTABLE(hp_test2 hp_test2.cc _check.cc hp_rsame.cc
+    ADD_TEST hp_test2
+    LINK_LIBRARIES heap_library
+    )
 ENDIF()

@@ -19,6 +19,4 @@
 #              MUTEX SPINNING
 #
 
-SET GLOBAL replication_sender_observe_commit_only = 1;
 --source suite/rpl_nogtid/t/rpl_semi_sync.test
-SET GLOBAL replication_sender_observe_commit_only = 0;

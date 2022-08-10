@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ int is_server_connected(struct site_def const *site, node_no node) {
     if (get_nodeno(site) == node) {  // Me to myself... i'm always connected
       retval = 1;
     } else if (node < site->nodes.node_list_len) {
-      retval = is_connected(&site->servers[node]->con);
+      retval = is_connected(site->servers[node]->con);
     }
   }
 
@@ -229,7 +229,7 @@ static void check_local_node_set(site_def *site, int *notify) {
   u_int i;
   u_int nodes = get_maxnodes(site);
 
-  for (i = 0; i < nodes && i < site->global_node_set.node_set_len; i++) {
+  for (i = 0; i < nodes && i < site->local_node_set.node_set_len; i++) {
     int detect = DETECT(site, i);
     if (site->local_node_set.node_set_val[i] != detect) {
       site->local_node_set.node_set_val[i] = detect;
@@ -239,7 +239,7 @@ static void check_local_node_set(site_def *site, int *notify) {
   }
 }
 
-static node_no leader(site_def const *s) {
+static node_no get_leader(site_def const *s) {
   if (s) {
     node_no leader = 0;
     for (leader = 0; leader < get_maxnodes(s); leader++) {
@@ -255,48 +255,39 @@ int iamtheleader(site_def const *s) {
   if (!s)
     return 0;
   else
-    return leader(s) == s->nodeno;
+    return get_leader(s) == s->nodeno;
 }
 
 extern synode_no executed_msg;
 extern synode_no max_synode;
 
-static site_def *last_p_site = 0;
-static site_def *last_x_site = 0;
+static site_def *last_x_site = nullptr;
 
 void invalidate_detector_sites(site_def *site) {
-  if (last_p_site == site) {
-    last_p_site = NULL;
-  }
-
   if (last_x_site == site) {
-    last_x_site = NULL;
+    last_x_site = nullptr;
   }
 }
 
 /* Notify others about our current view */
-int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
+int detector_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   int notify;
   int local_notify;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
-  last_p_site = 0;
-  last_x_site = 0;
+  last_x_site = nullptr;
   ep->notify = 1;
   ep->local_notify = 1;
   IFDBG(D_DETECT, FN;);
   while (!xcom_shutdown) {
     {
       site_def *x_site = get_executor_site_rw();
-#if TASK_DBUG_ON
-      site_def const *p_site = get_proposer_site();
-      if (!p_site) p_site = get_site_def();
-#endif
 
       IFDBG(D_DETECT, FN; SYCEXP(executed_msg); SYCEXP(max_synode));
-      IFDBG(D_DETECT, FN; PTREXP(p_site); NDBG(get_nodeno(p_site), u));
       IFDBG(D_DETECT, FN; PTREXP(x_site); NDBG(get_nodeno(x_site), u));
 
       if (x_site && get_nodeno(x_site) != VOID_NODE_NO) {
@@ -322,6 +313,18 @@ int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
         /* Send xcom message if node has changed state */
         IFDBG(D_DETECT, FN; NDBG(ep->notify, d));
         if (ep->notify && iamtheleader(x_site) && enough_live_nodes(x_site)) {
+          const site_def *current_site_def = get_site_def();
+          if (current_site_def) {
+            server *my_server = current_site_def->servers[x_site->nodeno];
+            if (my_server) {
+              G_INFO(
+                  "A configuration change was detected. Sending a Global View "
+                  "Message to all nodes. My node identifier is %d and my "
+                  "address "
+                  "is %s:%d",
+                  x_site->nodeno, my_server->srv, my_server->port);
+            }
+          }
           ep->notify = 0;
           send_my_view(x_site);
         }
@@ -353,7 +356,7 @@ int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
 node_set detector_node_set(site_def const *site) {
   node_set new_set;
   new_set.node_set_len = 0;
-  new_set.node_set_val = 0;
+  new_set.node_set_val = nullptr;
   if (site) {
     u_int nodes = get_maxnodes(site);
     alloc_node_set(&new_set, nodes);
@@ -373,6 +376,7 @@ static void send_my_view(site_def const *site) {
   IFDBG(D_DETECT, FN;);
   a->body.c_t = view_msg;
   a->body.app_u_u.present = detector_node_set(site);
+  a->app_key = site->start;
   xcom_send(a, msg);
 }
 
@@ -405,14 +409,16 @@ static void validate_update_configuration(site_def const *site,
 static unsigned int dump = 0;
 #endif
 
-int alive_task(task_arg arg MY_ATTRIBUTE((unused))) {
+int alive_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   pax_msg *i_p;
   pax_msg *you_p;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
 
-  ep->i_p = ep->you_p = NULL;
+  ep->i_p = ep->you_p = nullptr;
 
   while (!xcom_shutdown) {
     {
@@ -466,7 +472,7 @@ int alive_task(task_arg arg MY_ATTRIBUTE((unused))) {
   }
   FINALLY
   IFDBG(D_BUG, FN; STRLIT(" shutdown "));
-  replace_pax_msg(&ep->i_p, NULL);
-  replace_pax_msg(&ep->you_p, NULL);
+  replace_pax_msg(&ep->i_p, nullptr);
+  replace_pax_msg(&ep->you_p, nullptr);
   TASK_END;
 }

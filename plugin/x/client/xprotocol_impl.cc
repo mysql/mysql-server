@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -437,7 +437,7 @@ XError Protocol_impl::send(const Header_message_type_id mid,
   };
   /*
     Use dummy, otherwise g++ 4.4 reports: unused variable 'dummy'
-    MY_ATTRIBUTE((unused)) did not work, so we must use it.
+    [[maybe_unused]] did not work, so we must use it.
   */
   dummy = 0;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ void print_version();
 
 /**
   This function prints a standard version string, with '-debug' added
-  to the name of the executable. Used by utilties that have an
+  to the name of the executable. Used by utilities that have an
   explicit need to state that they have been compiled in debug mode.
 */
 

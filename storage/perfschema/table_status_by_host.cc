@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -173,7 +173,7 @@ int table_status_by_host::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_status_by_host::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_status_by_host::index_init(uint idx [[maybe_unused]], bool) {
   /* Build array of SHOW_VARs from the global status array prior to
    * materializing. */
   m_status_cache.initialize_client_session();
@@ -258,7 +258,7 @@ int table_status_by_host::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* HOST */
-          m_row.m_host.set_field(f);
+          m_row.m_host.set_nullable_field(f);
           break;
         case 1: /* VARIABLE_NAME */
           set_field_varchar_utf8(f, m_row.m_variable_name.m_str,

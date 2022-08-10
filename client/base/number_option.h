@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ class Number_option
 };
 
 template <typename T_value>
-Number_option<T_value>::Number_option() {}
+Number_option<T_value>::Number_option() = default;
 
 /**
   32-bit signed number option.

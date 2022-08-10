@@ -12,7 +12,6 @@ XA PREPARE '1';
 #    it fails.
 #
 XA ROLLBACK '2';
-ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 #
 # 3) Check that nothing is written to binary log.
 #

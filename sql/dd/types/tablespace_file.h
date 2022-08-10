@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Tablespace_file : virtual public Weak_object {
   typedef tables::Tablespace_files DD_table;
 
  public:
-  ~Tablespace_file() override {}
+  ~Tablespace_file() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.

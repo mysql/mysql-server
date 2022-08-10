@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "m_string.h"
 #include "my_byteorder.h"
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(HAVE_MYSYS)
 /* Event parser state names */
 static const char *event_parser_state_names[] = {"None", "GTID", "DDL", "DML",
                                                  "Error"};
@@ -40,7 +40,7 @@ static const char *event_parser_state_names[] = {"None", "GTID", "DDL", "DML",
   -----------------------------------------
 */
 
-Transaction_boundary_parser::~Transaction_boundary_parser() {}
+Transaction_boundary_parser::~Transaction_boundary_parser() = default;
 
 /**
    Reset the transaction boundary parser.
@@ -245,6 +245,7 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::ROTATE_EVENT:
     case binary_log::FORMAT_DESCRIPTION_EVENT:
     case binary_log::HEARTBEAT_LOG_EVENT:
+    case binary_log::HEARTBEAT_LOG_EVENT_V2:
     case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
     case binary_log::STOP_EVENT:
     case binary_log::SLAVE_EVENT:

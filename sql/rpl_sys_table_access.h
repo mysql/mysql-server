@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 #ifndef RPL_SYS_TABLE_ACCESS_INCLUDED
 #define RPL_SYS_TABLE_ACCESS_INCLUDED
 
-#include "sql/rpl_table_access.h"  // System_table_access
+#include "sql/field.h"
 #include "sql/sql_class.h"
 #include "sql/table.h"
 #include "thr_lock.h"
@@ -39,12 +39,12 @@ struct TABLE;
   context (THD) and open table on class object creation, and destroys thread and
   closes all open thread tables on class object destruction.
 */
-class Rpl_sys_table_access : public System_table_access {
+class Rpl_sys_table_access {
  public:
   /**
     Construction.
     @param[in]  schema_name   Database where the table resides
-    @param[in]  table_name    Table to be openned
+    @param[in]  table_name    Table to be opened
     @param[in]  max_num_field Maximum number of fields
   */
   Rpl_sys_table_access(const std::string &schema_name,
@@ -54,7 +54,7 @@ class Rpl_sys_table_access : public System_table_access {
     Destruction. All opened tables with the open_tables are closed during
     destruction if not already done in deinit().
   */
-  ~Rpl_sys_table_access() override;
+  ~Rpl_sys_table_access();
 
   /**
     Creates new thread/session context (THD) and open's table on class object
@@ -73,18 +73,21 @@ class Rpl_sys_table_access : public System_table_access {
 
     @param[in]  error         State that there was a error on the table
                               operations
+    @param[in]  ignore_global_read_lock
+                              State that the global_read_lock must be
+                              ignored
 
     @retval true  if there is error
     @retval false if there is no error
   */
-  bool close(bool error);
+  bool close(bool error, bool ignore_global_read_lock = false);
 
   /**
     Get TABLE object created for the table access purposes.
 
     @return TABLE pointer.
   */
-  TABLE *get_table() { return m_table; }
+  TABLE *get_table();
 
   /**
     Set error.
@@ -98,13 +101,6 @@ class Rpl_sys_table_access : public System_table_access {
     @retval false if there is no error
   */
   bool get_error() { return m_error; }
-
-  /**
-    Prepares before opening table.
-
-    @param[in]  thd  Thread requesting to open the table
-  */
-  void before_open(THD *thd) override;
 
   /**
     Stores provided string to table's field.
@@ -214,7 +210,67 @@ class Rpl_sys_table_access : public System_table_access {
     for_each_in_tuple(tuple, func, std::make_index_sequence<sizeof...(Ts)>());
   }
 
- protected:
+  /**
+    Delete all rows on `m_schema_name.m_table_name`.
+
+    @retval true  if there is error
+    @retval false if there is no error
+  */
+  bool delete_all_rows();
+
+  /**
+    Return the version stored on `m_schema_version_name.m_table_version_name`
+    for the `m_schema_name.m_table_name` table.
+
+    @retval 0  if there is error
+    @retval >0 if there is no error
+  */
+  ulonglong get_version();
+
+  /**
+    Increment the version stored on `m_schema_version_name.m_table_version_name`
+    for the `m_schema_name.m_table_name` table.
+
+    @retval true  if there is error
+    @retval false if there is no error
+  */
+  bool increment_version();
+
+  /**
+    Update the version stored on `m_schema_version_name.m_table_version_name`
+    for the `m_schema_name.m_table_name` table.
+
+    @param[in]  version  the version value
+
+    @retval true  if there is error
+    @retval false if there is no error
+  */
+  bool update_version(ulonglong version);
+
+  /**
+    Delete the version stored on `m_schema_version_name.m_table_version_name`
+    for the `m_schema_name.m_table_name` table.
+
+    @retval true  if there is error
+    @retval false if there is no error
+  */
+  bool delete_version();
+
+  /**
+    Get database name of table accessed.
+
+    @return database name.
+  */
+  std::string get_db_name() { return m_schema_name; }
+
+  /**
+    Get table name of table accessed.
+
+    @return table name.
+  */
+  std::string get_table_name() { return m_table_name; }
+
+ private:
   /* THD created for TableAccess object purpose. */
   THD *m_thd{nullptr};
 
@@ -224,18 +280,20 @@ class Rpl_sys_table_access : public System_table_access {
   /* The variable determine if table is opened or closed successfully. */
   bool m_error{false};
 
-  /* Determine if index is deinitialized. */
-  bool m_key_deinit{false};
-
-  /* TABLE object */
-  TABLE *m_table{nullptr};
-
-  /* Save the lock info. */
-  Open_tables_backup m_backup;
+  /* TABLE_LIST object */
+  TABLE_LIST *m_table_list{nullptr};
+  enum thr_lock_type m_lock_type;
 
   std::string m_schema_name;
   std::string m_table_name;
   uint m_max_num_field;
+
+  const std::string m_schema_version_name{"mysql"};
+  const std::string m_table_version_name{
+      "replication_group_configuration_version"};
+  const uint m_table_data_index = 0;
+  const uint m_table_version_index = 1;
+  const uint m_table_list_size = 2;
 };
 
 #endif /* RPL_SYS_TABLE_ACCESS_INCLUDED */

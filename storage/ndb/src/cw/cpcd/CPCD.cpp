@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -299,7 +299,7 @@ CPCD::notifyChanges() {
 #ifdef _WIN32
 static int link(const char* from_file, const char* to_file)
 {
-  BOOL fail_if_exists = TRUE;
+  BOOL fail_if_exists = true;
   if (CopyFile(from_file, to_file, fail_if_exists) == 0)
   {
     /* "On error, -1 is returned" */

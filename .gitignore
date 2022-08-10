@@ -17,6 +17,7 @@ source_downloads
 [._]sw[a-p]
 
 # Configuration files for Visual Studio Code
+<<<<<<< HEAD
 boost/
 release/
 debug/
@@ -205,3 +206,15 @@ storage/warp/src/fastbit-2.0.3/src/.deps/whereParser.Plo
 storage/warp/src/fastbit-2.0.3/src/Makefile
 storage/warp/src/fastbit-2.0.3/tests/Makefile
 storage/warp/src/fastbit-2.0.3/tests/scripts/fastbit-config
+=======
+.vscode/
+
+build/
+datatool/
+datatools/
+__pycache__/
+heatwaveml.*
+automl.egg-info/
+_userconf.sh
+scalability_jobs_*
+>>>>>>> fbdaa4def30d269bc4de5b85de61de34b11c0afc

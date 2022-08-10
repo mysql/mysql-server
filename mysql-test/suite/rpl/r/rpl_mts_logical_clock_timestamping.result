@@ -6,12 +6,16 @@ Note	####	Storing MySQL user name or password information in the master info rep
 call mtr.add_suppression("Transaction is tagged with inconsistent logical timestamps");
 call mtr.add_suppression("Cannot execute the current event group in the parallel mode.");
 include/stop_slave.inc
-SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
-SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
-SET @save_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
-SET GLOBAL slave_parallel_type = LOGICAL_CLOCK;
-SET GLOBAL slave_parallel_workers = 3;
-SET GLOBAL slave_transaction_retries = 0;
+SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = 3;
+SET GLOBAL replica_transaction_retries = 0;
 RESET MASTER;
 CREATE TABLE t1 (a int) ENGINE= innodb;
 INSERT INTO t1 SET a=1;
@@ -50,8 +54,10 @@ RESET MASTER;
 include/start_slave.inc
 DROP TABLE t1;
 include/stop_slave.inc
-SET @@GLOBAL.slave_parallel_type= @save_slave_parallel_type;
-SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
-SET @@GLOBAL.slave_transaction_retries= @save_slave_transaction_retries;
+SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
+SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
 include/start_slave.inc
 include/rpl_end.inc

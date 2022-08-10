@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,7 @@ static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
 static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
                          IO_CACHE *to_file, Sort_buffer sort_buffer,
                          Merge_chunk *last_chunk, Merge_chunk_array chunk_array,
-                         int flag MY_ATTRIBUTE((unused))) {
+                         int flag [[maybe_unused]]) {
   int error = 0;
   uint rec_length;
   ha_rows maxcount;
@@ -412,10 +412,10 @@ static inline double log2_n_fact(ulong n) {
 
   SYNOPSIS
     get_merge_buffers_cost()
-      buff_elems  Array of #s of elements in buffers
-      elem_size   Size of element stored in buffer
-      first       Pointer to first merged element size
-      last        Pointer to last merged element size
+      total_buf_elems   Number of elements to merge in all
+      n_buffers         Number of different buffers the elements are sprea dover
+      elem_size         Size of element stored in buffer
+      cost_model        Cost model to use for constants
 
   RETURN
     Cost of merge_buffers operation in disk seeks.
@@ -436,16 +436,9 @@ static inline double log2_n_fact(ulong n) {
       key_compare_cost(total_buf_elems * log2(n_buffers));
 */
 
-static double get_merge_buffers_cost(Unique::Imerge_cost_buf_type buff_elems,
-                                     uint elem_size, uint first, uint last,
+static double get_merge_buffers_cost(size_t total_buf_elems, size_t n_buffers,
+                                     uint elem_size,
                                      const Cost_model_table *cost_model) {
-  uint total_buf_elems = 0;
-  for (uint pbuf = first; pbuf <= last; pbuf++)
-    total_buf_elems += buff_elems[pbuf];
-  buff_elems[last] = total_buf_elems;
-
-  const size_t n_buffers = last - first + 1;
-
   const double io_ops =
       static_cast<double>(total_buf_elems * elem_size) / IO_SIZE;
   const double io_cost = cost_model->io_block_read_cost(io_ops);
@@ -464,16 +457,15 @@ static double get_merge_buffers_cost(Unique::Imerge_cost_buf_type buff_elems,
 
   SYNOPSIS
     get_merge_many_buffs_cost()
-      buffer        buffer space for temporary data, at least
-                    Unique::get_cost_calc_buff_size bytes
-      maxbuffer     # of full buffers
-      max_n_elems   # of elements in first maxbuffer buffers
-      last_n_elems  # of elements in last buffer
-      elem_size     size of buffer element
+      num_full_buffers       # of full buffers
+      elems_per_buffer       # of elements in each full buffers
+      additional_num_elems   # of elements in last buffer
+      elem_size              size of each buffer element
 
   NOTES
-    maxbuffer+1 buffers are merged, where first maxbuffer buffers contain
-    max_n_elems elements each and last buffer contains last_n_elems elements.
+    num_full_buffers+1 buffers are merged, where first "num_full_buffers"
+    buffers contain "elems_per_buffer" elements each and last buffer contains
+    "additional_num_elems" elements.
 
     The current implementation does a dumb simulation of merge_many_buffs
     function actions.
@@ -482,43 +474,52 @@ static double get_merge_buffers_cost(Unique::Imerge_cost_buf_type buff_elems,
     Cost of merge in disk seeks.
 */
 
-static double get_merge_many_buffs_cost(Unique::Imerge_cost_buf_type buffer,
-                                        uint maxbuffer, uint max_n_elems,
-                                        uint last_n_elems, int elem_size,
+static double get_merge_many_buffs_cost(uint num_full_buffers,
+                                        uint elems_per_buffer,
+                                        uint additional_num_elems,
+                                        int elem_size,
                                         const Cost_model_table *cost_model) {
-  uint i;
+  if (num_full_buffers == 0 && additional_num_elems == 0) {
+    return 0.0;
+  }
   double total_cost = 0.0;
-  Unique::Imerge_cost_buf_type buff_elems =
-      buffer; /* #s of elements in each of merged sequences */
 
-  /*
-    Set initial state: first maxbuffer sequences contain max_n_elems elements
-    each, last sequence contains last_n_elems elements.
-  */
-  for (i = 0; i < maxbuffer; i++) buff_elems[i] = max_n_elems;
-  buff_elems[maxbuffer] = last_n_elems;
+  // For uniformity, make sure additional_num_elems > 0, always.
+  if (additional_num_elems == 0) {
+    additional_num_elems = elems_per_buffer;
+    --num_full_buffers;
+  }
 
   /*
     Do it exactly as merge_many_buff function does, calling
     get_merge_buffers_cost to get cost of merge_buffers.
   */
-  if (maxbuffer >= MERGEBUFF2) {
-    while (maxbuffer >= MERGEBUFF2) {
-      uint lastbuff = 0;
-      for (i = 0; i <= maxbuffer - MERGEBUFF * 3U / 2U; i += MERGEBUFF) {
-        total_cost += get_merge_buffers_cost(buff_elems, elem_size, i,
-                                             i + MERGEBUFF - 1, cost_model);
-        lastbuff++;
-      }
-      total_cost += get_merge_buffers_cost(buff_elems, elem_size, i, maxbuffer,
-                                           cost_model);
-      maxbuffer = lastbuff;
+  while ((num_full_buffers + 1) > MERGEBUFF2) {
+    uint new_num_full_buffers = 0;
+    unsigned i;
+    for (i = 0; i < (num_full_buffers + 1) - MERGEBUFF * 3U / 2U;
+         i += MERGEBUFF) {
+      ++new_num_full_buffers;
     }
+    total_cost += new_num_full_buffers *
+                  get_merge_buffers_cost(elems_per_buffer * MERGEBUFF,
+                                         MERGEBUFF, elem_size, cost_model);
+
+    const uint leftover_full_buffers = num_full_buffers - i;
+    total_cost += get_merge_buffers_cost(
+        elems_per_buffer * leftover_full_buffers + additional_num_elems,
+        leftover_full_buffers + 1, elem_size, cost_model);
+    additional_num_elems += elems_per_buffer * leftover_full_buffers;
+
+    elems_per_buffer *= MERGEBUFF;
+    num_full_buffers = new_num_full_buffers;
   }
 
-  /* Simulate final merge_buff call. */
-  total_cost +=
-      get_merge_buffers_cost(buff_elems, elem_size, 0, maxbuffer, cost_model);
+  // Merge the final buffers (<= MERGEBUFF2) in one big merge.
+  total_cost += get_merge_buffers_cost(
+      elems_per_buffer * num_full_buffers + additional_num_elems,
+      num_full_buffers + 1, elem_size, cost_model);
+
   return total_cost;
 }
 
@@ -528,8 +529,6 @@ static double get_merge_many_buffs_cost(Unique::Imerge_cost_buf_type buffer,
 
   SYNOPSIS
     Unique::get_use_cost()
-      buffer    space for temporary data, use Unique::get_cost_calc_buff_size
-                to get # bytes needed.
       nkeys     #of elements in Unique
       key_size  size of each elements in bytes
       max_in_memory_size amount of memory Unique will be allowed to use
@@ -569,8 +568,8 @@ static double get_merge_many_buffs_cost(Unique::Imerge_cost_buf_type buffer,
       these will be random seeks.
 */
 
-double Unique::get_use_cost(Imerge_cost_buf_type buffer, uint nkeys,
-                            uint key_size, ulonglong max_in_memory_size,
+double Unique::get_use_cost(uint nkeys, uint key_size,
+                            ulonglong max_in_memory_size,
                             const Cost_model_table *cost_model) {
   ulong max_elements_in_tree;
   ulong last_tree_elems;
@@ -606,7 +605,7 @@ double Unique::get_use_cost(Imerge_cost_buf_type buffer, uint nkeys,
 
   /* Cost of merge */
   double merge_cost =
-      get_merge_many_buffs_cost(buffer, n_full_trees, max_elements_in_tree,
+      get_merge_many_buffs_cost(n_full_trees, max_elements_in_tree,
                                 last_tree_elems, key_size, cost_model);
   if (merge_cost < 0.0) return merge_cost;
 
@@ -978,7 +977,9 @@ bool Unique_on_insert::unique_add(void *ptr) {
   if (res) {
     bool dup = false;
     if (res == HA_ERR_FOUND_DUPP_KEY) return true;
-    if (create_ondisk_from_heap(thd, m_table, res, false, &dup) || dup)
+    if (create_ondisk_from_heap(thd, m_table, res, /*insert_last_record=*/true,
+                                /*ignore_last_dup=*/false, &dup) ||
+        dup)
       return true;
   }
   return false;

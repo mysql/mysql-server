@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
-SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
+SET GLOBAL replica_parallel_type=LOGICAL_CLOCK;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
 include/stop_slave.inc
 FLUSH LOGS;
@@ -63,7 +63,9 @@ DROP TABLE db1.t_temp;
 DROP TABLE db2.t_temp;
 DROP TABLE db3.t_temp;
 DROP TABLE db4.t_temp;
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db1.t,slave:db1.t]
@@ -78,7 +80,9 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
-SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db1.t, slave:db1.t]
@@ -93,7 +97,9 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db1.t, slave:db1.t]
@@ -101,7 +107,9 @@ include/diff_tables.inc [master:db2.t, slave:db2.t]
 include/diff_tables.inc [master:db3.t, slave:db3.t]
 include/diff_tables.inc [master:db4.t, slave:db4.t]
 include/stop_slave.inc
-SET GLOBAL SLAVE_PARALLEL_TYPE=DEFAULT;
+SET GLOBAL REPLICA_PARALLEL_TYPE=DEFAULT;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 include/start_slave.inc
 DROP DATABASE db1;
 DROP DATABASE db2;

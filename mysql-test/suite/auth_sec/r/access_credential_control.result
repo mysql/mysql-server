@@ -5,6 +5,8 @@ Checking the password plugin assignment with create user command
 =======================================================================
 
 set @default_plugin=@@global.default_authentication_plugin;
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 **** Creating user with default_plugin
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
 **** Creating user with sha256_password plugin

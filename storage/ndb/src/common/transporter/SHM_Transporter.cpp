@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,10 @@
 */
 
 
+#include "util/require.h"
 #include <ndb_global.h>
+
+#include <time.h>
 
 #include "SHM_Transporter.hpp"
 #include "TransporterInternalDefinitions.hpp"
@@ -37,7 +40,6 @@
 #include <OutputStream.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -71,9 +73,6 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
-#ifndef _WIN32
-  shmId= 0;
-#endif
   _shmSegCreated = false;
   _attached = false;
 
@@ -113,9 +112,6 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 {
   shmKey = t->shmKey;
   shmSize = t->shmSize;
-#ifndef NDB_WIN32
-  shmId= 0;
-#endif
   _shmSegCreated = false;
   _attached = false;
 
@@ -175,8 +171,8 @@ SHM_Transporter::setupBuffers()
   sharedSize += 64;
   sharedSize += sizeof(NdbMutex);
 
-  const Uint32 slack = MAX(MAX_RECV_MESSAGE_BYTESIZE,
-                           MAX_SEND_MESSAGE_BYTESIZE);
+  constexpr Uint32 slack = MAX(MAX_RECV_MESSAGE_BYTESIZE,
+                               MAX_SEND_MESSAGE_BYTESIZE);
 
   /**
    *  NOTE: There is 7th shared variable in Win2k (sharedCountAttached).
@@ -369,7 +365,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
                    localNodeId, remoteNodeId, __LINE__));
     if (setupBuffers())
     {
-      fprintf(stderr, "Shared memory not supported on this platform\n");
+      g_eventLogger->info("Shared memory not supported on this platform");
       detach_shm(false);
       DBUG_RETURN(false);
     }
@@ -510,7 +506,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
                    localNodeId, remoteNodeId, __LINE__));
     if (setupBuffers())
     {
-      fprintf(stderr, "Shared memory not supported on this platform\n");
+      g_eventLogger->info("Shared memory not supported on this platform");
       detach_shm(false);
       DBUG_RETURN(false);
     }
@@ -561,7 +557,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 }
 
 bool
-SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
+SHM_Transporter::connect_common(NDB_SOCKET_TYPE /*sockfd*/)
 {
   if (!checkConnected())
   {

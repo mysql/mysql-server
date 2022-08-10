@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ namespace gcs_allowlist_unittest {
 
 class GcsAllowlist : public GcsBaseTest {
  protected:
-  GcsAllowlist() {}
+  GcsAllowlist() = default;
 };
 
 TEST_F(GcsAllowlist, ValidIPs) {
@@ -254,7 +254,7 @@ TEST_F(GcsAllowlist, ListWithUnresolvableHostname) {
 TEST_F(GcsAllowlist, XComMembers) {
   Gcs_ip_allowlist wl;
   char const *members[] = {"8.8.8.8:12435", "8.8.4.4:1234", "localhost:12346"};
-  char **xcom_addrs = const_cast<char **>(members);
+  const char **xcom_addrs{members};
   node_address *xcom_names = new_node_address(3, xcom_addrs);
   site_def *xcom_config = new_site_def();
   init_site_def(3, xcom_names, xcom_config);

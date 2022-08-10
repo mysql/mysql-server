@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "DynArr256.hpp"
 #include "pc.hpp"
 #include <stdio.h>
 #include <assert.h>
 #include <NdbOut.hpp>
-#include <my_systime.h>  // my_micro_time
+#include <NdbTick.h>
 
 /**
  * Trick to be able to use ERROR_INSERTED macro inside DynArr256 and
@@ -102,8 +103,6 @@ Uint32 DA256Page::last_free() const
 }
 
 
-#undef require
-#define require(x) require_exit_or_core_with_printer((x), 0, ndbout_printer)
 //#define DA256_USE_PX
 //#define DA256_USE_PREFETCH
 #define DA256_EXTRA_SAFE
@@ -823,17 +822,17 @@ release(DynArr256& arr)
   arr.init(iter);
   Uint32 val;
   Uint32 cnt=0;
-  Uint64 start;
   if (verbose > 2)
     ndbout_c("allocatedpages: %d (max %d) releasedpages: %d allocatednodes: %d (max %d) releasednodes: %d",
            allocatedpages, maxallocatedpages,
            releasedpages,
            allocatednodes, maxallocatednodes,
            releasednodes);
-  start = my_micro_time();
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   while (arr.release(iter, &val))
     cnt++;
-  start = my_micro_time() - start;
+  const NDB_TICKS stop = NdbTick_getCurrentTicks();
+  const Uint64 micros = NdbTick_Elapsed(start, stop).microSec();
   if (verbose > 1)
     ndbout_c("allocatedpages: %d (max %d) releasedpages: %d allocatednodes: %d (max %d) releasednodes: %d (%llu us)"
              " releasecnt: %d",
@@ -841,7 +840,7 @@ release(DynArr256& arr)
              releasedpages,
              allocatednodes, maxallocatednodes,
              releasednodes,
-             start, cnt);
+             micros, cnt);
   return true;
 }
 
@@ -1001,7 +1000,7 @@ read(DynArr256& arr, int argc, char ** argv)
   for (Uint32 i = 0; i<10; i++)
   {
     Uint32 sum0 = 0, sum1 = 0;
-    Uint64 start = my_micro_time();
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     for (Uint32 i = 0; i<cnt; i++)
     {
       Uint32 idx = ((rand() & (~seqmask)) + ((i + seq) & seqmask)) % maxidx;
@@ -1009,10 +1008,12 @@ read(DynArr256& arr, int argc, char ** argv)
       sum0 += idx;
       sum1 += *ptr;
     }
-    start = my_micro_time() - start;
-    float uspg = (float)start; uspg /= cnt;
+    const NDB_TICKS stop = NdbTick_getCurrentTicks();
+    const Uint64 micros = NdbTick_Elapsed(start, stop).microSec();
+    float uspg = (float)micros;
+    uspg /= cnt;
     if (verbose)
-      ndbout_c("Elapsed %lldus diff: %d -> %f us/get", start, sum0 - sum1, uspg);
+      ndbout_c("Elapsed %lldus diff: %d -> %f us/get", micros, sum0 - sum1, uspg);
   }
   return true;
 }
@@ -1074,7 +1075,7 @@ write(DynArr256& arr, int argc, char ** argv)
 	   seq ? "sequential" : "random", seed);
   for (Uint32 i = 0; i<10; i++)
   {
-    Uint64 start = my_micro_time();
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     for (Uint32 i = 0; i<cnt; i++)
     {
       Uint32 idx = ((rand() & (~seqmask)) + ((i + seq) & seqmask)) % maxidx;
@@ -1082,10 +1083,11 @@ write(DynArr256& arr, int argc, char ** argv)
       if (ptr == NULL) break; /* out of memory */
       *ptr = i;
     }
-    start = my_micro_time() - start;
-    float uspg = (float)start; uspg /= cnt;
+    const NDB_TICKS stop = NdbTick_getCurrentTicks();
+    const Uint64 micros = NdbTick_Elapsed(start, stop).microSec();
+    float uspg = (float)micros; uspg /= cnt;
     if (verbose)
-      ndbout_c("Elapsed %lldus -> %f us/set", start, uspg);
+      ndbout_c("Elapsed %lldus -> %f us/set", micros, uspg);
     if (!release(arr))
       return false;
   }

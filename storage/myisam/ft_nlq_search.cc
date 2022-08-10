@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -307,8 +307,12 @@ int ft_nlq_read_next(FT_INFO *handler_base, char *record) {
   st_ft_info_nlq *handler = (st_ft_info_nlq *)handler_base;
   MI_INFO *info = (MI_INFO *)handler->info;
 
-  if (++handler->curdoc >= handler->ndocs) {
-    --handler->curdoc;
+  // Move to the next document that has a non-zero score.
+  while (++handler->curdoc < handler->ndocs &&
+         ft_nlq_get_relevance(handler) == 0.0) {
+  }
+
+  if (handler->curdoc >= handler->ndocs) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -323,8 +327,8 @@ int ft_nlq_read_next(FT_INFO *handler_base, char *record) {
 }
 
 float ft_nlq_find_relevance(FT_INFO *handler_base,
-                            uchar *record MY_ATTRIBUTE((unused)),
-                            uint length MY_ATTRIBUTE((unused))) {
+                            uchar *record [[maybe_unused]],
+                            uint length [[maybe_unused]]) {
   st_ft_info_nlq *handler = (st_ft_info_nlq *)handler_base;
   int a, b, c;
   FT_DOC *docs = handler->doc;

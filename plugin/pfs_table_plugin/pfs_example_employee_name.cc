@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@ Ename_Record ename_records_array[EMPLOYEEE_NAME_MAX_ROWS] = {
 
 /**
   Check for duplicate value of Primary/Unique Key column(s).
-  A sequential search is being used here, but its upto plugin writer to
-  implement his/her own search to make sure duplicate values are not inserted
+  A sequential search is being used here, but it is up to the plugin writer to
+  implement a search of their own to make sure duplicate values are not inserted
   for Primary/Unique Key Column(s).
 
   @param record record to be checked for duplicate
@@ -107,8 +107,8 @@ int ename_rnd_next(PSI_table_handle *handle) {
   return PFS_HA_ERR_END_OF_FILE;
 }
 
-int ename_rnd_init(PSI_table_handle *h MY_ATTRIBUTE((unused)),
-                   bool scan MY_ATTRIBUTE((unused))) {
+int ename_rnd_init(PSI_table_handle *h [[maybe_unused]],
+                   bool scan [[maybe_unused]]) {
   return 0;
 }
 
@@ -127,8 +127,7 @@ int ename_rnd_pos(PSI_table_handle *handle) {
 
 /* Initialize the table index */
 int ename_index_init(PSI_table_handle *handle, uint idx,
-                     bool sorted MY_ATTRIBUTE((unused)),
-                     PSI_index_handle **index) {
+                     bool sorted [[maybe_unused]], PSI_index_handle **index) {
   Ename_Table_Handle *h = (Ename_Table_Handle *)handle;
 
   /* If there are multiple indexes, initialize based on the idx provided */

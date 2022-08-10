@@ -4,6 +4,13 @@
 
 -- disable_query_log
 -- disable_result_log
+# High values set for sampling scanning, effectively forcing full scan for
+# statistics.
+SET @innodb_stats_transient_sample_pages= @@GLOBAL.innodb_stats_transient_sample_pages;
+SET @@global.innodb_stats_transient_sample_pages=5000000000;
+SET @innodb_stats_persistent_sample_pages= @@GLOBAL.innodb_stats_persistent_sample_pages;
+SET @@global.innodb_stats_persistent_sample_pages=5000000000;
+
 SET GLOBAL innodb_stats_persistent=0;
 -- enable_result_log
 -- enable_query_log
@@ -157,5 +164,7 @@ DROP TABLE t1, t2;
 -- disable_query_log
 -- disable_result_log
 SET GLOBAL innodb_stats_persistent=default;
+SET @@GLOBAL.innodb_stats_transient_sample_pages= @innodb_stats_transient_sample_pages;
+SET @@GLOBAL.innodb_stats_persistent_sample_pages= @innodb_stats_persistent_sample_pages;
 -- enable_result_log
 -- enable_query_log

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,7 +314,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
       Field *from_field, *default_field;
       tmp_field = create_tmp_field(thd, &table, item, item->type(), nullptr,
                                    &from_field, &default_field, false, false,
-                                   false, false, false);
+                                   false, false);
     }
     if (!tmp_field) {
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
@@ -537,7 +537,7 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
     }
   }
 
-  time_t tm = my_time(0);
+  time_t tm = time(nullptr);
   get_date(view->timestamp.str,
            GETDATE_DATE_TIME | GETDATE_GMT | GETDATE_FIXEDLENGTH, tm);
   view->timestamp.length = PARSE_FILE_TIMESTAMPLENGTH;
@@ -650,14 +650,16 @@ bool read_view(TABLE_LIST *view, const dd::View &view_obj, MEM_ROOT *mem_root) {
   CHARSET_INFO *collation =
       dd_get_mysql_charset(view_obj.client_collation_id());
   assert(collation);
-  view->view_client_cs_name.length = strlen(collation->csname);
-  view->view_client_cs_name.str = strdup_root(mem_root, collation->csname);
+  const char *csname = collation->csname;
+  view->view_client_cs_name.length = strlen(csname);
+  view->view_client_cs_name.str = strdup_root(mem_root, csname);
 
   // Get view_connection_cl_name. Note that this is the collation name.
   collation = dd_get_mysql_charset(view_obj.connection_collation_id());
   assert(collation);
-  view->view_connection_cl_name.length = strlen(collation->name);
-  view->view_connection_cl_name.str = strdup_root(mem_root, collation->name);
+  view->view_connection_cl_name.length = strlen(collation->m_coll_name);
+  view->view_connection_cl_name.str =
+      strdup_root(mem_root, collation->m_coll_name);
 
   if (!(view->definer.user.str && view->definer.host.str &&  // OOM
         view->view_body_utf8.str && view->select_stmt.str &&

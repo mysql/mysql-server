@@ -699,11 +699,11 @@ calories smallint unsigned DEFAULT NULL,
 PRIMARY KEY (DishID),
 INDEX i USING HASH (countrycode,calories)
 ) ENGINE=ndbcluster;
-ERROR HY000: Can't create table 'nationaldish'
+ERROR HY000: Can't create table 'nationaldish' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Ndb does not support non-unique hash based indexes'
-Error	1005	Can't create table 'nationaldish'
+Error	1005	Can't create table 'nationaldish' (use SHOW WARNINGS for more info).
 create table nationaldish (DishID int unsigned NOT NULL AUTO_INCREMENT,
 CountryCode char(3) NOT NULL,
 DishTitle varchar(64) NOT NULL,
@@ -733,7 +733,8 @@ default charset = utf8
 collate = utf8_unicode_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1296	Specified key 'x1' was too long (max = 3056 bytes); statistics will not be generated
 insert into t1 values (1,'a'),(2,'y'),(3,'z');
 select * from t1 where b = 'b';
 a	b

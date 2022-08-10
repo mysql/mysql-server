@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,10 @@
 
 ADD_SUBDIRECTORY(bank)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/test/include
 )
 
 NDB_ADD_EXECUTABLE(create_all_tabs create_all_tabs.cpp NDBTEST NDBCLIENT)
@@ -92,12 +93,14 @@ NDB_ADD_EXECUTABLE(DbAsyncGenerator
   NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testSRBank testSRBank.cpp)
 NDB_ADD_EXECUTABLE(test_event_merge test_event_merge.cpp NDBTEST NDBCLIENT)
+TARGET_LINK_LIBRARIES(test_event_merge mysys) # uses handle_options
 NDB_ADD_EXECUTABLE(testNdbinfo testNdbinfo.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testNativeDefault testNativeDefault.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testSpj testSpj.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testLimits testLimits.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testSingleUserMode testSingleUserMode.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testIndexStat testIndexStat.cpp NDBTEST NDBCLIENT)
+TARGET_LINK_LIBRARIES(testIndexStat mysys) # uses handle_options
 NDB_ADD_EXECUTABLE(testRedo testRedo.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testDowngrade testUpgrade.cpp NDBTEST NDBCLIENT MYSQLCLIENT)
 NDB_ADD_EXECUTABLE(testUpgrade testUpgrade.cpp NDBTEST NDBCLIENT MYSQLCLIENT)
@@ -111,7 +114,7 @@ TARGET_LINK_LIBRARIES(testBackup ndbbank ndbNDBT ndbclient_so)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank ndbNDBT ndbclient_so)
 
 IF(WIN32)
-  # Don't build testMgmd on Windows
+  NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST NDBCLIENT)
 ELSE()
   NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST NDBCLIENT)
 ENDIF()

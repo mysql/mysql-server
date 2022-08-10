@@ -1,7 +1,7 @@
 #ifndef PFS_BATCH_MODE_INCLUDED
 #define PFS_BATCH_MODE_INCLUDED
 
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
 
 /// A RAII class to handle turning on batch mode in front of scanning a row
 /// iterator, and then turn it back off afterwards (on destruction).

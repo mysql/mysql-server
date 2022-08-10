@@ -1431,9 +1431,7 @@ ANALYZE TABLE t1;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --echo # ... as compared to this, which will scan both partitions
@@ -1444,9 +1442,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --echo # This will only scan partition p1
@@ -1457,9 +1453,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --echo # This will only scan partition p1 but with a LIMIT
@@ -1470,9 +1464,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --sorted_result
@@ -1486,9 +1478,7 @@ select * from t1;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --let $q = delete from t1 where a+1=5+1
@@ -1498,9 +1488,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --echo # Will only delete from p0
@@ -1511,9 +1499,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --sorted_result
@@ -1533,9 +1519,7 @@ ANALYZE TABLE t2;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5
@@ -1545,9 +1529,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5
@@ -1557,9 +1539,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3
@@ -1569,9 +1549,7 @@ show status like 'Handler_external_lock';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_external_lock';
 
 --sorted_result
@@ -1678,28 +1656,24 @@ DROP TABLE t3;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 --let $q = update t2 set a = 1002 where a = 1001
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 --let $q = update t2 set b = 6 where a = 600
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 --let $q = update t2 set b = 6 where a > 600 and a < 800
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 --let $q = delete from t2 where a > 600
 --replace_column 10 #
@@ -1708,7 +1682,6 @@ show status like 'Handler_read_rnd_next';
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 
 drop table t2;
@@ -1802,18 +1775,15 @@ explain select * from t2 where b > 0 and b < 5;
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
 --let $q = update t2 set a = 111 where b in (5,6,7)
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
+--skip_if_hypergraph  # Different plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
 --let $q = update t2 set a = 222 where b = 7
 
@@ -1831,9 +1801,8 @@ SET @@optimizer_trace="enabled=off";
 }
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
+--skip_if_hypergraph  # Different plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
 --let $q = delete from t2 where b = 8
 --replace_column 10 #
@@ -1851,35 +1820,25 @@ SET @@optimizer_trace="enabled=off";
 }
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
 --let $q = delete from t2 where b > 5
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_prev';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_next';
 --let $q = delete from t2 where b < 5 or b > 3
 --replace_column 10 #
 --eval explain $q
 flush status;
 --eval $q
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_key';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_prev';
---skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_next';
 
 drop table t1, t2;
@@ -2362,3 +2321,181 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 4;
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 > 4;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#32134145 - PARTITION PRUNING FAILS WITH EXPLICIT TIME_ZONE
+--echo # OFFSET IN DATETIME LITERAL
+--echo #
+# Table with 2 partitions, p1 < 2020-02-01 and p2 < 2020-03-01
+CREATE TABLE tp (
+  id int unsigned NOT NULL,
+  ts timestamp NOT NULL,
+  PRIMARY KEY (id, ts)
+)
+PARTITION BY RANGE (unix_timestamp(ts))
+(
+ PARTITION p1 VALUES LESS THAN (1580515200),
+ PARTITION p2 VALUES LESS THAN (1583020800)
+);
+
+SET time_zone = '+00:00';
+
+#Insert one row in each parition
+INSERT INTO tp VALUES (1, '2020-01-01');
+INSERT INTO tp VALUES (1, '2020-02-01');
+
+SELECT COUNT(*) FROM tp PARTITION(p1);
+SELECT COUNT(*) FROM tp PARTITION(p2);
+
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+
+SET time_zone = '+01:00';
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+
+#expect the same result even without partitioning
+ALTER TABLE tp REMOVE PARTITIONING;
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+
+SET time_zone = DEFAULT;
+DROP TABLE tp;
+
+--echo #
+--echo # Bug#33060953 - UPGRADE FROM 5.7 TO 8.0 CHANGE EXECTION PLAN
+--echo # IN PARTITIONED TABLE, EVEN AFTER REVERTING NEW OPTIMIZER FLAG
+--echo #
+
+CREATE TABLE t1 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT)
+PARTITION BY RANGE (pk) (
+    PARTITION p0 VALUES LESS THAN (1),
+    PARTITION p1 VALUES LESS THAN (2),
+    PARTITION p2 VALUES LESS THAN (3),
+    PARTITION p3 VALUES LESS THAN (4),
+    PARTITION p4 VALUES LESS THAN (100)
+);
+CREATE TABLE t2 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT);
+CREATE TABLE t3 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT)
+PARTITION BY RANGE (pk) (
+    PARTITION p0 VALUES LESS THAN (1),
+    PARTITION p1 VALUES LESS THAN (2),
+    PARTITION p2 VALUES LESS THAN (3),
+    PARTITION p3 VALUES LESS THAN (4),
+    PARTITION p4 VALUES LESS THAN (100)
+);
+CREATE TABLE t4 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT);
+CREATE TABLE t5 ( pk INT PRIMARY KEY AUTO_INCREMENT, c INT);
+
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+ALTER TABLE t3 REMOVE PARTITIONING;
+}
+INSERT INTO t1(c) VALUES (1),  (2),  (3),  (4),  (5),  (6),  (7),  (8),  (9),  (10);
+INSERT INTO t1(c) VALUES (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+INSERT INTO t2(c) VALUES (21), (22), (23), (24), (25), (26), (27), (28), (29), (30);
+INSERT INTO t3(c) VALUES (31), (32), (33), (34), (35), (36), (37), (38), (39), (40);
+INSERT INTO t4(c) VALUES (41), (42), (43), (44), (45), (46), (47), (48), (49), (50);
+INSERT INTO t5(c) VALUES (51), (52), (53), (54), (55), (56), (57), (58), (59), (60);
+
+ANALYZE TABLE t1, t2, t3, t4, t5;
+
+--let $SELECT_WITH_JOIN=$MYSQL_TMP_DIR/select_with_join.inc
+--write_file $SELECT_WITH_JOIN
+--let $q=SELECT * FROM $left JOIN $right $cond
+--eval EXPLAIN $q
+--eval $q
+
+--let $q=SELECT * FROM $left LEFT JOIN $right $cond
+--eval EXPLAIN $q
+--eval $q
+
+--let $q=SELECT * FROM $right LEFT JOIN $left $cond
+--eval EXPLAIN $q
+--eval $q
+
+--let $q=SELECT * FROM $right JOIN $left $cond
+--eval EXPLAIN $q
+--eval $q
+EOF
+
+--let $left = t1
+--let $right = t2
+--let $cond = on t1.pk = t2.pk AND t1.pk > 2
+--source $SELECT_WITH_JOIN
+
+--let $right = (t2 LEFT JOIN t3 on t2.pk = t3.pk)
+--source $SELECT_WITH_JOIN
+
+--let $right = ((t2 LEFT JOIN t3 on t2.pk = t3.pk) LEFT JOIN t4 on t2.c = t4.c + 15)
+--source $SELECT_WITH_JOIN
+
+--let $right = (t4 LEFT JOIN (t2 LEFT JOIN t3 on t2.pk = t3.pk) on t2.c = t4.c + 20)
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk)
+--let $right = (t3 LEFT JOIN t4 on t3.pk = t4.pk)
+--let $cond = on t1.pk = t3.pk AND t1.pk < 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2)
+--let $right = ((t5 LEFT JOIN t3 on t5.pk = t3.pk) LEFT JOIN t4 on t5.c = t4.c + 15)
+--let $cond = on t1.pk = t3.pk AND t1.pk < 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3)
+--let $right = (t4 LEFT JOIN (t5 LEFT JOIN t3 on t5.pk = t3.pk) on t5.c = t4.c + 20)
+--let $cond = on t1.pk = t3.pk AND t1.pk > 3
+--source $SELECT_WITH_JOIN
+
+--let $left = t1
+--let $right = t2
+--let $cond = on t1.pk = t2.pk WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)
+--source $SELECT_WITH_JOIN
+
+--let $right = (t2 LEFT JOIN t3 on t2.pk = t3.pk)
+--source $SELECT_WITH_JOIN
+
+--let $left = t2
+--let $right = (SELECT * FROM t1 WHERE t1.pk IN (SELECT pk FROM t3 WHERE pk > 2)) t13
+--let $cond = on t13.pk = t2.pk AND t13.pk > 3
+--source $SELECT_WITH_JOIN
+
+--let $left = t1
+--let $right = t2
+--let $cond = on t1.pk = t2.pk WHERE t1.pk NOT IN (SELECT pk FROM t1 as tx WHERE pk > 2)
+--source $SELECT_WITH_JOIN
+
+--let $right = (t2 LEFT JOIN t3 on t2.pk = t3.pk)
+--source $SELECT_WITH_JOIN
+
+--let $left = t2
+--let $right = (SELECT * FROM t1 WHERE t1.pk NOT IN (SELECT pk FROM t3 WHERE pk > 2)) t13
+--let $cond = on t13.pk = t2.pk AND t13.pk > 3
+--source $SELECT_WITH_JOIN
+
+--let $left = t1
+--let $right = t2
+--let $cond = on t1.pk = t2.pk WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)
+--source $SELECT_WITH_JOIN
+
+--let $left = t2
+--let $right = (SELECT * FROM t1 WHERE t1.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13
+--let $cond = on t13.pk = t2.pk AND t13.pk > 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk)
+--let $right = (t3 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t3.pk = t13.pk)
+--let $cond = on t1.pk = t3.pk AND t1.pk < 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk < 2)
+--let $right = ((t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) LEFT JOIN t4 on t5.c = t4.c + 15)
+--let $cond = on t1.pk = t13.pk AND t1.pk < 3
+--source $SELECT_WITH_JOIN
+
+--let $left = (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3)
+--let $right = (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20)
+--let $cond = on t1.pk = t13.pk AND t1.pk > 3
+--source $SELECT_WITH_JOIN
+
+--remove_file $SELECT_WITH_JOIN
+DROP TABLE t1, t2, t3, t4, t5;

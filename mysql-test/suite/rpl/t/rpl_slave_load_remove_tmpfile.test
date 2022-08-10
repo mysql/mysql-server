@@ -7,14 +7,14 @@
 # ==== Implementation ====
 #
 # Steps:
-#    0 - Set debug variable remove_slave_load_file_before_write. This
+#    0 - Set debug variable remove_replica_load_file_before_write. This
 #        causes the slave to remove the file.
 #    1 - Creates a table and populates it through "LOAD DATA INFILE".
 #    2 - Catches error.
 #
 # ==== References ====
 #
-# BUG#42861: Assigning invalid directories to --slave-load-tmpdir crashes the slave
+# BUG#42861: Assigning invalid directories to --replica-load-tmpdir crashes the slave
 # BUG#11872422: rpl_slave_load_remove_tmpfile fails sporadically in pb2
 
 --source include/not_group_replication_plugin.inc
@@ -27,8 +27,9 @@
 ##########################################################################
 
 connection slave;
---let $old_debug= `SELECT @@GLOBAL.DEBUG`
-SET @@GLOBAL.DEBUG = '+d,remove_slave_load_file_before_write';
+
+--let $debug_point= remove_replica_load_file_before_write
+--source include/add_debug_point.inc
 
 connection master;
 
@@ -54,8 +55,8 @@ connection slave;
 #                         data file is removed the server won't be able to 
 #                         resolve the realpath, ending up stating that we 
 #                         have a mismatch)
-call mtr.add_suppression("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir");
-call mtr.add_suppression("The MySQL server is running with the --slave-load-tmpdir option so it cannot execute this statement.*Error_code: MY-001290");
+call mtr.add_suppression("LOAD DATA INFILE in the slave SQL Thread can only read from --replica-load-tmpdir");
+call mtr.add_suppression("The MySQL server is running with the --replica-load-tmpdir option so it cannot execute this statement.*Error_code: MY-001290");
 --let $slave_sql_errno= 29, 13, 1290
 --source include/wait_for_slave_sql_error.inc
 
@@ -80,7 +81,8 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 
 --let $rpl_only_running_threads= 1
 
-eval SET @@GLOBAL.DEBUG = '$old_debug';
+--let $debug_point= remove_replica_load_file_before_write
+--source include/remove_debug_point.inc
 
 --source include/rpl_end.inc
 

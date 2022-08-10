@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,8 @@ class ha_ndbinfo : public handler {
   ~ha_ndbinfo() override;
 
   const char *table_type() const override { return "NDBINFO"; }
-  ulonglong table_flags() const override {
-    return HA_NO_TRANSACTIONS | HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
-  }
-  ulong index_flags(uint, uint, bool) const override { return 0; }
+  ulonglong table_flags() const override;
+  ulong index_flags(uint, uint, bool) const override;
 
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;
@@ -66,16 +64,21 @@ class ha_ndbinfo : public handler {
 
   bool get_error_message(int error, String *buf) override;
 
-  ha_rows estimate_rows_upper_bound() override {
-    // Estimate "many" rows to be returned so that filesort
-    // allocates buffers properly.
-    // Default impl. for this function is otherwise 10 rows
-    // in case handler hasn't filled in stats.records
-    return HA_POS_ERROR;
-  }
+  uint max_supported_keys() const override { return 1; }
+  bool primary_key_is_clustered() const override { return true; }
+  int index_init(uint index, bool sorted) override;
+  int index_end() override;
+  int index_read(uchar *, const uchar *, uint, enum ha_rkey_function) override;
+  int index_read_map(uchar *, const uchar *, key_part_map,
+                     enum ha_rkey_function find_flag) override;
+  int index_next(uchar *buf) override;
+  int index_prev(uchar *buf) override;
+  int index_first(uchar *buf) override;
+  int index_last(uchar *buf) override;
+  int index_read_last_map(uchar *, const uchar *, key_part_map) override;
 
  private:
-  void unpack_record(uchar *dst_row);
+  int unpack_record(uchar *dst_row);
 
   bool is_open() const;
   bool is_closed() const;

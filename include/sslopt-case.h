@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,4 +47,5 @@ case OPT_SSL_CIPHER:
 case OPT_SSL_CRL:
 case OPT_SSL_CRLPATH:
 case OPT_TLS_VERSION:
+case OPT_SSL_SESSION_DATA:
   break;

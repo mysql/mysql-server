@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef ROUTER_CONFIG_GENERATOR_INCLUDED
 #define ROUTER_CONFIG_GENERATOR_INCLUDED
 
+#include <chrono>
 #include <functional>
 #include <map>
 #include <ostream>
@@ -35,11 +36,12 @@
 
 #include "auto_cleaner.h"
 #include "mysql/harness/filesystem.h"
+#include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/keyring_info.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/sys_user_operations.h"
 #include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
 #include "random_generator.h"
 #include "tcp_address.h"
 #include "unique_ptr.h"
@@ -48,58 +50,8 @@ namespace mysql_harness {
 class Path;
 }
 
-// GCC 4.8.4 requires all classes to be forward-declared before used with
-// "friend class <friendee>", if they're in a different namespace than the
-// friender
 #ifdef FRIEND_TEST
-#include "mysqlrouter/utils.h"  // DECLARE_TEST
-DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_one);
-DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_three);
-DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
-DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_password_directly);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_hashed_password);
-DECLARE_TEST(ConfigGeneratorTest,
-             create_accounts_using_hashed_password_if_not_exists);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_hashed_password);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts_multiple_accounts);
-DECLARE_TEST(ConfigGeneratorTest,
-             create_accounts_multiple_accounts_if_not_exists);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_1);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_2);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_3);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_4);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_5);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_1);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_2);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_3);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_4);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_5);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_6);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_7);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_8);
-DECLARE_TEST(ConfigGeneratorTest, create_router_accounts);
-DECLARE_TEST(ConfigGeneratorTest, fill_options);
-DECLARE_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
-DECLARE_TEST(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);
-DECLARE_TEST(ConfigGeneratorTest, ssl_stage2_bootstrap_connection);
-DECLARE_TEST(ConfigGeneratorTest, ssl_stage3_create_config);
-DECLARE_TEST(ConfigGeneratorTest, empty_config_file);
-DECLARE_TEST(ConfigGeneratorTest, warn_on_no_ssl);
-DECLARE_TEST(ConfigGeneratorTest, set_file_owner_no_user);
-DECLARE_TEST(ConfigGeneratorTest, set_file_owner_user_empty);
-DECLARE_TEST(ConfigGeneratorTest, start_sh);
-DECLARE_TEST(ConfigGeneratorTest, stop_sh);
-DECLARE_TEST(ConfigGeneratorTest, register_router_error_message);
-DECLARE_TEST(ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
-DECLARE_TEST(ConfigGeneratorTest, get_account_host_args);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_basic);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_system_instance);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_base_port);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_skip_tcp);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_use_sockets);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_bind_address);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_disable_rest);
+class TestConfigGenerator;
 #endif
 
 namespace mysqlrouter {
@@ -146,13 +98,14 @@ class ConfigGenerator {
   bool warn_on_no_ssl(const std::map<std::string, std::string> &options);
 
   void bootstrap_system_deployment(
-      const std::string &config_file_path, const std::string &state_file_path,
+      const std::string &program_name, const std::string &config_file_path,
+      const std::string &state_file_path,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const std::map<std::string, std::string> &default_paths);
 
   void bootstrap_directory_deployment(
-      const std::string &directory,
+      const std::string &program_name, const std::string &directory,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const std::map<std::string, std::string> &default_paths);
@@ -171,7 +124,7 @@ class ConfigGenerator {
 
       operator bool() const { return port > 0 || !socket.empty(); }
     };
-    Options() {}
+    Options() = default;
 
     Endpoint rw_endpoint;
     Endpoint ro_endpoint;
@@ -195,6 +148,7 @@ class ConfigGenerator {
 
     mysqlrouter::SSLOptions ssl_options;
 
+    std::chrono::milliseconds ttl;
     bool use_gr_notifications;
 
     bool disable_rest{false};
@@ -215,6 +169,10 @@ class ConfigGenerator {
     std::string server_ssl_crl;
     std::string server_ssl_crlpath;
     std::string server_ssl_verify;
+
+    // only relevant for ClusterSet
+    std::string target_cluster;
+    std::string target_cluster_by_name;
   };
 
   void set_file_owner(
@@ -289,7 +247,8 @@ class ConfigGenerator {
                        const std::map<std::string, std::string> &default_paths,
                        const ExistingConfigOptions &existing_config_options);
 
-  void create_start_script(const std::string &directory,
+  void create_start_script(const std::string &program_name,
+                           const std::string &directory,
                            bool interactive_master_key,
                            const std::map<std::string, std::string> &options);
 
@@ -303,8 +262,8 @@ class ConfigGenerator {
 
   // returns bootstrap report (several lines of human-readable text) if desired
   std::string bootstrap_deployment(
-      std::ostream &config_file, std::ostream &state_file,
-      const mysql_harness::Path &config_file_path,
+      const std::string &program_name, std::ostream &config_file,
+      std::ostream &state_file, const mysql_harness::Path &config_file_path,
       const mysql_harness::Path &state_file_path, const std::string &name,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
@@ -313,40 +272,33 @@ class ConfigGenerator {
 
   std::tuple<std::string> try_bootstrap_deployment(
       uint32_t &router_id, std::string &username, std::string &password,
-      const std::string &router_name, const std::string &cluster_id,
+      const std::string &router_name, const ClusterInfo &cluster_info,
       const std::map<std::string, std::string> &user_options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const Options &options);
 
-  void create_config(std::ostream &config_file, std::ostream &state_file,
-                     uint32_t router_id, const std::string &router_name,
-                     const std::string &system_username,
-                     const ClusterInfo &cluster_info,
-                     const std::string &username, const Options &options,
-                     const std::map<std::string, std::string> &default_paths,
-                     const std::string &state_file_name = "");
+  void create_config(
+      std::ostream &config_file, std::ostream &state_file, uint32_t router_id,
+      const std::string &router_name, const std::string &system_username,
+      const ClusterInfo &cluster_info, const std::string &username,
+      const Options &options,
+      const std::map<std::string, std::string> &default_paths,
+      const std::map<std::string, std::string> &config_overwrites,
+      const std::string &state_file_name = "");
 
   void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
                                  const mysql_harness::Path &config_file_path);
 
-  std::string get_bootstrap_report_text(const std::string &config_file_name,
-                                        const std::string &router_name,
-                                        const std::string &metadata_cluster,
-                                        const std::string &cluster_type_name,
-                                        const std::string &hostname,
-                                        bool is_system_deployment,
-                                        const Options &options);
+  std::string get_bootstrap_report_text(
+      const std::string &program_name, const std::string &config_file_name,
+      const std::string &router_name, const std::string &metadata_cluster,
+      const std::string &cluster_type_name, const std::string &hostname,
+      bool is_system_deployment, const Options &options);
 
   void set_log_file_permissions(
       const std::map<std::string, std::string> &default_paths,
       const std::map<std::string, std::string> &user_options,
       const Options &options);
-
-  static std::string gen_metadata_cache_routing_section(
-      bool is_classic, bool is_writable, const Options::Endpoint endpoint,
-      const Options &options, const std::string &metadata_key,
-      const std::string &metadata_replicaset,
-      const std::string &fast_router_key);
 
   /** @brief Deletes Router accounts just created
    *
@@ -480,9 +432,6 @@ class ConfigGenerator {
 
   void update_router_info(uint32_t router_id, const Options &options);
 
-  static std::string endpoint_option(const Options &options,
-                                     const Options::Endpoint &ep);
-
   bool backup_config_file_if_different(
       const mysql_harness::Path &config_path, const std::string &new_file_path,
       const std::map<std::string, std::string> &options,
@@ -520,22 +469,6 @@ class ConfigGenerator {
                              const std::string &password,
                              const std::string &primary_cluster_name,
                              bool strict);
-
-  /**
-   * @brief Create Router configuration that allows to enable the REST services.
-   *
-   * Create configuration for the following plugins: http_server,
-   * http_auth_realm, rest_router, rest_api, http_auth_backend, rest_routing,
-   * rest_metadata_cache.
-   *
-   * @param[in] options Bootstrap config options.
-   * @param[in] default_paths Map of predefined default paths.
-   *
-   * @return Router configuration that enables the REST services.
-   */
-  std::string generate_config_for_rest(
-      const Options &options,
-      const std::map<std::string, std::string> &default_paths) const;
 
   /**
    * @brief Prepare X.509 certificates for the Router.
@@ -579,7 +512,7 @@ class ConfigGenerator {
   int read_timeout_;
 
   // For GR cluster Group Replication ID, for AR cluster cluster_id from the
-  // metadata
+  // metadata, for ClusterSet clusterset_id
   std::string cluster_specific_id_;
   std::string cluster_initial_hostname_;
   unsigned int cluster_initial_port_;
@@ -613,56 +546,10 @@ class ConfigGenerator {
   SysUserOperationsBase *sys_user_operations_;
 #endif
 
+  mysqlrouter::MetadataSchemaVersion schema_version_;
+
 #ifdef FRIEND_TEST
-  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_one);
-  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_three);
-  FRIEND_TEST(::ConfigGeneratorTest,
-              fetch_bootstrap_servers_multiple_replicasets);
-  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts_using_password_directly);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts_using_hashed_password);
-  FRIEND_TEST(::ConfigGeneratorTest,
-              create_accounts_using_hashed_password_if_not_exists);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts_multiple_accounts);
-  FRIEND_TEST(::ConfigGeneratorTest,
-              create_accounts_multiple_accounts_if_not_exists);
-
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_1);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_2);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_3);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_4);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_5);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_1);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_2);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_3);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_4);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_5);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_6);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_7);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_8);
-  FRIEND_TEST(::ConfigGeneratorTest, create_router_accounts);
-  FRIEND_TEST(::ConfigGeneratorTest, fill_options);
-  FRIEND_TEST(::ConfigGeneratorTest, bootstrap_invalid_name);
-  FRIEND_TEST(::ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);
-  FRIEND_TEST(::ConfigGeneratorTest, ssl_stage2_bootstrap_connection);
-  FRIEND_TEST(::ConfigGeneratorTest, ssl_stage3_create_config);
-  FRIEND_TEST(::ConfigGeneratorTest, empty_config_file);
-  FRIEND_TEST(::ConfigGeneratorTest, warn_on_no_ssl);
-  FRIEND_TEST(::ConfigGeneratorTest, set_file_owner_no_user);
-  FRIEND_TEST(::ConfigGeneratorTest, set_file_owner_user_empty);
-  FRIEND_TEST(::ConfigGeneratorTest, start_sh);
-  FRIEND_TEST(::ConfigGeneratorTest, stop_sh);
-  FRIEND_TEST(::ConfigGeneratorTest, register_router_error_message);
-  FRIEND_TEST(::ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
-  FRIEND_TEST(::ConfigGeneratorTest, get_account_host_args);
-
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_basic);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_system_instance);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_base_port);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_skip_tcp);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_use_sockets);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_bind_address);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_disable_rest);
+  friend class ::TestConfigGenerator;
 #endif
 };
 }  // namespace mysqlrouter

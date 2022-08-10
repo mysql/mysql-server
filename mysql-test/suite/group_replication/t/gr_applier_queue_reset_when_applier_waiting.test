@@ -1,0 +1,193 @@
+################################################################################
+# Validate that COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is reset to 0
+# when applier is free.
+#
+# Steps:
+# 0. The test requires three servers.
+# 1. Start 2 servers.
+#    Only setup recovery_user with GRANT REPLICATION SLAVE on server2
+#    for force server3 to recover from it.
+# 2. Stop applier on server 2 to force the delayed
+#    View_change_log_event log to binary log.
+# 3. Start Group Replication on server3.
+#    It will recover from server2 and will stay on
+#    RECOVERING state waiting for View_change_log_event log.
+# 4. Execute 2 transactions on server1 and 2 while server3
+#    is on RECOVERING.
+# 5. Server 3 will apply INSERT (2) through recovery.
+#    INSERT(1) will only be applied after member is ONLINE.
+# 6. Start applier on server2.
+#    Server3 state will change to ONLINE.
+# 7. Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on all servers.
+# 8. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--let $recovery_user= recovery_user
+--let $recovery_password= recovery_password
+
+--echo
+--echo # 1. Start 2 servers.
+--echo #    Only setup recovery_user with GRANT REPLICATION SLAVE on server2
+--echo #    for force server3 to recover from it.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Stop applier on server 2 to force the delayed
+--echo #    View_change_log_event log to binary log.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_stop_applier_sql_thread.inc
+
+--echo
+--echo # 3. Start Group Replication on server3.
+--echo #    It will recover from server2 and will stay on
+--echo #    RECOVERING state waiting for View_change_log_event log.
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when connecting to the donor server.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master*");
+SET SESSION sql_log_bin= 1;
+
+--disable_warnings
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER= '$recovery_user', SOURCE_PASSWORD= '$recovery_password' FOR CHANNEL 'group_replication_recovery'
+--enable_warnings
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo
+--echo # 4. Execute 2 transactions on server1 and 2 while server3
+--echo #    is on RECOVERING.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2);
+
+--echo
+--echo # 5. Server 3 will apply INSERT (2) through recovery.
+--echo #    INSERT(1) will only be applied after member is ONLINE.
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1"
+--source include/wait_condition.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM t1 WHERE c1=2
+--source include/wait_condition.inc
+
+--let $assert_text= value of 1 is not received.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--echo
+--echo # 6. Start applier on server2.
+--echo #    Server3 state will change to ONLINE.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_start_applier_sql_thread.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--source include/rpl_sync.inc
+
+--echo
+--echo # 7. Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on all servers.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--echo
+--echo # 8. Clean up.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
+--source include/group_replication_end.inc

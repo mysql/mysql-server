@@ -115,6 +115,54 @@ explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 set optimizer_switch = @old_os;
 
+##################
+# Bug#33466554 Prevent optimizer from generating range scans on
+#              unique hash indexes.
+#
+# The query plan for some of the above queries set up a range scan
+# using the HASH-index on (b,c) - That is not an available access type
+# on an 'UNIQUE <key> USING HASH'. Even if set up by the optimizer as such,
+# ha_ndbcluster::read_range_first_to_buf detected that we tried to do
+# use an access type not supported by a UNIQUE_INDEX and did multiple
+# 'full_table_scans' instead.
+
+# Explain some of the relevant queries. Should *not* do
+# range scans on the HASH index. Instead do either full table scan,
+# or a range scan on PK.
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where (b = 3 OR b = 5) AND c IS NULL;
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where b in (1,2,3) AND c IS NULL;
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9;
+
+###############################
+# Bug#33474345  Avoid NULL-constants as part of REF keys.
+#
+# Explains of some tests above where the optimizer set up REF / Index lookup
+# access with a NULL constant on the ix-HASH key, which handler degraded
+# to full_table_scan.
+# Will now reject the usage of ix-index and do an ordered scan on PK instead.
+# More test cases for this bug further below.
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+select * from t2 where c IS NULL order by a;
+--replace_regex /  \(cost=.*//
+explain format=tree
+select * from t2 where b = 3 AND c IS NULL order by a;
+
+
 drop table t2;
 
 #
@@ -541,11 +589,41 @@ from
 #  - Table scan(t1) will 'drive' the case above and eventually
 #    cause all ScanOperations / hupp'ed transactions to have been 
 #    consumed
+#
+# Note that after fixing Bug#33474345, see below, the original test case
+# didn't behave as intended. Thus it was rewritten from using
+# 't2.uq IS NULL' to 't2.uq <=> t1.a+NULL'.
+# I.e. from a known NULL-valued key, to an expression evaluating
+# to NULL at execution time. Note the usage of '<=>' operator which
+# compare NULLs as equal.
+#
+# The original test case became a test case for bug#33474345, where
+# we try to avoid doing such repeated scans whenever possible.
 
 explain
 SELECT STRAIGHT_JOIN count(*) FROM 
-   t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
 SELECT STRAIGHT_JOIN count(*) FROM 
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
+
+#
+# Bug#33474345:
+#     Avoid table REF-access in query plan,
+#     when handler does full table scan.
+#
+# There is a known NULL-constant in the key for a potential
+# REF / Index lookup access on t2, using the 'ix' HASH index. Thus the
+# handler would have fallen back to do repeated full table scan.
+# Avoid that when it can be easily detected by the optimizer.
+#
+# Test case below will now do a single table scan on t2 and hash-join(t1,t2),
+# which is about 10x faster for this query
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+SELECT STRAIGHT_JOIN count(*) FROM
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+SELECT STRAIGHT_JOIN count(*) FROM
    t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 
 drop table t1,t2;
@@ -757,3 +835,107 @@ SELECT t1.i FROM t1, t2
     t1.h = 8 /* use unique index on t1 */;
 
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#33317872 Incorrect Index selected leading to slower execution of queries
+--echo #
+--echo #   When choosing between a Multi-range-read on an unique index,
+--echo #   and a range scan on an ordered index, where few rows are expected
+--echo #   to be returned, prefer the unique index.
+--echo #   (An ordered index scan has higher cost, as all fragments are scanned)
+--echo #
+
+CREATE TABLE t (
+  delivery_id bigint unsigned NOT NULL AUTO_INCREMENT,
+  msg_id int unsigned NOT NULL,
+  auth_login_type char(1) DEFAULT NULL,
+  auth_login_id varchar(64),
+  PRIMARY KEY (delivery_id),
+  UNIQUE KEY msg_id(msg_id,auth_login_type,auth_login_id),
+  KEY auth_login_id(auth_login_id)
+) ENGINE=ndbcluster;
+
+disable_query_log;
+
+insert into t (msg_id, auth_login_type, auth_login_id) values
+(4866, '5', '91774132'), (4869, '5', '91884132');
+insert into t (msg_id, auth_login_type, auth_login_id) values
+(4866, '5', '91774134'), (4869, '5', '91884134');
+
+insert into t (msg_id, auth_login_type, auth_login_id) values
+(4866, '4', '91774133'), (4869, '4', '91884133');
+insert into t (msg_id, auth_login_type, auth_login_id) values
+(4866, '6', '91774133'), (4869, '6', '91884133');
+
+insert into t (msg_id, auth_login_type, auth_login_id) values
+(4865, '5', '91774133'), (4868, '5', '91774133');
+insert into t (msg_id, auth_login_type, auth_login_id) values
+(4867, '5', '91774133'), (4870, '5', '91774133');
+# ^^^ Add some more rows, none will match the query
+
+# Use these as base for filling in more rows
+insert into t (msg_id, auth_login_type, auth_login_id) select
+  msg_id - 4800, auth_login_type, auth_login_id+10 from t;
+
+insert into t  (msg_id, auth_login_type, auth_login_id) select
+  msg_id + 1000, auth_login_type, auth_login_id+20 from t where msg_id < 100;
+insert into t  (msg_id, auth_login_type, auth_login_id) select
+  msg_id + 2000, auth_login_type, auth_login_id+30 from t where msg_id < 100;
+insert into t  (msg_id, auth_login_type, auth_login_id) select
+  msg_id + 3000, auth_login_type, auth_login_id+40 from t where msg_id < 100;
+
+insert into t  (msg_id, auth_login_type, auth_login_id) select
+  msg_id + 5000, auth_login_type, auth_login_id+50 from t where msg_id < 100;
+insert into t  (msg_id, auth_login_type, auth_login_id) select
+  msg_id + 6000, auth_login_type, auth_login_id+60 from t where msg_id < 100;
+insert into t  (msg_id, auth_login_type, auth_login_id) select
+  msg_id + 7000, auth_login_type, auth_login_id+70 from t where msg_id < 100;
+
+
+##########################################
+# Statistics is asynchronous: We can not predict when it
+# is available in the statistics cache, and thus which
+# statistics is being used for the query. Thus we
+# need to cheat:
+#
+# We 'analyze' without the rows to be select yet inserted.
+# -> statistics will predictable contain 0 rows to be returned.
+# Which is 'rounded' up to 2 rows, which are the lowest number of
+# rows allowed to be estimated from non unique indexes.
+#
+# Note that the estimated 2 rows is actually what _is_ in the table
+# as well, when we later insert these rows below!
+
+analyze table t;
+enable_query_log;
+
+##########################################
+# Then insert the rows we want returned, without being part of the statistics
+insert into t (msg_id, auth_login_type, auth_login_id) values
+  (4866, '5', '81774133'),
+  (4869, '5', '81774133');
+# ^^^^ Rows we want from the query
+
+# optimizer trace, For debugging, or understanding of test case + bug:
+#
+# If enabled, we will find that optimizer first calculate the range-access
+# cost, using handler ::cost methods, and correctly find the msg_id to
+# have the lowest cost.
+# Possible REF-accesses are then investigated and estimated: However, these
+# cost estimates was 'pre-patch' based in an entirely different page/cache
+# cost metric, not being compare compatible with the former. A lower cost
+# was found for using REF access on auth_login_id index, incorrectly causing
+# this index to to be used for the table access.
+#
+#SET optimizer_trace_max_mem_size=1048576; # 1MB
+#SET end_markers_in_json=on;
+#SET optimizer_trace="enabled=on,one_line=off";
+
+explain format=tree
+  select * from t
+  where auth_login_type='5' AND auth_login_id = '81774133' AND msg_id IN (4866,4869);
+
+#SELECT * FROM information_schema.optimizer_trace;
+
+drop table t;

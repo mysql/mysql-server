@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ struct DbinfoScanCursor
 
 struct DbinfoScan
 {
-  STATIC_CONST( SignalLength = 12 );
+  static constexpr Uint32 SignalLength = 12;
 
   // API identifiers
   Uint32 resultData;      // Will be returned in TransIdAI::connectPtr
@@ -74,7 +74,7 @@ typedef DbinfoScan DbinfoScanConf;
 
 struct DbinfoScanRef
 {
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   // API identifiers
   Uint32 resultData;      // Will be returned in TransIdAI::connectPtr

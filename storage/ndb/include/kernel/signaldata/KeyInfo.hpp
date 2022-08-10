@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,19 +46,19 @@ class KeyInfo {
   friend class Dbtc;
   
 public:
-  STATIC_CONST( HeaderLength = 3 );
-  STATIC_CONST( DataLength = 20 );
-  STATIC_CONST( MaxSignalLength = HeaderLength + DataLength );
+  static constexpr Uint32 HeaderLength = 3;
+  static constexpr Uint32 DataLength = 20;
+  static constexpr Uint32 MaxSignalLength = HeaderLength + DataLength;
   
   /* IndexBound constants */
-  STATIC_CONST( PerBoundColumnOverhead = 2 );
+  static constexpr Uint32 PerBoundColumnOverhead = 2;
   /* Max number of key columns with max total key size */
-  STATIC_CONST( MaxWordsPerBoundRow =   \
-                (PerBoundColumnOverhead * MAX_ATTRIBUTES_IN_INDEX)    \
-                + MAX_KEY_SIZE_IN_WORDS );
+  static constexpr Uint32 MaxWordsPerBoundRow =
+                (PerBoundColumnOverhead * MAX_ATTRIBUTES_IN_INDEX)
+                + MAX_KEY_SIZE_IN_WORDS;
   /* Single key column with max total key size */
-  STATIC_CONST( MaxWordsPerBoundColumn =     \
-                PerBoundColumnOverhead + MAX_KEY_SIZE_IN_WORDS );
+  static constexpr Uint32 MaxWordsPerBoundColumn =
+                PerBoundColumnOverhead + MAX_KEY_SIZE_IN_WORDS;
 
 private:
   Uint32 connectPtr;

@@ -17,6 +17,12 @@ ALTER TABLE performance_schema.replication_applier_configuration
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON
   performance_schema.replication_applier_configuration(desired_delay);
+
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `PRIMARY`
   ON performance_schema.replication_applier_configuration;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.replication_applier_configuration;
+
+DROP TABLE test.create_select;

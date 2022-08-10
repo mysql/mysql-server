@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ long long myfunc_int(UDF_INIT *, UDF_ARGS *args, unsigned char *,
       case INT_RESULT: /* Add numbers */
         val += *((long long *)args->args[i]);
         break;
-      case REAL_RESULT: /* Add numers as long long */
+      case REAL_RESULT: /* Add numbers as long long */
         val += (long long)*((double *)args->args[i]);
         break;
       default:

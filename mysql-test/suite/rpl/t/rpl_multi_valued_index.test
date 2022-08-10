@@ -83,7 +83,6 @@ DROP TABLE t1;
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
 
-SET @@global.transaction_write_set_extraction = 'XXHASH64';
 SET @save_btdt= @@global.binlog_transaction_dependency_tracking;
 SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
 

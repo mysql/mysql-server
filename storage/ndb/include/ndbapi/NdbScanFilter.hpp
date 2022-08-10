@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,8 @@ public:
   NdbScanFilter(class NdbOperation * op);
 
   ~NdbScanFilter();
+
+  void setSqlCmpSemantics();
   
   /**
    *  Group operators
@@ -167,6 +169,8 @@ public:
    *  �return  0 if successful, -1 otherwise
    */
   int cmp(BinaryCondition cond, int ColId1, int ColId2);
+
+  int cmp_param(BinaryCondition cond, int ColId, int ParamId);
 
   /** 
    * @name Integer Comparators

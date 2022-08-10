@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,14 +30,7 @@
 #include <stdexcept>
 #include <system_error>
 
-#include "common.h"
 #include "mysql/harness/filesystem.h"
-
-#ifdef _WIN32
-#include <aclapi.h>
-#else
-#include <sys/stat.h>
-#endif
 
 const std::array<char, 4> kKeyringFileSignature = {'M', 'R', 'K', 'R'};
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,77 +50,77 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* !UNIV_HOTBACKUP */
 
 /** Creates an update vector object.
-@param[in]	n	number of fields
-@param[in]	heap	heap from which memory allocated
+@param[in]      n       number of fields
+@param[in]      heap    heap from which memory allocated
 @return own: update vector object */
-UNIV_INLINE
-upd_t *upd_create(ulint n, mem_heap_t *heap);
+static inline upd_t *upd_create(ulint n, mem_heap_t *heap);
 
 /** Returns the number of fields in the update vector == number of columns
  to be updated by an update vector.
  @return number of fields */
-UNIV_INLINE
-ulint upd_get_n_fields(const upd_t *update); /*!< in: update vector */
+static inline ulint upd_get_n_fields(
+    const upd_t *update); /*!< in: update vector */
 
 #ifdef UNIV_DEBUG
 /** Returns the nth field of an update vector.
-@param[in]	update	update vector
-@param[in]	n	field position in update vector
+@param[in]      update  update vector
+@param[in]      n       field position in update vector
 @return update vector field */
-UNIV_INLINE
-upd_field_t *upd_get_nth_field(const upd_t *update, ulint n);
+static inline upd_field_t *upd_get_nth_field(const upd_t *update, ulint n);
 #else
 #define upd_get_nth_field(update, n) ((update)->fields + (n))
 #endif
 /** Sets an index field number to be updated by an update vector field.
-@param[in]	upd_field	update vector field
-@param[in]	field_no	field number in a clustered index
-@param[in]	index		index
-@param[in]	trx		transaction */
-UNIV_INLINE
-void upd_field_set_field_no(upd_field_t *upd_field, ulint field_no,
-                            const dict_index_t *index, trx_t *trx);
+@param[in]      upd_field       update vector field
+@param[in]      field_no        field number in a clustered index
+@param[in]      index           index */
+static inline void upd_field_set_field_no(upd_field_t *upd_field,
+                                          ulint field_no,
+                                          const dict_index_t *index);
 
 /** set field number to a update vector field, marks this field is updated
-@param[in,out]	upd_field	update vector field
-@param[in]	field_no	virtual column sequence num
-@param[in]	index		index */
-UNIV_INLINE
-void upd_field_set_v_field_no(upd_field_t *upd_field, ulint field_no,
-                              const dict_index_t *index);
+@param[in,out]  upd_field       update vector field
+@param[in]      field_no        virtual column sequence num
+@param[in]      index           index */
+static inline void upd_field_set_v_field_no(upd_field_t *upd_field,
+                                            ulint field_no,
+                                            const dict_index_t *index);
 /** Returns a field of an update vector by field_no.
- @return update vector field, or NULL */
-UNIV_INLINE
-const upd_field_t *upd_get_field_by_field_no(
-    const upd_t *update, /*!< in: update vector */
-    ulint no,            /*!< in: field_no */
-    bool is_virtual)     /*!< in: if it is a virtual column */
-    MY_ATTRIBUTE((warn_unused_result));
+@param[in] update     Update vector.
+@param[in] no         Field no.
+@param[in] is_virtual If it is a virtual column.
+@return update vector field, or nullptr. */
+[[nodiscard]] static inline const upd_field_t *upd_get_field_by_field_no(
+    const upd_t *update, ulint no, bool is_virtual);
 /** Writes into the redo log the values of trx id and roll ptr and enough info
- to determine their positions within a clustered index record.
- @return new pointer to mlog */
-byte *row_upd_write_sys_vals_to_log(
-    dict_index_t *index, /*!< in: clustered index */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    roll_ptr_t roll_ptr, /*!< in: roll ptr of the undo log record */
-    byte *log_ptr,       /*!< pointer to a buffer of size > 20 opened
-                         in mlog */
-    mtr_t *mtr);         /*!< in: mtr */
+to determine their positions within a clustered index record.
+@param[in] index    Clustered index.
+@param[in] trx_id   Transaction ID.
+@param[in] roll_ptr Roll ptr of the undo log record.
+@param[in] log_ptr  Pointer to a buffer of size > 20 opened in mlog.
+@param[in] mtr      Mini-transaction.
+@return new pointer to mlog */
+byte *row_upd_write_sys_vals_to_log(dict_index_t *index, trx_id_t trx_id,
+                                    roll_ptr_t roll_ptr, byte *log_ptr,
+                                    mtr_t *mtr);
 
+#ifndef UNIV_HOTBACKUP
 /** Updates the trx id and roll ptr field in a clustered index record when a
 row is updated or marked deleted.
-@param[in,out]	rec		record
-@param[in,out]	page_zip	compressed page whose uncompressed part will
+@param[in,out]  rec             record
+@param[in,out]  page_zip        compressed page whose uncompressed part will
                                 be updated, or NULL
-@param[in]	index		clustered index
-@param[in]	offsets		rec_get_offsets(rec, index)
-@param[in]	trx		transaction
-@param[in]	roll_ptr	roll ptr of the undo log record, can be 0
+@param[in]      index           clustered index
+@param[in]      offsets         rec_get_offsets(rec, index)
+@param[in]      trx             transaction
+@param[in]      roll_ptr        roll ptr of the undo log record, can be 0
                                 during IMPORT */
-UNIV_INLINE
-void row_upd_rec_sys_fields(rec_t *rec, page_zip_des_t *page_zip,
-                            const dict_index_t *index, const ulint *offsets,
-                            const trx_t *trx, roll_ptr_t roll_ptr);
+static inline void row_upd_rec_sys_fields(rec_t *rec, page_zip_des_t *page_zip,
+                                          const dict_index_t *index,
+                                          const ulint *offsets,
+                                          const trx_t *trx,
+                                          roll_ptr_t roll_ptr);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Sets the trx id or roll ptr field of a clustered index entry.
 @param[in,out] entry Index entry, where the memory buffers for sys fields are
@@ -129,7 +129,7 @@ already allocated: the function just copies the new values to them
 @param[in] type Data_trx_id or data_roll_ptr
 @param[in] val Value to write */
 void row_upd_index_entry_sys_field(dtuple_t *entry, dict_index_t *index,
-                                   ulint type, ib_uint64_t val);
+                                   ulint type, uint64_t val);
 
 /** Creates an update node for a query graph.
  @return own: update node */
@@ -137,28 +137,27 @@ upd_node_t *upd_node_create(
     mem_heap_t *heap); /*!< in: mem heap where created */
 
 /** Writes to the redo log the new values of the fields occurring in the index.
-@param[in]	index	index which to be updated
-@param[in]	update	update vector
-@param[in]	log_ptr	pointer to mlog buffer: must contain at least
+@param[in]      index   index which to be updated
+@param[in]      update  update vector
+@param[in]      log_ptr pointer to mlog buffer: must contain at least
                         MLOG_BUF_MARGIN bytes of free space; the buffer
                         is closed within this function
-@param[in]	mtr	mtr into whose log to write */
+@param[in]      mtr     mtr into whose log to write */
 void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
                              byte *log_ptr, mtr_t *mtr);
 
-/** Returns TRUE if row update changes size of some field in index or if some
+/** Returns true if row update changes size of some field in index or if some
  field to be updated is stored externally in rec or update.
  @return true if the update changes the size of some field in index or
  the field is external in rec or update */
-ibool row_upd_changes_field_size_or_external(
+bool row_upd_changes_field_size_or_external(
     const dict_index_t *index, /*!< in: index */
     const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
     const upd_t *update);      /*!< in: update vector */
 /** Returns true if row update contains disowned external fields.
  @return true if the update contains disowned external fields. */
-bool row_upd_changes_disowned_external(
-    const upd_t *update) /*!< in: update vector */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool row_upd_changes_disowned_external(
+    const upd_t *update); /*!< in: update vector */
 /** Replaces the new column values stored in the update vector to the
  record given. No field size changes are allowed. This function is
  usually invoked on a clustered index. The only use case for a
@@ -175,36 +174,33 @@ void row_upd_rec_in_place(
  differ from a record that has the equal ordering fields. NOTE: we compare
  the fields as binary strings!
  @return own: update vector of differing fields */
-upd_t *row_upd_build_sec_rec_difference_binary(
+[[nodiscard]] upd_t *row_upd_build_sec_rec_difference_binary(
     const rec_t *rec,      /*!< in: secondary index record */
     dict_index_t *index,   /*!< in: index */
     const ulint *offsets,  /*!< in: rec_get_offsets(rec, index) */
     const dtuple_t *entry, /*!< in: entry to insert */
-    mem_heap_t *heap)      /*!< in: memory heap from which allocated */
-    MY_ATTRIBUTE((warn_unused_result));
+    mem_heap_t *heap);     /*!< in: memory heap from which allocated */
 /** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
-@param[in]	index		clustered index
-@param[in]	entry		clustered index entry to insert
-@param[in]	rec		clustered index record
-@param[in]	offsets		rec_get_offsets(rec,index), or NULL
-@param[in]	no_sys		skip the system columns
+@param[in]      index           clustered index
+@param[in]      entry           clustered index entry to insert
+@param[in]      rec             clustered index record
+@param[in]      offsets         rec_get_offsets(rec,index), or NULL
+@param[in]      no_sys          skip the system columns
                                 DB_TRX_ID and DB_ROLL_PTR
-@param[in]	trx		transaction (for diagnostics),
+@param[in]      trx             transaction (for diagnostics),
                                 or NULL
-@param[in]	heap		memory heap from which allocated
-@param[in]	mysql_table	NULL, or mysql table object when
+@param[in]      heap            memory heap from which allocated
+@param[in]      mysql_table     NULL, or mysql table object when
                                 user thread invokes dml
-@param[out]	error		error number in case of failure
+@param[out]     error           error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
-upd_t *row_upd_build_difference_binary(dict_index_t *index,
-                                       const dtuple_t *entry, const rec_t *rec,
-                                       const ulint *offsets, bool no_sys,
-                                       trx_t *trx, mem_heap_t *heap,
-                                       TABLE *mysql_table, dberr_t *error)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] upd_t *row_upd_build_difference_binary(
+    dict_index_t *index, const dtuple_t *entry, const rec_t *rec,
+    const ulint *offsets, bool no_sys, trx_t *trx, mem_heap_t *heap,
+    TABLE *mysql_table, dberr_t *error);
 
 /** Replaces the new column values stored in the update vector to the index
  entry given.
@@ -219,7 +215,7 @@ index; note that this does not work for non-clustered indexes.
 void row_upd_index_replace_new_col_vals_index_pos(dtuple_t *entry,
                                                   const dict_index_t *index,
                                                   const upd_t *update,
-                                                  ibool order_only,
+                                                  bool order_only,
                                                   mem_heap_t *heap);
 
 /** Replaces the new column values stored in the update vector to the index
@@ -235,7 +231,6 @@ void row_upd_index_replace_new_col_vals(dtuple_t *entry,
                                         const upd_t *update, mem_heap_t *heap);
 
 /** Replaces the new column values stored in the update vector.
-@param[in] trx Current transaction.
 @param[in,out] row Row where replaced, indexed by col_no; the clustered index
 record must be covered by a lock or a page latch to prevent deletion (rollback
 or purge)
@@ -243,18 +238,17 @@ or purge)
 @param[in] index Clustered index
 @param[in] update An update vector built for the clustered index
 @param[in] heap Memory heap */
-void row_upd_replace(trx_t *trx, dtuple_t *row, row_ext_t **ext,
-                     const dict_index_t *index, const upd_t *update,
-                     mem_heap_t *heap);
+void row_upd_replace(dtuple_t *row, row_ext_t **ext, const dict_index_t *index,
+                     const upd_t *update, mem_heap_t *heap);
 
 /** Replaces the virtual column values stored in a dtuple with that of
 a update vector.
-@param[in,out]	row	dtuple whose column to be updated
-@param[in]	table	table
-@param[in]	update	an update vector built for the clustered index
-@param[in]	upd_new	update to new or old value
-@param[in,out]	undo_row undo row (if needs to be updated)
-@param[in]	ptr	remaining part in update undo log */
+@param[in,out]  row     dtuple whose column to be updated
+@param[in]      table   table
+@param[in]      update  an update vector built for the clustered index
+@param[in]      upd_new update to new or old value
+@param[in,out]  undo_row undo row (if needs to be updated)
+@param[in]      ptr     remaining part in update undo log */
 void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
                           const upd_t *update, bool upd_new, dtuple_t *undo_row,
                           const byte *ptr);
@@ -266,47 +260,35 @@ gets updated or not.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings!
-@param[in]	index		index of the record
-@param[in]	update		update vector for the row; NOTE: the
+@param[in]      index           index of the record
+@param[in]      update          update vector for the row; NOTE: the
                                 field numbers in this MUST be clustered index
-                                positions! */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	thr		query thread, or NULL */
-#endif /* UNIV_DEBUG */
-/**
-@param[in]	row		old value of row, or NULL if the
+                                positions!
+@param[in]      thr             query thread, or NULL
+@param[in]      row             old value of row, or NULL if the
                                 row and the data values in update are not
                                 known when this function is called, e.g., at
                                 compile time
-@param[in]	ext		NULL, or prefixes of the externally
+@param[in]      ext             NULL, or prefixes of the externally
                                 stored columns in the old row
-@param[in,out]	non_mv_upd	NULL, or not NULL pointer to get the
+@param[in,out]  non_mv_upd      NULL, or not NULL pointer to get the
                                 information about whether any non-multi-value
                                 field on the multi-value index gets updated
-@param[in]	flag		ROW_BUILD_NORMAL, ROW_BUILD_FOR_PURGE or
+@param[in]      flag            ROW_BUILD_NORMAL, ROW_BUILD_FOR_PURGE or
                                 ROW_BUILD_FOR_UNDO
 @return true if update vector changes an ordering field in the index record */
-bool row_upd_changes_ord_field_binary_func(dict_index_t *index,
-                                           const upd_t *update,
-#ifdef UNIV_DEBUG
-                                           const que_thr_t *thr,
-#endif /* UNIV_DEBUG */
-                                           const dtuple_t *row,
-                                           const row_ext_t *ext,
-                                           bool *non_mv_upd, ulint flag)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool row_upd_changes_ord_field_binary_func(
+    dict_index_t *index, const upd_t *update,
+    IF_DEBUG(const que_thr_t *thr, ) const dtuple_t *row, const row_ext_t *ext,
+    bool *non_mv_upd, ulint flag);
 
-#ifdef UNIV_DEBUG
-#define row_upd_changes_ord_field_binary(index, update, thr, row, ext, \
-                                         non_mv_upd)                   \
-  row_upd_changes_ord_field_binary_func(index, update, thr, row, ext,  \
-                                        non_mv_upd, 0)
-#else /* UNIV_DEBUG */
-#define row_upd_changes_ord_field_binary(index, update, thr, row, ext, \
-                                         non_mv_upd)                   \
-  row_upd_changes_ord_field_binary_func(index, update, row, ext, non_mv_upd, 0)
-#endif /* UNIV_DEBUG */
+static inline bool row_upd_changes_ord_field_binary(
+    dict_index_t *index, const upd_t *update,
+    const que_thr_t *thr [[maybe_unused]], const dtuple_t *row,
+    const row_ext_t *ext, bool *non_mv_upd) {
+  return row_upd_changes_ord_field_binary_func(
+      index, update, IF_DEBUG(thr, ) row, ext, non_mv_upd, 0);
+}
 
 /** Checks if an FTS indexed column is affected by an UPDATE.
  @return offset within fts_t::indexes if FTS indexed column updated else
@@ -316,27 +298,25 @@ ulint row_upd_changes_fts_column(
     upd_field_t *upd_field); /*!< in: field to check */
 /** Checks if an FTS Doc ID column is affected by an UPDATE.
  @return whether Doc ID column is affected */
-bool row_upd_changes_doc_id(dict_table_t *table,    /*!< in: table */
-                            upd_field_t *upd_field) /*!< in: field to check */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool row_upd_changes_doc_id(
+    dict_table_t *table,     /*!< in: table */
+    upd_field_t *upd_field); /*!< in: field to check */
 /** Checks if an update vector changes an ordering field of an index record.
  This function is fast if the update vector is short or the number of ordering
  fields in the index is small. Otherwise, this can be quadratic.
  NOTE: we compare the fields as binary strings!
  @return true if update vector may change an ordering field in an index
  record */
-ibool row_upd_changes_some_index_ord_field_binary(
+bool row_upd_changes_some_index_ord_field_binary(
     const dict_table_t *table, /*!< in: table */
     const upd_t *update);      /*!< in: update vector for the row */
 
 /** Stores to the heap the row on which the node->pcur is positioned.
-@param[in]	trx		the transaction object
-@param[in]	node		row update node
-@param[in]	thd		mysql thread handle
-@param[in,out]	mysql_table	NULL, or mysql table object when
+@param[in]      node            row update node
+@param[in]      thd             mysql thread handle
+@param[in,out]  mysql_table     NULL, or mysql table object when
                                 user thread invokes dml */
-void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
-                       TABLE *mysql_table);
+void row_upd_store_row(upd_node_t *node, THD *thd, TABLE *mysql_table);
 
 /** Updates a row in a table. This is a high-level function used
  in SQL execution graphs.
@@ -372,13 +352,13 @@ byte *row_upd_index_parse(const byte *ptr,     /*!< in: buffer */
 
 /** Get the new autoinc counter from the update vector when there is
 an autoinc field defined in this table.
-@param[in]	update			update vector for the clustered index
-@param[in]	autoinc_field_no	autoinc field's order in clustered index
+@param[in]      update                  update vector for the clustered index
+@param[in]      autoinc_field_no        autoinc field's order in clustered index
 @return the new counter if we find it in the update vector, otherwise 0.
 We don't mind that the new counter happens to be 0, we just care about
 non-zero counters. */
-ib_uint64_t row_upd_get_new_autoinc_counter(const upd_t *update,
-                                            ulint autoinc_field_no);
+uint64_t row_upd_get_new_autoinc_counter(const upd_t *update,
+                                         ulint autoinc_field_no);
 
 /** This structure is used for undo logging of LOB index changes. */
 struct lob_index_diff_t {
@@ -386,7 +366,7 @@ struct lob_index_diff_t {
   undo_no_t m_modifier_undo_no;
 
   /** Print the current object into the given output stream.
-  @param[in,out]	out	the output stream.
+  @param[in,out]        out     the output stream.
   @return the output stream. */
   std::ostream &print(std::ostream &out) const {
     out << "[lob_index_diff_t: m_modifier_trxid=" << m_modifier_trxid
@@ -399,8 +379,8 @@ using Lob_index_diff_vec =
     std::vector<lob_index_diff_t, mem_heap_allocator<lob_index_diff_t>>;
 
 /** Overloading the global output operator to print lob_index_diff_t object.
-@param[in,out]	out	the output stream.
-@param[in]	obj	the object to be printed.
+@param[in,out]  out     the output stream.
+@param[in]      obj     the object to be printed.
 @return the output stream.*/
 inline std::ostream &operator<<(std::ostream &out,
                                 const lob_index_diff_t &obj) {
@@ -506,6 +486,7 @@ struct upd_field_t {
                           this is the position in the secondary
                           index, also it could be the position
                           in virtual index for virtual column */
+  IF_DEBUG(uint16_t field_phy_pos{UINT16_MAX};)
   unsigned orig_len : 16; /*!< original length of the locally
                           stored part of an externally stored
                           column, or 0 */
@@ -565,40 +546,60 @@ inline std::ostream &operator<<(std::ostream &out, const upd_field_t &obj) {
 }
 
 /* check whether an update field is on virtual column */
-#define upd_fld_is_virtual_col(upd_fld) \
-  (((upd_fld)->new_val.type.prtype & DATA_VIRTUAL) == DATA_VIRTUAL)
+static inline bool upd_fld_is_virtual_col(const upd_field_t *upd_fld) {
+  return (upd_fld->new_val.type.prtype & DATA_VIRTUAL) == DATA_VIRTUAL;
+}
 
 /* check whether an update field is on multi-value virtual column */
-#define upd_fld_is_multi_value_col(upd_fld) \
-  (dfield_is_multi_value(&((upd_fld)->new_val)))
+static inline bool upd_fld_is_multi_value_col(const upd_field_t *upd_fld) {
+  return dfield_is_multi_value(&upd_fld->new_val);
+}
 
 /* set DATA_VIRTUAL bit on update field to show it is a virtual column */
-#define upd_fld_set_virtual_col(upd_fld) \
-  ((upd_fld)->new_val.type.prtype |= DATA_VIRTUAL)
+static inline void upd_fld_set_virtual_col(upd_field_t *upd_fld) {
+  upd_fld->new_val.type.prtype |= DATA_VIRTUAL;
+}
 
 /* Update vector structure */
 struct upd_t {
-  mem_heap_t *heap;    /*!< heap from which memory allocated */
-  ulint info_bits;     /*!< new value of info bits to record;
-                       default is 0 */
-  dtuple_t *old_vrow;  /*!< pointer to old row, used for
-                       virtual column update now */
-  dict_table_t *table; /*!< the table object */
-  TABLE *mysql_table;  /*!< the mysql table object */
+  /** Heap from which memory allocated. This is not a new heap, rather
+  will point to other heap. Therefore memory allocated from this heap
+  is released when the pointed heap is freed or emptied. */
+  mem_heap_t *heap;
 
-  ulint n_fields;      /*!< number of update fields */
-  upd_field_t *fields; /*!< array of update fields */
+  /** Heap from which memory is allocated if required only for current
+  statement. This heap is emtied at the end of statement from inside
+  ha_innobase::end_stmt(). */
+  mem_heap_t *per_stmt_heap;
+
+  /** New value of info bits to record; default is 0. */
+  ulint info_bits;
+
+  /** Pointer to old row, used for virtual column update now. */
+  dtuple_t *old_vrow;
+
+  /** The table object. */
+  dict_table_t *table;
+
+  /** The mysql table object. */
+  TABLE *mysql_table;
+
+  /** Number of update fields. */
+  ulint n_fields;
+
+  /** Array of update fields. */
+  upd_field_t *fields;
 
   /** Append an update field to the end of array
-  @param[in]	field	an update field */
+  @param[in]    field   an update field */
   void append(const upd_field_t &field) { fields[n_fields++] = field; }
 
   /** Determine if the given field_no is modified.
   @return true if modified, false otherwise.  */
   bool is_modified(const ulint field_no) const {
     if (table == nullptr) {
-      ut_ad(false);
-      return false;
+      ut_d(ut_error);
+      ut_o(return false);
     }
 
     return (get_field_by_field_no(field_no, table->first_index()) != nullptr);
@@ -624,7 +625,7 @@ struct upd_t {
 #endif  // UNIV_DEBUG
 
   /** Check if the given field number is partially updated.
-  @param[in]	field_no	the field number.
+  @param[in]    field_no        the field number.
   @return true if partially updated, false otherwise. */
   bool is_partially_updated(ulint field_no) const;
 
@@ -633,7 +634,7 @@ struct upd_t {
   const Binary_diff_vector *get_binary_diff_by_field_no(ulint field_no) const;
 
   /** Calculate the total number of bytes modified in one BLOB.
-  @param[in]	bdv	the binary diff vector containing all the
+  @param[in]    bdv     the binary diff vector containing all the
                           modifications to one BLOB.
   @return the total modified bytes. */
   static size_t get_total_modified_bytes(const Binary_diff_vector &bdv) {
@@ -644,25 +645,42 @@ struct upd_t {
     return (total);
   }
 
+  /** Empty the per_stmt_heap. */
+  void empty_per_stmt_heap() {
+    if (per_stmt_heap != nullptr) {
+      mem_heap_empty(per_stmt_heap);
+    }
+  }
+
+  /** Free the per_stmt_heap. */
+  void free_per_stmt_heap() {
+    if (per_stmt_heap != nullptr) {
+      mem_heap_free(per_stmt_heap);
+      per_stmt_heap = nullptr;
+    }
+  }
+
   std::ostream &print(std::ostream &out) const;
 
   /** Print the partial update vector (puvect) of the given update
   field.
-  @param[in,out]	out	the output stream
-  @param[in]	uf	the updated field.
+  @param[in,out]        out     the output stream
+  @param[in]    uf      the updated field.
   @return the output stream. */
   std::ostream &print_puvect(std::ostream &out, upd_field_t *uf) const;
 };
 
 #ifdef UNIV_DEBUG
 /** Print the given binary diff into the given output stream.
-@param[in]	out	the output stream
-@param[in]	bdiff	binary diff to be printed.
-@param[in]	table	the table dictionary object.
-@param[in]	field	mysql field object.
+@param[in]      out     the output stream
+@param[in]      bdiff   binary diff to be printed.
+@param[in]      table   the table dictionary object.
+@param[in]      field   mysql field object.
+@param[in]  print_old prints old data of the updated field
 @return the output stream */
 std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
-                                const dict_table_t *table, const Field *field);
+                                const dict_table_t *table, const Field *field,
+                                bool print_old);
 
 std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff);
 
@@ -670,8 +688,7 @@ inline std::ostream &operator<<(std::ostream &out, const upd_t &obj) {
   return (obj.print(out));
 }
 
-inline std::ostream &operator<<(std::ostream &out,
-                                const Binary_diff_vector &obj) {
+inline std::ostream &operator<<(std::ostream &out, const Binary_diff_vector &) {
   return (out);
 }
 #endif /* UNIV_DEBUG */
@@ -682,12 +699,12 @@ of a row */
 
 struct upd_node_t {
   que_common_t common; /*!< node type: QUE_NODE_UPDATE */
-  ibool is_delete;     /* TRUE if delete, FALSE if update */
-  ibool searched_update;
-  /* TRUE if searched update, FALSE if
+  bool is_delete;      /* true if delete, false if update */
+  bool searched_update;
+  /* true if searched update, false if
   positioned */
-  ibool in_mysql_interface;
-  /* TRUE if the update node was created
+  bool in_mysql_interface;
+  /* true if the update node was created
   for the MySQL interface */
   dict_foreign_t *foreign;  /* NULL or pointer to a foreign key
                             constraint if this update node is used in
@@ -715,8 +732,8 @@ struct upd_node_t {
   as the update vector */
   sym_node_list_t columns; /* symbol table nodes for the columns
                            to retrieve from the table */
-  ibool has_clust_rec_x_lock;
-  /* TRUE if the select which retrieves the
+  bool has_clust_rec_x_lock;
+  /* true if the select which retrieves the
   records to update already sets an x-lock on
   the clustered record; note that it must always
   set at least an s-lock */
@@ -757,40 +774,31 @@ struct upd_node_t {
   ulint magic_n;
 };
 
-#define UPD_NODE_MAGIC_N 1579975
+constexpr uint32_t UPD_NODE_MAGIC_N = 1579975;
 
 /* Node execution states */
-#define UPD_NODE_SET_IX_LOCK           \
-  1 /* execution came to the node from \
-    a node above and if the field      \
-    has_clust_rec_x_lock is FALSE, we  \
-    should set an intention x-lock on  \
-    the table */
-#define UPD_NODE_UPDATE_CLUSTERED       \
-  2 /* clustered index record should be \
-    updated */
-#define UPD_NODE_INSERT_CLUSTERED          \
-  3 /* clustered index record should be    \
-    inserted, old record is already delete \
-    marked */
-#define UPD_NODE_UPDATE_ALL_SEC           \
-  5 /* an ordering field of the clustered \
-    index record was changed, or this is  \
-    a delete operation: should update     \
-    all the secondary index records */
-#define UPD_NODE_UPDATE_SOME_SEC         \
-  6 /* secondary index entries should be \
-    looked at and updated if an ordering \
-    field changed */
+/** execution came to the node from  a node above and if the field
+has_clust_rec_x_lock is false, we should set an intention x-lock on the table
+ */
+constexpr uint32_t UPD_NODE_SET_IX_LOCK = 1;
+/** clustered index record should be updated */
+constexpr uint32_t UPD_NODE_UPDATE_CLUSTERED = 2;
+/* clustered index record should be inserted, old record is already delete
+ marked */
+constexpr uint32_t UPD_NODE_INSERT_CLUSTERED = 3;
+/** an ordering field of the clustered index record was changed, or this is  a
+ delete operation: should update  all the secondary index records */
+constexpr uint32_t UPD_NODE_UPDATE_ALL_SEC = 5;
+/** secondary index entries should be looked at and updated if an ordering field
+ changed */
+constexpr uint32_t UPD_NODE_UPDATE_SOME_SEC = 6;
 
 /* Compilation info flags: these must fit within 2 bits; see trx0rec.h */
-#define UPD_NODE_NO_ORD_CHANGE            \
-  1 /* no secondary index record will be  \
-    changed in the update and no ordering \
-    field of the clustered index */
-#define UPD_NODE_NO_SIZE_CHANGE        \
-  2    /* no record field size will be \
-       changed in the update */
+/** no secondary index record will be changed in the update and no ordering
+ field of the clustered index */
+constexpr uint32_t UPD_NODE_NO_ORD_CHANGE = 1;
+/** no record field size will be changed in the update */
+constexpr uint32_t UPD_NODE_NO_SIZE_CHANGE = 2;
 #endif /* !UNIV_HOTBACKUP */
 
 #include "row0upd.ic"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ class PFS_index_ets_global_by_event_name : public PFS_engine_index {
   PFS_index_ets_global_by_event_name()
       : PFS_engine_index(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_ets_global_by_event_name() override {}
+  ~PFS_index_ets_global_by_event_name() override = default;
 
   virtual bool match(PFS_instr_class *instr_class);
 
@@ -100,7 +100,7 @@ class table_ets_global_by_event_name : public PFS_engine_table {
   table_ets_global_by_event_name();
 
  public:
-  ~table_ets_global_by_event_name() override {}
+  ~table_ets_global_by_event_name() override = default;
 
  protected:
   int make_row(PFS_transaction_class *klass);

@@ -666,3 +666,93 @@ SHOW CREATE TABLE t2;
 SELECT * FROM t2 ORDER BY f2;
 remove_file $MYSQLTEST_VARDIR/tmp/test1.sql;
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # WL13784 - Create auto_increment PK on table creation when no PK is specified 
+--echo #
+--echo # Test case to verify Logical Dump using mysqlpump tool
+--echo #
+
+SET @saved_global_sql_generate_invisible_primary_key =
+       @@global.sql_generate_invisible_primary_key;
+SET @saved_session_sql_generate_invisible_primary_key =
+       @@session.sql_generate_invisible_primary_key;
+
+# User created column "my_row_id" with generated invisible primary key column
+# properties and primary key on it, is treated as generated invisible primary
+# key column.
+CREATE TABLE t1 (my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE, f INT,
+                 PRIMARY KEY(my_row_id));
+INSERT INTO t1 VALUES (1), (3), (7), (8), (4);
+
+SET SESSION sql_generate_invisible_primary_key=ON;
+CREATE TABLE t2(f1 INT INVISIBLE, f2 INT);
+INSERT INTO t2(f1, f2) VALUES (10, 20), (20, 30);
+
+--echo # Test case to verify table dump with generated primary key.
+--echo # Dump complete test database with generated invisible primary key
+--echo # information using mysqlpump tool.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_PUMP --databases test > "$MYSQLTEST_VARDIR/tmp/test1.sql"
+DROP TABLE t1, t2;
+
+--echo # Load from the complete test database dump created using mysqlpump tool."
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test1.sql
+--echo # Table t1 should list generated primary key information.
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+SELECT my_row_id, f FROM t1;
+
+--echo # Table t2 should list generated primary key information.
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+SELECT my_row_id, f1, f2 FROM t2;
+
+--echo # Test case to verify table dump without generated primary key.
+--echo # Dump complete "test" database *without* generated invisible primary
+--echo # key information using mysqlpump tool.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_PUMP --databases test --skip-generated-invisible-primary-key > "$MYSQLTEST_VARDIR/tmp/test2.sql"
+DROP TABLE t1, t2;
+
+--echo # Load from the test.t3 dump created using mysqlpump tool."
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test2.sql
+--echo # Table t1 should *not* list generated primary key information.
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+SELECT f FROM t1;
+
+--echo # Table t1 should *not* list generated primary key information.
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+SELECT f1, f2 FROM t2;
+DROP TABLE t1, t2;
+
+--echo # Test case to verify primary key generation while loading table dump
+--echo # obtained *without* generated primary key on a MySQL server with
+--echo # @@global.sql_generate_invisible_primary_key = ON.
+SET GLOBAL sql_generate_invisible_primary_key = ON;
+
+--echo # Load from dump created without generated primary key information.
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test2.sql
+--echo # Primary key is generated for the table t1 while loading.
+--echo # Table t1 should list generated primary key information.
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+SELECT my_row_id, f FROM t1;
+
+--echo # Primary key is generated for the table t2 while loading.
+--echo # Table t2 should list generated primary key information.
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+SELECT my_row_id, f1, f2 FROM t2;
+
+--echo # Cleanup
+remove_file $MYSQLTEST_VARDIR/tmp/test1.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/test2.sql;
+DROP TABLE t1, t2;
+SET GLOBAL sql_generate_invisible_primary_key =
+             @saved_global_sql_generate_invisible_primary_key;
+SET SESSION sql_generate_invisible_primary_key =
+              @saved_session_sql_generate_invisible_primary_key;

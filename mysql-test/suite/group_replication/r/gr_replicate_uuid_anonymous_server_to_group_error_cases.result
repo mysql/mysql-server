@@ -107,6 +107,8 @@ CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies l
 CALL mtr.add_suppression("Replication channel '' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS");
 CALL mtr.add_suppression("The group_replication_group_name .*. is the same as");
 SET session sql_log_bin=1;
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_ROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=OFF
+include/rpl_reconnect.inc
 [connection server2]
 include/stop_group_replication.inc
 include/group_replication_end.inc

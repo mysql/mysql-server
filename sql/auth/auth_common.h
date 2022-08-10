@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,8 @@
 #include "mysql_com.h"  // USERNAME_LENGTH
 #include "template_utils.h"
 
+#include <openssl/rsa.h>
+
 /* Forward Declarations */
 class Alter_info;
 class Field_iterator_table_ref;
@@ -69,6 +71,7 @@ class LEX_GRANT_AS;
 namespace consts {
 extern const std::string mysql;
 extern const std::string system_user;
+extern const std::string connection_admin;
 }  // namespace consts
 
 /** user, host tuple which reference either acl_cache or g_default_roles */
@@ -101,9 +104,9 @@ enum ACL_internal_access_result {
 */
 class ACL_internal_table_access {
  public:
-  ACL_internal_table_access() {}
+  ACL_internal_table_access() = default;
 
-  virtual ~ACL_internal_table_access() {}
+  virtual ~ACL_internal_table_access() = default;
 
   /**
     Check access to an internal table.
@@ -111,6 +114,8 @@ class ACL_internal_table_access {
     to save_priv.
     @param want_access the privileges requested
     @param [in, out] save_priv the privileges granted
+    @param any_combination_will_do true if it's enough to have any privilege
+    for any combination of the table columns.
     @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
       are granted, and saved in save_priv.
     @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
@@ -120,8 +125,9 @@ class ACL_internal_table_access {
       privilege. Requested privileges that are granted, if any, are saved
       in save_priv.
   */
-  virtual ACL_internal_access_result check(ulong want_access,
-                                           ulong *save_priv) const = 0;
+  virtual ACL_internal_access_result check(
+      ulong want_access, ulong *save_priv,
+      bool any_combination_will_do) const = 0;
 };
 
 /**
@@ -136,14 +142,16 @@ class ACL_internal_table_access {
 */
 class ACL_internal_schema_access {
  public:
-  ACL_internal_schema_access() {}
+  ACL_internal_schema_access() = default;
 
-  virtual ~ACL_internal_schema_access() {}
+  virtual ~ACL_internal_schema_access() = default;
 
   /**
     Check access to an internal schema.
     @param want_access the privileges requested
     @param [in, out] save_priv the privileges granted
+    @param any_combination_will_do true if it's enough to have any privilege
+    for any combination of the table columns.
     @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
       are granted, and saved in save_priv.
     @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
@@ -153,8 +161,9 @@ class ACL_internal_schema_access {
       privilege. Requested privileges that are granted, if any, are saved
       in save_priv.
   */
-  virtual ACL_internal_access_result check(ulong want_access,
-                                           ulong *save_priv) const = 0;
+  virtual ACL_internal_access_result check(
+      ulong want_access, ulong *save_priv,
+      bool any_combination_will_do) const = 0;
 
   /**
     Search for per table ACL access rules by table name.
@@ -181,12 +190,12 @@ class ACL_internal_schema_registry {
 */
 class IS_internal_schema_access : public ACL_internal_schema_access {
  public:
-  IS_internal_schema_access() {}
+  IS_internal_schema_access() = default;
 
-  ~IS_internal_schema_access() override {}
+  ~IS_internal_schema_access() override = default;
 
-  ACL_internal_access_result check(ulong want_access,
-                                   ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+                                   bool any_combination_will_do) const override;
 
   const ACL_internal_table_access *lookup(const char *name) const override;
 };
@@ -418,7 +427,7 @@ class User_table_schema {
   // Added in 8.0.14
   virtual uint user_attributes_idx() = 0;
 
-  virtual ~User_table_schema() {}
+  virtual ~User_table_schema() = default;
 };
 
 /*
@@ -684,7 +693,7 @@ class User_table_schema_factory {
   }
 
   virtual bool is_old_user_table_schema(TABLE *table);
-  virtual ~User_table_schema_factory() {}
+  virtual ~User_table_schema_factory() = default;
 };
 
 extern bool mysql_user_table_is_in_short_password_format;
@@ -709,7 +718,7 @@ bool acl_check_host(THD *thd, const char *host, const char *ip);
 
 /*
   User Attributes are the once which are defined during CREATE/ALTER/GRANT
-  statement. These attributes are divided into following catagories.
+  statement. These attributes are divided into following categories.
 */
 
 #define NONE_ATTR 0L
@@ -762,6 +771,8 @@ bool check_acl_tables_intact(THD *thd, bool mdl_locked);
 bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables);
 void notify_flush_event(THD *thd);
 bool wildcard_db_grant_exists();
+void append_auth_id_string(const THD *thd, const char *user, size_t user_len,
+                           const char *host, size_t host_len, String *str);
 
 /* sql_authorization */
 bool skip_grant_tables();
@@ -997,7 +1008,7 @@ class Default_local_authid : public Create_authid<Default_local_authid> {
 };
 
 /**
-  Grant the privilege temporarily to the in-memory global privleges map.
+  Grant the privilege temporarily to the in-memory global privileges map.
   This class is not thread safe.
  */
 class Grant_temporary_dynamic_privileges
@@ -1041,6 +1052,8 @@ class Grant_temporary_static_privileges
 bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);
 bool is_partial_revoke_exists(THD *thd);
 void set_system_user_flag(THD *thd, bool check_for_main_security_ctx = false);
+void set_connection_admin_flag(THD *thd,
+                               bool check_for_main_security_ctx = false);
 
 /**
   Storage container for default auth ids. Default roles are only weakly
@@ -1097,11 +1110,32 @@ using Role_id = Auth_id;
 static constexpr int USER_HOST_BUFF_SIZE =
     HOSTNAME_LENGTH + USERNAME_LENGTH + 2;
 
+struct random_password_info {
+  std::string user;
+  std::string host;
+  std::string password;
+  unsigned int authentication_factor;
+};
+
 void generate_random_password(std::string *password, uint32_t);
-typedef std::list<std::vector<std::string>> Userhostpassword_list;
+typedef std::list<random_password_info> Userhostpassword_list;
 bool send_password_result_set(THD *thd,
                               const Userhostpassword_list &generated_passwords);
 bool lock_and_get_mandatory_roles(std::vector<Role_id> *mandatory_roles);
 bool mysql_alter_user_comment(THD *thd, const List<LEX_USER> *users,
                               const std::string &json_blob, bool expect_text);
+
+/* helper method to check if sandbox mode should be turned off or not */
+bool turn_off_sandbox_mode(THD *thd, LEX_USER *user);
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+bool decrypt_RSA_private_key(uchar *pkt, int cipher_length,
+                             unsigned char *plain_text, size_t plain_text_len,
+                             EVP_PKEY *private_key);
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+bool decrypt_RSA_private_key(uchar *pkt, int cipher_length,
+                             unsigned char *plain_text, size_t plain_text_len,
+                             RSA *private_key);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
 #endif /* AUTH_COMMON_INCLUDED */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@
 
   At some point a recovery method for such a drastic case needs to be divised.
 
-  Locks are row level, and you will get a consistant read.
+  Locks are row level, and you will get a consistent read.
 
   For performance as far as table scans go it is quite fast. I don't have
   good numbers but locally it has out performed both Innodb and MyISAM. For
@@ -188,8 +188,8 @@ static PSI_memory_info all_archive_memory[] = {
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 static void init_archive_psi_keys(void) {
-  const char *category MY_ATTRIBUTE((unused)) = "archive";
-  int count MY_ATTRIBUTE((unused));
+  const char *category [[maybe_unused]] = "archive";
+  int count [[maybe_unused]];
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count = static_cast<int>(array_elements(all_archive_mutexes));
@@ -468,7 +468,7 @@ int Archive_share::init_archive_writer() {
   /*
     It is expensive to open and close the data files and since you can't have
     a gzip file that can be both read and written we keep a writer open
-    that is shared amoung all open tables.
+    that is shared among all open tables.
   */
   if (!(azopen(&archive_write, data_file_name, O_RDWR))) {
     DBUG_PRINT("ha_archive", ("Could not open archive write file"));
@@ -498,7 +498,7 @@ int ha_archive::init_archive_reader() {
   /*
     It is expensive to open and close the data files and since you can't have
     a gzip file that can be both read and written we keep a writer open
-    that is shared amoung all open tables, but have one reader open for
+    that is shared among all open tables, but have one reader open for
     each handler instance.
   */
   if (!archive_reader_open) {
@@ -536,7 +536,7 @@ int ha_archive::open(const char *name, int, uint open_options,
       break;
     case HA_ERR_CRASHED_ON_USAGE:
       if (open_options & HA_OPEN_FOR_REPAIR) break;
-      /* fall through */
+      [[fallthrough]];
     default:
       return rc;
   }
@@ -1230,7 +1230,7 @@ int ha_archive::optimize(THD *, HA_CHECK_OPT *check_opt) {
 
   table->copy_blobs = true;
 
-  /* read rows upto the remembered rows */
+  /* read rows up to the remembered rows */
   for (ha_rows cur_count = count; cur_count; cur_count--) {
     if ((rc = get_row(&archive, table->record[0]))) break;
     real_write_row(table->record[0], &writer);
@@ -1410,7 +1410,7 @@ int ha_archive::info(uint flag) {
     @return != 0 Error
 */
 
-int ha_archive::extra(enum ha_extra_function operation MY_ATTRIBUTE((unused))) {
+int ha_archive::extra(enum ha_extra_function operation [[maybe_unused]]) {
   int ret = 0;
   DBUG_TRACE;
   /* On windows we need to close all files before rename/delete. */

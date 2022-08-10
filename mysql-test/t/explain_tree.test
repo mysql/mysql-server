@@ -164,6 +164,7 @@ INSERT INTO t1 VALUES ('def');
 INSERT INTO t1 VALUES ('def');
 INSERT INTO t1 VALUES ('ghi');
 ANALYZE TABLE t1;
+--replace_regex /cost=1.76..2.27/cost=1.76..2.28/
 EXPLAIN FORMAT=tree SELECT DISTINCT f1 FROM t1 LIMIT 2;
 DROP TABLE t1;
 
@@ -268,10 +269,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN (
 ) ON t1.a = t4d.a;
 DROP TABLE t1, t2, t3, t4;
 
-# Demonstrate a shortcoming in printing table iterators on MaterializeIterator;
-# we're not showing the sub-iterator for the WHERE subquery, just marking it as
-# “other sub-iterators not shown”. See MaterializeIterator::DebugString() for
-# more information.
+# Demontrate that we can print the sub-iterator for the WHERE subquery
+# that originally came from a table path.
 CREATE TABLE t1 ( f1 INTEGER );
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
   WHERE f1 <= ANY ( SELECT f1 FROM t1 ) ORDER BY f1;
@@ -479,4 +478,221 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a INTEGER);
 EXPLAIN FORMAT=tree SELECT (1 IN (SELECT 1 FROM t1)) WHERE FALSE;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32688540: MATERIALIZE ITERATORS HAVE SKEWED TIMINGS FROM SKIPPED MATERIALIZATIONS
+--echo #
+
+# The important thing here is that the Materialize node has rows=3 and loops=1,
+# because even though it's been asked to materialize five times, it only materialized
+# one of them. The LIMIT is to avoid temporary table merging.
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t1;
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32915233: RECENT REGRESSION:ASSERTION `EXPLAIN.CHILDREN.SIZE() <= 1' FAILED.
+--echo #
+
+# Sets up an AlternativeIterator in the table access path.
+CREATE TABLE t1 (a int);
+SET sql_mode='';
+EXPLAIN FORMAT=tree SELECT a IN (SELECT a FROM (table t1) AS d) FROM t1 GROUP BY (@b:=5);
+SET sql_mode=DEFAULT;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33030136: EXPLAIN: ASSERTION `CURRENT_THD->LEX->USING_HYPERGRAPH_OPTIMIZER' FAILED.
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+
+EXPLAIN FORMAT=tree
+  (SELECT 1 FROM t1)
+  UNION ALL
+  SELECT 1 IN (SELECT 1 FROM t1) FROM t1 WHERE 1=2;
+
+DROP TABLE t1;
+
+#
+# Demonstrates printing an index range scan with too many ranges to print
+# (more than three). The pushed index condition is redundant.
+#
+
+CREATE TABLE t1 (pk INTEGER NOT NULL, a INTEGER, b INTEGER, KEY (a), KEY (b), PRIMARY KEY (pk));
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
+
+# Also, with printing of a reverse-scan iterator.
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 WHERE a IN (2,4,6,8,10) ORDER BY a DESC;
+
+#
+# EXPLAIN ANALYZE on an IndexMergeIterator. Also demonstrates printing of
+# scanning over clustered primary keys. (The filter is redundant.)
+#
+
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+  SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;
+
+DROP TABLE t1;
+
+#
+# Demonstrates printing index skip scan.
+#
+
+CREATE TABLE t1 (a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, KEY idx1 (a,b,c,d,e));
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=tree
+  SELECT /*+ SKIP_SCAN(t1) */ * FROM t1 WHERE a IN (2,4,6,8,10) AND b=5 AND e BETWEEN 100 AND 200;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33343948: Multi-valued index ranges are printed as binary
+--echo #
+
+# Demonstrates printing of range scans over an index on a string
+# column with a binary collation. Range values used to be printed as a
+# hex strings.
+
+CREATE TABLE t(a VARCHAR(10) COLLATE utf8mb4_0900_bin, KEY (a));
+INSERT INTO t VALUES ('abc'), ('def'), ('ghi');
+ANALYZE TABLE t;
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE a > 'abc' AND a < 'ghi';
+# Also verify that special characters are escaped.
+EXPLAIN FORMAT=tree
+SELECT * FROM t WHERE a > 'abc''def' AND a < CONCAT('z', UNHEX('090A1A5C0D'));
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33364732: Preliminary fixes for WL#14673
+--echo #
+
+# Demonstrates printing of DELETE with an impossible WHERE clause.
+
+CREATE TABLE t(x INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
+
+# Demonstrates EXPLAIN ANALYZE on a DELETE statement.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
+# EXPLAIN ANALYZE DELETE should delete rows. Currently, it does not.
+# (And EXPLAIN ANALYZE UPDATE/INSERT don't modify the table either.)
+# Tracked in bug#33962407.
+--sorted_result
+SELECT * FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # WL#14672: Enable the hypergraph optimizer for UPDATE
+--echo #
+
+CREATE TABLE t(x INTEGER, y INTEGER);
+INSERT INTO t VALUES (1, 2), (2, 3), (3, 4);
+ANALYZE TABLE t;
+
+# Demonstrates EXPLAIN ANALYZE on an UPDATE statement.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE UPDATE t t1, t t2 SET t1.x = t2.y WHERE t1.x = t2.x;
+# EXPLAIN ANALYZE UPDATE should update rows. Currently, it does not.
+# (And EXPLAIN ANALYZE INSERT/DELETE don't modify the table either.)
+# Tracked in bug#33962407.
+--sorted_result
+SELECT * FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#33905399 Missing profiling data for CTE
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (1,1);
+ANALYZE TABLE t1;
+
+# Only second CTE reference evaluated.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=10*d2.a JOIN tx ON d2.b=i1) UNION
+SELECT 2 FROM tx;
+
+# Only second CTE reference evaluated (and no 'ANALYZE').
+EXPLAIN FORMAT=TREE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1) UNION
+SELECT 2 FROM tx;
+
+# Only first CTE reference evaluated.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+SELECT 2 FROM tx UNION
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1);
+
+# Both CTE references evaluated.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+SELECT 2 FROM tx UNION
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=d2.a JOIN tx ON d2.b=i1);
+
+# No CTE reference evaluated.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=10*d2.a JOIN tx ON d2.b=i1) UNION
+(SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1);
+
+# CTE executed in subquery only.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
+SELECT * FROM x1 y1 WHERE y1.m1 = (SELECT MAX(m1) FROM x1);
+
+--echo #
+--echo #  Bug#34051681 mysqld asan crash at ExplainMaterializeAccessPath
+--echo #
+# CTE in subquery never executed.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
+SELECT * FROM t1 y1 LEFT JOIN t1 y2 ON y1.a=-y2.a
+WHERE y1.b+y2.b = (SELECT MAX(m1) FROM x1);
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #34135465 	EXPLAIN ANALYZE: 'Aggregate using temporary table'
+--echo # shows wrong number of rows
+--echo #
+
+CREATE TABLE t1(i INT, j INT);
+INSERT INTO t1 VALUES (0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1),(2,2);
+ANALYZE TABLE t1;
+
+# Check that we get the right row count for "Aggregate using temporary table".
+# We aggregate three rows in a temporary table even if we just read two of them.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE INSERT INTO t1 SELECT 4, SUM(i) k1 FROM t1 GROUP BY j LIMIT 2;
+
+# Check that we get the right row count for "Materialize CTE".
+# We materialize three rows even if we just read two of them.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE WITH cte AS (SELECT SUM(i) k1 FROM t1 GROUP BY j)
+SELECT * FROM cte LIMIT 2;
+
 DROP TABLE t1;

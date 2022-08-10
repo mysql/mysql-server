@@ -47,6 +47,6 @@ SELECT COUNT(@@GLOBAL.myisam_use_mmap);
 COUNT(@@GLOBAL.myisam_use_mmap)
 1
 1 Expected
-SELECT myisam_use_mmap = @@SESSION.myisam_use_mmap;
+SELECT myisam_use_mmap;
 ERROR 42S22: Unknown column 'myisam_use_mmap' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

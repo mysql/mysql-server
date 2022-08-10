@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,6 +101,7 @@ static std::string Ssl_acceptor_context_propert_type_names[] = {
     "Ssl_session_cache_size",
     "Ssl_session_cache_timeouts",
     "Ssl_used_session_cache_entries",
+    "Ssl_session_cache_timeout",
     ""};
 
 std::string Ssl_ctx_property_name(
@@ -126,19 +127,24 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
     : channel_(channel), ssl_acceptor_fd_(nullptr), acceptor_(nullptr) {
   enum enum_ssl_init_error error_num = SSL_INITERR_NOERROR;
   {
-    callbacks->read_parameters(&current_ca_, &current_capath_,
-                               &current_version_, &current_cert_,
-                               &current_cipher_, &current_ciphersuites_,
-                               &current_key_, &current_crl_, &current_crlpath_);
+    callbacks->read_parameters(
+        &current_ca_, &current_capath_, &current_version_, &current_cert_,
+        &current_cipher_, &current_ciphersuites_, &current_key_, &current_crl_,
+        &current_crlpath_, &current_tls_session_cache_mode_,
+        &current_tls_session_cache_timeout_);
   }
 
   if (use_ssl_arg) {
+    long ssl_flags = process_tls_version(current_version_.c_str());
+
+    /* Turn off server's ticket sending for TLS 1.2 if requested */
+    if (!current_tls_session_cache_mode_) ssl_flags |= SSL_OP_NO_TICKET;
+
     ssl_acceptor_fd_ = new_VioSSLAcceptorFd(
         current_key_.c_str(), current_cert_.c_str(), current_ca_.c_str(),
         current_capath_.c_str(), current_cipher_.c_str(),
         current_ciphersuites_.c_str(), &error_num, current_crl_.c_str(),
-        current_crlpath_.c_str(),
-        process_tls_version(current_version_.c_str()));
+        current_crlpath_.c_str(), ssl_flags);
 
     if (!ssl_acceptor_fd_ && report_ssl_error) {
       LogErr(WARNING_LEVEL, ER_WARN_TLS_CHANNEL_INITIALIZATION_ERROR,
@@ -154,6 +160,18 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
 
       if (error && report_ssl_error)
         LogErr(WARNING_LEVEL, ER_SSL_SERVER_CERT_VERIFY_FAILED, error);
+
+      SSL_CTX_set_session_cache_mode(ssl_acceptor_fd_->ssl_context,
+                                     current_tls_session_cache_mode_
+                                         ? SSL_SESS_CACHE_SERVER
+                                         : SSL_SESS_CACHE_OFF);
+      SSL_CTX_set_timeout(ssl_acceptor_fd_->ssl_context,
+                          current_tls_session_cache_timeout_);
+#ifdef HAVE_TLSv13
+      /* Turn off server's ticket sending for TLS 1.3 if requested */
+      if (!current_tls_session_cache_mode_ && !(ssl_flags & SSL_OP_NO_TLSv1_3))
+        SSL_CTX_set_num_tickets(ssl_acceptor_fd_->ssl_context, 0);
+#endif
     }
   }
   if (out_error) *out_error = error_num;
@@ -335,8 +353,12 @@ std::string Ssl_acceptor_context_data::show_property(
       output += std::to_string(c == nullptr ? 0 : SSL_CTX_sess_number(c));
       break;
     }
+    case Ssl_acceptor_context_property_type::session_cache_timeout: {
+      output += std::to_string(c == nullptr ? 0 : SSL_CTX_get_timeout(c));
+      break;
+    }
     case Ssl_acceptor_context_property_type::last:
-      // Fall through
+      [[fallthrough]];
     default:
       output.assign("");
   }

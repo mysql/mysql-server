@@ -60,10 +60,10 @@ source include/assert.inc;
 # in non-MTS slave.
 
 source include/stop_slave.inc;
-SET @save_slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=0;
+SET @save_replica_parallel_workers=@@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers=0;
 # to avoid warnings
-set @save_slave_transaction_retries= @@global.slave_transaction_retries;
+set @save_replica_transaction_retries= @@global.replica_transaction_retries;
 source include/start_slave.inc;
 
 # Post Bug#20001173 fix in case of Single Threaded Slave(STS) mode SQL
@@ -78,9 +78,9 @@ let $assert_cond= [select count(*) from performance_schema.replication_applier_s
 source include/assert.inc;
 source include/stop_slave.inc;
 
-SET @@global.slave_parallel_workers=1;
+SET @@global.replica_parallel_workers=1;
 # to avoid warnings
-set @save_slave_transaction_retries= @@global.slave_transaction_retries;
+set @save_replica_transaction_retries= @@global.replica_transaction_retries;
 source include/start_slave.inc;
 
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_applier_status_by_worker, Worker_Id, 1);
@@ -93,7 +93,7 @@ source include/assert.inc;
 
 let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_applier_status_by_worker)`;
 let $assert_text= thread_name should should indicate worker thread.;
-let $assert_cond= "$thread_name" = "thread/sql/slave_worker";
+let $assert_cond= "$thread_name" = "thread/sql/replica_worker";
 source include/assert.inc;
 
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_applier_status_by_worker, Service_State, 1);
@@ -255,9 +255,9 @@ stop slave;
 replace_result $MASTER_MYPORT MASTER_MYPORT;
 replace_column 2 ####;
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
-SET @@global.slave_parallel_workers=1;
+SET @@global.replica_parallel_workers=1;
 # to avoid warnings
-set @save_slave_transaction_retries= @@global.slave_transaction_retries;
+set @save_replica_transaction_retries= @@global.replica_transaction_retries;
 start slave;
 
 --connection master
@@ -273,7 +273,7 @@ sync_slave_with_master;
 --echo #              WRONG WORKER_ID WHEN SLAVE STOPS
 --echo #
 --source include/stop_slave.inc
-SET @@GLOBAL.slave_parallel_workers = 3;
+SET @@GLOBAL.replica_parallel_workers = 3;
 --source include/start_slave.inc
 SELECT worker_id from performance_schema.replication_applier_status_by_worker;
 --source include/stop_slave.inc
@@ -287,8 +287,10 @@ SELECT worker_id from performance_schema.replication_applier_status_by_worker;
 DROP DATABASE d1;
 
 --connection slave
-set @@global.slave_parallel_workers= @save_slave_parallel_workers;
-set @@global.slave_transaction_retries= @save_slave_transaction_retries;
+--disable_warnings
+set @@global.replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
+set @@global.replica_transaction_retries= @save_replica_transaction_retries;
 source include/start_slave.inc;
 
 --let $rpl_gtid_mode= OFF

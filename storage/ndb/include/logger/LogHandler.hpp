@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef LOGHANDLER_H
 #define LOGHANDLER_H
+
+#include <time.h>
 
 #include "Logger.hpp"
 
@@ -130,7 +132,7 @@ public:
   /**
    * Returns the error string.
    */
-  char* getErrorStr();
+  const char* getErrorStr() const;
 
   /**
    * Sets the error string.
@@ -175,17 +177,17 @@ public:
    *
    * @param config where to store parameters
    */
-  virtual bool getParams(BaseString &config) {return false;}
+  virtual bool getParams(BaseString &/*config*/) {return false;}
 
   virtual off_t getCurrentSize() {return -1;}
   virtual off_t getMaxSize() {return -1;}
 
   /** Max length of the header the log. */
-  STATIC_CONST( MAX_HEADER_LENGTH = 128 );
+  static constexpr Uint32 MAX_HEADER_LENGTH = 128;
 
 protected:
   /** Max lenght of footer in the log. */
-  STATIC_CONST( MAX_FOOTER_LENGTH = 128 );
+  static constexpr Uint32 MAX_FOOTER_LENGTH = 128;
 
   /**
    * Write the header to the log.
@@ -217,7 +219,7 @@ private:
   bool operator == (const LogHandler&);
 
   int m_errorCode;
-  char* m_errorStr;
+  const char* m_errorStr;
 
   // for handling repeated messages
   unsigned m_count_repeated_messages;

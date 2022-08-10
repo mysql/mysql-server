@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -229,8 +229,8 @@ int table_socket_instances::make_row(PFS_socket *pfs) {
   m_row.m_ip_length =
       pfs_get_socket_address(m_row.m_ip, sizeof(m_row.m_ip), &m_row.m_port,
                              &pfs->m_sock_addr, pfs->m_addr_len);
-  m_row.m_event_name = safe_class->m_name;
-  m_row.m_event_name_length = safe_class->m_name_length;
+  m_row.m_event_name = safe_class->m_name.str();
+  m_row.m_event_name_length = safe_class->m_name.length();
   m_row.m_identity = pfs->m_identity;
   m_row.m_fd = pfs->m_fd;
   m_row.m_state =

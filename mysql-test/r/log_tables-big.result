@@ -28,5 +28,6 @@ OK	select get_lock('bug27638', 101)
 select release_lock('bug27638');
 release_lock('bug27638')
 1
-TRUNCATE mysql.slow_log;
 set @@global.log_output=default;
+TRUNCATE mysql.general_log;
+TRUNCATE mysql.slow_log;

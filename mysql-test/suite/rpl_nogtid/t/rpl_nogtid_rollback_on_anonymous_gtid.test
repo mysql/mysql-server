@@ -28,7 +28,7 @@
 # in normal slave operation (there is no retrieval of the transaction
 # from the begin when MASTER_AUTO_POSITION = 0). Enabling this test
 # case on MTS may hit some MTS asserts.
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 
 --let $master_uuid=`SELECT @@SERVER_UUID`

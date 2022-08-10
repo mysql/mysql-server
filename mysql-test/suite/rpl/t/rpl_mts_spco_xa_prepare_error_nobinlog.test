@@ -1,12 +1,12 @@
 # ==== Purpose ====
 #
-# Verifies that slave-preserve-commit-order maintains the commit order and stops
+# Verifies that replica-preserve-commit-order maintains the commit order and stops
 # newer workers from committing (inserts and XA COMMIT) if one of the older
 # worker (executing XA ROLLBACK) have errored out.
 #
 # ==== Implementation ====
 #
-# 1. We start replica (server2) with slave_preserve_commit_order
+# 1. We start replica (server2) with replica_preserve_commit_order
 #    enabled and running with 2 applier workers.
 #
 # 2. On slave, we enable rpl_fake_commit_order_deadlock_for_timestamp_100
@@ -71,7 +71,7 @@ CALL mtr.add_suppression("Error writing relay log configuration");
 --let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
 
 --let $mts_spco_rollback_statement = ROLLBACK;
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 
 --connection server_2
@@ -120,9 +120,11 @@ SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_depen
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 
-SET GLOBAL slave_parallel_type= @save_slave_parallel_type;
-SET GLOBAL slave_parallel_workers= @save_slave_parallel_workers;
-SET GLOBAL slave_preserve_commit_order= @save_slave_preserve_commit_order;
+SET GLOBAL replica_parallel_type= @save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order= @save_replica_preserve_commit_order;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

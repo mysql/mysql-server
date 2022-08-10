@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 #include "my_compiler.h"
 #include "my_io.h"
 
-void to_unix_path(char *to MY_ATTRIBUTE((unused))) {
+void to_unix_path(char *to [[maybe_unused]]) {
 #if FN_LIBCHAR != '/'
   {
     to--;

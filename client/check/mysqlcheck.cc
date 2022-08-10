@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,17 +57,16 @@ static bool opt_alldbs = false, opt_check_only_changed = false,
             opt_extended = false, opt_compress = false, opt_databases = false,
             opt_fast = false, opt_medium_check = false, opt_quick = false,
             opt_all_in_1 = false, opt_silent = false, opt_auto_repair = false,
-            ignore_errors = false, tty_password = false, opt_frm = false,
-            debug_info_flag = false, debug_check_flag = false,
-            opt_fix_table_names = false, opt_fix_db_names = false,
-            opt_upgrade = false, opt_write_binlog = true;
+            ignore_errors = false, opt_frm = false, debug_info_flag = false,
+            debug_check_flag = false, opt_fix_table_names = false,
+            opt_fix_db_names = false, opt_upgrade = false,
+            opt_write_binlog = true;
 static uint verbose = 0, opt_mysql_port = 0;
 static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = false;
 static int my_end_arg;
 static char *opt_mysql_unix_port = nullptr;
-static char *opt_password = nullptr, *current_user = nullptr,
-            *current_host = nullptr;
+static char *current_user = nullptr, *current_host = nullptr;
 static const char *default_charset = nullptr;
 static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
 static int first_error = 0;
@@ -79,6 +78,8 @@ static char *shared_memory_base_name = 0;
 #endif
 static uint opt_protocol = 0;
 static char *opt_bind_addr = nullptr;
+
+#include "multi_factor_passwordopt-vars.h"
 
 static struct my_option my_long_options[] = {
     {"all-databases", 'A',
@@ -125,14 +126,14 @@ static struct my_option my_long_options[] = {
      &opt_databases, &opt_databases, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
 #ifdef NDEBUG
-    {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
-     GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
+     nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-info", OPT_DEBUG_INFO,
-     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+     "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
+     nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #else
     {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
      nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -183,11 +184,7 @@ static struct my_option my_long_options[] = {
      nullptr, 0, nullptr},
     {"optimize", 'o', "Optimize table.", nullptr, nullptr, nullptr, GET_NO_ARG,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"password", 'p',
-     "Password to use when connecting to server. If password is not given, "
-     "it's solicited on the tty.",
-     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
-     nullptr},
+#include "multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -267,7 +264,7 @@ static const char *load_default_groups[] = {"mysqlcheck", "client", nullptr};
 
 static void usage(void);
 static int get_options(int *argc, char ***argv, MEM_ROOT *alloc);
-static int dbConnect(char *host, char *user, char *passwd);
+static int dbConnect(char *host, char *user);
 static void dbDisconnect(char *host);
 static void DBerror(MYSQL *mysql, const string &when);
 static void safe_exit(int error);
@@ -319,7 +316,8 @@ static bool get_one_option(int optid, const struct my_option *opt,
       what_to_do = DO_CHECK;
       opt_check_only_changed = true;
       break;
-    case 'I': /* Fall through */
+    case 'I':
+      [[fallthrough]];
     case '?':
       usage();
       exit(0);
@@ -330,24 +328,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case 'o':
       what_to_do = DO_OPTIMIZE;
       break;
-    case 'p':
-      if (argument == disabled_my_option) {
-        // Don't require password
-        static char empty_password[] = {'\0'};
-        assert(empty_password[0] ==
-               '\0');  // Check that it has not been overwritten
-        argument = empty_password;
-      }
-      if (argument) {
-        char *start = argument;
-        my_free(opt_password);
-        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
-        while (*argument) *argument++ = 'x'; /* Destroy argument */
-        if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = false;
-      } else
-        tty_password = true;
-      break;
+      PARSE_COMMAND_LINE_PASSWORD_OPTION;
     case 'r':
       what_to_do = DO_REPAIR;
       break;
@@ -453,13 +434,12 @@ static int get_options(int *argc, char ***argv, MEM_ROOT *alloc) {
     printf("for more information.\n");
     return 1;
   }
-  if (tty_password) opt_password = get_tty_password(NullS);
   if (debug_info_flag) my_end_arg = MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag) my_end_arg = MY_CHECK_ERROR;
   return (0);
 } /* get_options */
 
-static int dbConnect(char *host, char *user, char *passwd) {
+static int dbConnect(char *host, char *user) {
   DBUG_TRACE;
   if (verbose) {
     fprintf(stderr, "# Connecting to %s...\n", host ? host : "localhost");
@@ -503,8 +483,9 @@ static int dbConnect(char *host, char *user, char *passwd) {
                  "mysqlcheck");
   set_server_public_key(&mysql_connection);
   set_get_server_public_key_option(&mysql_connection);
+  set_password_options(&mysql_connection);
   if (!(sock =
-            mysql_real_connect(&mysql_connection, host, user, passwd, nullptr,
+            mysql_real_connect(&mysql_connection, host, user, nullptr, nullptr,
                                opt_mysql_port, opt_mysql_unix_port, 0))) {
     DBerror(&mysql_connection, "when trying to connect");
     return 1;
@@ -543,7 +524,7 @@ int main(int argc, char **argv) {
     my_end(my_end_arg);
     exit(EX_USAGE);
   }
-  if (dbConnect(current_host, current_user, opt_password)) exit(EX_MYSQLERR);
+  if (dbConnect(current_host, current_user)) exit(EX_MYSQLERR);
 
   // Sun Studio does not work with range constructor from char** to string.
   vector<string> conv;
@@ -558,11 +539,11 @@ int main(int argc, char **argv) {
               DBerror);
 
   dbDisconnect(current_host);
-  my_free(opt_password);
+  free_passwords();
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
 #endif
-  free_root(&alloc, MYF(0));
+  alloc.Clear();
   my_end(my_end_arg);
   return (first_error != 0);
 } /* main */

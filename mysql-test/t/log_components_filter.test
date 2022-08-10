@@ -4,6 +4,7 @@
 
 --source include/have_debug.inc
 --source include/have_log_component.inc
+--source include/not_valgrind.inc
 
 let GREP_START=`SELECT DATE_FORMAT(CONVERT_TZ(SYSDATE(6),'SYSTEM','UTC'),'%Y%m%d%H%i%s%f');`;
 
@@ -676,7 +677,7 @@ perl;
      if ($stime == 0) {
        print "$line";
      }
-     elsif ($line =~ /$pattern/) {
+     elsif (($line =~ /$pattern/) and not ($line =~ /redo log/)) {
        $line =~ /([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])T([0-9][0-9]):([0-9][0-9]):([0-9][0-9])\.([0-9][0-9][0-9][0-9][0-9][0-9])[-+Z][0-9:]* *[0-9]* *?(\[.*)/;
        $ts=$1.$2.$3.$4.$5.$6.$7;
        if ($ts >= $stime) {

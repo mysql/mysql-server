@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_inttypes.h"
 
 // Forward declarations
+class I_multi_factor_auth;
 class Restrictions;
 class THD;
 struct LEX_USER;
@@ -40,6 +41,8 @@ const ulong USER_ATTRIBUTE_RESTRICTIONS = (1L << 3);
 const ulong USER_ATTRIBUTE_FAILED_LOGIN_ATTEMPTS = (1L << 4);
 const ulong USER_ATTRIBUTE_PASSWORD_LOCK_TIME = (1L << 5);
 
+const ulong USER_ATTRIBUTE_UPDATE_MFA = (1L << 6);
+
 class Pod_user_what_to_update {
  public:
   Pod_user_what_to_update() : m_what(0L), m_user_attributes(0L) {}
@@ -51,7 +54,8 @@ class Pod_user_what_to_update {
 int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                        bool revoke_grant, bool can_create_user,
                        acl_table::Pod_user_what_to_update &what_to_update,
-                       Restrictions *restrictions = nullptr);
+                       Restrictions *restrictions = nullptr,
+                       I_multi_factor_auth *mfa = nullptr);
 
 bool read_user_table(THD *thd, TABLE *table);
 #endif /* USER_TABLE_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class Sql_cmd_alter_table_analyze_partition final
   Sql_cmd_alter_table_analyze_partition(THD *thd, Alter_info *alter_info)
       : Sql_cmd_analyze_table(thd, alter_info, Histogram_command::NONE, 0) {}
 
-  ~Sql_cmd_alter_table_analyze_partition() override {}
+  ~Sql_cmd_alter_table_analyze_partition() override = default;
 
   bool execute(THD *thd) override;
 

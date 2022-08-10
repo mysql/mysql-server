@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ class Generate_digest {
   virtual bool update_digest(const void *src, unsigned int length) = 0;
   virtual bool retrieve_digest(unsigned char *digest, unsigned int length) = 0;
   virtual void scrub() = 0;
-  virtual ~Generate_digest() {}
+  virtual ~Generate_digest() = default;
 };
 
 /**

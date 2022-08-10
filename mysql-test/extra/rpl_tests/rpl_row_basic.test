@@ -196,8 +196,8 @@ SELECT * FROM t5,t2,t3 WHERE t5.C2='Q' AND t2.c12='R' AND t3.C3 ='S' ORDER BY t5
 
 if (`select char_length('$bit_field_special') > 0`) {
   connection slave;
-  SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
-  eval SET GLOBAL SLAVE_TYPE_CONVERSIONS = '$bit_field_special';
+  SET @saved_replica_type_conversions = @@REPLICA_TYPE_CONVERSIONS;
+  eval SET GLOBAL REPLICA_TYPE_CONVERSIONS = '$bit_field_special';
 }
 
 connection master;
@@ -209,7 +209,7 @@ SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
 SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
 
 if (`select char_length('$bit_field_special') > 0`) {
-  SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+  SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 }
 
 #
@@ -225,7 +225,7 @@ SELECT * FROM t7 ORDER BY C1;
 # since bug#31552/31609 idempotency is not default any longer. In order
 # the preceding test INSERT INTO t7 to pass the mode is switched
 # temprorarily
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 
 connection master;
 --echo --- on master: new values inserted ---
@@ -233,7 +233,7 @@ INSERT INTO t7 VALUES (1,2), (2,4), (3,6);
 SELECT * FROM t7 ORDER BY C1;
 --source include/sync_slave_sql_with_master.inc
 
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 --echo --- on slave: old values should be overwritten by replicated values ---
 SELECT * FROM t7 ORDER BY C1;
 
@@ -264,7 +264,7 @@ SELECT * FROM t8 ORDER BY a;
 # since bug#31552/31609 idempotency is not default any longer. In order
 # the preceding test INSERT INTO t8 to pass the mode is switched
 # temprorarily
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 
 connection master;
 --echo --- on master ---
@@ -272,7 +272,7 @@ connection master;
 # on the other keys.
 INSERT INTO t8 VALUES (2,4,8);
 --source include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 
 --echo --- on slave ---
 SELECT * FROM t8 ORDER BY a;
@@ -299,14 +299,14 @@ INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
 # since bug#31552/31609 idempotency is not default any longer. In order
 # the following test DELETE FROM t1 to pass the mode is switched
 # temprorarily
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 DELETE FROM t1 WHERE C1 = 'L';
 
 connection master;
 DELETE FROM t1;
 query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 --source include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 source include/check_slave_is_running.inc;
 query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 
@@ -397,8 +397,8 @@ eval CREATE TABLE t7 (i INT NOT NULL,
                       j INT NOT NULL) ENGINE = $type ;
 
 connection slave;
-SET @saved_slave_type_conversions = @@slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 
 --echo [expecting slave to replicate correctly]
 connection master;
@@ -419,7 +419,7 @@ let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 connection slave;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 1 size mismatch.* Error_code: MY-001535");
 call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: MY-001032");
 call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t.. cannot be converted from type.*, Error_code: MY-013146");
@@ -627,8 +627,8 @@ connection master;
 # Since t1 contain a bit field, we have to do this trick to handle InnoDB
 if (`select char_length('$bit_field_special') > 0`) {
   connection slave;
-  SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
-  eval SET GLOBAL SLAVE_TYPE_CONVERSIONS = '$bit_field_special';
+  SET @saved_replica_type_conversions = @@REPLICA_TYPE_CONVERSIONS;
+  eval SET GLOBAL REPLICA_TYPE_CONVERSIONS = '$bit_field_special';
 }
 
 --disable_warnings
@@ -679,7 +679,7 @@ UPDATE IGNORE t1 SET a = 9 WHERE a < 5 LIMIT 3;
 
 if (`select char_length('$bit_field_special') > 0`) {
   connection slave;
-  SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+  SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 }
 
 let $diff_tables= master:t1, slave:t1;

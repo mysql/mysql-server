@@ -1,0 +1,109 @@
+# ==== Purpose ====
+#
+# This test checks that:
+#  Channels with GTID_ONLY always use the parallel applier
+#  Channels with GTID_ONLY reset worker info on replica start
+#
+# ==== Requirements ====
+#
+# R1: A channel configured with GTID_ONLY always has at least
+#     one applier worker
+#
+# ==== Implementation ====
+#
+# 1. Configure the channel with GTID_ONLY = 1
+#    Add some data to populate repository tables
+# 2. Restart the replica.
+#    Check there is no worker info as it was purged after start
+# 3. Set the number of applier workers to 0
+#    Check the channel still has one worker.
+# 4. Disable GTID_ONLY
+#    Check the channel has no workers.
+# 5. Cleanup
+#
+# ==== References ====
+#
+# WL#7491: GTID-based replication applier recovery and positioning
+#
+
+--source include/have_slave_repository_type_table.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Configure the channel with GTID_ONLY = 1
+--echo #    Add some data to populate repository tables
+
+--source include/rpl_connection_slave.inc
+
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Restart the replica.
+--echo #    Check there is no worker info as it was purged after start
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=--skip_replica_start=1
+--source include/rpl_restart_server.inc
+
+--let $assert_text= No info exists in the repository table
+--let $assert_cond= `SELECT COUNT(*) = 0 FROM mysql.slave_worker_info`
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Set the number of applier workers to 0
+--echo #    Check the channel still has one worker.
+
+--let $saved_replica_parallel_workers = `SELECT @@GLOBAL.replica_parallel_workers`
+SET @@GLOBAL.replica_parallel_workers = 0;
+
+ --source include/start_slave.inc
+
+--let $assert_text= There is one worker runnning with id 1
+--let $assert_cond= `SELECT COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_worker WHERE worker_id=1`
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Disable GTID_ONLY
+--echo #    Check the channel has no workers.
+
+--source include/stop_slave.inc
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
+
+--source include/start_slave.inc
+
+--let $assert_text= There is no worker with an ID
+--let $assert_cond= `SELECT COUNT(*) = 0 FROM performance_schema.replication_applier_status_by_worker WHERE worker_id=1`
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Cleanup
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+
+--disable_warnings
+--replace_result $saved_replica_parallel_workers NUMBER_OF_WORKERS
+--eval SET @@GLOBAL.replica_parallel_workers = $saved_replica_parallel_workers
+--enable_warnings
+
+--source include/rpl_end.inc

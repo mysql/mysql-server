@@ -3,7 +3,6 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/no_slave_preserve_commit_order.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_master.inc
@@ -11,17 +10,18 @@
 SET @@session.binlog_transaction_compression = ON;
 
 --source include/rpl_connection_slave.inc
---let $saved_slave_transaction_retries = `SELECT @@global.slave_transaction_retries`
+--let $saved_replica_transaction_retries = `SELECT @@global.replica_transaction_retries`
 --let $saved_innodb_lock_wait_timeout = `SELECT @@global.innodb_lock_wait_timeout`
---let $saved_slave_parallel_workers = `SELECT @@global.slave_parallel_workers`
---let $saved_slave_parallel_type = `SELECT @@global.slave_parallel_type`
+--let $saved_replica_parallel_workers = `SELECT @@global.replica_parallel_workers`
+--let $saved_replica_parallel_type = `SELECT @@global.replica_parallel_type`
 --let $saved_binlog_transaction_compression = `SELECT @@global.binlog_transaction_compression`
-
+--let $saved_replica_preserve_commit_order = `SELECT @@global.replica_preserve_commit_order`
 --source include/stop_slave_sql.inc
-SET @@global.slave_transaction_retries= 200;
+SET @@global.replica_transaction_retries= 200;
 SET @@global.innodb_lock_wait_timeout= 5;
 SET @@global.binlog_transaction_compression = ON;
-SET @@global.slave_parallel_workers = 4;
+SET @@global.replica_parallel_workers = 4;
+SET @@global.replica_preserve_commit_order = OFF;
 --source include/start_slave_sql.inc
 
 --let $j = 3
@@ -40,7 +40,7 @@ while ($j > 0) {
   }
 
   --source include/stop_slave_sql.inc
-  --eval SET @@global.slave_parallel_workers = $nworkers
+  --eval SET @@global.replica_parallel_workers = $nworkers
   --source include/start_slave_sql.inc
 
   --let $i = 2
@@ -49,12 +49,12 @@ while ($j > 0) {
 
     if ($i == 2)
     {
-      --let $slave_parallel_type = 'DATABASE'
+      --let $replica_parallel_type = 'DATABASE'
     }
 
     if ($i == 1)
     {
-      --let $slave_parallel_type = 'LOGICAL_CLOCK'
+      --let $replica_parallel_type = 'LOGICAL_CLOCK'
     }
 
     --source include/rpl_connection_master.inc
@@ -63,7 +63,7 @@ while ($j > 0) {
     --source include/sync_slave_sql_with_master.inc
 
     --source include/stop_slave_sql.inc
-    --eval SET @@global.slave_parallel_type = $slave_parallel_type
+    --eval SET @@global.replica_parallel_type = $replica_parallel_type
     --source include/start_slave_sql.inc
 
     --source include/rpl_connection_slave1.inc
@@ -87,11 +87,11 @@ while ($j > 0) {
     --source include/rpl_connection_slave.inc
 
     # wait for the applier thread to start applying
-    --let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.threads WHERE name IN ("thread/sql/slave_sql", "thread/sql/slave_worker") AND processlist_info LIKE 'XA START%'
+    --let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.threads WHERE name IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND processlist_info LIKE 'XA START%'
     --source include/wait_condition.inc
 
     # get the exact thread id for the applier thread
-    --let $worker_thread_id=`SELECT thread_id FROM performance_schema.threads WHERE name IN ("thread/sql/slave_sql", "thread/sql/slave_worker") AND processlist_info LIKE 'XA START%'`
+    --let $worker_thread_id=`SELECT thread_id FROM performance_schema.threads WHERE name IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND processlist_info LIKE 'XA START%'`
 
     # wait for the applier thread to start retrying
     --let $wait_condition=SELECT APPLYING_TRANSACTION_RETRIES_COUNT > 0 FROM performance_schema.replication_applier_status_by_worker WHERE thread_id = $worker_thread_id
@@ -127,17 +127,20 @@ while ($j > 0) {
 
 --source include/stop_slave.inc
 
---replace_result $saved_slave_transaction_retries SAVED
---eval SET @@global.slave_transaction_retries= $saved_slave_transaction_retries
+--replace_result $saved_replica_transaction_retries SAVED
+--eval SET @@global.replica_transaction_retries= $saved_replica_transaction_retries
 --replace_result $saved_innodb_lock_wait_timeout SAVED
 --eval SET @@global.innodb_lock_wait_timeout= $saved_innodb_lock_wait_timeout
 --replace_result $saved_binlog_transaction_compression SAVED
 --eval SET @@global.binlog_transaction_compression = $saved_binlog_transaction_compression
---replace_result $saved_slave_parallel_workers SAVED
---eval SET @@global.slave_parallel_workers = $saved_slave_parallel_workers
---replace_result $saved_slave_parallel_type SAVED
---eval SET @@global.slave_parallel_type = '$saved_slave_parallel_type'
-
+--disable_warnings
+--replace_result $saved_replica_parallel_workers SAVED
+--eval SET @@global.replica_parallel_workers = $saved_replica_parallel_workers
+--enable_warnings
+--replace_result $saved_replica_parallel_type SAVED
+--eval SET @@global.replica_parallel_type = '$saved_replica_parallel_type'
+--replace_result $saved_replica_preserve_commit_order SAVED
+--eval SET @@global.replica_preserve_commit_order = $saved_replica_preserve_commit_order
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

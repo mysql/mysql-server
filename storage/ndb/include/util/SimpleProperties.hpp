@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <ndb_global.h>
 #include <NdbOut.hpp>
+#include <EventLogger.hpp>
 
 /**
  * @class SimpleProperties
@@ -175,8 +176,9 @@ public:
      * Print the complete simple properties (for debugging)
      */
     void printAll(NdbOut& ndbout);
+    void printAll(EventLogger* logger);
 
-  private:
+   private:
     bool readValue();
     
     Uint16 m_key;

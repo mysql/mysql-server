@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "pgman.hpp"
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsConf.hpp>
@@ -43,7 +44,6 @@
 
 #define JAM_FILE_ID 335
 
-extern EventLogger *g_eventLogger;
 
 /**
  * Requests that make page dirty
@@ -384,7 +384,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
     if (ERROR_INSERTED(11009))
     {
       page_cnt = 25;
-      ndbout_c("Setting page_cnt = %u", page_cnt);
+      g_eventLogger->info("Setting page_cnt = %u", page_cnt);
     }
 
     m_param.m_max_pages = page_cnt;
@@ -392,7 +392,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
     // how many page entries per buffer pages
     Uint32 entries = 0;
     ndb_mgm_get_int_parameter(p, CFG_DB_DISK_PAGE_BUFFER_ENTRIES, &entries);
-    ndbout << "pgman: page buffer entries = " << entries << endl;
+    g_eventLogger->info("pgman: page buffer entries = %u", entries);
     if (entries > 0) // should be
     {
       // param name refers to unbound entries ending up on stack
@@ -2141,7 +2141,7 @@ Pgman::check_restart_lcp(Signal *signal, bool check_prepare_lcp)
         return;
       }
       TableRecordPtr tabPtr;
-      m_tableRecordPool.getPtr(tabPtr,fragPtr.p->m_table_id);
+      ndbrequire(m_tableRecordPool.getPtr(tabPtr, fragPtr.p->m_table_id));
       if (tabPtr.p->m_is_table_ready_for_prep_lcp_writes &&
           fragPtr.p->m_is_frag_ready_for_prep_lcp_writes)
       {
@@ -2189,7 +2189,7 @@ Pgman::check_restart_lcp(Signal *signal, bool check_prepare_lcp)
         return;
       }
       TableRecordPtr tabPtr;
-      m_tableRecordPool.getPtr(tabPtr,fragPtr.p->m_table_id);
+      ndbrequire(m_tableRecordPool.getPtr(tabPtr, fragPtr.p->m_table_id));
       if (tabPtr.p->m_is_table_ready_for_prep_lcp_writes &&
           fragPtr.p->m_is_frag_ready_for_prep_lcp_writes)
       {
@@ -2281,7 +2281,7 @@ Pgman::handle_prepare_lcp(Signal *signal, FragmentRecordPtr fragPtr)
         (state & Page_entry::LOCKED) ||
         (! (state & Page_entry::BOUND)))
     {
-      ndbout << ptr << endl;
+      print(g_eventLogger, ptr);
       ndbrequire(false);
     }
     if (state & Page_entry::PAGEOUT ||
@@ -2316,7 +2316,7 @@ Pgman::handle_prepare_lcp(Signal *signal, FragmentRecordPtr fragPtr)
                                           ptr.i);
         }
         TableRecordPtr tabPtr;
-        m_tableRecordPool.getPtr(tabPtr,fragPtr.p->m_table_id);
+        ndbrequire(m_tableRecordPool.getPtr(tabPtr, fragPtr.p->m_table_id));
         tabPtr.p->m_num_prepare_lcp_outstanding++;
         pageout(signal, ptr, false);
         break_flag = true;
@@ -2408,7 +2408,7 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
         (state & Page_entry::LOCKED) ||
         (! (state & Page_entry::BOUND)))
     {
-      ndbout << ptr << endl;
+      print(g_eventLogger, ptr);
       ndbabort();
     }
 
@@ -3362,7 +3362,7 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
           jam();
           Ptr<GlobalPage> org, copy;
           ndbrequire(m_global_page_pool.seize(copy));
-          m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+          ndbrequire(m_global_page_pool.getPtr(org, ptr.p->m_real_page_i));
           memcpy(copy.p, org.p, sizeof(GlobalPage));
           ptr.p->m_copy_page_i = copy.i;
 
@@ -3417,8 +3417,8 @@ void
 Pgman::copy_back_page(Ptr<Page_entry> ptr)
 {
   Ptr<GlobalPage> org, copy;
-  m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i);
-  m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+  ndbrequire(m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i));
+  ndbrequire(m_global_page_pool.getPtr(org, ptr.p->m_real_page_i));
   memcpy(org.p, copy.p, sizeof(GlobalPage));
   m_global_page_pool.release(copy);
   ptr.p->m_copy_page_i = RNIL;
@@ -3524,7 +3524,7 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
      *   when running undo and following SR
      */
     Ptr<GlobalPage> pagePtr;
-    m_global_page_pool.getPtr(pagePtr, ptr.p->m_real_page_i);
+    ndbrequire(m_global_page_pool.getPtr(pagePtr, ptr.p->m_real_page_i));
     File_formats::Datafile::Data_page* page =
       (File_formats::Datafile::Data_page*)pagePtr.p;
     
@@ -3577,7 +3577,7 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr, bool check_sync_lsn)
 
   // update lsn on page prior to write
   Ptr<GlobalPage> pagePtr;
-  m_global_page_pool.getPtr(pagePtr, ptr.p->m_real_page_i);
+  ndbrequire(m_global_page_pool.getPtr(pagePtr, ptr.p->m_real_page_i));
   File_formats::Datafile::Data_page* page =
     (File_formats::Datafile::Data_page*)pagePtr.p;
   page->m_page_header.m_page_lsn_hi = (Uint32)(ptr.p->m_lsn >> 32);
@@ -3671,7 +3671,7 @@ void
 Pgman::logsync_callback(Signal* signal, Uint32 ptrI, Uint32 res)
 {
   Ptr<Page_entry> ptr;
-  m_page_entry_pool.getPtr(ptr, ptrI);
+  ndbrequire(m_page_entry_pool.getPtr(ptr, ptrI));
 
   D("logsync_callback");
   D(ptr);
@@ -3802,7 +3802,7 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
     ndbrequire(m_prep_lcp_outstanding > 0);
     m_prep_lcp_outstanding--;
     TableRecordPtr tabPtr;
-    m_tableRecordPool.getPtr(tabPtr,ptr.p->m_table_id);
+    ndbrequire(m_tableRecordPool.getPtr(tabPtr, ptr.p->m_table_id));
     ndbrequire(tabPtr.p->m_num_prepare_lcp_outstanding > 0);
     tabPtr.p->m_num_prepare_lcp_outstanding--;
     DEB_PGMAN_PREP_PAGE((
@@ -3844,7 +3844,7 @@ Pgman::fsreadreq(Signal* signal, Ptr<Page_entry> ptr)
   bool ret = m_file_map.first(it) && m_file_map.next(it, ptr.p->m_file_no);
   ndbrequire(ret);
   Uint32 ptrI = * it.data;
-  m_file_entry_pool.getPtr(file_ptr, ptrI);
+  ndbrequire(m_file_entry_pool.getPtr(file_ptr, ptrI));
 
   Uint32 fd = file_ptr.p->m_fd;
 
@@ -3861,7 +3861,7 @@ Pgman::fsreadreq(Signal* signal, Ptr<Page_entry> ptr)
   req->operationFlag = 0;
   FsReadWriteReq::setFormatFlag(req->operationFlag,
 				FsReadWriteReq::fsFormatGlobalPage);
-  req->data.pageData[0] = ptr.p->m_real_page_i;
+  req->data.globalPage.pageNumber = ptr.p->m_real_page_i;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
 	     FsReadWriteReq::FixedLength + 1, JBA);
 }
@@ -3872,7 +3872,7 @@ Pgman::execFSREADCONF(Signal* signal)
   jamEntry();
   FsConf* conf = (FsConf*)signal->getDataPtr();
   Ptr<Page_entry> ptr;
-  m_page_entry_pool.getPtr(ptr, conf->userPointer);
+  ndbrequire(m_page_entry_pool.getPtr(ptr, conf->userPointer));
 
   /**
    * Here is a good place to check checksums written.
@@ -3896,7 +3896,7 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   File_map::ConstDataBufferIterator it;
   ndbrequire(m_file_map.first(it));
   ndbrequire(m_file_map.next(it, ptr.p->m_file_no));
-  m_file_entry_pool.getPtr(file_ptr, *it.data);
+  ndbrequire(m_file_entry_pool.getPtr(file_ptr, *it.data));
   Uint32 fd = file_ptr.p->m_fd;
 
   /**
@@ -3958,7 +3958,8 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   req->operationFlag = 0;
   FsReadWriteReq::setFormatFlag(req->operationFlag,
 				FsReadWriteReq::fsFormatGlobalPage);
-  req->data.pageData[0] = ptr.p->m_real_page_i;
+  req->data.globalPage.pageNumber = ptr.p->m_real_page_i;
+
   
   if (!ERROR_INSERTED(11008))
   {
@@ -3973,7 +3974,7 @@ Pgman::execFSWRITECONF(Signal* signal)
   jamEntry();
   FsConf* conf = (FsConf*)signal->getDataPtr();
   Ptr<Page_entry> ptr;
-  m_page_entry_pool.getPtr(ptr, conf->userPointer);
+  ndbrequire(m_page_entry_pool.getPtr(ptr, conf->userPointer));
 
   fswriteconf(signal, ptr);
 }
@@ -4670,7 +4671,7 @@ Pgman::map_file_no(Uint32 file_no, Uint32 fd)
   ndbrequire(m_file_map.next(it, file_no));
   D("map_file_no:" << V(file_no) << V(fd));
 
-  m_file_entry_pool.getPtr(file_ptr, *it.data);
+  ndbrequire(m_file_entry_pool.getPtr(file_ptr, *it.data));
   ndbassert(file_ptr.p->m_fd == 0);
   file_ptr.p->m_fd = fd;
 }
@@ -4682,7 +4683,7 @@ Pgman::free_data_file(Uint32 file_no, Uint32 fd)
   File_map::DataBufferIterator it;
   ndbrequire(m_file_map.first(it));
   ndbrequire(m_file_map.next(it, file_no));
-  m_file_entry_pool.getPtr(file_ptr, *it.data);
+  ndbrequire(m_file_entry_pool.getPtr(file_ptr, *it.data));
   
   if (fd == RNIL)
   {
@@ -5673,7 +5674,7 @@ Page_cache_client::get_extent_page(Signal* signal,
                                          signal,
                                          entry_ptr,
                                          page_req);
-  m_pgman->m_global_page_pool.getPtr(m_ptr, page);
+  require(m_pgman->m_global_page_pool.getPtr(m_ptr, page));
 }
 
 int
@@ -5723,7 +5724,7 @@ Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
   {
     thrjam(m_jamBuf);
     // TODO remove
-    m_pgman->m_global_page_pool.getPtr(m_ptr, (Uint32)i);
+    require(m_pgman->m_global_page_pool.getPtr(m_ptr, (Uint32)i));
   }
   return i;
 }
@@ -5872,8 +5873,7 @@ Pgman::add_fragment(Uint32 tableId, Uint32 fragmentId)
 {
   FragmentRecordPtr fragPtr;
   FragmentRecordPtr check;
-  m_fragmentRecordPool.seize(fragPtr);
-  if (fragPtr.i == RNIL)
+  if (!m_fragmentRecordPool.seize(fragPtr))
   {
     jam();
     return 1;
@@ -5892,7 +5892,7 @@ Pgman::set_table_ready_for_prep_lcp_writes(Uint32 tabPtrI,
                                            bool ready)
 {
   TableRecordPtr tabPtr;
-  m_tableRecordPool.getPtr(tabPtr, tabPtrI);
+  ndbrequire(m_tableRecordPool.getPtr(tabPtr, tabPtrI));
   tabPtr.p->m_is_table_ready_for_prep_lcp_writes = ready;
 }
 
@@ -5900,7 +5900,7 @@ bool
 Pgman::is_prep_lcp_writes_outstanding(Uint32 tabPtrI)
 {
   TableRecordPtr tabPtr;
-  m_tableRecordPool.getPtr(tabPtr, tabPtrI);
+  ndbrequire(m_tableRecordPool.getPtr(tabPtr, tabPtrI));
   return tabPtr.p->m_num_prepare_lcp_outstanding != 0;
 }
 
@@ -6059,7 +6059,7 @@ Pgman::drop_fragment(Uint32 tableId, Uint32 fragmentId)
   FragmentRecordPtr fragPtr;
   m_fragmentRecordHash.find(fragPtr, key);
   TableRecordPtr tabPtr;
-  m_tableRecordPool.getPtr(tabPtr, tableId);
+  ndbrequire(m_tableRecordPool.getPtr(tabPtr, tableId));
   if (fragPtr.i != RNIL)
   {
     jam();
@@ -6620,6 +6620,48 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
   return out;
 }
 
+void
+print(EventLogger *logger, Ptr<Pgman::Page_request> ptr)
+{
+  char logbuf[MAX_LOG_MESSAGE_SIZE];
+  logbuf[0] = '\0';
+  const Pgman::Page_request &pr = *ptr.p;
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "PR");
+  if (ptr.i != RNIL)
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " [%u]", ptr.i);
+
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " block=%X", pr.m_block);
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " flags=%X", pr.m_flags);
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE,
+                       " flags=%d"
+                       ",",
+                       pr.m_flags & Pgman::Page_request::OP_MASK);
+  {
+    if (pr.m_flags & Pgman::Page_request::LOCK_PAGE)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "lock_page");
+    if (pr.m_flags & Pgman::Page_request::EMPTY_PAGE)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "empty_page");
+    if (pr.m_flags & Pgman::Page_request::ALLOC_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "alloc_req");
+    if (pr.m_flags & Pgman::Page_request::COMMIT_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "commit_req");
+    if (pr.m_flags & Pgman::Page_request::ABORT_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "abort_req");
+    if (pr.m_flags & Pgman::Page_request::UNDO_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "undo_req");
+    if (pr.m_flags & Pgman::Page_request::UNDO_GET_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "undo_get_req");
+    if (pr.m_flags & Pgman::Page_request::DIRTY_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "dirty_req");
+    if (pr.m_flags & Pgman::Page_request::CORR_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "corr_req");
+    if (pr.m_flags & Pgman::Page_request::DISK_SCAN)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "disk_scan");
+  }
+
+  logger->info("%s", logbuf);
+}
+
 NdbOut&
 operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
 {
@@ -6677,7 +6719,7 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
 #ifdef VM_TRACE
     if (pe.m_state & Pgman::Page_entry::MAPPED) {
       Ptr<GlobalPage> gptr;
-      pe.m_this->m_global_page_pool.getPtr(gptr, pe.m_real_page_i);
+      require(pe.m_this->m_global_page_pool.getPtr(gptr, pe.m_real_page_i));
       Uint32 hash_result[4];      
       /* NOTE: Assuming "data" is 64 bit aligned as required by 'md5_hash' */
       md5_hash(hash_result,
@@ -6716,6 +6758,102 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
 }
 
 void
+print(EventLogger *logger, Ptr<Pgman::Page_entry> ptr) {
+  const Pgman::Page_entry &pe = *ptr.p;
+  char logbuf[MAX_LOG_MESSAGE_SIZE];
+  logbuf[0] = '\0';
+  Uint32 list_no = Pgman::get_sublist_no(pe.m_state);
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "PE [%u] state=%X", ptr.i,
+                       pe.m_state);
+  {
+    if (pe.m_state & Pgman::Page_entry::REQUEST)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",request");
+    if (pe.m_state & Pgman::Page_entry::EMPTY)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",empty");
+    if (pe.m_state & Pgman::Page_entry::BOUND)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",bound");
+    if (pe.m_state & Pgman::Page_entry::MAPPED)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",mapped");
+    if (pe.m_state & Pgman::Page_entry::DIRTY)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",dirty");
+    if (pe.m_state & Pgman::Page_entry::USED)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",used");
+    if (pe.m_state & Pgman::Page_entry::BUSY)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",busy");
+    if (pe.m_state & Pgman::Page_entry::LOCKED)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",locked");
+    if (pe.m_state & Pgman::Page_entry::PAGEIN)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",pagein");
+    if (pe.m_state & Pgman::Page_entry::PAGEOUT)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",pageout");
+    if (pe.m_state & Pgman::Page_entry::LOGSYNC)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",logsync");
+    if (pe.m_state & Pgman::Page_entry::LCP)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",lcp");
+    if (pe.m_state & Pgman::Page_entry::WAIT_LCP)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",wait_lcp");
+    if (pe.m_state & Pgman::Page_entry::HOT)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",hot");
+    if (pe.m_state & Pgman::Page_entry::ONSTACK)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",onstack");
+    if (pe.m_state & Pgman::Page_entry::ONQUEUE)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",onqueue");
+  }
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " list=");
+  if (list_no == ZNIL)
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "NONE");
+  else {
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "%u,%s", list_no,
+                         Pgman::get_sublist_name(list_no));
+  }
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " diskpage=%u,%u",
+                       pe.m_file_no, pe.m_page_no);
+  if (pe.m_real_page_i == RNIL)
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "realpage=RNIL");
+  else {
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " realpage=%u",
+                         pe.m_real_page_i);
+#ifdef VM_TRACE
+    if (pe.m_state & Pgman::Page_entry::MAPPED) {
+      Ptr<GlobalPage> gptr;
+      require(pe.m_this->m_global_page_pool.getPtr(gptr, pe.m_real_page_i));
+      Uint32 hash_result[4];
+      /* NOTE: Assuming "data" is 64 bit aligned as required by 'md5_hash' */
+      md5_hash(hash_result, (Uint64 *)gptr.p->data,
+               sizeof(gptr.p->data) / sizeof(Uint32));
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE,
+                           " md5=%08x%08x%08x%08x", hash_result[0],
+                           hash_result[1], hash_result[2], hash_result[3]);
+    }
+#endif
+  }
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " lsn=%llu busy_count=%u",
+                       pe.m_lsn, pe.m_busy_count);
+#ifdef VM_TRACE
+  {
+    Pgman::Page_stack &pl_stack = pe.m_this->m_page_stack;
+    if (!pl_stack.hasNext(ptr))
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " top");
+    if (!pl_stack.hasPrev(ptr))
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " bottom");
+  }
+  logger->info("%s", logbuf);
+  {
+    Pgman::Local_page_request_list req_list(ptr.p->m_this->m_page_request_pool,
+                                            ptr.p->m_requests);
+    if (!req_list.isEmpty()) {
+      Ptr<Pgman::Page_request> req_ptr;
+      for (req_list.first(req_ptr); req_ptr.i != RNIL; req_list.next(req_ptr)) {
+        print(logger, req_ptr);
+      }
+    }
+  }
+#else
+  logger->info("%s", logbuf);
+#endif
+}
+
+void
 Pgman::execDUMP_STATE_ORD(Signal* signal)
 {
   jamEntry();
@@ -6735,6 +6873,11 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
     Uint32 list = 0;
     if (signal->getLength() > 1)
       list = signal->theData[1];
+
+    if (list >= Page_entry::SUBLIST_COUNT)
+    {
+      return;
+    }
 
     Page_sublist& pl = *m_page_sublist[list];
     Ptr<Page_entry> ptr;
@@ -6804,20 +6947,16 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
       ((100 * locked) / avail_for_extent_pages) : 0;
     Uint32 lockedpct3 = (max_pages > 0) ? ((100 * locked) / max_pages) : 0;
 
-    ndbout_c("pgman(%u)\n"
-             " page_entry_pool: size %u used: %u (%u %%)\n"
-             " high: %u (%u %%)\n"
-             " locked pages: %u\n"
-             " \t related to entries %u (%u %%)\n"
-             " \t related to available pages for extent pages %u (%u %%)\n"
-             " \t related to Total pages in disk page buffer memory %u (%u %%)\n",
-             instance(),
-             size, used, usedpct,
-             high, highpct,
-             locked,
-             size, lockedpct,
-             avail_for_extent_pages, lockedpct2,
-             max_pages, lockedpct3);
+    g_eventLogger->info(
+        "pgman(%u)"
+        " page_entry_pool: size %u used: %u (%u %%)"
+        " high: %u (%u %%)"
+        " locked pages: %u"
+        " related to entries %u (%u %%)"
+        " related to available pages for extent pages %u (%u %%)"
+        " related to Total pages in disk page buffer memory %u (%u %%)",
+        instance(), size, used, usedpct, high, highpct, locked, size, lockedpct,
+        avail_for_extent_pages, lockedpct2, max_pages, lockedpct3);
   }
 
   if (signal->theData[0] == 11101)

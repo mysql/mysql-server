@@ -81,4 +81,90 @@ drop table t1;
 drop table t2;
 --sync_slave_with_master
 
+--echo Test that real uniqeuness constraint violations are detected
+--echo when replicating
+--connection master
+create table t1 (a int primary key, b int, c int, unique(c)) engine=ndb;
+
+insert into t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5), (6,6,6);
+--sync_slave_with_master
+
+--echo Modify replica so that there can be conflicts in replication
+--connection slave
+insert into t1 values (11,11,11), (12,12,12), (13,13,13), (14,14,14);
+
+call mtr.add_suppression(".*duplicate key in table.*");
+call mtr.add_suppression(".*Duplicate key on write or update.*");
+call mtr.add_suppression(".*duplicate value in unique index.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+
+--echo Single insert
+--connection master
+insert into t1 values (7,7,11);
+
+--connection slave
+--let $slave_sql_errno= 1022
+--source include/wait_for_slave_sql_error.inc
+
+delete from t1 where c=11;
+start replica;
+
+--connection master
+--sync_slave_with_master
+
+--echo Single update
+--connection master
+update t1 set c=12 where a=2;
+
+--connection slave
+--let $slave_sql_errno= 1022
+--source include/wait_for_slave_sql_error.inc
+
+delete from t1 where c=12;
+
+start replica;
+
+--connection master
+--sync_slave_with_master
+
+--connection master
+
+--echo Check blob handling
+
+create table t2 (a int primary key, b text, c int, unique(c)) engine=ndb;
+insert into t2 values (1, repeat('VRA', 10000),1);
+insert into t2 values (2, repeat('VRA', 10000),2);
+insert into t2 values (3, repeat('VRA', 10000),3);
+insert into t2 values (4, repeat('VRA', 10000),4);
+insert into t2 values (5, repeat('VRA', 10000),5);
+insert into t2 values (6, repeat('VRA', 10000),6);
+insert into t2 values (7, repeat('VRA', 10000),7);
+insert into t2 values (8, repeat('VRA', 10000),8);
+insert into t2 values (9, repeat('VRA', 10000),9);
+
+--sync_slave_with_master
+--connection slave
+
+insert into t2 values (11, repeat('VRA', 10000), 11);
+
+--connection master
+update t2 set b=repeat('GEO', 20000), c=c+10 order by c desc;
+
+--connection slave
+--let $slave_sql_errno= 1022
+--source include/wait_for_slave_sql_error.inc
+
+delete from t2 where c=11;
+
+start replica;
+
+--connection master
+--sync_slave_with_master
+
+--connection master
+drop table t1;
+drop table t2;
+--sync_slave_with_master
+
+
 --source include/rpl_end.inc

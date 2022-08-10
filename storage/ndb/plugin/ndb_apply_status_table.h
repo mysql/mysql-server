@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,8 @@ class Ndb_apply_status_table : public Ndb_util_table {
   bool check_schema() const override;
 
   bool need_upgrade() const override;
+
+  bool need_reinstall(const dd::Table *table_def) const override;
 
   std::string define_table_dd() const override;
 

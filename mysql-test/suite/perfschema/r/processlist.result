@@ -70,14 +70,14 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
-<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
-<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	PRIMARY
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	PRIMARY
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	PRIMARY
 
 # Information Schema processlist table
 
@@ -109,14 +109,14 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
-<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
-<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999	PRIMARY
+<Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3	PRIMARY
+<Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)	PRIMARY
 
 # Information Schema processlist table
 

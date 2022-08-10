@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,7 @@ static void cartesian_envelope(const Geometry *g, Cartesian_box *mbr) {
             break;
           case Geometry_type::kGeometry:
             assert(false);
-            throw new std::exception();
+            throw std::exception();
         }
 
         // Cartesian_boxxes around empty geometries contain NaN in all
@@ -172,7 +172,7 @@ static void cartesian_envelope(const Geometry *g, Cartesian_box *mbr) {
       break;
     case Geometry_type::kGeometry:
       assert(false);
-      throw new std::exception();
+      throw std::exception();
       break;
   }
 }
@@ -234,7 +234,7 @@ static void geographic_envelope(const Geometry *g, double semi_major,
             break;
           case Geometry_type::kGeometry:
             assert(false);
-            throw new std::exception();
+            throw std::exception();
         }
 
         // Geographic_boxxes around empty geometries contain NaN in all
@@ -259,7 +259,7 @@ static void geographic_envelope(const Geometry *g, double semi_major,
       break;
     case Geometry_type::kGeometry:
       assert(false);
-      throw new std::exception();
+      throw std::exception();
       break;
   }
 }

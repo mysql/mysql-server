@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -303,7 +303,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
     break;
   case NextScanReq::ZSCAN_COMMIT:
     jam();
-    // Fall through
+    [[fallthrough]];
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jam();
     if ((scan.m_bits & ScanOp::SCAN_LOCK) != 0)
@@ -789,9 +789,12 @@ Dbtup::execACCKEYCONF(Signal* signal)
        *   so rescan this position.
        *   Which is implemented by using execACCKEYREF...
        */
-      ndbout << "execACCKEYCONF "
-             << scan.m_scanPos.m_key_mm
-             << " != " << tmp << " ";
+      char key_str1[MAX_LOG_MESSAGE_SIZE];
+      printLocal_Key(key_str1, sizeof(key_str1), scan.m_scanPos.m_key_mm);
+      char key_str2[MAX_LOG_MESSAGE_SIZE];
+      printLocal_Key(key_str2, sizeof(key_str2), tmp);
+      g_eventLogger->info("execACCKEYCONF %s != %s ", key_str1, key_str2);
+
       scan.m_bits |= ScanOp::SCAN_LOCK_WAIT;
       execACCKEYREF(signal);
       return;
@@ -2047,7 +2050,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         // clear cached value
         pos.m_realpid_mm = RNIL;
       }
-      /*FALLTHRU*/
+      [[fallthrough]];
     case ScanPos::Get_page_mm:
       // get TUP real page
       {
@@ -2110,7 +2113,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         {
           jam();
         }
-	c_page_pool.getPtr(pagePtr, pos.m_realpid_mm);
+        ndbrequire(c_page_pool.getPtr(pagePtr, pos.m_realpid_mm));
         /**
          * We are in the process of performing a Full table scan, this can be
          * either due to a user requesting a full table scan, it can also be
@@ -2209,7 +2212,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         Disk_alloc_info& alloc = frag.m_disk_alloc_info;
         Local_fragment_extent_list list(c_extent_pool, alloc.m_extent_list);
         Ptr<Extent_info> ext_ptr;
-        c_extent_pool.getPtr(ext_ptr, pos.m_extent_info_ptr_i);
+        ndbrequire(c_extent_pool.getPtr(ext_ptr, pos.m_extent_info_ptr_i));
         Extent_info* ext = ext_ptr.p;
         key.m_page_no++;
         if (key.m_page_no >= ext->m_first_page_no + alloc.m_extent_size) {
@@ -2297,7 +2300,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           }
         } // if ScanOp::SCAN_DD read ahead
       }
-      /*FALLTHRU*/
+      [[fallthrough]];
     case ScanPos::Get_page_dd:
       // get global page in PGMAN cache
       jam();
@@ -2374,7 +2377,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         key.m_page_idx += size;
         pos.m_get = ScanPos::Get_tuple;
       }
-      /*FALLTHRU*/
+      [[fallthrough]];
     case ScanPos::Get_tuple:
       // get fixed size tuple
       jam();
@@ -3407,7 +3410,7 @@ Dbtup::disk_page_tup_scan_callback(Signal* signal, Uint32 scanPtrI, Uint32 page_
   ScanPos& pos = scan.m_scanPos;
   // get cache page
   Ptr<GlobalPage> gptr;
-  m_global_page_pool.getPtr(gptr, page_i);
+  ndbrequire(m_global_page_pool.getPtr(gptr, page_i));
   pos.m_page = (Page*)gptr.p;
   // continue
   ndbrequire((scan.m_bits & ScanOp::SCAN_LOCK) == 0);

@@ -428,6 +428,7 @@ f1	f2	f3
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2003-01-02 10:11:12.0012ABCD'
 Warning	1292	Truncated incorrect time value: '-01:01:01.01 GGG'
+Warning	4096	Delimiter ' ' in position 12 in datetime value '-01:01:01.01 GGG' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1292	Truncated incorrect time value: '1997-12-31 23:59:59.01XXXX'
 select str_to_date("2003-04-05  g", "%Y-%m-%d") as f1,
 str_to_date("2003-04-05 10:11:12.101010234567", "%Y-%m-%d %H:%i:%S.%f") as f2;

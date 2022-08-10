@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ namespace gcs_xcom_mpsc_queue_unittest {
 
 class GcsMpscQueueTest : public GcsBaseTest {
  protected:
-  GcsMpscQueueTest() {}
+  GcsMpscQueueTest() = default;
 
   void SetUp() override {}
 

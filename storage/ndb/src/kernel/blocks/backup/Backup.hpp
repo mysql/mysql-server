@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,6 +86,7 @@ protected:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
+  void execNODE_START_REP(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
   void execINCL_NODEREQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -210,10 +211,9 @@ private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal);
-  Uint32 validateEncryptionPassword(const EncryptionPasswordData* epd);
+  Uint32 validateEncryptionPassword(const EncryptionKeyMaterial* epd);
 
-
-public:
+ public:
   struct Node {
     Uint32 nodeId;
     Uint32 alive;
@@ -919,7 +919,7 @@ public:
     }
 
     bool m_encrypted_file;
-    EncryptionPasswordData m_encryption_password_data;
+    EncryptionKeyMaterial m_encryption_password_data;
   };
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;
@@ -972,11 +972,14 @@ public:
    * look for the table with the correct backupPtr.
    */
   Uint32 * c_tableMap;
+  Uint32 c_tableMapSize;
   NodeId c_masterNodeId;
   Node_list c_nodes;
   NdbNodeBitmask c_aliveNodes;
   BackupRecord_dllist c_backups;
   Config c_defaults;
+
+  bool c_encrypted_filesystem;
 
   /*
     Variables that control checkpoint to disk speed
@@ -1194,9 +1197,9 @@ public:
                              Uint64 & std_dev_redo_in_bytes_per_sec);
 
 
-  STATIC_CONST(NO_OF_PAGES_META_FILE = 
-	       (2*MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) / 
-	       BACKUP_WORDS_PER_PAGE);
+  static constexpr Uint32 NO_OF_PAGES_META_FILE = 
+	       (2*MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) /
+	       BACKUP_WORDS_PER_PAGE;
 
   Uint32 m_backup_report_frequency;
 
@@ -1455,9 +1458,9 @@ public:
    * MT LQH.  LCP runs separately in each instance number.
    * BACKUP uses instance key 1 (real instance 0 or 1) as master.
   */
-  STATIC_CONST( NdbdInstanceKey = 0 );
-  STATIC_CONST( BackupProxyInstanceKey = 0 );
-  STATIC_CONST( UserBackupInstanceKey = 1 );
+  static constexpr Uint32 NdbdInstanceKey = 0;
+  static constexpr Uint32 BackupProxyInstanceKey = 0;
+  static constexpr Uint32 UserBackupInstanceKey = 1;
   /*
    * instanceNo() is used for routing backup control signals and has 3
    * use cases:

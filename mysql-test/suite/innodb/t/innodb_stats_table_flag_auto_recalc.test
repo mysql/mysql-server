@@ -3,6 +3,10 @@
 #
 
 -- source include/no_valgrind_without_big.inc
+# Suppress a warning from Valgrind
+--disable_query_log
+call mtr.add_suppression("Warning: set address range perms");
+--enable_query_log
 
 -- vertical_results
 

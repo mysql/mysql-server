@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
   charset for the schema).
  */
 bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
-                  const Schema &schema MY_ATTRIBUTE((unused)));
+                  const Schema &schema [[maybe_unused]]);
 
 /**
   Deletes all SDIs with SDI_TYPE_TABLE from the table tablespace. In case of

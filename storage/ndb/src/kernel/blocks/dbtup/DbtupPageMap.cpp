@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1051,6 +1051,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   Uint32 last_lcp_state = (*prev) & LAST_LCP_FREE_BIT;
   Uint32 lcp_scan_ptr_i = fragPtrP->m_lcp_scan_op;
   bool lcp_to_scan = false;
+  bool rowid_in_remaining_lcp_set = false;
   if (lcp_scan_ptr_i != RNIL)
   {
     /**
@@ -1062,17 +1063,20 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
      * duplicate some DELETE BY ROWID, but it should only have a minor
      * performance impact. Otherwise we will ignore it.
      */
+    jam();
     ScanOpPtr scanOp;
     Local_key key;
     scanOp.i = lcp_scan_ptr_i;
     ndbrequire(c_scanOpPool.getValidPtr(scanOp));
     key.m_page_no = logicalPageId;
     key.m_page_idx = ZNIL;
-    if (is_rowid_in_remaining_lcp_set(pagePtr.p,
-                                      fragPtrP,
-                                      key,
-                                      *scanOp.p,
-                                      1 /* Debug for LCP scanned bit */) ||
+    rowid_in_remaining_lcp_set =
+      is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                    fragPtrP,
+                                    key,
+                                    *scanOp.p,
+                                    1 /* Debug for LCP scanned bit */);
+    if (rowid_in_remaining_lcp_set ||
         pagePtr.p->is_page_to_skip_lcp())
     {
       jam();
@@ -1212,11 +1216,19 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   {
     if (unlikely(lcp_scanned_bit != 0))
     {
-      g_eventLogger->info("(%u)tab(%u,%u):%u crash lcp_scanned_bit set",
+      g_eventLogger->info("(%u)tab(%u,%u):%u crash lcp_scanned_bit set"
+                          " is lcp_scan_ptr_i RNIL %u,"
+                          " last_lcp_state %u,"
+                          " is_rowid_in_remaining_lcp_set %u"
+                          " is_page_to_skip_lcp %u",
                           instance(),
                           fragPtrP->fragTableId,
                           fragPtrP->fragmentId,
-                          logicalPageId);
+                          logicalPageId,
+                          lcp_scan_ptr_i == RNIL,
+                          last_lcp_state,
+                          rowid_in_remaining_lcp_set,
+                          pagePtr.p->is_page_to_skip_lcp());
       ndbrequire(lcp_scanned_bit == 0);
     }
   }

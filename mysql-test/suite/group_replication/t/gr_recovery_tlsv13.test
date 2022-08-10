@@ -25,10 +25,16 @@
 SET SESSION sql_log_bin=0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
 SET SESSION sql_log_bin=1;
 
 SET @tls_version_saved= @@GLOBAL.tls_version;
 SET GLOBAL tls_version='TLSv1.3';
+
+SET @conf_rec_ssl_mode= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+
 ALTER INSTANCE RELOAD TLS;
 
 --echo #
@@ -46,12 +52,22 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET SESSION sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin=1;
+
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
 
 SET @group_replication_recovery_use_ssl_saved= @@GLOBAL.group_replication_recovery_use_ssl;
 SET GLOBAL group_replication_recovery_use_ssl=1;
+
+SET @conf_rec_ssl_mode= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
 
 --source include/start_group_replication.inc
 
@@ -73,6 +89,8 @@ SET @@GLOBAL.group_replication_recovery_use_ssl= @group_replication_recovery_use
 --source include/rpl_connection.inc
 
 SET @@GLOBAL.tls_version= @tls_version_saved;
+
+SET @@GLOBAL.group_replication_ssl_mode= @conf_rec_ssl_mode;
 ALTER INSTANCE RELOAD TLS;
 
 SET SESSION sql_log_bin=0;
@@ -80,5 +98,15 @@ DROP USER 'rec_ssl_user';
 SET SESSION sql_log_bin=1;
 
 DROP TABLE t1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+SET SESSION sql_log_bin=1;
+
+SET @@GLOBAL.group_replication_ssl_mode= @conf_rec_ssl_mode;
+ALTER INSTANCE RELOAD TLS;
 
 --source include/group_replication_end.inc

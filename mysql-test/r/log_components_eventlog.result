@@ -55,6 +55,8 @@ ERROR HY000: Unknown system variable 'syseventlog.include_pid'
 SET GLOBAL syseventlog.facility = "local1";
 ERROR HY000: Unknown system variable 'syseventlog.facility'
 SET PERSIST syseventlog.tag = "wl11828";
+SET @@global.log_error_services=DEFAULT;
+UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
 # restart: --no-console --log-error-services=log_filter_internal;log_sink_syseventlog;log_sink_internal 
 SELECT @@syseventlog.tag;
 @@syseventlog.tag

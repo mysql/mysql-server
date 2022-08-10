@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ void Event_parse_data::init_name(THD *thd, sp_name *spn) {
   ENDS or AT is in the past, we are trying to create an event that
   will never be executed.  If it has ON COMPLETION NOT PRESERVE
   (default), then it would normally be dropped already, so on CREATE
-  EVENT we give a warning, and do not create anyting.  On ALTER EVENT
+  EVENT we give a warning, and do not create anything.  On ALTER EVENT
   we give a error, and do not change the event.
 
   If the event has ON COMPLETION PRESERVE, then we see if the event is
@@ -208,9 +208,6 @@ wrong_value:
 */
 
 int Event_parse_data::init_interval(THD *thd) {
-  String value;
-  Interval interval_tmp;
-
   DBUG_TRACE;
   if (!item_expression) return 0;
 
@@ -226,11 +223,13 @@ int Event_parse_data::init_interval(THD *thd) {
       break;
   }
 
+  StringBuffer<MAX_DATETIME_FULL_WIDTH + 1> value;
+  Interval interval_tmp;
+
   if (!item_expression->fixed &&
       item_expression->fix_fields(thd, &item_expression))
     goto wrong_value;
 
-  value.alloc(MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   if (get_interval_value(item_expression, interval, &value, &interval_tmp))
     goto wrong_value;
 
@@ -310,7 +309,7 @@ wrong_value:
     EVERY 5 MINUTE STARTS "2004-12-12 10:00:00" means that
     the event will be executed every 5 minutes but this will
     start at the date shown above. Expressions are possible :
-    DATE_ADD(NOW(), INTERVAL 1 DAY)  -- start tommorow at
+    DATE_ADD(NOW(), INTERVAL 1 DAY)  -- start tomorrow at
     same time.
 
   RETURN VALUE
@@ -359,7 +358,7 @@ wrong_value:
     EVERY 5 MINUTE ENDS "2004-12-12 10:00:00" means that
     the event will be executed every 5 minutes but this will
     end at the date shown above. Expressions are possible :
-    DATE_ADD(NOW(), INTERVAL 1 DAY)  -- end tommorow at
+    DATE_ADD(NOW(), INTERVAL 1 DAY)  -- end tomorrow at
     same time.
 
   RETURN VALUE
@@ -439,8 +438,17 @@ bool Event_parse_data::check_parse_data(THD *thd) {
              ("execute_at: %p  expr=%p  starts=%p  ends=%p", item_execute_at,
               item_expression, item_starts, item_ends));
 
-  if (is_invalid_string(to_lex_cstring(comment), system_charset_info))
+  // Validate event comment string
+  std::string invalid_sub_str;
+  if (is_invalid_string(to_lex_cstring(comment), system_charset_info,
+                        invalid_sub_str)) {
+    my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "event",
+             (std::string(identifier->m_db.str) + "." +
+              std::string(identifier->m_name.str))
+                 .c_str(),
+             system_charset_info->csname, invalid_sub_str.c_str());
     return true;
+  }
 
   init_name(thd, identifier);
 

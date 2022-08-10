@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -40,8 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define os0atomic_h
 
 #include "univ.i"
-
-typedef int lock_word_t;
 
 /** barrier definitions for memory ordering */
 #ifdef HAVE_IB_GCC_ATOMIC_THREAD_FENCE

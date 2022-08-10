@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
   bool res =
       System_table_access::close_table(thd, table, backup, error, thd_created);
 
-  DBUG_EXECUTE_IF("slave_crash_after_commit_no_atomic_ddl", {
+  DBUG_EXECUTE_IF("replica_crash_after_commit_no_atomic_ddl", {
     if (thd->slave_thread && thd->rli_slave && thd->rli_slave->current_event &&
         thd->rli_slave->current_event->get_type_code() ==
             binary_log::QUERY_EVENT &&
@@ -182,7 +182,7 @@ enum enum_return_id Rpl_info_table_access::find_info(
   The code built on top of this function needs to ensure there is
   no concurrent threads trying to update the table. So if an error
   different from HA_ERR_END_OF_FILE is returned, we abort with an
-  error because this implies that someone has manualy and
+  error because this implies that someone has manually and
   concurrently changed something.
 
   @retval FOUND     The row was found.
@@ -232,10 +232,9 @@ enum enum_return_id Rpl_info_table_access::scan_info(TABLE *table,
   Returns the number of entries in table.
 
   The code built on top of this function needs to ensure there is
-  no concurrent threads trying to update the table. So if an error
-  different from HA_ERR_END_OF_FILE is returned, we abort with an
-  error because this implies that someone has manualy and
-  concurrently changed something.
+  no concurrent threads trying to access the table. So if an error
+  different from HA_ERR_END_OF_FILE is returned, an error is returned
+  meaning the count failed cause a deadlock or other issue was found
 
   @param[in]  table   Table
   @param[out] counter Registers the number of entries.
@@ -243,36 +242,38 @@ enum enum_return_id Rpl_info_table_access::scan_info(TABLE *table,
   @retval false No error
   @retval true  Failure
 */
-bool Rpl_info_table_access::count_info(TABLE *table, uint *counter) {
-  bool end = false;
-  int error = 0;
+bool Rpl_info_table_access::count_info(TABLE *table, ulonglong *counter) {
+  DBUG_TRACE;
+  int error = table->file->ha_records(counter);
+  return error != 0;
+}
 
+/**
+  Returns if the table is being used, meaning it contains at least a
+  line or some concurrency related error was returned when looking at
+  the table.
+
+  @param[in]  table   Table
+
+  @retval a pair of booleans
+          First element is true if an error occurred, false otherwise.
+          Second element is true if the table is not empty or an access error
+          occurred meaning someone else is accessing it. False if the table
+          is empty.
+*/
+std::pair<bool, bool> Rpl_info_table_access::is_table_in_use(TABLE *table) {
   DBUG_TRACE;
 
-  if ((error = table->file->ha_rnd_init(true))) return true;
+  if ((table->file->ha_rnd_init(true))) return std::make_pair(true, false);
 
-  do {
-    error = table->file->ha_rnd_next(table->record[0]);
-    switch (error) {
-      case 0:
-        (*counter)++;
-        break;
-
-      case HA_ERR_END_OF_FILE:
-        end = true;
-        break;
-
-      default:
-        DBUG_PRINT("info", ("Failed to get next record"
-                            " (ha_rnd_next returns %d)",
-                            error));
-        break;
-    }
-  } while (!error);
+  bool is_in_use = true;
+  if (table->file->ha_rnd_next(table->record[0]) == HA_ERR_END_OF_FILE) {
+    is_in_use = false;
+  }
 
   table->file->ha_rnd_end();
 
-  return end ? false : true;
+  return std::make_pair(false, is_in_use);
 }
 
 /**

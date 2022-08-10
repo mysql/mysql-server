@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ class PFS_index_tlws_by_table : public PFS_engine_index {
         m_key_2("OBJECT_SCHEMA"),
         m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_tlws_by_table() override {}
+  ~PFS_index_tlws_by_table() override = default;
 
   virtual bool match(const PFS_table_share *table);
 
@@ -99,7 +99,7 @@ class table_tlws_by_table : public PFS_engine_table {
   table_tlws_by_table();
 
  public:
-  ~table_tlws_by_table() override {}
+  ~table_tlws_by_table() override = default;
 
  protected:
   int make_row(PFS_table_share *table_share);

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,60 +24,42 @@
 
 #include "mysqlrouter/router_openssl_export.h"
 
-#include <openssl/conf.h>
-#include <openssl/engine.h>
-#include <openssl/err.h>
-#include <openssl/opensslv.h>
-#include <openssl/ssl.h>
+#include <memory>
 
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/tls_context.h"
 
 extern "C" {
 
+std::unique_ptr<TlsLibraryContext> tls_library_context;
+
 static void init(mysql_harness::PluginFuncEnv *) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  SSL_library_init();
-#else
-  OPENSSL_init_ssl(0, nullptr);
-#endif
-  SSL_load_error_strings();
-  ERR_load_crypto_strings();
+  // let the TlsLibraryContext constructor do the SSL initialization
+  tls_library_context = std::make_unique<TlsLibraryContext>();
 }
 
 static void deinit(mysql_harness::PluginFuncEnv *) {
-  // in case any of this is needed for cleanup
-#if 0
-  FIPS_mode_set(0);
-  CRYPTO_set_locking_callback(nullptr);
-  CRYPTO_set_id_callback(nullptr);
-
-  SSL_COMP_free_compression_methods();
-
-  ENGINE_cleanup();
-
-  CONF_modules_free();
-  CONF_modules_unload(1);
-
-  COMP_zlib_cleanup();
-
-  ERR_free_strings();
-  EVP_cleanup();
-
-  CRYPTO_cleanup_all_ex_data();
-#endif
+  // let the TlsLibraryContext destructor do the SSL cleanup
+  tls_library_context.reset();
 }
 
 mysql_harness::Plugin ROUTER_OPENSSL_EXPORT harness_plugin_router_openssl = {
-    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "openssl init plugin", VERSION_NUMBER(0, 0, 1),
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "openssl init plugin",
+    VERSION_NUMBER(0, 0, 1),
     // requires
-    0, nullptr,
+    0,
+    nullptr,
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     nullptr,  // start
     nullptr,  // stop
-    false     // declare_readiness
+    false,    // declare_readiness
+    0,
+    nullptr,
 };
 }

@@ -1,3 +1,2 @@
 --loose-performance_schema_max_program_instances=7
 --loose-performance_schema_max_statement_stack=2
---thread_stack=655360

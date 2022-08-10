@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 # Test replicate-ignore-db=db1 filter
 #
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --replicate-ignore-db=db1 --skip_slave_start=FALSE]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --replicate-ignore-db=db1 --skip_replica_start=FALSE]
 [connection master]
 #
 # Execute 'CREATE DATABASE db1' on Master.
@@ -38,7 +38,7 @@ include/sync_slave_sql_with_master.inc
 #
 # Test replicate-do-db=db2 filter
 #
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --replicate-do-db=db2 --skip_slave_start=FALSE]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --replicate-do-db=db2 --skip_replica_start=FALSE]
 [connection master]
 #
 # Execute 'CREATE DATABASE db1' on Master.
@@ -70,7 +70,7 @@ include/sync_slave_sql_with_master.inc
 #
 # Test replicate-wild-ignore-table=db1.% filter
 #
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --replicate-wild-ignore-table=db1.% --skip_slave_start=FALSE]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --replicate-wild-ignore-table=db1.% --skip_replica_start=FALSE]
 [connection master]
 #
 # Execute 'CREATE DATABASE db1' on Master.
@@ -102,7 +102,7 @@ include/sync_slave_sql_with_master.inc
 #
 # Test replicate-wild-ignore-table=db1.% and --replicate-do-db=db2
 # filter combination
-include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --replicate-do-db=db2 --replicate-wild-ignore-table=db1.t% --skip_slave_start=FALSE]
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --replicate-do-db=db2 --replicate-wild-ignore-table=db1.t% --skip_replica_start=FALSE]
 [connection master]
 #
 # Execute 'CREATE DATABASE db1' on Master.

@@ -1,0 +1,19 @@
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # WL#14775 Remove TLSv1/TLSv1.1 support
+--echo #
+
+let $MYSQL_PORT= `SELECT @@port`;
+
+--echo #R2: Setting TLS version TLSv1 should fail to connect
+--error 1
+--exec $MYSQL --protocol=tcp --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=required --tls-version=TLSv1 -e "SHOW STATUS like 'Ssl_version'"
+
+--echo #R2: Setting TLS version TLSv1.1 should fail to connect
+--error 1
+--exec $MYSQL --protocol=tcp --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=required --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"

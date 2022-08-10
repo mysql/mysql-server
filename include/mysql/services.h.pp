@@ -261,7 +261,7 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
                           const char *format, ...)
     MY_ATTRIBUTE((format(printf, 3, 4)));
 #include <mysql/service_mysql_alloc.h>
-#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
 #include <mysql/components/services/bits/psi_bits.h>
 static constexpr unsigned PSI_INSTRUMENT_ME = 0;
 static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;

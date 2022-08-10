@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,9 @@
 #ifdef _WIN32
 
 #include "EventLogHandler.hpp"
+
+#include <time.h>
+
 #include "message.h"
 
 EventLogHandler::EventLogHandler(const char* source_name)

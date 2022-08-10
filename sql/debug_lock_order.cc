@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -460,7 +460,7 @@ static bool g_with_rwlock = true;
   For example:
 
   @verbatim
-  BIND "cond/sql/Master_info::start_cond" TO "mutex/sql/Master_info::run_lock" FLAGS UNFAIR
+  BIND "cond/sql/Source_info::start_cond" TO "mutex/sql/Source_info::run_lock" FLAGS UNFAIR
   @endverbatim
 
   @subsubsection LO_DEP_FILE File nodes
@@ -540,12 +540,12 @@ NODE: mutex/sql/LOCK_open
     FROM: mutex/p_dyn_loader/key_component_id_by_urn_mutex
     FROM: mutex/sql/LOCK_plugin_install
     FROM: mutex/sql/LOCK_table_cache
-    FROM: mutex/sql/key_mts_temp_table_LOCK
+    FROM: mutex/sql/key_mta_temp_table_LOCK
     FROM: mutex/sql/LOCK_event_queue
     FROM: mutex/sql/LOCK_global_system_variables
     FROM: mutex/sql/LOCK_reset_gtid_table
-    FROM: mutex/sql/Master_info::data_lock
-    FROM: mutex/sql/Master_info::run_lock
+    FROM: mutex/sql/Source_info::data_lock
+    FROM: mutex/sql/Source_info::run_lock
     FROM: mutex/sql/MYSQL_BIN_LOG::LOCK_index
     FROM: mutex/sql/MYSQL_BIN_LOG::LOCK_log
     FROM: mutex/sql/MYSQL_RELAY_LOG::LOCK_log
@@ -592,7 +592,7 @@ mutex/sql/LOCK_offline_mode
 
 Found SCC number 2 of size 2:
 mutex/sql/Relay_log_info::run_lock
-mutex/sql/Master_info::run_lock
+mutex/sql/Source_info::run_lock
 
 Number of SCC found: 2
   @endverbatim
@@ -614,8 +614,8 @@ SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/LOCK_plugin"
 SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/THD::LOCK_current_cond"
 
 Dumping arcs for SCC 2:
-SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Master_info::run_lock"
-SCC ARC FROM "mutex/sql/Master_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
+SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Source_info::run_lock"
+SCC ARC FROM "mutex/sql/Source_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
   @endverbatim
 
   The section "IGNORED NODES" prints the nodes flagged as IGNORED
@@ -663,12 +663,12 @@ mutex/sql/MYSQL_BIN_LOG::LOCK_commit
 mutex/sql/MYSQL_BIN_LOG::LOCK_index
 mutex/sql/MYSQL_RELAY_LOG::LOCK_log
 mutex/sql/Relay_log_info::data_lock
-mutex/sql/key_mts_temp_table_LOCK
-mutex/sql/Master_info::data_lock
+mutex/sql/key_mta_temp_table_LOCK
+mutex/sql/Source_info::data_lock
 
 Found SCC number 2 of size 2:
 mutex/sql/Relay_log_info::run_lock
-mutex/sql/Master_info::run_lock
+mutex/sql/Source_info::run_lock
 
 Number of SCC found: 2
 
@@ -806,8 +806,8 @@ mutex/sql/LOCK_thd_list
 mutex/sql/MYSQL_RELAY_LOG::LOCK_index
 mutex/sql/MYSQL_RELAY_LOG::LOCK_log
 mutex/sql/Relay_log_info::data_lock
-mutex/sql/key_mts_temp_table_LOCK
-mutex/sql/Master_info::data_lock
+mutex/sql/key_mta_temp_table_LOCK
+mutex/sql/Source_info::data_lock
 mutex/sql/MYSQL_BIN_LOG::LOCK_log
 mutex/sql/LOCK_reset_gtid_table
 mutex/sql/MYSQL_BIN_LOG::LOCK_sync
@@ -816,7 +816,7 @@ mutex/sql/LOCK_offline_mode
 
 Found SCC number 2 of size 2:
 mutex/sql/Relay_log_info::run_lock
-mutex/sql/Master_info::run_lock
+mutex/sql/Source_info::run_lock
 
 Number of SCC found: 2
   @endverbatim
@@ -840,8 +840,8 @@ SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/LOCK_plugin"
 SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/THD::LOCK_current_cond"
 
 Dumping arcs for SCC 2:
-SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Master_info::run_lock"
-SCC ARC FROM "mutex/sql/Master_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
+SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Source_info::run_lock"
+SCC ARC FROM "mutex/sql/Source_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
   @endverbatim
 
   Note that only arcs within the same SCC are printed here,
@@ -1226,7 +1226,7 @@ stack when the second lock was acquired:
   A possible fix is to change the implementation of func_blue()
   to take locks on A then C, in that order.
 
-  Fixing the code is not enought, as the lock_order_dependencies.txt file
+  Fixing the code is not enough, as the lock_order_dependencies.txt file
   now contains an arc (C -> A) that is never taken in the code.
 
   Once both:
@@ -1322,18 +1322,18 @@ stack when the second lock was acquired:
 
   First, notice how the read write lock class "rwlock/sql/B"
   is represented by four nodes, named:
-  - "rwlock/sql/B:+R", incomming read lock
+  - "rwlock/sql/B:+R", incoming read lock
   - "rwlock/sql/B:-R", outgoing read lock
-  - "rwlock/sql/B:+W", incomming write lock
+  - "rwlock/sql/B:+W", incoming write lock
   - "rwlock/sql/B:-W", outgoing write lock
 
   A practical way to represent this graphically is to draw a box
   for the lock, that contains four ports.
   Internal connections between ports represent the logic table
-  for the lock: an arc from "+R" to "-W" means that an incomming request
+  for the lock: an arc from "+R" to "-W" means that an incoming request
   for a read lock ("+R") is blocked by a write lock request already given ("-W").
 
-  Micro arcs represent the wired logic of the lock itself, these can not be changed.
+  Micro arcs represent the wired logic of the lock itself, these cannot be changed.
 
   @dot
   digraph LockOrder {
@@ -1416,9 +1416,9 @@ stack when the second lock was acquired:
   Now, at t21, rwlock_B is locked in read mode by thread green,
   so a request for a read lock should be granted, right ?
 
-  Lock order claims there is a dead lock, because a read can block indirectly a read:
+  Lock order claims there is a dead lock, because a read can indirectly block a read:
 
-  Consider the folowing code:
+  Consider the following code:
 
   @code
   func_grey() {
@@ -1695,9 +1695,9 @@ stack when the second lock was acquired:
   }
 
 #define LO_MAX_THREAD_CLASS 100
-#define LO_MAX_MUTEX_CLASS 300
+#define LO_MAX_MUTEX_CLASS 350
 #define LO_MAX_RWLOCK_CLASS 100
-#define LO_MAX_COND_CLASS 100
+#define LO_MAX_COND_CLASS 150
 #define LO_MAX_FILE_CLASS 100
 
 /*
@@ -3113,7 +3113,7 @@ void LO_graph::check_common(LO_thread *thread, const char *from_class_name,
                             const char *to_class_name, bool recursive,
                             const char *to_operation_name,
                             const LO_node *to_node,
-                            const LO_lock *new_lock MY_ATTRIBUTE((unused))) {
+                            const LO_lock *new_lock [[maybe_unused]]) {
   assert(thread != nullptr);
   assert(from_class_name != nullptr);
   /* from_state_name can be null. */
@@ -4727,8 +4727,8 @@ LO_node *LO_mutex_class::get_state_node_by_name(const char *name) const {
 }
 
 LO_node *LO_mutex_class::get_operation_node_by_name(
-    bool recursive MY_ATTRIBUTE((unused)),
-    const char *state MY_ATTRIBUTE((unused)), const char *operation) const {
+    bool recursive [[maybe_unused]], const char *state [[maybe_unused]],
+    const char *operation) const {
   if (operation == nullptr) {
     return m_node;
   }
@@ -5473,8 +5473,7 @@ void LO_rwlock_lock_pr::merge_lock(PSI_rwlock_operation op,
   set_locked(op, src_file, src_line);
 }
 
-bool LO_rwlock_lock_pr::set_unlocked(
-    PSI_rwlock_operation op MY_ATTRIBUTE((unused))) {
+bool LO_rwlock_lock_pr::set_unlocked(PSI_rwlock_operation op [[maybe_unused]]) {
   assert(op == PSI_RWLOCK_UNLOCK);
   if (m_read_count > 0) {
     m_read_count--;
@@ -5563,8 +5562,7 @@ void LO_rwlock_lock_rw::merge_lock(PSI_rwlock_operation op,
   set_locked(op, src_file, src_line);
 }
 
-bool LO_rwlock_lock_rw::set_unlocked(
-    PSI_rwlock_operation op MY_ATTRIBUTE((unused))) {
+bool LO_rwlock_lock_rw::set_unlocked(PSI_rwlock_operation op [[maybe_unused]]) {
   assert(op == PSI_RWLOCK_UNLOCK);
   if (m_read_count > 0) {
     m_read_count--;
@@ -5775,8 +5773,8 @@ LO_node *LO_cond_class::get_state_node_by_name(const char *state) const {
 }
 
 LO_node *LO_cond_class::get_operation_node_by_name(
-    bool recursive MY_ATTRIBUTE((unused)),
-    const char *state MY_ATTRIBUTE((unused)), const char *operation) const {
+    bool recursive [[maybe_unused]], const char *state [[maybe_unused]],
+    const char *operation) const {
   if (operation == nullptr) {
     return m_node;
   }
@@ -5944,8 +5942,8 @@ LO_node *LO_file_class::get_state_node_by_name(const char *state) const {
 }
 
 LO_node *LO_file_class::get_operation_node_by_name(
-    bool recursive MY_ATTRIBUTE((unused)),
-    const char *state MY_ATTRIBUTE((unused)), const char *operation) const {
+    bool recursive [[maybe_unused]], const char *state [[maybe_unused]],
+    const char *operation) const {
   if (operation == nullptr) {
     return m_node;
   }
@@ -6229,8 +6227,8 @@ static void lo_register_file(const char *category, PSI_file_info *info,
   native_mutex_unlock(&serialize);
 }
 
-static void lo_register_statement_v2(const char *category,
-                                     PSI_statement_info *info, int count) {
+static void lo_register_statement(const char *category,
+                                  PSI_statement_info *info, int count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->register_statement(category, info, count);
   }
@@ -6472,7 +6470,8 @@ void *lo_spawn_thread_fct(void *arg) {
   return nullptr;
 }
 
-static int lo_spawn_thread(PSI_thread_key key, my_thread_handle *thread,
+static int lo_spawn_thread(PSI_thread_key key, PSI_thread_seqnum seqnum,
+                           my_thread_handle *thread,
                            const my_thread_attr_t *attr,
                            void *(*start_routine)(void *), void *arg) {
   LO_spawn_thread_arg *psi_arg;
@@ -6499,7 +6498,7 @@ static int lo_spawn_thread(PSI_thread_key key, my_thread_handle *thread,
     result = my_thread_create(thread, attr, lo_spawn_thread_fct, psi_arg);
   } else {
     /* [1] Start the thread in the chained instrumentation. */
-    result = g_thread_chain->spawn_thread(chain_key, thread, attr,
+    result = g_thread_chain->spawn_thread(chain_key, seqnum, thread, attr,
                                           lo_spawn_thread_fct, psi_arg);
   }
 
@@ -6509,7 +6508,8 @@ static int lo_spawn_thread(PSI_thread_key key, my_thread_handle *thread,
   return result;
 }
 
-static PSI_thread *lo_new_thread(PSI_thread_key key, const void *identity,
+static PSI_thread *lo_new_thread(PSI_thread_key key, PSI_thread_seqnum seqnum,
+                                 const void *identity,
                                  ulonglong processlist_id) {
   native_mutex_lock(&serialize);
 
@@ -6522,8 +6522,8 @@ static PSI_thread *lo_new_thread(PSI_thread_key key, const void *identity,
     LO_thread::g_threads.push_back(lo);
 
     if (g_thread_chain != nullptr) {
-      lo->m_chain = g_thread_chain->new_thread(klass->get_chain_key(), identity,
-                                               processlist_id);
+      lo->m_chain = g_thread_chain->new_thread(klass->get_chain_key(), seqnum,
+                                               identity, processlist_id);
     }
   }
 
@@ -6656,6 +6656,12 @@ static void lo_set_thread_start_time(time_t start_time) {
 static void lo_set_thread_info(const char *info, uint info_len) {
   if (g_thread_chain != nullptr) {
     g_thread_chain->set_thread_info(info, info_len);
+  }
+}
+
+static void lo_set_thread_secondary_engine(bool secondary) {
+  if (g_thread_chain != nullptr) {
+    g_thread_chain->set_thread_secondary_engine(secondary);
   }
 }
 
@@ -6839,7 +6845,7 @@ static PSI_file_locker *lo_get_thread_file_descriptor_locker(
   int index = (int)file;
   if (index >= 0) {
     /*
-      See comment in pfs_get_thread_file_descriptor_locker_v2().
+      See comment in pfs_get_thread_file_descriptor_locker().
 
       We are about to close a file by descriptor number,
       and the calling code still holds the descriptor.
@@ -7159,7 +7165,7 @@ static void lo_end_cond_wait(PSI_cond_locker *locker, int rc) {
   native_mutex_unlock(&serialize);
 }
 
-static PSI_statement_locker *lo_get_thread_statement_locker_v2(
+static PSI_statement_locker *lo_get_thread_statement_locker(
     PSI_statement_locker_state *state, PSI_statement_key key, const void *cs,
     PSI_sp_share *sp_share) {
   PSI_statement_locker *chain = nullptr;
@@ -7174,8 +7180,8 @@ static PSI_statement_locker *lo_get_thread_statement_locker_v2(
   return chain;
 }
 
-static PSI_statement_locker *lo_refine_statement_v2(
-    PSI_statement_locker *locker, PSI_statement_key key) {
+static PSI_statement_locker *lo_refine_statement(PSI_statement_locker *locker,
+                                                 PSI_statement_key key) {
   PSI_statement_locker *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7185,16 +7191,16 @@ static PSI_statement_locker *lo_refine_statement_v2(
   return chain;
 }
 
-static void lo_start_statement_v2(PSI_statement_locker *locker, const char *db,
-                                  uint db_len, const char *src_file,
-                                  uint src_line) {
+static void lo_start_statement(PSI_statement_locker *locker, const char *db,
+                               uint db_len, const char *src_file,
+                               uint src_line) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->start_statement(locker, db, db_len, src_file, src_line);
   }
 }
 
-static void lo_set_statement_text_v2(PSI_statement_locker *locker,
-                                     const char *text, uint text_len) {
+static void lo_set_statement_text(PSI_statement_locker *locker,
+                                  const char *text, uint text_len) {
   LO_thread *lo_thread = get_THR_LO();
 
   if (g_statement_chain != nullptr) {
@@ -7206,136 +7212,142 @@ static void lo_set_statement_text_v2(PSI_statement_locker *locker,
   }
 }
 
-static void lo_set_statement_query_id_v2(PSI_statement_locker *locker,
-                                         ulonglong query_id) {
+static void lo_set_statement_query_id(PSI_statement_locker *locker,
+                                      ulonglong query_id) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_query_id(locker, query_id);
   }
 }
 
-static void lo_set_statement_lock_time_v2(PSI_statement_locker *locker,
-                                          ulonglong count) {
+static void lo_set_statement_lock_time(PSI_statement_locker *locker,
+                                       ulonglong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_lock_time(locker, count);
   }
 }
 
-static void lo_set_statement_rows_sent_v2(PSI_statement_locker *locker,
-                                          ulonglong count) {
+static void lo_set_statement_rows_sent(PSI_statement_locker *locker,
+                                       ulonglong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_rows_sent(locker, count);
   }
 }
 
-static void lo_set_statement_rows_examined_v2(PSI_statement_locker *locker,
-                                              ulonglong count) {
+static void lo_set_statement_rows_examined(PSI_statement_locker *locker,
+                                           ulonglong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_rows_examined(locker, count);
   }
 }
 
-static void lo_inc_statement_created_tmp_disk_tables_v2(
+static void lo_inc_statement_created_tmp_disk_tables(
     PSI_statement_locker *locker, ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_created_tmp_disk_tables(locker, count);
   }
 }
 
-static void lo_inc_statement_created_tmp_tables_v2(PSI_statement_locker *locker,
-                                                   ulong count) {
+static void lo_inc_statement_created_tmp_tables(PSI_statement_locker *locker,
+                                                ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_created_tmp_tables(locker, count);
   }
 }
 
-static void lo_inc_statement_select_full_join_v2(PSI_statement_locker *locker,
-                                                 ulong count) {
+static void lo_inc_statement_select_full_join(PSI_statement_locker *locker,
+                                              ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_full_join(locker, count);
   }
 }
 
-static void lo_inc_statement_select_full_range_join_v2(
+static void lo_inc_statement_select_full_range_join(
     PSI_statement_locker *locker, ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_full_range_join(locker, count);
   }
 }
 
-static void lo_inc_statement_select_range_v2(PSI_statement_locker *locker,
-                                             ulong count) {
+static void lo_inc_statement_select_range(PSI_statement_locker *locker,
+                                          ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_range(locker, count);
   }
 }
 
-static void lo_inc_statement_select_range_check_v2(PSI_statement_locker *locker,
-                                                   ulong count) {
+static void lo_inc_statement_select_range_check(PSI_statement_locker *locker,
+                                                ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_range_check(locker, count);
   }
 }
 
-static void lo_inc_statement_select_scan_v2(PSI_statement_locker *locker,
-                                            ulong count) {
+static void lo_inc_statement_select_scan(PSI_statement_locker *locker,
+                                         ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_scan(locker, count);
   }
 }
 
-static void lo_inc_statement_sort_merge_passes_v2(PSI_statement_locker *locker,
-                                                  ulong count) {
+static void lo_inc_statement_sort_merge_passes(PSI_statement_locker *locker,
+                                               ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_sort_merge_passes(locker, count);
   }
 }
 
-static void lo_inc_statement_sort_range_v2(PSI_statement_locker *locker,
-                                           ulong count) {
+static void lo_inc_statement_sort_range(PSI_statement_locker *locker,
+                                        ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_sort_range(locker, count);
   }
 }
 
-static void lo_inc_statement_sort_rows_v2(PSI_statement_locker *locker,
-                                          ulong count) {
+static void lo_inc_statement_sort_rows(PSI_statement_locker *locker,
+                                       ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_sort_rows(locker, count);
   }
 }
 
-static void lo_inc_statement_sort_scan_v2(PSI_statement_locker *locker,
-                                          ulong count) {
+static void lo_inc_statement_sort_scan(PSI_statement_locker *locker,
+                                       ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_sort_scan(locker, count);
   }
 }
 
-static void lo_set_statement_no_index_used_v2(PSI_statement_locker *locker) {
+static void lo_set_statement_no_index_used(PSI_statement_locker *locker) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_no_index_used(locker);
   }
 }
 
-static void lo_set_statement_no_good_index_used_v2(
-    PSI_statement_locker *locker) {
+static void lo_set_statement_no_good_index_used(PSI_statement_locker *locker) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_no_good_index_used(locker);
   }
 }
 
-static void lo_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
+static void lo_set_statement_secondary_engine(PSI_statement_locker *locker,
+                                              bool secondary) {
+  if (g_statement_chain != nullptr) {
+    g_statement_chain->set_statement_secondary_engine(locker, secondary);
+  }
+}
+
+static void lo_end_statement(PSI_statement_locker *locker, void *stmt_da) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->end_statement(locker, stmt_da);
   }
 }
 
-PSI_prepared_stmt *lo_create_prepared_stmt_v2(void *identity, uint stmt_id,
-                                              PSI_statement_locker *locker,
-                                              const char *stmt_name,
-                                              size_t stmt_name_length,
-                                              const char *sql_text,
-                                              size_t sql_text_length) {
+PSI_prepared_stmt *lo_create_prepared_stmt(void *identity, uint stmt_id,
+                                           PSI_statement_locker *locker,
+                                           const char *stmt_name,
+                                           size_t stmt_name_length,
+                                           const char *sql_text,
+                                           size_t sql_text_length) {
   PSI_prepared_stmt *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7347,36 +7359,43 @@ PSI_prepared_stmt *lo_create_prepared_stmt_v2(void *identity, uint stmt_id,
   return chain;
 }
 
-void lo_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void lo_destroy_prepared_stmt(PSI_prepared_stmt *prepared_stmt) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->destroy_prepared_stmt(prepared_stmt);
   }
 }
 
-void lo_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void lo_reprepare_prepared_stmt(PSI_prepared_stmt *prepared_stmt) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->reprepare_prepared_stmt(prepared_stmt);
   }
 }
 
-void lo_execute_prepared_stmt_v2(PSI_statement_locker *locker,
-                                 PSI_prepared_stmt *ps) {
+void lo_execute_prepared_stmt(PSI_statement_locker *locker,
+                              PSI_prepared_stmt *ps) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->execute_prepared_stmt(locker, ps);
   }
 }
 
-void lo_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
-                                  const char *text, uint text_len) {
+void lo_set_prepared_stmt_text(PSI_prepared_stmt *prepared_stmt,
+                               const char *text, uint text_len) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_prepared_stmt_text(prepared_stmt, text, text_len);
   }
 }
 
-PSI_sp_share *lo_get_sp_share_v2(uint sp_type, const char *schema_name,
-                                 uint schema_name_length,
-                                 const char *object_name,
-                                 uint object_name_length) {
+void lo_set_prepared_stmt_secondary_engine(PSI_prepared_stmt *prepared_stmt,
+                                           bool secondary) {
+  if (g_statement_chain != nullptr) {
+    g_statement_chain->set_prepared_stmt_secondary_engine(prepared_stmt,
+                                                          secondary);
+  }
+}
+
+PSI_sp_share *lo_get_sp_share(uint sp_type, const char *schema_name,
+                              uint schema_name_length, const char *object_name,
+                              uint object_name_length) {
   PSI_sp_share *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7388,14 +7407,13 @@ PSI_sp_share *lo_get_sp_share_v2(uint sp_type, const char *schema_name,
   return chain;
 }
 
-void lo_release_sp_share_v2(PSI_sp_share *s) {
+void lo_release_sp_share(PSI_sp_share *s) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->release_sp_share(s);
   }
 }
 
-PSI_sp_locker *lo_start_sp_v2(PSI_sp_locker_state *state,
-                              PSI_sp_share *sp_share) {
+PSI_sp_locker *lo_start_sp(PSI_sp_locker_state *state, PSI_sp_share *sp_share) {
   PSI_sp_locker *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7405,15 +7423,14 @@ PSI_sp_locker *lo_start_sp_v2(PSI_sp_locker_state *state,
   return chain;
 }
 
-void lo_end_sp_v2(PSI_sp_locker *locker) {
+void lo_end_sp(PSI_sp_locker *locker) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->end_sp(locker);
   }
 }
 
-void lo_drop_sp_v2(uint sp_type, const char *schema_name,
-                   uint schema_name_length, const char *object_name,
-                   uint object_name_length) {
+void lo_drop_sp(uint sp_type, const char *schema_name, uint schema_name_length,
+                const char *object_name, uint object_name_length) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->drop_sp(sp_type, schema_name, schema_name_length,
                                object_name, object_name_length);
@@ -7563,7 +7580,7 @@ static void lo_end_file_close_wait(PSI_file_locker *locker, int rc) {
 }
 
 static void lo_start_file_rename_wait(PSI_file_locker *locker,
-                                      size_t count MY_ATTRIBUTE((unused)),
+                                      size_t count [[maybe_unused]],
                                       const char *old_name,
                                       const char *new_name,
                                       const char *src_file, uint src_line) {
@@ -7591,7 +7608,7 @@ static void lo_end_file_rename_wait(PSI_file_locker *locker,
   delete lo_locker;
 }
 
-static PSI_digest_locker *lo_digest_start_v2(PSI_statement_locker *locker) {
+static PSI_digest_locker *lo_digest_start(PSI_statement_locker *locker) {
   PSI_digest_locker *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7601,8 +7618,8 @@ static PSI_digest_locker *lo_digest_start_v2(PSI_statement_locker *locker) {
   return chain;
 }
 
-static void lo_digest_end_v2(PSI_digest_locker *locker,
-                             const sql_digest_storage *digest) {
+static void lo_digest_end(PSI_digest_locker *locker,
+                          const sql_digest_storage *digest) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->digest_end(locker, digest);
   }
@@ -7719,7 +7736,16 @@ static void lo_notify_session_change_user(PSI_thread *thread) {
   }
 }
 
-PSI_thread_service_v4 LO_thread_v4 = {lo_register_thread,
+static void lo_set_mem_cnt_THD(THD *thd, THD **backup_thd) {
+  LO_thread *lo = get_THR_LO();
+  if (lo != nullptr) {
+    if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
+      g_thread_chain->set_mem_cnt_THD(thd, backup_thd);
+    }
+  }
+}
+
+PSI_thread_service_v6 LO_thread_v6 = {lo_register_thread,
                                       lo_spawn_thread,
                                       lo_new_thread,
                                       lo_set_thread_id,
@@ -7736,6 +7762,7 @@ PSI_thread_service_v4 LO_thread_v4 = {lo_register_thread,
                                       lo_set_connection_type,
                                       lo_set_thread_start_time,
                                       lo_set_thread_info,
+                                      lo_set_thread_secondary_engine,
                                       lo_set_thread_resource_group,
                                       lo_set_thread_resource_group_by_id,
                                       lo_set_thread,
@@ -7752,18 +7779,19 @@ PSI_thread_service_v4 LO_thread_v4 = {lo_register_thread,
                                       lo_unregister_notification,
                                       lo_notify_session_connect,
                                       lo_notify_session_disconnect,
-                                      lo_notify_session_change_user};
+                                      lo_notify_session_change_user,
+                                      lo_set_mem_cnt_THD};
 
 static void *lo_get_thread_interface(int version) {
   switch (version) {
     case PSI_THREAD_VERSION_1:
-      return nullptr;
     case PSI_THREAD_VERSION_2:
-      return nullptr;
     case PSI_THREAD_VERSION_3:
-      return nullptr;
     case PSI_THREAD_VERSION_4:
-      return &LO_thread_v4;
+    case PSI_THREAD_VERSION_5:
+      return nullptr;
+    case PSI_THREAD_VERSION_6:
+      return &LO_thread_v6;
     default:
       return nullptr;
   }
@@ -7861,49 +7889,52 @@ static void *lo_get_idle_interface(int version) {
 
 struct PSI_idle_bootstrap LO_idle_bootstrap = {lo_get_idle_interface};
 
-PSI_statement_service_v2 LO_statement_v2 = {
-    lo_register_statement_v2,
-    lo_get_thread_statement_locker_v2,
-    lo_refine_statement_v2,
-    lo_start_statement_v2,
-    lo_set_statement_text_v2,
-    lo_set_statement_query_id_v2,
-    lo_set_statement_lock_time_v2,
-    lo_set_statement_rows_sent_v2,
-    lo_set_statement_rows_examined_v2,
-    lo_inc_statement_created_tmp_disk_tables_v2,
-    lo_inc_statement_created_tmp_tables_v2,
-    lo_inc_statement_select_full_join_v2,
-    lo_inc_statement_select_full_range_join_v2,
-    lo_inc_statement_select_range_v2,
-    lo_inc_statement_select_range_check_v2,
-    lo_inc_statement_select_scan_v2,
-    lo_inc_statement_sort_merge_passes_v2,
-    lo_inc_statement_sort_range_v2,
-    lo_inc_statement_sort_rows_v2,
-    lo_inc_statement_sort_scan_v2,
-    lo_set_statement_no_index_used_v2,
-    lo_set_statement_no_good_index_used_v2,
-    lo_end_statement_v2,
-    lo_create_prepared_stmt_v2,
-    lo_destroy_prepared_stmt_v2,
-    lo_reprepare_prepared_stmt_v2,
-    lo_execute_prepared_stmt_v2,
-    lo_set_prepared_stmt_text_v2,
-    lo_digest_start_v2,
-    lo_digest_end_v2,
-    lo_get_sp_share_v2,
-    lo_release_sp_share_v2,
-    lo_start_sp_v2,
-    lo_end_sp_v2,
-    lo_drop_sp_v2};
+PSI_statement_service_v3 LO_statement_v3 = {
+    lo_register_statement,
+    lo_get_thread_statement_locker,
+    lo_refine_statement,
+    lo_start_statement,
+    lo_set_statement_text,
+    lo_set_statement_query_id,
+    lo_set_statement_lock_time,
+    lo_set_statement_rows_sent,
+    lo_set_statement_rows_examined,
+    lo_inc_statement_created_tmp_disk_tables,
+    lo_inc_statement_created_tmp_tables,
+    lo_inc_statement_select_full_join,
+    lo_inc_statement_select_full_range_join,
+    lo_inc_statement_select_range,
+    lo_inc_statement_select_range_check,
+    lo_inc_statement_select_scan,
+    lo_inc_statement_sort_merge_passes,
+    lo_inc_statement_sort_range,
+    lo_inc_statement_sort_rows,
+    lo_inc_statement_sort_scan,
+    lo_set_statement_no_index_used,
+    lo_set_statement_no_good_index_used,
+    lo_set_statement_secondary_engine,
+    lo_end_statement,
+    lo_create_prepared_stmt,
+    lo_destroy_prepared_stmt,
+    lo_reprepare_prepared_stmt,
+    lo_execute_prepared_stmt,
+    lo_set_prepared_stmt_text,
+    lo_set_prepared_stmt_secondary_engine,
+    lo_digest_start,
+    lo_digest_end,
+    lo_get_sp_share,
+    lo_release_sp_share,
+    lo_start_sp,
+    lo_end_sp,
+    lo_drop_sp};
 
 static void *lo_get_statement_interface(int version) {
   switch (version) {
     case PSI_STATEMENT_VERSION_1:
-      return nullptr;
     case PSI_STATEMENT_VERSION_2:
-      return &LO_statement_v2;
+      return nullptr;
+    case PSI_STATEMENT_VERSION_3:
+      return &LO_statement_v3;
     default:
       return nullptr;
   }

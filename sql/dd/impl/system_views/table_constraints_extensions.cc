@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,8 @@ Table_constraints_extensions::Table_constraints_extensions(
 
   // WHERE
   m_target_def.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
-  m_target_def.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden)");
+  m_target_def.add_where(
+      "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, FALSE, idx.options)");
 }
 
 const dd::String_type &Table_constraints_extensions::view_name() {

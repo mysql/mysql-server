@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 class THD;
 class Thd_ndb;
 class Acl_change_notification;
+class NdbTransaction;
 
 /*
    All functions return true on success
@@ -56,6 +57,10 @@ Strategy handle_local_acl_change(THD *, const class Acl_change_notification *,
 bool update_users_from_snapshot(THD *, std::string user_list);
 
 void maintain_cache(THD *);
+
+NdbTransaction *acquire_snapshot_lock(THD *);
+
+void release_snapshot_lock(NdbTransaction *);
 
 }  // namespace Ndb_stored_grants
 

@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ class ReplSemiSyncBase : public Trace {
 
 /* The layout of a semisync slave reply packet:
    1 byte for the magic num
-   8 bytes for the binlog positon
+   8 bytes for the binlog position
    n bytes for the binlog filename, terminated with a '\0'
 */
 #define REPLY_MAGIC_NUM_LEN 1
@@ -102,5 +102,13 @@ class ReplSemiSyncBase : public Trace {
 #define REPLY_BINLOG_POS_OFFSET (REPLY_MAGIC_NUM_OFFSET + REPLY_MAGIC_NUM_LEN)
 #define REPLY_BINLOG_NAME_OFFSET \
   (REPLY_BINLOG_POS_OFFSET + REPLY_BINLOG_POS_LEN)
+
+/**
+  Return true if the named sysvar has been defined in the server.
+
+  @retval true The sysvar is defined.
+  @retval false Otherwise.
+*/
+bool is_sysvar_defined(const char *name);
 
 #endif /* SEMISYNC_H */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,7 +181,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
     type_str->append(field->charset()->csname);
     if (!(field->charset()->state & MY_CS_PRIMARY)) {
       type_str->append(STRING_WITH_LEN(" COLLATE "));
-      type_str->append(field->charset()->name);
+      type_str->append(field->charset()->m_coll_name);
     }
   }
 }

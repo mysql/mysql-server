@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ namespace binary_log {
     <td>database_name</td>
     <td>one byte string length, followed by null-terminated string</td>
     <td>The name of the database in which the table resides.  The name
-    is represented as a one byte unsigned integer representing the
+    is represented as a packed variable-length integer representing the
     number of bytes in the name, followed by length bytes containing
     the database name, followed by a terminating 0 byte.  (Note the
     redundancy in the representation of the length.)  </td>
@@ -120,7 +120,9 @@ namespace binary_log {
 
   <tr>
     <td>table_name</td>
-    <td>one byte string length, followed by null-terminated string</td>
+    <td> The table name is represented as a packed variable-length integer
+    representing the number of bytes in the name, followed by null-terminated
+    string</td>
     <td>The name of the table, encoded the same way as the database
     name above.</td>
   </tr>
@@ -416,7 +418,7 @@ namespace binary_log {
   </tr>
   <tr>
     <td>SIGNEDNESS</td>
-    <td>signedness of numeric colums. This is included for all values of
+    <td>signedness of numeric columns. This is included for all values of
     binlog_row_metadata.</td>
     <td>For each numeric column, a bit indicates whether the numeric
     colunm has unsigned flag. 1 means it is unsigned. The number of
@@ -673,9 +675,9 @@ class Table_map_event : public Binary_log_event {
 
   /** Event body contents */
   std::string m_dbnam;
-  size_t m_dblen;
+  unsigned long long int m_dblen;
   std::string m_tblnam;
-  size_t m_tbllen;
+  unsigned long long int m_tbllen;
   unsigned long m_colcnt;
   unsigned char *m_coltype;
 

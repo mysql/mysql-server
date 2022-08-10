@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,15 +242,14 @@ static const uchar sort_order_cp932[] = {
   ((0x40 <= (c) && (c) <= 0x7e) || (0x80 <= (c) && (c) <= 0xfc))
 
 extern "C" {
-static uint ismbchar_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint ismbchar_cp932(const CHARSET_INFO *cs [[maybe_unused]],
                            const char *p, const char *e) {
   return (iscp932head((uchar)*p) && (e - p) > 1 && iscp932tail((uchar)p[1])
               ? 2
               : 0);
 }
 
-static uint mbcharlen_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                            uint c) {
+static uint mbcharlen_cp932(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (iscp932head((uchar)c) ? 2 : 1);
 }
 }  // extern "C"
@@ -18635,8 +18634,8 @@ static const uint16 unicode_to_cp932[65536] = {
 */
 
 extern "C" {
-static int my_mb_wc_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                          my_wc_t *pwc, const uchar *s, const uchar *e) {
+static int my_mb_wc_cp932(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
+                          const uchar *s, const uchar *e) {
   int hi;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -18675,8 +18674,8 @@ static int my_mb_wc_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @retval   2              If a 2-byte character was put
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in CP932
 */
-static int my_wc_mb_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                          my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_cp932(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                          uchar *s, uchar *e) {
   int code;
 
   if ((int)wc < 0x80) /* ASCII: [U+0000..U+007F] -> [00-7F] */
@@ -18707,7 +18706,7 @@ static int my_wc_mb_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return 2;
 }
 
-static size_t my_numcells_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static size_t my_numcells_cp932(const CHARSET_INFO *cs [[maybe_unused]],
                                 const char *str, const char *str_end) {
   size_t clen = 0;
   const uchar *b = (const uchar *)str;
@@ -18733,9 +18732,9 @@ static size_t my_numcells_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   cp932 additional characters are also accepted.
 */
 
-static size_t my_well_formed_len_cp932(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_cp932(const CHARSET_INFO *cs [[maybe_unused]],
+                                       const char *b, const char *e, size_t pos,
+                                       int *error) {
   const char *b0 = b;
   *error = 0;
   while (pos-- && b < e) {
@@ -18782,7 +18781,7 @@ static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_cp932,
                                                 mbcharlen_cp932,
                                                 my_numchars_mb,
-                                                my_charpos_mb,
+                                                my_charpos_mb3,
                                                 my_well_formed_len_cp932,
                                                 my_lengthsp_8bit,
                                                 my_numcells_cp932,
@@ -18812,7 +18811,7 @@ CHARSET_INFO my_charset_cp932_japanese_ci = {
     0,                                               /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state      */
     "cp932",                                         /* cs name    */
-    "cp932_japanese_ci",                             /* name */
+    "cp932_japanese_ci",                             /* m_coll_name */
     "SJIS for Windows Japanese",                     /* comment    */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
@@ -18847,7 +18846,7 @@ CHARSET_INFO my_charset_cp932_bin = {
     0,                              /* number */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
     "cp932",                        /* cs name    */
-    "cp932_bin",                    /* name */
+    "cp932_bin",                    /* m_coll_name */
     "SJIS for Windows Japanese",    /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

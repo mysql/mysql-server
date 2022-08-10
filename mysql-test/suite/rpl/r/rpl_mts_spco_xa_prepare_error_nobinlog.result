@@ -16,12 +16,16 @@ CALL mtr.add_suppression("Error writing relay log configuration");
 
 [connection slave]
 CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
-SET @save_slave_parallel_workers= @@global.slave_parallel_workers;
-SET @save_slave_parallel_type= @@global.slave_parallel_type;
-SET @save_slave_preserve_commit_order= @@global.slave_preserve_commit_order;
-SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
-SET GLOBAL slave_parallel_workers= 2;
-SET GLOBAL slave_preserve_commit_order= ON;
+SET @save_replica_parallel_workers= @@global.replica_parallel_workers;
+SET @save_replica_parallel_type= @@global.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
+SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers= 2;
+SET GLOBAL replica_preserve_commit_order= ON;
 include/start_slave.inc
 [connection master]
 SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
@@ -78,8 +82,10 @@ DROP TABLE t2;
 SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-SET GLOBAL slave_parallel_type= @save_slave_parallel_type;
-SET GLOBAL slave_parallel_workers= @save_slave_parallel_workers;
-SET GLOBAL slave_preserve_commit_order= @save_slave_preserve_commit_order;
+SET GLOBAL replica_parallel_type= @save_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
+SET GLOBAL replica_preserve_commit_order= @save_replica_preserve_commit_order;
 include/start_slave.inc
 include/rpl_end.inc

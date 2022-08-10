@@ -2,7 +2,7 @@
 #
 # Test that replicate-same-server-id works correctly in two cases:
 #
-#  1. If a server replicates to itself (and log-slave-updates is off)
+#  1. If a server replicates to itself (and log-replica-updates is off)
 #     then every transaction should be executed twice.
 #
 #  2. START SLAVE UNTIL should work correctly if replicate-same-server-id

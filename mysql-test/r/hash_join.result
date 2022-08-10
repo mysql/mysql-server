@@ -97,6 +97,8 @@ EXPLAIN
 SELECT * FROM t1, t2 WHERE a=b;
 a	b
 2001-01-01 00:00:00	2001#01#01
+Warnings:
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 DROP TABLE t1, t2;
 # Join on two double columns.
 CREATE TABLE t1 (col1 DOUBLE);
@@ -271,7 +273,7 @@ SET join_buffer_size = 2048;
 EXPLAIN FORMAT=tree
 SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
 EXPLAIN
--> Aggregate: sum(t1.col1), sum(t2.col1)
+-> Aggregate: sum(t1.col1), sum(t2.col1)  (cost=*** rows=1)
     -> Inner hash join (t2.col1 = t1.col1)  (cost=*** rows=104858)
         -> Table scan on t2  (cost=*** rows=1024)
         -> Hash
@@ -381,7 +383,7 @@ t1.int_col = t2.int_col
 ORDER BY
 t1.int_col;
 EXPLAIN
--> Aggregate: count(0), sum(length(t1.text_col)), sum(t2.bigint_col)
+-> Aggregate: count(0), sum(length(t1.text_col)), sum(t2.bigint_col)  (cost=*** rows=1)
     -> Inner hash join (t2.int_col = t1.int_col)  (cost=*** rows=1638)
         -> Table scan on t2  (cost=*** rows=128)
         -> Hash
@@ -457,7 +459,7 @@ SET join_buffer_size = 2048;
 EXPLAIN FORMAT=tree
 SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 EXPLAIN
--> Aggregate: count(0)
+-> Aggregate: count(0)  (cost=*** rows=1)
     -> Remove duplicate t2 rows using temporary table (weedout)  (cost=*** rows=157286)
         -> Inner hash join (t1.i = t2.i)  (cost=*** rows=157286)
             -> Table scan on t1  (cost=*** rows=1536)
@@ -667,7 +669,7 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1)
 FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
 EXPLAIN
--> Aggregate: sum(t1.col1)
+-> Aggregate: sum(t1.col1)  (cost=211113.45 rows=1)
     -> Inner hash join (no condition)  (cost=111113.45 rows=1000000)
         -> Table scan on t6  (cost=0.00 rows=10)
         -> Hash
@@ -812,11 +814,11 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
 EXPLAIN
--> Inner hash join (no condition)  (cost=*** rows=5)
+-> Inner hash join (no condition)  (cost=*** rows=10)
     -> Table scan on t2  (cost=*** rows=5)
     -> Hash
-        -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (cost=*** rows=1)
-            -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=*** rows=1)
+        -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (cost=*** rows=2)
+            -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=*** rows=2)
 
 SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
@@ -913,7 +915,7 @@ test.t2	analyze	status	OK
 SET GLOBAL innodb_stats_persistent_sample_pages = DEFAULT;
 EXPLAIN FORMAT=tree SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 EXPLAIN
--> Aggregate: count(0)
+-> Aggregate: count(0)  (cost=*** rows=1)
     -> Filter: (t2.col1 = t1.col1)  (cost=*** rows=26214)
         -> Inner hash join (<hash>(t2.col1)=<hash>(t1.col1))  (cost=*** rows=26214)
             -> Table scan on t2  (cost=*** rows=512)
@@ -1105,7 +1107,7 @@ COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
 WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
 ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
 EXPLAIN
--> Aggregate: count(0)
+-> Aggregate: count(0)  (cost=4.15 rows=1)
     -> Inner hash join (no condition)  (cost=3.70 rows=4)
         -> Table scan on t1  (cost=0.08 rows=1)
         -> Hash
@@ -1118,8 +1120,8 @@ EXPLAIN
                             -> Hash
                                 -> Filter: (t2.f2 is not null)  (cost=0.55 rows=3)
                                     -> Index scan on t2 using f2  (cost=0.55 rows=3)
-                        -> Index lookup on ta3 using f2 (f2=t2.f2)  (cost=0.30 rows=2)
-                    -> Single-row index lookup on ta4 using PRIMARY (f1=t4.f1)  (cost=0.08 rows=1)
+                        -> Covering index lookup on ta3 using f2 (f2=t2.f2)  (cost=0.30 rows=2)
+                    -> Single-row covering index lookup on ta4 using PRIMARY (f1=t4.f1)  (cost=0.08 rows=1)
 
 SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
 COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
@@ -1234,7 +1236,7 @@ EXPLAIN
                         -> Index lookup on alias3 using <auto_key0> (col_int_key=alias2.col_int_key, col_varchar_key=alias2.col_varchar_key)
                             -> Materialize  (cost=0.45..0.45 rows=1)
                                 -> Table scan on sq1_alias1  (cost=0.35 rows=1)
-        -> Index lookup on alias1 using idx (col_varchar_key=sq2_alias1.col_varchar)  (cost=0.26 rows=1)
+        -> Covering index lookup on alias1 using idx (col_varchar_key=sq2_alias1.col_varchar)  (cost=0.26 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.alias2.col_varchar' of SELECT #3 was resolved in SELECT #1
@@ -1526,7 +1528,7 @@ EXPLAIN
                                                 -> Limit: 100 row(s)  (cost=9.92 rows=27)
                                                     -> Nested loop left join  (cost=9.92 rows=27)
                                                         -> Table scan on sq1_alias2  (cost=2.25 rows=20)
-                                                        -> Index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (cost=0.26 rows=1)
+                                                        -> Covering index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (cost=0.26 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'alias1.col_varchar' of SELECT #3 was resolved in SELECT #1
@@ -1637,7 +1639,7 @@ EXPLAIN
         -> Hash
             -> Table scan on subquery1_t1  (cost=0.35 rows=1)
     -> Nested loop semijoin  (cost=3.83 rows=2)
-        -> Index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
+        -> Covering index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
             -> Materialize  (cost=3.38..3.38 rows=2)
                 -> Table scan on <temporary>  (cost=1.26..2.52 rows=2)
                     -> Temporary table with deduplication  (cost=1.91..3.17 rows=2)
@@ -1771,7 +1773,9 @@ EXPLAIN
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Hash
             -> Filter: ((t2.col2 > 0) or (t2.col3 > 0))  (cost=1.51 rows=1)
-                -> Index range scan on t2 using sort_union(idx_a,idx_b)  (cost=1.51 rows=1)
+                -> Sort-deduplicate by row ID  (cost=1.51 rows=1)
+                    -> Index range scan on t2 using idx_a over (0 < col2)  (cost=0.36 rows=1)
+                    -> Index range scan on t2 using idx_b over (0 < col3)  (cost=0.36 rows=1)
 
 SELECT /*+ JOIN_ORDER(t2, t1) INDEX_MERGE(t2) */ t1.col1
 FROM t1
@@ -1952,12 +1956,12 @@ EXPLAIN
         -> Hash
             -> Table scan on const_table  (cost=1.26..2.52 rows=2)
                 -> Materialize  (cost=1.46..2.73 rows=2)
-                    -> Rows fetched before execution  (cost=0.00 rows=2)
+                    -> Rows fetched before execution  (cost=0.00..0.00 rows=2)
     -> Limit: 1 row(s)  (cost=8.61 rows=1)
         -> Nested loop inner join  (cost=8.61 rows=1)
             -> Filter: (t1.col1 <> t2.col1)  (cost=0.01 rows=1)
                 -> Index scan on t1 using idx  (cost=0.01 rows=1)
-            -> Index lookup on t1_2 using idx (col1=t1.col1)  (cost=0.25 rows=1)
+            -> Covering index lookup on t1_2 using idx (col1=t1.col1)  (cost=0.25 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1
@@ -2208,7 +2212,7 @@ SET optimizer_switch = "materialization=off";
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
 (SELECT t2.col1 FROM t2);
 EXPLAIN
--> Aggregate: sum(t1.col1), sum(t1.col2)
+-> Aggregate: sum(t1.col1), sum(t1.col2)  (cost=115369.13 rows=1)
     -> Hash semijoin (t2.col1 = t1.col1)  (cost=104883.37 rows=104858)
         -> Table scan on t1  (cost=103.65 rows=1024)
         -> Hash
@@ -2221,7 +2225,7 @@ SUM(t1.col1)	SUM(t1.col2)
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
 (SELECT t2.col1 FROM t2 WHERE t1.col2 <> t2.col2);
 EXPLAIN
--> Aggregate: sum(t1.col1), sum(t1.col2)
+-> Aggregate: sum(t1.col1), sum(t1.col2)  (cost=114320.14 rows=1)
     -> Hash semijoin (t2.col1 = t1.col1), extra conditions: (t1.col2 <> t2.col2)  (cost=104882.95 rows=94372)
         -> Table scan on t1  (cost=103.65 rows=1024)
         -> Hash
@@ -2264,7 +2268,7 @@ SET join_buffer_size = 128;
 SET optimizer_switch="materialization=off";
 EXPLAIN FORMAT=tree SELECT COUNT(*) FROM probe WHERE col1 IN (SELECT col1 FROM build);
 EXPLAIN
--> Aggregate: count(0)
+-> Aggregate: count(0)  (cost=21635.36 rows=1)
     -> Hash semijoin (build.col1 = probe.col1)  (cost=19669.28 rows=19661)
         -> Table scan on probe  (cost=25.85 rows=256)
         -> Hash
@@ -2960,7 +2964,7 @@ SET optimizer_switch = "materialization=off";
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
 (SELECT t2.col1 FROM t2);
 EXPLAIN
--> Aggregate: sum(t1.col1), sum(t1.col2)
+-> Aggregate: sum(t1.col1), sum(t1.col2)  (cost=209860.10 rows=1)
     -> Hash antijoin (t2.col1 = t1.col1)  (cost=105002.50 rows=1048576)
         -> Table scan on t1  (cost=103.65 rows=1024)
         -> Hash
@@ -2973,7 +2977,7 @@ NULL	NULL
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
 (SELECT t2.col1 FROM t2 WHERE t1.col2 < t2.col2);
 EXPLAIN
--> Aggregate: sum(t1.col1), sum(t1.col2)
+-> Aggregate: sum(t1.col1), sum(t1.col2)  (cost=209860.10 rows=1)
     -> Hash antijoin (t2.col1 = t1.col1), extra conditions: (t1.col2 < t2.col2)  (cost=105002.50 rows=1048576)
         -> Table scan on t1  (cost=103.65 rows=1024)
         -> Hash
@@ -3267,7 +3271,7 @@ test.t2	analyze	status	OK
 SET join_buffer_size = 1024;
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
 EXPLAIN
--> Aggregate: sum(t1.col1), sum(t1.col2)
+-> Aggregate: sum(t1.col1), sum(t1.col2)  (cost=209736.57 rows=1)
     -> Left hash join (t2.col1 = t1.col1)  (cost=104878.97 rows=1048576)
         -> Table scan on t1  (cost=103.65 rows=1024)
         -> Hash
@@ -3279,7 +3283,7 @@ SUM(t1.col1)	SUM(t1.col2)
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1
 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
 EXPLAIN
--> Aggregate: sum(t1.col1), sum(t1.col2)
+-> Aggregate: sum(t1.col1), sum(t1.col2)  (cost=209736.57 rows=1)
     -> Left hash join (t2.col1 = t1.col1), extra conditions: (t1.col2 < t2.col2)  (cost=104878.97 rows=1048576)
         -> Table scan on t1  (cost=103.65 rows=1024)
         -> Hash
@@ -3660,9 +3664,9 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (cost=0.23 rows=2)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)
-            -> Filter: (<if>(outer_field_is_not_null, ((<cache>(t1.str_col) = c1_1.str_col) or (c1_1.str_col is null)), true) and <if>(outer_field_is_not_null, ((<cache>(t1.str_col) = min(c1_2.str_col)) or (min(c1_2.str_col) is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(c1_1.str_col), true) and <if>(outer_field_is_not_null, <is_not_null_test>(min(c1_2.str_col)), true))
-                -> Aggregate: min(c1_2.str_col)
+        -> Limit: 1 row(s)  (cost=2.15 rows=1)
+            -> Filter: (<if>(outer_field_is_not_null, ((<cache>(t1.str_col) = c1_1.str_col) or (c1_1.str_col is null)), true) and <if>(outer_field_is_not_null, ((<cache>(t1.str_col) = min(c1_2.str_col)) or (min(c1_2.str_col) is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(c1_1.str_col), true) and <if>(outer_field_is_not_null, <is_not_null_test>(min(c1_2.str_col)), true))  (cost=2.15 rows=1)
+                -> Aggregate: min(c1_2.str_col)  (cost=2.15 rows=1)
                     -> Inner hash join (t3.i = c1_2.i)  (cost=1.75 rows=4)
                         -> Table scan on t3  (cost=0.09 rows=1)
                         -> Hash
@@ -3693,7 +3697,7 @@ RIGHT JOIN t AS d ON 1
 ) AS z
 NATURAL RIGHT JOIN t;
 EXPLAIN
--> Left hash join (t.c = 1)  (cost=1.83 rows=1)
+-> Left hash join (no condition), extra conditions: (t.c = 1)  (cost=1.83 rows=1)
     -> Table scan on t  (cost=0.35 rows=1)
     -> Hash
         -> Left hash join (no condition)  (cost=1.46 rows=1)
@@ -3923,6 +3927,9 @@ CREATE TABLE t (
 a TEXT CHARACTER SET ucs2 COLLATE ucs2_sinhala_ci,
 b TEXT CHARACTER SET utf32 COLLATE utf32_german2_ci
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'ucs2_sinhala_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 INSERT INTO t(a, b) VALUES('h','k'), ('w','e');
 explain SELECT 1 FROM t AS a INNER JOIN t AS b ON a.a=b.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3933,3 +3940,79 @@ Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `a` join `test`.`t` `b`
 SELECT 1 FROM t AS a INNER JOIN t AS b ON a.a=b.b;
 1
 DROP TABLE t;
+# Bug#33204161: Strings with ASCII charset and UCS2 don't match in join
+CREATE TABLE t1(wstr_name VARCHAR(64) COLLATE ucs2_general_ci);
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t2(str_name VARCHAR(64) COLLATE ascii_general_ci);
+INSERT INTO t1 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
+INSERT INTO t2 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
+explain SELECT wstr_name, str_name
+FROM t1 INNER JOIN t2 ON t1.wstr_name = t2.str_name;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`wstr_name` AS `wstr_name`,`test`.`t2`.`str_name` AS `str_name` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`wstr_name` = `test`.`t2`.`str_name`)
+SELECT wstr_name, str_name
+FROM t1 INNER JOIN t2 ON t1.wstr_name = t2.str_name;
+wstr_name	str_name
+9337a53f-cfd6-4a68-a1fc-e2d84eba8079	9337a53f-cfd6-4a68-a1fc-e2d84eba8079
+DROP TABLE t1, t2;
+# Bug#33787914: int-decimal. using left join, the returned result is incorrect
+CREATE TABLE t(a DECIMAL(5, 3));
+INSERT INTO t VALUES (0.1), (0.2), (0.3), (0.01), (0.91), (0.001), (0.991);
+SELECT * FROM t AS t1, t AS t2 WHERE 1 - t1.a = 1 - t2.a;
+a	a
+0.001	0.001
+0.010	0.010
+0.100	0.100
+0.200	0.200
+0.300	0.300
+0.910	0.910
+0.991	0.991
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a;
+a	a
+0.001	0.001
+0.010	0.010
+0.100	0.100
+0.200	0.200
+0.300	0.300
+0.910	0.910
+0.991	0.991
+DROP TABLE t;
+# Bug#33794977: Wrong results from hash join with compound hash keys
+CREATE TABLE t(a VARCHAR(10), b VARCHAR(10));
+INSERT INTO t VALUES ('x', 'xx'), ('xx', 'x');
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a AND t1.b = t2.b;
+a	b	a	b
+x	xx	x	xx
+xx	x	xx	x
+DROP TABLE t;
+CREATE TABLE t(a DECIMAL(3,0), b DECIMAL(3,0));
+INSERT INTO t
+VALUES (0, 128), (128, 0), (382, 1), (1, 382), (-1, 385), (385, -1);
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a AND t1.b = t2.b;
+a	b	a	b
+-1	385	-1	385
+0	128	0	128
+1	382	1	382
+128	0	128	0
+382	1	382	1
+385	-1	385	-1
+DROP TABLE t;
+# Bug#33638843: Hypergraph Offload issue : Invalid Join condition
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TABLE t2 (f1 INTEGER);
+CREATE VIEW vmerge AS SELECT 1 AS f1, f1 AS b_f1 FROM t2;
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t2 VALUES (1),(2);
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN vmerge AS v ON t1.f1 = v.f1;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (t1.f1 = 1)  (cost=*** rows=***)
+    -> Table scan on t1  (cost=*** rows=***)
+    -> Hash
+        -> Table scan on t2  (cost=*** rows=***)
+
+DROP TABLE t1,t2;
+DROP VIEW vmerge;

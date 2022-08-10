@@ -12,7 +12,7 @@
 let $restart_parameters = restart: $PLUGIN_DIR_OPT --performance-schema-consumer-events-stages-current=ON --performance-schema-events-stages-history-size=1000;
 --source include/restart_mysqld_no_echo.inc
 
-SET SESSION debug= '+d,BtrBulk_insert_inject_error';
+SET SESSION debug= '+d,ddl_btree_build_insert_return_interrupt';
 
 --echo
 --echo #########

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -486,7 +486,7 @@ int Streaming_command_delegate::get_string(const char *const value,
         m_proto->row_builder()->field_set(conv.get_ptr(), conv.get_length());
         break;
       }
-      /* fall through */
+      [[fallthrough]];
     default: {
       Convert_if_necessary conv(m_resultcs, value, length, valuecs);
       m_proto->row_builder()->field_string(conv.get_ptr(), conv.get_length());

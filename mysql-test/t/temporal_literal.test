@@ -32,7 +32,7 @@ SELECT DATE'2010-01-01';
 SELECT DATE '2010-01-01';
 CREATE TABLE t1 AS SELECT DATE'2010-01-01';
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -40,7 +40,7 @@ CREATE TABLE t1 AS SELECT
   {d'2001-01-01'},
   {d'2001-01-01 10:10:10'};
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -98,7 +98,7 @@ CREATE TABLE t1 AS SELECT
   TIME'10:10:10.12345',
   TIME'10:10:10.123456';
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -108,7 +108,7 @@ CREATE TABLE t1 AS SELECT
   {t'10:10:10.123456'},
   {t'2001-01-01'};
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -148,7 +148,7 @@ CREATE TABLE t1 AS SELECT
   TIMESTAMP'2010-01-01 10:10:10.12345',
   TIMESTAMP'2010-01-01 10:10:10.123456';
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -158,7 +158,7 @@ CREATE TABLE t1 AS SELECT
   {ts'2001-01-01 10:10:10.123456'},
   {ts'2001-01-01'};
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -239,3 +239,122 @@ SELECT * FROM t1 LEFT JOIN t2 ON c1 = c11
                AND TIMESTAMP'2014-01-05 01:01:01';
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # WL#13601 Deprecate arbitrary delimiters and whitespaces in
+--echo # time / date / datetime / timestamp literals
+--echo #
+
+--echo ------------------  DATETIME literals
+
+--echo superfluous blanks
+SELECT TIMESTAMP '  2021-07-15 23:01:02';
+SELECT TIMESTAMP '2021-07-15 23:01:02  ';
+SELECT TIMESTAMP '2021-07-15   23:01:02';
+
+--echo wrong type delimiter
+SELECT TIMESTAMP '2021/07-15 23:01:02';
+SELECT TIMESTAMP '2021-07/15 23:01:02';
+SELECT TIMESTAMP '2021-07-15 23.01:02';
+SELECT TIMESTAMP '2021-07-15 23:01.02';
+
+--echo wrong &redundant
+SELECT TIMESTAMP '2021//07/15 23:01:02';
+SELECT TIMESTAMP '2021/07//15 23:01:02';
+SELECT TIMESTAMP '2021-07-15 23..01:02';
+SELECT TIMESTAMP '2021-07-15 23:01..02';
+
+--echo correct type delimiter but redundant
+SELECT TIMESTAMP '2021--07-15 23:01:02';
+SELECT TIMESTAMP '2021-07--15 23:01:02';
+SELECT TIMESTAMP '2021-07-15 23::01:02';
+SELECT TIMESTAMP '2021-07-15 23:01::02';
+
+--echo all wrong
+SELECT TIMESTAMP '  2021??07//15  23:+*&01.,"02   ';
+
+--echo in CAST
+SELECT CAST('2015-01-15 23-24:25' AS DATETIME);
+
+--echo in JSON_VALUE
+SELECT JSON_VALUE('{"data": "2019-01-01 11:11::11"}', '$.data' RETURNING DATETIME) AS v;
+
+SELECT LEAST(CAST('01-01-01' AS DATETIME), '01-01:02');
+
+--echo in get_mysql_time_from_str
+CREATE TABLE t1(f1 DATE);
+INSERT INTO t1 VALUES ('2001-01-01');
+SELECT f1 FROM t1 WHERE f1 < "01-4:15";
+DROP TABLE t1;
+
+CREATE TABLE t1(f1 DATETIME, c VARCHAR(20));
+INSERT INTO t1 VALUES (NULL, '2001-01-01 19.55.00');
+UPDATE t1 SET f1=c;
+DROP TABLE t1;
+
+--echo ------------------  DATE literals
+--echo
+SELECT DATE'2021/09-20';
+SELECT DATE' 2021-09-20';
+SELECT DATE'2021-09-20 ';
+
+--echo in CAST
+SELECT CAST('2015-01-15 23-24:25' AS DATE);
+
+--echo in JSON_VALUE
+SELECT JSON_VALUE('{"data": "2019-01/01"}', '$.data' RETURNING DATE) AS v;
+
+SELECT LEAST(CAST('2001-12-10' AS DATE), '2001-12/11');
+
+CREATE TABLE t1(f1 DATE);
+INSERT INTO t1 VALUES ('2001-01-01');
+SELECT f1 FROM t1 WHERE f1 < "2001-01/01";
+DROP TABLE t1;
+
+CREATE TABLE t1(f1 DATE, c VARCHAR(20));
+INSERT INTO t1 VALUES (NULL, '2001-01/01');
+UPDATE t1 SET f1=c;
+DROP TABLE t1;
+
+--echo ------------------  TIME literals
+--echo These were much stricter before the WL, we only add checks for
+--echo leading and trailing blanks
+--echo
+SELECT TIME' 10:11:12.098700';
+SELECT TIME'10:11:12.098700  ';
+--error ER_WRONG_VALUE
+SELECT TIME'10-11:12.098700  ';
+
+--echo Superfluous blanks in the 'D hh:mm:ss' format
+SELECT TIME'1  01:01:01',
+       TIME'1  01:01',
+       TIME'1  01',
+       TIME'1 ',
+       TIME'1', # OK
+       TIME' 1';
+
+--echo in CAST
+select CAST('10:11:12.098700    ' AS TIME);
+
+--echo in JSON_VALUE
+SELECT JSON_VALUE('{"data": "10:11:12.098700    "}', '$.data' RETURNING TIME) AS v;
+
+--echo # For some reason, the second argument below doesn't get
+--echo # attempted converted to TIME, so we do not see any warning.
+--echo # The comparison is done on strings instead.
+--echo # This is in contrast to DATE and DATETIME. Bug? FIXME
+SELECT LEAST(CAST('10:11:12' AS TIME), '10:11:13 ');
+
+CREATE TABLE t1(f1 TIME, c VARCHAR(20));
+INSERT INTO t1 VALUES (NULL, ' 19:55:00');
+UPDATE t1 SET f1=c;
+DROP TABLE t1;
+
+--echo
+--echo Test weird delimiters between date and time parts
+--echo
+--echo # Delimiter instead of space
+SELECT TIMESTAMP'2021-07-17.18:45:00';
+SELECT TIMESTAMP'2021-07-17-18:45:00';
+--echo # No warning given here, since we cannot replace the period with a space
+SELECT TIMESTAMP'20211018.121000';

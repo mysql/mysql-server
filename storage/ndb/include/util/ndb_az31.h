@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,10 +41,11 @@ public:
   int set_data_size(Uint64 data_size) { m_data_size = data_size; m_have_data_size = true; return 0; }
   int set_data_crc32(Uint32 data_crc32) { m_data_crc32 = data_crc32; m_have_data_crc32 = true; return 0; }
   static int write_header(output_iterator* out);
-  int write_trailer(output_iterator* out, int pad_len) const;
+  int write_trailer(output_iterator* out, int pad_len,
+                    output_iterator* extra = nullptr) const;
   size_t get_trailer_size() const { return 12; }
 
-  static int detect_header(input_iterator* in);
+  static int detect_header(const input_iterator* in);
   static int read_header(input_iterator* in);
   int read_trailer(input_reverse_iterator* in);
   int get_data_size(Uint64* data_size) const { if (!m_have_data_size) return -1; *data_size = m_data_size; return 0; }

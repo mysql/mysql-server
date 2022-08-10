@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -219,8 +219,8 @@ err:
 }
 
 static bool get_one_option(int optid,
-                           const struct my_option *opt MY_ATTRIBUTE((unused)),
-                           char *argument MY_ATTRIBUTE((unused))) {
+                           const struct my_option *opt [[maybe_unused]],
+                           char *argument [[maybe_unused]]) {
   switch (optid) {
     case 'd':
       dump = 1;

@@ -3,12 +3,17 @@
 --echo # Create a small table, and add all kinds of new columns and verify
 --echo #
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+--enable_query_log
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+
 --eval CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=$row_format
 
 INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
 
 
-# ADD COLUMN INT
+# [1] ADD COLUMN INT
 let $new_cols = 1;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
 
@@ -20,8 +25,8 @@ INSERT INTO t1(a, c1) VALUES(0, 1);
 SELECT count(*) = max(a) FROM t1 WHERE c1 IS NULL;
 SELECT c1 FROM t1 WHERE c1 = 1;
 
-# ADD COLUMN INT DEFAULT
-let $new_cols = 1;
+# [2] ADD COLUMN INT DEFAULT
+let $new_cols = 2;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN c2 INT NOT NULL DEFAULT 10;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -33,8 +38,8 @@ SELECT count(*) = max(a) FROM t1 WHERE c2 = 10;
 SELECT c2 FROM t1 WHERE c2 = 11;
 
 
-# ADD COLUMN BIGINT
-let $new_cols = 1;
+# [3] ADD COLUMN BIGINT
+let $new_cols = 3;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN d1 BIGINT, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -45,8 +50,8 @@ INSERT INTO t1(a, d1) VALUES(0, 1);
 SELECT count(*) = max(a) FROM t1 WHERE d1 IS NULL;
 SELECT d1 FROM t1 WHERE d1 = 1;
 
-# ADD COLUMN BIGINT DEFAULT
-let $new_cols = 1;
+# [4] ADD COLUMN BIGINT DEFAULT
+let $new_cols = 4;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN d2 BIGINT NOT NULL DEFAULT 1234567890;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -58,8 +63,8 @@ SELECT count(*) = max(a) FROM t1 WHERE d2 = 1234567890;
 SELECT d2 FROM t1 WHERE d2 = 1234;
 
 
-# ADD COLUMN SMALLINT
-let $new_cols = 1;
+# [5] ADD COLUMN SMALLINT
+let $new_cols = 5;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN e1 SMALLINT, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -70,8 +75,8 @@ INSERT INTO t1(a, e1) VALUES(0, 1);
 SELECT count(*) = max(a) FROM t1 WHERE e1 IS NULL;
 SELECT e1 FROM t1 WHERE e1 = 1;
 
-# ADD COLUMN SMALLINT DEFAULT
-let $new_cols = 1;
+# [6] ADD COLUMN SMALLINT DEFAULT
+let $new_cols = 6;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN e2 SMALLINT NOT NULL DEFAULT 10;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -83,8 +88,8 @@ SELECT count(*) = max(a) FROM t1 WHERE e2 = 10;
 SELECT e2 FROM t1 WHERE e2 = 11;
 
 
-# ADD COLUMN TINYINT
-let $new_cols = 1;
+# [7] ADD COLUMN TINYINT
+let $new_cols = 7;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN f1 TINYINT, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -95,8 +100,8 @@ INSERT INTO t1(a, f1) VALUES(0, 1);
 SELECT count(*) = max(a) FROM t1 WHERE f1 IS NULL;
 SELECT f1 FROM t1 WHERE f1 = 1;
 
-# ADD COLUMN TINYINT DEFAULT
-let $new_cols = 1;
+# [8] ADD COLUMN TINYINT DEFAULT
+let $new_cols = 8;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN f2 TINYINT NOT NULL DEFAULT 123;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -108,8 +113,8 @@ SELECT count(*) = max(a) FROM t1 WHERE f2 = 123;
 SELECT f2 FROM t1 WHERE f2 = 12;
 
 
-# ADD COLUMN MEDIUMINT
-let $new_cols = 1;
+# [9] ADD COLUMN MEDIUMINT
+let $new_cols = 9;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN g1 MEDIUMINT, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -121,7 +126,7 @@ SELECT count(*) = max(a) FROM t1 WHERE g1 IS NULL;
 SELECT g1 FROM t1 WHERE g1 = 1;
 
 # ADD COLUMN MEDIUMINT DEFAULT
-let $new_cols = 1;
+let $new_cols = 10;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN g2 MEDIUMINT NOT NULL DEFAULT 12345;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -134,7 +139,7 @@ SELECT g2 FROM t1 WHERE g2 = 1234;
 
 
 # ADD COLUMN FLOAT
-let $new_cols = 1;
+let $new_cols = 11;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN h1 FLOAT, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -146,7 +151,7 @@ SELECT count(*) = max(a) FROM t1 WHERE h1 IS NULL;
 SELECT h1 FROM t1 WHERE h1 = 1;
 
 # ADD COLUMN FLOAT DEFAULT
-let $new_cols = 1;
+let $new_cols = 12;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN h2 FLOAT NOT NULL DEFAULT 12.34;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -159,7 +164,7 @@ SELECT h2 FROM t1 WHERE h2 = 1.234;
 
 
 # ADD COLUMN DECIMAL & DOUBLE
-let $new_cols = 2;
+let $new_cols = 14;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN i1 DECIMAL(5, 2), ADD COLUMN i2 double, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -173,7 +178,7 @@ SELECT i1 FROM t1 WHERE i1 = 10.10;
 SELECT i2 FROM t1 WHERE i2 = 20.20;
 
 # ADD COLUMN DECIMAL & DOUBLE DEFAULT
-let $new_cols = 1;
+let $new_cols = 16;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN j1 DECIMAL(5, 2) NOT NULL DEFAULT 100.00, ADD COLUMN j2 double NOT NULL DEFAULT 1000.5678;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -189,7 +194,7 @@ SELECT j2 FROM t1 WHERE j2 = 1000.1234;
 
 
 # ADD COLUMN BIT
-let $new_cols = 1;
+let $new_cols = 17;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN k1 BIT(8), ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -201,7 +206,7 @@ SELECT count(*) = max(a) FROM t1 WHERE k1 IS NULL;
 SELECT hex(k1) FROM t1 WHERE k1 = b'010101';
 
 # ADD COLUMN BIT DEFAULT
-let $new_cols = 1;
+let $new_cols = 18;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN k2 BIT(8) NOT NULL DEFAULT b'101010';
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -215,7 +220,7 @@ SELECT hex(k2) FROM t1 WHERE k2 = b'110011';
 
 
 # ADD COLUMN CHAR & VARCHAR
-let $new_cols = 2;
+let $new_cols = 20;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN l1 CHAR(50), ADD COLUMN l2 VARCHAR(100), ALGORITHM=DEFAULT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -230,7 +235,7 @@ SELECT l2 FROM t1 WHERE l2 = 'abcdefg hijklmn ';
 
 
 # ADD COLUMN CHAR & VARCHAR DEFAULT
-let $new_cols = 2;
+let $new_cols = 22;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN m1 CHAR(50) default 'The fox jumps over', ADD COLUMN m2 VARCHAR(50) DEFAULT 'The fox jumps over the lazy dog.';
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -246,7 +251,7 @@ SELECT m2 FROM t1 WHERE m2 like '%the fox.';
 
 
 # ADD COLUMN BINARY & VARBINARY
-let $new_cols = 2;
+let $new_cols = 24;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN n1 BINARY(10), ADD COLUMN n2 VARBINARY(10), ALGORITHM=DEFAULT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -262,7 +267,7 @@ SELECT hex(n2) FROM t1 WHERE n2 = 0x102030405060708090;
 
 
 # ADD COLUMN BINARY & VARBINARY DEFAULT
-let $new_cols = 2;
+let $new_cols = 26;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN o1 BINARY(10) DEFAULT 0x11223344, ADD COLUMN o2 VARBINARY(10) DEFAULT 0x55667788;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -278,7 +283,7 @@ SELECT hex(o2) FROM t1 WHERE o2 = 0x88776655;
 
 
 # ADD COLUMN DATETIME
-let $new_cols = 1;
+let $new_cols = 27;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN p1 DATETIME, ALGORITHM=DEFAULT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -290,7 +295,7 @@ SELECT count(*) = max(a) FROM t1 WHERE p1 IS NULL;
 SELECT p1 FROM t1 WHERE p1 = '2017-12-31 00:00:00';
 
 # ADD COLUMN DATETIME DEFAULT
-let $new_cols = 1;
+let $new_cols = 28;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN p2 DATETIME NOT NULL DEFAULT '2017-12-31 01:02:03';
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -305,7 +310,7 @@ SELECT count(*) FROM t1 GROUP BY p2;
 
 
 # ADD COLUMN ENUM
-let $new_cols = 1;
+let $new_cols = 29;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN q1 ENUM ('value1','value2','value3'), ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -318,7 +323,7 @@ SELECT q1 FROM t1 WHERE q1 = 1;
 
 
 # ADD COLUMN SET
-let $new_cols = 1;
+let $new_cols = 30;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN r1 SET ('a','b','c'), ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -331,7 +336,7 @@ SELECT r1 FROM t1 WHERE r1 = 'a';
 
 
 # ADD COLUMN BLOB & TEXT
-let $new_cols = 2;
+let $new_cols = 32;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN s1 BLOB, ADD COLUMN s2 TEXT, ALGORITHM=INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -345,7 +350,7 @@ SELECT hex(s1) FROM t1 WHERE s1 = 0x0102030405;
 SELECT s2 FROM t1 WHERE s2 = 'abcd qwerty';
 
 # ADD COLUMN BLOB & TEXT NOT NULL
-let $new_cols = 2;
+let $new_cols = 34;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN u1 BLOB NOT NULL, ADD COLUMN u2 TEXT NOT NULL;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -384,25 +389,29 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL, ADD COLUMN d
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 INSERT INTO t1(a, b, c) VALUES(0, 6, 20);
+--sorted_result
 SELECT * FROM t1;
 
 
-let $new_cols = 1;
+let $new_cols = 2;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN e VARCHAR(100) DEFAULT 'ABCD EFGH', ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(e));
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 INSERT INTO t1(a, c, e) VALUES(0, 20, 'Hello'), (0, 20, 'World'), (0, 20, 'Hello World');
+--sorted_result
 SELECT * FROM t1;
 
 
-let $new_cols = 1;
+let $new_cols = 3;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN g VARCHAR(100) GENERATED ALWAYS AS (e), ADD COLUMN h BIGINT DEFAULT 10000, ADD COLUMN i BIGINT GENERATED ALWAYS AS (h * 2 + b);
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
+--sorted_result
 SELECT * FROM t1;
 INSERT INTO t1(a, b, c, h) VALUES(0, 7, 40, 2000), (0, 7, 40, 20000);
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -430,8 +439,10 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, 
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
+--sorted_result
 SELECT * FROM t1;
 INSERT INTO t1(a, b, c, e) VALUES(0, 6, 200, 'Good day'), (0, 7, 300, 'Good DAY');
+--sorted_result
 SELECT * FROM t1;
 
 SELECT default_value FROM information_schema.innodb_columns WHERE name = 'c' AND has_default = 1;
@@ -440,8 +451,10 @@ ALTER TABLE t1 ALTER COLUMN c SET DEFAULT 500;
 SELECT default_value FROM information_schema.innodb_columns WHERE name = 'c' AND
  has_default = 1;
 
+--sorted_result
 SELECT * FROM t1;
 INSERT INTO t1(a, b) VALUES(0, 8), (0, 9);
+--sorted_result
 SELECT * FROM t1;
 
 SELECT default_value FROM information_schema.innodb_columns WHERE name = 'e' AND has_default = 1;
@@ -449,8 +462,10 @@ ALTER TABLE t1 ALTER COLUMN e SET DEFAULT 'HELLO MySQL!';
 # This should not change
 SELECT default_value FROM information_schema.innodb_columns WHERE name = 'e' AND has_default = 1;
 
+--sorted_result
 SELECT * FROM t1;
 INSERT INTO t1(a, b) VALUES(0, 10), (0, 20);
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -478,6 +493,7 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 UPDATE t1 SET c = 200 WHERE a > 3;
+--sorted_result
 SELECT distinct(c) FROM t1;
 
 INSERT INTO t1(b, c, e) SELECT b, c, e FROM t1;
@@ -487,18 +503,20 @@ INSERT INTO t1(b, c, e) SELECT b, c, e FROM t1;
 DELETE FROM t1 WHERE c = 100;
 
 UPDATE t1 SET c = 300;
+--sorted_result
 SELECT distinct(c) FROM t1;
 
 SELECT count(*) FROM t1;
 
 
-let $new_cols = 1;
+let $new_cols = 3;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN t DATETIME DEFAULT CURRENT_TIMESTAMP;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 UPDATE t1 SET e = 'Hello MySQL' WHERE a > 10;
 UPDATE t1 SET e = 'Hello MySQL!!' WHERE a > 20;
+--sorted_result
 SELECT distinct(e) FROM t1;
 
 UPDATE t1 SET c = 500 WHERE e LIKE '%world%';
@@ -588,10 +606,12 @@ START TRANSACTION;
 
 INSERT INTO t1(a, b) VALUES(0, 6);
 
+--sorted_result
 SELECT * FROM t1;
 
 ROLLBACK;
 
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -605,6 +625,7 @@ SELECT a, b, c FROM t1 WHERE a = 1 OR a = 2;
 
 ROLLBACK;
 
+--sorted_result
 SELECT a, b, c FROM t1;
 
 
@@ -614,10 +635,12 @@ DELETE FROM t1 WHERE a < 5;
 
 INSERT INTO t1(a, b) VALUES(0, 6);
 
+--sorted_result
 SELECT * FROM t1;
 
 ROLLBACK;
 
+--sorted_result
 SELECT * FROM t1;
 
 
@@ -630,7 +653,11 @@ DROP TABLE t1;
 
 # One interesting pessimistic update rollback
 
+SET SESSION innodb_strict_mode=OFF;
+--disable_warnings
 --eval CREATE TABLE t1(id INT PRIMARY KEY, c1 VARCHAR(4000), c2 VARCHAR(4000), c3 VARCHAR(1000)) ROW_FORMAT=$row_format
+--enable_warnings
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;
 
 INSERT INTO t1 VALUES(1, repeat('a', 4000), repeat('b', 4000), repeat('c', 1));
 
@@ -678,16 +705,16 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100 A
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
-# ADD COLUMN in the middle should not be instant
-let $new_cols = 1;
+# ADD COLUMN in the middle should be instant
+let $new_cols = 2;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
-SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_columns WHERE has_default = 1;
 
 # ADD COLUMN with ADD KEY should not be instant
-let $new_cols = 1;
+let $new_cols = 0;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN e INT NOT NULL DEFAULT 100, ADD KEY(e);
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -695,7 +722,7 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN e INT NOT NULL DEFAULT 100, 
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 
 # FORCE key word should not be instant
-let $new_cols = 1;
+let $new_cols = 0;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN f INT NOT NULL DEFAULT 100, FORCE;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -703,7 +730,7 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN f INT NOT NULL DEFAULT 100, 
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_columns WHERE has_default = 1;
 
 # ALGORITHM=INPLACE should not be instant, verify again here
-let $new_cols = 1;
+let $new_cols = 0;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN g INT NOT NULL DEFAULT 100, ALGORITHM=INPLACE;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -723,7 +750,7 @@ DROP TABLE t1;
 INSERT INTO t1 VALUES(0, 1, 'Hello'), (0, 2, 'HELLO'), (0, 3, 'World'), (0, 4, 'Hello world'), (0, 5, 'HELLO WORLD');
 
 # ADD COLUMN to FULLTEXT table should not be instant
-let $new_cols = 1;
+let $new_cols = 0;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN d INT NOT NULL DEFAULT 100 AFTER b;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -787,14 +814,17 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
+--sorted_result
 SELECT * FROM t1;
 
 INSERT INTO t1 VALUES(0, 9, 10), (0, 10, 20);
 
+--sorted_result
 SELECT * FROM t1 WHERE b > 8;
 
 UPDATE t1 SET c = 8 WHERE a = 1 OR a = 3 OR a = 5 OR a = 7;
 
+--sorted_result
 SELECT * FROM t1;
 
 CHECK TABLE t1;
@@ -864,7 +894,7 @@ DROP TABLE t1, t2;
 
 --echo #
 --echo # Scenario 11:
---echo # PRIMARY KEY with more than one column, at least to verify it works with REDUDANT
+--echo # PRIMARY KEY with more than one column, at least to verify it works with REDUNDANT
 --echo #
 
 --eval CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b)) ROW_FORMAT=$row_format;
@@ -876,10 +906,12 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 5;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
+--sorted_result
 SELECT * FROM t1;
 UPDATE t1 SET c = b WHERE b <= 2;
 
 CHECK TABLE t1;
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -900,24 +932,25 @@ let $instant_add_column = ALTER TABLE t1 ALGORITHM DEFAULT, ADD COLUMN col5 VARC
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
-SELECT count(*) AS `Expect 4` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 
 ALTER TABLE t1 ALGORITHM INPLACE, REORGANIZE PARTITION p0 INTO (PARTITION p0_a VALUES LESS THAN (64), PARTITION p0_b VALUES LESS THAN (128));
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 CHECK TABLE t1;
 
 ALTER TABLE t1 ALGORITHM DEFAULT, ADD KEY idx4(col4(10));
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 CHECK TABLE t1;
 
 ALTER TABLE t1 ALGORITHM DEFAULT, LOCK EXCLUSIVE, REORGANIZE PARTITION p0_a, p0_b INTO (PARTITION p0 VALUES LESS THAN (128) TABLESPACE innodb_file_per_table);
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 CHECK TABLE t1;
 
 ALTER TABLE t1 ADD KEY idx3(col3);
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
+SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 CHECK TABLE t1;
 
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -942,6 +975,7 @@ ALTER TABLE t1 ADD KEY(b);
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_tables WHERE instant_cols != 0;
 CHECK TABLE t1;
 
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -1003,7 +1037,7 @@ INSERT INTO t1(a, c1) VALUES(0, ST_PointFromText('POINT(10 10)'));
 SELECT count(*) = max(a) FROM t1 WHERE c1 IS NULL;
 
 # ADD COLUMN LINESTRING
-let $new_cols = 1;
+let $new_cols = 2;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN d1 LINESTRING, ALGORITHM = INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1014,7 +1048,7 @@ INSERT INTO t1(a, d1) VALUES(0, ST_LineFromText('LINESTRING(0 0,0 10,10 0)'));
 SELECT count(*) = max(a) FROM t1 WHERE d1 IS NULL;
 
 # ADD COLUMN POLYGON
-let $new_cols = 1;
+let $new_cols = 3;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN e1 POLYGON, ALGORITHM = INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1025,7 +1059,7 @@ INSERT INTO t1(a, e1) VALUES(0, ST_PolygonFromText('POLYGON((10 10,20 10,20 20,1
 SELECT count(*) = max(a) FROM t1 WHERE e1 IS NULL;
 
 # ADD COLUMN MULTIPOINT
-let $new_cols = 1;
+let $new_cols = 4;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN f1 MULTIPOINT, ALGORITHM = INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1036,7 +1070,7 @@ INSERT INTO t1(a, f1) VALUES(0, ST_MultiPointFromText('MULTIPOINT(0 0,10 10,10 2
 SELECT count(*) = max(a) FROM t1 WHERE f1 IS NULL;
 
 # ADD COLUMN MULTILINESTRING
-let $new_cols = 1;
+let $new_cols = 5;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN g1 MULTILINESTRING, ALGORITHM = INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1047,7 +1081,7 @@ INSERT INTO t1(a, g1) VALUES(0, ST_MultiLineStringFromText('MULTILINESTRING((10 
 SELECT count(*) = max(a) FROM t1 WHERE g1 IS NULL;
 
 # ADD COLUMN MULTIPOLYGON
-let $new_cols = 1;
+let $new_cols = 6;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN h1 MULTIPOLYGON, ALGORITHM = INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1059,7 +1093,7 @@ SELECT count(*) = max(a) FROM t1 WHERE h1 IS NULL;
 
 
 # ADD COLUMN GEOMETRYCOLLECTION
-let $new_cols = 1;
+let $new_cols = 7;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN i1 GEOMETRYCOLLECTION, ALGORITHM = INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1071,7 +1105,7 @@ SELECT count(*) = max(a) FROM t1 WHERE i1 IS NULL;
 
 
 # ADD COLUMN GEOMETRY
-let $new_cols = 1;
+let $new_cols = 8;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN j1 GEOMETRY, ALGORITHM = INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1225,6 +1259,7 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 INSERT INTO t1(a, c1) VALUES(0, 'bbbb');
 SELECT count(*) = max(a) FROM t1 WHERE c1='aaaa';
 SELECT c1 FROM t1 WHERE c1 = 'bbbb';
+--sorted_result
 SELECT * FROM v1;
 DROP VIEW v1;
 
@@ -1257,7 +1292,7 @@ SELECT count(*) = max(a) FROM t1 WHERE c1='aaaa';
 SELECT c1 FROM t1 WHERE c1 = 'bbbb';
 
 # DROP COLUMN
-let $new_cols = 1;
+let $new_cols = 0;
 let $instant_add_column = ALTER TABLE t1 DROP COLUMN c1;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1319,7 +1354,7 @@ SELECT count(*) = max(a) FROM t1 WHERE c1='aaaa';
 SELECT c1 FROM t1 WHERE c1 = 'bbbb';
 
 # change added column datatype should not be instant
-let $new_cols = 1;
+let $new_cols = 0;
 let $instant_add_column = ALTER TABLE t1 CHANGE c1 c2 CHAR(10) NOT NULL DEFAULT 'cccc';
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1360,7 +1395,7 @@ DROP INDEX id1 ON t1;
 DROP INDEX id2 ON t1;
 
 # ADD ANOTHER COLUMN
-let $new_cols = 1;
+let $new_cols = 2;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN c2 VARCHAR(10) NOT NULL DEFAULT 'cccc', ALGORITHM = INSTANT;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
@@ -1421,6 +1456,7 @@ INSERT INTO t2(a, c1) VALUES(0, 'cccc');
 SELECT count(*) = max(a) FROM t2 WHERE c1='bbbb';
 SELECT c1 FROM t2 WHERE c1 = 'cccc';
 
+--sorted_result
 SELECT * FROM t1 JOIN t2 ON t1.c1=t2.c1;
 
 CHECK TABLE t1;
@@ -1450,15 +1486,17 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c;
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 INSERT INTO t1(a, b, c, h) VALUES(0, 6, 20, 40);
+--sorted_result
 SELECT * FROM t1;
 
 
-let $new_cols = 1;
+let $new_cols = 2;
 let $instant_add_column = ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i;
 
 --source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
 
 INSERT INTO t1(a, b, c, h, i) VALUES(0, 20, 30, 50, 'qwerty');
+--sorted_result
 SELECT * FROM t1;
 
 CHECK TABLE t1;

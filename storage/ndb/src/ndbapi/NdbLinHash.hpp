@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
-    Use is subject to license terms.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +42,7 @@
 
 template<class C> 
 class NdbElement_t {
-public:
+ public:
   NdbElement_t();
   ~NdbElement_t();
   
@@ -53,35 +52,35 @@ public:
   Uint32 *str;
   NdbElement_t<C> *next;
   C* theData;
-private:
-  NdbElement_t(const NdbElement_t<C> & aElement_t);
-  NdbElement_t & operator = (const NdbElement_t<C> & aElement_t);
+
+ private:
+  NdbElement_t& operator=(const NdbElement_t<C>& aElement_t) = delete;
 };
 
 
 template <class C> 
 class NdbLinHash {
-public:
-  NdbLinHash();
-  ~NdbLinHash();
+ public:
+  NdbLinHash() = default;
+  ~NdbLinHash() = default;
   void createHashTable(void);
   void releaseHashTable(void);
-  
-  int insertKey(const char * str, Uint32 len, Uint32 lkey1, C* data);
-  C *deleteKey(const char * str, Uint32 len);
 
-  C* getData(const char *, Uint32);
-  Uint32* getKey(const char *, Uint32);
-  
+  int insertKey(const char* str, Uint32 len, Uint32 lkey1, C* data);
+  C* deleteKey(const char* str, Uint32 len);
+
+  C* getData(const char*, Uint32);
+  Uint32* getKey(const char*, Uint32);
+
   void shrinkTable(void);
   void expandHashTable(void);
-  
-  Uint32 Hash(const char *str, Uint32 len);
+
+  Uint32 Hash(const char* str, Uint32 len);
   Uint32 Hash(Uint32 h);
-  
-  NdbElement_t<C> * getNext(NdbElement_t<C> * curr);
-  
-private:
+
+  NdbElement_t<C>* getNext(NdbElement_t<C>* curr);
+
+ private:
   void getBucket(Uint32 hash, int * dirindex, int * segindex);
   
   struct Segment_t {
@@ -92,29 +91,9 @@ private:
   Uint32 max;	/*max is the upper bound*/
   Int32  slack;	/*number of insertions before splits*/
   Segment_t * directory[DIRECTORYSIZE];
-  
-  NdbLinHash(const NdbLinHash<C> & aLinHash);
-  NdbLinHash<C> & operator = (const NdbLinHash<C> & aLinHash);
+
+  NdbLinHash<C>& operator=(const NdbLinHash<C>& aLinHash) = delete;
 };
-
-// All template methods must be inline
-
-template <class C>
-inline
-NdbLinHash<C>::NdbLinHash() { 
-}
-
-template <class C>
-inline
-NdbLinHash<C>::NdbLinHash(const NdbLinHash<C>& aLinHash) 
-{
-}
-
-template <class C>
-inline
-NdbLinHash<C>::~NdbLinHash()
-{
-}
 
 template <class C>
 inline

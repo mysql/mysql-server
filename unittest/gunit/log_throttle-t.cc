@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
@@ -38,8 +34,8 @@ using my_testing::Server_initializer;
 int summary_count = 0;
 char last_query[10];
 
-static bool slow_logger(THD *, const char *query, size_t,
-                        struct System_status_var *) {
+static bool slow_logger(THD *, const char *query, size_t, bool, ulonglong,
+                        ulonglong) {
   summary_count++;
   strcpy(last_query, query);
   return false;

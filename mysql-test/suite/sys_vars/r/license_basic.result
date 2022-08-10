@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.license);
 COUNT(@@GLOBAL.license)
 1
 1 Expected
-SELECT license = @@SESSION.license;
+SELECT license;
 ERROR 42S22: Unknown column 'license' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

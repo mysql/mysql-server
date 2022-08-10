@@ -1,0 +1,9 @@
+# Run benchmark oltp_delete
+# - deletes, "DELETE WHERE id = ?"
+#
+--source sb_init.inc
+
+let $bench_name = oltp_delete;
+--source sb_run.inc
+
+--source sb_cleanup.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #define DBTUP_C
 #include <dblqh/Dblqh.hpp>
+#include <cstring>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -105,13 +106,13 @@ dump_hex(const Uint32 *p, Uint32 len)
   for(;;)
   {
     if(len>=4)
-      ndbout_c("%8p %08X %08X %08X %08X", p, p[0], p[1], p[2], p[3]);
+      g_eventLogger->info("%8p %08X %08X %08X %08X", p, p[0], p[1], p[2], p[3]);
     else if(len>=3)
-      ndbout_c("%8p %08X %08X %08X", p, p[0], p[1], p[2]);
+      g_eventLogger->info("%8p %08X %08X %08X", p, p[0], p[1], p[2]);
     else if(len>=2)
-      ndbout_c("%8p %08X %08X", p, p[0], p[1]);
+      g_eventLogger->info("%8p %08X %08X", p, p[0], p[1]);
     else
-      ndbout_c("%8p %08X", p, p[0]);
+      g_eventLogger->info("%8p %08X", p, p[0]);
     if(len <= 4)
       break;
     len-= 4;
@@ -119,63 +120,114 @@ dump_hex(const Uint32 *p, Uint32 len)
   }
 }
 
-/**
- * getStoredProcAttrInfo
- *
- * Get the I-Val of the supplied stored procedure's 
- * AttrInfo section
- * Initialise the AttrInfo length in the request
- */
-void Dbtup::getStoredProcAttrInfo(Uint32 storedId,
-                                 KeyReqStruct* req_struct,
-                                 Uint32& attrInfoIVal) 
-{
-  jamDebug();
-  StoredProcPtr storedPtr;
-  storedPtr.i = storedId;
-  ndbrequire(c_storedProcPool.getValidPtr(storedPtr));
-  ndbrequire(((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
-               (storedPtr.p->storedCode == ZCOPY_PROCEDURE)));
-  /* Setup OperationRec with stored procedure AttrInfo section */
-  SegmentedSectionPtr sectionPtr;
-  getSection(sectionPtr, storedPtr.p->storedProcIVal);
-  Uint32 storedProcLen= sectionPtr.sz;
-
-  attrInfoIVal= storedPtr.p->storedProcIVal;
-  req_struct->attrinfo_len= storedProcLen;
-}
-
 void Dbtup::copyAttrinfo(Uint32 expectedLen,
                          Uint32 attrInfoIVal)
 {
-  Uint32 *inBuffer = &cinBuffer[0];
   ndbassert( expectedLen > 0 || attrInfoIVal == RNIL );
 
   if (expectedLen > 0)
   {
-    ndbassert( attrInfoIVal != RNIL );
-    
+    ndbassert(attrInfoIVal != RNIL);
+
     /* Check length in section is as we expect */
     SegmentedSectionPtr sectionPtr;
     getSection(sectionPtr, attrInfoIVal);
-    
+
     ndbrequire(sectionPtr.sz == expectedLen);
     ndbrequire(sectionPtr.sz < ZATTR_BUFFER_SIZE);
-    
+
     /* Copy attrInfo data into linear buffer */
     // TODO : Consider operating TUP out of first segment where
     // appropriate
-    copy(inBuffer, attrInfoIVal);
+    copy(cinBuffer, attrInfoIVal);
   }
 }
 
-Uint32 Dbtup::copyAttrinfo(Uint32 storedProcId)
+Uint32 Dbtup::copyAttrinfo(Uint32 storedProcId,
+                           bool interpretedFlag)
 {
-  Uint32 attrinfoVal;
-  KeyReqStruct req_struct(this);
-  getStoredProcAttrInfo(storedProcId, &req_struct, attrinfoVal);
-  copyAttrinfo(req_struct.attrinfo_len, attrinfoVal);
-  return req_struct.attrinfo_len;
+  /* Get stored procedure */
+  StoredProcPtr storedPtr;
+  storedPtr.i = storedProcId;
+  ndbrequire(c_storedProcPool.getValidPtr(storedPtr));
+  ndbrequire(((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
+              (storedPtr.p->storedCode == ZCOPY_PROCEDURE)));
+
+  const Uint32 attrinfoIVal = storedPtr.p->storedProcIVal;
+  SectionReader reader(attrinfoIVal, getSectionSegmentPool());
+  const Uint32 readerLen = reader.getSize();
+
+  if (interpretedFlag)
+  {
+    jam();
+
+    // Read sectionPtr's
+    reader.getWords(&cinBuffer[0], 5);
+
+    // Read interpreted sections 0..3, upto the parameter section
+    const Uint32 readLen = cinBuffer[0] + cinBuffer[1] +
+                           cinBuffer[2] + cinBuffer[3];
+    Uint32 *pos = &cinBuffer[5];
+    reader.getWords(pos, readLen);
+    pos += readLen;
+
+    Uint32 paramOffs = 0;
+    Uint32 paramLen = 0;
+    if (cinBuffer[4] == 0)
+    {
+      // No parameters supplied in this attrInfo
+    }
+    else if (storedPtr.p->storedParamNo == 0)
+    {
+      // A single parameter, or the first of many, copy it out
+      paramLen = cinBuffer[4];
+      ndbrequire(reader.getWords(pos, paramLen));
+      pos += paramLen;
+      ndbassert(readerLen == (pos - cinBuffer));
+    }
+    else
+    {
+      // A set of parameters, skip upto the one specified by 'ParamNo'
+      for (uint i=0; i < storedPtr.p->storedParamNo; i++)
+      {
+        reader.getWord(pos);
+        paramLen = *pos;
+        reader.step(paramLen-1);
+        paramOffs += paramLen;
+      }
+      // Copy out the parameter specified
+      reader.getWord(pos);
+      paramLen = *pos;
+      reader.getWords(pos+1, paramLen-1);
+      pos += paramLen;
+    }
+    cinBuffer[4] = paramLen;
+  }
+  else
+  {
+    jam();
+    ndbassert(storedPtr.p->storedParamNo == 0);
+
+    /* Copy attrInfo data into linear buffer */
+    reader.getWords(&cinBuffer[0], readerLen);
+  }
+
+  // By convention we return total length of storedProc, not just what we copied.
+  return readerLen;
+}
+
+void Dbtup::nextAttrInfoParam(Uint32 storedProcId)
+{
+  jam();
+
+  /* Get stored procedure */
+  StoredProcPtr storedPtr;
+  storedPtr.i = storedProcId;
+  ndbrequire(c_storedProcPool.getValidPtr(storedPtr));
+  ndbrequire(((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
+               (storedPtr.p->storedCode == ZCOPY_PROCEDURE)));
+
+  storedPtr.p->storedParamNo++;
 }
 
 void
@@ -276,19 +328,15 @@ Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct, Tablerec *regTabPtr)
   Uint32 page_id = req_struct->frag_page_id;
   Uint32 page_idx = prepare_page_idx;
 
-  ndbout_c("Tuple corruption detected, checksum: 0x%x, header_bits: 0x%x"
-           ", checksum word: 0x%x"
-           ", tab(%u,%u), page(%u,%u)",
-           checksum,
-           header_bits,
-           req_struct->m_tuple_ptr->m_checksum,
-           tableId,
-           fragId,
-           page_id,
-           page_idx);
+  g_eventLogger->info(
+      "Tuple corruption detected, checksum: 0x%x, header_bits: 0x%x"
+      ", checksum word: 0x%x"
+      ", tab(%u,%u), page(%u,%u)",
+      checksum, header_bits, req_struct->m_tuple_ptr->m_checksum, tableId,
+      fragId, page_id, page_idx);
   if (c_crashOnCorruptedTuple && !ERROR_INSERTED(4036))
   {
-    ndbout_c(" Exiting."); 
+    g_eventLogger->info(" Exiting.");
     ndbabort();
   }
   (void)ERROR_INSERTED_CLEAR(4036);
@@ -557,7 +605,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     }
     
 #if 0
-    ndbout_c("reading copy");
+    g_eventLogger->info("reading copy");
     Uint32 *var_ptr = fixed_ptr+regTabPtr->var_offset;
     req_struct->m_tuple_ptr= fixed_ptr;
     req_struct->fix_var_together= true;  
@@ -1791,7 +1839,7 @@ Dbtup::setup_lcp_read_copy_tuple(KeyReqStruct* req_struct,
 /* ----------------------------- READ  ---------------------------- */
 /* ---------------------------------------------------------------- */
 int Dbtup::handleReadReq(Signal* signal,
-                         Operationrec* regOperPtr,
+                         Operationrec* _regOperPtr, // UNUSED, is member of req_struct
                          Tablerec* regTabPtr,
                          KeyReqStruct* req_struct)
 {
@@ -2100,7 +2148,7 @@ expand_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
   if(bm_len > 0)
     memcpy(dst_bm_ptr, src, 4*bm_len);
   if(bm_len < max_bmlen)
-    bzero(dst_bm_ptr + bm_len, 4 * (max_bmlen - bm_len));
+    std::memset(dst_bm_ptr + bm_len, 0, 4 * (max_bmlen - bm_len));
 
   /**
    * Store max_bmlen for homogen code in DbtupRoutines
@@ -2290,7 +2338,7 @@ shrink_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
      * Zero out any padding bytes. Might not be strictly necessary,
      * but seems cleaner than leaving random stuff in there.
      */
-    bzero(dynvar_end_ptr, dyn_dst_data_ptr-dynvar_end_ptr);
+    std::memset(dynvar_end_ptr, 0, dyn_dst_data_ptr-dynvar_end_ptr);
 
     /* *
      * Copy over the fixed-sized not-NULL attributes.
@@ -2430,12 +2478,12 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
   *req_struct->m_tuple_ptr->get_mm_gci(regTabPtr) = 0;
 
   // Set all null bits
-  memset(req_struct->m_tuple_ptr->m_null_bits+
-	 regTabPtr->m_offsets[MM].m_null_offset, 0xFF, 
-	 4*regTabPtr->m_offsets[MM].m_null_words);
-  memset(req_struct->m_disk_ptr->m_null_bits+
-	 regTabPtr->m_offsets[DD].m_null_offset, 0xFF, 
-	 4*regTabPtr->m_offsets[DD].m_null_words);
+  std::memset(req_struct->m_tuple_ptr->m_null_bits+
+              regTabPtr->m_offsets[MM].m_null_offset, 0xFF,
+              4*regTabPtr->m_offsets[MM].m_null_words);
+  std::memset(req_struct->m_disk_ptr->m_null_bits+
+              regTabPtr->m_offsets[DD].m_null_offset, 0xFF,
+              4*regTabPtr->m_offsets[DD].m_null_words);
 }
 
 int Dbtup::handleInsertReq(Signal* signal,
@@ -2509,16 +2557,16 @@ int Dbtup::handleInsertReq(Signal* signal,
     {
       jamDebug();
       expand_tuple(req_struct, sizes, org, regTabPtr, !disk_insert);
-      memset(req_struct->m_disk_ptr->m_null_bits+
-             regTabPtr->m_offsets[DD].m_null_offset, 0xFF, 
-             4*regTabPtr->m_offsets[DD].m_null_words);
+      std::memset(req_struct->m_disk_ptr->m_null_bits+
+                  regTabPtr->m_offsets[DD].m_null_offset, 0xFF,
+                  4*regTabPtr->m_offsets[DD].m_null_words);
 
       Uint32 bm_size_in_bytes= 4*(regTabPtr->m_offsets[MM].m_dyn_null_words);
       if (bm_size_in_bytes)
       {
         Uint32* ptr = 
           (Uint32*)req_struct->m_var_data[MM].m_dyn_data_ptr;
-        bzero(ptr, bm_size_in_bytes);
+        std::memset(ptr, 0, bm_size_in_bytes);
         * ptr = bm_size_in_bytes >> 2;
       }
     } 
@@ -2528,9 +2576,9 @@ int Dbtup::handleInsertReq(Signal* signal,
       memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
       tuple_ptr->m_header_bits |= Tuple_header::COPY_TUPLE;
     }
-    memset(tuple_ptr->m_null_bits+
-           regTabPtr->m_offsets[MM].m_null_offset, 0xFF, 
-           4*regTabPtr->m_offsets[MM].m_null_words);
+    std::memset(tuple_ptr->m_null_bits+
+                regTabPtr->m_offsets[MM].m_null_offset, 0xFF,
+                4*regTabPtr->m_offsets[MM].m_null_words);
   }
   
   int res;
@@ -2602,13 +2650,57 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto update_error;
     }
   }
-  
-  if (unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
-                                       req_struct->attrinfo_len)) < 0))
+
+  if (unlikely(req_struct->interpreted_exec))
   {
     jam();
-    terrorCode = Uint32(-res);
-    goto update_error;
+
+    /* Interpreted insert only processes the finalUpdate section */
+    const Uint32 RinitReadLen= cinBuffer[0];
+    const Uint32 RexecRegionLen= cinBuffer[1];
+    const Uint32 RfinalUpdateLen= cinBuffer[2];
+    //const Uint32 RfinalRLen= cinBuffer[3];
+    //const Uint32 RsubLen= cinBuffer[4];
+
+    const Uint32 offset = 5 + RinitReadLen + RexecRegionLen;
+    req_struct->log_size = 0;
+
+    if (unlikely((res = updateAttributes(req_struct, &cinBuffer[offset],
+                                         RfinalUpdateLen)) < 0))
+    {
+      jam();
+      terrorCode = Uint32(-res);
+      goto update_error;
+    }
+
+    /**
+     * Send normal format AttrInfo back to LQH for
+     * propagation
+     */
+    req_struct->log_size = RfinalUpdateLen;
+    MEMCOPY_NO_WORDS(&clogMemBuffer[0],
+                     &cinBuffer[offset],
+                     RfinalUpdateLen);
+
+    if (unlikely(sendLogAttrinfo(signal,
+                                 req_struct,
+                                 RfinalUpdateLen,
+                                 regOperPtr.p) != 0))
+    {
+      jam();
+      goto update_error;
+    }
+  }
+  else
+  {
+    /* Normal insert */
+    if (unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
+                                         req_struct->attrinfo_len)) < 0))
+    {
+      jam();
+      terrorCode = Uint32(-res);
+      goto update_error;
+    }
   }
 
   if (ERROR_INSERTED(4017))
@@ -3103,37 +3195,31 @@ Dbtup::handleRefreshReq(Signal* signal,
     {
       jam();
       refresh_case = Operationrec::RF_SINGLE_NOT_EXIST;
-      //ndbout_c("case 1");
+      // g_eventLogger->info("case 1");
       /**
        * This is refresh of non-existing tuple...
        *   i.e "delete", reuse initial insert
        */
-       Local_key accminupdate;
-       Local_key * accminupdateptr = &accminupdate;
+      Local_key accminupdate;
+      Local_key *accminupdateptr = &accminupdate;
 
-       /**
-        * We don't need ...in this scenario
-        * - disk
-        * - default values
-        *
-        * We signal this to handleInsertReq with is_refresh flag
-        * set to true.
-        */
-       regOperPtr.p->op_type = ZINSERT;
+      /**
+       * We don't need ...in this scenario
+       * - disk
+       * - default values
+       *
+       * We signal this to handleInsertReq with is_refresh flag
+       * set to true.
+       */
+      regOperPtr.p->op_type = ZINSERT;
 
-       int res = handleInsertReq(signal,
-                                 regOperPtr,
-                                 regFragPtr,
-                                 regTabPtr,
-                                 req_struct,
-                                 &accminupdateptr,
-                                 true);
+      int res = handleInsertReq(signal, regOperPtr, regFragPtr, regTabPtr,
+                                req_struct, &accminupdateptr, true);
 
-       if (unlikely(res == -1))
-       {
-         jam();
-         return -1;
-       }
+      if (unlikely(res == -1)) {
+        jam();
+        return -1;
+      }
 
        regOperPtr.p->op_type = ZREFRESH;
 
@@ -3151,7 +3237,7 @@ Dbtup::handleRefreshReq(Signal* signal,
     else
     {
       refresh_case = Operationrec::RF_SINGLE_EXIST;
-      //ndbout_c("case 2");
+      // g_eventLogger->info("case 2");
       jam();
 
       Tuple_header* origTuple = req_struct->m_tuple_ptr;
@@ -3209,7 +3295,7 @@ Dbtup::handleRefreshReq(Signal* signal,
     if (req_struct->prevOpPtr.p->op_type == ZDELETE)
     {
       refresh_case = Operationrec::RF_MULTI_NOT_EXIST;
-      //ndbout_c("case 3");
+      // g_eventLogger->info("case 3");
 
       jam();
       /**
@@ -3246,7 +3332,7 @@ Dbtup::handleRefreshReq(Signal* signal,
     {
       jam();
       refresh_case = Operationrec::RF_MULTI_EXIST;
-      //ndbout_c("case 4");
+      // g_eventLogger->info("case 4");
       /**
        * This is multi-update + INSERT/UPDATE + REFRESH
        */
@@ -3351,7 +3437,7 @@ Dbtup::checkNullAttributes(KeyReqStruct * req_struct,
 /*       -----------------------------------------                  */
 /*       +   FINAL READ REGION                   +                  */
 /*       -----------------------------------------                  */
-/*       +   SUBROUTINE REGION                   +                  */
+/*       +   SUBROUTINE REGION (or parameter)    +                  */
 /*       -----------------------------------------                  */
 /*                                                                  */
 /* For read operations it only makes sense to first perform the     */
@@ -3418,11 +3504,15 @@ int Dbtup::interpreterStartLab(Signal* signal,
 
   /* All information to be logged/propagated to replicas
    * is generated from here on so reset the log word count
+   *
+   * Note that in case attrInfo contain multiple params for the
+   * interpreterCode, we will only copy one of them into the cinBuffer[].
+   * Thus, 'RtotalLen + 5' may be '<' than RattrinbufLen.
    */
   Uint32 RlogSize= req_struct->log_size= 0;
-  if (likely(((RtotalLen + 5) == RattrinbufLen) &&
+  if (likely(((RtotalLen + 5) <= RattrinbufLen) &&
              (RattrinbufLen >= 5) &&
-             (RattrinbufLen < ZATTR_BUFFER_SIZE)))
+             (RtotalLen + 5 < ZATTR_BUFFER_SIZE)))
   {
     /* ---------------------------------------------------------------- */
     // We start by checking consistency. We must have the first five
@@ -3697,8 +3787,7 @@ Dbtup::brancher(Uint32 TheInstruction, Uint32 TprogramCounter)
 
 const Uint32 *
 Dbtup::lookupInterpreterParameter(Uint32 paramNo,
-                                  const Uint32 * subptr,
-                                  Uint32 sublen) const
+                                  const Uint32 *subptr) const
 {
   /**
    * The parameters...are stored in the subroutine section
@@ -3706,24 +3795,26 @@ Dbtup::lookupInterpreterParameter(Uint32 paramNo,
    * WORD2         WORD3       WORD4         WORD5
    * [ P0 HEADER ] [ P0 DATA ] [ P1 HEADER ] [ P1 DATA ]
    *
-   *
    * len=4 <=> 1 word
    */
-  Uint32 pos = 0;
+  const Uint32 sublen = *subptr;
+  ndbassert(sublen > 0);
+
+  Uint32 pos = 1;
   while (paramNo)
   {
     const Uint32 * head = subptr + pos;
-    Uint32 len = AttributeHeader::getDataSize(* head);
+    const Uint32 len = AttributeHeader::getDataSize(* head);
     paramNo --;
     pos += 1 + len;
     if (unlikely(pos >= sublen))
-      return 0;
+      return nullptr;
   }
 
   const Uint32 * head = subptr + pos;
-  Uint32 len = AttributeHeader::getDataSize(* head);
+  const Uint32 len = AttributeHeader::getDataSize(* head);
   if (unlikely(pos + 1 + len > sublen))
-    return 0;
+    return nullptr;
 
   return head;
 }
@@ -3778,8 +3869,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
     theInstruction= TcurrentProgram[TprogramCounter];
     theRegister= Interpreter::getReg1(theInstruction) << 2;
 #ifdef TRACE_INTERPRETER
-    ndbout_c("Interpreter : RnoOfInstructions : %u.  TprogramCounter : %u.  Opcode : %u",
-             RnoOfInstructions, TprogramCounter, Interpreter::getOpCode(theInstruction));
+    g_eventLogger->info(
+        "Interpreter :"
+        " RnoOfInstructions : %u.  TprogramCounter : %u.  Opcode : %u",
+        RnoOfInstructions, TprogramCounter,
+        Interpreter::getOpCode(theInstruction));
 #endif
     if (TprogramCounter < TcurrentSize)
     {
@@ -4175,7 +4269,6 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  
 	  Uint32 TleftType= TregMemBuffer[theRegister];
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
-	  
 
 	  if ((TrightType | TleftType) != 0)
           {
@@ -4193,7 +4286,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 
       case Interpreter::BRANCH_ATTR_OP_ATTR:
-      case Interpreter::BRANCH_ATTR_OP_ARG_2:
+      case Interpreter::BRANCH_ATTR_OP_PARAM:
       case Interpreter::BRANCH_ATTR_OP_ARG:{
         jamDebug();
         const Uint32 ins2 = TcurrentProgram[TprogramCounter];
@@ -4260,15 +4353,18 @@ int Dbtup::interpreterNextLab(Signal* signal,
           step = argLen;
           s2 = (char*)&TcurrentProgram[TprogramCounter+1];
         }
-        else if (opCode == Interpreter::BRANCH_ATTR_OP_ARG_2)
+        else if (opCode == Interpreter::BRANCH_ATTR_OP_PARAM)
         {
           // Compare ATTR with a parameter
           jamDebug();
-          Uint32 paramNo = Interpreter::getBranchCol_ParamNo(ins2);
-          const Uint32 * paramptr = lookupInterpreterParameter(paramNo,
-                                                               subroutineProg,
-                                                               TsubroutineLen);
-          if (unlikely(paramptr == 0))
+          ndbassert(req_struct != nullptr);
+          ndbassert(req_struct->operPtrP != nullptr);
+
+          const Uint32 paramNo = Interpreter::getBranchCol_ParamNo(ins2);
+          const Uint32 *paramPos = subroutineProg;
+          const Uint32 *paramptr = lookupInterpreterParameter(paramNo,
+                                                              paramPos);
+          if (unlikely(paramptr == nullptr))
           {
             jam();
             terrorCode = 99; // TODO
@@ -4327,11 +4423,31 @@ int Dbtup::interpreterNextLab(Signal* signal,
           step = 0;
         } //!ah2.isNULL()
 
-	// Evaluate
+        // Evaluate
+        const bool r1_null = ah.isNULL();
+        const bool r2_null = argLen == 0;
+        if (r1_null || r2_null)
+        {
+          // There are NULL-valued operands, check the NullSemantics
+          const Uint32 nullSemantics =
+              Interpreter::getNullSemantics(theInstruction);
+          if (nullSemantics == Interpreter::IF_NULL_BREAK_OUT)
+          {
+            // Branch out of AND conjunction
+            TprogramCounter = brancher(theInstruction, TprogramCounter);
+            break;
+          }
+          if (nullSemantics == Interpreter::IF_NULL_CONTINUE)
+          {
+            // Ignore NULL in OR conjunction,  -> next instruction
+            const Uint32 tmp = ((step + 3) >> 2) + 1;
+            TprogramCounter += tmp;
+            break;
+          }
+        }
+
         const Uint32 cond = Interpreter::getBinaryCondition(theInstruction);
-	const bool r1_null = ah.isNULL();
-	const bool r2_null = argLen == 0;
-	int res1;
+        int res1;
         if (cond <= Interpreter::GE)
         {
           /* Inequality - EQ, NE, LT, LE, GT, GE */
@@ -4439,9 +4555,9 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  // XXX handle invalid value
         }
 #ifdef TRACE_INTERPRETER
-	ndbout_c("cond=%u attr(%d)='%.*s'(%d) str='%.*s'(%d) res1=%d res=%d",
-		 cond, attrId >> 16,
-                 attrLen, s1, attrLen, argLen, s2, argLen, res1, res);
+        g_eventLogger->info(
+            "cond=%u attr(%d)='%.*s'(%d) str='%.*s'(%d) res1=%d res=%d", cond,
+            attrId >> 16, attrLen, s1, attrLen, argLen, s2, argLen, res1, res);
 #endif
         if (res)
           TprogramCounter = brancher(theInstruction, TprogramCounter);
@@ -4525,14 +4641,14 @@ int Dbtup::interpreterNextLab(Signal* signal,
       case Interpreter::EXIT_OK:
 	jamDebug();
 #ifdef TRACE_INTERPRETER
-	ndbout_c(" - exit_ok");
+        g_eventLogger->info(" - exit_ok");
 #endif
 	return TdataWritten;
 
       case Interpreter::EXIT_OK_LAST:
 	jamDebug();
 #ifdef TRACE_INTERPRETER
-	ndbout_c(" - exit_ok_last");
+        g_eventLogger->info(" - exit_ok_last");
 #endif
 	req_struct->last_row= true;
 	return TdataWritten;
@@ -4546,7 +4662,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
          */
 	jamDebug();
 #ifdef TRACE_INTERPRETER
-	ndbout_c(" - exit_nok");
+        g_eventLogger->info(" - exit_nok");
 #endif
 	terrorCode = theInstruction >> 16;
         tupkeyErrorLab(req_struct);
@@ -4555,8 +4671,9 @@ int Dbtup::interpreterNextLab(Signal* signal,
       case Interpreter::CALL:
 	jamDebug();
 #ifdef TRACE_INTERPRETER
-        ndbout_c(" - call addr=%u, subroutine len=%u ret addr=%u",
-                 theInstruction >> 16, TsubroutineLen, TprogramCounter);
+        g_eventLogger->info(" - call addr=%u, subroutine len=%u ret addr=%u",
+                            theInstruction >> 16, TsubroutineLen,
+                            TprogramCounter);
 #endif
 	RstackPtr++;
 	if (RstackPtr < 32)
@@ -4582,9 +4699,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
       case Interpreter::RETURN:
 	jamDebug();
 #ifdef TRACE_INTERPRETER
-        ndbout_c(" - return to %u from stack level %u",
-                 TstackMemBuffer[RstackPtr],
-                 RstackPtr);
+        g_eventLogger->info(" - return to %u from stack level %u",
+                            TstackMemBuffer[RstackPtr], RstackPtr);
 #endif
 	if (RstackPtr > 0)
         {
@@ -4961,12 +5077,12 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
     disk_len= (dd_tot ? tabPtrP->m_offsets[DD].m_fix_header_size : 0);
 #endif
   }
-  ndbout_c("Fixed part[%s](%p len=%u words)",typ, fix_p, fix_len);
+  g_eventLogger->info("Fixed part[%s](%p len=%u words)", typ, fix_p, fix_len);
   dump_hex(fix_p, fix_len);
-  ndbout_c("Varpart part[%s](%p len=%u words)", typ , var_p, var_len);
+  g_eventLogger->info("Varpart part[%s](%p len=%u words)", typ, var_p, var_len);
   dump_hex(var_p, var_len);
 #if 0
-  ndbout_c("Disk part[%s](%p len=%u words)", typ, disk_p, disk_len);
+  g_eventLogger->info("Disk part[%s](%p len=%u words)", typ, disk_p, disk_len);
   dump_hex(disk_p, disk_len);
 #endif
 }
@@ -5057,7 +5173,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
       dst->m_max_var_offset = 0;
       dst->m_dyn_part_len = 0;
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-      bzero(dst, sizeof(* dst));
+      std::memset(dst, 0, sizeof(* dst));
 #endif
     }
     
@@ -5317,7 +5433,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
 				       Uint32 sizes[4])
 {
   ndbrequire(sizes[1] == sizes[3]);
-  //ndbout_c("%d %d %d %d", sizes[0], sizes[1], sizes[2], sizes[3]);
+  // g_eventLogger->info("%d %d %d %d", sizes[0], sizes[1], sizes[2], sizes[3]);
   if(0)
     printf("%p %d %d - handle_size_change_after_update ",
 	   req_struct->m_tuple_ptr,
@@ -5338,7 +5454,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     jam();
   else if(sizes[2+MM] < sizes[MM])
   {
-    if(0) ndbout_c("shrink");
+    if (0) g_eventLogger->info("shrink");
     jam();
   }
   else
@@ -5360,7 +5476,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
       if (copy_bits & Tuple_header::COPY_TUPLE)
       {
         jamDebug();
-        c_page_pool.getPtr(pagePtr, ref.m_page_no);
+        ndbrequire(c_page_pool.getPtr(pagePtr, ref.m_page_no));
         pageP = (Var_page*)pagePtr.p;
       }
       alloc = pageP->get_entry_len(idx);
@@ -5395,7 +5511,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     if(needed <= alloc)
     {
       //ndbassert(!regOperPtr->is_first_operation());
-      if (0) ndbout_c(" no grow");
+      if (0) g_eventLogger->info(" no grow");
       jam();
       return 0;
     }
@@ -5495,7 +5611,7 @@ Dbtup::optimize_var_part(KeyReqStruct* req_struct,
   Uint32 idx = ref.m_page_idx;
 
   Ptr<Page> pagePtr;
-  c_page_pool.getPtr(pagePtr, ref.m_page_no);
+  ndbrequire(c_page_pool.getPtr(pagePtr, ref.m_page_no));
 
   Var_page* pageP = (Var_page*)pagePtr.p;
   Uint32 var_part_size = pageP->get_entry_len(idx);
@@ -5889,9 +6005,9 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       {
 	slp = 100;
       }
-      
-      ndbout_c("rnd: %d slp: %d", rnd, slp);
-      
+
+      g_eventLogger->info("rnd: %d slp: %d", rnd, slp);
+
       if (slp)
       {
 	flags |= Page_cache_client::DELAY_REQ;
@@ -5956,7 +6072,7 @@ Dbtup::nr_delete_page_callback(Signal* signal,
 			       Uint32 userpointer, Uint32 page_id)//unused
 {
   Ptr<GlobalPage> gpage;
-  m_global_page_pool.getPtr(gpage, page_id);
+  ndbrequire(m_global_page_pool.getPtr(gpage, page_id));
   PagePtr pagePtr((Tup_page*)gpage.p, gpage.i);
   disk_page_set_dirty(pagePtr);
   Dblqh::Nr_op_info op;
@@ -6027,7 +6143,7 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
     tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
   
   Ptr<GlobalPage> gpage;
-  m_global_page_pool.getPtr(gpage, op.m_page_id);
+  ndbrequire(m_global_page_pool.getPtr(gpage, op.m_page_id));
   PagePtr pagePtr((Tup_page*)gpage.p, gpage.i);
 
   /**

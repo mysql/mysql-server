@@ -1,0 +1,215 @@
+####################### mysql-test\t\pseudo_replica_mode_basic.test ###################
+#                                                                             #
+# Variable Name: pseudo_replica_mode                                            #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: boolean                                                          #
+# Default Value:                                                              #
+# Valid Values: 0,1                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-11-16                                                   #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable pseudo_replica_mode        #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.5/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+# Test semantics require --xa_detach_on_prepare
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 1
+--source include/only_with_option.inc
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF pseudo_replica_mode TESTS                        #
+######################################################################## 
+
+
+############################################################################## 
+#      Saving initial value of pseudo_replica_mode in a temporary variable           #
+##############################################################################
+
+SET @session_start_value = @@session.pseudo_replica_mode;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_156_01------------------------#'
+######################################################################## 
+#           Display the DEFAULT value of pseudo_replica_mode                   #
+######################################################################## 
+
+SET @@session.pseudo_replica_mode = 0;
+SET @@session.pseudo_replica_mode = DEFAULT;
+SELECT @@session.pseudo_replica_mode;
+
+SET @@session.pseudo_replica_mode = 1;
+SET @@session.pseudo_replica_mode = DEFAULT;
+SELECT @@session.pseudo_replica_mode;
+
+SET @@session.pseudo_replica_mode = 1;
+SET @@session.pseudo_slave_mode = DEFAULT;
+SELECT @@session.pseudo_replica_mode;
+
+
+--echo '#---------------------FN_DYNVARS_156_02-------------------------#'
+############################################################################# 
+#   Check if pseudo_replica_mode can be accessed with and without @@ sign           #
+############################################################################# 
+
+SET pseudo_replica_mode = 1;
+SELECT @@pseudo_replica_mode;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.pseudo_replica_mode;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.pseudo_replica_mode;
+
+SET session pseudo_replica_mode = 0;
+SELECT @@session.pseudo_replica_mode;
+
+
+--echo '#--------------------FN_DYNVARS_156_03------------------------#'
+######################################################################## 
+#      change the value of pseudo_replica_mode to a valid value                #
+######################################################################## 
+
+SET @@session.pseudo_replica_mode = 0;
+SELECT @@session.pseudo_replica_mode;
+SET @@session.pseudo_replica_mode = 1;
+SELECT @@session.pseudo_replica_mode;
+
+
+--echo '#--------------------FN_DYNVARS_156_04-------------------------#'
+########################################################################### 
+#       Change the value of pseudo_replica_mode to invalid value                  #
+########################################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_replica_mode = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_replica_mode = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_replica_mode = "T";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_replica_mode = "Y";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_replica_mode = TRÜE;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_replica_mode = ÕN;
+--error ER_PARSE_ERROR
+SET @@session.pseudo_replica_mode = OF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_replica_mode = ÓFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_replica_mode = '¹';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.pseudo_replica_mode = NO;
+
+
+--echo '#-------------------FN_DYNVARS_156_05----------------------------#'
+########################################################################### 
+#       Test if accessing global pseudo_replica_mode gives error                  #
+########################################################################### 
+
+--error ER_LOCAL_VARIABLE
+SET @@global.pseudo_replica_mode = 0;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@global.pseudo_replica_mode;
+
+--echo '#----------------------FN_DYNVARS_156_06------------------------#'
+######################################################################### 
+#     Check if the value in SESSION Table contains variable value        #
+#########################################################################
+
+--disable_warnings
+SELECT count(VARIABLE_VALUE) FROM performance_schema.session_variables WHERE VARIABLE_NAME='pseudo_replica_mode';
+--enable_warnings
+
+--echo '#----------------------FN_DYNVARS_156_07------------------------#'
+######################################################################### 
+#     Check if the value in SESSION Table matches value in variable      #
+#########################################################################
+
+--disable_warnings
+SELECT IF(@@session.pseudo_replica_mode, "ON", "OFF") = VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='pseudo_replica_mode';
+--enable_warnings
+SELECT @@session.pseudo_replica_mode;
+--disable_warnings
+SELECT VARIABLE_VALUE 
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='pseudo_replica_mode';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_156_08-------------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+################################################################### 
+
+SET @@session.pseudo_replica_mode = OFF;
+SELECT @@session.pseudo_replica_mode;
+SET @@session.pseudo_replica_mode = ON;
+SELECT @@session.pseudo_replica_mode;
+
+--echo '#---------------------FN_DYNVARS_156_09----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@session.pseudo_replica_mode = TRUE;
+SELECT @@session.pseudo_replica_mode;
+SET @@session.pseudo_replica_mode = FALSE;
+SELECT @@session.pseudo_replica_mode;
+
+--echo '#---------------------FN_DYNVARS_156_10----------------------#'
+######################################################################
+# Check that pseudo_replica_mode cannot be changed inside transaction. #
+######################################################################
+BEGIN;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_replica_mode = TRUE;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_replica_mode = FALSE;
+COMMIT;
+
+######################################################################
+# Check that pseudo_replica_mode cannot be changed when a XA           #
+# transaction is in active state.                                    #
+######################################################################
+XA START 'xa1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_replica_mode = TRUE;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_replica_mode = FALSE;
+XA END 'xa1';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_replica_mode = TRUE;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@session.pseudo_replica_mode = FALSE;
+XA PREPARE 'xa1';
+SET @@session.pseudo_replica_mode = TRUE;
+SET @@session.pseudo_replica_mode = FALSE;
+XA COMMIT 'xa1';
+SET @@session.pseudo_replica_mode = TRUE;
+SET @@session.pseudo_replica_mode = FALSE;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@session.pseudo_replica_mode = @session_start_value;
+SELECT @@session.pseudo_replica_mode;
+
+###############################################################
+#                    END OF pseudo_replica_mode TESTS                 #
+############################################################### 

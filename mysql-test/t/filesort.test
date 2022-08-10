@@ -94,6 +94,7 @@ ANALYZE TABLE t1;
 let $query = SELECT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
 eval $query;
 --replace_regex /  \(cost=.*//
+--skip_if_hypergraph  # Uses an index scan instead of a sort.
 eval EXPLAIN FORMAT=tree $query;
 
 DROP TABLE t1;
@@ -137,3 +138,75 @@ INSERT INTO t1 VALUES ('a');
 CREATE TABLE t2 (a INTEGER PRIMARY KEY) PARTITION BY key() PARTITIONS 2;
 SELECT 1 AS a FROM t1 LEFT JOIN t2 ON FALSE GROUP BY a;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #32617876: SIG11 IN SORT_PARAM::MAKE_SORTKEY|SQL/FILESORT.CC WITH HYPERGRAPH
+--echo #
+
+CREATE TABLE t1 (
+  a LONGBLOB,
+  b INTEGER,
+  c INTEGER
+);
+
+INSERT INTO t1 VALUES (NULL,1,3);
+INSERT INTO t1 VALUES (NULL,1,NULL);
+ANALYZE TABLE t1;
+
+# Set up a sort by row ID, where a temporary table (belonging to the
+# nonmergable derived table) has a NULL-complemented row, but never gets
+# properly initialized, and thus does not actually have a row ID.
+SELECT *
+FROM t1
+LEFT JOIN (
+  t1 AS t2 JOIN t1 AS t3 ON t2.c = t3.b
+  JOIN ( SELECT DISTINCT b FROM t1 ) AS d1
+) ON TRUE
+ORDER BY t1.c;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32685064: ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' FAILED WITH HYPERGRAPH
+--echo #
+
+CREATE TABLE t1 (a LONGTEXT);
+INSERT INTO t1 VALUES ('8');
+SELECT 'a' AS f1 FROM t1 WHERE a='8' GROUP BY f1 ORDER BY CONCAT(f1);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33030289 REGRESSION: ASSERTION `REC_SZ <= M_ELEMENT_SIZE' FAILED.
+--echo #
+
+CREATE TABLE t(a DECIMAL(55,19) NOT NULL);
+INSERT INTO t VALUES(0),(1),(2),(3),(4),(5);
+--error ER_GIS_INVALID_DATA
+SELECT
+(
+  SELECT 1 FROM t
+  ORDER BY ST_HAUSDORFFDISTANCE(a, ST_ASTEXT(1,'axis-order=lat-long')), a
+  LIMIT 1
+);
+DROP TABLE t;
+
+--echo #
+--echo # Bug #32738705: "OUT OF SORT MEMORY ERROR" HAS AN INCONSISTENT RELATIONSHIP WITH THE BUFFER SIZE
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b TEXT );
+INSERT INTO t1 VALUES (1, REPEAT('x', 40001));
+INSERT INTO t1 VALUES (2, REPEAT('x', 40002));
+INSERT INTO t1 VALUES (3, REPEAT('x', 40003));
+INSERT INTO t1 VALUES (4, REPEAT('x', 40005));
+INSERT INTO t1 VALUES (5, REPEAT('x', 40008));
+INSERT INTO t1 VALUES (6, REPEAT('x', 40013));
+
+# Set up a sort with large addons (since b is TEXT and not HUGETEXT,
+# it's treated as a packed addon). We can keep one row and then some
+# in the sort buffer, but not two, so we need special handling during merging.
+SET sort_buffer_size=65536;
+SELECT a, LENGTH(b) FROM t1 ORDER BY a DESC;
+SET sort_buffer_size=DEFAULT;
+
+DROP TABLE t1;

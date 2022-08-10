@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,8 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 /** Reads from an undo log record the record type.
  @return record type */
-UNIV_INLINE
-ulint trx_undo_rec_get_type(
+static inline ulint trx_undo_rec_get_type(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
   return (mach_read_from_1(undo_rec + 2) & (TRX_UNDO_CMPL_INFO_MULT - 1));
@@ -42,30 +41,27 @@ ulint trx_undo_rec_get_type(
 
 /** Reads from an undo log record the record compiler info.
  @return compiler info */
-UNIV_INLINE
-ulint trx_undo_rec_get_cmpl_info(
+static inline ulint trx_undo_rec_get_cmpl_info(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
   return (mach_read_from_1(undo_rec + 2) / TRX_UNDO_CMPL_INFO_MULT);
 }
 
-/** Returns TRUE if an undo log record contains an extern storage field.
+/** Returns true if an undo log record contains an extern storage field.
  @return true if extern */
-UNIV_INLINE
-ibool trx_undo_rec_get_extern_storage(
+static inline bool trx_undo_rec_get_extern_storage(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
   if (mach_read_from_1(undo_rec + 2) & TRX_UNDO_UPD_EXTERN) {
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Reads the undo log record number.
  @return undo no */
-UNIV_INLINE
-undo_no_t trx_undo_rec_get_undo_no(
+static inline undo_no_t trx_undo_rec_get_undo_no(
     const trx_undo_rec_t *undo_rec) /*!< in: undo log record */
 {
   const byte *ptr = undo_rec + 2;
@@ -83,9 +79,9 @@ undo_no_t trx_undo_rec_get_undo_no(
   return (mach_u64_read_much_compressed(ptr));
 }
 
-UNIV_INLINE
-trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page, uint32_t undo_offset,
-                                  mem_heap_t *heap) {
+static inline trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page,
+                                                uint32_t undo_offset,
+                                                mem_heap_t *heap) {
   ut_ad(undo_offset < UNIV_PAGE_SIZE);
   trx_undo_rec_t *undo_rec = (trx_undo_rec_t *)(undo_page + undo_offset);
 

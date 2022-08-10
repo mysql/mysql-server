@@ -6,11 +6,11 @@
 let $max_workers= 4;
 
 --connection slave
-SET @save_slave_parallel_workers= @@slave_parallel_workers;
+SET @save_replica_parallel_workers= @@replica_parallel_workers;
 SET @save_default_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine='innodb';
 
-eval SET GLOBAL slave_parallel_workers= $max_workers;
+eval SET GLOBAL replica_parallel_workers= $max_workers;
 # As the test case is not going to do any synchronization with the master
 # before issuing STOP SLAVE in the non-deterministic activity, there is a
 # chance that the slave applier be in MTS mode and in a condition that it
@@ -46,7 +46,7 @@ let $slave_status= 0;
 let $trx= 0;
 let $alter= 0;
 let $i= 200; # with bigger value test times out on some PB hosts
---let $small_test=`SELECT @@slave_parallel_type='LOGICAL_CLOCK' OR $VALGRIND_TEST`
+--let $small_test=`SELECT @@replica_parallel_type='LOGICAL_CLOCK' OR $VALGRIND_TEST`
 if ($small_test)
 {
   # test may be slow on Valgrind or on MTS SUBMODE = LOGICAL CLOCK
@@ -121,7 +121,7 @@ while ($i) {
       if (`SELECT 10*RAND() > 5`) {
         let $workers= 0;
       }
-      eval SET GLOBAL slave_parallel_workers= $workers;
+      eval SET GLOBAL replica_parallel_workers= $workers;
       START SLAVE;
       --connection master
       let $slave_status= 0;
@@ -159,7 +159,9 @@ SET @@global.default_storage_engine= @save_default_storage_engine;
 
 --connection slave
 SET @@global.default_storage_engine= @save_default_storage_engine;
-SET GLOBAL slave_parallel_workers= @save_slave_parallel_workers;
+--disable_warnings
+SET GLOBAL replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
 
 # It may generate a big delay between master and slave, that will need more time
 # to sync data

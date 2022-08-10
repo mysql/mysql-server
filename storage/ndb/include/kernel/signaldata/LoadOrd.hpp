@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ struct UpdThrLoadOrd {
    */
   friend class Thrman;
 
-  STATIC_CONST(SignalLength = 3);
+  static constexpr Uint32 SignalLength = 3;
 
   /**
    * Load measured in percentage over the last 50ms and sent each 50ms.

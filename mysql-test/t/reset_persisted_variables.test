@@ -28,14 +28,14 @@ select * from performance_schema.persisted_variables ORDER BY 1;
 
 --echo # add few more to config file and reset
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
-SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
 select * from performance_schema.persisted_variables ORDER BY 1;
 RESET PERSIST max_heap_table_size;
 RESET PERSIST sort_buffer_size;
 select * from performance_schema.persisted_variables ORDER BY 1;
 
-RESET PERSIST IF EXISTS slave_net_timeout;
+RESET PERSIST IF EXISTS replica_net_timeout;
 select * from performance_schema.persisted_variables ORDER BY 1;
 
 SET PERSIST join_buffer_size= 262144;
@@ -53,7 +53,7 @@ RESET PERSIST sort_buffer_size;
 # set all variables to default
 SET GLOBAL long_query_time= DEFAULT,
            max_connections= DEFAULT, max_heap_table_size= DEFAULT,
-           slave_net_timeout= DEFAULT, sort_buffer_size= DEFAULT,
+           replica_net_timeout= DEFAULT, sort_buffer_size= DEFAULT,
            join_buffer_size= DEFAULT;
 #cleanup
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf

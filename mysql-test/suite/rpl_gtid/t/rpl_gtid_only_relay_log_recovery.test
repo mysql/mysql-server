@@ -1,0 +1,112 @@
+# ==== Purpose ====
+#
+# This test validates that relay log recovery still works as expected for
+# channels that use GTID_ONLY and have outdated repository information.
+#
+# ==== Requirements ====
+#
+# R1. Relay log recovery works with GTID_ONLY = 1
+#
+# ==== Implementation ====
+#
+# 1. Make the channel use GTID_ONLY=1
+#    Create a table on the source and replicate it.
+#    Add some data making the binlog and relay rotate so the info on the repos is stale
+# 2. Restart the replica with relay log recovery
+#    Check that the replica wont replicate old transactions even if position are outdated
+# 3. Cleanup
+#
+# ==== References ====
+#
+# WL#7491: GTID-based replication applier recovery and positioning
+#
+
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo #
+--echo # 1. Make the channel use GTID_ONLY=1
+--echo #    Create a table on the source and replicate it.
+--echo #    Add some data making the binlog and relay rotate so the info on the repos is stale
+
+--source include/rpl_connection_slave.inc
+
+--source include/gtid_utils.inc
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, REQUIRE_ROW_FORMAT=1;
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+--source include/sync_slave_sql_with_master.inc
+
+let $i=3;
+while($i)
+{
+  --source include/rpl_connection_master.inc
+
+   --eval INSERT INTO t1 VALUES ($i)
+
+   FLUSH LOGS;
+
+   --source include/sync_slave_sql_with_master.inc
+
+   --source include/stop_slave.inc
+
+   --source include/start_slave.inc
+
+  --dec $i
+}
+
+--echo #
+--echo # 2. Restart the replica with relay log recovery
+--echo #    Check that the replica wont replicate old transactions even if position are outdated
+
+--let $rpl_server_parameters= --skip_replica_start=FALSE --relay_log_recovery=1
+--let $rpl_server_number = 2
+--source include/rpl_restart_server.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES(4);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $local_gtid_set= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+
+--let $assert_text= Exactly 1 GTIDs should have been retrieved since last invocation
+--let $assert_cond= GTID_COUNT("$local_gtid_set") = 1
+--source include/assert.inc
+
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count= 1
+--let $assert_select= Relay log recovery on channel with GTID_ONLY=1. The channel will switch to a new relay log and the GTID protocol will be used to replicate unapplied transactions.
+--let $assert_text= The relay log recovery message does not mention positions
+--source include/assert_grep.inc
+
+--echo #
+--echo # 3. Cleanup
+
+--source include/stop_slave.inc
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT=0;
+
+--source include/start_slave.inc
+
+--source include/gtid_utils_end.inc
+
+let $messages =
+Relay log recovery on channel with GTID_ONLY=1. The channel will switch to a new relay log and the GTID protocol will be used to replicate unapplied transactions.
+;
+--source include/suppress_messages.inc
+
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc

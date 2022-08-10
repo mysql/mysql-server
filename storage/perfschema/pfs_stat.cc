@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -428,14 +428,6 @@ void PFS_memory_monitoring_stat::normalize(bool global) {
     }
   }
 }
-
-// Missing overload for Studio 12.6 Sun C++ 5.15
-#if defined(__SUNPRO_CC) && (__SUNPRO_CC == 0x5150)
-inline size_t &operator+=(size_t &target, const std::atomic<size_t> &val) {
-  target += val.load();
-  return target;
-}
-#endif
 
 void memory_partial_aggregate(PFS_memory_safe_stat *from,
                               PFS_memory_shared_stat *stat) {

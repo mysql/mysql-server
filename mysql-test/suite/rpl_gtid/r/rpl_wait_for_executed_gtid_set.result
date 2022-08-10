@@ -15,7 +15,7 @@ SET GLOBAL GTID_PURGED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb
 [connection server_3]
 SET GLOBAL GTID_PURGED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1-3,ffffffff-ffff-ffff-ffff-ffffffffffff:1-1234567890';
 CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
-CALL mtr.add_suppression('You need to use --log-bin to make --log-slave-updates work.');
+CALL mtr.add_suppression('You need to use --log-bin to make --log-replica-updates work.');
 [connection master]
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.');
 include/rpl_sync.inc
@@ -25,8 +25,15 @@ CREATE TABLE t1 (a INT);
 ---- 1.1. NULL or invalid string ----
 SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL, 5);
 ERROR HY000: Malformed GTID set specification 'NULL'.
+SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL, NULL);
+ERROR HY000: Malformed GTID set specification 'NULL'.
 SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL);
 ERROR HY000: Malformed GTID set specification 'NULL'.
+set @null = NULL;
+SELECT WAIT_FOR_EXECUTED_GTID_SET(@null, @null);
+ERROR HY000: Malformed GTID set specification 'NULL'.
+SELECT WAIT_FOR_EXECUTED_GTID_SET(5, NULL);
+ERROR HY000: Malformed GTID set specification '5'.
 SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value');
 ERROR HY000: Malformed GTID set specification 'Incorrect_value'.
 SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value', 5);

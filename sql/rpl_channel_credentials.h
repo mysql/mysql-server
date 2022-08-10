@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,12 +52,12 @@ class Rpl_channel_credentials {
   /**
     Constructor
   */
-  Rpl_channel_credentials() {}
+  Rpl_channel_credentials() = default;
 
   /**
     Destructor
   */
-  virtual ~Rpl_channel_credentials() {}
+  virtual ~Rpl_channel_credentials() = default;
 
  public:
   /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,8 +141,18 @@ class Addon_fields {
 
   /// SortFileIterator needs an extra buffer when unpacking.
   uchar *allocate_addon_buf(uint sz) {
-    if (m_addon_buf != nullptr) {
-      assert(m_addon_buf_length == sz);
+    if (using_packed_addons()) {
+      sz += Addon_fields::size_of_length_field;
+    } else {
+      // For fixed-size "addons" the size should not change.
+      assert(m_addon_buf == nullptr || m_addon_buf_length == sz);
+    }
+    /*
+      For subqueries we try to re-use the buffer.
+      With packed addons, the longest_addons may change, so we may have
+      to allocate a larger buffer below.
+    */
+    if (m_addon_buf != nullptr && m_addon_buf_length >= sz) {
       return m_addon_buf;
     }
     m_addon_buf = static_cast<uchar *>((*THR_MALLOC)->Alloc(sz));
@@ -298,7 +308,6 @@ class Sort_param {
   uint max_rows_per_buffer{0};  // Max (unpacked) rows / buffer.
   ha_rows max_rows{0};          // Select limit, or HA_POS_ERROR if unlimited.
   bool use_hash{false};         // Whether to use hash to distinguish cut JSON
-  bool m_force_stable_sort{false};  // Keep relative order of equal elements
   bool m_remove_duplicates{
       false};  ///< Whether we want to remove duplicate rows
 
@@ -327,7 +336,7 @@ class Sort_param {
   /// precise estimation of packed row size.
   void decide_addon_fields(Filesort *file_sort,
                            const Mem_root_array<TABLE *> &tables,
-                           bool sort_positions);
+                           bool force_sort_rowids);
 
   /// Reset the decision made in decide_addon_fields(). Only used in exceptional
   /// circumstances (see NewWeedoutAccessPathForTables()).
@@ -442,6 +451,8 @@ class Sort_param {
    */
   void get_rec_and_res_len(uchar *record_start, uint *recl, uint *resl);
 
+  // NOTE: Even with FILESORT_ALG_STD_STABLE, we do not necessarily have a
+  // stable sort if spilling to disk; this is purely a performance option.
   enum enum_sort_algorithm {
     FILESORT_ALG_NONE,
     FILESORT_ALG_STD_SORT,

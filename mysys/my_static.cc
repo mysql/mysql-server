@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ namespace file_info {
 
    @param pt previous file_type (only relevant when assigning an fd to a stream
    in my_fdopen):
-   @param ct current file type (to differentiate betweeen streams and files).
+   @param ct current file type (to differentiate between streams and files).
  */
 void CountFileOpen(OpenType pt, OpenType ct) {
   mysql_mutex_assert_owner(&THR_LOCK_open);
@@ -120,7 +120,7 @@ void CountFileOpen(OpenType pt, OpenType ct) {
         assert(my_file_opened + my_stream_opened == my_file_total_opened);
         return;
       }
-      // Fallthrough
+      [[fallthrough]];
     case OpenType::STREAM_BY_FOPEN:
       ++my_stream_opened;
       break;
@@ -136,7 +136,7 @@ void CountFileOpen(OpenType pt, OpenType ct) {
    Decrement status variables.
    @relates file_info::CountFileClose
 
-   @param ft file type (to differentiate betweeen streams and files).
+   @param ft file type (to differentiate between streams and files).
  */
 void CountFileClose(OpenType ft) {
   mysql_mutex_assert_owner(&THR_LOCK_open);
@@ -170,32 +170,29 @@ std::atomic<ErrorHandlerFunctionPointer> error_handler_hook{my_message_stderr};
 void (*local_message_hook)(enum loglevel ll, uint ecode,
                            va_list args) = my_message_local_stderr;
 
-static void enter_cond_dummy(void *a MY_ATTRIBUTE((unused)),
-                             mysql_cond_t *b MY_ATTRIBUTE((unused)),
-                             mysql_mutex_t *c MY_ATTRIBUTE((unused)),
-                             const PSI_stage_info *d MY_ATTRIBUTE((unused)),
-                             PSI_stage_info *e MY_ATTRIBUTE((unused)),
-                             const char *f MY_ATTRIBUTE((unused)),
-                             const char *g MY_ATTRIBUTE((unused)),
-                             int h MY_ATTRIBUTE((unused))) {}
+static void enter_cond_dummy(
+    void *a [[maybe_unused]], mysql_cond_t *b [[maybe_unused]],
+    mysql_mutex_t *c [[maybe_unused]], const PSI_stage_info *d [[maybe_unused]],
+    PSI_stage_info *e [[maybe_unused]], const char *f [[maybe_unused]],
+    const char *g [[maybe_unused]], int h [[maybe_unused]]) {}
 
-static void exit_cond_dummy(void *a MY_ATTRIBUTE((unused)),
-                            const PSI_stage_info *b MY_ATTRIBUTE((unused)),
-                            const char *c MY_ATTRIBUTE((unused)),
-                            const char *d MY_ATTRIBUTE((unused)),
-                            int e MY_ATTRIBUTE((unused))) {}
+static void exit_cond_dummy(void *a [[maybe_unused]],
+                            const PSI_stage_info *b [[maybe_unused]],
+                            const char *c [[maybe_unused]],
+                            const char *d [[maybe_unused]],
+                            int e [[maybe_unused]]) {}
 
-static void enter_stage_dummy(void *a MY_ATTRIBUTE((unused)),
-                              const PSI_stage_info *b MY_ATTRIBUTE((unused)),
-                              PSI_stage_info *c MY_ATTRIBUTE((unused)),
-                              const char *d MY_ATTRIBUTE((unused)),
-                              const char *e MY_ATTRIBUTE((unused)),
-                              int f MY_ATTRIBUTE((unused))) {}
+static void enter_stage_dummy(void *a [[maybe_unused]],
+                              const PSI_stage_info *b [[maybe_unused]],
+                              PSI_stage_info *c [[maybe_unused]],
+                              const char *d [[maybe_unused]],
+                              const char *e [[maybe_unused]],
+                              int f [[maybe_unused]]) {}
 
-static void set_waiting_for_disk_space_dummy(void *a MY_ATTRIBUTE((unused)),
-                                             bool b MY_ATTRIBUTE((unused))) {}
+static void set_waiting_for_disk_space_dummy(void *a [[maybe_unused]],
+                                             bool b [[maybe_unused]]) {}
 
-static int is_killed_dummy(const void *a MY_ATTRIBUTE((unused))) { return 0; }
+static int is_killed_dummy(const void *a [[maybe_unused]]) { return 0; }
 
 /*
   Initialize these hooks to dummy implementations. The real server

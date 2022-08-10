@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,11 @@
 #include <limits.h>
 #include <stddef.h>
 #include <sys/types.h>
+
+#include <array>
 #include <memory>
 #include <new>
+#include <utility>
 
 #include "decimal.h"
 #include "field_types.h"
@@ -39,18 +42,20 @@
 #include "my_table_map.h"
 #include "mysql_time.h"
 #include "mysys_err.h"
+#include "sql-common/json_dom.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
 #include "sql/item_strfunc.h"
+#include "sql/item_sum.h"
 #include "sql/item_timefunc.h"
-#include "sql/json_dom.h"
 #include "sql/my_decimal.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/tztime.h"
 #include "sql_string.h"
 #include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mock_field_long.h"
 #include "unittest/gunit/mock_field_timestamp.h"
 #include "unittest/gunit/mysys_util.h"
 #include "unittest/gunit/test_utils.h"
@@ -59,6 +64,9 @@ namespace item_unittest {
 
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
+using std::array;
+using std::make_pair;
+using std::pair;
 using ::testing::Return;
 
 class ItemTest : public ::testing::Test {
@@ -229,7 +237,7 @@ TEST_F(ItemTest, ItemInt) {
 
   item_int->neg();
   EXPECT_EQ(-val, item_int->val_int());
-  EXPECT_EQ(precision - 1, item_int->decimal_precision());
+  EXPECT_EQ(precision, item_int->decimal_precision());
 
   // Functions inherited from parent class(es).
   const table_map tmap = 0;
@@ -374,6 +382,103 @@ TEST_F(ItemTest, ItemEqual) {
   EXPECT_EQ(1, item_equal->val_int());
 }
 
+TEST_F(ItemTest, ItemViewRef) {
+  Mock_field_long f_field1(true);
+  Mock_field_long f_field2(true);
+  Item_field *field1 = new Item_field(&f_field1);
+  Item_field *field2 = new Item_field(&f_field2);
+  Item *field3 = new Item_int(123);
+
+  // Create a view reference over a constant expression from an inner
+  // table of an outer join.
+  TABLE_LIST table;
+  table.outer_join = true;
+  table.set_tableno(2);
+  Item_view_ref *view_ref =
+      new Item_view_ref(&thd()->lex->current_query_block()->context, &field3,
+                        nullptr, nullptr, "t1", "f1", &table);
+
+  Item_func_eq *eq1 = new Item_func_eq(field1, field2);
+  Item_func_eq *eq2 = new Item_func_eq(field1, field3);
+  Item_func_eq *eq3 = new Item_func_eq(field1, view_ref);
+
+  // True because both arguments are fields.
+  EXPECT_TRUE(eq1->contains_only_equi_join_condition());
+  // False because the right side argument is a constant and
+  // therefore concluded as a filter.
+  EXPECT_FALSE(eq2->contains_only_equi_join_condition());
+  // Even though the used table information for the right side
+  // argument says it is not a constant expression, it examines
+  // the underlying expression in the view reference and concludes
+  // it as constant expression there by making it a filter and
+  // not a equi-join condition.
+  EXPECT_FALSE(eq3->contains_only_equi_join_condition());
+}
+
+TEST_F(ItemTest, ItemRollupSwitcher) {
+  Mock_field_long f_field1(true);
+  Item_field *field1 = new Item_field(&f_field1);
+  POS p;
+  Item_sum_sum *agg1 = new Item_sum_sum(p, field1, false, nullptr);
+  Item_sum_sum *agg2 = new Item_sum_sum(p, field1, false, nullptr);
+
+  List<Item> li1;
+  li1.push_back(agg1);
+  Item_rollup_sum_switcher *sw1 = new Item_rollup_sum_switcher(&li1);
+  List<Item> li2;
+  li2.push_back(agg2);
+  Item_rollup_sum_switcher *sw2 = new Item_rollup_sum_switcher(&li2);
+  EXPECT_TRUE(agg1->eq(agg2, false));
+  EXPECT_TRUE(agg1->eq(sw2, false));
+  EXPECT_TRUE(sw1->eq(sw2, false));
+  EXPECT_TRUE(sw1->eq(agg2, false));
+
+  EXPECT_FALSE(agg1->is_rollup_sum_wrapper());
+  EXPECT_TRUE(sw1->is_rollup_sum_wrapper());
+}
+
+TEST_F(ItemTest, ItemEqualEq) {
+  Mock_field_timestamp field1;
+  field1.field_name = "field1";
+  Mock_field_timestamp field2;
+  field2.field_name = "field2";
+
+  Item_equal *item_equal1 =
+      new Item_equal(new Item_field(&field1), new Item_field(&field2));
+  Item_equal *item_equal2 =
+      new Item_equal(new Item_field(&field2), new Item_field(&field1));
+  Item_equal *item_equal3 =
+      new Item_equal(new Item_int(123), new Item_field(&field1));
+  Item_equal *item_equal4 =
+      new Item_equal(new Item_int(123), new Item_field(&field1));
+  item_equal4->add(new Item_field(&field2));
+
+  Item_func_equal *spaceship =
+      new Item_func_equal(new Item_field(&field1), new Item_field(&field2));
+
+  // Create an array of <int, Item *> pairs. If the int members of two pairs are
+  // the same, the Item * members should be considered equal by Item::eq(). (The
+  // first two objects are equivalent. The rest of them are different.)
+  array<pair<int, Item *>, 5> items{
+      make_pair(1, item_equal1), make_pair(1, item_equal2),
+      make_pair(2, item_equal3), make_pair(3, item_equal4),
+      make_pair(4, spaceship),
+  };
+
+  // Now compare all items with each other.
+  for (bool binary_cmp : {true, false}) {
+    for (pair<int, Item *> it1 : items) {
+      for (pair<int, Item *> it2 : items) {
+        EXPECT_EQ(it1.first == it2.first,
+                  it1.second->eq(it2.second, binary_cmp))
+            << "Item 1: " << ItemToString(it1.second)
+            << ", Item 2: " << ItemToString(it2.second)
+            << ", binary_cmp = " << binary_cmp;
+      }
+    }
+  }
+}
+
 TEST_F(ItemTest, ItemFuncExportSet) {
   String str;
   Item *on_string = new Item_string(STRING_WITH_LEN("on"), &my_charset_bin);
@@ -486,7 +591,7 @@ TEST_F(ItemTest, ItemFuncIntDivOverflow) {
   const char divisor_str[] = "0.5";
   Item_float *dividend = new Item_float(dividend_str, sizeof(dividend_str));
   Item_float *divisor = new Item_float(divisor_str, sizeof(divisor_str));
-  Item_func_int_div *quotient = new Item_func_int_div(dividend, divisor);
+  Item_func_div_int *quotient = new Item_func_div_int(dividend, divisor);
 
   Mock_error_handler error_handler(thd(), ER_TRUNCATED_WRONG_VALUE);
   EXPECT_FALSE(quotient->fix_fields(thd(), nullptr));
@@ -500,7 +605,7 @@ TEST_F(ItemTest, ItemFuncIntDivUnderflow) {
   const char divisor_str[] = "1.7976931348623157E+308";
   Item_float *dividend = new Item_float(dividend_str, sizeof(dividend_str));
   Item_float *divisor = new Item_float(divisor_str, sizeof(divisor_str));
-  Item_func_int_div *quotient = new Item_func_int_div(dividend, divisor);
+  Item_func_div_int *quotient = new Item_func_div_int(dividend, divisor);
 
   Mock_error_handler error_handler(thd(), ER_TRUNCATED_WRONG_VALUE);
   EXPECT_FALSE(quotient->fix_fields(thd(), nullptr));
@@ -620,7 +725,7 @@ TEST_F(ItemTest, MysqlTimeCache) {
   MysqlTime datetime6(2011, 11, 7, 10, 20, 30, 123456, false,
                       MYSQL_TIMESTAMP_DATETIME);
   MysqlTime time6(0, 0, 0, 10, 20, 30, 123456, false, MYSQL_TIMESTAMP_TIME);
-  struct timeval tv6 = {1320661230, 123456};
+  my_timeval tv6 = {1320661230, 123456};
   const MYSQL_TIME *ltime;
   MYSQL_TIME_cache cache;
 

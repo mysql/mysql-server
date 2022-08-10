@@ -2680,6 +2680,8 @@ FEFE
 8FFEFD
 8FFEFE
 CREATE TABLE t2 SELECT CONVERT(c1 USING ucs2) AS c1 FROM t1;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(c1) FROM t2;
 HEX(c1)
 005C
@@ -9789,6 +9791,8 @@ DROP TABLE t3;
 DROP TABLE t4;
 CREATE TABLE t1(c1 varchar(10)) default character set = eucjpms;
 insert into t1 values(_ucs2 0x00F7);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values(_eucjpms 0xA1E0);
 insert into t1 values(_ujis 0xA1E0);
 insert into t1 values(_sjis 0x8180);
@@ -9858,9 +9862,13 @@ DROP TABLE t1;
 select hex(convert(_eucjpms 0xA5FE41 using ucs2));
 hex(convert(_eucjpms 0xA5FE41 using ucs2))
 003F0041
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(convert(_eucjpms 0x8FABF841 using ucs2));
 hex(convert(_eucjpms 0x8FABF841 using ucs2))
 003F0041
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 set global LC_TIME_NAMES=convert((convert((0x63) using eucjpms)) using utf8);
 ERROR HY000: Unknown locale: 'c'
 #
@@ -32624,6 +32632,8 @@ EFBE9E	DE
 EFBE9F	DF
 EFBFA3	8150
 EFBFA5	818F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # End of 5.5 tests
@@ -33315,9 +33325,9 @@ is_ipv4(inet_ntoa('1'))
 SELECT is_ipv6(inet_ntoa('1'));
 is_ipv6(inet_ntoa('1'))
 0
-SELECT inet6_aton(inet_ntoa('1'));
-inet6_aton(inet_ntoa('1'))
-   
+SELECT HEX(inet6_aton(inet_ntoa('1')));
+HEX(inet6_aton(inet_ntoa('1')))
+00000001
 SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL

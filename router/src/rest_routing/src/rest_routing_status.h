@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_REST_ROUTING_STATUS_INCLUDED
-#define MYSQLROUTER_REST_ROUTING_STATUS_INCLUDED
+#ifndef MYSQLROUTER_REST_ROUTING_GLOBAL_STATUS_INCLUDED
+#define MYSQLROUTER_REST_ROUTING_GLOBAL_STATUS_INCLUDED
 
 #include "mysqlrouter/rest_api_component.h"
 
 class RestRoutingStatus : public RestApiHandler {
  public:
-  static constexpr const char path_regex[] = "^/routes/([^/]+)/status/?$";
+  static constexpr const char path_regex[] = "^/routing/status/?$";
 
   RestRoutingStatus(const std::string &require_realm)
       : RestApiHandler(require_realm, HttpMethod::Get) {}

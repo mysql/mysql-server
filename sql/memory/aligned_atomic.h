@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
@@ -77,7 +78,20 @@ static inline size_t _cache_line_size() {
 
 #elif defined(__linux__)
 static inline size_t _cache_line_size() {
-  return sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+  long size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+  if (size == -1) return 64;
+#if defined(__s390x__)
+  // returns 0 on s390x RHEL 7.x
+  if (size == 0) {
+    FILE *p = fopen(
+        "/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size", "r");
+    if (p) {
+      fscanf(p, "%ld", &size);
+      fclose(p);
+    }
+  }
+#endif
+  return static_cast<size_t>(size);
 }
 
 #else

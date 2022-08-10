@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,10 +47,10 @@ PSI_memory_key key_memory_string_iterator;
 
   TODO: Marking charset_name as unused for now, see Bug#25533463.
 */
-int mysql_string_convert_to_char_ptr(
-    mysql_string_handle string_handle,
-    const char *charset_name MY_ATTRIBUTE((unused)), char *buffer,
-    unsigned int buffer_size, int *error) {
+int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
+                                     const char *charset_name [[maybe_unused]],
+                                     char *buffer, unsigned int buffer_size,
+                                     int *error) {
   String *str = (String *)string_handle;
   int len =
       (int)my_convert(buffer, buffer_size - 1, &my_charset_utf8_general_ci,

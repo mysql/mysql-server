@@ -4,8 +4,8 @@
 # The test verifies correctness of MTS execution when system meets
 # various limits due to few configuration options:
 #
-# A. @@global.slave_pending_jobs_size_max
-# B. @@global.slave_parallel_workers
+# A. @@global.replica_pending_jobs_size_max
+# B. @@global.replica_parallel_workers
 #
 
 --source include/not_group_replication_plugin.inc
@@ -23,15 +23,15 @@ connection slave;
 
 create view coord_wait_list as
        SELECT id from Information_Schema.processlist
-              where state like 'Waiting for Slave Worker%';
+              where state like 'Waiting for Replica Worker%';
 
 # restart in Parallel
 
 let $workers= 4;
 
 source include/stop_slave.inc;
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-eval set @@global.slave_parallel_workers= $workers;
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+eval set @@global.replica_parallel_workers= $workers;
 
 #
 # A. Prescribed number of Worker threads is honored
@@ -47,8 +47,8 @@ source include/stop_slave.inc;
 
 # relates to B preparation
 let $mts_max_q_size=1024;
-set @save_slave_pending_jobs_size_max = @@global.slave_pending_jobs_size_max;
-eval set @@global.slave_pending_jobs_size_max= $mts_max_q_size;
+set @save_replica_pending_jobs_size_max = @@global.replica_pending_jobs_size_max;
+eval set @@global.replica_pending_jobs_size_max= $mts_max_q_size;
 
 source include/start_slave.inc;
 
@@ -114,7 +114,7 @@ let $table= d0.t0;
 source include/wait_until_rows_count.inc;
 
 # cleanup of the max size
-set @@global.slave_pending_jobs_size_max= @save_slave_pending_jobs_size_max;
+set @@global.replica_pending_jobs_size_max= @save_replica_pending_jobs_size_max;
 
 
 #
@@ -130,6 +130,8 @@ drop database d0;
 
 drop view coord_wait_list;
 drop view worker_wait_list;
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+--disable_warnings
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 
 --source include/rpl_end.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,11 +37,11 @@
  *   and others
  */
 struct NodeFailRep {
-  STATIC_CONST( SignalLength = 3 );
-  STATIC_CONST( SignalLengthLong = 3 );
+  static constexpr Uint32 SignalLength = 3;
+  static constexpr Uint32 SignalLengthLong = 3;
 
-  STATIC_CONST( SignalLength_v1 = 3 + NdbNodeBitmask48::Size );
-  STATIC_CONST( SignalLengthLong_v1 = 3 + NodeBitmask::Size );
+  static constexpr Uint32 SignalLength_v1 = 3 + NdbNodeBitmask48::Size;
+  static constexpr Uint32 SignalLengthLong_v1 = 3 + NodeBitmask::Size;
 
   Uint32 failNo;
 

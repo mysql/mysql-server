@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_open_files);
 COUNT(@@GLOBAL.innodb_open_files)
 1
 1 Expected
-SELECT innodb_open_files = @@SESSION.innodb_open_files;
+SELECT innodb_open_files;
 ERROR 42S22: Unknown column 'innodb_open_files' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

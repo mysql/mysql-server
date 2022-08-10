@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -552,6 +552,14 @@ bool Ndb_metadata::create_foreign_keys(Ndb *ndb, dd::Table *table_def) const {
 
     Ndb_table_guard ndb_table_guard(ndb, parent_db, parent_name);
     const NdbDictionary::Table *parent_table = ndb_table_guard.get_table();
+    if (!parent_table) {
+      // Failed to open the table from NDB
+      ndb_log_error("Got error '%d: %s' from NDB",
+                    ndb_table_guard.getNdbError().code,
+                    ndb_table_guard.getNdbError().message);
+      ndb_log_error("Failed to open table '%s.%s'", parent_db, parent_name);
+      return false;
+    }
     for (unsigned int j = 0; j < ndb_fk.getChildColumnCount(); j++) {
       // Create FK element(s) for child columns
       dd::Foreign_key_element *fk_element = dd_fk->add_element();
@@ -605,8 +613,8 @@ bool Ndb_metadata::create_table_def(Ndb *ndb, dd::Table *table_def) const {
   // table_def->set_comment(some_comment);
 
   // se_private_id, se_private_data
-  ndb_dd_table_set_object_id_and_version(table_def, m_ndbtab->getObjectId(),
-                                         m_ndbtab->getObjectVersion());
+  ndb_dd_table_set_spi_and_version(table_def, m_ndbtab->getObjectId(),
+                                   m_ndbtab->getObjectVersion());
 
   // storage
   // no DD API setters or types available -> hardcode
@@ -864,12 +872,10 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
 
   // se_private_id and se_private_data.object_version (local)
   {
-    int t1_id, t1_version;
-    ndb_dd_table_get_object_id_and_version(t1, t1_id, t1_version);
-    int t2_id, t2_version;
-    ndb_dd_table_get_object_id_and_version(t2, t2_id, t2_version);
-    ctx.compare("se_private_id", t1_id, t2_id);
-    ctx.compare("object_version", t1_version, t2_version);
+    Ndb_dd_handle t1_handle = ndb_dd_table_get_spi_and_version(t1);
+    Ndb_dd_handle t2_handle = ndb_dd_table_get_spi_and_version(t2);
+    ctx.compare("se_private_id", t1_handle.spi, t2_handle.spi);
+    ctx.compare("object_version", t1_handle.version, t2_handle.version);
   }
 
   // storage
@@ -937,15 +943,8 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
     const dd::Column *column2 = t2->get_column(column1->name());
     if (column2 == nullptr) continue;
 
-    /*
-      Diff in 'column_name' detected, 'D' != 'd'
-
-      ALTER TABLE t8 CHANGE D d INT UNSIGNED causes the above. Only an issue
-      with the same character with different case. For example,
-      ALTER TABLE t8 CHANGE D c INT UNSIGNED works perfectly well.
-      Bug#31958327 has been filed
-    */
-    // ctx.compare("column_name", column1->name(), column2->name());
+    // column name
+    ctx.compare("column_name", column1->name(), column2->name());
 
     const char *column_name = column1->name().c_str();
 
@@ -1178,6 +1177,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
 
     /*
       Diff in 'column_comment' detected, '' != 'NDB_COLUMN=MAX_BLOB_PART_SIZE'
+                                         '' != 'NDB_COLUMN=BLOB_INLINE_SIZE'
 
       Column comments aren't stored in NDB Dictionary
     */
@@ -1418,7 +1418,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
           break;
         }
       }
-      if (index_it2 == t2->indexes().end()) {
+      if (index2 == nullptr) {
         // Index not found in the DD table. Continue to the next index
         // comparison
         ctx.compare("index_name", index1->name(), "");
@@ -1490,9 +1490,17 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
     //            static_cast<unsigned long long>(index2->type()));
 
     // Algorithm
-    ctx.compare(Compare_context::INDEX, index_name, "algorithm",
-                static_cast<unsigned long long>(index1->algorithm()),
-                static_cast<unsigned long long>(index2->algorithm()));
+
+    /*
+      CREATE TABLE t1 (a int primary key, b int, unique(b)) engine=ndb;
+      This creates two indexes "b" and "b$unique". If someone uses ndb_restore
+      or ndb_drop_index to drop one or the other of "b" and "b$unique" (but not
+      both), this test will fail.  In general, post-bug#28584066, DD and NDB
+      are not required to agree about indexes.
+    */
+    // ctx.compare(Compare_context::INDEX, index_name, "algorithm",
+    //             static_cast<unsigned long long>(index1->algorithm()),
+    //             static_cast<unsigned long long>(index2->algorithm()));
 
     // Explicit algorithm
     /*
@@ -1559,7 +1567,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
             break;
           }
         }
-        if (idx_elem_it2 == index2->elements().end()) {
+        if (idx_element2 == nullptr) {
           // Index element not found. Continue to the next index element
           // comparison
           ctx.compare(Compare_context::INDEX, index_name, "element.column",
@@ -1676,7 +1684,8 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
           break;
         }
       }
-      if (fk_it3 == t2->foreign_keys().end()) {
+      if (fk2 == nullptr) {
+        // FK not found. Continue to the next FK comparison
         ctx.compare("fk_name", fk1->name(), "");
         continue;
       }

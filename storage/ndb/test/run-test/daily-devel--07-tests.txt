@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ args: -n DropTableWithFKDuringRestart T1
 max-time : 300
 
 cmd: test_event
-args: -n getEventBufferUsage2 T1
+args: -n getEventBufferUsage3 T1
 max-time : 300
 
 cmd: testNdbApi
@@ -243,4 +243,16 @@ max-time: 60
 cmd: testBlobs
 args : -bug 27772916 -skip p
 max-time: 120
+
+cmd: testNodeRestart
+args: -n pnr_lcp D2 D3
+max-time: 2000
+
+cmd: testRedo
+args: -n RedoStallRecover T1
+max-time : 180
+
+cmd: testInterpreter
+args: -n BranchNonZeroLabel T6 T16
+max-time: 180
 

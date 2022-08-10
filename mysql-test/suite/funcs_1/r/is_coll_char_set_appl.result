@@ -32,7 +32,7 @@ COLLATION_NAME	varchar(64)	NO		NULL
 CHARACTER_SET_NAME	varchar(64)	NO		NULL	
 SHOW CREATE TABLE information_schema.COLLATION_CHARACTER_SET_APPLICABILITY;
 View	Create View	character_set_client	collation_connection
-COLLATION_CHARACTER_SET_APPLICABILITY	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`COLLATION_CHARACTER_SET_APPLICABILITY` AS select `col`.`name` AS `COLLATION_NAME`,`cs`.`name` AS `CHARACTER_SET_NAME` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`id` = `col`.`character_set_id`)))	utf8	utf8_general_ci
+COLLATION_CHARACTER_SET_APPLICABILITY	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`COLLATION_CHARACTER_SET_APPLICABILITY` AS select `col`.`name` AS `COLLATION_NAME`,`cs`.`name` AS `CHARACTER_SET_NAME` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`id` = `col`.`character_set_id`)))	utf8mb3	utf8mb3_general_ci
 SHOW COLUMNS FROM information_schema.COLLATION_CHARACTER_SET_APPLICABILITY;
 Field	Type	Null	Key	Default	Extra
 COLLATION_NAME	varchar(64)	NO		NULL	

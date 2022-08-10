@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ class PT_hint_max_execution_time;
 
   Opt_hints_global class is hierarchical structure.
   It contains information about global hints and also
-  conains array of QUERY BLOCK level objects (Opt_hints_qb class).
+  contains array of QUERY BLOCK level objects (Opt_hints_qb class).
   Each QUERY BLOCK level object contains array of TABLE level hints
   (class Opt_hints_table). Each TABLE level hint contains array of
   KEY lelev hints (Opt_hints_key class).
@@ -193,7 +193,7 @@ class Opt_hints {
         resolved(false),
         resolved_children(0) {}
 
-  virtual ~Opt_hints() {}
+  virtual ~Opt_hints() = default;
 
   bool is_specified(opt_hints_enum type_arg) const {
     return hints_map.is_specified(type_arg);
@@ -241,7 +241,7 @@ class Opt_hints {
 
     @return  true if all hint objects are resolved, false otherwise.
   */
-  virtual bool is_resolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) {
+  virtual bool is_resolved(opt_hints_enum type_arg [[maybe_unused]]) {
     return resolved;
   }
   /**
@@ -249,7 +249,7 @@ class Opt_hints {
 
     @param type_arg  hint type
   */
-  virtual void set_unresolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) {}
+  virtual void set_unresolved(opt_hints_enum type_arg [[maybe_unused]]) {}
   /**
     If ignore_print() returns true, hint is not printed
     in Opt_hints::print() function. Atm used for
@@ -261,8 +261,7 @@ class Opt_hints {
     @return  true if the hint should not be printed
     in Opt_hints::print() function, false otherwise.
   */
-  virtual bool ignore_print(
-      opt_hints_enum type_arg MY_ATTRIBUTE((unused))) const {
+  virtual bool ignore_print(opt_hints_enum type_arg [[maybe_unused]]) const {
     return false;
   }
   void incr_resolved_children() { resolved_children++; }
@@ -284,8 +283,7 @@ class Opt_hints {
 
     @return  pointer to complex hint for a given type.
   */
-  virtual PT_hint *get_complex_hints(
-      opt_hints_enum type MY_ATTRIBUTE((unused))) {
+  virtual PT_hint *get_complex_hints(opt_hints_enum type [[maybe_unused]]) {
     assert(0);
     return nullptr; /* error C4716: must return a value */
   }
@@ -340,8 +338,8 @@ class Opt_hints {
     @param thd             pointer to THD object
     @param str             pointer to String object
   */
-  virtual void print_irregular_hints(const THD *thd MY_ATTRIBUTE((unused)),
-                                     String *str MY_ATTRIBUTE((unused))) {}
+  virtual void print_irregular_hints(const THD *thd [[maybe_unused]],
+                                     String *str [[maybe_unused]]) {}
 };
 
 /**
@@ -491,7 +489,7 @@ class Opt_hints_qb : public Opt_hints {
 class PT_key_level_hint;
 
 /**
-  Auxiluary class for compound key objects.
+  Auxiliary class for compound key objects.
 */
 class Compound_key_hint {
   PT_key_level_hint *pt_hint;  // Pointer to PT_key_level_hint object.
@@ -505,7 +503,7 @@ class Compound_key_hint {
     pt_hint = nullptr;
   }
 
-  virtual ~Compound_key_hint() {}
+  virtual ~Compound_key_hint() = default;
 
   void set_pt_hint(PT_key_level_hint *pt_hint_arg) { pt_hint = pt_hint_arg; }
   PT_key_level_hint *get_pt_hint() { return pt_hint; }
@@ -517,9 +515,8 @@ class Compound_key_hint {
   bool is_set_key_map(uint i) { return key_map.is_set(i); }
   bool is_key_map_clear_all() { return key_map.is_clear_all(); }
   Key_map *get_key_map() { return &key_map; }
-  virtual bool is_hint_conflicting(
-      Opt_hints_table *table_hint MY_ATTRIBUTE((unused)),
-      Opt_hints_key *key_hint MY_ATTRIBUTE((unused))) {
+  virtual bool is_hint_conflicting(Opt_hints_table *table_hint [[maybe_unused]],
+                                   Opt_hints_key *key_hint [[maybe_unused]]) {
     return false;
   }
 };
@@ -691,13 +688,14 @@ class Sys_var_hint {
     Add variable to hint list.
 
     @param thd            pointer to THD object
-    @param sys_var        pointer to sys_var object
+    @param var_tracker    pointer to System_variable_tracker object
     @param sys_var_value  variable value
 
     @return true if variable is added,
             false otherwise
   */
-  bool add_var(THD *thd, sys_var *sys_var, Item *sys_var_value);
+  bool add_var(THD *thd, const System_variable_tracker &var_tracker,
+               Item *sys_var_value);
   /**
     Find variable in hint list.
 
@@ -793,7 +791,7 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
 bool idx_merge_hint_state(THD *thd, const TABLE *table,
                           bool *use_cheapest_index_merge);
 
-int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
+int cmp_lex_string(const LEX_CSTRING &s, const LEX_CSTRING &t,
                    const CHARSET_INFO *cs);
 
 #endif /* OPT_HINTS_INCLUDED */

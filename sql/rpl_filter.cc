@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,14 +45,15 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"    // Item
 #include "sql/mysqld.h"  // table_alias_charset
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_mi.h"     // Master_info
-#include "sql/rpl_msr.h"    // channel_map
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // SLAVE_SQL
+#include "sql/rpl_mi.h"       // Master_info
+#include "sql/rpl_msr.h"      // channel_map
+#include "sql/rpl_replica.h"  // SLAVE_SQL
+#include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/table.h"  // TABLE_LIST
@@ -85,11 +86,11 @@ Rpl_pfs_filter::Rpl_pfs_filter(const Rpl_pfs_filter &other) {
   if (!other.m_filter_rule.is_empty()) m_filter_rule.copy(other.m_filter_rule);
 }
 
-Rpl_pfs_filter::~Rpl_pfs_filter() {}
+Rpl_pfs_filter::~Rpl_pfs_filter() = default;
 
 Rpl_filter_statistics::Rpl_filter_statistics() { reset(); }
 
-Rpl_filter_statistics::~Rpl_filter_statistics() {}
+Rpl_filter_statistics::~Rpl_filter_statistics() = default;
 
 void Rpl_filter_statistics::reset() {
   m_configured_by = CONFIGURED_BY_STARTUP_OPTIONS;
@@ -110,9 +111,9 @@ void Rpl_filter_statistics::set_all(enum_configured_by configured_by) {
       Calculate time stamp up to tenths of milliseconds elapsed
       from 1 Jan 1970 00:00:00.
     */
-    struct timeval stmt_start_time = thd->query_start_timeval_trunc(6);
-    m_active_since = static_cast<ulonglong>(stmt_start_time.tv_sec) * 1000000 +
-                     stmt_start_time.tv_usec;
+    my_timeval stmt_start_time = thd->query_start_timeval_trunc(6);
+    m_active_since =
+        stmt_start_time.m_tv_sec * 1000000 + stmt_start_time.m_tv_usec;
   }
 }
 
@@ -524,7 +525,7 @@ bool Rpl_filter::db_ok(const char *db, bool need_increase_counter) {
     With replicate_wild_ignore_table, we only check tables. When
     one does 'DROP DATABASE db1', tables are not involved and the
     statement will be replicated, while users could expect it would not (as it
-    rougly means 'DROP db1.first_table, DROP db1.second_table...').
+    roughly means 'DROP db1.first_table, DROP db1.second_table...').
     In other words, we want to interpret 'db1.%' as "everything touching db1".
     That is why we want to match 'db1' against 'db1.%' wild table rules.
 
@@ -889,7 +890,7 @@ int Rpl_filter::set_db_rewrite(mem_root_deque<Item *> *rewrite_db_pair_list,
 
   auto it = rewrite_db_pair_list->begin();
 
-  /* Please note that grammer itself allows only even number of db values. So
+  /* Please note that grammar itself allows only even number of db values. So
    * it is ok to do it++ twice without checking anything. */
   while (status == 0 && it != rewrite_db_pair_list->end()) {
     Item *db_key = *it++;

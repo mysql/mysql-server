@@ -260,7 +260,10 @@ DROP PROCEDURE p1;
 
 GRANT PROXY ON root@localhost TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
 GRANT PROXY ON some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 TO root@localhost;
+
+--replace_column 7 ####-##-##-##:##:##
 SELECT * FROM mysql.proxies_priv WHERE user ='some_user_name';
+--replace_column 7 ####-##-##-##:##:##
 SELECT * FROM mysql.proxies_priv WHERE Proxied_user ='some_user_name';
 REVOKE PROXY ON root@localhost FROM some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
 REVOKE PROXY ON some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 FROM root@localhost;
@@ -275,6 +278,7 @@ GRANT ALL ON *.* TO u1@host_1234567890abcdefghij1234567890abcdefghij1234567890ab
 
 SET GLOBAL DEBUG='+d,vio_peer_addr_fake_hostname1';
 --echo # Execute test with long hostname in GRANTOR.
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DATEVALUE/
 --exec $MYSQL --user=u1 --ssl-mode=DISABLED --host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 -#d,vio_client_use_localhost -v test  < $MYSQL_TEST_DIR/std_data/hostname_in_grantor.sql
 SET GLOBAL DEBUG='-d,vio_peer_addr_fake_hostname1';
 

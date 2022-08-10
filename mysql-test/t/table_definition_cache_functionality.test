@@ -124,7 +124,7 @@ SELECT COUNT(@@GLOBAL.table_definition_cache);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT table_definition_cache = @@SESSION.table_definition_cache;
+SELECT table_definition_cache;
 --echo Expected error 'Unknown column table_definition_cache in field list'
 
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,8 @@
 
 class DestMetadataCacheGroup final
     : public RouteDestination,
-      public metadata_cache::ReplicasetStateListenerInterface,
+      public metadata_cache::ClusterStateListenerInterface,
+      public metadata_cache::MetadataRefreshListenerInterface,
       public metadata_cache::AcceptorUpdateHandlerInterface {
  public:
   enum ServerRole { Primary, Secondary, PrimaryAndSecondary };
@@ -46,7 +47,6 @@ class DestMetadataCacheGroup final
   /** @brief Constructor */
   DestMetadataCacheGroup(
       net::io_context &io_ctx_, const std::string &metadata_cache,
-      const std::string &replicaset,
       const routing::RoutingStrategy routing_strategy,
       const mysqlrouter::URIQuery &query, const Protocol::Type protocol,
       const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
@@ -99,7 +99,7 @@ class DestMetadataCacheGroup final
   // get cache-api
   metadata_cache::MetadataCacheAPIBase *cache_api() { return cache_api_; }
 
-  stdx::expected<Destinations, void> refresh_destinations(
+  std::optional<Destinations> refresh_destinations(
       const Destinations &dests) override;
 
   Destinations primary_destinations();
@@ -127,9 +127,6 @@ class DestMetadataCacheGroup final
    */
   const std::string cache_name_;
 
-  /** @brief The HA Group which will be used for looking up managed servers */
-  const std::string ha_replicaset_;
-
   /** @brief Query part of the URI given as destination in the configuration
    *
    * For example, given following Metadata Cache configuration:
@@ -150,34 +147,24 @@ class DestMetadataCacheGroup final
    */
   void init();
 
-  struct AvailableDestination {
-    AvailableDestination(mysql_harness::TCPAddress a, std::string i)
-        : address{std::move(a)}, id{std::move(i)} {}
-
-    mysql_harness::TCPAddress address;
-    std::string id;
-  };
-
-  using AvailableDestinations = std::vector<AvailableDestination>;
-
   /** @brief Gets available destinations from Metadata Cache
    *
    * This method gets the destinations using Metadata Cache information. It uses
-   * the `metadata_cache::lookup_replicaset()` function to get a list of current
+   * the `metadata_cache::get_cluster_nodes()` function to get a list of current
    * managed servers. Bool in the returned pair indicates if (in case of the
    * round-robin-with-fallback routing strategy) the returned nodes are the
    * primaries after the fallback (true), regular primaries (false) or
    * secondaries (false).
    *
    */
-  std::pair<AvailableDestinations, bool> get_available(
+  std::pair<AllowedNodes, bool> get_available(
       const metadata_cache::LookupResult &managed_servers,
       bool for_new_connections = true) const;
 
-  AvailableDestinations get_available_primaries(
+  AllowedNodes get_available_primaries(
       const metadata_cache::LookupResult &managed_servers) const;
 
-  Destinations balance(const AvailableDestinations &all_replicaset_nodes,
+  Destinations balance(const AllowedNodes &all_replicaset_nodes,
                        bool primary_fallback);
 
   routing::RoutingStrategy routing_strategy_;
@@ -197,13 +184,19 @@ class DestMetadataCacheGroup final
                            const bool md_servers_reachable);
   void subscribe_for_metadata_cache_changes();
   void subscribe_for_acceptor_handler();
+  void subscribe_for_md_refresh_handler();
 
-  void notify_instances_changed(const metadata_cache::LookupResult &instances,
-                                const bool md_servers_reachable,
-                                const unsigned /*view_id*/) noexcept override;
+  void notify_instances_changed(
+      const metadata_cache::LookupResult &instances,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
+      const bool md_servers_reachable,
+      const uint64_t /*view_id*/) noexcept override;
 
   bool update_socket_acceptor_state(
       const metadata_cache::LookupResult &instances) noexcept override;
+
+  void on_md_refresh(const bool instances_changed,
+                     const metadata_cache::LookupResult &instances) override;
 
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};

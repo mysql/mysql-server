@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/create_field.h"
@@ -472,8 +472,8 @@ class sp_head {
   ulong m_recursion_level;
 
   /**
-    A list of diferent recursion level instances for the same procedure.
-    For every recursion level we have a sp_head instance. This instances
+    A list of different recursion level instances for the same procedure.
+    For every recursion level we have an sp_head instance. This instances
     connected in the list. The list ordered by increasing recursion level
     (m_recursion_level).
   */
@@ -759,7 +759,7 @@ class sp_head {
     Get SP-instruction at given index.
 
     NOTE: it is important to have *unsigned* int here, sometimes we get (-1)
-    passed here, so it get's converted to MAX_INT, and the result of the
+    passed here, so it gets converted to MAX_INT, and the result of the
     function call is NULL.
   */
   sp_instr *get_instr(uint i) {

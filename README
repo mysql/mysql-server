@@ -1,36 +1,20 @@
-If you use WarpSQL, please consider supporting the project on Patreon:
-http://patreon.com/warpsql
-Patreon supporters can receive consulting and support for using WarpSQL
-or any other MySQL distribution.
+Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
-WarpSQL is a GPL v2 open source distribution of MySQL. WarpSQL is not 
-intended to be a hard fork of MySQL like MariaDB, but is more like 
-Percona Server, which is an enhanced MySQL server which strives to be 
-nearly 100% compatible with upstream MySQL.
-Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+This is a release of MySQL, an SQL database server.
 
-WARP storage engine
-------------------------------------------------------------------------------------
-WarpSQL currently ships the WARP storage engine.  The WARP storage engine 
-is a columnar storage engine with compressed bitmap indexes, and is based
-on Fastbit 2.0.3, the latest version of Fastbit.  Fastbit is a mature
-NoSQL column store with a C++ interface with an lgpl license.  WarpSQL is 
-an adaptation of Fastbit to the MySQL database pluggable storage engine
-interface.  WARP both horizontally and vertically partitions data sets
-automatically.  Standard MySQL partitioning is not yet supported. 
-Data compression is not yet supported.
+License information can be found in the LICENSE file.
 
-For further information on MySQL or additional documentation, visit
-http://dev.mysql.com/doc/
-
-For further information on Fasbit, visit
-https://sdm.lbl.gov/fastbit/
-
-License information can be found in the LICENSE or LICENSE-test file.
+In test packages where this file is renamed README-test, the license
+file is renamed LICENSE-test.
 
 This distribution may include materials developed by third parties.
 For license and attribution notices for these materials,
 please refer to the LICENSE file.
 
-Portions (c) 2015,2020 Justin Swanhart
-Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+For further information on MySQL or additional documentation, visit
+  http://dev.mysql.com/doc/
+
+For additional downloads and the source of MySQL, visit
+  http://dev.mysql.com/downloads/
+
+MySQL is brought to you by the MySQL team at Oracle.

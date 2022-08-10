@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,11 @@
 
 #include <ndb_global.h>
 
+#include <time.h>
+
 #include <util/File.hpp>
 #include <NdbOut.hpp>
+#include <EventLogger.hpp>
 
 //
 // PUBLIC
@@ -144,7 +147,8 @@ File_class::close()
     }
     else {
       rc = false;
-      ndbout_c("ERROR: Close file error in File.cpp for %s",strerror(errno));
+      g_eventLogger->info("ERROR: Close file error in File.cpp for %s",
+                          strerror(errno));
     }   
   }  
   m_file = NULL;

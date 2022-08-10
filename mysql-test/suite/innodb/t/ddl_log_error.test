@@ -4,6 +4,7 @@
 #
 
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Couldn't insert entry in ddl log for ddl.");
@@ -47,9 +48,40 @@ ALTER TABLESPACE my_ts ENCRYPTION='Y';
 SET SESSION DEBUG="-d,ddl_log_return_error_from_insert";
 
 --echo # Cleanup
+DROP TABLESPACE my_ts;
 DROP TABLE t1;
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;
 
 --echo # Restarting server without keyring to restore server state
 let $restart_parameters = restart: ;
 --source include/restart_mysqld.inc
+
+--echo #
+--echo # Bug #32716838 ALTER TABLE MAY CRASH IF DDL LOG LOSE,
+--echo # IN NON-FILE-PER-TABLE MODE
+--echo #
+SET @innodb_file_per_table_orig=@@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+SELECT @@innodb_file_per_table;
+
+--echo # Setup
+CREATE TABLE t1 (c1 INT);
+
+# Return error from insert into ddl_log
+SET SESSION DEBUG="+d,ddl_log_return_error_from_insert";
+
+--echo # Run few DDLs. All DDLs should give error now.
+
+--error ER_GET_ERRNO
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=COPY;
+
+--error ER_GET_ERRNO
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INPLACE;
+
+--error ER_ENGINE_CANT_DROP_TABLE
+DROP TABLE t1;
+
+SET SESSION DEBUG="-d,ddl_log_return_error_from_insert";
+--echo # Cleanup
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=@innodb_file_per_table_orig;

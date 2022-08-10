@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,9 @@ namespace json_data {
 /* Base class for data extensions */
 class Json_data_extension {
  public:
-  Json_data_extension() {}
+  Json_data_extension() = default;
   virtual std::string version() { return std::string{"1.0"}; }
-  virtual ~Json_data_extension() {}
+  virtual ~Json_data_extension() = default;
 };
 
 }  // namespace json_data

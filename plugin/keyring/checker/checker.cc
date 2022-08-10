@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@
 namespace keyring {
 
 const my_off_t Checker::EOF_TAG_SIZE = 3;
-const std::string Checker::eofTAG = "EOF";
 
 /**
   checks if keyring file structure is invalid
@@ -84,7 +83,7 @@ bool Checker::is_file_tag_correct(File file) {
     return false;
   tag[3] = '\0';
   mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
-  return eofTAG == reinterpret_cast<char *>(tag);
+  return get_eofTAG() == reinterpret_cast<char *>(tag);
 }
 
 bool Checker::is_file_version_correct(File file) {

@@ -8,3 +8,128 @@ EXPLAIN
 -> Filter: (rand() < rand())  (cost=0.00 rows=1)
     -> Rows fetched before execution  (cost=0.00 rows=1)
 
+#
+# Bug#33535379 Wrong value for RAND() expression when aggregating on empty table.
+#
+CREATE TABLE t ( i1 INT, i2 INT);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000) FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t` /* select#1 */ select sql_buffer_result max(`test`.`t`.`i1`) AS `MAX(i1)`,floor((rand(0) * 1000)) AS `FLOOR(RAND(0)*1000)` from `test`.`t`
+INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000) FROM t;
+SELECT * FROM t;
+i1	i2
+NULL	155
+INSERT INTO t VALUES (1,1),(2,2),(3,3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000) FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t` /* select#1 */ select sql_buffer_result max(`test`.`t`.`i1`) AS `MAX(i1)`,floor((rand(0) * 1000)) AS `FLOOR(RAND(0)*1000)` from `test`.`t`
+INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000) FROM t;
+SELECT * FROM t;
+i1	i2
+NULL	155
+1	1
+2	2
+3	3
+3	155
+DELETE FROM t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
++ EXTRACT(YEAR FROM NOW()) DIV 1000 FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t` /* select#1 */ select sql_buffer_result max(`test`.`t`.`i1`) AS `MAX(i1)`,(floor((rand(0) * 1000)) + (extract(year from now()) DIV 1000)) AS `FLOOR(RAND(0)*1000)
++ EXTRACT(YEAR FROM NOW()) DIV 1000` from `test`.`t`
+INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
++ EXTRACT(YEAR FROM NOW()) DIV 1000 FROM t;
+SELECT * FROM t;
+i1	i2
+NULL	157
+INSERT INTO t VALUES (1,1),(2,2),(3,3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
++ EXTRACT(YEAR FROM NOW()) DIV 1000 FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t` /* select#1 */ select sql_buffer_result max(`test`.`t`.`i1`) AS `MAX(i1)`,(floor((rand(0) * 1000)) + (extract(year from now()) DIV 1000)) AS `FLOOR(RAND(0)*1000)
++ EXTRACT(YEAR FROM NOW()) DIV 1000` from `test`.`t`
+INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
++ EXTRACT(YEAR FROM NOW()) DIV 1000 FROM t;
+SELECT * FROM t;
+i1	i2
+NULL	157
+1	1
+2	2
+3	3
+3	157
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
++ EXTRACT(YEAR FROM NOW()) DIV 1000 FROM t GROUP BY i2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t` /* select#1 */ select sql_buffer_result max(`test`.`t`.`i1`) AS `MAX(i1)`,(floor((rand(0) * 1000)) + (extract(year from now()) DIV 1000)) AS `FLOOR(RAND(0)*1000)
++ EXTRACT(YEAR FROM NOW()) DIV 1000` from `test`.`t` group by `test`.`t`.`i2`
+INSERT INTO t SELECT MAX(i1), FLOOR(RAND(0)*1000)
++ EXTRACT(YEAR FROM NOW()) DIV 1000 FROM t GROUP BY i2;
+SELECT i1 FROM t;
+i1
+1
+1
+2
+2
+3
+3
+3
+3
+NULL
+SELECT i2 FROM t;
+i2
+1
+157
+157
+157
+2
+3
+333
+622
+640
+DROP TABLE t;
+#
+# Bug#33834514: 'RAND(0)' gives inconsistent results with hypergraph
+#
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (1), (2), (3);
+SELECT r FROM t LEFT JOIN (SELECT RAND(0) AS r) AS dt ON TRUE;
+r
+0.15522042769493574
+0.15522042769493574
+0.15522042769493574
+SELECT r FROM t LEFT JOIN LATERAL (SELECT i, RAND(0) AS r) AS dt ON TRUE;
+r
+0.15522042769493574
+0.620881741513388
+0.6387474552157777
+DROP TABLE t;

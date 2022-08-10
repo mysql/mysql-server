@@ -1,0 +1,77 @@
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+syntax = "proto2";
+
+option optimize_for = LITE_RUNTIME;
+
+package protobuf_replication_asynchronous_connection_failover;
+
+message Source {
+  required string channel = 1;
+  required string host = 2;
+  required uint64 port = 3;
+  required string network_namespace = 4;
+  required uint64 weight = 5;
+  required string managed_name = 6;
+}
+
+message SourceList {
+  required string origin = 1;
+  required uint64 version = 2;
+  repeated Source source = 3;
+}
+
+message Managed {
+  required string channel = 1;
+  required string managed_name = 2;
+  required string managed_type = 3;
+  required string configuration = 4;
+}
+
+message ManagedList {
+  required string origin = 1;
+  required uint64 version = 2;
+  repeated Managed managed = 3;
+}
+
+message VariableStatus {
+  required string channel = 1;
+  required string key = 2;
+  required uint32 status = 3;
+}
+
+message VariableStatusList {
+  required string origin = 1;
+  required uint64 version = 2;
+  repeated VariableStatus status = 3;
+}
+
+message SourceAndManagedAndStatusList {
+  required string origin = 1;
+  required uint64 source_version = 2;
+  repeated Source source = 3;
+  required uint64 managed_version = 4;
+  repeated Managed managed = 5;
+  required uint64 status_version = 6;
+  repeated VariableStatus status = 7;
+}

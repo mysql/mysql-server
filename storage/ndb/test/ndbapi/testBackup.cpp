@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <NdbMgmd.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbHistory.hpp>
+#include <NdbSleep.h>
 
 int runDropTable(NDBT_Context* ctx, NDBT_Step* step);
 
@@ -508,12 +509,12 @@ runBackupLoop(NDBT_Context* ctx, NDBT_Step* step){
   {
     if (backup.start() == -1)
     {
-      sleep(1);
+      NdbSleep_SecSleep(1);
       loops++;
     }
     else
     {
-      sleep(3);
+      NdbSleep_SecSleep(3);
     }
   }
 
@@ -545,7 +546,7 @@ runDDL(NDBT_Context* ctx, NDBT_Step* step){
 	    pDict->getNdbError().code != 4009)
 	g_err << pDict->getNdbError() << endl;
       
-      sleep(1);
+      NdbSleep_SecSleep(1);
 
     }
   }

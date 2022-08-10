@@ -21,7 +21,7 @@
 # released their partitions and signalled.
 
 --source include/not_group_replication_plugin.inc
---source include/have_slave_parallel_type_database.inc
+--source include/have_replica_parallel_type_database.inc
 --source include/master-slave.inc
 
 #
@@ -46,8 +46,8 @@ call mtr.add_suppression('Error reading slave worker configuration');
 
 source include/stop_slave.inc;
 
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-set @@global.slave_parallel_workers= 4;
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+set @@global.replica_parallel_workers= 4;
 
 source include/start_slave.inc;
 
@@ -116,7 +116,7 @@ if (`SELECT @@global.binlog_transaction_compression = FALSE`)
   # transaction events. Then it does not wait  and assigns 2nd
   # transaction to the worker handling d1 already.
   #
-  --let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE processlist_state LIKE 'Waiting for Slave Worker to release partition' AND name = 'thread/sql/slave_sql'
+  --let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE processlist_state LIKE 'Waiting for Replica Worker to release partition' AND name = 'thread/sql/replica_sql'
   --source include/wait_condition.inc
 }
 
@@ -234,6 +234,6 @@ drop database d3;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
 
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 
 --source include/rpl_end.inc

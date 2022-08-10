@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
+#include "storage/ndb/plugin/ndb_schema_trans_guard.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
@@ -203,6 +204,11 @@ bool Ndb_util_table::check_column_varbinary(const char *name) const {
                            "VARBINARY");
 }
 
+bool Ndb_util_table::check_column_varchar(const char *name) const {
+  return check_column_type(get_column(name), NdbDictionary::Column::Varchar,
+                           "VARCHAR");
+}
+
 bool Ndb_util_table::check_column_binary(const char *name) const {
   return check_column_type(get_column(name), NdbDictionary::Column::Binary,
                            "BINARY");
@@ -243,36 +249,44 @@ bool Ndb_util_table::define_table_add_column(
   return true;
 }
 
-bool Ndb_util_table::define_indexes(unsigned int) const {
+bool Ndb_util_table::create_indexes(const NdbDictionary::Table &) const {
   // Base class implementation. Override in derived classes to define indexes.
   return true;
 }
 
-bool Ndb_util_table::create_index(const NdbDictionary::Index &idx) const {
+bool Ndb_util_table::create_index(const NdbDictionary::Table &new_table,
+                                  const NdbDictionary::Index &new_index) const {
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
-  const NdbDictionary::Table *table = get_table();
-  assert(table != nullptr);
-  if (dict->createIndex(idx, *table) != 0) {
+  if (dict->createIndex(new_index, new_table) != 0) {
     push_ndb_error_warning(dict->getNdbError());
-    push_warning("Failed to create index '%s'", idx.getName());
+    push_warning("Failed to create index '%s'", new_index.getName());
     return false;
   }
   return true;
 }
 
-bool Ndb_util_table::create_primary_ordered_index() const {
+bool Ndb_util_table::create_event_in_NDB(
+    const NdbDictionary::Event &new_event) const {
+  NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
+  if (dict->createEvent(new_event) != 0) {
+    push_ndb_error_warning(dict->getNdbError());
+    push_warning("Failed to create event '%s'", new_event.getName());
+    return false;
+  }
+  return true;
+}
+
+bool Ndb_util_table::create_primary_ordered_index(
+    const NdbDictionary::Table &new_table) const {
   NdbDictionary::Index index("PRIMARY");
 
   index.setType(NdbDictionary::Index::OrderedIndex);
   index.setLogging(false);
 
-  const NdbDictionary::Table *table = get_table();
-  assert(table != nullptr);
-
-  for (int i = 0; i < table->getNoOfPrimaryKeys(); i++) {
-    index.addColumnName(table->getPrimaryKey(i));
+  for (int i = 0; i < new_table.getNoOfPrimaryKeys(); i++) {
+    index.addColumnName(new_table.getPrimaryKey(i));
   }
-  return create_index(index);
+  return create_index(new_table, index);
 }
 
 bool Ndb_util_table::create_table_in_NDB(
@@ -337,14 +351,33 @@ bool Ndb_util_table::create(bool is_upgrade) {
 #endif
   if (!define_table_ndb(new_table, mysql_version)) return false;
 
+  // Start schema transactions for creating table and related schema objects
+  Ndb_schema_trans_guard schema_trans(m_thd_ndb,
+                                      m_thd_ndb->ndb->getDictionary());
+  if (!schema_trans.begin_trans()) return false;
+
   if (!create_table_in_NDB(new_table)) return false;
 
-  // Load the new table definition into the Ndb_util_table object.
+  if (!create_indexes(new_table)) return false;
+
+  // End schema transaction
+  if (!schema_trans.commit_trans()) return false;
+
+  // Load the new table definition into the Ndb_util_table object
   if (!open(is_upgrade)) return false;
 
-  if (!define_indexes(mysql_version)) return false;
+  const NdbDictionary::Table *util_table = get_table();
+  if (!create_events_in_NDB(*util_table)) {
+    (void)drop_table_in_NDB(*util_table);
+    return false;
+  }
 
-  if (!post_install()) return false;
+  if (!post_install()) {
+    // Failed to perform post_install actions, attempt to drop the table in
+    // order to start all over again from scratch on next retry
+    (void)drop_table_in_NDB(*util_table);
+    return false;
+  }
 
   return true;
 }
@@ -466,7 +499,7 @@ Util_table_creator::Util_table_creator(THD *thd, Thd_ndb *thd_ndb,
 
 bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
                                                   bool &reinstall) const {
-  ndb_log_verbose(50, "Checking '%s' table", m_name.c_str());
+  ndb_log_verbose(50, "Checking '%s' table in NDB", m_name.c_str());
 
   if (m_util_table.exists()) {
     // Table exists already. Upgrade it if required.
@@ -509,7 +542,7 @@ bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
     ndb_log_info("Created '%s' table in NdbDictionary", m_name.c_str());
   }
 
-  ndb_log_verbose(50, "The '%s' table is ok", m_name.c_str());
+  ndb_log_verbose(50, "The '%s' table is ok in NDB", m_name.c_str());
   return true;
 }
 
@@ -529,9 +562,8 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
 
   // Table definition exists
   if (existing) {
-    int table_id, table_version;
-    if (!ndb_dd_table_get_object_id_and_version(existing, table_id,
-                                                table_version)) {
+    Ndb_dd_handle dd_handle = ndb_dd_table_get_spi_and_version(existing);
+    if (!dd_handle.valid()) {
       ndb_log_error("Failed to extract id and version from '%s' table",
                     m_name.c_str());
       assert(false);
@@ -539,10 +571,17 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
       reinstall = true;
     }
 
+    // Check if table need to be reinstalled in DD.
+    if (m_util_table.need_reinstall(existing)) {
+      ndb_log_info("Table '%s' need reinstall in DD", m_name.c_str());
+      reinstall = true;
+    }
+
     // Check if table definition in DD is outdated
     const NdbDictionary::Table *ndbtab = m_util_table.get_table();
-    if (!reinstall && (ndbtab->getObjectId() == table_id &&
-                       ndbtab->getObjectVersion() == table_version)) {
+    Ndb_dd_handle curr_handle{ndbtab->getObjectId(),
+                              ndbtab->getObjectVersion()};
+    if (!reinstall && curr_handle == dd_handle) {
       // Existed, didn't need reinstall and version matched
       return true;
     }
@@ -600,10 +639,12 @@ bool Util_table_creator::setup_table_for_binlog() const {
     return false;
   }
 
+  const bool skip_error_handling = true;
   // Setup events for this table
   if (ndbcluster_binlog_setup_table(m_thd, m_thd_ndb->ndb, db_name(),
-                                    table_name(), table_def)) {
-    ndb_log_error("Failed to setup events for '%s' table", m_name.c_str());
+                                    table_name(), table_def,
+                                    skip_error_handling)) {
+    ndb_log_info("Failed to setup events for '%s' table", m_name.c_str());
     return false;
   }
 

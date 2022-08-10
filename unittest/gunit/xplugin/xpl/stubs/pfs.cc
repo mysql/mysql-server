@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,14 +29,14 @@
 #include "include/pfs_socket_provider.h"
 #include "include/pfs_thread_provider.h"
 #include "my_inttypes.h"
-#include "mysql/components/services/psi_cond_bits.h"
-#include "mysql/components/services/psi_memory_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/components/services/psi_rwlock_bits.h"
-#include "mysql/components/services/psi_socket_bits.h"
-#include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
+#include "mysql/components/services/bits/psi_rwlock_bits.h"
+#include "mysql/components/services/bits/psi_socket_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 
 #ifndef WITH_LOCK_ORDER
 
@@ -119,14 +119,15 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state_v1 *,
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
 void pfs_delete_current_thread_vc() {}
-PSI_thread *pfs_new_thread_vc(PSI_thread_key, const void *, ulonglong) {
+PSI_thread *pfs_new_thread_vc(PSI_thread_key, PSI_thread_seqnum, const void *,
+                              ulonglong) {
   return nullptr;
 }
-void pfs_register_thread_vc(char const *, PSI_thread_info_v1 *, int) {}
+void pfs_register_thread_vc(char const *, PSI_thread_info *, int) {}
 void pfs_set_thread_account_vc(char const *, int, char const *, int) {}
 void pfs_set_thread_os_id_vc(PSI_thread *) {}
 void pfs_set_thread_vc(PSI_thread *) {}
-int pfs_spawn_thread_vc(PSI_thread_key, my_thread_handle *,
+int pfs_spawn_thread_vc(PSI_thread_key, PSI_thread_seqnum, my_thread_handle *,
                         const my_thread_attr_t *, void *(*)(void *), void *) {
   return 0;
 }

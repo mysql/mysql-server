@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,9 +106,9 @@ bool ndb_mi_get_slave_sql_running() {
   return msi.get_default_mi()->rli->slave_running;
 }
 
-ulong ndb_mi_get_slave_parallel_workers() {
+ulong ndb_mi_get_replica_parallel_workers() {
   Multisource_info_guard msi;
-  return msi.get_default_mi()->rli->opt_slave_parallel_workers;
+  return msi.get_default_mi()->rli->opt_replica_parallel_workers;
 }
 
 uint32 ndb_get_number_of_channels() {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
  */
 struct GCPPrepare
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 nodeId;
   Uint32 gci_hi;
@@ -46,7 +46,7 @@ struct GCPPrepare
 
 struct GCPPrepareConf // Distr. DIH-DIH
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 nodeId;
   Uint32 gci_hi;
@@ -55,7 +55,7 @@ struct GCPPrepareConf // Distr. DIH-DIH
 
 struct GCPCommit // Distr. DIH-DIH
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 nodeId;
   Uint32 gci_hi;
@@ -64,7 +64,7 @@ struct GCPCommit // Distr. DIH-DIH
 
 struct GCPNoMoreTrans // Local DIH/TC
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 gci_hi;
@@ -73,7 +73,7 @@ struct GCPNoMoreTrans // Local DIH/TC
 
 struct GCPTCFinished // Local TC-DIH
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderData;
   Uint32 gci_hi;
@@ -83,7 +83,7 @@ struct GCPTCFinished // Local TC-DIH
 
 struct GCPNodeFinished // Distr. DIH-DIH
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 nodeId;
   Uint32 gci_hi;
@@ -110,7 +110,7 @@ class GCPSaveReq // Distr. DIH-LQH
   friend bool printGCPSaveReq(FILE * output, const Uint32 * theData, 
 			      Uint32 len, Uint16 receiverBlockNo);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
 private:
   Uint32 dihBlockRef;
@@ -134,7 +134,7 @@ class GCPSaveRef // Distr. LQH-DIH
   friend bool printGCPSaveRef(FILE * output, const Uint32 * theData, 
 			      Uint32 len, Uint16 receiverBlockNo);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   enum ErrorCode {
     NodeShutdownInProgress = 1,
@@ -165,7 +165,7 @@ class GCPSaveConf // Distr. LQH-DIH
   friend bool printGCPSaveConf(FILE * output, const Uint32 * theData, 
 			       Uint32 len, Uint16 receiverBlockNo);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
 private:
   Uint32 dihPtr;

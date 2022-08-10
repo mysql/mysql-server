@@ -1,0 +1,158 @@
+# ==== Purpose ====
+#
+# This script tests server behavior when a crash occurs while applying an
+# `XA PREPARE`, on the replica, after the transaction was written to the
+# replica's binlog and just before engines mark the transaction as prepared
+# in the TC.
+#
+# ==== Requirements ====
+#
+# Pre-conditions:
+# PC1. Asynchronous replication topology with 2 servers (source -> replica).
+# PC2. GTID is enabled.
+#
+# After server restart:
+# R1. The `XA PREPARE` statement should be present in the replica's binlog.
+# R2. The GTID_EXECUTED variable should have been updated, on the replica.
+# R3. There should be one pending XA transactions visible with `XA
+#     RECOVER`, on the replica.
+# R4. There should still be one pending XA transaction visible with `XA
+#     RECOVER`, on the replica, if server is restarted after the
+#     crash-recovery.
+#
+# ==== Implementation ====
+#
+# 1. Setup scenario: create table and insert some records on the source.
+# 2. Start and execute, on the source, an XA transaction containing an
+#    insert until before `XA PREPARE`.
+# 3. Take the `GTID_EXECUTED` state on the replica.
+# 4. Crash the replica during `XA PREPARE` execution, after writing to the
+#    binlog and before marking the transaction as prepared in TC.
+# 5. Restart the replica server and check it for:
+#    a. Error log for messages stating that recovery process found one
+#       transaction needing recovery.
+#    b. The `XA PREPARE` was logged to the replica's binary log.
+#    c. The GTID_EXECUTED variable was updated.
+#    d. There is one pending XA transaction listed in the output of `XA
+#       RECOVER`.
+#    e. There aren't changes to the table.
+# 6. Restart the replica and check that the transaction is still in preared
+#    state, meaning, the recovery process moved the transaction to
+#    `PERSISTED_IN_TC` and that state was persisted.
+# 7. Start replica.
+# 8. Commit the transaction on the source.
+# 9. Check that the replica successfully applied the transaction.
+#
+# ==== References ====
+#
+# WL#11300: Crash-safe XA + binary log
+#
+# Related tests:
+#   see extra/xa_crash_safe_tests/setup.inc
+#
+--source include/have_binlog_format_row.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/master-slave.inc
+
+# 1. Setup scenario: create table and insert some records on the source.
+#
+--source include/rpl_connection_master.inc
+--let $xid_data = xid1
+--let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
+--source extra/xa_crash_safe_tests/setup.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+# 2. Start and execute, on the source, an XA transaction containing an
+#    insert until before `XA PREPARE`.
+#
+--source include/rpl_connection_master1.inc
+--eval XA START $xid
+INSERT INTO t1 VALUES (1);
+--eval XA END $xid
+
+# 3. Take the `GTID_EXECUTED` state on the replica.
+#
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+# 4. Crash the replica during `XA PREPARE` execution, after writing to the
+#    binlog and before marking the transaction as prepared in TC.
+#
+--let $auxiliary_connection = slave
+--let $statement_connection = master1
+--let $statement = XA PREPARE $xid
+--let $sync_point = before_set_prepared_in_tc
+--source include/execute_to_conditional_timestamp_sync_point.inc
+
+--source include/rpl_connection_slave.inc
+--source include/kill_mysqld.inc
+
+# 5. Restart the replica server and check it for:
+#
+--let $restart_parameters=restart:--skip-replica-start
+--source include/start_mysqld.inc
+--source include/rpl_reconnect.inc
+
+# 5.a. Error log for messages stating that recovery process found one
+#      transaction needing recovery.
+#
+--let $assert_select = Successfully prepared 1 XA transaction
+--source extra/xa_crash_safe_tests/assert_recovery_message.inc
+
+# 5.b. The `XA PREPARE` was logged to the replica's binary log.
+#
+--source include/rpl_connection_slave.inc
+--let $event_sequence = Gtid # $xa_start_end # XA_prepare/XA PREPARE $xid
+--source include/assert_binlog_events.inc
+
+# 5.c. The GTID_EXECUTED variable was updated.
+#
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_text = GTID_EXECUTED has been updated
+--let $assert_cond = "$before_gtid_executed" != "$after_gtid_executed"
+--source include/assert.inc
+
+# 5.d. There is one pending XA transaction listed in the output of `XA
+#      RECOVER`.
+#
+--let $expected_prepared_xa_count = 1
+--source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+# 5.a. There aren't changes to the table.
+#
+--let $expected_row_count = 1
+--source extra/xa_crash_safe_tests/assert_row_count.inc
+
+# 6. Restart the replica and check that the transaction is still in preared
+#    state, meaning, the recovery process moved the transaction to
+#    `PERSISTED_IN_TC` and that state was persisted.
+#
+--let $allow_rpl_inited = 1
+--source include/restart_mysqld.inc
+--source include/rpl_reconnect.inc
+
+--let $expected_prepared_xa_count = 1
+--source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+# 7. Start replica.
+#
+--source include/start_slave.inc
+
+# 8. Commit the transaction on the source.
+#
+--source include/rpl_connection_master1.inc
+--eval XA COMMIT $xid
+
+# 9. Check that the replica successfully applied the transaction.
+#
+--source include/sync_slave_sql_with_master.inc
+--let $expected_row_count = 2
+--source extra/xa_crash_safe_tests/assert_row_count.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

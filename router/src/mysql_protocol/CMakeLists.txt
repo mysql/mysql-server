@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,6 @@ TARGET_INCLUDE_DIRECTORIES(mysql_protocol INTERFACE ${include_dirs})
 #   ${CMAKE_CURRENT_BINARY_DIR}/include/mysqlrouter/mysql_protocol_export.h
 #   )
 
-IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
+IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(tests/)
 ENDIF()

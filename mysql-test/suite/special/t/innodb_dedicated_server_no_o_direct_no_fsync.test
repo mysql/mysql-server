@@ -5,13 +5,12 @@
 # This test checks autoscaling of following variables based on value of #
 # innodb_dedicated_server option                                        #
 #       - innodb_buffer_pool_size                                       #
-#       - innodb_log_file_size                                          #
-#       - innodb_log_files_in_group                                     #
+#       - innodb_redo_log_capacity                                      #
 #       - innodb_flush_method (Not affected on Windows Platform)        #
 #                                                                       #
 # NOTE: For Windows platform, innodb_flush_method is not affected by    #
 #       innodb_dedicated_server value. So we need not to check for that.#
-#       This test is disabled on Linux as there is a seperate test for  #
+#       This test is disabled on Linux, as there is a separate test for #
 #       that.                                                           #
 #########################################################################
 
@@ -36,22 +35,15 @@ if ($HAVE_LINUX)
 #               server_memory <= 4G ? server_memory * 0.5                    #
 #               server_memory  > 4G ? server_memory * 0.75                   #
 #                                                                            #
-#       innodb_log_file_size                                                 #
-#               buf_pool_size  < 1G ? 48M (same as current default)          #
-#               buf_pool_size  < 8G ? 512M                                   #
-#               buf_pool_size <= 128G ? 1024M                                #
-#               buf_pool_size  > 128G ? 2048M                                #
-#                                                                            #
-#       innodb_log_files_in_group                                            #
-#               buf_pool_size  < 1G ? 2 (same as current default)            #
-#               buf_pool_size  < 8G ? ROUND(buf_pool_size/GB)                #
-#               buf_pool_size <= 128G ? ROUND(buf_pool_size/GB * 0.75)       #
-#               buf_pool_size  > 128G ? 64                                   #
+#       innodb_redo_log_capacity                                             #
+#               buf_pool_size  < 1G ? 100M (same as current default)         #
+#               buf_pool_size  < 8G ? ROUND(buf_pool_size * 0.5) G           #
+#               buf_pool_size <= 128G ? ROUND(buf_pool_size * 0.75) G        #
+#               buf_pool_size  > 128G ? 128G                                 #
 #                                                                            #
 # Following Perl module calculates server memory and evaluates               #
 #       innodb_buffer_pool_size and                                          #
-#       innodb_log_file_size                                                 #
-#       innodb_log_files_in_group                                            #
+#       innodb_redo_log_capacity                                             #
 # based on above formula.                                                    #
 #                                                                            #
 # NOTE : Memory considered here is in Kilo bytes                             #
@@ -89,20 +81,19 @@ if ($total_mem < $mem_size1G) {
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Resizing redo log");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Starting to delete and rewrite log files.");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* New log files created");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Starting to delete and rewrite redo log files.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* New redo log files created");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored ");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\D+.*  No argument was provided to --log-bin, and --log-bin-index was not used");
 --enable_query_log
 
 --echo
---echo #########################################
---echo # INITIAL START                         #
---echo #  innodb_dedicated_server = OFF        #
---echo #  innodb_buffer_pool_size = default    #
---echo #  innodb_log_file_size    = default    #
---echo #  innodb_log_files_in_group = default  #
---echo #########################################
+--echo ##########################################
+--echo # INITIAL START                          #
+--echo #  innodb_dedicated_server  = OFF        #
+--echo #  innodb_buffer_pool_size  = default    #
+--echo #  innodb_redo_log_capacity = default    #
+--echo ##########################################
 
 --disable_query_log
 SELECT VARIABLE_VALUE AS INNODB_DEDICATED_SERVER
@@ -113,13 +104,9 @@ SELECT VARIABLE_VALUE/(1024*1024) AS BUFFER_POOL_SIZE_IN_MB
   FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 
-SELECT VARIABLE_VALUE/(1024*1024) AS LOG_FILE_SIZE_IN_MB
+SELECT VARIABLE_VALUE/(1024*1024) AS LOG_CAPACITY_IN_MB
   FROM performance_schema.global_variables
-  WHERE VARIABLE_NAME='innodb_log_file_size';
-
-SELECT VARIABLE_VALUE AS LOG_FILES_IN_GROUP
-  FROM performance_schema.global_variables
-  WHERE VARIABLE_NAME='innodb_log_files_in_group';
+  WHERE VARIABLE_NAME='innodb_redo_log_capacity';
 --enable_query_log
 
 --echo
@@ -127,8 +114,7 @@ SELECT VARIABLE_VALUE AS LOG_FILES_IN_GROUP
 --echo # RESTART 1                               #
 --echo #  innodb_dedicated_server   = ON         #
 --echo #  innodb_buffer_pool_size   = autoscaled #
---echo #  innodb_log_file_size      = autoscaled #
---echo #  innodb_log_files_in_group = autoscaled #
+--echo #  innodb_redo_log_capacity  = autoscaled #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON;
 let $explicit_default_wait_counter=100000;
@@ -149,26 +135,21 @@ let $explicit_default_wait_counter=100000;
 set @innodb_chunk_instance_product = @@global.innodb_buffer_pool_chunk_size/1024 * @@global.innodb_buffer_pool_instances;
 let $expected_innodb_buffer_pool_size = `select ROUND(ceil($calculated_buffer_pool_size/@innodb_chunk_instance_product) * @innodb_chunk_instance_product)`;
 
-# Set log_file_size and log_files_in_group now after buffer_pool_size has been decided.
+# Set innodb_redo_log_capacity now after buffer_pool_size has been decided.
 # Note: As MTR doesn't have 'else', following sequence of 'if' is important
 if ($expected_innodb_buffer_pool_size > $mem_size128G) {
-   --let $calculated_log_file_size = 2097152
-   --let $calculated_log_files_in_group = 64
+   --let $calculated_log_capacity = 134217728
 }
 if ($expected_innodb_buffer_pool_size <= $mem_size128G) {
-    --let $calculated_log_file_size = 1048576
-    --let $calculated_log_files_in_group = `SELECT ROUND($expected_innodb_buffer_pool_size*$zero_point_seven_five/$mem_size1G)`
+    --let $calculated_log_capacity = `SELECT ROUND($expected_innodb_buffer_pool_size*$zero_point_seven_five/$mem_size1G)*1048576`
 }
 if ($expected_innodb_buffer_pool_size <= $mem_size8G) {
-   --let $calculated_log_file_size = 524288
-   --let $calculated_log_files_in_group = `SELECT ROUND($expected_innodb_buffer_pool_size/$mem_size1G)`
+   --let $calculated_log_capacity = `SELECT ROUND($expected_innodb_buffer_pool_size/$mem_size1G)*524288`
 }
 if ($expected_innodb_buffer_pool_size < $mem_size1G) {
-   --let $calculated_log_file_size = 49152;
-   --let $calculated_log_files_in_group = 2;
+   --let $calculated_log_capacity = 102400;
 }
-let $expected_innodb_log_file_size = `select $calculated_log_file_size`;
-let $expected_innodb_log_files_in_group = `select $calculated_log_files_in_group`;
+let $expected_innodb_redo_log_capacity = `select $calculated_log_capacity`;
 --enable_query_log
 
 --disable_query_log
@@ -183,19 +164,12 @@ eval select $expected_innodb_buffer_pool_size = $actual_innodb_buffer_pool_size 
 --echo 1 expected
 select @final_pool_size_result;
 
-let $actual_innodb_log_file_size = `select  ROUND(@@global.innodb_log_file_size/1024,2)`;
+let $actual_innodb_redo_log_capacity = `select  ROUND(@@global.innodb_redo_log_capacity/1024,2)`;
 --disable_result_log
-eval select $expected_innodb_log_file_size = $actual_innodb_log_file_size into @final_log_file_size_result;
+eval select $expected_innodb_redo_log_capacity = $actual_innodb_redo_log_capacity into @final_log_capacity_result;
 --enable_result_log
 --echo 1 expected
-select @final_log_file_size_result;
-
-let $actual_innodb_log_files_in_group = `select @@global.innodb_log_files_in_group`;
---disable_result_log
-eval select $expected_innodb_log_files_in_group = $actual_innodb_log_files_in_group into @final_log_files_in_group_result;
---enable_result_log
---echo 1 expected
-select @final_log_files_in_group_result;
+select @final_log_capacity_result;
 --enable_query_log
 
 --echo
@@ -203,8 +177,7 @@ select @final_log_files_in_group_result;
 --echo # RESTART 2                               #
 --echo #  innodb_dedicated_server   = ON         #
 --echo #  innodb_buffer_pool_size   = explicit   #
---echo #  innodb_log_file_size      = autoscaled #
---echo #  innodb_log_files_in_group = autoscaled #
+--echo #  innodb_redo_log_capacity  = autoscaled #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M;
 --source include/restart_mysqld.inc
@@ -218,19 +191,12 @@ SELECT VARIABLE_VALUE/(1024*1024) AS BUFFER_POOL_SIZE_IN_MB
   FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 
-let $actual_innodb_log_file_size = `select  ROUND(@@global.innodb_log_file_size/1024,2)`;
+let $actual_innodb_redo_log_capacity = `select  ROUND(@@global.innodb_redo_log_capacity/1024,2)`;
 --disable_result_log
-eval select $expected_innodb_log_file_size = $actual_innodb_log_file_size into @final_log_file_size_result;
+eval select $expected_innodb_redo_log_capacity = $actual_innodb_redo_log_capacity into @final_log_capacity_result;
 --enable_result_log
 --echo 1 expected
-select @final_log_file_size_result;
-
-let $actual_innodb_log_files_in_group = `select @@global.innodb_log_files_in_group`;
---disable_result_log
-eval select $expected_innodb_log_files_in_group = $actual_innodb_log_files_in_group into @final_log_files_in_group_result;
---enable_result_log
---echo 1 expected
-select @final_log_files_in_group_result;
+select @final_log_capacity_result;
 --enable_query_log
 
 --echo # Make sure that the warnings are present in server log.
@@ -245,10 +211,9 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --echo # RESTART 3                               #
 --echo #  innodb_dedicated_server   = ON         #
 --echo #  innodb_buffer_pool_size   = autoscaled #
---echo #  innodb_log_file_size      = explicit   #
---echo #  innodb_log_files_in_group = autoscaled #
+--echo #  innodb_redo_log_capacity  = explicit   #
 --echo ###########################################
-let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M;
+let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_redo_log_capacity=50M;
 let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
@@ -264,21 +229,14 @@ eval select $expected_innodb_buffer_pool_size = $actual_innodb_buffer_pool_size 
 --echo 1 expected
 select @final_pool_size_result;
 
-SELECT VARIABLE_VALUE/(1024*1024) AS LOG_FILE_SIZE_IN_MB
+SELECT VARIABLE_VALUE/(1024*1024) AS LOG_CAPACITY_IN_MB
   FROM performance_schema.global_variables
-  WHERE VARIABLE_NAME='innodb_log_file_size';
-
-let $actual_innodb_log_files_in_group = `select @@global.innodb_log_files_in_group`;
---disable_result_log
-eval select $expected_innodb_log_files_in_group = $actual_innodb_log_files_in_group into @final_log_files_in_group_result;
---enable_result_log
---echo 1 expected
-select @final_log_files_in_group_result;
+  WHERE VARIABLE_NAME='innodb_redo_log_capacity';
 
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;
-let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_redo_log_capacity;
 --source include/search_pattern.inc
 
 --echo
@@ -286,10 +244,9 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --echo # RESTART 4                               #
 --echo #  innodb_dedicated_server   = ON         #
 --echo #  innodb_buffer_pool_size   = explicit   #
---echo #  innodb_log_file_size      = explicit   #
---echo #  innodb_log_files_in_group = autoscaled #
+--echo #  innodb_redo_log_capacity  = explicit   #
 --echo ###########################################
-let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_log_file_size=50M;
+let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_redo_log_capacity=50M;
 let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
@@ -304,23 +261,16 @@ SELECT VARIABLE_VALUE/(1024*1024) AS BUFFER_POOL_SIZE_IN_MB
   FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 
-SELECT VARIABLE_VALUE/(1024*1024) AS LOG_FILE_SIZE_IN_MB
+SELECT VARIABLE_VALUE/(1024*1024) AS LOG_CAPACITY_IN_MB
   FROM performance_schema.global_variables
-  WHERE VARIABLE_NAME='innodb_log_file_size';
-
-let $actual_innodb_log_files_in_group = `select @@global.innodb_log_files_in_group`;
---disable_result_log
-eval select $expected_innodb_log_files_in_group = $actual_innodb_log_files_in_group into @final_log_files_in_group_result;
---enable_result_log
---echo 1 expected
-select @final_log_files_in_group_result;
+  WHERE VARIABLE_NAME='innodb_redo_log_capacity';
 
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;
 let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_buffer_pool_size;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_redo_log_capacity;
 --source include/search_pattern.inc
 
 --enable_query_log

@@ -37,7 +37,7 @@
 
 --source include/no_valgrind_without_big.inc
 --source include/have_binlog_format_row.inc
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 
 --echo #
 --echo # TC1. Upgrade from FILE to TABLE with PRIVILEGE_CHECKS_USER not
@@ -122,4 +122,10 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 DROP TABLE t;
 --source include/sync_slave_sql_with_master.inc
 --eval DROP USER $applier_user;
+
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
+SET GLOBAL relay_log_info_repository="FILE";
+--source include/start_slave.inc
+
 --source include/rpl_end.inc

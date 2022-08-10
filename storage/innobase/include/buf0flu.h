@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,7 +34,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define buf0flu_h
 
 #include "buf0types.h"
-#include "log0log.h"
 #include "univ.i"
 #include "ut0byte.h"
 
@@ -55,10 +54,10 @@ extern os_event_t buf_flush_event;
 /** Event to wait for one flushing step */
 extern os_event_t buf_flush_tick_event;
 
-class ut_stage_alter_t;
+class Alter_stage;
 
 /** Remove a block from the flush list of modified blocks.
-@param[in]	bpage	pointer to the block in question */
+@param[in]      bpage   pointer to the block in question */
 void buf_flush_remove(buf_page_t *bpage);
 
 /** Relocates a buffer control block on the flush_list.
@@ -69,13 +68,13 @@ void buf_flush_relocate_on_flush_list(
     buf_page_t *dpage); /*!< in/out: destination block */
 
 /** Updates the flush system data structures when a write is completed.
-@param[in]	bpage	pointer to the block in question */
+@param[in]      bpage   pointer to the block in question */
 void buf_flush_write_complete(buf_page_t *bpage);
 
 #endif /* !UNIV_HOTBACKUP */
 
 /** Check if page type is uncompressed.
-@param[in]	page	page frame
+@param[in]      page    page frame
 @return true if uncompressed page type. */
 bool page_is_uncompressed_type(const byte *page);
 
@@ -96,38 +95,37 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
 NOTE: block and LRU list mutexes must be held upon entering this function, and
 they will be released by this function after flushing. This is loosely based on
 buf_flush_batch() and buf_flush_page().
-@param[in,out]	buf_pool	buffer pool instance
-@param[in,out]	block		buffer control block
+@param[in,out]  buf_pool        buffer pool instance
+@param[in,out]  block           buffer control block
 @return true if the page was flushed and the mutex released */
-bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Do flushing batch of a given type.
 NOTE: The calling thread is not allowed to own any latches on pages!
-@param[in,out]	buf_pool	buffer pool instance
-@param[in]	type		flush type
-@param[in]	min_n		wished minimum number of blocks flushed
+@param[in,out]  buf_pool        buffer pool instance
+@param[in]      type            flush type
+@param[in]      min_n           wished minimum number of blocks flushed
 (it is not guaranteed that the actual number is that big, though)
-@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
+@param[in]      lsn_limit       in the case BUF_FLUSH_LIST all blocks whose
 oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
-@param[out]	n_processed	the number of pages which were processed is
+@param[out]     n_processed     the number of pages which were processed is
 passed back to caller. Ignored if NULL
-@retval true	if a batch was queued successfully.
-@retval false	if another batch of same type was already running. */
+@retval true    if a batch was queued successfully.
+@retval false   if another batch of same type was already running. */
 bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
                         lsn_t lsn_limit, ulint *n_processed);
 
 /** This utility flushes dirty blocks from the end of the flush list of all
 buffer pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages!
-@param[in]	min_n		wished minimum number of blocks flushed (it is
+@param[in]      min_n           wished minimum number of blocks flushed (it is
 not guaranteed that the actual number is that big, though)
-@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
+@param[in]      lsn_limit       in the case BUF_FLUSH_LIST all blocks whose
 oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
-@param[out]	n_processed	the number of pages which were processed is
+@param[out]     n_processed     the number of pages which were processed is
 passed back to caller. Ignored if NULL.
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
@@ -140,7 +138,7 @@ list and puts it on the free list. It is called from user threads when
 they are unable to find a replaceable page at the tail of the LRU
 list i.e.: when the background LRU flushing in the page_cleaner thread
 is not fast enough to keep pace with the workload.
-@param[in,out]	buf_pool	buffer pool instance
+@param[in,out]  buf_pool        buffer pool instance
 @return true if success. */
 bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool);
 
@@ -152,33 +150,33 @@ void buf_flush_wait_batch_end(buf_pool_t *buf_pool, buf_flush_t flush_type);
 /** Waits until a flush batch of the given type ends. This is called by a
 thread that only wants to wait for a flush to end but doesn't do any flushing
 itself.
-@param[in]	buf_pool	buffer pool instance
-@param[in]	type		BUF_FLUSH_LRU or BUF_FLUSH_LIST */
+@param[in]      buf_pool        buffer pool instance
+@param[in]      type            BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 void buf_flush_wait_batch_end_wait_only(buf_pool_t *buf_pool, buf_flush_t type);
 
 /** This function should be called at a mini-transaction commit, if a page was
 modified in it. Puts the block to the list of modified blocks, if it not
 already in it.
-@param[in]	block		block which is modified
-@param[in]	start_lsn	start lsn of the first mtr in a set of mtr's
-@param[in]	end_lsn		end lsn of the last mtr in the set of mtr's
-@param[in]	observer	flush observer */
-UNIV_INLINE
-void buf_flush_note_modification(buf_block_t *block, lsn_t start_lsn,
-                                 lsn_t end_lsn, FlushObserver *observer);
+@param[in]      block           block which is modified
+@param[in]      start_lsn       start lsn of the first mtr in a set of mtr's
+@param[in]      end_lsn         end lsn of the last mtr in the set of mtr's
+@param[in]      observer        flush observer */
+static inline void buf_flush_note_modification(buf_block_t *block,
+                                               lsn_t start_lsn, lsn_t end_lsn,
+                                               Flush_observer *observer);
 
 /** This function should be called when recovery has modified a buffer page.
-@param[in]	block		block which is modified
-@param[in]	start_lsn	start lsn of the first mtr in a set of mtr's
-@param[in]	end_lsn		end lsn of the last mtr in the set of mtr's */
-UNIV_INLINE
-void buf_flush_recv_note_modification(buf_block_t *block, lsn_t start_lsn,
-                                      lsn_t end_lsn);
+@param[in]      block           block which is modified
+@param[in]      start_lsn       start lsn of the first mtr in a set of mtr's
+@param[in]      end_lsn         end lsn of the last mtr in the set of mtr's */
+static inline void buf_flush_recv_note_modification(buf_block_t *block,
+                                                    lsn_t start_lsn,
+                                                    lsn_t end_lsn);
 
-/** Returns TRUE if the file page block is immediately suitable for replacement,
+/** Returns true if the file page block is immediately suitable for replacement,
 i.e., the transition FILE_PAGE => NOT_USED allowed. The caller must hold the
 LRU list and block mutexes.
-@param[in]	bpage	buffer control block, must be buf_page_in_file() and
+@param[in]      bpage   buffer control block, must be buf_page_in_file() and
                         in the LRU list
 @return true if can replace immediately */
 bool buf_flush_ready_for_replace(buf_page_t *bpage);
@@ -188,18 +186,17 @@ struct SYS_VAR;
 
 /** Disables page cleaner threads (coordinator and workers).
 It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
+@param[in]      thd             thread handle
+@param[in]      var             pointer to system variable
+@param[out]     var_ptr         where the formal string goes
+@param[in]      save            immediate result from check function */
 void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
                                                   void *var_ptr,
                                                   const void *save);
 #endif /* UNIV_DEBUG */
 
-/** Initialize page_cleaner.
-@param[in]	n_page_cleaners	Number of page cleaner threads to create */
-void buf_flush_page_cleaner_init(size_t n_page_cleaners);
+/** Initialize page_cleaner.  */
+void buf_flush_page_cleaner_init();
 
 /** Wait for any possible LRU flushes that are in progress to end. */
 void buf_flush_wait_LRU_batch_end();
@@ -224,34 +221,37 @@ after we have posted a batch of writes! 2. buf_page_get_mutex(bpage) must be
 held upon entering this function. The LRU list mutex must be held if flush_type
 == BUF_FLUSH_SINGLE_PAGE. Both mutexes will be released by this function if it
 returns true.
-@param[in]	buf_pool	buffer pool instance
-@param[in]	bpage		buffer control block
-@param[in]	flush_type	type of flush
-@param[in]	sync		true if sync IO request
+@param[in]      buf_pool        buffer pool instance
+@param[in]      bpage           buffer control block
+@param[in]      flush_type      type of flush
+@param[in]      sync            true if sync IO request
 @return true if page was flushed */
-ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
-                     buf_flush_t flush_type, bool sync);
+bool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
+                    buf_flush_t flush_type, bool sync);
 
 /** Check if the block is modified and ready for flushing.
 Requires buf_page_get_mutex(bpage).
-@param[in]	bpage		buffer control block, must be buf_page_in_file()
-@param[in]	flush_type	type of flush
+@param[in]      bpage           buffer control block, must be buf_page_in_file()
+@param[in]      flush_type      type of flush
 @return true if can flush immediately */
-bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool buf_flush_ready_for_flush(buf_page_t *bpage,
+                                             buf_flush_t flush_type);
 
 /** Check if there are any dirty pages that belong to a space id in the flush
  list in a particular buffer pool.
  @return number of dirty pages present in a single buffer pool */
 ulint buf_pool_get_dirty_pages_count(
-    buf_pool_t *buf_pool,     /*!< in: buffer pool */
-    space_id_t id,            /*!< in: space id to check */
-    FlushObserver *observer); /*!< in: flush observer to check */
+    buf_pool_t *buf_pool,      /*!< in: buffer pool */
+    space_id_t id,             /*!< in: space id to check */
+    Flush_observer *observer); /*!< in: flush observer to check */
+
+/** Executes fsync for all tablespaces, to fsync all pages written to disk. */
+void buf_flush_fsync();
 
 /** Synchronously flush dirty blocks from the end of the flush list of all
  buffer pool instances. NOTE: The calling thread is not allowed to own any
  latches on pages! */
-void buf_flush_sync_all_buf_pools(void);
+void buf_flush_sync_all_buf_pools();
 
 /** Checks if all flush lists are empty. It is supposed to be used in
 single thread, during startup or shutdown. Hence it does not acquire
@@ -260,28 +260,27 @@ are not changed in background.
 @return true if all flush lists were empty. */
 bool buf_are_flush_lists_empty_validate();
 
-/** We use FlushObserver to track flushing of non-redo logged pages in bulk
-create index(BtrBulk.cc).Since we disable redo logging during a index build,
+/** We use Flush_observer to track flushing of non-redo logged pages in bulk
+create index(btr0load.cc).Since we disable redo logging during a index build,
 we need to make sure that all dirty pages modifed by the index build are
 flushed to disk before any redo logged operations go to the index. */
 
-class FlushObserver {
+class Flush_observer {
  public:
   /** Constructor
-  @param[in] space_id	table space id
-  @param[in] trx		trx instance
-  @param[in] stage		performance schema accounting object,
-  used by ALTER TABLE. It is passed to log_preflush_pool_modified_pages()
-  for accounting. */
-  FlushObserver(space_id_t space_id, trx_t *trx,
-                ut_stage_alter_t *stage) noexcept;
+  @param[in] space_id   table space id
+  @param[in] trx                trx instance
+  @param[in,out] stage PFS progresss monitoring instance, it's used by
+  ALTER TABLE. It is passed to log_preflush_pool_modified_pages() for
+  accounting. */
+  Flush_observer(space_id_t space_id, trx_t *trx, Alter_stage *stage) noexcept;
 
   /** Destructor */
-  ~FlushObserver() noexcept;
+  ~Flush_observer() noexcept;
 
   /** Check pages have been flushed and removed from the flush list
   in a buffer pool instance.
-  @param[in]	instance_no	buffer pool instance no
+  @param[in]    instance_no     buffer pool instance no
   @return true if the pages were removed from the flush list */
   bool is_complete(size_t instance_no) {
     return m_flushed[instance_no].fetch_add(0, std::memory_order_relaxed) ==
@@ -300,18 +299,18 @@ class FlushObserver {
   void flush();
 
   /** Notify observer of flushing a page
-  @param[in]	buf_pool	buffer pool instance
-  @param[in]	bpage		buffer page to flush */
+  @param[in]    buf_pool        buffer pool instance
+  @param[in]    bpage           buffer page to flush */
   void notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage);
 
   /** Notify observer of removing a page from flush list
-  @param[in]	buf_pool	buffer pool instance
-  @param[in]	bpage		buffer page flushed */
+  @param[in]    buf_pool        buffer pool instance
+  @param[in]    bpage           buffer page flushed */
   void notify_remove(buf_pool_t *buf_pool, buf_page_t *bpage);
 
  private:
   using Counter = std::atomic_int;
-  using Counters = std::vector<Counter, ut_allocator<Counter>>;
+  using Counters = std::vector<Counter, ut::allocator<Counter>>;
 
   /** Tablespace ID. */
   space_id_t m_space_id{};
@@ -324,7 +323,7 @@ class FlushObserver {
   specifying the number of pages to be attempted to be flushed and
   subsequently, stage->inc() will be called for each page we attempt to
   flush. */
-  ut_stage_alter_t *m_stage{};
+  Alter_stage *m_stage{};
 
   /** Flush request sent, per buffer pool. */
   Counters m_flushed{};
@@ -338,6 +337,7 @@ class FlushObserver {
   /** True if the operation was interrupted. */
   bool m_interrupted{};
 };
+
 lsn_t get_flush_sync_lsn() noexcept;
 #endif /* !UNIV_HOTBACKUP */
 

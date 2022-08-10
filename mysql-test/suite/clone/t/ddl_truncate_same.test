@@ -1,0 +1,132 @@
+# Test clone error cases with concurrent DDL
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+--source include/count_sessions.inc
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo # Create test schema
+--source ../include/create_schema.inc
+CALL execute_dml(0, 0, 10, 10, 10, 0);
+
+SET GLOBAL DEBUG = '+d,local_release_clone_file_pin';
+
+--echo # 1. Truncate same table in various stages of CLONE
+--echo # In connection DEFAULT
+SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_0 WAIT_FOR resume_clone_0';
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl_1 WAIT_FOR resume_clone_1';
+SET DEBUG_SYNC = 'clone_file_copy_end_before_ack SIGNAL start_ddl_2 WAIT_FOR resume_clone_2';
+SET DEBUG_SYNC = 'clone_before_file_ddl_meta SIGNAL start_ddl_3 WAIT_FOR resume_clone_3';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_ddl_4 WAIT_FOR resume_clone_4';
+SET DEBUG_SYNC = 'clone_before_page_ddl_meta SIGNAL start_ddl_5 WAIT_FOR resume_clone_5';
+SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl_6 WAIT_FOR resume_clone_6';
+--source ../include/clone_command_send.inc
+
+--connect (con1,localhost,root,,)
+--echo # In connection CON1
+
+--echo # Waiting for clone
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_0';
+--echo # Wait finished
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL execute_dml(0, 0, 10, 10, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_0';
+
+--echo # Waiting for clone
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_1';
+--echo # Wait finished
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL execute_dml(0, 0, 10, 10, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_1';
+
+--echo # Waiting for clone
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_2';
+--echo # Wait finished
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL execute_dml(0, 0, 10, 10, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_2';
+
+--echo # Waiting for clone
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_3';
+--echo # Wait finished
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL execute_dml(0, 0, 10, 10, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_3';
+
+--echo # Waiting for clone
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_4';
+--echo # Wait finished
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL execute_dml(0, 0, 10, 10, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_4';
+
+--echo # Waiting for clone
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_5';
+--echo # Wait finished
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL execute_dml(0, 0, 10, 10, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_5';
+
+--echo # Waiting for clone
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_6';
+--echo # Wait finished
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+CALL execute_dml(0, 0, 10, 10, 10, 0);
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_6';
+
+--connection default
+--echo # In connection DEFAULT
+
+--echo # Waiting for clone to complete
+--reap
+--echo # Wait finished
+
+SET GLOBAL DEBUG = '-d,local_release_clone_file_pin';
+
+disconnect con1;
+
+SET DEBUG_SYNC = 'RESET';
+--source include/wait_until_count_sessions.inc
+
+--echo # Restart cloned database
+--replace_result $CLONE_DATADIR CLONE_DATADIR
+--let restart_parameters="restart: --datadir=$CLONE_DATADIR"
+--source include/restart_mysqld.inc
+
+select STATE, ERROR_NO, length(BINLOG_FILE) > 0, length(GTID_EXECUTED) > 0,
+(BINLOG_POSITION > 0) from performance_schema.clone_status;
+
+# Execute procedure to delete all rows and insert
+CALL execute_dml(3, 0, 1, 1, 1, 0);
+CALL execute_dml(0, 0, 10, 10, 10, 0);
+
+# Check table in cloned database
+SHOW CREATE TABLE t1;
+SELECT count(*) from t1;
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 LIMIT 10;
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 DESC LIMIT 10;
+
+SHOW CREATE TABLE t2;
+SELECT count(*) from t2;
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 LIMIT 10;
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 DESC LIMIT 10;
+
+--echo # Cleanup
+--let restart_parameters="restart:"
+--source include/restart_mysqld.inc
+
+--source ../include/drop_schema.inc
+--force-rmdir $CLONE_DATADIR
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;

@@ -16,8 +16,8 @@ call mtr.add_suppression("Could not delete from Slave Workers info repository");
 
 --source include/stop_slave.inc
 RESET SLAVE ALL;
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
-SET @@global.slave_parallel_workers=2;
+SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers=2;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_a';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy_host', SOURCE_USER='root', SOURCE_PORT=13010 FOR CHANNEL 'ch_b';
@@ -63,17 +63,24 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', S
 #
 --echo
 --echo === RESTART SERVER ===
+--let $rpl_omit_print_server_parameters= 1
 --let $rpl_server_number= 1
---let $rpl_server_parameters= --gtid-mode=off
+--let $rpl_server_parameters=
 --source include/rpl_restart_server.inc
 
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --gtid-mode=off
+--let $rpl_server_parameters= --skip-replica-start
 --source include/rpl_restart_server.inc
 
 --source include/rpl_connection_slave.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_b';
 START SLAVE;
---source include/stop_slave.inc
 
+STOP SLAVE;
 RESET SLAVE ALL;
 
+--let $rpl_skip_stop_slave=1
+--let $rpl_skip_sync = 1
+
+--source include/rpl_end.inc

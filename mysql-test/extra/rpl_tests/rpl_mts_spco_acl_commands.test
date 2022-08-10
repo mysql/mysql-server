@@ -2,18 +2,18 @@
 #
 # Auxiliary file sourced for rpl_mts_spco_acl_commands_binlog
 # and rpl_mts_spco_acl_commands_nobinlog tests to check if
-# ACL commands respect slave-preserve-commit-order.
+# ACL commands respect replica-preserve-commit-order.
 #
 # === Requirements ====
 #
 # This test uses std_data/acl.csv which contains ACL commands.
 #
-# This test uses extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+# This test uses extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 # to check the ordering of commits.
 #
 # === Implementation ====
 #
-# 1. Start slave-preserve-commit-order enabled replica with 8 worker threads.
+# 1. Start replica-preserve-commit-order enabled replica with 8 worker threads.
 #
 # 2. On Source, CREATE TABLE commands and Load ACL commands that needs to be tested.
 #
@@ -21,7 +21,7 @@
 #    Execute each of this command along with some transactions that can be applied
 #    in parallel, by setting same commit parent for all the transactions.
 #
-# 4. Source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc to verify
+# 4. Source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc to verify
 #    the ordering of commits on replica.
 #
 # 5. Cleanup
@@ -36,7 +36,7 @@
 --source include/master-slave.inc
 
 # Start replica with 8 worker threads
---let $mts_slave_parallel_workers= 8
+--let $mts_replica_parallel_workers= 8
 --let $mts_num_preceding_trans= 5
 --let $mts_spco_save_gtid_executed = 1
 --let $mts_spco_check_gtid_executed_before_rollback = 0
@@ -45,12 +45,12 @@
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 
-SET @save_slave_parallel_workers= @@global.slave_parallel_workers;
-SET @save_slave_parallel_type= @@global.slave_parallel_type;
-SET @save_slave_preserve_commit_order= @@global.slave_preserve_commit_order;
-SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
---eval SET GLOBAL slave_parallel_workers= $mts_slave_parallel_workers
-SET GLOBAL slave_preserve_commit_order= ON;
+SET @save_replica_parallel_workers= @@global.replica_parallel_workers;
+SET @save_replica_parallel_type= @@global.replica_parallel_type;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
+SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
+--eval SET GLOBAL replica_parallel_workers= $mts_replica_parallel_workers
+SET GLOBAL replica_preserve_commit_order= ON;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master1.inc
@@ -101,7 +101,7 @@ while($j <= $counter)
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2;
 --let $mts_spco_cleanup_statement = 0
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $j
 }
 
@@ -117,9 +117,11 @@ DROP TABLE t1,t2,commands;
 
 --source include/stop_slave.inc
 
-SET GLOBAL slave_parallel_type=@save_slave_parallel_type;
-SET GLOBAL slave_parallel_workers=@save_slave_parallel_workers;
-SET GLOBAL slave_preserve_commit_order=@save_slave_preserve_commit_order;
+SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

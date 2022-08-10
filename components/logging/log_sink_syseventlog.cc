@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -417,8 +417,8 @@ static int var_update_pid(bool inc_pid) {
   @retval false    value OK, go ahead and update system variable (from "save")
   @retval true     value rejected, do not update variable
 */
-static int sysvar_check_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                            SYS_VAR *self MY_ATTRIBUTE((unused)), void *save,
+static int sysvar_check_tag(MYSQL_THD thd [[maybe_unused]],
+                            SYS_VAR *self [[maybe_unused]], void *save,
                             struct st_mysql_value *value) {
   int value_len = 0;
   const char *proposed_value;
@@ -448,9 +448,9 @@ static int sysvar_check_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @param  var_ptr  where to save the resulting (char *) value
   @param  save     pointer to the new value (from check function)
 */
-static void sysvar_update_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *self MY_ATTRIBUTE((unused)),
-                              void *var_ptr, const void *save) {
+static void sysvar_update_tag(MYSQL_THD thd [[maybe_unused]],
+                              SYS_VAR *self [[maybe_unused]], void *var_ptr,
+                              const void *save) {
   const char *new_val = *(static_cast<const char **>(const_cast<void *>(save)));
 
   var_update_tag(new_val);
@@ -480,7 +480,9 @@ static int sysvar_install_tag(void) {
   assert(buffer_tag == nullptr);
 
   if (mysql_service_component_sys_variable_register->register_variable(
-          MY_NAME, OPT_TAG, PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
+          MY_NAME, OPT_TAG,
+          PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC |
+              PLUGIN_VAR_PERSIST_AS_READ_ONLY,
           "When logging issues using the host operating system's " LOG_TYPE ", "
           "tag the entries from this particular MySQL server with this ident. "
           "This will help distinguish entries from MySQL servers co-existing "
@@ -549,8 +551,8 @@ done:
   @retval false    value OK, go ahead and update system variable (from "save")
   @retval true     value rejected, do not update variable
 */
-static int sysvar_check_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                            SYS_VAR *self MY_ATTRIBUTE((unused)), void *save,
+static int sysvar_check_fac(MYSQL_THD thd [[maybe_unused]],
+                            SYS_VAR *self [[maybe_unused]], void *save,
                             struct st_mysql_value *value) {
   int value_len = 0;
   const char *proposed_value;
@@ -580,9 +582,9 @@ static int sysvar_check_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @param  var_ptr  where to save the resulting (char *) value
   @param  save     pointer to the new value (from check function)
 */
-static void sysvar_update_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *self MY_ATTRIBUTE((unused)),
-                              void *var_ptr, const void *save) {
+static void sysvar_update_fac(MYSQL_THD thd [[maybe_unused]],
+                              SYS_VAR *self [[maybe_unused]], void *var_ptr,
+                              const void *save) {
   char *new_val = *(static_cast<char **>(const_cast<void *>(save)));
 
   var_update_fac(new_val);
@@ -610,7 +612,9 @@ static int sysvar_install_fac(void) {
   values_fac.def_val = const_cast<char *>(LOG_DAEMON_NAME);
 
   if (mysql_service_component_sys_variable_register->register_variable(
-          MY_NAME, OPT_FAC, PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
+          MY_NAME, OPT_FAC,
+          PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC |
+              PLUGIN_VAR_PERSIST_AS_READ_ONLY,
           "When logging issues using the host operating system's syslog, "
           "identify as a facility of the given type (to aid in log filtering).",
           sysvar_check_fac, sysvar_update_fac, (void *)&values_fac,
@@ -672,9 +676,9 @@ done:
   @param  var_ptr  where to save the resulting (char *) value
   @param  save     pointer to the new value (from check function)
 */
-static void sysvar_update_pid(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *self MY_ATTRIBUTE((unused)),
-                              void *var_ptr MY_ATTRIBUTE((unused)),
+static void sysvar_update_pid(MYSQL_THD thd [[maybe_unused]],
+                              SYS_VAR *self [[maybe_unused]],
+                              void *var_ptr [[maybe_unused]],
                               const void *save) {
   var_update_pid(*(static_cast<bool *>(const_cast<void *>(save))));
 }
@@ -697,7 +701,7 @@ static int sysvar_install_pid(void) {
 
   // register variable
   if (mysql_service_component_sys_variable_register->register_variable(
-          MY_NAME, OPT_PID, PLUGIN_VAR_BOOL,
+          MY_NAME, OPT_PID, PLUGIN_VAR_BOOL | PLUGIN_VAR_PERSIST_AS_READ_ONLY,
           "When logging issues using the host operating system's log "
           "(\"" LOG_TYPE "\"), include this MySQL server's process ID (PID). "
           "This setting does not affect MySQL's own error log file.",
@@ -731,7 +735,7 @@ done:
   @returns 	 LOG_SERVICE_MISC_ERROR        failure not otherwise specified
 */
 DEFINE_METHOD(int, log_service_imp::run,
-              (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
+              (void *instance [[maybe_unused]], log_line *ll)) {
   const char *msg = nullptr;
   int out_fields = 0;
   enum loglevel level = ERROR_LEVEL;
@@ -897,7 +901,7 @@ fail:
 
 /* flush logs */
 DEFINE_METHOD(log_service_error, log_service_imp::flush,
-              (void **instance MY_ATTRIBUTE((unused)))) {
+              (void **instance [[maybe_unused]])) {
   if (!inited || !log_syslog_enabled) return LOG_SERVICE_NOT_AVAILABLE;
 
   log_syslog_reopen();
@@ -908,11 +912,11 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush,
 /**
   Open a new instance.
 
-  @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @returns  LOG_SERVICE_SUCCESS        success, returned handle is valid
   @returns  otherwise                  a new instance could not be created
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,
-              (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
+              (log_line * ll [[maybe_unused]], void **instance)) {
   if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
@@ -926,7 +930,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::open,
   @returns  LOG_SERVICE_SUCCESS
 */
 DEFINE_METHOD(log_service_error, log_service_imp::close,
-              (void **instance MY_ATTRIBUTE((unused)))) {
+              (void **instance [[maybe_unused]])) {
   return LOG_SERVICE_SUCCESS;
 }
 

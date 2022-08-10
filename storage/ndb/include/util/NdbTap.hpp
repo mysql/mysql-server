@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,16 +26,14 @@
 #define NDB_TAP_HPP
 
 #include "unittest/mytap/tap.h"
+#include "util/require.h"
 
-#ifdef VM_TRACE
-#define OK(b) assert(b);
-#else
-#define OK(b) if (!(b)) abort();
-#endif
+#define OK(b) require(b)
 
 #define TAPTEST(name)                           \
 int name##_test();                              \
 int main(int argc, const char** argv){          \
+  (void)argc; (void)argv; /* unused args */     \
   plan(1);                                      \
   ok(name##_test(), #name);                     \
   return exit_status();                         \

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@
 
 #define JAM_FILE_ID 416
 
-extern EventLogger *g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_DISK 1
@@ -622,7 +621,7 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
     }
     sprintf(q+3*i, " %02X", p[i]);
   }
-  ndbout_c("%8p: %s", p, buf);
+  g_eventLogger->info("%8p: %s", p, buf);
 }
 #endif
 
@@ -1150,7 +1149,7 @@ Dbtup::disk_page_commit_callback(Signal* signal,
 
   regOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit= 0;
   regOperPtr.p->m_commit_disk_callback_page= page_id;
-  m_global_page_pool.getPtr(diskPagePtr, page_id);
+  ndbrequire(m_global_page_pool.getPtr(diskPagePtr, page_id));
   prepare_oper_ptr = regOperPtr;
   
   {
@@ -1812,7 +1811,7 @@ Dbtup::exec_tup_commit(Signal *signal)
   else
   {
     jamDebug();
-    m_global_page_pool.getPtr(diskPagePtr, diskPagePtr.i);
+    ndbrequire(m_global_page_pool.getPtr(diskPagePtr, diskPagePtr.i));
   }
   
   ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);

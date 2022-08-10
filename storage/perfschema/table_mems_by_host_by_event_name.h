@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ class PFS_index_mems_by_host_by_event_name : public PFS_engine_index {
         m_key_1("HOST"),
         m_key_2("EVENT_NAME") {}
 
-  ~PFS_index_mems_by_host_by_event_name() override {}
+  ~PFS_index_mems_by_host_by_event_name() override = default;
 
   virtual bool match(PFS_host *pfs);
   virtual bool match(PFS_instr_class *instr_class);
@@ -120,7 +120,7 @@ class table_mems_by_host_by_event_name : public PFS_engine_table {
   table_mems_by_host_by_event_name();
 
  public:
-  ~table_mems_by_host_by_event_name() override {}
+  ~table_mems_by_host_by_event_name() override = default;
 
  private:
   int make_row(PFS_host *host, PFS_memory_class *klass);

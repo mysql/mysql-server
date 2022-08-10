@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -200,8 +200,7 @@ static void dump_transaction_calls() {
 /*
   Transaction lifecycle events observers.
 */
-static int trans_before_dml(Trans_param *,
-                            int &out_val MY_ATTRIBUTE((unused))) {
+static int trans_before_dml(Trans_param *, int &out_val [[maybe_unused]]) {
   trans_before_dml_call++;
 
   DBUG_EXECUTE_IF("cause_failure_in_before_dml_hook", out_val = 1;);
@@ -293,7 +292,7 @@ static int before_commit_tests(Trans_param *param,
 }
 #endif
 
-static int trans_before_commit(Trans_param *param MY_ATTRIBUTE((unused))) {
+static int trans_before_commit(Trans_param *param [[maybe_unused]]) {
   trans_before_commit_call++;
 
   DBUG_EXECUTE_IF("force_error_on_before_commit_listener", return 1;);
@@ -333,7 +332,7 @@ static int trans_after_commit(Trans_param *) {
   return 0;
 }
 
-static int trans_after_rollback(Trans_param *param MY_ATTRIBUTE((unused))) {
+static int trans_after_rollback(Trans_param *param [[maybe_unused]]) {
   trans_after_rollback_call++;
 
   DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_requirements",
@@ -342,8 +341,8 @@ static int trans_after_rollback(Trans_param *param MY_ATTRIBUTE((unused))) {
   return 0;
 }
 
-static int trans_begin(Trans_param *param MY_ATTRIBUTE((unused)),
-                       int &out_val MY_ATTRIBUTE((unused))) {
+static int trans_begin(Trans_param *param [[maybe_unused]],
+                       int &out_val [[maybe_unused]]) {
   trans_begin_call++;
 
   return 0;
@@ -837,7 +836,7 @@ int test_channel_service_interface_io_thread() {
 
 bool test_channel_service_interface_is_io_stopping() {
   // The initialization method should return OK
-  int error = initialize_channel_service_interface();
+  bool error = initialize_channel_service_interface();
   assert(!error);
 
   // Initialize the channel to be used with the channel service interface
@@ -910,7 +909,7 @@ bool test_channel_service_interface_is_io_stopping() {
 
 bool test_channel_service_interface_is_sql_stopping() {
   // The initialization method should return OK
-  int error = initialize_channel_service_interface();
+  bool error = initialize_channel_service_interface();
   assert(!error);
 
   // Initialize the channel to be used with the channel service interface
@@ -985,7 +984,7 @@ bool test_channel_service_interface_is_sql_stopping() {
 
 bool test_channel_service_interface_relay_log_renamed() {
   // The initialization method should return OK
-  int error = initialize_channel_service_interface();
+  bool error = initialize_channel_service_interface();
   assert(!error);
 
   // Initialize the channel to be used with the channel service interface
@@ -1034,11 +1033,10 @@ bool test_server_count_transactions() {
 
   assert(service.is_valid());
 
-  unsigned long *ids = NULL;
+  unsigned long *ids = nullptr;
   unsigned long size = 0;
   bool error = service->get_ongoing_server_transactions(&ids, &size);
   assert(!error);
-  fprintf(stderr, "[DEBUG:] Counting transactions! %lu \n", size);
 
   assert(size == 3);
 

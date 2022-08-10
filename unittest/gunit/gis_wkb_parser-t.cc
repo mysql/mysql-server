@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ class WkbParserTest : public ::testing::Test {
     delete m_tweaked_geo_srs;
   }
 
-  WkbParserTest() {}
+  WkbParserTest() = default;
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(WkbParserTest);

@@ -1,0 +1,8 @@
+--echo #
+--echo # Basic test for the innodb_use_fdatasync variable
+--echo #
+# The variable should be false by default
+SELECT @@global.innodb_use_fdatasync;
+set global innodb_use_fdatasync = 1;
+SELECT @@global.innodb_use_fdatasync;
+set global innodb_use_fdatasync = 0;

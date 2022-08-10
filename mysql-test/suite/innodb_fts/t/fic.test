@@ -42,6 +42,7 @@ ANALYZE TABLE articles;
 
 # Boolean search
 # Select rows contain "MySQL" but not "YourSQL"
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
 

@@ -25,6 +25,8 @@ def	mysql	PRIMARY	mysql	procs_priv	PRIMARY KEY	YES
 def	mysql	PRIMARY	mysql	proxies_priv	PRIMARY KEY	YES
 def	mysql	PRIMARY	mysql	replication_asynchronous_connection_failover	PRIMARY KEY	YES
 def	mysql	PRIMARY	mysql	replication_asynchronous_connection_failover_managed	PRIMARY KEY	YES
+def	mysql	PRIMARY	mysql	replication_group_configuration_version	PRIMARY KEY	YES
+def	mysql	PRIMARY	mysql	replication_group_member_actions	PRIMARY KEY	YES
 def	mysql	PRIMARY	mysql	role_edges	PRIMARY KEY	YES
 def	mysql	PRIMARY	mysql	server_cost	PRIMARY KEY	YES
 def	mysql	PRIMARY	mysql	servers	PRIMARY KEY	YES
@@ -458,6 +460,12 @@ SELECT DISTINCT c1, c2 FROM t1 WHERE id BETWEEN 1 And 2 ORDER BY 1;
 c1	c2
 abcdefghij	ABCDEFGHIJ
 mnopqrstuv	MNOPQRSTUV
+DROP TABLE t1;
+CREATE TABLE t1 (c1 VARCHAR(10) COLLATE utf8mb4_bin) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (''), (' ');
+SELECT DISTINCT(c1) FROM t1;
+c1
+
 DROP TABLE t1;
 SET SESSION internal_tmp_mem_storage_engine = default;
 USE test;

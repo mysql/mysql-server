@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -887,8 +887,8 @@ static void do_scan(Ndb &myNdb, ApiType accessType)
   }
   case api_record :
   {
-    RowData *prowData; // Ptr to point to our data
-    
+    const RowData *prowData; // Ptr to point to our data
+
     int rc=0;
     
     /* Ask nextResult to update out ptr to point to the next 
@@ -969,7 +969,7 @@ static void do_mixed_scan(Ndb &myNdb)
   if(myTransaction->execute( NdbTransaction::NoCommit ) != 0)
     APIERROR(myTransaction->getNdbError());
    
-  RowData *prowData; // Ptr to point to our data
+  const RowData *prowData; // Ptr to point to our data
 
   int rc=0;
 
@@ -1175,7 +1175,7 @@ static void do_indexScan(Ndb &myNdb, ApiType accessType)
     }
     case api_record :
     {
-      RowData *prowData; // Ptr to point to our data
+      const RowData *prowData; // Ptr to point to our data
 
       int rc=0;
 
@@ -1310,7 +1310,7 @@ static void do_mixed_indexScan(Ndb &myNdb)
     APIERROR(myTransaction->getNdbError());
     
 
-  RowData *prowData; // Ptr to point to our data
+  const RowData *prowData; // Ptr to point to our data
 
   int rc=0;
 
@@ -1518,7 +1518,7 @@ static void do_scan_update(Ndb &myNdb, ApiType accessType)
     }
     case api_record :
     {
-      RowData *prowData; // Ptr to point to our data
+      const RowData *prowData; // Ptr to point to our data
 
       int result= NEED_TO_FETCH_ROWS;
       Uint32 processed=0;
@@ -1701,7 +1701,7 @@ static void do_scan_delete(Ndb &myNdb, ApiType accessType)
     }
     case api_record :
     {
-      RowData *prowData; // Ptr to point to our data
+      const RowData *prowData; // Ptr to point to our data
 
       int result= NEED_TO_FETCH_ROWS;
       Uint32 processed=0;
@@ -1939,7 +1939,7 @@ static void do_scan_lock_reread(Ndb &myNdb, ApiType accessType)
     }
     case api_record :
     {
-      RowData *prowData; // Ptr to point to our data
+      const RowData *prowData; // Ptr to point to our data
 
       int result= NEED_TO_FETCH_ROWS;
       Uint32 processed=0;
@@ -2260,7 +2260,7 @@ static void do_secondary_indexScan(Ndb &myNdb, ApiType accessType)
     }
     case api_record :
     {
-      RowData *prowData; // Ptr to point to our data
+      const RowData *prowData; // Ptr to point to our data
 
       int rc=0;
 
@@ -2413,7 +2413,7 @@ static void do_secondary_indexScanEqual(Ndb &myNdb, ApiType accessType)
     }
     case api_record :
     {
-      RowData *prowData; // Ptr to point to our data
+      const RowData *prowData; // Ptr to point to our data
 
       int rc=0;
 
@@ -3106,7 +3106,7 @@ static void do_interpreted_scan(Ndb &myNdb, ApiType accessType)
     }
     case api_record :
     {
-      RowData *prowData; // Ptr to point to our data
+      const RowData *prowData; // Ptr to point to our data
 
       int rc=0;
 

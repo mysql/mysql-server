@@ -1,0 +1,111 @@
+# Variable Name: show_gipk_in_create_table_and_information_schema
+# Scope: Global & Session
+# Data type: Boolean
+# Default Value: ON
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+SET @saved_global_show_gipk_in_create_table_and_information_schema =
+       @@global.show_gipk_in_create_table_and_information_schema;
+SET @saved_session_show_gipk_in_create_table_and_information_schema =
+       @@session.show_gipk_in_create_table_and_information_schema;
+
+####################################################################
+#  Verify default value                                            #
+####################################################################
+--let $assert_text= Default GLOBAL value is ON
+--let $assert_cond = [SELECT @@global.show_gipk_in_create_table_and_information_schema = 1]
+--source include/assert.inc
+
+--let $assert_text= Default SESSION value is ON
+--let $assert_cond = [SELECT @@session.show_gipk_in_create_table_and_information_schema = 1]
+--source include/assert.inc
+
+####################################################################
+#   Check if Value can set and that P_S reports the correct value  #
+####################################################################
+--let $json_label = varscope
+--let $json_keys = scope, ps_table
+--source include/create_json_unpacking_iterator.inc
+
+let var_name = show_gipk_in_create_table_and_information_schema;
+let $json_array = [
+  { "scope": "SESSION", "ps_table": "session_variables" },
+  { "scope": "GLOBAL", "ps_table": "global_variables" },
+  { "scope": "PERSIST", "ps_table": "persisted_variables" },
+  { "scope": "PERSIST_ONLY", "ps_table": "persisted_variables" }
+];
+
+--source $json_varscope_start
+while (!$json_varscope_done) {
+  --let $json_label = values
+  --let $json_keys = value_to_set, expected_result
+  --source include/create_json_unpacking_iterator.inc
+  let $json_array = [
+    { "value_to_set": "0", "expected_result": "OFF" },
+    { "value_to_set": "OFF", "expected_result": "OFF" },
+    { "value_to_set": "FALSE", "expected_result": "OFF" },
+    { "value_to_set": "DEFAULT", "expected_result": "ON" },
+    { "value_to_set": "ON", "expected_result": "ON" },
+    { "value_to_set": "TRUE", "expected_result": "ON" },
+    { "value_to_set": "1", "expected_result": "ON" }
+  ];
+
+  --source $json_values_start
+  while (!$json_values_done) {
+    --eval SET @@$scope.$var_name = $value_to_set
+    --let $reported=`SELECT variable_value FROM performance_schema.$ps_table WHERE variable_name = '$var_name'`
+
+    --let $assert_text= Reported value matches the one set (set $value_to_set in $scope scope)
+    --let $assert_cond = "$reported" = "$expected_result"
+    --source include/assert.inc
+
+    --source $json_values_next
+  }
+
+  --source $json_varscope_next
+}
+--source include/destroy_json_functions.inc
+
+####################################################################
+# Privileges                                                       #
+####################################################################
+
+CREATE USER user1;
+--connect(conn_user1,localhost,user1,,)
+
+# assert that one cannot change the value without privileges
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL show_gipk_in_create_table_and_information_schema = ON;
+
+# assert that one can change the value if SYSTEM_VARIABLES_ADMIN is given
+--connection default
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO user1@'%';
+--connection conn_user1
+SET GLOBAL show_gipk_in_create_table_and_information_schema=ON;
+SET SESSION show_gipk_in_create_table_and_information_schema=ON;
+
+# One can change the session value. No special privileges needed.
+--connection default
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM user1@'%';
+--connection conn_user1
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+
+--connection default
+DROP USER user1;
+--disconnect conn_user1
+
+####################################################################
+# End of tests                                                     #
+####################################################################
+RESET PERSIST;
+
+SET GLOBAL show_gipk_in_create_table_and_information_schema =
+             @saved_global_show_gipk_in_create_table_and_information_schema;
+SET SESSION show_gipk_in_create_table_and_information_schema =
+              @saved_session_show_gipk_in_create_table_and_information_schema;
+# Check that all connections opened by test cases in this file are really gone
+# so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
+

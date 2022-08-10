@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,12 +29,13 @@
 class Rpl_async_conn_failover_delete_managed : public Udf_service_impl {
  private:
   Udf_charset_service m_charset_service;
-  static const std::string m_udf_name;
+  static constexpr const char *m_udf_name =
+      "asynchronous_connection_failover_delete_managed";
   bool m_initialized{false};
 
  public:
-  Rpl_async_conn_failover_delete_managed() {}
-  ~Rpl_async_conn_failover_delete_managed() override {}
+  Rpl_async_conn_failover_delete_managed() = default;
+  ~Rpl_async_conn_failover_delete_managed() override = default;
 
   /**
     Initialize variables, acquires the mysql_service_mysql_udf_metadata from the
@@ -85,7 +86,7 @@ class Rpl_async_conn_failover_delete_managed : public Udf_service_impl {
                                   char *message);
 
   /**
-    Deinitialize variables initalized during init function.
+    Deinitialize variables initialized during init function.
 
     @param[in] init_id     UDF_INIT structure
   */

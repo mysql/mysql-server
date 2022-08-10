@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define ABSTRACT_OPTIONS_PROVIDER_INCLUDED
 
 #include <map>
+#include <optional>
 #include <string>
 
 #include "client/base/bool_option.h"
@@ -60,7 +61,7 @@ class Abstract_options_provider : public I_options_provider {
    */
   Simple_option *create_new_option(std::string name, std::string description);
   /**
-    Creates and attach new disabled option. This option is to mark existance
+    Creates and attach new disabled option. This option is to mark existence
     of options inavailable due to distribution configuration.
     @param name Name of option. It is used in command-line option name as
       --name.
@@ -81,22 +82,24 @@ class Abstract_options_provider : public I_options_provider {
     Creates and attach new password option. It removes password from
     command-line on UNIX systems to prevent password to be seen when listing
     processes.
-    @param value Pointer to Nullable<string> object to receive option value.
+    @param value Pointer to std::optional<string> object to receive option
+    value.
     @param name Name of option. It is used in command line option name as
       --name.
     @param description Description of option to be printed in --help.
    */
-  Password_option *create_new_password_option(Nullable<std::string> *value,
+  Password_option *create_new_password_option(std::optional<std::string> *value,
                                               std::string name,
                                               std::string description);
   /**
     Creates and attach new string option.
-    @param value Pointer to Nullable<string> object to receive option value.
+    @param value Pointer to std::optional<string> object to receive option
+    value.
     @param name Name of option. It is used in command line option name as
       --name.
     @param description Description of option to be printed in --help.
    */
-  String_option *create_new_option(Nullable<std::string> *value,
+  String_option *create_new_option(std::optional<std::string> *value,
                                    std::string name, std::string description);
   /**
     Creates and attach new 32-bit signed number option.

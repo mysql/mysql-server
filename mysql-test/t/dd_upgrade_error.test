@@ -330,9 +330,70 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --echo # Cleanup.
 --remove_file $MYSQL_TMP_DIR/data_57_orphan_routine.zip
 --force-rmdir $MYSQL_TMP_DIR/data_57_orphan_routine
+
 --echo
+--echo # -----------------------------------------------------------------------
+--echo # Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID UTF8 CHARACTER STRING
+--echo # -----------------------------------------------------------------------
+
+--echo
+--echo # Upgrade 5.7 data directory containing a table, index, column, and
+--echo # stored routine, each having an invalid character string in their
+--echo # comments. Also contains a stored routine with invalid character string
+--echo # in the body definition.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_57_invalid_comment_string.zip $MYSQL_TMP_DIR/data_57_invalid_comment_string.zip
+--file_exists $MYSQL_TMP_DIR/data_57_invalid_comment_string.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_57_invalid_comment_string.zip -d $MYSQL_TMP_DIR/data_57_invalid_comment_string
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_57_invalid_comment_string/db
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/data_57_invalid_comment_string.log
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--error 1
+--exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+
+--echo
+--echo # Upgrade should fail with these errors in the log.
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= Comment for index 'test\.t3\.idx1' contains an invalid utf8mb3 character string: '\\\xBF\\\xE1'\.
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Comment for field 'test\.t2\.a' contains an invalid utf8mb3 character string: '\\\xBF\\\xE1'\.
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Comment for table 'test\.t1' contains an invalid utf8mb3 character string: '\\\xBF\\\xE1'\.
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Definition of stored routine 'test\.p1' contains an invalid utf8mb3 character string: '\\\xF0\\\x9F\\\x90'\.
+--source include/search_pattern.inc
+
+--echo
+--echo # Cleanup.
+--remove_file $MYSQL_TMP_DIR/data_57_invalid_comment_string.zip
+--force-rmdir $MYSQL_TMP_DIR/data_57_invalid_comment_string
+
+--echo
+--echo # Upgrade 5.7 data directory containing a view with invalid body
+--echo # definition string.
+# Note : This is not included in above data directory since the upgrade would 
+# fail prior to reaching the check for view body definition.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_57_invalid_view_def_string.zip $MYSQL_TMP_DIR/data_57_invalid_view_def_string.zip
+--file_exists $MYSQL_TMP_DIR/data_57_invalid_view_def_string.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_57_invalid_view_def_string.zip -d $MYSQL_TMP_DIR/data_57_invalid_view_def_string
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_57_invalid_view_def_string/db
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/data_57_invalid_view_def_string.log
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--error 1
+--exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+
+--echo
+--echo # Upgrade should fail with these errors in the log.
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= Definition of view 'test\.v1' contains an invalid utf8mb3 character string: '\\\xF0\\\x9F\\\x90'\.
+--source include/search_pattern.inc
+
+--echo
+--echo # Cleanup.
+--remove_file $MYSQL_TMP_DIR/data_57_invalid_view_def_string.zip
+--force-rmdir $MYSQL_TMP_DIR/data_57_invalid_view_def_string
 
 
+--echo
 --echo # ------------------------------------------------------------------
 --echo # End-of-test cleanup.
 --echo # ------------------------------------------------------------------

@@ -1,0 +1,732 @@
+# ------------------------------------------------------------
+# Start server with old datadir with
+#   Table t1_part and t2_part
+#     having 2 partitions p0 and p1
+#     having c1, c2 normal columns
+#       +------+------+
+#       | c1   | c2   |
+#       +------+------+
+#       | 10   | r1c2 |
+#       +------+------+
+#
+#   Table t3_part (partition p0, p1)
+#     having c1, c2 normal columns
+#     having c3 INSTANT ADD column with default value
+#     partition p2 added.
+#     having c4 INSTANT ADD column with default value
+#       +------+------+--------+--------+
+#       | c1   | c2   | c3     | c4     |
+#       +------+------+--------+--------+
+#       |   10 | r1c2 | def_c3 | def_c4 |
+#       +------+------+--------+--------+
+# ------------------------------------------------------------
+# Stop the running the server
+# Copy and unzip the datadir.
+# Restart the server against the unzipped datadir
+# restart: --datadir=DATADIR --innodb-page-size=16k
+# ------------------------------------------------------------
+# TEST 1 : Old version tables have no INSTANT ADD Columns
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+# Check metadata of upgraded table t1_part [c1, c2]
+# Expectation : New INSTANT METADATA is not present.
+# ------------------------------------------------------------
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p0	5	0	0	2	2	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p1	5	0	0	2	2	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+# ------------------------------------------------------------
+# INSTANT DROP a column and check metadata t1_part [c1, -c2]
+# Expectation : New INSTANT METADATA is populated.
+# ------------------------------------------------------------
+ALTER TABLE t1_part DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+DB_ROW_ID	2	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	4	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	5	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p0	4	0	1	2	1	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2_dropped_v1	4	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p1	4	0	1	2	1	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2_dropped_v1	4	13	16711934	0	0	1
+# ------------------------------------------------------------
+# Check metadata of upgraded table t2_part [c1, c2]
+# Expectation : New INSTANT METADATA is not present.
+# ------------------------------------------------------------
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_part#p#p0	5	0	0	2	2	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_part#p#p1	5	0	0	2	2	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+# ------------------------------------------------------------
+# INSTANT ADD a column and check metadata t2_part [c1, c2, +c3]
+# Expectation : New INSTANT METADATA is populated.
+# ------------------------------------------------------------
+ALTER TABLE t2_part ADD COLUMN c3 CHAR(10) DEFAULT "c3_def", ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_part#p#p0	6	0	1	2	3	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_part#p#p1	6	0	1	2	3	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	1	0
+# ------------------------------------------------------------
+# INSTANT DROP a column and check metadata t2_part [c1, -c2, c3]
+# Expectation : New INSTANT METADATA is updated.
+# ------------------------------------------------------------
+ALTER TABLE t2_part DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_part#p#p0	5	0	2	2	2	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	1	0
+c2_dropped_v2	5	13	16711934	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t2_part#p#p1	5	0	2	2	2	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	1	0
+c2_dropped_v2	5	13	16711934	0	0	2
+DROP TABLE t1_part;
+DROP TABLE t2_part;
+# ------------------------------------------------------------
+# TEST 2 : Old version tables have INSTANT ADD Columns
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+# Check metadata of upgraded table t3_part [c1, c2, c3, c4]
+# Expectation : Old INSTANT METADATA is present and has
+#               different INSTANT_COLS for p2.
+#               No default value for c3 for p2.
+#               New INSTANT METADATA is not present.
+# ------------------------------------------------------------
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=6465665f633320202020;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_STRING	0	Visible	default=6465665f633420202020;table_id=TABLE_ID;
+DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	instant_col=2;
+p1	200	instant_col=2;
+p2	300	instant_col=3;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p0	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p1	7	2	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p2	7	3	0	4	4	4
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	1	0	0
+# -----------------------------------------------------------------------
+# INSTANT ADD a new column and check metadata t3_part [c1, c2, c3, c4, +c5]
+# Expectation : Old INSTANT METADATA stays same.
+#               New INSTANT METADATA is populated.
+#               Default value for c5 in each partition.
+# -----------------------------------------------------------------------
+ALTER TABLE t3_part ADD COLUMN c5 CHAR(10) DEFAULT "c5_def", ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=6465665f633320202020;physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_STRING	0	Visible	default=6465665f633420202020;physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	instant_col=2;
+p1	200	instant_col=2;
+p2	300	instant_col=3;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p0	8	2	1	4	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p1	8	2	1	4	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p2	8	3	1	4	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	1	0
+# --------------------------------------------------------------------
+# Add a new partition p3.
+# Expectation : Old INSTANT METADATA stays same.
+#               Default value for c5 in each partition.
+# -----------------------------------------------------------------------
+ALTER TABLE t3_part ADD PARTITION (PARTITION p3 VALUES LESS THAN (400));
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=4;table_id=TABLE_ID;
+c3	3	MYSQL_TYPE_STRING	0	Visible	default=6465665f633320202020;physical_pos=5;table_id=TABLE_ID;
+c4	4	MYSQL_TYPE_STRING	0	Visible	default=6465665f633420202020;physical_pos=6;table_id=TABLE_ID;
+c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	instant_col=2;
+p1	200	instant_col=2;
+p2	300	instant_col=3;
+p3	400	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p0	8	2	1	4	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p1	8	2	1	4	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	1	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p2	8	3	1	4	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	1	0	0
+c5	4	13	16711934	1	1	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p3	8	0	1	4	5	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+c3	2	13	16711934	0	0	0
+c4	3	13	16711934	0	0	0
+c5	4	13	16711934	1	1	0
+# --------------------------------------------------------------------
+# INSTANT DROP a normal column and check metadata t3_part [c1, -c2, c3, c4, c5]
+# Expectation : Old INSTANT METADATA stays same.
+#               New INSTANT METADATA is updated.
+# ---------------------------------------------------------------------
+ALTER TABLE t3_part DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=6465665f633320202020;physical_pos=5;table_id=TABLE_ID;
+c4	3	MYSQL_TYPE_STRING	0	Visible	default=6465665f633420202020;physical_pos=6;table_id=TABLE_ID;
+c5	4	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	instant_col=2;
+p1	200	instant_col=2;
+p2	300	instant_col=3;
+p3	400	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p0	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	1	0
+c2_dropped_v2	7	13	16711934	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p1	7	2	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	1	0
+c2_dropped_v2	7	13	16711934	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p2	7	3	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	1	0	0
+c5	3	13	16711934	1	1	0
+c2_dropped_v2	7	13	16711934	0	0	2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p3	7	0	2	4	4	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	0	0	0
+c4	2	13	16711934	0	0	0
+c5	3	13	16711934	1	1	0
+c2_dropped_v2	7	13	16711934	0	0	2
+# -----------------------------------------------------------------------
+# INSTANT DROP an INSTANT column and check metadata t3_part [c1, ~c2, ~c3, c4, c5]
+# Expectation : Old INSTANT METADATA stays same.
+#               New INSTANT METADATA is updated.
+# -----------------------------------------------------------------------
+ALTER TABLE t3_part DROP COLUMN c3, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c4	2	MYSQL_TYPE_STRING	0	Visible	default=6465665f633420202020;physical_pos=6;table_id=TABLE_ID;
+c5	3	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;table_id=TABLE_ID;version_added=1;
+DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+c3_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	instant_col=2;
+p1	200	instant_col=2;
+p2	300	instant_col=3;
+p3	400	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p0	6	2	3	4	3	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c4	1	13	16711934	1	0	0
+c5	2	13	16711934	1	1	0
+c2_dropped_v2	6	13	16711934	0	0	2
+c3_dropped_v3	7	13	16711934	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p1	6	2	3	4	3	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c4	1	13	16711934	1	0	0
+c5	2	13	16711934	1	1	0
+c2_dropped_v2	6	13	16711934	0	0	2
+c3_dropped_v3	7	13	16711934	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p2	6	3	3	4	3	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c4	1	13	16711934	0	0	0
+c5	2	13	16711934	1	1	0
+c2_dropped_v2	6	13	16711934	0	0	2
+c3_dropped_v3	7	13	16711934	0	0	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p3	6	0	3	4	3	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c4	1	13	16711934	0	0	0
+c5	2	13	16711934	1	1	0
+c2_dropped_v2	6	13	16711934	0	0	2
+c3_dropped_v3	7	13	16711934	0	0	3
+# -----------------------------------------------------------------------------
+# INSTANT DROP newly added column and check metadata t3_part [c1, ~c2, ~c3, c4, -c5]
+# Expectation : Old INSTANT METADATA stays same.
+#               New INSTANT METADATA is updated.
+# -----------------------------------------------------------------------------
+ALTER TABLE t3_part DROP COLUMN c5, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c4	2	MYSQL_TYPE_STRING	0	Visible	default=6465665f633420202020;physical_pos=6;table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+c3_dropped_v3	7	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=3;
+c5_dropped_v4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_added=1;version_dropped=4;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	instant_col=2;
+p1	200	instant_col=2;
+p2	300	instant_col=3;
+p3	400	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p0	5	2	4	4	2	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c4	1	13	16711934	1	0	0
+c2_dropped_v2	5	13	16711934	0	0	2
+c3_dropped_v3	6	13	16711934	0	0	3
+c5_dropped_v4	7	13	16711934	0	1	4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p1	5	2	4	4	2	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c4	1	13	16711934	1	0	0
+c2_dropped_v2	5	13	16711934	0	0	2
+c3_dropped_v3	6	13	16711934	0	0	3
+c5_dropped_v4	7	13	16711934	0	1	4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p2	5	3	4	4	2	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c4	1	13	16711934	0	0	0
+c2_dropped_v2	5	13	16711934	0	0	2
+c3_dropped_v3	6	13	16711934	0	0	3
+c5_dropped_v4	7	13	16711934	0	1	4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t3_part#p#p3	5	0	4	4	2	5
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c4	1	13	16711934	1	0	0
+c2_dropped_v2	5	13	16711934	0	0	2
+c3_dropped_v3	6	13	16711934	0	0	3
+c5_dropped_v4	7	13	16711934	0	1	4
+DROP TABLE t3_part;
+# -------------------------------------------------
+# TEST 3 : New tables with INSTANT ADD/DROP Columns
+# -------------------------------------------------
+CREATE TABLE t1_part (c1 INT, c2 CHAR(10)) PARTITION BY RANGE(c1) (PARTITION p0 VALUES LESS THAN (100), PARTITION p1 VALUES LESS THAN (200));
+INSERT INTO t1_part VALUES(10, "r1c2");
+# ------------------------------------------------------------
+# Check metadata of table t1_part [c1, c2]
+# Expectation : Old INSTANT METADATA is not present
+#               New INSTANT METADATA is not present.
+# ------------------------------------------------------------
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	table_id=TABLE_ID;
+c2	2	MYSQL_TYPE_STRING	0	Visible	table_id=TABLE_ID;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	table_id=TABLE_ID;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p0	5	0	0	2	2	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p1	5	0	0	2	2	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2	1	13	16711934	0	0	0
+# -----------------------------------------------------------------------
+# INSTANT DROP a column and check metadata t1_part [c1, -c2]
+# Expectation : Old INSTANT METADATA is not present.
+#               New INSTANT METADATA is populated.
+# -----------------------------------------------------------------------
+ALTER TABLE t1_part DROP COLUMN c2, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+DB_ROW_ID	2	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	4	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	5	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p0	4	0	1	2	1	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2_dropped_v1	4	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p1	4	0	1	2	1	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2_dropped_v1	4	13	16711934	0	0	1
+# -----------------------------------------------------------------------
+# INSTANT ADD a column and check metadata t1_part [c1, ~c2, +c3]
+# Expectation : Old INSTANT METADATA not present.
+#               New INSTANT METADATA is updated.
+# -----------------------------------------------------------------------
+ALTER TABLE t1_part ADD COLUMN c3 CHAR(10) DEFAULT "c3_def", ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;version_added=2;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p0	5	0	2	2	2	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	2	0
+c2_dropped_v1	5	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p1	5	0	2	2	2	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	2	0
+c2_dropped_v1	5	13	16711934	0	0	1
+# --------------------------------------------------------------------
+# Add a new partition p2.
+# Expectation : Old INSTANT METADATA not present.
+#               New INSTANT METADATA is updated.
+#               Default value for c3 in each partition.
+# -----------------------------------------------------------------------
+ALTER TABLE t1_part ADD PARTITION (PARTITION p2 VALUES LESS THAN (300));
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+c3	2	MYSQL_TYPE_STRING	0	Visible	default=63335f64656620202020;physical_pos=5;table_id=TABLE_ID;version_added=2;
+DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p0	5	0	2	2	2	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	2	0
+c2_dropped_v1	5	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p1	5	0	2	2	2	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	2	0
+c2_dropped_v1	5	13	16711934	0	0	1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p2	5	0	2	2	2	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c3	1	13	16711934	1	2	0
+c2_dropped_v1	5	13	16711934	0	0	1
+# ----------------------------------------------------------------------------
+# INSTANT DROP the INSTANT ADD column and check metadata t1_part [c1, ~c2, -c3]
+# Expectation : Old INSTANT METADATA is not present.
+#               New INSTANT METADATA is updated.
+# ----------------------------------------------------------------------------
+ALTER TABLE t1_part DROP COLUMN c3, ALGORITHM=INSTANT;
+# DD Metadata of columns in table
+NAME	ORDINAL_POSITION	TYPE	HAS_NO_DEFAULT	HIDDEN	SE_PRIVATE_DATA
+c1	1	MYSQL_TYPE_LONG	0	Visible	physical_pos=3;table_id=TABLE_ID;
+DB_ROW_ID	2	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
+DB_TRX_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
+DB_ROLL_PTR	4	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
+c2_dropped_v1	5	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+c3_dropped_v3	6	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_added=2;version_dropped=3;
+# DD Metadata of partitions in table
+NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
+p0	100	NULL
+p1	200	NULL
+p2	300	NULL
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p0	4	0	3	2	1	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2_dropped_v1	4	13	16711934	0	0	1
+c3_dropped_v3	5	13	16711934	0	2	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p1	4	0	3	2	1	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2_dropped_v1	4	13	16711934	0	0	1
+c3_dropped_v3	5	13	16711934	0	2	3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
+test/t1_part#p#p2	4	0	3	2	1	3
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
+c1	0	6	1027	0	0	0
+c2_dropped_v1	4	13	16711934	0	0	1
+c3_dropped_v3	5	13	16711934	0	2	3
+DROP TABLE t1_part;
+###########
+# CLEANUP #
+###########
+# Shutdown server
+# Remove copied files
+# Restarting server to restore server state
+# restart

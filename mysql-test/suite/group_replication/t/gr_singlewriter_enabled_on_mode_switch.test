@@ -1,0 +1,375 @@
+################################################################################
+#
+# Starting from communication protocol version 8.0.22, XCom will use a single
+# leader consensus algorithm based on Multi-Paxos when running GR in SPM.
+#
+# This test shall verify that, upon switching the group mode from MPM to SPM,
+# when on communication protocol v8.0.22, a single leader is used. It will also
+# test that when switching from MPM to SPM while using a previous communication
+# protocol, the previous consensus algorithm is used (i.e. all members as
+# leaders).
+#
+# Test:
+# 0) The test requires three servers.
+# 1) Switch to SPM on every member. For each member that was elected as primary
+# in SPM, the WRITE_CONSENSUS_LEADERS_MEMBER_ID_PREFERRED and
+# WRITE_CONSENSUS_LEADERS_MEMBER_ID_ACTIVE fields of the
+# performance_schema.replication_group_communication_information PFS table
+# should contain *only* the UUID of that member.
+# 2) Change the communication protocol to 8.0.21.
+# 3) Switch to SPM on every member. For each member that was elected as primary
+# in SPM the WRITE_CONSENSUS_LEADERS_MEMBER_ID_PREFERRED and
+# WRITE_CONSENSUS_LEADERS_MEMBER_ID_ACTIVE fields of the
+# performance_schema.replication_group_communication_information PFS table
+# should contain the UUIDs of *all* the members in the group.
+# 4) Cleanup.
+#
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--echo
+--echo ####
+--echo # 0) The test requires three servers.
+--echo ####
+--echo
+--let $rpl_server_count = 3
+--let $rpl_group_replication_single_primary_mode=0
+--source include/group_replication.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring*");
+SET SESSION sql_log_bin = 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring*");
+SET SESSION sql_log_bin = 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring*");
+SET SESSION sql_log_bin = 1;
+
+--echo
+--echo ####
+--echo # 1) Switch to SPM on every member. For each member that was elected as
+--echo # primary in SPM, the WRITE_CONSENSUS_LEADERS_MEMBER_ID_PREFERRED and
+--echo # WRITE_CONSENSUS_LEADERS_MEMBER_ID_ACTIVE fields of the
+--echo # performance_schema.replication_group_communication_information PFS
+--echo # table should contain *only* the UUID of that member.
+--echo ####
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Elect member 1
+--let $server1_uuid = `SELECT @@server_uuid`
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+# Verify preferred and active members of member 1
+--let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED FROM performance_schema.replication_group_communication_information]" = "$server1_uuid"
+--source include/assert.inc
+--let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server1_uuid"
+--source include/assert.inc
+
+# Verify preferred and active members of member 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server1_uuid"
+--source include/assert.inc
+--let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server1_uuid"
+--source include/assert.inc
+
+# Verify preferred and active members of member 3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server1_uuid"
+--source include/assert.inc
+--let $assert_text = The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server1_uuid"
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# Elect member 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $server2_uuid = `SELECT @@server_uuid`
+
+--eval SELECT group_replication_switch_to_multi_primary_mode()
+--replace_result $server2_uuid MEMBER2_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid")
+
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$server2_uuid" AND MEMBER_ROLE = 'PRIMARY'
+--source include/wait_condition.inc
+
+# Verify preferred and active members of member 2
+--let $assert_text = The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server2_uuid"
+--source include/assert.inc
+--let $assert_text = The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server2_uuid"
+--source include/assert.inc
+
+# Verify preferred and active members of member 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text = The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server2_uuid"
+--source include/assert.inc
+--let $assert_text = The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server2_uuid"
+--source include/assert.inc
+
+# Verify preferred and active members of member 3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text = The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server2_uuid"
+--source include/assert.inc
+--let $assert_text = The second server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server2_uuid"
+--source include/assert.inc
+
+# Elect member 3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $server3_uuid = `SELECT @@server_uuid`
+
+--eval SELECT group_replication_switch_to_multi_primary_mode()
+--replace_result $server3_uuid MEMBER3_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server3_uuid")
+
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$server3_uuid" AND MEMBER_ROLE = 'PRIMARY'
+--source include/wait_condition.inc
+
+# Verify preferred and active members of member 3
+--let $assert_text = The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server3_uuid"
+--source include/assert.inc
+--let $assert_text = The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server3_uuid"
+--source include/assert.inc
+
+# Verify preferred and active members of member 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text = The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server3_uuid"
+--source include/assert.inc
+--let $assert_text = The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server3_uuid"
+--source include/assert.inc
+
+# Verify preferred and active members of member 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text = The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_PREFERRED from performance_schema.replication_group_communication_information]" = "$server3_uuid"
+--source include/assert.inc
+--let $assert_text = The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $assert_cond = "[SELECT WRITE_CONSENSUS_LEADERS_ACTUAL from performance_schema.replication_group_communication_information]" = "$server3_uuid"
+--source include/assert.inc
+
+--echo
+--echo ####
+--echo # 2) Change the communication protocol to 8.0.21.
+--echo ####
+--echo
+--eval SELECT group_replication_set_communication_protocol("8.0.21")
+
+--echo
+--echo ####
+--echo # 3) Switch to SPM on every member. For each member that was elected as
+--echo # primary in SPM the WRITE_CONSENSUS_LEADERS_MEMBER_ID_PREFERRED and
+--echo # WRITE_CONSENSUS_LEADERS_MEMBER_ID_ACTIVE fields of the
+--echo # performance_schema.replication_group_communication_information PFS
+--echo # table should contain the UUIDs of *all* the members in the group.
+--echo ####
+--echo
+
+# Elect member 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Wait until the communication protocol change is effective on this member,
+# only one group action can run at a time.
+# When changing to 8.0.21, the protocol will change to 8.0.16.
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE PROTOCOL_VERSION = '8.0.16'
+--source include/wait_condition_or_abort.inc
+
+--eval SELECT group_replication_switch_to_multi_primary_mode()
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$server1_uuid" AND MEMBER_ROLE = 'PRIMARY'
+--source include/wait_condition.inc
+
+# Verify preferred and active members of member 1
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+
+# Verify preferred and active members of member 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+
+# Verify preferred and active members of member 3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+
+# Elect member 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $server2_uuid = `SELECT @@server_uuid`
+
+--eval SELECT group_replication_switch_to_multi_primary_mode()
+--replace_result $server2_uuid MEMBER2_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid")
+
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$server2_uuid" AND MEMBER_ROLE = 'PRIMARY'
+--source include/wait_condition.inc
+
+# Verify preferred and active members of member 2
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+
+# Verify preferred and active members of member 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+
+# Verify preferred and active members of member 3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+
+# Elect member 3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $server3_uuid = `SELECT @@server_uuid`
+
+--eval SELECT group_replication_switch_to_multi_primary_mode()
+--replace_result $server3_uuid MEMBER3_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server3_uuid")
+
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$server3_uuid" AND MEMBER_ROLE = 'PRIMARY'
+--source include/wait_condition.inc
+
+# Verify preferred and active members of member 3
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+
+# Verify preferred and active members of member 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+
+# Verify preferred and active members of member 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_PREFERRED LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+--let $assert_text = All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL
+--let $num_rows = `SELECT COUNT(*) FROM performance_schema.replication_group_communication_information WHERE WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server1_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server2_uuid%' AND WRITE_CONSENSUS_LEADERS_ACTUAL LIKE '%$server3_uuid%'`
+--let $assert_cond = "$num_rows" = "1"
+--source include/assert.inc
+
+--echo
+--echo ####
+--echo # 4) Cleanup.
+--echo ####
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

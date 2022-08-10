@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ enum fk_match_opt {
   FK_MATCH_SIMPLE
 };
 
-enum enum_order { ORDER_NOT_RELEVANT = 1, ORDER_ASC, ORDER_DESC };
+enum enum_order : int { ORDER_NOT_RELEVANT = 1, ORDER_ASC, ORDER_DESC };
 
 class KEY_CREATE_INFO {
  public:
@@ -234,7 +234,7 @@ class Key_spec {
     while ((column = it++)) columns.push_back(column);
   }
 
-  virtual ~Key_spec() {}
+  virtual ~Key_spec() = default;
 };
 
 class Foreign_key_spec : public Key_spec {
@@ -295,7 +295,7 @@ class Foreign_key_spec : public Key_spec {
 
     @retval false   Key valid
     @retval true    Key invalid
- */
+   */
   bool validate(THD *thd, const char *table_name,
                 List<Create_field> &table_fields) const;
 };

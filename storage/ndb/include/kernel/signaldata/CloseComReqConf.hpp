@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ struct CloseComReqConf {
    */
   friend bool printCLOSECOMREQCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
-  STATIC_CONST( SignalLength = 5);
+  static constexpr Uint32 SignalLength = 5;
 
   enum RequestType {
     RT_API_FAILURE   = 0,

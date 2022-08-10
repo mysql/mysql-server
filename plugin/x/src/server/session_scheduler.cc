@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -56,18 +56,6 @@ bool Session_scheduler::thread_init() {
 #endif  // HAVE_PSI_THREAD_INTERFACE
 
   ngs::Scheduler_dynamic::thread_init();
-
-#if defined(__APPLE__) || defined(HAVE_PTHREAD_SETNAME_NP)
-  char thread_name[16];
-  static std::atomic<int> worker{0};
-  int worker_num = worker++;
-  snprintf(thread_name, sizeof(thread_name), "xpl_worker%i", worker_num);
-#ifdef __APPLE__
-  pthread_setname_np(thread_name);
-#else
-  pthread_setname_np(pthread_self(), thread_name);
-#endif
-#endif
 
   return true;
 }

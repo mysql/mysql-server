@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,7 @@ static int connection_control_init(MYSQL_PLUGIN plugin_info) {
   @returns success
 */
 
-static int connection_control_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int connection_control_deinit(void *arg [[maybe_unused]]) {
   delete g_connection_event_coordinator;
   g_connection_event_coordinator = nullptr;
   connection_control::deinit_connection_delay_event();
@@ -233,9 +233,10 @@ static struct st_mysql_audit connection_control_descriptor = {
     @retval 1 Value is not within valid bounds
 */
 
-static int check_failed_connections_threshold(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *save MY_ATTRIBUTE((unused)), struct st_mysql_value *value) {
+static int check_failed_connections_threshold(MYSQL_THD thd [[maybe_unused]],
+                                              SYS_VAR *var [[maybe_unused]],
+                                              void *save [[maybe_unused]],
+                                              struct st_mysql_value *value) {
   longlong new_value;
   if (value->val_int(value, &new_value)) return 1; /* NULL value */
 
@@ -261,9 +262,10 @@ static int check_failed_connections_threshold(
   connection_control_failed_connections_threshold
 */
 
-static void update_failed_connections_threshold(
-    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
+static void update_failed_connections_threshold(MYSQL_THD thd [[maybe_unused]],
+                                                SYS_VAR *var [[maybe_unused]],
+                                                void *var_ptr [[maybe_unused]],
+                                                const void *save) {
   /*
     This won't result in overflow because we have already checked that this is
     within valid bounds.
@@ -300,9 +302,9 @@ static MYSQL_SYSVAR_LONGLONG(
     @retval 1 Value is not within valid bounds
 */
 
-static int check_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                      SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                      void *save MY_ATTRIBUTE((unused)),
+static int check_min_connection_delay(MYSQL_THD thd [[maybe_unused]],
+                                      SYS_VAR *var [[maybe_unused]],
+                                      void *save [[maybe_unused]],
                                       struct st_mysql_value *value) {
   long long new_value;
   int64 existing_value = g_variables.max_connection_delay;
@@ -329,9 +331,9 @@ static int check_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @param save       New value for connection_control_min_connection_delay
 */
 
-static void update_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                        SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                        void *var_ptr MY_ATTRIBUTE((unused)),
+static void update_min_connection_delay(MYSQL_THD thd [[maybe_unused]],
+                                        SYS_VAR *var [[maybe_unused]],
+                                        void *var_ptr [[maybe_unused]],
                                         const void *save) {
   longlong new_value = *(reinterpret_cast<const longlong *>(save));
   g_variables.min_connection_delay = (int64)new_value;
@@ -364,9 +366,9 @@ static MYSQL_SYSVAR_LONGLONG(
     @retval 1 Value is not within valid bounds
 */
 
-static int check_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                      SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                      void *save MY_ATTRIBUTE((unused)),
+static int check_max_connection_delay(MYSQL_THD thd [[maybe_unused]],
+                                      SYS_VAR *var [[maybe_unused]],
+                                      void *save [[maybe_unused]],
                                       struct st_mysql_value *value) {
   long long new_value;
   int64 existing_value = g_variables.min_connection_delay;
@@ -393,9 +395,9 @@ static int check_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @param save       New value for connection_control_max_connection_delay
 */
 
-static void update_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                        SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                        void *var_ptr MY_ATTRIBUTE((unused)),
+static void update_max_connection_delay(MYSQL_THD thd [[maybe_unused]],
+                                        SYS_VAR *var [[maybe_unused]],
+                                        void *var_ptr [[maybe_unused]],
                                         const void *save) {
   longlong new_value = *(reinterpret_cast<const longlong *>(save));
   g_variables.max_connection_delay = (int64)new_value;
@@ -430,8 +432,8 @@ SYS_VAR *connection_control_system_variables[OPT_LAST + 1] = {
   @returns Always returns success.
 */
 
-static int show_delay_generated(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                SHOW_VAR *var, char *buff) {
+static int show_delay_generated(MYSQL_THD thd [[maybe_unused]], SHOW_VAR *var,
+                                char *buff) {
   var->type = SHOW_LONGLONG;
   var->value = buff;
   longlong *value = reinterpret_cast<longlong *>(buff);
@@ -461,7 +463,7 @@ mysql_declare_plugin(audit_log){
     0x0100,                              /* version                       */
     connection_control_status_variables, /* status variables              */
     connection_control_system_variables, /* system variables              */
-    nullptr,                             /* reserverd                     */
+    nullptr,                             /* reserved                      */
     0                                    /* flags                         */
 },
     {MYSQL_INFORMATION_SCHEMA_PLUGIN,

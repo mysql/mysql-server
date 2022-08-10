@@ -29,7 +29,7 @@ while ($counter <= 6)
 --echo Drop the table using ndb_drop_table
 --exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 
---error ER_GET_ERRMSG
+--error ER_TABLE_DEF_CHANGED
 SHOW CREATE TABLE t1;
 SHOW WARNINGS;
 DROP TABLE t1;
@@ -45,12 +45,9 @@ while ($counter <= 6)
 }
 
 # Check that event has been dropped
---source retrieve_event_list.inc
 let $check_event_dbname = test;
 let $check_event_tabname = t1;
 --source check_event_for_table.inc
---disable_query_log ONCE
-DROP TABLE event_list;
 
 --connection mysqld2
 # Create a table with hidden PK. Such tables don't have events
@@ -118,15 +115,12 @@ while ($counter <= 6)
 DROP DATABASE ndb_ddl_test3;
 
 # Check that event has been dropped
---source retrieve_event_list.inc
 let $check_event_dbname = ndb_ddl_test3;
 let $check_event_tabname = t1;
 --source check_event_for_table.inc
 let $check_event_dbname = ndb_ddl_test3;
 let $check_event_tabname = t2;
 --source check_event_for_table.inc
---disable_query_log ONCE
-DROP TABLE test.event_list;
 
 --connection mysqld4
 # Now we check if the table has been removed on a participant by creating

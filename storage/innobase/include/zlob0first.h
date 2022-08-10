@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -147,23 +147,24 @@ struct z_first_page_t {
   }
 
   /** Load the given page number as the first page in x-latch mode.
-  @param[in]	page_no		the first page number.
-  @return	the buffer block of the given page number. */
+  @param[in]    page_no         the first page number.
+  @return       the buffer block of the given page number. */
   buf_block_t *load_x(page_no_t page_no) {
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 
   /** Load the first page using given mini-transaction. The first page must
   already be x-latched by the m_mtr.
-  @param[in]	mtr   the mini-transaction in which first page is to be loaded.
+  @param[in]    mtr   the mini-transaction in which first page is to be loaded.
   @return the buffer block of first page. */
   buf_block_t *load_x(mtr_t *mtr) const {
     ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
     buf_block_t *tmp = buf_page_get(m_block->page.id, m_index->get_page_size(),
-                                    RW_X_LATCH, mtr);
+                                    RW_X_LATCH, UT_LOCATION_HERE, mtr);
     ut_ad(tmp == m_block);
     return (tmp);
   }
@@ -175,14 +176,15 @@ struct z_first_page_t {
   buf_block_t *load_x(const page_id_t &page_id, const page_size_t &page_size);
 
   /** Load the given page number as the first page in s-latch mode.
-  @param[in]	page_no		the first page number.
-  @return	the buffer block of the given page number. */
+  @param[in]    page_no         the first page number.
+  @return       the buffer block of the given page number. */
   buf_block_t *load_s(page_no_t page_no) {
     ut_ad(m_block == nullptr);
 
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_S_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_S_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 
@@ -213,7 +215,7 @@ struct z_first_page_t {
 
   /** Write the space identifier to the page header, without generating
   redo log records.
-  @param[in]	space_id	the space identifier. */
+  @param[in]    space_id        the space identifier. */
   void set_space_id_no_redo(space_id_t space_id) {
     mlog_write_ulint(frame() + FIL_PAGE_SPACE_ID, space_id, MLOG_4BYTES,
                      nullptr);
@@ -264,16 +266,23 @@ struct z_first_page_t {
     return (fil_addr_t(page_no, offset));
   }
 
-  /** All the index pages are singled linked with each other, and
+  /** All the index pages are singly linked with each other, and
   the first page contains the link to one index page.
   @param[in]  page_no  the page number of an index page. */
   void set_index_page_no(page_no_t page_no) {
-    ut_ad(m_mtr != nullptr);
-    mlog_write_ulint(frame() + OFFSET_INDEX_PAGE_NO, page_no, MLOG_4BYTES,
-                     m_mtr);
+    set_index_page_no(page_no, m_mtr);
   }
 
-  /** All the index pages are singled linked with each other, and
+  /** All the index pages are singly linked with each other, and
+  the first page contains the link to one index page.
+  @param[in]  page_no  the page number of an index page.
+  @param[in]  mtr      use this mini transaction context for redo logs. */
+  void set_index_page_no(page_no_t page_no, mtr_t *mtr) {
+    ut_ad(m_mtr != nullptr);
+    mlog_write_ulint(frame() + OFFSET_INDEX_PAGE_NO, page_no, MLOG_4BYTES, mtr);
+  }
+
+  /** All the index pages are singly linked with each other, and
   the first page contains the link to one index page. Get that index
   page number.
   @return the index page number. */
@@ -303,8 +312,9 @@ struct z_first_page_t {
   bool verify_frag_page_no();
 #endif /* UNIV_DEBUG */
 
-  /** All the fragment pages are doubly linked with each other, and
-  the first page contains the link to one fragment page in FIL_PAGE_PREV.
+  /** All the fragment pages (@see z_frag_page_t) are doubly linked with each
+  other, and the first page contains the link to one fragment page in
+  FIL_PAGE_PREV.
   @param[in]  mtr      Mini-transaction for this modification.
   @param[in]  page_no  The page number of a fragment page. */
   void set_frag_page_no(mtr_t *mtr, page_no_t page_no) {
@@ -312,21 +322,34 @@ struct z_first_page_t {
     set_prev_page_no(page_no, mtr);
   }
 
-  /** All the fragment pages are doubly linked with each other, and
-  the first page contains the link to one fragment page in FIL_PAGE_PREV.
+  /** All the fragment pages (@see z_frag_page_t) are doubly linked with each
+  other, and the first page contains the link to one fragment page in
+  FIL_PAGE_PREV.
   @param[in]  page_no  the page number of a fragment page. */
   void set_frag_page_no(page_no_t page_no) {
     ut_ad(verify_frag_page_no());
     set_prev_page_no(page_no, m_mtr);
   }
 
-  /** All the frag node pages are singled linked with each other, and
-  the first page contains the link to one frag node page.
+  /** All the frag node pages (@see z_frag_node_page_t) are singly linked with
+  each other, and the first page contains the link to the last allocated frag
+  node page. The last allocated FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY  page will be the
+  first in this list. This list is used to free these pages.
   @param[in]  page_no  the page number of an frag node page. */
   void set_frag_node_page_no(page_no_t page_no) {
-    ut_ad(m_mtr != nullptr);
+    set_frag_node_page_no(page_no, m_mtr);
+  }
+
+  /** All the frag node pages (@see z_frag_node_page_t) are singly linked with
+  each other, and the first page contains the link to the last allocated frag
+  node page. The last allocated FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY  page will be the
+  first in this list. This list is used to free these pages.
+  @param[in]  page_no  the page number of an frag node page.
+  @param[in]  mtr      mini trx context to generate redo logs. */
+  void set_frag_node_page_no(page_no_t page_no, mtr_t *mtr) {
+    ut_ad(mtr != nullptr);
     mlog_write_ulint(frame() + OFFSET_FRAG_NODES_PAGE_NO, page_no, MLOG_4BYTES,
-                     m_mtr);
+                     mtr);
   }
 
   /** Free all the z_frag_page_t pages. All the z_frag_page_t pages are
@@ -345,12 +368,12 @@ struct z_first_page_t {
 
  private:
   /** Free all the fragment pages when the next page of the first LOB page IS
-   * NOT USED to link the fragment pages.
+   NOT USED to link the fragment pages.
   @return the number of pages freed. */
   size_t free_all_frag_pages_old();
 
   /** Free all the fragment pages when the next page of the first LOB page IS
-   * USED to link the fragment pages.
+   USED to link the fragment pages.
   @return the number of pages freed. */
   size_t free_all_frag_pages_new();
 
@@ -359,7 +382,7 @@ struct z_first_page_t {
   @return the number of pages freed. */
   size_t free_all_data_pages();
 
-  /** All the frag node pages are singled linked with each other, and the
+  /** All the frag node pages are singly linked with each other, and the
   first page contains the link to one frag node page. Get that frag node
   page number.
   @return the index page number. */
@@ -387,7 +410,7 @@ struct z_first_page_t {
   }
 
   /** Update the trx id in the header.
-  @param[in]	tid	the given transaction identifier. */
+  @param[in]    tid     the given transaction identifier. */
   void set_trx_id(trx_id_t tid) {
     byte *ptr = frame() + OFFSET_TRX_ID;
     mach_write_to_6(ptr, tid);
@@ -396,7 +419,7 @@ struct z_first_page_t {
 
   /** Update the trx id in the header, without generating redo
   log records.
-  @param[in]	tid	the given transaction identifier. */
+  @param[in]    tid     the given transaction identifier. */
   void set_trx_id_no_redo(trx_id_t tid) {
     byte *ptr = frame() + OFFSET_TRX_ID;
     mach_write_to_6(ptr, tid);
@@ -432,7 +455,7 @@ struct z_first_page_t {
 
   /** When the bit is set, the LOB is not partially updatable anymore.
   Enable the bit.
-  @param[in]	trx	the current transaction.*/
+  @param[in]    trx     the current transaction.*/
   void mark_cannot_be_partially_updated(trx_t *trx);
 
   void set_last_trx_id(trx_id_t tid) {
@@ -443,7 +466,7 @@ struct z_first_page_t {
 
   /** Update the last transaction identifier in the header, without
   generating redo logs.
-  @param[in]	tid	given transaction identifier.*/
+  @param[in]    tid     given transaction identifier.*/
   void set_last_trx_id_no_redo(trx_id_t tid) {
     byte *ptr = frame() + OFFSET_LAST_TRX_ID;
     mach_write_to_6(ptr, tid);
@@ -493,11 +516,11 @@ struct z_first_page_t {
   /** Allocate a fragment of the given size.  This involves finding a
   fragment page, that has space to store len bytes of data. If necessary,
   allocate a new fragment page.
-  @param[in]	bulk		true if it is bulk operation
+  @param[in]    bulk            true if it is bulk operation
                                   (OPCODE_INSERT_BULK), false otherwise.
-  @param[in]	len		length of data to be stored in
+  @param[in]    len             length of data to be stored in
                                   fragment page.
-  @param[out]	frag_page	the fragment page with the needed
+  @param[out]   frag_page       the fragment page with the needed
                                   free space.
   @param[out]   entry           fragment page entry representing frag_page.
   @return fragment identifier within the fragment page.
@@ -529,16 +552,16 @@ struct z_first_page_t {
   byte *frame() const { return (buf_block_get_frame(m_block)); }
 
   /** Load the page, in x-latch mode, containing the given file address.
-  @param[in]	addr	given file address
-  @return	the file list node pointer. */
+  @param[in]    addr    given file address
+  @return       the file list node pointer. */
   flst_node_t *addr2ptr_x(fil_addr_t &addr) const {
     return (addr2ptr_x(addr, m_mtr));
   }
 
   /** Load the page, in x-latch mode, containing the given file address.
-  @param[in]	addr	given file address
-  @param[in]	mtr     the mini-transaction context to be used.
-  @return	the file list node pointer. */
+  @param[in]    addr    given file address
+  @param[in]    mtr     the mini-transaction context to be used.
+  @return       the file list node pointer. */
   flst_node_t *addr2ptr_x(fil_addr_t &addr, mtr_t *mtr) const {
     space_id_t space = dict_index_get_space(m_index);
     const page_size_t page_size = dict_table_page_size(m_index->table);
@@ -546,8 +569,8 @@ struct z_first_page_t {
   }
 
   /** Load the page, in s-latch mode, containing the given file address.
-  @param[in]	addr	given file address
-  @return	the file list node pointer. */
+  @param[in]    addr    given file address
+  @return       the file list node pointer. */
   flst_node_t *addr2ptr_s(fil_addr_t &addr) {
     space_id_t space = dict_index_get_space(m_index);
     const page_size_t page_size = dict_table_page_size(m_index->table);
@@ -555,18 +578,22 @@ struct z_first_page_t {
   }
 
   /** Load the entry available in the given file address.
-  @param[in]	addr	file address
-  @param[out]	entry	the entry to be loaded.*/
+  @param[in]    addr    file address
+  @param[out]   entry   the entry to be loaded.*/
   void load_entry_s(fil_addr_t &addr, z_index_entry_t &entry);
 
   /** Load the entry available in the given file address.
-  @param[in]	addr	file address
-  @param[out]	entry	the entry to be loaded.*/
+  @param[in]    addr    file address
+  @param[out]   entry   the entry to be loaded.*/
   void load_entry_x(fil_addr_t &addr, z_index_entry_t &entry);
 
   /** Free all the pages of the zlob.
   @return the total number of pages freed. */
   size_t destroy();
+
+  /** Free all the pages of the zlob except the first page.
+  @return the total number of pages freed. */
+  size_t make_empty();
 
 #ifdef UNIV_DEBUG
  private:
@@ -623,9 +650,9 @@ struct z_first_page_t {
 
 /** Overloading the global output parameter to print object of type
 z_first_page_t into the given output stream.
-@param[in,out]		out	output stream.
-@param[in]		obj	object to be printed.
-@return	the output stream. */
+@param[in,out]          out     output stream.
+@param[in]              obj     object to be printed.
+@return the output stream. */
 inline std::ostream &operator<<(std::ostream &out, const z_first_page_t &obj) {
   return (obj.print(out));
 }

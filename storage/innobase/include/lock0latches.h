@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,6 +26,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef lock0latches_h
 #define lock0latches_h
 
+#include "dict0types.h"
 #include "sync0sharded_rw.h"
 #include "ut0cpu_cache.h"
 #include "ut0mutex.h"
@@ -82,8 +83,8 @@ This his how this conceptually looks like:
 So, for example access two queues for two records involves following steps:
 1. s-latch the global_latch
 2. identify the 2 pages to which the records belong
-3. identify the lock_sys 2 hash buckets which contain the queues for given pages
-4. identify the 2 shard ids which contain these two buckets
+3. identify the lock_sys 2 hash cells which contain the queues for given pages
+4. identify the 2 shard ids which contain these two cells
 5. latch mutexes for the two shards in the order of their addresses
 
 All of the steps above (except 2, as we usually know the page already) are
@@ -127,6 +128,14 @@ class Latches {
     ~Unique_sharded_rw_lock();
     bool try_x_lock(ut::Location location) {
       return rw_lock.try_x_lock(location);
+    }
+    /** Checks if there is a thread requesting an x-latch waiting for our
+    thread to release its s-latch.
+    Must be called while holding an s-latch.
+    @return true iff there is an x-latcher blocked by our s-latch. */
+    bool is_x_blocked_by_our_s() {
+      ut_ad(m_shard_id != NOT_IN_USE);
+      return rw_lock.is_x_blocked_by_s(m_shard_id);
     }
     void x_lock(ut::Location location) { rw_lock.x_lock(location); }
     void x_unlock() { rw_lock.x_unlock(); }
@@ -206,10 +215,10 @@ class Latches {
     Padded_mutex mutexes[SHARDS_COUNT];
     /**
     Identifies the table shard which contains locks for the given table.
-    @param[in]    table     The table
+    @param[in]    table_id    The id of the table
     @return Integer in the range [0..lock_sys_t::SHARDS_COUNT)
     */
-    static size_t get_shard(const dict_table_t &table);
+    static size_t get_shard(const table_id_t table_id);
 
    public:
     Table_shards();
@@ -217,14 +226,21 @@ class Latches {
 
     /** Returns the mutex which (together with the global latch) protects the
     table shard which contains table locks for the given table.
-    @param[in]    table     The table
+    @param[in]    table_id    The id of the table
     @return The mutex responsible for the shard containing the table
     */
-    Lock_mutex &get_mutex(const dict_table_t &table);
+    Lock_mutex &get_mutex(const table_id_t table_id);
 
     /** Returns the mutex which (together with the global latch) protects the
     table shard which contains table locks for the given table.
-    @param[in]    table     The table
+    @param[in]    table_id    The id of the table
+    @return The mutex responsible for the shard containing the table
+    */
+    const Lock_mutex &get_mutex(const table_id_t table_id) const;
+
+    /** Returns the mutex which (together with the global latch) protects the
+    table shard which contains table locks for the given table.
+    @param[in]    table    The table
     @return The mutex responsible for the shard containing the table
     */
     const Lock_mutex &get_mutex(const dict_table_t &table) const;
@@ -266,7 +282,11 @@ class Latches {
      https://reviews.llvm.org/D45898
   So, this declaration is just to make clang 6.0.0 and 7.0.0 happy.
   */
-  ~Latches() {}
+#if defined(__clang__) && (__clang_major__ < 8)
+  ~Latches() {}  // NOLINT(modernize-use-equals-default)
+#else
+  ~Latches() = default;
+#endif
 
 #ifdef UNIV_DEBUG
   /**

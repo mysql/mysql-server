@@ -147,7 +147,7 @@ CREATE VIEW v AS
 SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t;
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`i` AS `i`,`t`.`j` AS `j`,sum((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `foo` from `t`	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`i` AS `i`,`t`.`j` AS `j`,sum((`t`.`i` + `t`.`j`)) OVER (ORDER BY `t`.`j` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `foo` from `t`	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 i	j	foo
 1	4	5
@@ -514,10 +514,10 @@ INSERT INTO t_a VALUES (4, 40), (1, 10), (2, 20), (2, 20), (3, 30);
 CREATE TABLE t_b SELECT DISTINCT a FROM t_a;
 SELECT (SELECT SUM(t_b.a) OVER () FROM t_b WHERE t_b.a = t_a.a) aa, b FROM t_a GROUP BY aa, b;
 aa	b
-4	40
 1	10
 2	20
 3	30
+4	40
 DROP TABLE t_a, t_b;
 ----------------------------------------------------------------------
 Test of legal frame border value, including prepared statement and dynamic ?
@@ -905,20 +905,22 @@ id	sex	CUME_DIST() OVER (ORDER BY sex DESC)
 11	NULL	1
 SELECT id value,
 SUM(id) OVER (ROWS UNBOUNDED PRECEDING)
-FROM t1 u, t2 WHERE t2.user_id = u.id;
+FROM t1 u LEFT JOIN t2 ON t2.user_id = u.id;
 value	SUM(id) OVER (ROWS UNBOUNDED PRECEDING)
 1	1
-2	3
-1	4
+1	2
+2	4
 3	7
 4	11
 4	15
 5	20
+10	30
+11	41
 Aggregate with GROUP BY arguments to window function
 SELECT AVG(id) average,
-SUM(AVG(id)) OVER (ROWS UNBOUNDED PRECEDING)
+SUM(AVG(id)) OVER (ORDER BY sex DESC ROWS UNBOUNDED PRECEDING)
 FROM t1 u, t2 WHERE t2.user_id = u.id GROUP BY sex;
-average	SUM(AVG(id)) OVER (ROWS UNBOUNDED PRECEDING)
+average	SUM(AVG(id)) OVER (ORDER BY sex DESC ROWS UNBOUNDED PRECEDING)
 2.3333	2.3333
 3.2500	5.5833
 Aggregate with GROUP BY in window's ORDER BY clause, with aggregate present in
@@ -1703,12 +1705,12 @@ RANK() OVER (ORDER BY sex,id),
 ROW_NUMBER() OVER (ORDER BY sex,id)
 FROM t1;
 id	sex	SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING)	RANK() OVER (ORDER BY sex,id)	ROW_NUMBER() OVER (ORDER BY sex,id)
+1	M	1	6	6
 10	NULL	25	1	1
 11	NULL	36	2	2
 2	F	3	3	3
 3	F	6	4	4
 4	F	10	5	5
-1	M	1	6	6
 5	M	15	7	7
 SELECT t1.*, SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING),
 PERCENT_RANK() OVER (ORDER BY sex,id),
@@ -1716,12 +1718,12 @@ CUME_DIST() OVER (ORDER BY sex,id),
 ROW_NUMBER() OVER (ORDER BY sex,id)
 FROM t1;
 id	sex	SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING)	PERCENT_RANK() OVER (ORDER BY sex,id)	CUME_DIST() OVER (ORDER BY sex,id)	ROW_NUMBER() OVER (ORDER BY sex,id)
+1	M	1	0.8333333333333334	0.8571428571428571	6
 10	NULL	25	0	0.14285714285714285	1
 11	NULL	36	0.16666666666666666	0.2857142857142857	2
 2	F	3	0.3333333333333333	0.42857142857142855	3
 3	F	6	0.5	0.5714285714285714	4
 4	F	10	0.6666666666666666	0.7142857142857143	5
-1	M	1	0.8333333333333334	0.8571428571428571	6
 5	M	15	1	1	7
 a little more windows + subquery
 SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s FROM (
@@ -2190,7 +2192,7 @@ WINDOW w AS (PARTITION BY sex ORDER BY id
 ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,sum(`t1`.`id`) OVER `w` AS `SUM(id) OVER w`,`t1`.`sex` AS `sex` from `t1` window `w` AS (PARTITION BY `t1`.`sex` ORDER BY `t1`.`id` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,sum(`t1`.`id`) OVER `w` AS `SUM(id) OVER w`,`t1`.`sex` AS `sex` from `t1` window `w` AS (PARTITION BY `t1`.`sex` ORDER BY `t1`.`id` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 id	SUM(id) OVER w	sex
 10	NULL	NULL
@@ -2970,7 +2972,7 @@ CREATE VIEW v AS
 SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,first_value(`t1`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t1` window `w` AS (ORDER BY `t1`.`id` RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`id` AS `id`,first_value(`t1`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t1` window `w` AS (ORDER BY `t1`.`id` RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 id	FIRST_VALUE(id) OVER w
 NULL	NULL
@@ -3498,7 +3500,7 @@ CREATE VIEW v AS
 SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t_date`.`id` AS `id`,first_value(`t_date`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t_date` window `w` AS (ORDER BY `t_date`.`id` RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t_date`.`id` AS `id`,first_value(`t_date`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t_date` window `w` AS (ORDER BY `t_date`.`id` RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) 	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 id	FIRST_VALUE(id) OVER w
 2002-06-09	2002-06-09
@@ -3531,7 +3533,7 @@ CREATE VIEW v AS
 SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL 2 DAY FOLLOWING AND INTERVAL 3 DAY FOLLOWING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t_date`.`id` AS `id`,first_value(`t_date`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t_date` window `w` AS (ORDER BY `t_date`.`id` RANGE BETWEEN INTERVAL 2 day  FOLLOWING AND INTERVAL 3 day  FOLLOWING) 	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t_date`.`id` AS `id`,first_value(`t_date`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `t_date` window `w` AS (ORDER BY `t_date`.`id` RANGE BETWEEN INTERVAL 2 day  FOLLOWING AND INTERVAL 3 day  FOLLOWING) 	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 id	FIRST_VALUE(id) OVER w
 2002-06-09	NULL
@@ -3716,30 +3718,30 @@ t	FIRST_VALUE(t) OVER w
 22:30:00	NULL
 SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p );
 p	t	FIRST_VALUE(t) OVER w
-1	12:30:00	12:30:00
-1	22:30:00	12:30:00
-1	13:30:00	12:30:00
-1	01:30:00	12:30:00
-1	15:30:00	12:30:00
-1	20:30:00	12:30:00
-1	04:30:00	12:30:00
-1	06:30:00	12:30:00
-1	18:30:00	12:30:00
-1	21:30:00	12:30:00
 1	00:30:00	12:30:00
 1	00:31:00	12:30:00
-2	12:30:00	12:30:00
-2	22:30:00	12:30:00
-2	13:30:00	12:30:00
-2	01:30:00	12:30:00
-2	15:30:00	12:30:00
-2	20:30:00	12:30:00
-2	04:30:00	12:30:00
-2	06:30:00	12:30:00
-2	18:30:00	12:30:00
-2	21:30:00	12:30:00
+1	01:30:00	12:30:00
+1	04:30:00	12:30:00
+1	06:30:00	12:30:00
+1	12:30:00	12:30:00
+1	13:30:00	12:30:00
+1	15:30:00	12:30:00
+1	18:30:00	12:30:00
+1	20:30:00	12:30:00
+1	21:30:00	12:30:00
+1	22:30:00	12:30:00
 2	00:30:00	12:30:00
 2	00:31:00	12:30:00
+2	01:30:00	12:30:00
+2	04:30:00	12:30:00
+2	06:30:00	12:30:00
+2	12:30:00	12:30:00
+2	13:30:00	12:30:00
+2	15:30:00	12:30:00
+2	18:30:00	12:30:00
+2	20:30:00	12:30:00
+2	21:30:00	12:30:00
+2	22:30:00	12:30:00
 SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t);
 p	t	FIRST_VALUE(t) OVER w
 1	00:30:00	00:30:00
@@ -4291,28 +4293,28 @@ NULL	NULL
 With GROUP BY
 SELECT          COUNT(*) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
 COUNT(*) OVER ()	MOD(SUM(i),2)
+4	0
+4	0
 4	1
-4	0
-4	0
 4	NULL
 SELECT DISTINCT COUNT(*) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
 COUNT(*) OVER ()	MOD(SUM(i),2)
-4	1
 4	0
+4	1
 4	NULL
 Bug fix GROUP BY with window function referring column used in grouping expression
 SELECT i, SUM(i) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
 i	SUM(i) OVER ()	MOD(SUM(i),2)
-1	3	1
 0	3	0
+1	3	1
 2	3	0
 NULL	3	NULL
 SELECT i, SUM(SUM(i)) OVER (), SUM(i) OVER (ORDER BY i), MOD(SUM(i),2), SUM(i) FROM tj2 GROUP BY i;
 i	SUM(SUM(i)) OVER ()	SUM(i) OVER (ORDER BY i)	MOD(SUM(i),2)	SUM(i)
-NULL	7	NULL	NULL	NULL
 0	7	0	0	0
 1	7	1	1	3
 2	7	3	0	4
+NULL	7	NULL	NULL	NULL
 DROP TABLE tj2;
 ----------------------------------------------------------------------
 -    Bug fixes
@@ -4748,7 +4750,7 @@ w1 AS (w RANGE BETWEEN INTERVAL 24 HOUR  PRECEDING AND
 INTERVAL '2:2' MINUTE_SECOND FOLLOWING);
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select count(0) OVER `w0` AS `COUNT(*) OVER w0`,count(0) OVER `w` AS `COUNT(*) OVER w`,count(0) OVER `w1` AS `COUNT(*) OVER w1` from `t6` window `w0` AS () , `w` AS (`w0` ORDER BY `t6`.`t` ) , `w1` AS (`w` RANGE BETWEEN INTERVAL 24 hour  PRECEDING AND INTERVAL '2:2' minute_second  FOLLOWING) 	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select count(0) OVER `w0` AS `COUNT(*) OVER w0`,count(0) OVER `w` AS `COUNT(*) OVER w`,count(0) OVER `w1` AS `COUNT(*) OVER w1` from `t6` window `w0` AS () , `w` AS (`w0` ORDER BY `t6`.`t` ) , `w1` AS (`w` RANGE BETWEEN INTERVAL 24 hour  PRECEDING AND INTERVAL '2:2' minute_second  FOLLOWING) 	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 COUNT(*) OVER w0	COUNT(*) OVER w	COUNT(*) OVER w1
 12	1	2
@@ -6217,14 +6219,6 @@ SELECT * FROM t WHERE a = ANY(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 a
 2
 3
-=ALL => NOT EXISTS (select non-equal rows)
-SELECT * FROM t WHERE a = ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-<>SOME => EXISTS (select non-equal rows)
-SELECT * FROM t WHERE a <> SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-SELECT * FROM t WHERE a <> ANY(SELECT ROW_NUMBER() OVER () + 1 FROM t);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
 SELECT * FROM t WHERE a <> ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 a
 1
@@ -6402,33 +6396,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.upper.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`upper`.`a` AS `a` from `test`.`t` `upper` semi join ((/* select#3 */ select row_number() OVER ()  AS `rn` from `test`.`t`) `ta`) where (`ta`.`rn` > `test`.`upper`.`a`)
-# Correlated => no subquery materialization.
-# IN => EXISTS, error
-SELECT * FROM t upper
-WHERE upper.a IN (SELECT ROW_NUMBER() OVER () FROM t
-WHERE t.a > upper.a);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-# Correlated => no subquery materialization.
-# >ANY => EXISTS(select smaller rows), error
-SELECT * FROM t upper
-WHERE upper.a > ANY (SELECT ROW_NUMBER() OVER () FROM t
-WHERE t.a > upper.a);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-SELECT * FROM t upper
-WHERE upper.a > ALL (SELECT ROW_NUMBER() OVER () FROM t
-WHERE t.a > upper.a);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
 DROP TABLE t;
-#
-# Bug#25601138 WINDOW FUNCTION IN CORRELATED SUBQUERY GIVES WRONG RESULT
-#
-CREATE TABLE t1(i INT, j INT, k INT);
-INSERT INTO t1 VALUES (1,1,1),(2,2,2);
-# When we support this, expected result is 1,1,1 and 2,2,2
-select * from t1 AS upper where i+1
-IN (select row_number() over () + upper.i from t1 );
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-DROP TABLE t1;
 #
 # Check window aggregate referencing columns from an outside query
 # All results checked against Postgresql which also allows this.
@@ -7551,6 +7519,11 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 INSERT INTO t1 VALUES (1,8,'2004-03-26 11:59:45'),(2,-692387840,'2000-11-03
 14:56:50'),(3,8,'2008-04-11 14:04:45'),(4,-660865024,'2004-08-11
 07:07:20'),(5,9,'2001-04-11 00:00:00');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-11-03
+14:56:50' at row 2 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2004-08-11
+07:07:20' at row 4 is deprecated. Prefer the standard ' '.
 CREATE TEMPORARY TABLE t2 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 col1 varchar(10) CHARACTER SET utf8 DEFAULT NULL,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -67,7 +67,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "log0log.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "log0recv.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
@@ -77,13 +78,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/psi/mysql_stage.h"
 #include "mysqld.h"
 
+#include "ddl0fts.h"
 #include "os0file.h"
 #include "os0thread-create.h"
 #include "os0thread.h"
 #include "page0cur.h"
 #include "page0page.h"
 #include "rem0rec.h"
-#include "row0ftsort.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0sys.h"
@@ -129,8 +130,8 @@ extern uint32_t predefined_flags;
 /** Recovered persistent metadata */
 static MetadataRecover *srv_dict_metadata;
 
-/** TRUE if a raw partition is in use */
-ibool srv_start_raw_disk_in_use = FALSE;
+/** true if a raw partition is in use */
+bool srv_start_raw_disk_in_use = false;
 
 /** Number of IO threads to use */
 ulint srv_n_file_io_threads = 0;
@@ -149,24 +150,20 @@ static bool srv_start_has_been_called = false;
 determine which threads need to be stopped if we need to abort during
 the initialisation step. */
 enum srv_start_state_t {
-  SRV_START_STATE_NONE = 0,     /*!< No thread started */
-  SRV_START_STATE_LOCK_SYS = 1, /*!< Started lock-timeout
-                                thread. */
-  SRV_START_STATE_IO = 2,       /*!< Started IO threads */
-  SRV_START_STATE_MONITOR = 4,  /*!< Started montior thread */
-  SRV_START_STATE_MASTER = 8,   /*!< Started master threadd. */
-  SRV_START_STATE_PURGE = 16,   /*!< Started purge thread(s) */
-  SRV_START_STATE_STAT = 32     /*!< Started bufdump + dict stat
-                                and FTS optimize thread. */
+  /** No thread started */
+  SRV_START_STATE_NONE = 0,
+  /** Started IO threads */
+  SRV_START_STATE_IO = 1,
+  /** Started purge thread(s) */
+  SRV_START_STATE_PURGE = 2,
+  /** Started bufdump + dict stat and FTS optimize thread. */
+  SRV_START_STATE_STAT = 4
 };
 
 /** Track server thrd starting phases */
 static uint64_t srv_start_state = SRV_START_STATE_NONE;
 
 std::atomic<enum srv_shutdown_t> srv_shutdown_state{SRV_SHUTDOWN_NONE};
-
-/** Files comprising the system tablespace */
-static pfs_os_file_t files[1000];
 
 /** Name of srv_monitor_file */
 static char *srv_monitor_file_name;
@@ -182,6 +179,7 @@ mysql_pfs_key_t buf_dump_thread_key;
 mysql_pfs_key_t buf_resize_thread_key;
 mysql_pfs_key_t clone_ddl_thread_key;
 mysql_pfs_key_t clone_gtid_thread_key;
+mysql_pfs_key_t ddl_thread_key;
 mysql_pfs_key_t dict_stats_thread_key;
 mysql_pfs_key_t fts_optimize_thread_key;
 mysql_pfs_key_t fts_parallel_merge_thread_key;
@@ -199,6 +197,7 @@ mysql_pfs_key_t srv_purge_thread_key;
 mysql_pfs_key_t srv_worker_thread_key;
 mysql_pfs_key_t trx_recovery_rollback_thread_key;
 mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
+mysql_pfs_key_t parallel_rseg_init_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -228,325 +227,13 @@ or other policy for timed out wait is applied. */
 static constexpr uint32_t SHUTDOWN_SLEEP_ROUNDS =
     60 * 1000 * 1000 / SHUTDOWN_SLEEP_TIME_US;
 
-/** Check if a file can be opened in read-write mode.
- @return true if it doesn't exist or can be opened in rw mode. */
-static bool srv_file_check_mode(const char *name) /*!< in: filename to check */
-{
-  os_file_stat_t stat;
-
-  memset(&stat, 0x0, sizeof(stat));
-
-  dberr_t err = os_file_get_status(name, &stat, true, srv_read_only_mode);
-
-  if (err == DB_FAIL) {
-    ib::error(ER_IB_MSG_1058, name);
-    return (false);
-
-  } else if (err == DB_SUCCESS) {
-    /* Note: stat.rw_perm is only valid on files */
-
-    if (stat.type == OS_FILE_TYPE_FILE) {
-      /* rw_perm is true if it can be opened in
-      srv_read_only_mode mode. */
-      if (!stat.rw_perm) {
-        const char *mode = srv_read_only_mode ? "read" : "read-write";
-
-        ib::error(ER_IB_MSG_1059, name, mode);
-        return (false);
-      }
-    } else {
-      /* Not a regular file, bail out. */
-      ib::error(ER_IB_MSG_1060, name);
-
-      return (false);
-    }
-  } else {
-    /* This is OK. If the file create fails on RO media, there
-    is nothing we can do. */
-
-    ut_a(err == DB_NOT_FOUND);
-  }
-
-  return (true);
-}
-
 /** I/o-handler thread function.
-@param[in]	segment		The AIO segment the thread will work on */
+@param[in]      segment         The AIO segment the thread will work on */
 static void io_handler_thread(ulint segment) {
   while (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS ||
          buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free()) {
     fil_aio_wait(segment);
   }
-}
-
-/** Creates a log file.
- @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    create_log_file(pfs_os_file_t *file, /*!< out: file handle */
-                    const char *name)    /*!< in: log file name */
-{
-  bool ret;
-
-  *file = os_file_create(innodb_log_file_key, name,
-                         OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
-                         OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
-
-  if (!ret) {
-    ib::error(ER_IB_MSG_1061, name);
-    return (DB_ERROR);
-  }
-
-  auto size = srv_log_file_size >> 20;
-
-  ib::info(ER_IB_MSG_CREATE_LOG_FILE, name);
-
-#ifdef UNIV_DEBUG_DEDICATED
-  if (srv_dedicated_server && strstr(name, "ib_logfile101") == 0) {
-    auto tmp_size = srv_buf_pool_min_size >> (20 - UNIV_PAGE_SIZE_SHIFT);
-    ret = os_file_set_size(name, *file, 0, tmp_size, srv_read_only_mode, true);
-    ret = os_file_close(*file);
-    return (DB_SUCCESS);
-  }
-#endif /* UNIV_DEBUG_DEDICATED */
-
-  ret = os_file_set_size_fast(name, *file, 0, (os_offset_t)srv_log_file_size,
-                              srv_read_only_mode, true);
-
-  if (!ret) {
-    ib::error(ER_IB_MSG_1063, name, size);
-
-    /* Delete incomplete file if OOM */
-    if (os_has_said_disk_full) {
-      ret = os_file_close(*file);
-      ut_a(ret);
-      os_file_delete(innodb_log_file_key, name);
-    }
-
-    return (DB_ERROR);
-  }
-
-  ret = os_file_close(*file);
-  ut_a(ret);
-
-  return (DB_SUCCESS);
-}
-
-/** Initial number of the first redo log file */
-#define INIT_LOG_FILE0 (SRV_N_LOG_FILES_MAX + 1)
-
-/** Creates all log files.
-@param[in,out]  logfilename	    buffer for log file name
-@param[in]      dirnamelen      length of the directory path
-@param[in]      lsn             FIL_PAGE_FILE_FLUSH_LSN value
-@param[in]      num_old_files   number of old redo log files to remove
-@param[out]     logfile0	      name of the first log file
-@param[out]     checkpoint_lsn  lsn of the first created checkpoint
-@return DB_SUCCESS or error code */
-static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
-                                uint32_t num_old_files, char *&logfile0,
-                                lsn_t &checkpoint_lsn) {
-  dberr_t err;
-
-  if (srv_read_only_mode) {
-    ib::error(ER_IB_MSG_1064);
-    return (DB_READ_ONLY);
-  }
-
-  if (num_old_files < INIT_LOG_FILE0) {
-    num_old_files = INIT_LOG_FILE0;
-  }
-
-  /* Remove any old log files. */
-  for (unsigned i = 0; i <= num_old_files; i++) {
-    sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
-
-    /* Ignore errors about non-existent files or files
-    that cannot be removed. The create_log_file() will
-    return an error when the file exists. */
-#ifdef _WIN32
-    DeleteFile((LPCTSTR)logfilename);
-#else
-    unlink(logfilename);
-#endif /* _WIN32 */
-    /* Crashing after deleting the first
-    file should be recoverable. The buffer
-    pool was clean, and we can simply create
-    all log files from the scratch. */
-    RECOVERY_CRASH(6);
-  }
-
-  ut_ad(!buf_pool_check_no_pending_io());
-
-  RECOVERY_CRASH(7);
-
-  for (unsigned i = 0; i < srv_n_log_files; i++) {
-    sprintf(logfilename + dirnamelen, "ib_logfile%u", i ? i : INIT_LOG_FILE0);
-
-    err = create_log_file(&files[i], logfilename);
-
-    if (err != DB_SUCCESS) {
-      return (err);
-    }
-  }
-
-  RECOVERY_CRASH(8);
-
-  /* We did not create the first log file initially as
-  ib_logfile0, so that crash recovery cannot find it until it
-  has been completed and renamed. */
-  sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
-
-  /* Disable the doublewrite buffer for log files, not required */
-
-  fil_space_t *log_space = fil_space_create(
-      "innodb_redo_log", dict_sys_t::s_log_space_first_id,
-      fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG);
-
-  ut_ad(fil_validate());
-  ut_a(log_space != nullptr);
-
-  /* Once the redo log is set to be encrypted,
-  initialize encryption information. */
-  if (srv_redo_log_encrypt) {
-    if (!Encryption::check_keyring()) {
-      ib::error(ER_IB_MSG_1065);
-
-      return (DB_ERROR);
-    }
-
-    fsp_flags_set_encryption(log_space->flags);
-    err = fil_set_encryption(log_space->id, Encryption::AES, nullptr, nullptr);
-    ut_ad(err == DB_SUCCESS);
-  }
-
-  const ulonglong file_pages = srv_log_file_size / UNIV_PAGE_SIZE;
-
-  logfile0 = fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
-                             log_space, false, false);
-
-  ut_a(logfile0 != nullptr);
-
-  for (unsigned i = 1; i < srv_n_log_files; i++) {
-    sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
-
-    if (fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
-                        log_space, false, false) == nullptr) {
-      ib::error(ER_IB_MSG_1066, logfilename);
-
-      return (DB_ERROR);
-    }
-  }
-
-  if (!log_sys_init(srv_n_log_files, srv_log_file_size,
-                    dict_sys_t::s_log_space_first_id)) {
-    return (DB_ERROR);
-  }
-
-  ut_a(log_sys != nullptr);
-
-  fil_open_log_and_system_tablespace_files();
-
-  /* Create the first checkpoint and flush headers of the first log
-  file (the flushed headers store information about the checkpoint,
-  format of redo log and that it is not created by mysqlbackup). */
-
-  /* We start at the next log block. Note, that we keep invariant,
-  that start lsn stored in header of the first log file is divisble
-  by OS_FILE_LOG_BLOCK_SIZE. */
-  lsn = ut_uint64_align_up(lsn, OS_FILE_LOG_BLOCK_SIZE);
-
-  /* Checkpoint lsn should be outside header of log block. */
-  lsn += LOG_BLOCK_HDR_SIZE;
-
-  log_create_first_checkpoint(*log_sys, lsn);
-  checkpoint_lsn = lsn;
-
-  /* Write encryption information into the first log file header
-  if redo log is set with encryption. */
-  if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags) &&
-      !log_write_encryption(log_space->encryption_key, log_space->encryption_iv,
-                            true)) {
-    return (DB_ERROR);
-  }
-
-  /* Note that potentially some log files are still unflushed.
-  However it does not matter, because ib_logfile0 is not present
-  Before renaming ib_logfile101 to ib_logfile0, log files have
-  to be flushed. We could postpone that to just before the rename,
-  as we possibly will write some log records before doing the rename.
-
-  However OS could anyway do the flush, and we prefer to minimize
-  possible scenarios. Hence, to make situation more deterministic,
-  we do the fsyncs now unconditionally and repeat the required
-  flush just before the rename. */
-  fil_flush_file_redo();
-
-  return (DB_SUCCESS);
-}
-
-/** Renames the first log file. */
-static void create_log_files_rename(
-    char *logfilename, /*!< in/out: buffer for log file name */
-    size_t dirnamelen, /*!< in: length of the directory path */
-    lsn_t lsn,         /*!< in: checkpoint lsn (and start lsn) */
-    char *logfile0)    /*!< in/out: name of the first log file */
-{
-  /* If innodb_flush_method=O_DSYNC,
-  we need to explicitly flush the log buffers. */
-
-  /* Note that we need to have fsync performed for the created files.
-  This is the moment we do it. Keep in mind that fil_close_log_files()
-  ensures there are no unflushed modifications in the files. */
-  fil_flush_file_redo();
-
-  /* Close the log files, so that we can rename
-  the first one. */
-  fil_close_log_files(false);
-
-  /* Rename the first log file, now that a log
-  checkpoint has been created. */
-  sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
-
-  RECOVERY_CRASH(9);
-
-  ib::info(ER_IB_MSG_1067, logfile0, logfilename);
-
-  ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
-  bool success = os_file_rename(innodb_log_file_key, logfile0, logfilename);
-  ut_a(success);
-
-  RECOVERY_CRASH(10);
-
-  /* Replace the first file with ib_logfile0. */
-  strcpy(logfile0, logfilename);
-
-  fil_open_log_and_system_tablespace_files();
-
-  /* For cloned database it is normal to resize redo logs. */
-  ib::info(ER_IB_MSG_1068, ulonglong{lsn});
-}
-
-/** Opens a log file.
- @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    open_log_file(pfs_os_file_t *file, /*!< out: file handle */
-                  const char *name,    /*!< in: log file name */
-                  os_offset_t *size)   /*!< out: file size */
-{
-  bool ret;
-
-  *file = os_file_create(innodb_log_file_key, name, OS_FILE_OPEN, OS_FILE_AIO,
-                         OS_LOG_FILE, srv_read_only_mode, &ret);
-  if (!ret) {
-    ib::error(ER_IB_MSG_1069, name);
-    return (DB_ERROR);
-  }
-
-  *size = os_file_get_size(*file);
-
-  ret = os_file_close(*file);
-  ut_a(ret);
-  return (DB_SUCCESS);
 }
 
 /** Create undo tablespace.
@@ -578,7 +265,7 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
                           OS_FILE_ON_ERROR_NO_EXIT,
                       OS_FILE_NORMAL, OS_DATA_FILE, srv_read_only_mode, &ret);
 
-  if (ret == FALSE) {
+  if (ret == false) {
     std::ostringstream stmt;
 
     if (os_file_get_last_error(false) == OS_FILE_ALREADY_EXISTS) {
@@ -604,8 +291,7 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
 
     ib::info(ER_IB_MSG_1073);
 
-    ret = os_file_set_size(file_name, fh, 0, UNDO_INITIAL_SIZE,
-                           srv_read_only_mode, true);
+    ret = os_file_set_size(file_name, fh, 0, UNDO_INITIAL_SIZE, true);
 
     DBUG_EXECUTE_IF("ib_undo_tablespace_create_fail", ret = false;);
 
@@ -629,7 +315,7 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
 }
 
 /** Try to enable encryption of an undo log tablespace.
-@param[in]	space_id	undo tablespace id
+@param[in]      space_id        undo tablespace id
 @return DB_SUCCESS if success */
 static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
   dberr_t err;
@@ -652,9 +338,9 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
 }
 
 /** Try to read encryption metadata from an undo tablespace.
-@param[in]	fh		file handle of undo log file
-@param[in]	file_name	file name
-@param[in]	space		undo tablespace
+@param[in]      fh              file handle of undo log file
+@param[in]      file_name       file name
+@param[in]      space           undo tablespace
 @return DB_SUCCESS if success */
 static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
                                                    const char *file_name,
@@ -664,11 +350,9 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   size_t page_size = UNIV_PAGE_SIZE_MAX;
   dberr_t err = DB_ERROR;
 
-  byte *first_page_buf =
-      static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE_MAX));
   /* Align the memory for a possible read from a raw device */
-  byte *first_page =
-      static_cast<byte *>(ut_align(first_page_buf, UNIV_PAGE_SIZE));
+  byte *first_page = static_cast<byte *>(
+      ut::aligned_alloc(UNIV_PAGE_SIZE_MAX, UNIV_PAGE_SIZE));
 
   /* Don't want unnecessary complaints about partial reads. */
   request.disable_partial_io_warnings();
@@ -678,7 +362,7 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
 
   if (err != DB_SUCCESS) {
     ib::info(ER_IB_MSG_1076, space->name, ut_strerr(err));
-    ut_free(first_page_buf);
+    ut::aligned_free(first_page);
     return (err);
   }
 
@@ -689,24 +373,25 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   ut_ad(offset);
 
   /* Return if the encryption metadata is empty. */
-  if (memcmp(first_page + offset, Encryption::KEY_MAGIC_V3,
-             Encryption::MAGIC_SIZE) != 0) {
-    ut_free(first_page_buf);
+  if (!Encryption::is_encrypted_with_v3(first_page + offset)) {
+    ut::aligned_free(first_page);
     return (DB_SUCCESS);
   }
 
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
-  if (fsp_header_get_encryption_key(space->flags, key, iv, first_page)) {
+  Encryption_key e_key{key, iv};
+  if (fsp_header_get_encryption_key(space->flags, e_key, first_page)) {
     fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
     ut_ad(err == DB_SUCCESS);
   } else {
-    ut_free(first_page_buf);
+    ut::aligned_free(first_page);
     return (DB_FAIL);
   }
 
-  ut_free(first_page_buf);
+  ut::aligned_free(first_page);
+  ib::info(ER_IB_MSG_UNDO_ENCRYPTION_INFO_LOADED, space->name);
 
   return (DB_SUCCESS);
 }
@@ -883,7 +568,7 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
     fil_space_close(space_id);
   }
 
-  if (!srv_file_check_mode(file_name)) {
+  if (!os_file_check_mode(file_name, srv_read_only_mode)) {
     ib::error(ER_IB_MSG_1081, file_name,
               srv_read_only_mode ? "readable!" : "writable!");
 
@@ -901,7 +586,7 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
 
   /* Check if this file supports atomic write. */
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-  if (!dblwr::enabled) {
+  if (!dblwr::is_enabled()) {
     atomic_write = fil_fusionio_enable_atomic_write(fh);
   } else {
     atomic_write = false;
@@ -968,7 +653,7 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
 }
 
 /** Open an undo tablespace with a specified space_id.
-@param[in]	space_id	tablespace ID
+@param[in]      space_id        tablespace ID
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
   undo::Tablespace undo_space(space_id);
@@ -1242,9 +927,8 @@ static dberr_t srv_undo_tablespaces_create() {
 
 /** Finish building an undo tablespace. So far these tablespace files in
 the construction list should be created and filled with zeros.
-@param[in]	create_new_db	whether to create a new database
 @return DB_SUCCESS or error code */
-static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
+static dberr_t srv_undo_tablespaces_construct() {
   mtr_t mtr;
 
   if (undo::s_under_construction.empty()) {
@@ -1275,10 +959,9 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
 
     mtr_start(&mtr);
 
-    mtr_x_lock(fil_space_get_latch(space_id), &mtr);
+    mtr_x_lock(fil_space_get_latch(space_id), &mtr, UT_LOCATION_HERE);
 
-    if (!fsp_header_init(space_id, UNDO_INITIAL_SIZE_IN_PAGES, &mtr,
-                         create_new_db)) {
+    if (!fsp_header_init(space_id, UNDO_INITIAL_SIZE_IN_PAGES, &mtr)) {
       ib::error(ER_IB_MSG_1093, ulong{undo::id2num(space_id)});
 
       mtr_commit(&mtr);
@@ -1295,7 +978,7 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
   }
 
   if (srv_undo_log_encrypt) {
-    ut_d(bool ret =) srv_enable_undo_encryption(false);
+    ut_d(bool ret =) srv_enable_undo_encryption();
     ut_ad(!ret);
   }
 
@@ -1308,10 +991,11 @@ static void srv_undo_tablespaces_mark_construction_done() {
   /* Remove the truncate log files if they exist. */
   for (auto space_id : undo::s_under_construction) {
     /* Flush these pages to disk since they were not redo logged. */
-    FlushObserver *flush_observer =
-        UT_NEW_NOKEY(FlushObserver(space_id, nullptr, nullptr));
+    auto flush_observer = ut::new_withkey<Flush_observer>(
+        UT_NEW_THIS_FILE_PSI_KEY, space_id, nullptr, nullptr);
+
     flush_observer->flush();
-    UT_DELETE(flush_observer);
+    ut::delete_(flush_observer);
 
     space_id_t space_num = undo::id2num(space_id);
     if (undo::is_active_truncate_log_present(space_num)) {
@@ -1438,7 +1122,7 @@ dberr_t srv_undo_tablespace_create(const char *space_name,
   undo::spaces->x_unlock();
 
   /* Write header and RSEG_ARRAY pages to this undo tablespace. */
-  err = srv_undo_tablespaces_construct(false);
+  err = srv_undo_tablespaces_construct();
   if (err != DB_SUCCESS) {
     goto cleanup_and_exit;
   }
@@ -1472,7 +1156,8 @@ called once during srv_start(). */
 void undo_spaces_init() {
   ut_ad(undo::spaces == nullptr);
 
-  undo::spaces = UT_NEW(undo::Tablespaces(), mem_key_undo_spaces);
+  undo::spaces = ut::new_withkey<undo::Tablespaces>(
+      ut::make_psi_memory_key(mem_key_undo_spaces));
 
   trx_sys_undo_spaces_init();
 
@@ -1490,20 +1175,20 @@ void undo_spaces_deinit() {
     /* There can't be any active transactions. */
     undo::spaces->clear();
 
-    UT_DELETE(undo::spaces);
+    ut::delete_(undo::spaces);
     undo::spaces = nullptr;
   }
 
   trx_sys_undo_spaces_deinit();
 
   if (undo::space_id_bank != nullptr) {
-    UT_DELETE_ARRAY(undo::space_id_bank);
+    ut::delete_arr(undo::space_id_bank);
     undo::space_id_bank = nullptr;
   }
 }
 
 /** Open the configured number of implicit undo tablespaces.
-@param[in]	create_new_db	true if new db being created
+@param[in]      create_new_db   true if new db being created
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespaces_init(bool create_new_db) {
   dberr_t err = DB_SUCCESS;
@@ -1530,7 +1215,7 @@ static dberr_t srv_undo_tablespaces_init(bool create_new_db) {
   header pages, rseg_array pages, and rollback segments. Then delete
   any undo truncation log files and clear the construction list.
   This list includes any tablespace newly created or fixed-up. */
-  err = srv_undo_tablespaces_construct(create_new_db);
+  err = srv_undo_tablespaces_construct();
   if (err != DB_SUCCESS) {
     mutex_exit(&undo::ddl_mutex);
     return (err);
@@ -1571,8 +1256,8 @@ static void srv_start_wait_for_purge_to_start() {
 }
 
 /** Create the temporary file tablespace.
-@param[in]	create_new_db	whether we are creating a new database
-@param[in,out]	tmp_space	Shared Temporary SysTablespace
+@param[in]      create_new_db   whether we are creating a new database
+@param[in,out]  tmp_space       Shared Temporary SysTablespace
 @return DB_SUCCESS or error code. */
 static dberr_t srv_open_tmp_tablespace(bool create_new_db,
                                        SysTablespace *tmp_space) {
@@ -1619,7 +1304,7 @@ static dberr_t srv_open_tmp_tablespace(bool create_new_db,
       mtr_start(&mtr);
       mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-      fsp_header_init(tmp_space->space_id(), size, &mtr, false);
+      fsp_header_init(tmp_space->space_id(), size, &mtr);
 
       mtr_commit(&mtr);
     } else {
@@ -1639,21 +1324,57 @@ static void srv_create_sdi_indexes() {
 }
 
 /** Set state to indicate start of particular group of threads in InnoDB. */
-UNIV_INLINE
-void srv_start_state_set(srv_start_state_t state) /*!< in: indicate current
-                                                  state of thread startup */
+static inline void srv_start_state_set(
+    srv_start_state_t state) /*!< in: indicate current
+                             state of thread startup */
 {
   srv_start_state |= state;
 }
 
 /** Check if following group of threads is started.
  @return true if started */
-UNIV_INLINE
-bool srv_start_state_is_set(
+static inline bool srv_start_state_is_set(
     srv_start_state_t state) /*!< in: state to check for */
 {
   return (srv_start_state & state);
 }
+
+struct Thread_to_stop {
+  /** Name of the thread, printed to the error log if we waited too
+  long (after 60 seconds and then every 60 seconds). */
+  const char *m_name;
+
+  /** Future which allows to check if given task is completed. */
+  const IB_thread &m_thread;
+
+  /** Function which can be called any number of times to wake
+  the possibly waiting thread, so it could exit. */
+  std::function<void()> m_notify;
+
+  /** Shutdown state in which we are waiting until thread is exited
+  (earlier we keep notifying but we don't require it to exit before
+  we may switch to the next state). */
+  srv_shutdown_t m_wait_on_state;
+};
+
+static const Thread_to_stop threads_to_stop[]{
+    {"lock_wait_timeout", srv_threads.m_lock_wait_timeout,
+     lock_set_timeout_event, SRV_SHUTDOWN_CLEANUP},
+
+    {"error_monitor", srv_threads.m_error_monitor,
+     []() { os_event_set(srv_error_event); }, SRV_SHUTDOWN_CLEANUP},
+
+    {"monitor", srv_threads.m_monitor,
+     []() { os_event_set(srv_monitor_event); }, SRV_SHUTDOWN_CLEANUP},
+
+    {"buf_dump", srv_threads.m_buf_dump,
+     []() { os_event_set(srv_buf_dump_event); }, SRV_SHUTDOWN_CLEANUP},
+
+    {"buf_resize", srv_threads.m_buf_resize,
+     []() { os_event_set(srv_buf_resize_event); }, SRV_SHUTDOWN_CLEANUP},
+
+    {"master", srv_threads.m_master, srv_wake_master_thread,
+     SRV_SHUTDOWN_MASTER_STOP}};
 
 void srv_shutdown_exit_threads() {
   srv_shutdown_state.store(SRV_SHUTDOWN_EXIT_THREADS);
@@ -1671,29 +1392,23 @@ void srv_shutdown_exit_threads() {
     /* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
     HERE OR EARLIER */
 
+    /* These threads normally finish when reaching SRV_SHUTDOWN_CLEANUP or
+    SRV_SHUTDOWN_MASTER_STOP state, which we might have jumped over. */
+    for (const auto &thread_info : threads_to_stop) {
+      if (srv_thread_is_active(thread_info.m_thread)) {
+        thread_info.m_notify();
+      }
+    }
+
     if (!srv_read_only_mode) {
-      if (srv_start_state_is_set(SRV_START_STATE_LOCK_SYS)) {
-        /* a. Let the lock timeout thread exit */
-        os_event_set(lock_sys->timeout_event);
-      }
-
-      /* b. srv error monitor thread exits automatically,
-      no need to do anything here */
-
-      if (srv_start_state_is_set(SRV_START_STATE_MASTER)) {
-        /* c. We wake the master thread so that
-        it exits */
-        srv_wake_master_thread();
-      }
-
       if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
-        /* d. Wakeup purge threads. */
+        /* Wakeup purge threads. */
         srv_purge_wakeup();
       }
     }
 
     if (srv_start_state_is_set(SRV_START_STATE_IO)) {
-      /* e. Exit the i/o threads */
+      /* Exit the i/o threads */
       if (!srv_read_only_mode) {
         if (recv_sys->flush_start != nullptr) {
           os_event_set(recv_sys->flush_start);
@@ -1750,7 +1465,7 @@ void srv_shutdown_exit_threads() {
 
 #ifdef UNIV_DEBUG
     os_aio_print_pending_io(stderr);
-    ut_ad(0);
+    ut_d(ut_error);
 #endif /* UNIV_DEBUG */
   } else {
     /* Reset the start state. */
@@ -1766,20 +1481,14 @@ void srv_shutdown_exit_threads() {
 #endif /* UNIV_DEBUG */
 
 /** Innobase start-up aborted. Perform cleanup actions.
-@param[in]	create_new_db	TRUE if new db is  being created */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	file		File name
-@param[in]	line		Line number */
-#endif /* UNIV_DEBUG */
-/**
-@param[in]	err		Reason for aborting InnoDB startup
+@param[in]      create_new_db   true if new db is  being created
+@param[in]      file            File name
+@param[in]      line            Line number
+@param[in]      err             Reason for aborting InnoDB startup
 @return DB_SUCCESS or error code. */
 static dberr_t srv_init_abort_low(bool create_new_db,
-#ifdef UNIV_DEBUG
-                                  const char *file, ulint line,
-#endif /* UNIV_DEBUG */
-                                  dberr_t err) {
+                                  IF_DEBUG(const char *file, ulint line, )
+                                      dberr_t err) {
   std::ostringstream msg;
 
 #ifdef UNIV_DEBUG
@@ -1798,88 +1507,17 @@ static dberr_t srv_init_abort_low(bool create_new_db,
   return (err);
 }
 
-/** Prepare to delete the redo log files. Flush the dirty pages from all the
-buffer pools.  Flush the redo log buffer to the redo log file.
-@param[in]	n_files		number of old redo log files
-@return lsn upto which data pages have been flushed. */
-static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
-  lsn_t flushed_lsn;
-  ulint pending_io = 0;
-  ulint count = 0;
-
-  do {
-    /* Clean the buffer pool. */
-    buf_flush_sync_all_buf_pools();
-
-    RECOVERY_CRASH(1);
-
-    flushed_lsn = log_get_lsn(*log_sys);
-
-    if (count == 0) {
-      std::ostringstream info;
-
-      if (srv_log_file_size == 0) {
-        info << "Upgrading redo log: ";
-      } else {
-        info << "Resizing redo log from " << n_files << "*" << srv_log_file_size
-             << " to ";
-      }
-
-      info << srv_n_log_files << "*" << srv_log_file_size_requested
-           << " bytes, LSN=" << flushed_lsn;
-
-      ib::info(ER_IB_MSG_1216) << info.str();
-    }
-
-    /* Flush the old log files. */
-    log_write_up_to(*log_sys, flushed_lsn, true);
-
-    /* If innodb_flush_method=O_DSYNC, we need to explicitly
-    flush the log buffers. */
-    fil_flush_file_redo();
-
-    ut_ad(flushed_lsn == log_get_lsn(*log_sys));
-
-    /* Check if the buffer pools are clean.  If not
-    retry till it is clean. */
-    pending_io = buf_pool_check_no_pending_io();
-
-    if (pending_io > 0) {
-      count++;
-      /* Print a message every 60 seconds if we
-      are waiting to clean the buffer pools */
-      if (count >= SHUTDOWN_SLEEP_ROUNDS) {
-        ib::info(ER_IB_MSG_1106, ulonglong{pending_io});
-        count = 0;
-      }
-    }
-    std::this_thread::sleep_for(
-        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
-
-  } while (buf_pool_check_no_pending_io());
-
-  return (flushed_lsn);
-}
-
 dberr_t srv_start(bool create_new_db) {
   lsn_t flushed_lsn;
 
   /* just for assertions */
   lsn_t previous_lsn;
 
-  /* output from call to create_log_files(...) */
-  lsn_t new_checkpoint_lsn = 0;
-
   page_no_t sum_of_data_file_sizes;
   page_no_t tablespace_size_in_header;
   dberr_t err;
-  uint32_t srv_n_log_files_found = srv_n_log_files;
   mtr_t mtr;
   purge_pq_t *purge_queue;
-  char logfilename[10000];
-  char *logfile0 = nullptr;
-  size_t dirnamelen;
-  unsigned i = 0;
 
   assert(srv_dict_metadata == nullptr);
   /* Reset the start state. */
@@ -1893,17 +1531,18 @@ dberr_t srv_start(bool create_new_db) {
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
 #endif /* UNIV_LINUX */
 
-  if (sizeof(ulint) != sizeof(void *)) {
-    ib::error(ER_IB_MSG_1109, sizeof(ulint), sizeof(void *));
-  }
+  static_assert(sizeof(ulint) == sizeof(void *),
+                "Size of InnoDB's ulint is not the same as size of void*. The "
+                "sizes should be the same so that on a 64-bit platforms you "
+                "can allocate more than 4 GB of memory.");
 
   if (srv_is_upgrade_mode) {
-    if (srv_read_only_mode) {
-      ib::error(ER_IB_MSG_1110);
-      return (srv_init_abort(DB_ERROR));
-    }
     if (srv_force_recovery != 0) {
       ib::error(ER_IB_MSG_1111);
+      return (srv_init_abort(DB_ERROR));
+    }
+    if (srv_read_only_mode) {
+      ib::error(ER_IB_MSG_1110);
       return (srv_init_abort(DB_ERROR));
     }
   }
@@ -1982,12 +1621,18 @@ dberr_t srv_start(bool create_new_db) {
 
   srv_boot();
 
-  ib::info(ER_IB_MSG_1126) << (ut_crc32_cpu_enabled ? "Using" : "Not using")
-                           << " CPU crc32 instructions";
+  ib::info(ER_IB_MSG_1126)
+      << "Using "
+      << (ut_crc32_cpu_enabled ? (ut_poly_mul_cpu_enabled
+                                      ? "hardware accelerated crc32 and "
+                                        "polynomial multiplication."
+                                      : "hardware accelerated crc32 and "
+                                        "software polynomial multiplication.")
+                               : "software crc32.");
 
   os_create_block_cache();
 
-  fil_init(srv_max_n_open_files);
+  fil_init(innobase_get_open_files_limit());
 
   /* This is the default directory for IBD and IBU files. Put it first
   in the list of known directories. */
@@ -2035,7 +1680,8 @@ dberr_t srv_start(bool create_new_db) {
     mutex_create(LATCH_ID_SRV_MONITOR_FILE, &srv_monitor_file_mutex);
 
     if (srv_innodb_status) {
-      srv_monitor_file_name = static_cast<char *>(ut_malloc_nokey(
+      srv_monitor_file_name = static_cast<char *>(ut::malloc_withkey(
+          UT_NEW_THIS_FILE_PSI_KEY,
           MySQL_datadir_path.len() + 20 + sizeof "/innodb_status."));
 
       sprintf(srv_monitor_file_name, "%s/innodb_status." ULINTPF,
@@ -2051,7 +1697,7 @@ dberr_t srv_start(bool create_new_db) {
       }
     } else {
       srv_monitor_file_name = nullptr;
-      srv_monitor_file = os_file_create_tmpfile(nullptr);
+      srv_monitor_file = os_file_create_tmpfile();
 
       if (!srv_monitor_file) {
         return (srv_init_abort(DB_ERROR));
@@ -2060,7 +1706,7 @@ dberr_t srv_start(bool create_new_db) {
 
     mutex_create(LATCH_ID_SRV_MISC_TMPFILE, &srv_misc_tmpfile_mutex);
 
-    srv_misc_tmpfile = os_file_create_tmpfile(nullptr);
+    srv_misc_tmpfile = os_file_create_tmpfile();
 
     if (!srv_misc_tmpfile) {
       return (srv_init_abort(DB_ERROR));
@@ -2080,8 +1726,7 @@ dberr_t srv_start(bool create_new_db) {
 
   ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
 
-  if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads,
-                   SRV_MAX_N_PENDING_SYNC_IOS)) {
+  if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads)) {
     ib::error(ER_IB_MSG_1129);
 
     return (srv_init_abort(DB_ERROR));
@@ -2134,10 +1779,9 @@ dberr_t srv_start(bool create_new_db) {
   fsp_init();
   pars_init();
   recv_sys_create();
-  recv_sys_init(buf_pool_get_curr_size());
+  recv_sys_init();
   trx_sys_create();
   lock_sys_create(srv_lock_table_size);
-  srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
   /* Create i/o-handler threads: */
 
@@ -2145,30 +1789,40 @@ dberr_t srv_start(bool create_new_db) {
   Please see innobase_start_or_create_for_mysql() */
   ulint start = (srv_read_only_mode) ? 0 : 2;
 
+  /* Sequence number displayed in the thread os name. */
+  PSI_thread_seqnum pfs_seqnum;
+
   for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
     IB_thread thread;
     if (t < start) {
       if (t == 0) {
-        thread = os_thread_create(io_ibuf_thread_key, io_handler_thread, t);
+        thread = os_thread_create(io_ibuf_thread_key, 0, io_handler_thread, t);
       } else {
         ut_ad(t == 1);
-        thread = os_thread_create(io_log_thread_key, io_handler_thread, t);
+        thread = os_thread_create(io_log_thread_key, 0, io_handler_thread, t);
       }
     } else if (t >= start && t < (start + srv_n_read_io_threads)) {
-      thread = os_thread_create(io_read_thread_key, io_handler_thread, t);
+      /* Numbering for ib_io_rd-NN starts with N=1. */
+      pfs_seqnum = t + 1 - start;
+      thread = os_thread_create(io_read_thread_key, pfs_seqnum,
+                                io_handler_thread, t);
 
     } else if (t >= (start + srv_n_read_io_threads) &&
                t < (start + srv_n_read_io_threads + srv_n_write_io_threads)) {
-      thread = os_thread_create(io_write_thread_key, io_handler_thread, t);
+      /* Numbering for ib_io_wr-NN starts with N=1. */
+      pfs_seqnum = t + 1 - start - srv_n_read_io_threads;
+      thread = os_thread_create(io_write_thread_key, pfs_seqnum,
+                                io_handler_thread, t);
     } else {
-      thread = os_thread_create(io_handler_thread_key, io_handler_thread, t);
+      /* Dead code ? */
+      thread = os_thread_create(io_handler_thread_key, t, io_handler_thread, t);
     }
     thread.start();
   }
 
   /* Even in read-only mode there could be flush job generated by
   intrinsic table operations. */
-  buf_flush_page_cleaner_init(srv_n_page_cleaners);
+  buf_flush_page_cleaner_init();
 
   srv_start_state_set(SRV_START_STATE_IO);
 
@@ -2184,6 +1838,13 @@ dberr_t srv_start(bool create_new_db) {
   err = srv_sys_space.open_or_create(false, create_new_db, &sum_of_new_sizes,
                                      &flushed_lsn);
 
+  if (flushed_lsn < LOG_START_LSN) {
+    ut_ad(!create_new_db);
+    /* Data directory hasn't been initialized yet. */
+    ib::error(ER_IB_MSG_DATA_DIRECTORY_NOT_INITIALIZED_OR_CORRUPTED);
+    return DB_ERROR;
+  }
+
   /* FIXME: This can be done earlier, but we now have to wait for
   checking of system tablespace. */
   dict_persist_init();
@@ -2193,7 +1854,7 @@ dberr_t srv_start(bool create_new_db) {
       break;
     case DB_CANNOT_OPEN_FILE:
       ib::error(ER_IB_MSG_1134);
-      /* fall through */
+      [[fallthrough]];
     default:
 
       /* Other errors might come from
@@ -2202,176 +1863,39 @@ dberr_t srv_start(bool create_new_db) {
       return (srv_init_abort(err));
   }
 
-  dirnamelen = strlen(srv_log_group_home_dir);
-  ut_a(dirnamelen < (sizeof logfilename) - 10 - sizeof "ib_logfile");
-  memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
+  mtr_t::s_logging.init();
 
-  /* Add a path separator if needed. */
-  if (dirnamelen && logfilename[dirnamelen - 1] != OS_PATH_SEPARATOR) {
-    logfilename[dirnamelen++] = OS_PATH_SEPARATOR;
+  if (dblwr::is_enabled() && ((err = dblwr::open()) != DB_SUCCESS)) {
+    return srv_init_abort(err);
   }
 
-  srv_log_file_size_requested = srv_log_file_size;
+  lsn_t new_files_lsn;
 
-  if (create_new_db) {
-    ut_a(buf_are_flush_lists_empty_validate());
+  err = log_sys_init(create_new_db, flushed_lsn, new_files_lsn);
 
-    flushed_lsn = LOG_START_LSN;
-
-    err = create_log_files(logfilename, dirnamelen, flushed_lsn, 0, logfile0,
-                           new_checkpoint_lsn);
-
-    if (err != DB_SUCCESS) {
-      return (srv_init_abort(err));
-    }
-
-    flushed_lsn = new_checkpoint_lsn;
-
-    ut_a(new_checkpoint_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
-
-  } else {
-    for (i = 0; i < SRV_N_LOG_FILES_CLONE_MAX; i++) {
-      os_offset_t size;
-      os_file_stat_t stat_info;
-
-      sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
-
-      err = os_file_get_status(logfilename, &stat_info, false,
-                               srv_read_only_mode);
-
-      if (err == DB_NOT_FOUND) {
-        if (i == 0) {
-          if (flushed_lsn < static_cast<lsn_t>(1000)) {
-            ib::error(ER_IB_MSG_1135);
-            return (srv_init_abort(DB_ERROR));
-          }
-
-          err = create_log_files(logfilename, dirnamelen, flushed_lsn,
-                                 SRV_N_LOG_FILES_CLONE_MAX, logfile0,
-                                 new_checkpoint_lsn);
-
-          if (err != DB_SUCCESS) {
-            return (srv_init_abort(err));
-          }
-
-          create_log_files_rename(logfilename, dirnamelen, new_checkpoint_lsn,
-                                  logfile0);
-
-          /* Suppress the message about
-          crash recovery. */
-          flushed_lsn = new_checkpoint_lsn;
-          ut_a(log_sys != nullptr);
-          goto files_checked;
-        } else if (i < 2) {
-          /* must have at least 2 log files */
-          ib::error(ER_IB_MSG_1136);
-          return (srv_init_abort(err));
-        }
-
-        /* opened all files */
-        break;
-      }
-
-      if (!srv_file_check_mode(logfilename)) {
-        return (srv_init_abort(DB_ERROR));
-      }
-
-      err = open_log_file(&files[i], logfilename, &size);
-
-      if (err != DB_SUCCESS) {
-        return (srv_init_abort(err));
-      }
-
-      ut_a(size != (os_offset_t)-1);
-
-      if (size & ((1 << UNIV_PAGE_SIZE_SHIFT) - 1)) {
-        ib::error(ER_IB_MSG_1137, logfilename, ulonglong{size});
-        return (srv_init_abort(DB_ERROR));
-      }
-
-      if (i == 0) {
-        srv_log_file_size = size;
-#ifndef UNIV_DEBUG_DEDICATED
-      } else if (size != srv_log_file_size) {
-#else
-      } else if (!srv_dedicated_server && size != srv_log_file_size) {
-#endif /* UNIV_DEBUG_DEDICATED */
-        ib::error(ER_IB_MSG_1138, logfilename, ulonglong{size},
-                  srv_log_file_size);
-
-        return (srv_init_abort(DB_ERROR));
-      }
-    }
-
-    srv_n_log_files_found = i;
-
-    /* Create the in-memory file space objects. */
-
-    sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
-
-    /* Disable the doublewrite buffer for log files. */
-    fil_space_t *log_space = fil_space_create(
-        "innodb_redo_log", dict_sys_t::s_log_space_first_id,
-        fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG);
-
-    ut_ad(fil_validate());
-    ut_a(log_space != nullptr);
-
-    /* srv_log_file_size is measured in bytes */
-    ut_a(srv_log_file_size / UNIV_PAGE_SIZE <= PAGE_NO_MAX);
-
-    for (unsigned j = 0; j < i; j++) {
-      sprintf(logfilename + dirnamelen, "ib_logfile%u", j);
-
-      const ulonglong file_pages = srv_log_file_size / UNIV_PAGE_SIZE;
-
-      if (fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
-                          log_space, false, false) == nullptr) {
-        return (srv_init_abort(DB_ERROR));
-      }
-    }
-
-    if (!log_sys_init(i, srv_log_file_size, dict_sys_t::s_log_space_first_id)) {
-      return (srv_init_abort(DB_ERROR));
-    }
-
-    /* Read the first log file header to get the encryption
-    information if it exist. */
-    if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO && !log_read_encryption()) {
-      return (srv_init_abort(DB_ERROR));
-    }
+  if (err != DB_SUCCESS) {
+    return srv_init_abort(err);
   }
 
   ut_a(log_sys != nullptr);
 
-  /* Open all log files and data files in the system
-  tablespace: we keep them open until database shutdown.
-
-  When we use goto files_checked; we don't need the line below,
-  because in such case, it's been already called at the end of
-  create_log_files_rename(). */
-
-  fil_open_log_and_system_tablespace_files();
-
-files_checked:
-
-  if (dblwr::enabled && ((err = dblwr::open(create_new_db)) != DB_SUCCESS)) {
-    return (srv_init_abort(err));
-  }
-
   arch_init();
 
-  mtr_t::s_logging.init();
-
   if (create_new_db) {
+    ut_a(buf_are_flush_lists_empty_validate());
+
     ut_a(!srv_read_only_mode);
 
     ut_a(log_sys->last_checkpoint_lsn.load() ==
          LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
 
-    ut_a(flushed_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
+    ut_a(new_files_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
 
-    log_start(*log_sys, 0, flushed_lsn, flushed_lsn);
+    err = log_start(*log_sys, new_files_lsn, new_files_lsn, nullptr);
+
+    if (err != DB_SUCCESS) {
+      return srv_init_abort(err);
+    }
 
     log_start_background_threads(*log_sys);
 
@@ -2383,7 +1907,7 @@ files_checked:
 
     mtr_start(&mtr);
 
-    bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr, false);
+    bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr);
 
     mtr_commit(&mtr);
 
@@ -2397,12 +1921,14 @@ files_checked:
     after the double write buffers haves been created. */
     trx_sys_create_sys_pages();
 
+    trx_purge_sys_mem_create();
+
     purge_queue = trx_sys_init_at_db_start();
 
     /* The purge system needs to create the purge view and
     therefore requires that the trx_sys is inited. */
 
-    trx_purge_sys_create(srv_threads.m_purge_workers_n, purge_queue);
+    trx_purge_sys_initialize(srv_threads.m_purge_workers_n, purge_queue);
 
     err = dict_create();
 
@@ -2412,11 +1938,13 @@ files_checked:
 
     srv_create_sdi_indexes();
 
+    buf_pool_wait_for_no_pending_io_reads();
+
     previous_lsn = log_get_lsn(*log_sys);
 
-    buf_flush_sync_all_buf_pools();
-
     log_stop_background_threads(*log_sys);
+
+    buf_flush_sync_all_buf_pools();
 
     flushed_lsn = log_get_lsn(*log_sys);
 
@@ -2424,9 +1952,6 @@ files_checked:
 
     err = fil_write_flushed_lsn(flushed_lsn);
     ut_a(err == DB_SUCCESS);
-
-    create_log_files_rename(logfilename, dirnamelen, new_checkpoint_lsn,
-                            logfile0);
 
     log_start_background_threads(*log_sys);
 
@@ -2442,8 +1967,17 @@ files_checked:
     }
 
   } else {
+    bool log_upgrade = log_sys->m_format < Log_format::CURRENT;
+    DBUG_EXECUTE_IF("log_force_upgrade", log_upgrade = true;);
+
+    if (log_upgrade && srv_read_only_mode) {
+      ib::error(ER_IB_MSG_LOG_UPGRADE_IN_READ_ONLY_MODE,
+                ulong{to_int(log_sys->m_format)});
+      return srv_init_abort(DB_ERROR);
+    }
+
     /* Load the reserved boundaries of the legacy dblwr buffer, this is
-    requird to check for stray reads and writes trying to access this
+    required to check for stray reads and writes trying to access this
     reserved region in the sys tablespace.
     FIXME: Try and remove this requirement. */
     err = dblwr::v1::init();
@@ -2459,8 +1993,19 @@ files_checked:
     and there must be no page in the buf_flush list. */
     buf_pool_invalidate();
 
+    /* Open all data files in the system tablespace:
+    we keep them open until database shutdown. */
+    fil_open_system_tablespace_files();
+
     /* We always try to do a recovery, even if the database had
     been shut down normally: this is the normal startup path */
+    RECOVERY_CRASH(1);
+
+    if (new_files_lsn != 0) {
+      /* This means that either no log files have been found
+      or the existing log files were marked as uninitialized. */
+      flushed_lsn = new_files_lsn;
+    }
 
     err = recv_recovery_from_checkpoint_start(*log_sys, flushed_lsn);
 
@@ -2477,18 +2022,17 @@ files_checked:
 
     ut_ad(clone_check_recovery_crashpoint(recv_sys->is_cloned_db));
 
-    /* We need to start log threads before asking to flush
-    all dirty pages. That's because some dirty pages could
-    be dirty because of ibuf merges. The ibuf merges could
-    have written log records to the log buffer. The redo
-    log has to be flushed up to the newest_modification of
-    a dirty page, before the page might be flushed to disk.
-    Hence we need the log_flusher thread which will flush
-    log records related to the ibuf merges, allowing to
-    flush the modified pages. That's why we need to start
-    the log threads before flushing dirty pages. */
+    const bool redo_writes_allowed = !srv_read_only_mode && !log_upgrade;
 
-    if (!srv_read_only_mode) {
+    ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO || !redo_writes_allowed);
+
+    if (redo_writes_allowed) {
+      /* We need to start log threads now, because recovery
+      could result in execution of ibuf merges. These merges
+      could result in new redo records. In the read-only mode
+      we do not need log threads, because we disallow new redo
+      records in such mode. If upgrade was forced, or the data
+      directory was cloned, we will start redo threads later. */
       log_start_background_threads(*log_sys);
     }
 
@@ -2497,17 +2041,21 @@ files_checked:
       respective file pages, for the last batch of
       recv_group_scan_log_recs(). */
 
+      RECOVERY_CRASH(2);
+
       /* Don't allow IBUF operations for cloned database
       recovery as it would add extra redo log and we may
-      not have enough margin. */
-      if (recv_sys->is_cloned_db) {
-        recv_apply_hashed_log_recs(*log_sys, false);
+      not have enough margin.
 
-      } else {
-        recv_apply_hashed_log_recs(*log_sys, true);
-      }
+      Don't allow IBUF operations when redo is written
+      in the older format than the current, because we
+      would write new redo records in the current fmt,
+      and end up with file in both formats = invalid. */
 
-      if (recv_sys->found_corrupt_log) {
+      err = recv_apply_hashed_log_recs(*log_sys,
+                                       !recv_sys->is_cloned_db && !log_upgrade);
+
+      if (recv_sys->found_corrupt_log || err != DB_SUCCESS) {
         err = DB_ERROR;
         return (srv_init_abort(err));
       }
@@ -2517,9 +2065,7 @@ files_checked:
       /* Check and print if there were any tablespaces
       which had redo log records but we couldn't apply
       them because the filenames were missing. */
-    }
 
-    if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
       /* Recovery complete, start verifying the
       page LSN on read. */
       recv_lsn_checks_on = true;
@@ -2530,9 +2076,10 @@ files_checked:
 
     if (srv_force_recovery == 0 && fil_check_missing_tablespaces()) {
       ib::error(ER_IB_MSG_1139);
+      RECOVERY_CRASH(3);
 
       /* Set the abort flag to true. */
-      auto p = recv_recovery_from_checkpoint_finish(*log_sys, true);
+      auto p = recv_recovery_from_checkpoint_finish(true);
 
       ut_a(p == nullptr);
 
@@ -2543,14 +2090,21 @@ files_checked:
     data dictionary should now be readable. */
 
     if (recv_sys->found_corrupt_log) {
-      ib::warn(ER_IB_MSG_1140);
+      ib::warn(ER_IB_MSG_RECOVERY_CORRUPT);
     }
 
     if (!srv_force_recovery && !srv_read_only_mode) {
       buf_flush_sync_all_buf_pools();
     }
 
-    srv_dict_metadata = recv_recovery_from_checkpoint_finish(*log_sys, false);
+    RECOVERY_CRASH(3);
+
+    srv_dict_metadata = recv_recovery_from_checkpoint_finish(false);
+
+    if (recv_sys->is_cloned_db && srv_dict_metadata != nullptr) {
+      ut::delete_(srv_dict_metadata);
+      srv_dict_metadata = nullptr;
+    }
 
     /* We need to save the dynamic metadata collected from redo log to DD
     buffer table here. This is to make sure that the dynamic metadata is not
@@ -2559,14 +2113,17 @@ files_checked:
     persist dynamic metadata at checkpoint wouldn't work. */
 
     if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
+      ut_a(redo_writes_allowed);
+
       /* Open this table in case srv_dict_metadata should be applied to this
       table before checkpoint. And because DD is not fully up yet, the table
       can be opened by internal APIs. */
 
-      fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
+      fil_space_t *space =
+          fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
       if (space == nullptr) {
         dberr_t error =
-            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
+            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_dict_space_id,
                          predefined_flags, dict_sys_t::s_dd_space_name,
                          dict_sys_t::s_dd_space_file_name, true, false);
         if (error != DB_SUCCESS) {
@@ -2577,7 +2134,8 @@ files_checked:
         fil_space_release(space);
       }
 
-      dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
+      dict_persist->table_buffer =
+          ut::new_withkey<DDTableBuffer>(UT_NEW_THIS_FILE_PSI_KEY);
       /* We write redo log here. We assume that there should be enough room in
       log files, supposing log_free_check() works fine before crash. */
       srv_dict_metadata->store();
@@ -2586,90 +2144,179 @@ files_checked:
       log_buffer_flush_to_disk(*log_sys);
     }
 
-    if (!srv_force_recovery && !recv_sys->found_corrupt_log &&
-        (srv_log_file_size_requested != srv_log_file_size ||
-         srv_n_log_files_found != srv_n_log_files)) {
+    RECOVERY_CRASH(4);
+
+    log_sys->m_allow_checkpoints.store(true, std::memory_order_release);
+
+    bool log_downsize_requested =
+        log_sys->m_capacity.target_physical_capacity() <
+        log_sys->m_capacity.current_physical_capacity();
+
+    DBUG_EXECUTE_IF("log_force_resize", log_downsize_requested = true;);
+
+    const bool need_to_recreate_log_files =
+        log_upgrade || (log_downsize_requested && !srv_force_recovery &&
+                        !recv_sys->found_corrupt_log);
+
+    if (need_to_recreate_log_files) {
       /* Prepare to replace the redo log files. */
 
-      if (srv_read_only_mode) {
-        ib::error(ER_IB_MSG_1141);
-        return (srv_init_abort(DB_READ_ONLY));
+      if (log_upgrade) {
+        ut_a(!srv_read_only_mode);
+
+        if (recv_sys->is_cloned_db) {
+          ib::error(ER_IB_MSG_LOG_UPGRADE_CLONED_DB,
+                    ulong{to_int(log_sys->m_format)});
+          return srv_init_abort(DB_ERROR);
+        }
+
+        /* For non-empty redo log, upgrade is rejected, so there is even
+        no attempt to parse it, so no way to discover it's corrupted. */
+        if (recv_sys->found_corrupt_log) {
+          ib::error(ER_IB_MSG_LOG_UPGRADE_CORRUPTION__UNEXPECTED,
+                    ulong{to_int(log_sys->m_format)});
+          ut_d(ut_error);
+          ut_o(return srv_init_abort(DB_ERROR));
+        }
+
+        /* For non-empty redo log, upgrade is rejected, so there is even
+        no way to reconstruct non empty srv_dict_metadata. */
+        if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
+          ib::error(ER_IB_MSG_LOG_UPGRADE_NON_PERSISTED_DD_METADATA__UNEXPECTED,
+                    ulong{to_int(log_sys->m_format)});
+          ut_d(ut_error);
+          ut_o(return srv_init_abort(DB_ERROR));
+        }
+
+      } else {
+        ut_a(srv_force_recovery == 0);
+        if (srv_read_only_mode) {
+          const os_offset_t min_capacity_in_M =
+              log_sys->m_capacity.current_physical_capacity() / (1024 * 1024UL);
+          ib::error(ER_IB_MSG_LOG_FILES_RESIZE_ON_START_IN_READ_ONLY_MODE,
+                    ulonglong{min_capacity_in_M});
+          return srv_init_abort(DB_ERROR);
+        }
       }
 
-      /* Prepare to delete the old redo log files */
-      flushed_lsn = srv_prepare_to_delete_redo_log_files(i);
+      buf_pool_wait_for_no_pending_io_reads();
 
-      log_stop_background_threads(*log_sys);
+      if (redo_writes_allowed) {
+        /* Create checkpoint to ensure that the checkpoint header is flushed
+        to the newest redo log file, before log_files_remove() is called,
+        because otherwise crash after the first file removal could lead to
+        the state without a checkpoint. */
+        log_make_empty_and_stop_background_threads(*log_sys);
+      }
 
-      /* Prohibit redo log writes from any other
-      threads until creating a log checkpoint at the
-      end of create_log_files(). */
+      flushed_lsn = log_sys->flushed_to_disk_lsn.load();
+
+      ut_ad(buf_pool_pending_io_reads_count() == 0);
+
       ut_d(log_sys->disable_redo_writes = true);
 
-      ut_ad(!buf_pool_check_no_pending_io());
+      {
+        /* Emit a message to the error log. */
+        const auto target_size = log_sys->m_capacity.target_physical_capacity();
+        const auto target_size_in_M = target_size / (1024 * 1024UL);
+        if (log_upgrade) {
+          ib::info(ER_IB_MSG_LOG_FILES_UPGRADE, ulonglong{target_size_in_M},
+                   ulonglong{flushed_lsn});
 
-      RECOVERY_CRASH(3);
+        } else {
+          const auto current_size =
+              log_files_size_of_existing_files(log_sys->m_files);
+          const auto current_size_in_M = current_size / (1024 * 1024UL);
+          ib::info(ER_IB_MSG_LOG_FILES_RESIZE_ON_START,
+                   ulonglong{current_size_in_M}, ulonglong{target_size_in_M},
+                   ulonglong{flushed_lsn});
+        }
+      }
+
+      /* Prepare to delete the old redo log files. */
+      buf_flush_sync_all_buf_pools();
+
+      RECOVERY_CRASH(5);
+
+      if (flushed_lsn < log_get_lsn(*log_sys) ||
+          buf_pool_get_oldest_modification_lwm() != 0) {
+        if (log_upgrade) {
+          ib::error(ER_IB_MSG_LOG_UPGRADE_FLUSH_FAILED__UNEXPECTED,
+                    ulong{to_int(log_sys->m_format)});
+        } else {
+          ib::error(ER_IB_MSG_LOG_FILES_RESIZE_ON_START_FAILED__UNEXPECTED,
+                    ulong{to_int(log_sys->m_format)});
+        }
+        ut_d(ut_error);
+        ut_o(return srv_init_abort(DB_ERROR));
+      }
 
       /* Stamp the LSN to the data files. */
       err = fil_write_flushed_lsn(flushed_lsn);
       ut_a(err == DB_SUCCESS);
 
-      RECOVERY_CRASH(4);
+      RECOVERY_CRASH(6);
 
-      /* Close and free the redo log files, so that
-      we can replace them. */
-      fil_close_log_files(true);
+      ib::info(ER_IB_MSG_LOG_FILES_REWRITING);
 
-      RECOVERY_CRASH(5);
+      /* Remove all existing log files. */
+      log_files_remove(*log_sys);
 
       log_sys_close();
+      ut_a(log_sys == nullptr);
 
       /* Finish clone file recovery before creating new log files. We
       roll forward to remove any intermediate files here. */
       clone_files_recovery(true);
 
-      ib::info(ER_IB_MSG_1143);
+      /* This is to provide the property that data byte at given lsn never
+      changes and avoid the need to rewrite the block with flushed_lsn. */
+      flushed_lsn = ut_uint64_align_up(flushed_lsn, OS_FILE_LOG_BLOCK_SIZE) +
+                    LOG_BLOCK_HDR_SIZE;
 
-      srv_log_file_size = srv_log_file_size_requested;
-
-      err =
-          create_log_files(logfilename, dirnamelen, flushed_lsn,
-                           srv_n_log_files_found, logfile0, new_checkpoint_lsn);
+      err = log_sys_init(true, flushed_lsn, flushed_lsn);
 
       if (err != DB_SUCCESS) {
-        return (srv_init_abort(err));
+        return srv_init_abort(err);
       }
-
-      create_log_files_rename(logfilename, dirnamelen, new_checkpoint_lsn,
-                              logfile0);
 
       ut_d(log_sys->disable_redo_writes = false);
 
-      flushed_lsn = new_checkpoint_lsn;
+      fil_open_system_tablespace_files();
 
-      log_start(*log_sys, 0, flushed_lsn, flushed_lsn);
+      err = log_start(*log_sys, flushed_lsn, flushed_lsn, nullptr);
+
+      if (err != DB_SUCCESS) {
+        return srv_init_abort(err);
+      }
 
       log_start_background_threads(*log_sys);
 
-    } else if (recv_sys->is_cloned_db) {
+    } else if (recv_sys->is_cloned_db || recv_sys->is_meb_db) {
+      buf_pool_wait_for_no_pending_io_reads();
+
       /* Reset creator for log */
 
-      log_stop_background_threads(*log_sys);
+      if (redo_writes_allowed) {
+        log_stop_background_threads(*log_sys);
+      }
 
-      log_files_header_read(*log_sys, 0);
+      ut_ad(buf_pool_pending_io_reads_count() == 0);
 
-      lsn_t start_lsn;
-      start_lsn =
-          mach_read_from_8(log_sys->checkpoint_buf + LOG_HEADER_START_LSN);
-
-      log_files_header_read(*log_sys, LOG_CHECKPOINT_1);
-
-      log_files_header_flush(*log_sys, 0, start_lsn);
+      err = log_files_reset_creator_and_set_full(*log_sys);
+      if (err != DB_SUCCESS) {
+        return srv_init_abort(err);
+      }
 
       log_start_background_threads(*log_sys);
+
+    } else {
+      ut_a(redo_writes_allowed || srv_read_only_mode);
     }
 
     if (sum_of_new_sizes > 0) {
+      ut_a(!srv_read_only_mode);
+
       /* New data file(s) were added */
       mtr_start(&mtr);
 
@@ -2691,6 +2338,10 @@ files_checked:
       return (srv_init_abort(err));
     }
 
+    trx_purge_sys_mem_create();
+
+    /* The purge system needs to create the purge view and
+    therefore requires that the trx_sys is inited. */
     purge_queue = trx_sys_init_at_db_start();
 
     if (srv_is_upgrade_mode) {
@@ -2713,7 +2364,7 @@ files_checked:
     /* The purge system needs to create the purge view and
     therefore requires that the trx_sys and trx lists were
     initialized in trx_sys_init_at_db_start(). */
-    trx_purge_sys_create(srv_threads.m_purge_workers_n, purge_queue);
+    trx_purge_sys_initialize(srv_threads.m_purge_workers_n, purge_queue);
   }
 
   /* Open temp-tablespace and keep it open until shutdown. */
@@ -2770,29 +2421,27 @@ files_checked:
 
   if (!srv_read_only_mode) {
     if (create_new_db) {
-      srv_buffer_pool_load_at_startup = FALSE;
+      srv_buffer_pool_load_at_startup = false;
     }
 
     /* Create the thread which watches the timeouts
     for lock waits */
-    srv_threads.m_lock_wait_timeout =
-        os_thread_create(srv_lock_timeout_thread_key, lock_wait_timeout_thread);
+    srv_threads.m_lock_wait_timeout = os_thread_create(
+        srv_lock_timeout_thread_key, 0, lock_wait_timeout_thread);
 
     srv_threads.m_lock_wait_timeout.start();
 
     /* Create the thread which warns of long semaphore waits */
     srv_threads.m_error_monitor = os_thread_create(srv_error_monitor_thread_key,
-                                                   srv_error_monitor_thread);
+                                                   0, srv_error_monitor_thread);
 
     srv_threads.m_error_monitor.start();
 
     /* Create the thread which prints InnoDB monitor info */
     srv_threads.m_monitor =
-        os_thread_create(srv_monitor_thread_key, srv_monitor_thread);
+        os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
 
     srv_threads.m_monitor.start();
-
-    srv_start_state_set(SRV_START_STATE_MONITOR);
   }
 
   srv_sys_tablespaces_open = true;
@@ -2864,12 +2513,12 @@ files_checked:
 /** Applier of dynamic metadata */
 struct metadata_applier {
   /** Default constructor */
-  metadata_applier() {}
+  metadata_applier() = default;
   /** Visitor.
   @param[in]      table   table to visit */
   void operator()(dict_table_t *table) const {
     ut_ad(dict_sys->dynamic_metadata != nullptr);
-    ib_uint64_t autoinc = table->autoinc;
+    uint64_t autoinc = table->autoinc;
     dict_table_load_dynamic_metadata(table);
     /* For those tables which were not opened by
     ha_innobase::open() and not initialized by
@@ -2889,7 +2538,7 @@ static void apply_dynamic_metadata() {
 
   if (srv_dict_metadata != nullptr) {
     srv_dict_metadata->apply();
-    UT_DELETE(srv_dict_metadata);
+    ut::delete_(srv_dict_metadata);
     srv_dict_metadata = nullptr;
   }
 }
@@ -2897,15 +2546,53 @@ static void apply_dynamic_metadata() {
 /** On a restart, initialize the remaining InnoDB subsystems so that
 any tables (including data dictionary tables) can be accessed. */
 void srv_dict_recover_on_restart() {
-  trx_resurrect_locks();
+  /* Resurrect locks for dictionary transactions */
+  trx_resurrect_locks(false);
 
   /* Roll back any recovered data dictionary transactions, so
   that the data dictionary tables will be free of any locks.
   The data dictionary latch should guarantee that there is at
   most one data dictionary transaction active at a time. */
   if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO && trx_sys_need_rollback()) {
-    trx_rollback_or_clean_recovered(FALSE);
+    trx_rollback_or_clean_recovered(false);
   }
+
+  /* Resurrect locks for non-dictionary transactions only after rolling back all
+  dictionary transactions. This is required as of today since we read
+  uncommitted data while constructing table object in dd_table_open_on_id_low.
+  This is done only while looking for the DD space object
+  client->acquire_uncached_uncommitted<dd::Tablespace>().
+
+  TODO-1: dd_table_open_on_id_low : Reading uncommitted data doesn't seem
+  correct and needs to be analyzed and possibly fixed.
+
+  Till that time we let all DD transactions to rollback to avoid reading dirty
+  data from incomplete DDL commands while resurrecting locks. It essentially
+  fixes two independent issues.
+
+  1. Not able to resurrect table locks for uncommitted transaction.
+
+  2. Not able to load innodb dict_* object for the table involved in the DDL.
+     This could result in much more serious issue when binary log is enabled
+     and crash happens after the transaction is prepared. Currently in binlog
+     transaction recovery path no session THD is created and we rely on cached
+     dict_* object to find out if a table is dropped. If the dict_table_t
+     object is not already loaded, the table is considered dropped and undo
+     apply is skipped. This would further result in uncommitted but prepared
+     transaction data being committed and persisted.
+
+  TODO-2: Have session (THD) while doing binary log recovery. The lack of
+  THD seems not correct since rollback requires DD metadata. This alone would
+  have prevented transaction inconsistency between innodb and binlog even if we
+  failed to resurrect the table locks.
+  binlog_recover->ha_recover->xarecover_handlerton->innobase_rollback_by_xid
+  ->innobase_rollback_trx
+
+  Note: The current work around fixes both issues but ideally should not be
+  required if base issues [TODOs] are fixed. */
+  trx_resurrect_locks(true);
+
+  trx_clear_resurrected_table_ids();
 
   /* Do after all DD transactions recovery, to get consistent metadata */
   apply_dynamic_metadata();
@@ -2913,13 +2600,6 @@ void srv_dict_recover_on_restart() {
   if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
     srv_sys_tablespaces_open = true;
   }
-}
-
-/* If early redo/undo log encryption processing is done. */
-bool is_early_redo_undo_encryption_done() {
-  /* Early redo/undo encryption is done during post recovery before purge
-  thread is started. */
-  return (srv_start_state_is_set(SRV_START_STATE_PURGE));
 }
 
 /** Start purge threads. During upgrade we start
@@ -2931,14 +2611,14 @@ void srv_start_purge_threads() {
   }
 
   srv_threads.m_purge_coordinator =
-      os_thread_create(srv_purge_thread_key, srv_purge_coordinator_thread);
+      os_thread_create(srv_purge_thread_key, 0, srv_purge_coordinator_thread);
 
   srv_threads.m_purge_workers[0] = srv_threads.m_purge_coordinator;
 
   /* We've already created the purge coordinator thread above. */
   for (size_t i = 1; i < srv_threads.m_purge_workers_n; ++i) {
     srv_threads.m_purge_workers[i] =
-        os_thread_create(srv_worker_thread_key, srv_worker_thread);
+        os_thread_create(srv_worker_thread_key, i, srv_worker_thread);
   }
 
   for (size_t i = 0; i < srv_threads.m_purge_workers_n; ++i) {
@@ -2951,7 +2631,7 @@ void srv_start_purge_threads() {
 }
 
 /** Start up the InnoDB service threads which are independent of DDL recovery
-@param[in]	bootstrap	True if this is in bootstrap */
+@param[in]      bootstrap       True if this is in bootstrap */
 void srv_start_threads(bool bootstrap) {
   if (!srv_read_only_mode) {
     /* Before 8.0, it was master thread that was doing periodical
@@ -2976,7 +2656,7 @@ void srv_start_threads(bool bootstrap) {
   }
 
   srv_threads.m_buf_resize =
-      os_thread_create(buf_resize_thread_key, buf_resize_thread);
+      os_thread_create(buf_resize_thread_key, 0, buf_resize_thread);
 
   srv_threads.m_buf_resize.start();
 
@@ -2990,7 +2670,7 @@ void srv_start_threads(bool bootstrap) {
     /* Rollback all recovered transactions that are
     not in committed nor in XA PREPARE state. */
     srv_threads.m_trx_recovery_rollback = os_thread_create(
-        trx_recovery_rollback_thread_key, trx_recovery_rollback_thread);
+        trx_recovery_rollback_thread_key, 0, trx_recovery_rollback_thread);
 
     srv_threads.m_trx_recovery_rollback.start();
   }
@@ -2998,9 +2678,7 @@ void srv_start_threads(bool bootstrap) {
   /* Create the master thread which does purge and other utility
   operations */
   srv_threads.m_master =
-      os_thread_create(srv_master_thread_key, srv_master_thread);
-
-  srv_start_state_set(SRV_START_STATE_MASTER);
+      os_thread_create(srv_master_thread_key, 0, srv_master_thread);
 
   srv_threads.m_master.start();
 
@@ -3015,7 +2693,7 @@ void srv_start_threads(bool bootstrap) {
 
   /* Create the dict stats gathering thread */
   srv_threads.m_dict_stats =
-      os_thread_create(dict_stats_thread_key, dict_stats_thread);
+      os_thread_create(dict_stats_thread_key, 0, dict_stats_thread);
 
   dict_stats_thread_init();
 
@@ -3031,14 +2709,14 @@ void srv_start_threads_after_ddl_recovery() {
   /* Start the buffer pool dump/load thread, which will access spaces thus
         must wait for DDL recovery */
   srv_threads.m_buf_dump =
-      os_thread_create(buf_dump_thread_key, buf_dump_thread);
+      os_thread_create(buf_dump_thread_key, 0, buf_dump_thread);
 
   srv_threads.m_buf_dump.start();
 
   /* Resume unfinished (un)encryption process in background thread. */
   if (!ts_encrypt_ddl_records.empty()) {
     srv_threads.m_ts_alter_encrypt =
-        os_thread_create(srv_ts_alter_encrypt_thread_key,
+        os_thread_create(srv_ts_alter_encrypt_thread_key, 0,
                          fsp_init_resume_alter_encrypt_tablespace);
 
     mysql_mutex_lock(&resume_encryption_cond_m);
@@ -3062,35 +2740,6 @@ void srv_start_threads_after_ddl_recovery() {
   /* If recovered, should do write back the dynamic metadata. */
   dict_persist_to_dd_table_buffer();
 }
-
-#if 0
-/********************************************************************
-Sync all FTS cache before shutdown */
-static
-void
-srv_fts_close(void)
-{
-	dict_table_t*	table;
-
-	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
-	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		fts_t*	fts = table->fts;
-
-		if (fts != NULL) {
-			fts_sync_table(table);
-		}
-	}
-
-	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
-	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		fts_t*	fts = table->fts;
-
-		if (fts != NULL) {
-			fts_sync_table(table);
-		}
-	}
-}
-#endif
 
 /** Set srv_shutdown_state to a given state and validate change is proper.
 @remarks This function is used only from the main thread, and only during
@@ -3248,7 +2897,7 @@ void srv_pre_dd_shutdown() {
       break;
     case PURGE_STATE_RUN:
     case PURGE_STATE_STOP:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   /* After this phase plugins are asked to be shut down, in which case they
@@ -3280,44 +2929,6 @@ static void srv_shutdown_cleanup_and_master_stop() {
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_DD);
 
   srv_shutdown_set_state(SRV_SHUTDOWN_CLEANUP);
-
-  struct Thread_to_stop {
-    /** Name of the thread, printed to the error log if we waited too
-    long (after 60 seconds and then every 60 seconds). */
-    const char *m_name;
-
-    /** Future which allows to check if given task is completed. */
-    const IB_thread &m_thread;
-
-    /** Function which can be called any number of times to wake
-    the possibly waiting thread, so it could exit. */
-    std::function<void()> m_notify;
-
-    /** Shutdown state in which we are waiting until thread is exited
-    (earlier we keep notifying but we don't require it to exit before
-    we may switch to the next state). */
-    srv_shutdown_t m_wait_on_state;
-  };
-
-  const Thread_to_stop threads_to_stop[]{
-
-      {"lock_wait_timeout", srv_threads.m_lock_wait_timeout,
-       lock_set_timeout_event, SRV_SHUTDOWN_CLEANUP},
-
-      {"error_monitor", srv_threads.m_error_monitor,
-       std::bind(os_event_set, srv_error_event), SRV_SHUTDOWN_CLEANUP},
-
-      {"monitor", srv_threads.m_monitor,
-       std::bind(os_event_set, srv_monitor_event), SRV_SHUTDOWN_CLEANUP},
-
-      {"buf_dump", srv_threads.m_buf_dump,
-       std::bind(os_event_set, srv_buf_dump_event), SRV_SHUTDOWN_CLEANUP},
-
-      {"buf_resize", srv_threads.m_buf_resize,
-       std::bind(os_event_set, srv_buf_resize_event), SRV_SHUTDOWN_CLEANUP},
-
-      {"master", srv_threads.m_master, srv_wake_master_thread,
-       SRV_SHUTDOWN_MASTER_STOP}};
 
   const srv_shutdown_t max_wait_on_state{SRV_SHUTDOWN_MASTER_STOP};
 
@@ -3372,6 +2983,8 @@ static void srv_shutdown_page_cleaners() {
 
   srv_shutdown_set_state(SRV_SHUTDOWN_FLUSH_PHASE);
 
+  buf_pool_wait_for_no_pending_io_reads();
+
   /* At this point only page_cleaner should be active. We wait
   here to let it complete the flushing of the buffer pools
   before proceeding further. */
@@ -3386,20 +2999,8 @@ static void srv_shutdown_page_cleaners() {
         std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
 
-  for (uint32_t count = 0;; ++count) {
-    const ulint pending_io = buf_pool_check_no_pending_io();
-
-    if (pending_io == 0) {
-      break;
-    }
-
-    if (count >= SHUTDOWN_SLEEP_ROUNDS) {
-      ib::info(ER_IB_MSG_1252, pending_io);
-      count = 0;
-    }
-    std::this_thread::sleep_for(
-        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
-  }
+  ut_ad(buf_pool_pending_io_reads_count() == 0);
+  ut_ad(buf_pool_pending_io_writes_count() == 0);
 }
 
 /** Closes redo log. If this is not fast shutdown, it forces to write a
@@ -3411,7 +3012,8 @@ shutdown. */
 static lsn_t srv_shutdown_log() {
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_FLUSH_PHASE);
   ut_a(!buf_flush_page_cleaner_is_active());
-  ut_a(buf_pool_check_no_pending_io() == 0);
+  ut_ad(buf_pool_pending_io_reads_count() == 0);
+  ut_ad(buf_pool_pending_io_writes_count() == 0);
 
   if (srv_fast_shutdown == 2) {
     if (!srv_read_only_mode) {
@@ -3431,7 +3033,7 @@ static lsn_t srv_shutdown_log() {
     }
 
     /* No redo log might be generated since now. */
-    log_background_threads_inactive_validate(*log_sys);
+    log_background_threads_inactive_validate();
 
     srv_shutdown_set_state(SRV_SHUTDOWN_LAST_PHASE);
 
@@ -3439,41 +3041,24 @@ static lsn_t srv_shutdown_log() {
   }
 
   if (!srv_read_only_mode) {
-    while (log_make_latest_checkpoint(*log_sys)) {
-      /* It could happen, that when writing a new checkpoint,
-      DD dynamic metadata was persisted, making some pages
-      dirty (with the persisted data) and writing new redo
-      records to protect those modifications. In such case,
-      current lsn would be higher than lsn and we would need
-      another iteration to ensure, that checkpoint lsn points
-      to the newest lsn. */
-    }
-
-    log_stop_background_threads(*log_sys);
+    log_make_empty_and_stop_background_threads(*log_sys);
   }
 
   /* No redo log might be generated since now. */
-  log_background_threads_inactive_validate(*log_sys);
+  log_background_threads_inactive_validate();
   buf_must_be_all_freed();
 
   const lsn_t lsn = log_get_lsn(*log_sys);
 
   if (!srv_read_only_mode) {
-    fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE) | to_int(FIL_TYPE_LOG));
+    /* Redo log has been flushed at the log_flusher's exit. */
+    fil_flush_file_spaces();
   }
 
   srv_shutdown_set_state(SRV_SHUTDOWN_LAST_PHASE);
 
-  if (srv_downgrade_logs) {
-    ut_a(!srv_read_only_mode);
-
-    log_files_downgrade(*log_sys);
-
-    fil_flush_file_redo();
-  }
-
   /* Validate lsn and write it down. */
-  ut_a(log_lsn_validate(lsn) || srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
+  ut_a(log_is_data_lsn(lsn) || srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
 
   ut_a(lsn == log_sys->last_checkpoint_lsn.load() ||
        srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
@@ -3489,6 +3074,13 @@ static lsn_t srv_shutdown_log() {
 
   buf_must_be_all_freed();
   ut_a(lsn == log_get_lsn(*log_sys));
+
+  if (srv_downgrade_logs) {
+    ut_a(!srv_read_only_mode);
+
+    /* InnoDB in any version is able to start on empty set of redo files. */
+    log_files_remove(*log_sys);
+  }
 
   return (lsn);
 }
@@ -3626,7 +3218,7 @@ void srv_shutdown() {
     srv_monitor_file = nullptr;
     if (srv_monitor_file_name) {
       unlink(srv_monitor_file_name);
-      ut_free(srv_monitor_file_name);
+      ut::free(srv_monitor_file_name);
     }
     mutex_free(&srv_monitor_file_mutex);
   }
@@ -3653,7 +3245,7 @@ void srv_shutdown() {
   btr_search_sys_free();
   undo_spaces_deinit();
 
-  UT_DELETE(srv_dict_metadata);
+  ut::delete_(srv_dict_metadata);
 
   os_aio_free();
   que_close();
@@ -3695,7 +3287,7 @@ void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
 
   strcpy(filename, filepath);
 
-  ut_free(filepath);
+  ut::free(filepath);
 }
 
 /** Call std::_Exit(3) */

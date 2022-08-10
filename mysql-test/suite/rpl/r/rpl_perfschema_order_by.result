@@ -6,9 +6,11 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server_2]
-SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
+SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
 # Test for Single Threaded Slave
-SET GLOBAL slave_parallel_workers= 0;
+SET GLOBAL replica_parallel_workers= 0;
+Warnings:
+Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -83,7 +85,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-SET GLOBAL slave_parallel_workers = 2;
+SET GLOBAL replica_parallel_workers = 2;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -170,7 +172,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

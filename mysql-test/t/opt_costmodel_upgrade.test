@@ -1,5 +1,5 @@
 --source include/big_test.inc
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 # mysql_upgrade currently fails with 4k pages
 --source include/have_innodb_min_8k.inc
 --source include/mysql_upgrade_preparation.inc

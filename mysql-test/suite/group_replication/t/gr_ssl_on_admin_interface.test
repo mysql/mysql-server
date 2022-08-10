@@ -13,6 +13,7 @@
 # 4. Clean up.
 ################################################################################
 
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -24,6 +25,8 @@
 --echo #
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+
+--let $_default_report_port= `SELECT @@GLOBAL.report_port`
 
 --let $allow_rpl_inited= 1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -94,10 +97,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 --echo # Clean up
 --echo #
 
+--disable_query_log
 --eval SET @@GLOBAL.group_replication_recovery_use_ssl= $conf_rec_use_ssl
 --eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$conf_rec_ssl_ca"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_cert= "$conf_rec_ssl_cert"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_key= "$conf_rec_ssl_key"
+--enable_query_log
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -107,5 +112,17 @@ DROP USER 'rec_ssl_user';
 set session sql_log_bin=1;
 
 DROP TABLE t1;
+
+--let $allow_rpl_inited= 1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_admin_port= `SELECT @@GLOBAL.admin_port`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --report_port=$_default_report_port
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_default_report_port ADMIN_PORT
+--source include/restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
 
 --source include/group_replication_end.inc

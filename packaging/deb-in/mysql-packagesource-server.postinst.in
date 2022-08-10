@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -76,8 +76,10 @@ case "$1" in
 		# If the existing config file is a proper file, we back it up
 		if [ -f "/etc/mysql/my.cnf" ] && [ ! -L "/etc/mysql/my.cnf" ]; then
 			cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
+			echo "WARNING: /etc/mysql/my.cnf moved to /etc/mysql/my.cnf.bak"
+			echo "Please use etc/mysql/mysql.conf.d for any custom configuration settings"
 		fi
-		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
+		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
 
 		verify_ready
 		MYSQLDATA=/var/lib/mysql

@@ -16,7 +16,7 @@ enable_query_log;
 
 
 # Clean up old slave's binlogs.
-# The slave is started with --log-slave-updates
+# The slave is started with --log-replica-updates
 # and this test does SHOW BINLOG EVENTS on the slave's
 # binlog. But previous tests can influence the current test's
 # binlog (e.g. a temporary table in the previous test has not

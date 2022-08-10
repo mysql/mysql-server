@@ -1,0 +1,16 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+
+#####################################################################
+# The test checks if warnings are displayed when deprecated        #
+# options are used.                                                 #
+#                                                                   #
+# WL#13228: Deprecate --old-style-user-limits                       #
+#####################################################################
+
+--let $assert_select=\[Warning\] \[MY-011069\] \[Server\] The syntax '--old-style-user-limits' is deprecated and will be removed in a future release.
+--let $assert_count=1
+--let $assert_text=Text found.
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/assert_grep.inc

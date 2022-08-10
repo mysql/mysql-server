@@ -6,20 +6,20 @@ Note	####	Storing MySQL user name or password information in the master info rep
 create temporary table t1 (n int);
 insert into t1 values(1);
 include/sync_slave_sql_with_master.inc
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	1
+Replica_open_temp_tables	1
 delete from t1;
 include/sync_slave_sql_with_master.inc
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	1
+Replica_open_temp_tables	1
 truncate t1;
 include/sync_slave_sql_with_master.inc
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	1
-show status like 'Slave_open_temp_tables';
+Replica_open_temp_tables	1
+show status like 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	0
+Replica_open_temp_tables	0
 include/rpl_end.inc

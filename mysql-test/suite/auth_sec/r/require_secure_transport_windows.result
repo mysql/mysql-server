@@ -51,5 +51,5 @@ ERROR HY000: Can't open shared memory; client could not create request event (Er
 SET @@global.require_secure_transport = ON;
 # Connection type testing for TCP/IP protocol, secure transport required, should fail.
 #Cleanup
-DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1';
+DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1', 'user_requiressl'@'localhost';
 SET @@global.require_secure_transport = OFF;

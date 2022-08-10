@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,7 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Default value for maximum on-disk size of change buffer in terms
 of percentage of the buffer pool. */
-#define CHANGE_BUFFER_DEFAULT_SIZE (25)
+constexpr uint32_t CHANGE_BUFFER_DEFAULT_SIZE = 25;
 
 #ifndef UNIV_HOTBACKUP
 /* Possible operations buffered in the insert/whatever buffer. See
@@ -103,11 +103,9 @@ void ibuf_max_size_update(ulint new_val); /*!< in: new value in terms of
  tree and updates the counter in fil_system. */
 void ibuf_update_max_tablespace_id(void);
 /** Starts an insert buffer mini-transaction. */
-UNIV_INLINE
-void ibuf_mtr_start(mtr_t *mtr); /*!< out: mini-transaction */
+static inline void ibuf_mtr_start(mtr_t *mtr); /*!< out: mini-transaction */
 /** Commits an insert buffer mini-transaction. */
-UNIV_INLINE
-void ibuf_mtr_commit(mtr_t *mtr); /*!< in/out: mini-transaction */
+static inline void ibuf_mtr_commit(mtr_t *mtr); /*!< in/out: mini-transaction */
 
 /** Initializes an ibuf bitmap page. */
 void ibuf_bitmap_page_init(buf_block_t *block, /*!< in: bitmap page */
@@ -136,19 +134,19 @@ committed mini-transaction, because in crash recovery, the free bits could
 momentarily be set too high.  It is only safe to use this function for
 decrementing the free bits.  Should more free space become available, we must
 not update the free bits here, because that would break crash recovery.
-@param[in]	block		index page to which we have added new records;
+@param[in]      block           index page to which we have added new records;
                                 the free bits are updated if the index is
                                 non-clustered and non-unique and the page level
                                 is 0, and the page becomes fuller
-@param[in]	max_ins_size	value of maximum insert size with reorganize
+@param[in]      max_ins_size    value of maximum insert size with reorganize
                                 before the latest operation performed to the
                                 page
-@param[in]	increase	upper limit for the additional space used in
+@param[in]      increase        upper limit for the additional space used in
                                 the latest operation, if known, or
                                 ULINT_UNDEFINED */
-UNIV_INLINE
-void ibuf_update_free_bits_if_full(buf_block_t *block, ulint max_ins_size,
-                                   ulint increase);
+static inline void ibuf_update_free_bits_if_full(buf_block_t *block,
+                                                 ulint max_ins_size,
+                                                 ulint increase);
 
 /** Updates the free bits for an uncompressed page to reflect the present
  state.  Does this in the mtr given, which means that the latching
@@ -186,94 +184,75 @@ void ibuf_update_free_bits_for_two_pages_low(
 
 /** A basic partial test if an insert to the insert buffer could be possible
 and recommended.
-@param[in]	index			index where to insert
-@param[in]	ignore_sec_unique	if != 0, we should ignore UNIQUE
+@param[in]      index                   index where to insert
+@param[in]      ignore_sec_unique       if != 0, we should ignore UNIQUE
                                         constraint on a secondary index when
                                         we decide*/
-UNIV_INLINE
-ibool ibuf_should_try(dict_index_t *index, ulint ignore_sec_unique);
+static inline bool ibuf_should_try(dict_index_t *index,
+                                   ulint ignore_sec_unique);
 
-/** Returns TRUE if the current OS thread is performing an insert buffer
+/** Returns true if the current OS thread is performing an insert buffer
  routine.
 
  For instance, a read-ahead of non-ibuf pages is forbidden by threads
  that are executing an insert buffer routine.
  @return true if inside an insert buffer routine */
-UNIV_INLINE
-ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool ibuf_inside(
+    const mtr_t *mtr); /*!< in: mini-transaction */
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
+@param[in]      page_id         page id
+@param[in]      page_size       page size
 @return true if a bitmap page */
-UNIV_INLINE
-ibool ibuf_bitmap_page(const page_id_t &page_id, const page_size_t &page_size);
+static inline bool ibuf_bitmap_page(const page_id_t &page_id,
+                                    const page_size_t &page_size);
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
-@param[in]	page_id		page id
-@param[in]	page_size	page size */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	x_latch		FALSE if relaxed check (avoid latching the
-bitmap page) */
-#endif /* UNIV_DEBUG */
-/**
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in,out]	mtr		mtr which will contain an x-latch to the
+@param[in]      page_id         page id
+@param[in]      page_size       page size
+@param[in]      x_latch         false if relaxed check (avoid latching the
+bitmap page)
+@param[in]      location Location where called
+@param[in,out]  mtr             mtr which will contain an x-latch to the
 bitmap page if the page is not one of the fixed address ibuf pages, or NULL,
 in which case a new transaction is created.
 @return true if level 2 or level 3 page */
-ibool ibuf_page_low(const page_id_t &page_id, const page_size_t &page_size,
-#ifdef UNIV_DEBUG
-                    ibool x_latch,
-#endif /* UNIV_DEBUG */
-                    const char *file, ulint line, mtr_t *mtr)
-    MY_ATTRIBUTE((warn_unused_result));
-
-#ifdef UNIV_DEBUG
+[[nodiscard]] bool ibuf_page_low(const page_id_t &page_id,
+                                 const page_size_t &page_size,
+                                 IF_DEBUG(bool x_latch, ) ut::Location location,
+                                 mtr_t *mtr) MY_ATTRIBUTE((warn_unused_result));
 
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
-@param[in]	page_id		Tablespace/page identifier
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction or NULL
+@param[in]      page_id         Tablespace/page identifier
+@param[in]      page_size       Page size
+@param[in]  location Location where requested
+@param[in,out]  mtr             Mini-transaction or NULL
 @return true if level 2 or level 3 page */
-#define ibuf_page(page_id, page_size, mtr) \
-  ibuf_page_low(page_id, page_size, TRUE, __FILE__, __LINE__, mtr)
+inline bool ibuf_page(const page_id_t &page_id, const page_size_t &page_size,
+                      ut::Location location, mtr_t *mtr) {
+  return ibuf_page_low(page_id, page_size, IF_DEBUG(true, ) location, mtr);
+}
 
-#else /* UVIV_DEBUG */
-
-/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
-Must not be called when recv_no_ibuf_operations==true.
-@param[in]	page_id		Tablespace/page identifier
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction or NULL
-@return true if level 2 or level 3 page */
-#define ibuf_page(page_id, page_size, mtr) \
-  ibuf_page_low(page_id, page_size, __FILE__, __LINE__, mtr)
-
-#endif /* UVIV_DEBUG */
 /** Frees excess pages from the ibuf free list. This function is called when an
- OS thread calls fsp services to allocate a new file segment, or a new page to a
- file segment, and the thread did not own the fsp latch before this call. */
+OS thread calls fsp services to allocate a new file segment, or a new page to a
+file segment, and the thread did not own the fsp latch before this call. */
 void ibuf_free_excess_pages(void);
 
 /** Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible. Does not do it if the index
 is clustered or unique.
-@param[in]	op		operation type
-@param[in]	entry		index entry to insert
-@param[in,out]	index		index where to insert
-@param[in]	page_id		page id where to insert
-@param[in]	page_size	page size
-@param[in,out]	thr		query thread
+@param[in]      op              operation type
+@param[in]      entry           index entry to insert
+@param[in,out]  index           index where to insert
+@param[in]      page_id         page id where to insert
+@param[in]      page_size       page size
+@param[in,out]  thr             query thread
 @return true if success */
-ibool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
-                  const page_id_t &page_id, const page_size_t &page_size,
-                  que_thr_t *thr);
+bool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
+                 const page_id_t &page_id, const page_size_t &page_size,
+                 que_thr_t *thr);
 
 /** When an index page is read from a disk to the buffer pool, this function
 applies any buffered operations to the page and deletes the entries from the
@@ -281,29 +260,28 @@ insert buffer. If the page is not read, but created in the buffer pool, this
 function deletes its buffered entries from the insert buffer; there can
 exist entries for such a page if the page belonged to an index which
 subsequently was dropped.
-@param[in,out]	block			if page has been read from disk,
+@param[in,out]  block                   if page has been read from disk,
 pointer to the page x-latched, else NULL
-@param[in]	page_id			page id of the index page
-@param[in]	update_ibuf_bitmap	normally this is set to TRUE, but
+@param[in]      page_id                 page id of the index page
+@param[in]      update_ibuf_bitmap      normally this is set to true, but
 if we have deleted or are deleting the tablespace, then we naturally do not
 want to update a non-existent bitmap page
-@param[in]	page_size		page size */
+@param[in]      page_size               page size */
 void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
                                    const page_size_t *page_size,
-                                   ibool update_ibuf_bitmap);
+                                   bool update_ibuf_bitmap);
 
 /** Deletes all entries in the insert buffer for a given space id. This is used
- in DISCARD TABLESPACE and IMPORT TABLESPACE.
- NOTE: this does not update the page free bitmaps in the space. The space will
- become CORRUPT when you call this function! */
+in DISCARD TABLESPACE and IMPORT TABLESPACE.
+NOTE: this does not update the page free bitmaps in the space. The space will
+become CORRUPT when you call this function! */
 void ibuf_delete_for_discarded_space(space_id_t space); /*!< in: space id */
 /** Contract the change buffer by reading pages to the buffer pool.
-@param[in]	full		If true, do a full contraction based
-on PCT_IO(100). If false, the size of contract batch is determined
-based on the current size of the change buffer.
-@return a lower limit for the combined size in bytes of entries which
-will be merged from ibuf trees to the pages read, 0 if ibuf is
-empty */
+@param[in]      full            If true, do a full contraction based on
+PCT_IO(100). If false, the size of contract batch is determined based on the
+current size of the change buffer.
+@return a lower limit for the combined size in bytes of entries which will be
+merged from ibuf trees to the pages read, 0 if ibuf is empty */
 ulint ibuf_merge_in_background(bool full);
 
 /** Contracts insert buffer trees by reading pages referring to space_id
@@ -313,16 +291,18 @@ ulint ibuf_merge_space(space_id_t space); /*!< in: space id */
 
 #endif /* !UNIV_HOTBACKUP */
 /** Parses a redo log record of an ibuf bitmap page init.
- @return end of log record or NULL */
-byte *ibuf_parse_bitmap_init(byte *ptr,          /*!< in: buffer */
-                             byte *end_ptr,      /*!< in: buffer end */
-                             buf_block_t *block, /*!< in: block or NULL */
-                             mtr_t *mtr);        /*!< in: mtr or NULL */
+@param[in] ptr Buffer.
+@param[in] end_ptr Buffer end.
+@param[in] block Block or nullptr.
+@param[in] mtr MTR or nullptr.
+@return end of log record or NULL */
+byte *ibuf_parse_bitmap_init(byte *ptr, byte *end_ptr, buf_block_t *block,
+                             mtr_t *mtr);
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_IBUF_COUNT_DEBUG
 
 /** Gets the ibuf count for a given page.
-@param[in]	page_id	page id
+@param[in]      page_id page id
 @return number of entries in the insert buffer currently buffered for
 this page */
 ulint ibuf_count_get(const page_id_t &page_id);
@@ -343,7 +323,7 @@ ulint ibuf_rec_get_counter(const rec_t *rec); /*!< in: ibuf record */
 
 /** Determine if there is any multi-value field data on the change buffer
 record
-@param[in]	rec	ibuf record
+@param[in]      rec     ibuf record
 @return true if there is any multi-value field in the record */
 bool ibuf_rec_has_multi_value(const rec_t *rec);
 
@@ -352,25 +332,25 @@ void ibuf_close(void);
 
 /** Checks the insert buffer bitmaps on IMPORT TABLESPACE.
  @return DB_SUCCESS or error code */
-dberr_t ibuf_check_bitmap_on_import(
-    const trx_t *trx,    /*!< in: transaction */
-    space_id_t space_id) /*!< in: tablespace identifier */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t ibuf_check_bitmap_on_import(
+    const trx_t *trx,     /*!< in: transaction */
+    space_id_t space_id); /*!< in: tablespace identifier */
 
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page
 @param[in]      reset   flag if reset free val */
 void ibuf_set_bitmap_for_bulk_load(buf_block_t *block, bool reset);
 
-#define IBUF_HEADER_PAGE_NO FSP_IBUF_HEADER_PAGE_NO
-#define IBUF_TREE_ROOT_PAGE_NO FSP_IBUF_TREE_ROOT_PAGE_NO
+constexpr uint32_t IBUF_HEADER_PAGE_NO = FSP_IBUF_HEADER_PAGE_NO;
+constexpr uint32_t IBUF_TREE_ROOT_PAGE_NO = FSP_IBUF_TREE_ROOT_PAGE_NO;
 
 #endif /* !UNIV_HOTBACKUP */
 
 /* The ibuf header page currently contains only the file segment header
 for the file segment from which the pages for the ibuf tree are allocated */
-#define IBUF_HEADER PAGE_DATA
-#define IBUF_TREE_SEG_HEADER 0 /* fseg header for ibuf tree */
+constexpr uint32_t IBUF_HEADER = PAGE_DATA;
+/** fseg header for ibuf tree */
+constexpr uint32_t IBUF_TREE_SEG_HEADER = 0;
 
 #include "ibuf0ibuf.ic"
 

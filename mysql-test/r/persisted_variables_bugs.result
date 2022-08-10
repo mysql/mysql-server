@@ -273,7 +273,7 @@ RESET PERSIST;
 CREATE USER u1;
 SET PERSIST_ONLY ft_query_expansion_limit=80, innodb_api_enable_mdl=1;
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
-SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
 SHOW GRANTS;
 Grants for u1@%
 GRANT USAGE ON *.* TO `u1`@`%`
@@ -313,7 +313,7 @@ SHOW GRANTS;
 Grants for u1@%
 GRANT USAGE ON *.* TO `u1`@`%`
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO `u1`@`%`
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 RESET PERSIST ft_query_expansion_limit;
 ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
@@ -324,13 +324,13 @@ SHOW GRANTS;
 Grants for u1@%
 GRANT USAGE ON *.* TO `u1`@`%`
 GRANT PERSIST_RO_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 RESET PERSIST ft_query_expansion_limit;
 RESET PERSIST;
 SELECT * FROM performance_schema.persisted_variables;
 VARIABLE_NAME	VARIABLE_VALUE
 SET GLOBAL sort_buffer_size = default, max_connections = default,
-slave_net_timeout = default, max_heap_table_size = default;
+replica_net_timeout = default, max_heap_table_size = default;
 DROP USER u1;
 #
 # Bug #28466045: SET PERSIST NOT SETTING CORRECT VALUES FOR VARIABLES
@@ -339,9 +339,9 @@ DROP USER u1;
 SELECT @@global.innodb_strict_mode, @@global.innodb_lock_wait_timeout;
 @@global.innodb_strict_mode	@@global.innodb_lock_wait_timeout
 1	50
-SELECT @@global.myisam_repair_threads, @@global.myisam_sort_buffer_size;
-@@global.myisam_repair_threads	@@global.myisam_sort_buffer_size
-1	8388608
+SELECT @@global.myisam_sort_buffer_size;
+@@global.myisam_sort_buffer_size
+8388608
 SELECT @@global.myisam_stats_method;
 @@global.myisam_stats_method
 nulls_unequal
@@ -354,8 +354,6 @@ SET PERSIST innodb_lock_wait_timeout = 110;
 SELECT @@global.innodb_lock_wait_timeout;
 @@global.innodb_lock_wait_timeout
 110
-SET GLOBAL myisam_repair_threads=27;
-SET PERSIST myisam_repair_threads=12;
 SET GLOBAL myisam_sort_buffer_size=16777216;
 SET PERSIST myisam_sort_buffer_size=default;
 SELECT @@global.innodb_lock_wait_timeout;
@@ -370,9 +368,6 @@ SELECT @@global.innodb_strict_mode;
 SELECT @@global.innodb_lock_wait_timeout;
 @@global.innodb_lock_wait_timeout
 110
-SELECT @@global.myisam_repair_threads;
-@@global.myisam_repair_threads
-12
 SELECT @@global.myisam_sort_buffer_size;
 @@global.myisam_sort_buffer_size
 8388608
@@ -383,11 +378,10 @@ SELECT variable_name FROM performance_schema.variables_info WHERE variable_sourc
 variable_name
 innodb_lock_wait_timeout
 innodb_strict_mode
-myisam_repair_threads
 myisam_sort_buffer_size
 myisam_stats_method
 SET GLOBAL innodb_strict_mode=default, innodb_lock_wait_timeout=default,
-myisam_repair_threads=default, myisam_stats_method=default;
+myisam_stats_method=default;
 RESET PERSIST;
 #
 # Bug #30030648: NO DEPRECATION WARNING ON SERVER RESTART FOR SET PERSISTED OPTIONS
@@ -433,5 +427,65 @@ DROP USER 'bug28749668'@'%';
 # server should fail to start
 include/assert_grep.inc [Server should fail to start as mysqld-auto.cnf file is with wrong JSON format.]
 # start server with all defaults
+# restart:
+#
+# Bug #32761053: SET PERSIST_ONLY ... = DEFAULT IS BROKEN FOR ENUM VARIABLES
+#
+SET PERSIST_ONLY replica_exec_mode = DEFAULT;
+SELECT * FROM performance_schema.persisted_variables
+WHERE variable_name='replica_exec_mode';
+VARIABLE_NAME	VARIABLE_VALUE
+replica_exec_mode	STRICT
+RESET PERSIST;
+#
+# Bug #32640588: SOURCE FOR SKIP_SLAVE_START DISPLAYED AS COMPILED
+#   WHEN IT IS PERSISTED
+#
+# Should both be "COMPILED"
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+VARIABLE_NAME	VARIABLE_SOURCE
+skip_replica_start	COMPILED
+skip_slave_start	COMPILED
+SET PERSIST_ONLY skip_replica_start = ON;
+# Should still be "COMPILED" pre-restart
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+VARIABLE_NAME	VARIABLE_SOURCE
+skip_replica_start	COMPILED
+skip_slave_start	COMPILED
+# restart:
+# Success criteria: Should be "PERSISTED" post-restart
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+VARIABLE_NAME	VARIABLE_SOURCE
+skip_replica_start	PERSISTED
+skip_slave_start	PERSISTED
+RESET PERSIST;
+# restart:
+#
+# Bug #33388488: NO DEPRECATION WARNING ON SERVER RESTART IF TWO OR MORE
+# PERSISTED OPTIONS
+#
+SET PERSIST transaction_write_set_extraction='XXHASH64';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+SET PERSIST avoid_temporal_upgrade=TRUE;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+# restart:--log_error=LOG_ERR --no-console
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting transaction_write_set_extraction]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade]
+RESET PERSIST;
+SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+# restart:--log_error=LOG_ERR --no-console
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting transaction_write_set_extraction]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade]
+RESET PERSIST;
 # restart:
 # End of the 8.0 tests

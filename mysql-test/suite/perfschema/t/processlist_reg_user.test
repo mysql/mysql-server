@@ -1,0 +1,129 @@
+--echo ##
+--echo ## Test the Performance Schema-based implementation of SHOW PROCESSLIST.
+--echo ## Verify behavior for regular users and PROCESS_ACL.
+--echo ##
+
+--source include/no_protocol.inc
+
+SELECT @@global.performance_schema_show_processlist INTO @save_processlist;
+
+SET @@global.performance_schema_show_processlist = OFF;
+
+CREATE USER 'regular'@'localhost';
+
+connect (reg,localhost,regular,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+
+SHOW GRANTS;
+
+# Self rows only
+SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Self rows only
+SELECT USER, INFO FROM performance_schema.processlist;
+
+# Self rows only
+--disable_result_log
+SHOW PROCESSLIST;
+--enable_result_log
+
+SELECT "Previous statement is now completed." as status;
+
+connection default;
+
+# Returns ROWS_SENT = 0 even when SHOW PROCESSLIST has rows
+SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT as BROKEN_ROWS_SENT
+  FROM performance_schema.events_statements_history
+  WHERE SQL_TEXT = "SHOW PROCESSLIST";
+
+TRUNCATE TABLE performance_schema.events_statements_history;
+SET @@global.performance_schema_show_processlist = ON;
+
+connection reg;
+
+SHOW GRANTS;
+
+# Self rows only
+SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Self rows only
+SELECT USER, INFO FROM performance_schema.processlist;
+
+# Self rows only
+--disable_result_log
+SHOW PROCESSLIST;
+--enable_result_log
+
+SELECT "Previous statement is now completed." as status;
+
+connection default;
+
+SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT
+  FROM performance_schema.events_statements_history
+  WHERE SQL_TEXT = "SHOW PROCESSLIST";
+
+TRUNCATE TABLE performance_schema.events_statements_history;
+
+disconnect reg;
+
+GRANT PROCESS ON *.* TO 'regular'@'localhost';
+
+SET @@global.performance_schema_show_processlist = OFF;
+
+connect (reg2,localhost,regular,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+
+SHOW GRANTS;
+
+# Full rows
+SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Full rows
+SELECT count(*) >= 2 FROM performance_schema.processlist;
+
+# Full rows
+--disable_result_log
+SHOW PROCESSLIST;
+--enable_result_log
+
+SELECT "Previous statement is now completed." as status;
+
+connection default;
+
+# Returns ROWS_SENT = 0 even when SHOW PROCESSLIST has rows
+SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT as BROKEN_ROWS_SENT
+  FROM performance_schema.events_statements_history
+  WHERE SQL_TEXT = "SHOW PROCESSLIST";
+
+TRUNCATE TABLE performance_schema.events_statements_history;
+SET @@global.performance_schema_show_processlist = ON;
+
+connection reg2;
+
+SHOW GRANTS;
+
+# Full rows
+SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
+
+# Full rows
+SELECT count(*) >= 2 FROM performance_schema.processlist;
+
+# Full rows
+--disable_result_log
+SHOW PROCESSLIST;
+--enable_result_log
+
+SELECT "Previous statement is now completed." as status;
+
+connection default;
+
+SELECT EVENT_NAME, SQL_TEXT, ROWS_SENT >= 2
+  FROM performance_schema.events_statements_history
+  WHERE SQL_TEXT = "SHOW PROCESSLIST";
+
+TRUNCATE TABLE performance_schema.events_statements_history;
+
+disconnect reg2;
+
+SET @@global.performance_schema_show_processlist = @save_processlist;
+
+DROP USER 'regular'@'localhost';
+

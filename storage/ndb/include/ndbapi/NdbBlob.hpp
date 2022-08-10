@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -494,7 +494,8 @@ private:
   Uint64 theLength;
   Uint64 thePos;
   // errors
-  NdbError theError;
+  // Allow update error from const methods.
+  mutable NdbError theError;
   // for keeping in lists
   NdbBlob* theNext;
 

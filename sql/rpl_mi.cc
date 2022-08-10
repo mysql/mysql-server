@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,8 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -42,8 +42,8 @@
 #include "sql/log.h"
 #include "sql/mysqld.h"  // sync_masterinfo_period
 #include "sql/rpl_info_handler.h"
-#include "sql/rpl_msr.h"    // channel_map
-#include "sql/rpl_slave.h"  // master_retry_count
+#include "sql/rpl_msr.h"      // channel_map
+#include "sql/rpl_replica.h"  // master_retry_count
 #include "sql/sql_class.h"
 
 enum {
@@ -103,13 +103,16 @@ enum {
   /* line for source_connection_auto_failover */
   LINE_FOR_SOURCE_CONNECTION_AUTO_FAILOVER = 32,
 
+  /* line for gtid_only */
+  LINE_FOR_GTID_ONLY = 33,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO = LINE_FOR_SOURCE_CONNECTION_AUTO_FAILOVER
+  LINES_IN_MASTER_INFO = LINE_FOR_GTID_ONLY
 
 };
 
 /*
-  Please every time you add a new field to the mater info, update
+  Please every time you add a new field to the master info, update
   what follows. For now, this is just used to get the number of
   fields.
 */
@@ -144,7 +147,8 @@ const char *info_mi_fields[] = {"number_of_lines",
                                 "master_compression_algorithm",
                                 "master_zstd_compression_level",
                                 "tls_ciphersuites",
-                                "source_connection_auto_failover"};
+                                "source_connection_auto_failover",
+                                "gtid_only"};
 
 const uint info_mi_table_pk_field_indexes[] = {
     LINE_FOR_CHANNEL - 1,
@@ -193,7 +197,9 @@ Master_info::Master_info(
       auto_position(false),
       transaction_parser(
           Transaction_boundary_parser::TRX_BOUNDARY_PARSER_RECEIVER),
-      reset(false) {
+      reset(false),
+      m_gtid_only_mode(false),
+      m_is_receiver_position_info_invalid(false) {
   host[0] = 0;
   user[0] = 0;
   bind_addr[0] = 0;
@@ -658,6 +664,14 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     m_source_connection_auto_failover = temp_source_connection_auto_failover;
   }
 
+  auto temp_gtid_only{0};
+  if (lines >= LINE_FOR_GTID_ONLY) {
+    if (!!from->get_info(&temp_gtid_only, 0)) return true;
+  } else {
+    if (channel_map.is_group_replication_channel_name(channel))
+      temp_gtid_only = 1;
+  }
+  m_gtid_only_mode = temp_gtid_only;
   return false;
 }
 
@@ -697,7 +711,8 @@ bool Master_info::write_info(Rpl_info_handler *to) {
       to->set_info((int)zstd_compression_level) ||
       to->set_info(tls_ciphersuites.first ? nullptr
                                           : tls_ciphersuites.second.c_str()) ||
-      to->set_info((int)m_source_connection_auto_failover))
+      to->set_info((int)m_source_connection_auto_failover) ||
+      to->set_info((int)m_gtid_only_mode))
     return true;
 
   return false;
@@ -785,3 +800,17 @@ void Master_info::get_flushed_relay_log_info(LOG_INFO *linfo) {
           sizeof(linfo->log_file_name) - 1);
   linfo->pos = flushed_relay_log_info.pos;
 }
+
+void Master_info::set_receiver_position_info_invalid(bool invalid) {
+  m_is_receiver_position_info_invalid = invalid;
+}
+
+bool Master_info::is_receiver_position_info_invalid() const {
+  return m_is_receiver_position_info_invalid;
+}
+
+void Master_info::set_gtid_only_mode(bool gtid_only_mode) {
+  m_gtid_only_mode = gtid_only_mode;
+}
+
+bool Master_info::is_gtid_only_mode() const { return m_gtid_only_mode; }

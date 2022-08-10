@@ -28,6 +28,8 @@ ERROR HY000: Incorrect DATE value: '2001-01-01 00:00:00'
 SELECT DATE'01:01:01';
 DATE'01:01:01'
 2001-01-01
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '01:01:01' at row 1 is deprecated. Prefer the standard '-'.
 SELECT DATE'01-01-01';
 DATE'01-01-01'
 2001-01-01
@@ -396,3 +398,246 @@ c1	c2	c3	c4	c11	C12
 1	2014-01-02	01:01:01	2014-01-02 01:01:01	NULL	NULL
 2	2014-01-04	01:01:01	2014-01-02 01:01:01	NULL	NULL
 DROP TABLE t1, t2;
+#
+# WL#13601 Deprecate arbitrary delimiters and whitespaces in
+# time / date / datetime / timestamp literals
+#
+------------------  DATETIME literals
+superfluous blanks
+SELECT TIMESTAMP '  2021-07-15 23:01:02';
+TIMESTAMP '  2021-07-15 23:01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4096	Delimiter ' ' in position 0 in datetime value '  2021-07-15 23:01:02' at row 1 is superfluous and is deprecated. Please remove.
+SELECT TIMESTAMP '2021-07-15 23:01:02  ';
+TIMESTAMP '2021-07-15 23:01:02  '
+2021-07-15 23:01:02
+Warnings:
+Warning	4096	Delimiter ' ' in position 19 in datetime value '2021-07-15 23:01:02  ' at row 1 is superfluous and is deprecated. Please remove.
+SELECT TIMESTAMP '2021-07-15   23:01:02';
+TIMESTAMP '2021-07-15   23:01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4096	Delimiter ' ' in position 11 in datetime value '2021-07-15   23:01:02' at row 1 is superfluous and is deprecated. Please remove.
+wrong type delimiter
+SELECT TIMESTAMP '2021/07-15 23:01:02';
+TIMESTAMP '2021/07-15 23:01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2021/07-15 23:01:02' at row 1 is deprecated. Prefer the standard '-'.
+SELECT TIMESTAMP '2021-07/15 23:01:02';
+TIMESTAMP '2021-07/15 23:01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4095	Delimiter '/' in position 7 in datetime value '2021-07/15 23:01:02' at row 1 is deprecated. Prefer the standard '-'.
+SELECT TIMESTAMP '2021-07-15 23.01:02';
+TIMESTAMP '2021-07-15 23.01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4095	Delimiter '.' in position 13 in datetime value '2021-07-15 23.01:02' at row 1 is deprecated. Prefer the standard ':'.
+SELECT TIMESTAMP '2021-07-15 23:01.02';
+TIMESTAMP '2021-07-15 23:01.02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4095	Delimiter '.' in position 16 in datetime value '2021-07-15 23:01.02' at row 1 is deprecated. Prefer the standard ':'.
+wrong &redundant
+SELECT TIMESTAMP '2021//07/15 23:01:02';
+TIMESTAMP '2021//07/15 23:01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2021//07/15 23:01:02' at row 1 is deprecated. Prefer the standard '-'.
+SELECT TIMESTAMP '2021/07//15 23:01:02';
+TIMESTAMP '2021/07//15 23:01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2021/07//15 23:01:02' at row 1 is deprecated. Prefer the standard '-'.
+SELECT TIMESTAMP '2021-07-15 23..01:02';
+TIMESTAMP '2021-07-15 23..01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4095	Delimiter '.' in position 13 in datetime value '2021-07-15 23..01:02' at row 1 is deprecated. Prefer the standard ':'.
+SELECT TIMESTAMP '2021-07-15 23:01..02';
+TIMESTAMP '2021-07-15 23:01..02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4095	Delimiter '.' in position 16 in datetime value '2021-07-15 23:01..02' at row 1 is deprecated. Prefer the standard ':'.
+correct type delimiter but redundant
+SELECT TIMESTAMP '2021--07-15 23:01:02';
+TIMESTAMP '2021--07-15 23:01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4096	Delimiter '-' in position 5 in datetime value '2021--07-15 23:01:02' at row 1 is superfluous and is deprecated. Please remove.
+SELECT TIMESTAMP '2021-07--15 23:01:02';
+TIMESTAMP '2021-07--15 23:01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4096	Delimiter '-' in position 8 in datetime value '2021-07--15 23:01:02' at row 1 is superfluous and is deprecated. Please remove.
+SELECT TIMESTAMP '2021-07-15 23::01:02';
+TIMESTAMP '2021-07-15 23::01:02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4096	Delimiter ':' in position 14 in datetime value '2021-07-15 23::01:02' at row 1 is superfluous and is deprecated. Please remove.
+SELECT TIMESTAMP '2021-07-15 23:01::02';
+TIMESTAMP '2021-07-15 23:01::02'
+2021-07-15 23:01:02
+Warnings:
+Warning	4096	Delimiter ':' in position 17 in datetime value '2021-07-15 23:01::02' at row 1 is superfluous and is deprecated. Please remove.
+all wrong
+SELECT TIMESTAMP '  2021??07//15  23:+*&01.,"02   ';
+TIMESTAMP '  2021??07//15  23:+*&01.,"02   '
+2021-07-15 23:01:02
+Warnings:
+Warning	4096	Delimiter ' ' in position 0 in datetime value '  2021??07//15  23:+*&01.,"02   ' at row 1 is superfluous and is deprecated. Please remove.
+in CAST
+SELECT CAST('2015-01-15 23-24:25' AS DATETIME);
+CAST('2015-01-15 23-24:25' AS DATETIME)
+2015-01-15 23:24:25
+Warnings:
+Warning	4095	Delimiter '-' in position 13 in datetime value '2015-01-15 23-24:25' at row 1 is deprecated. Prefer the standard ':'.
+in JSON_VALUE
+SELECT JSON_VALUE('{"data": "2019-01-01 11:11::11"}', '$.data' RETURNING DATETIME) AS v;
+v
+2019-01-01 11:11:11
+Warnings:
+Warning	4096	Delimiter ':' in position 17 in datetime value '2019-01-01 11:11::11' at row 1 is superfluous and is deprecated. Please remove.
+SELECT LEAST(CAST('01-01-01' AS DATETIME), '01-01:02');
+LEAST(CAST('01-01-01' AS DATETIME), '01-01:02')
+2001-01-01 00:00:00
+Warnings:
+Warning	4095	Delimiter ':' in position 5 in datetime value '01-01:02' at row 1 is deprecated. Prefer the standard '-'.
+in get_mysql_time_from_str
+CREATE TABLE t1(f1 DATE);
+INSERT INTO t1 VALUES ('2001-01-01');
+SELECT f1 FROM t1 WHERE f1 < "01-4:15";
+f1
+2001-01-01
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '01-4:15' at row 1 is deprecated. Prefer the standard '-'.
+DROP TABLE t1;
+CREATE TABLE t1(f1 DATETIME, c VARCHAR(20));
+INSERT INTO t1 VALUES (NULL, '2001-01-01 19.55.00');
+UPDATE t1 SET f1=c;
+Warnings:
+Warning	4095	Delimiter '.' in position 13 in datetime value '2001-01-01 19.55.00' at row 1 is deprecated. Prefer the standard ':'.
+DROP TABLE t1;
+------------------  DATE literals
+
+SELECT DATE'2021/09-20';
+DATE'2021/09-20'
+2021-09-20
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2021/09-20' at row 1 is deprecated. Prefer the standard '-'.
+SELECT DATE' 2021-09-20';
+DATE' 2021-09-20'
+2021-09-20
+Warnings:
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 2021-09-20' at row 1 is superfluous and is deprecated. Please remove.
+SELECT DATE'2021-09-20 ';
+DATE'2021-09-20 '
+2021-09-20
+Warnings:
+Warning	4096	Delimiter ' ' in position 10 in datetime value '2021-09-20 ' at row 1 is superfluous and is deprecated. Please remove.
+in CAST
+SELECT CAST('2015-01-15 23-24:25' AS DATE);
+CAST('2015-01-15 23-24:25' AS DATE)
+2015-01-15
+Warnings:
+Warning	4095	Delimiter '-' in position 13 in datetime value '2015-01-15 23-24:25' at row 1 is deprecated. Prefer the standard ':'.
+in JSON_VALUE
+SELECT JSON_VALUE('{"data": "2019-01/01"}', '$.data' RETURNING DATE) AS v;
+v
+2019-01-01
+Warnings:
+Warning	4095	Delimiter '/' in position 7 in datetime value '2019-01/01' at row 1 is deprecated. Prefer the standard '-'.
+SELECT LEAST(CAST('2001-12-10' AS DATE), '2001-12/11');
+LEAST(CAST('2001-12-10' AS DATE), '2001-12/11')
+2001-12-10
+Warnings:
+Warning	4095	Delimiter '/' in position 7 in datetime value '2001-12/11' at row 1 is deprecated. Prefer the standard '-'.
+CREATE TABLE t1(f1 DATE);
+INSERT INTO t1 VALUES ('2001-01-01');
+SELECT f1 FROM t1 WHERE f1 < "2001-01/01";
+f1
+Warnings:
+Warning	4095	Delimiter '/' in position 7 in datetime value '2001-01/01' at row 1 is deprecated. Prefer the standard '-'.
+DROP TABLE t1;
+CREATE TABLE t1(f1 DATE, c VARCHAR(20));
+INSERT INTO t1 VALUES (NULL, '2001-01/01');
+UPDATE t1 SET f1=c;
+Warnings:
+Warning	4095	Delimiter '/' in position 7 in datetime value '2001-01/01' at row 1 is deprecated. Prefer the standard '-'.
+DROP TABLE t1;
+------------------  TIME literals
+These were much stricter before the WL, we only add checks for
+leading and trailing blanks
+
+SELECT TIME' 10:11:12.098700';
+TIME' 10:11:12.098700'
+10:11:12.098700
+Warnings:
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 10:11:12.098700' at row 1 is superfluous and is deprecated. Please remove.
+SELECT TIME'10:11:12.098700  ';
+TIME'10:11:12.098700  '
+10:11:12.098700
+Warnings:
+Warning	4096	Delimiter ' ' in position 15 in datetime value '10:11:12.098700  ' at row 1 is superfluous and is deprecated. Please remove.
+SELECT TIME'10-11:12.098700  ';
+ERROR HY000: Incorrect TIME value: '10-11:12.098700  '
+Superfluous blanks in the 'D hh:mm:ss' format
+SELECT TIME'1  01:01:01',
+TIME'1  01:01',
+TIME'1  01',
+TIME'1 ',
+TIME'1', # OK
+TIME' 1';
+TIME'1  01:01:01'	TIME'1  01:01'	TIME'1  01'	TIME'1 '	TIME'1'	TIME' 1'
+25:01:01	25:01:00	25:00:00	00:00:01	00:00:01	00:00:01
+Warnings:
+Warning	4096	Delimiter ' ' in position 1 in datetime value '1  01:01:01' at row 1 is superfluous and is deprecated. Please remove.
+Warning	4096	Delimiter ' ' in position 1 in datetime value '1  01:01' at row 1 is superfluous and is deprecated. Please remove.
+Warning	4096	Delimiter ' ' in position 1 in datetime value '1  01' at row 1 is superfluous and is deprecated. Please remove.
+Warning	4096	Delimiter ' ' in position 1 in datetime value '1 ' at row 1 is superfluous and is deprecated. Please remove.
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 1' at row 1 is superfluous and is deprecated. Please remove.
+in CAST
+select CAST('10:11:12.098700    ' AS TIME);
+CAST('10:11:12.098700    ' AS TIME)
+10:11:12
+Warnings:
+Warning	4096	Delimiter ' ' in position 15 in datetime value '10:11:12.098700    ' at row 1 is superfluous and is deprecated. Please remove.
+in JSON_VALUE
+SELECT JSON_VALUE('{"data": "10:11:12.098700    "}', '$.data' RETURNING TIME) AS v;
+v
+10:11:12
+Warnings:
+Warning	4096	Delimiter ' ' in position 15 in datetime value '10:11:12.098700    ' at row 1 is superfluous and is deprecated. Please remove.
+# For some reason, the second argument below doesn't get
+# attempted converted to TIME, so we do not see any warning.
+# The comparison is done on strings instead.
+# This is in contrast to DATE and DATETIME. Bug? FIXME
+SELECT LEAST(CAST('10:11:12' AS TIME), '10:11:13 ');
+LEAST(CAST('10:11:12' AS TIME), '10:11:13 ')
+10:11:12
+CREATE TABLE t1(f1 TIME, c VARCHAR(20));
+INSERT INTO t1 VALUES (NULL, ' 19:55:00');
+UPDATE t1 SET f1=c;
+Warnings:
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 19:55:00' at row 1 is superfluous and is deprecated. Please remove.
+DROP TABLE t1;
+
+Test weird delimiters between date and time parts
+
+# Delimiter instead of space
+SELECT TIMESTAMP'2021-07-17.18:45:00';
+TIMESTAMP'2021-07-17.18:45:00'
+2021-07-17 18:45:00
+Warnings:
+Warning	4095	Delimiter '.' in position 10 in datetime value '2021-07-17.18:45:00' at row 1 is deprecated. Prefer the standard ' '.
+SELECT TIMESTAMP'2021-07-17-18:45:00';
+TIMESTAMP'2021-07-17-18:45:00'
+2021-07-17 18:45:00
+Warnings:
+Warning	4095	Delimiter '-' in position 10 in datetime value '2021-07-17-18:45:00' at row 1 is deprecated. Prefer the standard ' '.
+# No warning given here, since we cannot replace the period with a space
+SELECT TIMESTAMP'20211018.121000';
+TIMESTAMP'20211018.121000'
+2021-10-18 12:10:00

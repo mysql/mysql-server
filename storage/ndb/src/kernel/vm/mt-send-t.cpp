@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,8 @@
 
 #ifdef TEST_MT_SEND
 
-#include "mt-asm.h"
+#include <cstring>
+#include "portlib/mt-asm.h"
 #include "mt-lock.hpp"
 #include <NdbTick.h>
 #include <NdbMutex.h>
@@ -115,7 +116,7 @@ typedef Bitmask<(MAX_TRANSPORTERS+31)/32> TransporterMask;
 struct Producer
 {
   Producer() {
-    bzero(val, sizeof(val));
+    std::memset(val, 0, sizeof(val));
     pendingcount = 0;
   }
 
@@ -166,7 +167,7 @@ struct Thread
 struct Consumer
 {
   Consumer() {
-    m_force_send = 0; bzero(val, sizeof(val));
+    m_force_send = 0; std::memset(val, 0, sizeof(val));
   }
 
   void init() {}

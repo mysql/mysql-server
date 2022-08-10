@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +95,7 @@ static const SYMBOL symbols[] = {
     {SYM("ASENSITIVE", ASENSITIVE_SYM)},
     {SYM("AT", AT_SYM)},
     {SYM("ATTRIBUTE", ATTRIBUTE_SYM)},
+    {SYM("AUTHENTICATION", AUTHENTICATION_SYM)},
     {SYM("AUTO_INCREMENT", AUTO_INC)},
     {SYM("AUTOEXTEND_SIZE", AUTOEXTEND_SIZE_SYM)},
     {SYM("AVG", AVG_SYM)},
@@ -123,6 +124,7 @@ static const SYMBOL symbols[] = {
     {SYM("CASE", CASE_SYM)},
     {SYM("CATALOG_NAME", CATALOG_NAME_SYM)},
     {SYM("CHAIN", CHAIN_SYM)},
+    {SYM("CHALLENGE_RESPONSE", CHALLENGE_RESPONSE_SYM)},
     {SYM("CHANGE", CHANGE)},
     {SYM("CHANGED", CHANGED)},
     {SYM("CHANNEL", CHANNEL_SYM)},
@@ -250,6 +252,7 @@ static const SYMBOL symbols[] = {
     {SYM("EXPLAIN", DESCRIBE)},
     {SYM("EXTENDED", EXTENDED_SYM)},
     {SYM("EXTENT_SIZE", EXTENT_SIZE_SYM)},
+    {SYM("FACTOR", FACTOR_SYM)},
     {SYM("FAILED_LOGIN_ATTEMPTS", FAILED_LOGIN_ATTEMPTS_SYM)},
     {SYM("FALSE", FALSE_SYM)},
     {SYM("FAST", FAST_SYM)},
@@ -259,6 +262,7 @@ static const SYMBOL symbols[] = {
     {SYM("FILE", FILE_SYM)},
     {SYM("FILE_BLOCK_SIZE", FILE_BLOCK_SIZE_SYM)},
     {SYM("FILTER", FILTER_SYM)},
+    {SYM("FINISH", FINISH_SYM)},
     {SYM("FIRST", FIRST_SYM)},
     {SYM("FIRST_VALUE", FIRST_VALUE_SYM)},
     {SYM("FIXED", FIXED_SYM)},
@@ -293,6 +297,7 @@ static const SYMBOL symbols[] = {
     {SYM("GROUP", GROUP_SYM)},
     {SYM("GROUPING", GROUPING_SYM)},
     {SYM("GROUPS", GROUPS_SYM)},
+    {SYM("GTID_ONLY", GTID_ONLY_SYM)},
     {SYM("HANDLER", HANDLER_SYM)},
     {SYM("HASH", HASH_SYM)},
     {SYM("HAVING", HAVING)},
@@ -316,7 +321,9 @@ static const SYMBOL symbols[] = {
     {SYM("INDEX", INDEX_SYM)},
     {SYM("INDEXES", INDEXES)},
     {SYM("INFILE", INFILE)},
+    {SYM("INITIAL", INITIAL_SYM)},
     {SYM("INITIAL_SIZE", INITIAL_SIZE_SYM)},
+    {SYM("INITIATE", INITIATE_SYM)},
     {SYM("INNER", INNER_SYM)},
     {SYM("INOUT", INOUT_SYM)},
     {SYM("INSENSITIVE", INSENSITIVE_SYM)},
@@ -550,6 +557,7 @@ static const SYMBOL symbols[] = {
     {SYM("REFERENCE", REFERENCE_SYM)},
     {SYM("REFERENCES", REFERENCES)},
     {SYM("REGEXP", REGEXP)},
+    {SYM("REGISTRATION", REGISTRATION_SYM)},
     {SYM("RELAY", RELAY)},
     {SYM("RELAYLOG", RELAYLOG_SYM)},
     {SYM("RELAY_LOG_FILE", RELAY_LOG_FILE_SYM)},
@@ -762,6 +770,7 @@ static const SYMBOL symbols[] = {
     {SYM("UNKNOWN", UNKNOWN_SYM)},
     {SYM("UNLOCK", UNLOCK_SYM)},
     {SYM("UNINSTALL", UNINSTALL_SYM)},
+    {SYM("UNREGISTER", UNREGISTER_SYM)},
     {SYM("UNSIGNED", UNSIGNED_SYM)},
     {SYM("UNTIL", UNTIL_SYM)},
     {SYM("UPGRADE", UPGRADE_SYM)},

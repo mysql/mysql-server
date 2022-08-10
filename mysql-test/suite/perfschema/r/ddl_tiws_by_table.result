@@ -9,3 +9,6 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 DROP INDEX `OBJECT`
   ON performance_schema.table_io_waits_summary_by_table;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.table_io_waits_summary_by_table;
+DROP TABLE test.create_select;

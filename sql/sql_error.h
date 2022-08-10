@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,9 @@
 class THD;
 class my_decimal;
 struct MYSQL_TIME;
+struct MYSQL_TIME_STATUS;
+
+constexpr const size_t WARN_ALLOC_BLOCK_SIZE{2048};
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -135,7 +138,7 @@ class Sql_condition {
                 const char *message_text);
 
   /** Destructor. */
-  ~Sql_condition() {}
+  ~Sql_condition() = default;
 
   /**
     Copy optional condition items attributes.
@@ -226,10 +229,6 @@ class ErrConvString {
   explicit ErrConvString(const String *str) {
     buf_length = err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
                           str->length(), str->charset());
-  }
-
-  ErrConvString(const char *str, const CHARSET_INFO *cs) {
-    buf_length = err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
   }
 
   ErrConvString(const char *str, size_t length) {
@@ -591,7 +590,7 @@ class Diagnostics_area {
   Diagnostics_area *m_stacked_da;
 
   /** A memory root to allocate conditions */
-  MEM_ROOT m_condition_root;
+  MEM_ROOT m_condition_root{PSI_INSTRUMENT_ME, WARN_ALLOC_BLOCK_SIZE};
 
   /** List of conditions of all severities. */
   Sql_condition_list m_conditions_list;
@@ -826,4 +825,6 @@ void warn_on_deprecated_charset(THD *thd, const CHARSET_INFO *cs,
 void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
                                   const char *option = nullptr);
 
+void check_deprecated_datetime_format(THD *thd, const CHARSET_INFO *cs,
+                                      MYSQL_TIME_STATUS &status);
 #endif  // SQL_ERROR_H

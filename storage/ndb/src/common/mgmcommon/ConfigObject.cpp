@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,28 +22,29 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <string.h>
 #include <kernel_types.h>
 #include <Properties.hpp>
 #include <ndb_limits.h>
-#include <NdbOut.hpp>
 #include <ConfigSection.hpp>
 #include "ConfigObject.hpp"
 #include "ndb_net.h"
 #include <stdlib.h>
 #include <algorithm>
+#include <EventLogger.hpp>
 
 //#define DEBUG_MALLOC 1
 #ifdef DEBUG_MALLOC
-#define DEB_MALLOC(arglist) do { ndbout_c arglist ; } while (0)
+#define DEB_MALLOC(arglist) do { g_eventLogger->info arglist; } while (0)
 #else
 #define DEB_MALLOC(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_UNPACK_V1 1
 #ifdef DEBUG_UNPACK_V1
-#define DEB_UNPACK_V1(arglist) do { ndbout_c arglist ; } while (0)
+#define DEB_UNPACK_V1(arglist) do { g_eventLogger->info arglist; } while (0)
 #else
 #define DEB_UNPACK_V1(arglist) do { } while (0)
 #endif
@@ -365,7 +366,7 @@ ConfigObject::get(ConfigSection *curr_section,
 bool
 ConfigObject::put(Uint32 key, Uint32 val)
 {
-  //ndbout_c("put(%u, %u)", key, val);
+  //g_eventLogger->info("put(%u, %u)", key, val);
   ConfigSection::Entry entry;
   entry.m_key = key;
   entry.m_type = ConfigSection::IntTypeId;
@@ -376,7 +377,7 @@ ConfigObject::put(Uint32 key, Uint32 val)
 bool
 ConfigObject::put64(Uint32 key, Uint64 val)
 {
-  //ndbout_c("put(%u, %llu)", key, val);
+  //g_eventLogger->info("put(%u, %llu)", key, val);
   ConfigSection::Entry entry;
   entry.m_key = key;
   entry.m_type = ConfigSection::Int64TypeId;
@@ -387,7 +388,7 @@ ConfigObject::put64(Uint32 key, Uint64 val)
 bool
 ConfigObject::put(Uint32 key, const char *str)
 {
-  //ndbout_c("put(%u, %s)", key, str);
+  //g_eventLogger->info("put(%u, %s)", key, str);
   ConfigSection::Entry entry;
   entry.m_key = key;
   entry.m_type = ConfigSection::StringTypeId;
@@ -404,7 +405,7 @@ ConfigObject::get_error_code() const
 void
 ConfigObject::print_error_code() const
 {
-  ndbout_c("ConfigObject::m_error_code = %u", m_error_code);
+  g_eventLogger->info("ConfigObject::m_error_code = %u", m_error_code);
 }
 
 bool
@@ -553,7 +554,6 @@ ConfigObject::unpack_v1(const Uint32 *src, Uint32 len)
   while(end - data > 4)
   {
     Uint32 tmp = ntohl(* (const Uint32 *)data);
-    Uint32 len = 4;
     data += 4;
     entry.m_key = get_old_key(tmp);
     entry.m_type = get_old_type(tmp);
@@ -588,26 +588,24 @@ ConfigObject::unpack_v1(const Uint32 *src, Uint32 len)
         data += 4;
         entry.m_int64 = (hi << 32) | lo;
         DEB_UNPACK_V1(("Int64Type: %llu", entry.m_int64));
-        len = 8;
         break;
       }
       case ConfigSection::StringTypeId:
       {
         Uint32 s_len = ntohl(* (const Uint32 *)data);
         data += 4;
-        Uint32 s_len2 = strlen((const char*)data);
+        Uint32 s_len2 = strlen(data);
         if (unlikely(s_len2 + 1 != s_len))
         {
           m_error_code = WRONG_STRING_LENGTH;
 	  return false;
         }
-        entry.m_string = (const char*)data;
+        entry.m_string = data;
         DEB_UNPACK_V1(("StringType(%p): %s, strlen: %u",
                        entry.m_string,
                        entry.m_string,
                        s_len2));
         data += ConfigSection::loc_mod4_v1(s_len);
-        len = s_len;
         break;
       }
       default:
@@ -870,7 +868,7 @@ ConfigObject::create_default_sections()
       }
       default:
       {
-        ndbout_c("section_type: %u", section_type);
+        g_eventLogger->info("section_type: %u", section_type);
         require(false);
         break;
       }
@@ -956,7 +954,7 @@ ConfigObject::create_default_sections()
       }
       default:
       {
-        ndbout_c("section_type: %u", section_type);
+        g_eventLogger->info("section_type: %u", section_type);
         require(false);
         break;
       }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -308,6 +308,53 @@ TEST(LinuxEpollIoService, remove_fd_from_empty) {
   net::impl::socket::close(fds.first);
   net::impl::socket::close(fds.second);
 }
+
+/**
+ * one FD with multiple events ready at the same time.
+ */
+TEST(LinuxEpollIoService, one_fd_many_events) {
+  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
+
+  ASSERT_TRUE(res);
+
+  auto fds = res.value();
+
+  net::linux_epoll_io_service io_svc;
+
+  ASSERT_TRUE(io_svc.open());
+
+  SCOPED_TRACE("// add write interest");
+  EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_write));
+  SCOPED_TRACE("// add read interest");
+  EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_read));
+
+  SCOPED_TRACE("// check fd-interest after add-write");
+  auto interest_res = io_svc.interest(fds.first);
+  ASSERT_TRUE(interest_res);
+  EXPECT_EQ(interest_res.value(), EPOLLIN | EPOLLOUT | EPOLLET | EPOLLONESHOT);
+
+  // make sure the 'wait_read' fires too.
+  EXPECT_EQ(::write(fds.second, ".", 1), 1);
+
+  using namespace std::chrono_literals;
+
+  SCOPED_TRACE("// poll_one() should fire for the 1st event.");
+  auto poll_res = io_svc.poll_one(100ms);
+  ASSERT_TRUE(poll_res) << poll_res.error();
+
+  SCOPED_TRACE("// poll_one() should fire a 2nd time for the other event.");
+  poll_res = io_svc.poll_one(100ms);
+  ASSERT_TRUE(poll_res) << poll_res.error();
+
+  SCOPED_TRACE("// all events fired.");
+  poll_res = io_svc.poll_one(100ms);
+  ASSERT_EQ(poll_res,
+            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
+
+  net::impl::socket::close(fds.first);
+  net::impl::socket::close(fds.second);
+}
+
 #endif
 
 int main(int argc, char *argv[]) {

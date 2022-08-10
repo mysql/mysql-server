@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,9 +134,6 @@ class Rpl_info_handler {
 
   /**
     Closes access to the repository.
-
-    @retval false No error
-    @retval true  Failure
   */
   void end_info() { do_end_info(); }
 
@@ -202,8 +199,8 @@ class Rpl_info_handler {
     set the value of a field pointed at @c pk_cursor to
     @ value.
 
-    @param[in]   pk_cursor   cursor for the filed value.
-    @param[in]   value       fieled[pk_cursor] would be set
+    @param[in]   pk_cursor   cursor for the field value.
+    @param[in]   value       field[pk_cursor] is set to
                              this value.
 
     @retval      false       ok
@@ -373,7 +370,7 @@ class Rpl_info_handler {
   enum_field_get_status prv_get_error;
   /*
    Keeps track of the number of events before fsyncing. The option
-   --sync-master-info and --sync-relay-log-info determine how many
+   --sync-source-info and --sync-relay-log-info determine how many
    events should be processed before fsyncing.
   */
   uint sync_counter;
@@ -443,6 +440,6 @@ bool operator!(Rpl_info_handler::enum_field_get_status status);
 
 #ifndef NDEBUG
 extern ulong w_rr;
-extern uint mts_debug_concurrent_access;
+extern uint mta_debug_concurrent_access;
 #endif
 #endif /* RPL_INFO_HANDLER_H */

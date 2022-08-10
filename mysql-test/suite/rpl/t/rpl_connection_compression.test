@@ -122,7 +122,7 @@ SET sql_log_bin = 1;
 # --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
-# --let $slave_compressed_protocol = [0|1]
+# --let $replica_compressed_protocol = [0|1]
 # --source $script_dir/configure_slave.inc
 #
 # Parameters:
@@ -138,8 +138,8 @@ SET sql_log_bin = 1;
 #   $change_master_level
 #     CHANGE REPLICATION SOURCE statement that sets SOURCE_ZSTD_COMPRESSION_LEVEL.
 #
-#   $slave_compressed_protocol
-#     Set @@global.slave_compressed_protocol to this value.
+#   $replica_compressed_protocol
+#     Set @@global.replica_compressed_protocol to this value.
 #
 --write_file $script_dir/configure_slave.inc
   # Make the 'source ...' files less noisy
@@ -158,7 +158,7 @@ SET sql_log_bin = 1;
     eval $change_master_level;
   }
   --enable_warnings
-  eval SET @@global.slave_compressed_protocol = $slave_compressed_protocol;
+  eval SET @@global.replica_compressed_protocol = $replica_compressed_protocol;
 EOF
 
 
@@ -172,7 +172,7 @@ EOF
 # --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
-# --let $slave_compressed_protocol = [0|1]
+# --let $replica_compressed_protocol = [0|1]
 # --let $data_size = size of data in event
 # --let $expected_algorithm = [zlib|zstd|uncompressed]
 # --source $script_dir/test_master_slave_compression.inc
@@ -180,7 +180,7 @@ EOF
 # Parameters:
 #
 #   $change_master_base, $change_master_algorithm, $change_master_level,
-#   $slave_compressed_protocol
+#   $replica_compressed_protocol
 #     See configure_slave.inc
 #
 #   $data_size
@@ -256,7 +256,7 @@ EOF
 # --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
-# --let $slave_compressed_protocol = [0|1]
+# --let $replica_compressed_protocol = [0|1]
 # --let $data_size = size of data in event
 # --let $expected_algorithm = [zlib|zstd|uncompressed]
 # --let $level_it = NUMBER
@@ -265,7 +265,7 @@ EOF
 # Parameters:
 #
 #   $change_master_base, $change_master_algorithm, $change_master_level,
-#   $slave_compressed_protocol, $data_size, $expected_algorithm
+#   $replica_compressed_protocol, $data_size, $expected_algorithm
 #     See test_master_slave_compression.inc, above.
 #
 #   $level_it
@@ -392,15 +392,15 @@ while ($master_algorithm_it <= $algorithm_count) {
       --let $change_master_algorithm =
     }
 
-    --let $slave_compressed_protocol = 0
-    --let $slave_compressed_protocol_iterations = 1
+    --let $replica_compressed_protocol = 0
+    --let $replica_compressed_protocol_iterations = 1
     if ($slave_algorithm == uncompressed) {
-      --let $slave_compressed_protocol_iterations = 2
+      --let $replica_compressed_protocol_iterations = 2
     }
 
-    while ($slave_compressed_protocol < $slave_compressed_protocol_iterations) {
+    while ($replica_compressed_protocol < $replica_compressed_protocol_iterations) {
       --source include/rpl_connection_slave.inc
-      if ($slave_compressed_protocol) {
+      if ($replica_compressed_protocol) {
         --let $slave_algorithm = zlib
       }
 
@@ -427,7 +427,7 @@ while ($master_algorithm_it <= $algorithm_count) {
               --let $change_master_level = CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = $level
             }
 
-            --echo ---- master:$master_algorithm slave:$slave_algorithm slave_option:$slave_compressed_protocol expect:$expected_algorithm level:$level ----
+            --echo ---- master:$master_algorithm slave:$slave_algorithm slave_option:$replica_compressed_protocol expect:$expected_algorithm level:$level ----
 
             --source $script_dir/test_master_slave_compression_with_level.inc
 
@@ -435,16 +435,16 @@ while ($master_algorithm_it <= $algorithm_count) {
           }
         }
         if ($expected_algorithm != zstd) {
-          --echo ---- master:$master_algorithm slave:$slave_algorithm_text slave_option:$slave_compressed_protocol expected:$expected_algorithm ----
+          --echo ---- master:$master_algorithm slave:$slave_algorithm_text slave_option:$replica_compressed_protocol expected:$expected_algorithm ----
           --source $script_dir/test_master_slave_compression.inc
         }
       }
 
       if ($intersection == '') {
-        --echo ---- master:$master_algorithm slave:$slave_algorithm_text slave_option:$slave_compressed_protocol expect:error ----
+        --echo ---- master:$master_algorithm slave:$slave_algorithm_text slave_option:$replica_compressed_protocol expect:error ----
         --source $script_dir/test_master_slave_compression_error.inc
       }
-      --inc $slave_compressed_protocol
+      --inc $replica_compressed_protocol
     }
     --inc $slave_algorithm_it
   }

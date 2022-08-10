@@ -19,6 +19,8 @@ binlog.000001	#	Query	#	#	use `test`; insert into t1 values (@var1),(@var2)
 binlog.000001	#	Xid	#	#	COMMIT /* XID */
 flush logs;
 include/mysqlbinlog.inc
+# The proper term is pseudo_replica_mode, but we use this compatibility alias
+# to make the statement usable on server versions 8.0.24 and older.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;

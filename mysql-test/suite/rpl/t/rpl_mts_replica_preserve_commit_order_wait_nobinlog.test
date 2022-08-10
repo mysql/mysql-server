@@ -1,0 +1,90 @@
+# ==== Purpose ====
+#
+# Verifies that replica-preserve-commit-order preserves the commit order.
+#
+# ==== Implementation ====
+#
+# 1. We start replica (server2) with the binary log turned off (--log-bin=OFF)
+#    and applier threads are not logging to its own binary log
+#    (--log-replica-updates=OFF). Replica also has replica_preserve_commit_order
+#    enabled and running with 2 applier workers.
+#
+# 2. On slave, we block first insert transaction by initializing
+#    syncpoint_commit_order_manager_after_wait_100 debug macro which blocks
+#    transaction with timestamp set to 100.
+#
+# 3. The master then adds two transactions with timestamp set to 100 for first
+#    The transaction with timestamp 100 gets blocked due to initalized
+#    debug macro syncpoint_commit_order_manager_after_wait_100 in step 2.
+#
+# 4. Then on slave, we verify that all the other inserts are also blocked and
+#    waiting for first transaction to commit i.e. applier threads are in
+#    stage 'Waiting for preceding transaction to commit' and their is no data
+#    in tables.
+#
+# 5. On slave, we signal the syncpoint_commit_order_manager_after_wait_100 debug
+#    macro to unblock and verify the transactions applied in step 3 are applied
+#    successfully.
+#
+# 6. Cleanup.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_add_debug_point = syncpoint_commit_order_manager_after_wait_100
+
+--let $mts_spco_parallel_statement1 = SET TIMESTAMP = 100; BEGIN; INSERT INTO t1 VALUES (1); INSERT INTO t2 VALUES (1); COMMIT;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (2); INSERT INTO t2 VALUES (2); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_wait_cond1 = SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE state = 'debug sync point: now'
+
+--let $mts_spco_rollback_statement = SET DEBUG_SYNC= "now SIGNAL continue_commit_order_manager_after_wait_100";
+--let $mts_spco_end_statement =
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
+
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= Verify table t1 has data
+--let $assert_cond= "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "2"
+--source include/assert.inc
+
+--let $assert_text= Verify table t2 has data
+--let $assert_cond= "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "2"
+--source include/assert.inc
+
+
+--echo
+--echo # Cleanup
+--echo
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

@@ -1,0 +1,306 @@
+# ==== Purpose ====
+#
+# This test validates how setting `GTID_ONLY` option on `CHANGE REPLICATION
+# SOURCE TO ...` is accepted or rejected and how it impacts PFS tables.
+#
+# ==== Requirements ====
+#
+# R1. After `CHANGE REPLICATION SOURCE TO GTID_ONLY=V` with a valid value
+#     column `gtid_only` on `performance_schema.replication_connection_configuration`
+#     should have its value equal to V.
+# R2. `CHANGE REPLICATION SOURCE TO GTID_ONLY=1` requires `GTID_MODE = ON`
+# R3. `CHANGE REPLICATION SOURCE TO GTID_ONLY=1` requires also the options
+#        `REQUIRE_ROW_FORMAT = 1`
+#        `SOURCE_AUTO_POSITION = 1`
+# R4. Replication threads must be stopped to set GTID_ONLY
+# R5  Disabling SOURCE_AUTO_POSITION if positions are invalid requires SOURCE_LOG_FILE/POS
+# R6  RESET SLAVE does not affect the GTID_ONLY
+# R6  RESET SLAVE ALL does affect the GTID_ONLY value
+#
+# ==== Implementation ====
+# 0.  Setup replication but make the channel have REQUIRE_ROW_FORMAT=0, SOURCE_AUTO_POSITION=0
+# 1.  Validate no other value except 1 or O are accept for GTID_ONLY
+# 2.  Validate that enabling GTID_ONLY requires REQUIRE_ROW_FORMAT and SOURCE_AUTO_POSITION
+# 3.  Validate if GTID_ONLY =1 you cant disable REQUIRE_ROW_FORMAT and SOURCE_AUTO_POSITION
+# 4.  Validate if GTID_MODE != ON you can't enable GTID_ONLY
+#     Validate GTID_MODE cant be changed if GTID_ONLY = 1
+# 5.  Replication threads must be stopped to change GTID_ONLY
+# 6.  When positions are valid, disabling GTID_ONLY does not requires SOURCE_LOG_FILE/POS
+# 7.  When positions are invalid disabling SOURCE_AUTO_POSITION (with or without disabling GITD_ONLY)
+#     requires SOURCE_LOG_FILE/POS
+#     A warning is logged and given to the client when GITD_ONLY is disabled
+#     leaving SOURCE_AUTO_POSITION enabled
+# 8.  When disabling GTID ONLY with the usage of relay log position a warning is logged
+# 9.  The RESET REPLICA command does not affect the option
+# 10. The RESET REPLICA ALL command does affect the option
+# 11. After a restart that disables the GTID mode, the channel cannot be started
+# 12. Cleanup
+#
+# ==== References ====
+#
+# WL#7491: GTID-based replication applier recovery and positioning
+#
+
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $source_log_file=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Source_Log_File, 1)
+--let $source_log_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Read_Source_Log_Pos, 1)
+--let $applier_relaylog_file=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Log_File, 1)
+--let $applier_relaylog_pos=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Log_Pos, 1)
+
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0, SOURCE_AUTO_POSITION=0, GTID_ONLY=0;
+
+--echo #
+--echo # 1. Validate no other value except 1 or O are accept for GTID_ONLY
+
+--error ER_PARSE_ERROR
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 2;
+
+--error ER_PARSE_ERROR
+CHANGE REPLICATION SOURCE TO GTID_ONLY = '1';
+
+--error ER_PARSE_ERROR
+CHANGE REPLICATION SOURCE TO GTID_ONLY = ON;
+
+--let $assert_text= 'GTID_ONLY is disabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 0
+--source include/assert.inc
+
+--echo #
+--echo # 2. Validate that enabling GTID_ONLY requires
+--echo #      REQUIRE_ROW_FORMAT and SOURCE_AUTO_POSITION
+
+--error ER_CHANGE_REPLICATION_SOURCE_NO_OPTIONS_FOR_GTID_ONLY
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, REQUIRE_ROW_FORMAT=1;
+
+--error ER_CHANGE_REPLICATION_SOURCE_NO_OPTIONS_FOR_GTID_ONLY
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, SOURCE_AUTO_POSITION=1;
+
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION=1;
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+
+--let $assert_text= 'GTID_ONLY is enabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 1
+--source include/assert.inc
+
+--echo #
+--echo # 3. Validate if GTID_ONLY =1 you cant disable
+--echo #      REQUIRE_ROW_FORMAT and SOURCE_AUTO_POSITION
+
+--error ER_CHANGE_REP_SOURCE_CANT_DISABLE_REQ_ROW_FORMAT_WITH_GTID_ONLY
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
+
+--let $assert_text= 'REQUIRE_ROW_FORMAT is enabled'
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Require_row_format = "YES"] = 1
+--source include/assert.inc
+
+--error ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POSITION_WITH_GTID_ONLY
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
+
+--let $assert_text= 'AUTO_POSITION is enabled'
+--let $assert_cond= [SELECT AUTO_POSITION FROM performance_schema.replication_connection_configuration, AUTO_POSITION, 1] = 1
+--source include/assert.inc
+
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0, GTID_ONLY=0;
+
+--let $assert_text= 'GTID_ONLY is disabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'REQUIRE_ROW_FORMAT is disabled'
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Require_row_format = "YES"] = 0
+--source include/assert.inc
+
+--echo #
+--echo # 4. Validate if GTID_MODE != ON you can't enable GTID_ONLY
+--echo #    Validate GTID_MODE cant be changed if GTID_ONLY = 1
+
+
+SET @@GLOBAL.GTID_MODE= ON_PERMISSIVE;
+
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION=1;
+
+--error ER_CHANGE_REPLICATION_SOURCE_NO_OPTIONS_FOR_GTID_ONLY
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+
+--let $assert_text= 'GTID_ONLY is disabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 0
+--source include/assert.inc
+
+SET @@GLOBAL.GTID_MODE= ON;
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+
+--let $assert_text= 'GTID_ONLY is enabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 1
+--source include/assert.inc
+
+--error ER_CANT_SET_GTID_MODE
+SET @@GLOBAL.GTID_MODE= ON_PERMISSIVE;
+
+
+--echo #
+--echo # 5. Replication threads must be stopped to change GTID_ONLY
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
+
+START REPLICA IO_THREAD;
+
+--error ER_SLAVE_CHANNEL_MUST_STOP
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+
+--let $assert_text= 'GTID_ONLY is disabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 0
+--source include/assert.inc
+
+STOP REPLICA;
+START REPLICA SQL_THREAD;
+
+--error ER_SLAVE_CHANNEL_MUST_STOP
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+
+--let $assert_text= 'GTID_ONLY is disabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 0
+--source include/assert.inc
+
+STOP REPLICA;
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
+
+--echo #
+--echo # 6. When positions are valid, disabling GTID_ONLY does not requires SOURCE_LOG_FILE/POS
+
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, GTID_ONLY=0;
+
+--let $assert_text= 'GTID_ONLY is disabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 0
+--source include/assert.inc
+
+--echo #
+--echo # 7. When positions are invalid disabling SOURCE_AUTO_POSITION (with or without disabling GITD_ONLY) requires SOURCE_LOG_FILE/POS
+--echo #    A warning is logged and given to the client when GITD_ONLY is disabled leaving SOURCE_AUTO_POSITION enabled
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY=1, SOURCE_AUTO_POSITION=1;
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_slave_start
+--let $explicit_default_wait_counter = 15000
+--source include/rpl_restart_server.inc
+
+#disabling both GITD_ONLY and SOURCE_AUTO_POSITION fails
+
+--error ER_CHANGE_REP_SOURCE_CANT_DISABLE_GTID_ONLY_WITHOUT_POSITIONS
+CHANGE REPLICATION SOURCE TO GTID_ONLY=0, SOURCE_AUTO_POSITION=0;
+
+#disabling SOURCE_AUTO_POSITION after GITD_ONLY fails
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count = 1
+--let $assert_select = The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1.
+--let $assert_text = A warning is logged as some invalid positions were persisted
+--source include/assert_grep.inc
+
+
+--error ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_WITHOUT_POSITIONS
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
+
+#command should be successful
+
+--eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_LOG_FILE="$source_log_file", SOURCE_LOG_POS=$source_log_pos;
+
+# positions are now valid
+
+--let $source_log_file=query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Source_Log_File, 1)
+--let $assert_cond= [ SELECT "$source_log_file" != "INVALID" ]
+--let $assert_text= The source log file name is valid
+--source include/assert.inc
+
+# We can enable and disable SOURCE_AUTO_POSITION
+
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
+
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
+
+--echo #
+--echo # 8. When disabling GTID ONLY with the usage of relay log position a warning is logged
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, SOURCE_AUTO_POSITION=1;
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --skip_slave_start
+--let $explicit_default_wait_counter = 15000
+--source include/rpl_restart_server.inc
+
+--eval CHANGE REPLICATION SOURCE TO GTID_ONLY=0, SOURCE_AUTO_POSITION=0, SOURCE_LOG_FILE="$source_log_file", SOURCE_LOG_POS=$source_log_pos,RELAY_LOG_FILE='$applier_relaylog_file', RELAY_LOG_POS=$applier_relaylog_pos
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count = 2
+--let $assert_select = The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1.
+--let $assert_text = A warning is logged as some invalid positions were persisted
+--source include/assert_grep.inc
+
+--echo #
+--echo # 9. The RESET REPLICA command does not affect the option
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, SOURCE_AUTO_POSITION=1;
+
+RESET REPLICA;
+
+--let $assert_text= 'GTID_ONLY is enabled'
+--let $assert_cond= [SELECT GTID_ONLY FROM performance_schema.replication_connection_configuration, GTID_ONLY, 1] = 1
+--source include/assert.inc
+
+--echo #
+--echo # 10. The RESET REPLICA ALL command does affect the option
+
+RESET REPLICA ALL;
+
+--let $assert_text= 'GTID_ONLY is disabled'
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_connection_configuration] = 0
+--source include/assert.inc
+
+--echo #
+--echo # 11. After a restart that disables the GTID mode, the channel cannot be started
+
+--replace_result $MASTER_MYPORT SOURCE_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION=1, GTID_ONLY = 1
+
+--let $rpl_server_number = 2
+--let $rpl_skip_start_slave=
+--let $rpl_server_parameters = --gtid-mode=on_permissive
+--source include/rpl_restart_server.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count = 1
+--let $assert_select = Replication channel '' is configured with GTID_ONLY=1, which is invalid when GTID_MODE <> ON. If you intend to disable GTIDs in the replication topology, change GTID_ONLY to 0.
+--let $assert_text = Replication channel '' could not be started as GTID_MODE was not ON.
+--source include/assert_grep.inc
+
+--let $rpl_channel_name= ''
+--let $slave_param= Slave_IO_Running
+--let $slave_param_value= No
+--source include/check_slave_param.inc
+
+--error ER_CANT_USE_GTID_ONLY_WITH_GTID_MODE_NOT_ON
+START SLAVE;
+
+--echo #
+--echo # 12 Cleanup
+
+SET @@GLOBAL.GTID_MODE = ON;
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT = 0;
+
+--source include/start_slave.inc
+
+call mtr.add_suppression("Replication channel '' is configured with GTID_ONLY=1, which is invalid when GTID_MODE <> ON. *");
+call mtr.add_suppression("The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1.*");
+
+--source include/rpl_end.inc

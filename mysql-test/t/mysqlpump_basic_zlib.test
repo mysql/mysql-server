@@ -56,7 +56,7 @@ if ($ZLIB_DECOMPRESS)
 
 if (!$ZLIB_DECOMPRESS)
 {
---exec openssl zlib -d < $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.zlib > $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
+--exec $OPENSSL_EXECUTABLE zlib -d < $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.zlib > $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
 }
 
 DROP DATABASE bug21644479_zlib;

@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #include <ndb_global.h>
 
+#include "cstring"
+
 #include "Win32AsyncFile.hpp"
 
 #include <signaldata/FsRef.hpp>
@@ -42,7 +44,7 @@ void
 Win32AsyncFile::removeReq(Request * request)
 {
   if(!DeleteFile(theFileName.c_str())) {
-    request->error = GetLastError();
+    NDBFS_SET_REQUEST_ERROR(request, GetLastError());
   }
 }
 
@@ -54,8 +56,8 @@ Win32AsyncFile::rmrfReq(Request * request, const char * src, bool removePath){
     if (!DeleteFile(src))
     {
       DWORD dwError = GetLastError();
-      if (dwError != ERROR_FILE_NOT_FOUND)
-	request->error = dwError;
+      if (dwError != ERROR_FILE_NOT_FOUND && dwError != ERROR_PATH_NOT_FOUND)
+        NDBFS_SET_REQUEST_ERROR(request, dwError);
     }
     return;
   }
@@ -71,8 +73,8 @@ loop:
   if (INVALID_HANDLE_VALUE == hFindFile)
   {
     DWORD dwError = GetLastError();
-    if (dwError != ERROR_PATH_NOT_FOUND)
-      request->error = dwError;
+    if (dwError != ERROR_FILE_NOT_FOUND && dwError != ERROR_PATH_NOT_FOUND)
+      NDBFS_SET_REQUEST_ERROR(request, dwError);
     return;
   }
   path[strlen(path) - 1] = 0; // remove '*'
@@ -105,7 +107,7 @@ loop:
   }
 
   if(removePath && !RemoveDirectory(src))
-    request->error = GetLastError();
+    NDBFS_SET_REQUEST_ERROR(request, GetLastError());
 }
 
 void Win32AsyncFile::createDirectories()

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,13 +88,13 @@ class Bit_stream_base {
     Print all the bits before the current position to the debug trace.
     @param str Descriptive text that will be prefixed before the bit string.
   */
-  void dbug_print(const char *str) const;
+  void dbug_print(const char *str [[maybe_unused]]) const;
 };
 
 /**
   Auxiliary class to write a stream of bits to a memory location.
 
-  Call set() to write a bit and move the position one bit foward.
+  Call set() to write a bit and move the position one bit forward.
 */
 class Bit_writer : public Bit_stream_base<char, uchar> {
  public:
@@ -119,7 +119,7 @@ class Bit_writer : public Bit_stream_base<char, uchar> {
 /**
   Auxiliary class to read or write a stream of bits to a memory location.
 
-  Call get() to read a bit and move the position one bit foward.
+  Call get() to read a bit and move the position one bit forward.
 */
 class Bit_reader : public Bit_stream_base<const char, const uchar> {
  public:

@@ -1,0 +1,7140 @@
+#### Initialize ####
+include/save_error_log_position.inc
+include/suppress_messages.inc
+# Connection 1 un-suppresses message <The variable .* has been renamed to .*, and the old name deprecated.>.
+# Connection 1 un-suppresses message <.* is deprecated and will be removed in a future release. Please use .* instead.>.
+#### Test ####
+==== R1. Checks without server restart ====
+* Also checking R4.1: deprecation warning for SET PERSIST <old>
+* Also checking R5.1: no deprecation warning for SET PERSIST <new>
+* Also checking R5.2: no deprecation warning for RESET PERSIST
+sysvar:
+- name=init_replica
+- alias=init_slave
+- invalid=[7, 1.9, "FALSE"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- init_replica ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.init_replica = 'SELECT 1';
+include/assert.inc [@@global.init_replica should be SELECT 1]
+include/assert.inc [init_replica should be SELECT 1 in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be SELECT 1 in P_S.persisted_variables]
+include/assert.inc [init_replica should have value SELECT 1 in the persist file]
+include/assert.inc [@@global.init_slave should be SELECT 1]
+include/assert.inc [init_slave should be SELECT 1 in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be SELECT 1 in P_S.persisted_variables]
+include/assert.inc [init_slave should have value SELECT 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.init_slave = 'SELECT 9';
+Warnings:
+Warning	1287	'@@init_slave' is deprecated and will be removed in a future release. Please use init_replica instead.
+include/assert.inc [@@global.init_replica should be SELECT 9]
+include/assert.inc [init_replica should be SELECT 9 in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be SELECT 9 in P_S.persisted_variables]
+include/assert.inc [init_replica should have value SELECT 9 in the persist file]
+include/assert.inc [@@global.init_slave should be SELECT 9]
+include/assert.inc [init_slave should be SELECT 9 in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be SELECT 9 in P_S.persisted_variables]
+include/assert.inc [init_slave should have value SELECT 9 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.init_slave = DEFAULT;
+Warnings:
+Warning	1287	'@@init_slave' is deprecated and will be removed in a future release. Please use init_replica instead.
+include/assert.inc [@@global.init_replica should be ]
+include/assert.inc [init_replica should be  in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be  in P_S.persisted_variables]
+include/assert.inc [init_replica should have value  in the persist file]
+include/assert.inc [@@global.init_slave should be ]
+include/assert.inc [init_slave should be  in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be  in P_S.persisted_variables]
+include/assert.inc [init_slave should have value  in the persist file]
+# R1. RESET <old>
+RESET PERSIST init_slave;
+include/assert.inc [@@global.init_replica should be ]
+include/assert.inc [init_replica should be  in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should not exist in P_S.persisted_variables]
+include/assert.inc [init_replica should not exist in the persist file]
+include/assert.inc [@@global.init_slave should be ]
+include/assert.inc [init_slave should be  in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should not exist in P_S.persisted_variables]
+include/assert.inc [init_slave should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST init_slave = 'SELECT 9';
+Warnings:
+Warning	1287	'@@init_slave' is deprecated and will be removed in a future release. Please use init_replica instead.
+include/assert.inc [@@global.init_replica should be SELECT 9]
+include/assert.inc [init_replica should be SELECT 9 in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be SELECT 9 in P_S.persisted_variables]
+include/assert.inc [init_replica should have value SELECT 9 in the persist file]
+include/assert.inc [@@global.init_slave should be SELECT 9]
+include/assert.inc [init_slave should be SELECT 9 in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be SELECT 9 in P_S.persisted_variables]
+include/assert.inc [init_slave should have value SELECT 9 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST init_replica = 'SELECT(3)';
+include/assert.inc [@@global.init_replica should be SELECT(3)]
+include/assert.inc [init_replica should be SELECT(3) in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be SELECT(3) in P_S.persisted_variables]
+include/assert.inc [init_replica should have value SELECT(3) in the persist file]
+include/assert.inc [@@global.init_slave should be SELECT(3)]
+include/assert.inc [init_slave should be SELECT(3) in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be SELECT(3) in P_S.persisted_variables]
+include/assert.inc [init_slave should have value SELECT(3) in the persist file]
+# R1. RESET <new>
+RESET PERSIST init_replica;
+include/assert.inc [@@global.init_replica should be SELECT(3)]
+include/assert.inc [init_replica should be SELECT(3) in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should not exist in P_S.persisted_variables]
+include/assert.inc [init_replica should not exist in the persist file]
+include/assert.inc [@@global.init_slave should be SELECT(3)]
+include/assert.inc [init_slave should be SELECT(3) in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should not exist in P_S.persisted_variables]
+include/assert.inc [init_slave should not exist in the persist file]
+SET GLOBAL init_replica = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.init_replica = 'SELECT 1';
+include/assert.inc [@@global.init_replica should be ]
+include/assert.inc [init_replica should be  in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be SELECT 1 in P_S.persisted_variables]
+include/assert.inc [init_replica should have value SELECT 1 in the persist file]
+include/assert.inc [@@global.init_slave should be ]
+include/assert.inc [init_slave should be  in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be SELECT 1 in P_S.persisted_variables]
+include/assert.inc [init_slave should have value SELECT 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.init_slave = 'SELECT 9';
+Warnings:
+Warning	1287	'@@init_slave' is deprecated and will be removed in a future release. Please use init_replica instead.
+include/assert.inc [@@global.init_replica should be ]
+include/assert.inc [init_replica should be  in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be SELECT 9 in P_S.persisted_variables]
+include/assert.inc [init_replica should have value SELECT 9 in the persist file]
+include/assert.inc [@@global.init_slave should be ]
+include/assert.inc [init_slave should be  in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be SELECT 9 in P_S.persisted_variables]
+include/assert.inc [init_slave should have value SELECT 9 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.init_slave = DEFAULT;
+Warnings:
+Warning	1287	'@@init_slave' is deprecated and will be removed in a future release. Please use init_replica instead.
+include/assert.inc [@@global.init_replica should be ]
+include/assert.inc [init_replica should be  in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be  in P_S.persisted_variables]
+include/assert.inc [init_replica should have value  in the persist file]
+include/assert.inc [@@global.init_slave should be ]
+include/assert.inc [init_slave should be  in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be  in P_S.persisted_variables]
+include/assert.inc [init_slave should have value  in the persist file]
+# R1. RESET <old>
+RESET PERSIST init_slave;
+include/assert.inc [@@global.init_replica should be ]
+include/assert.inc [init_replica should be  in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should not exist in P_S.persisted_variables]
+include/assert.inc [init_replica should not exist in the persist file]
+include/assert.inc [@@global.init_slave should be ]
+include/assert.inc [init_slave should be  in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should not exist in P_S.persisted_variables]
+include/assert.inc [init_slave should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY init_slave = 'SELECT 9';
+Warnings:
+Warning	1287	'@@init_slave' is deprecated and will be removed in a future release. Please use init_replica instead.
+include/assert.inc [@@global.init_replica should be ]
+include/assert.inc [init_replica should be  in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be SELECT 9 in P_S.persisted_variables]
+include/assert.inc [init_replica should have value SELECT 9 in the persist file]
+include/assert.inc [@@global.init_slave should be ]
+include/assert.inc [init_slave should be  in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be SELECT 9 in P_S.persisted_variables]
+include/assert.inc [init_slave should have value SELECT 9 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY init_replica = 'SELECT(3)';
+include/assert.inc [@@global.init_replica should be ]
+include/assert.inc [init_replica should be  in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should be SELECT(3) in P_S.persisted_variables]
+include/assert.inc [init_replica should have value SELECT(3) in the persist file]
+include/assert.inc [@@global.init_slave should be ]
+include/assert.inc [init_slave should be  in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should be SELECT(3) in P_S.persisted_variables]
+include/assert.inc [init_slave should have value SELECT(3) in the persist file]
+# R1. RESET <new>
+RESET PERSIST init_replica;
+include/assert.inc [@@global.init_replica should be ]
+include/assert.inc [init_replica should be  in P_S.global_variables]
+include/assert.inc [init_replica should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_replica should not exist in P_S.persisted_variables]
+include/assert.inc [init_replica should not exist in the persist file]
+include/assert.inc [@@global.init_slave should be ]
+include/assert.inc [init_slave should be  in P_S.global_variables]
+include/assert.inc [init_slave should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [init_slave should not exist in P_S.persisted_variables]
+include/assert.inc [init_slave should not exist in the persist file]
+SET GLOBAL init_replica = DEFAULT;
+SET PERSIST_ONLY init_replica = 'SELECT(3)';
+sysvar:
+- name=log_replica_updates
+- alias=log_slave_updates
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+---- log_replica_updates ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.log_replica_updates = ON;
+include/assert.inc [@@global.log_replica_updates should be 1]
+include/assert.inc [log_replica_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_replica_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_replica_updates should be ON in P_S.persisted_variables]
+include/assert.inc [log_replica_updates should have value ON in the persist file]
+include/assert.inc [@@global.log_slave_updates should be 1]
+include/assert.inc [log_slave_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_slave_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_slave_updates should be ON in P_S.persisted_variables]
+include/assert.inc [log_slave_updates should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.log_slave_updates = OFF;
+Warnings:
+Warning	1287	'@@log_slave_updates' is deprecated and will be removed in a future release. Please use log_replica_updates instead.
+include/assert.inc [@@global.log_replica_updates should be 1]
+include/assert.inc [log_replica_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_replica_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_replica_updates should be OFF in P_S.persisted_variables]
+include/assert.inc [log_replica_updates should have value OFF in the persist file]
+include/assert.inc [@@global.log_slave_updates should be 1]
+include/assert.inc [log_slave_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_slave_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_slave_updates should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slave_updates should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.log_slave_updates = DEFAULT;
+Warnings:
+Warning	1287	'@@log_slave_updates' is deprecated and will be removed in a future release. Please use log_replica_updates instead.
+include/assert.inc [@@global.log_replica_updates should be 1]
+include/assert.inc [log_replica_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_replica_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_replica_updates should be ON in P_S.persisted_variables]
+include/assert.inc [log_replica_updates should have value ON in the persist file]
+include/assert.inc [@@global.log_slave_updates should be 1]
+include/assert.inc [log_slave_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_slave_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_slave_updates should be ON in P_S.persisted_variables]
+include/assert.inc [log_slave_updates should have value ON in the persist file]
+# R1. RESET <old>
+RESET PERSIST log_slave_updates;
+include/assert.inc [@@global.log_replica_updates should be 1]
+include/assert.inc [log_replica_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_replica_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_replica_updates should not exist in P_S.persisted_variables]
+include/assert.inc [log_replica_updates should not exist in the persist file]
+include/assert.inc [@@global.log_slave_updates should be 1]
+include/assert.inc [log_slave_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_slave_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_slave_updates should not exist in P_S.persisted_variables]
+include/assert.inc [log_slave_updates should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY log_slave_updates = OFF;
+Warnings:
+Warning	1287	'@@log_slave_updates' is deprecated and will be removed in a future release. Please use log_replica_updates instead.
+include/assert.inc [@@global.log_replica_updates should be 1]
+include/assert.inc [log_replica_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_replica_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_replica_updates should be OFF in P_S.persisted_variables]
+include/assert.inc [log_replica_updates should have value OFF in the persist file]
+include/assert.inc [@@global.log_slave_updates should be 1]
+include/assert.inc [log_slave_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_slave_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_slave_updates should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slave_updates should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY log_replica_updates = 1;
+include/assert.inc [@@global.log_replica_updates should be 1]
+include/assert.inc [log_replica_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_replica_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_replica_updates should be ON in P_S.persisted_variables]
+include/assert.inc [log_replica_updates should have value ON in the persist file]
+include/assert.inc [@@global.log_slave_updates should be 1]
+include/assert.inc [log_slave_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_slave_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_slave_updates should be ON in P_S.persisted_variables]
+include/assert.inc [log_slave_updates should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST log_replica_updates;
+include/assert.inc [@@global.log_replica_updates should be 1]
+include/assert.inc [log_replica_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_replica_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_replica_updates should not exist in P_S.persisted_variables]
+include/assert.inc [log_replica_updates should not exist in the persist file]
+include/assert.inc [@@global.log_slave_updates should be 1]
+include/assert.inc [log_slave_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_slave_updates should have source COMPILED in P_S.variables_info]
+include/assert.inc [log_slave_updates should not exist in P_S.persisted_variables]
+include/assert.inc [log_slave_updates should not exist in the persist file]
+SET PERSIST_ONLY log_replica_updates = 1;
+sysvar:
+- name=log_slow_replica_statements
+- alias=log_slow_slave_statements
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- log_slow_replica_statements ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.log_slow_replica_statements = ON;
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value ON in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.log_slow_slave_statements = OFF;
+Warnings:
+Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value OFF in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.log_slow_slave_statements = DEFAULT;
+Warnings:
+Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value OFF in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value OFF in the persist file]
+# R1. RESET <old>
+RESET PERSIST log_slow_slave_statements;
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should not exist in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST log_slow_slave_statements = OFF;
+Warnings:
+Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value OFF in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST log_slow_replica_statements = 1;
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value ON in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST log_slow_replica_statements;
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should not exist in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should not exist in the persist file]
+SET GLOBAL log_slow_replica_statements = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.log_slow_replica_statements = ON;
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value ON in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.log_slow_slave_statements = OFF;
+Warnings:
+Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value OFF in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.log_slow_slave_statements = DEFAULT;
+Warnings:
+Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value OFF in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value OFF in the persist file]
+# R1. RESET <old>
+RESET PERSIST log_slow_slave_statements;
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should not exist in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY log_slow_slave_statements = OFF;
+Warnings:
+Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value OFF in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be OFF in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY log_slow_replica_statements = 1;
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value ON in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST log_slow_replica_statements;
+include/assert.inc [@@global.log_slow_replica_statements should be 0]
+include/assert.inc [log_slow_replica_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should not exist in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 0]
+include/assert.inc [log_slow_slave_statements should be 0 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should not exist in the persist file]
+SET GLOBAL log_slow_replica_statements = DEFAULT;
+SET PERSIST_ONLY log_slow_replica_statements = 1;
+sysvar:
+- name=replica_allow_batching
+- alias=slave_allow_batching
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_allow_batching ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_allow_batching = ON;
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_allow_batching = OFF;
+Warnings:
+Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
+include/assert.inc [@@global.replica_allow_batching should be 0]
+include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value OFF in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 0]
+include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_allow_batching = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_allow_batching;
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should not exist in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_allow_batching = OFF;
+Warnings:
+Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
+include/assert.inc [@@global.replica_allow_batching should be 0]
+include/assert.inc [replica_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value OFF in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 0]
+include/assert.inc [slave_allow_batching should be 0 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_allow_batching = 1;
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_allow_batching;
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should not exist in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should not exist in the persist file]
+SET GLOBAL replica_allow_batching = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_allow_batching = ON;
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_allow_batching = OFF;
+Warnings:
+Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value OFF in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_allow_batching = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_allow_batching;
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should not exist in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_allow_batching = OFF;
+Warnings:
+Warning	1287	'@@slave_allow_batching' is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value OFF in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_allow_batching = 1;
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_allow_batching;
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should not exist in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should not exist in the persist file]
+SET GLOBAL replica_allow_batching = DEFAULT;
+SET PERSIST_ONLY replica_allow_batching = 1;
+sysvar:
+- name=replica_checkpoint_group
+- alias=slave_checkpoint_group
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_checkpoint_group ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_checkpoint_group = 520;
+include/assert.inc [@@global.replica_checkpoint_group should be 520]
+include/assert.inc [replica_checkpoint_group should be 520 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 520 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 520 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 520]
+include/assert.inc [slave_checkpoint_group should be 520 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 520 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 520 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_checkpoint_group = 1000;
+Warnings:
+Warning	1287	'@@slave_checkpoint_group' is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
+include/assert.inc [@@global.replica_checkpoint_group should be 1000]
+include/assert.inc [replica_checkpoint_group should be 1000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 1000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 1000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 1000]
+include/assert.inc [slave_checkpoint_group should be 1000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 1000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 1000 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_checkpoint_group = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_checkpoint_group' is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
+include/assert.inc [@@global.replica_checkpoint_group should be 512]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 512 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 512]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 512 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_checkpoint_group;
+include/assert.inc [@@global.replica_checkpoint_group should be 512]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 512]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_checkpoint_group = 1000;
+Warnings:
+Warning	1287	'@@slave_checkpoint_group' is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
+include/assert.inc [@@global.replica_checkpoint_group should be 1000]
+include/assert.inc [replica_checkpoint_group should be 1000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 1000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 1000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 1000]
+include/assert.inc [slave_checkpoint_group should be 1000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 1000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 1000 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_checkpoint_group = 2000;
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 2000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 2000 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_checkpoint_group;
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should not exist in the persist file]
+SET GLOBAL replica_checkpoint_group = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_checkpoint_group = 520;
+include/assert.inc [@@global.replica_checkpoint_group should be 512]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 520 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 520 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 512]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 520 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 520 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_checkpoint_group = 1000;
+Warnings:
+Warning	1287	'@@slave_checkpoint_group' is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
+include/assert.inc [@@global.replica_checkpoint_group should be 512]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 1000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 1000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 512]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 1000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 1000 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_checkpoint_group = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_checkpoint_group' is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
+include/assert.inc [@@global.replica_checkpoint_group should be 512]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 512 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 512]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 512 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_checkpoint_group;
+include/assert.inc [@@global.replica_checkpoint_group should be 512]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 512]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_checkpoint_group = 1000;
+Warnings:
+Warning	1287	'@@slave_checkpoint_group' is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
+include/assert.inc [@@global.replica_checkpoint_group should be 512]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 1000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 1000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 512]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 1000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 1000 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_checkpoint_group = 2000;
+include/assert.inc [@@global.replica_checkpoint_group should be 512]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 2000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 512]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 2000 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_checkpoint_group;
+include/assert.inc [@@global.replica_checkpoint_group should be 512]
+include/assert.inc [replica_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 512]
+include/assert.inc [slave_checkpoint_group should be 512 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should not exist in the persist file]
+SET GLOBAL replica_checkpoint_group = DEFAULT;
+SET PERSIST_ONLY replica_checkpoint_group = 2000;
+sysvar:
+- name=replica_checkpoint_period
+- alias=slave_checkpoint_period
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_checkpoint_period ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_checkpoint_period = 1;
+include/assert.inc [@@global.replica_checkpoint_period should be 1]
+include/assert.inc [replica_checkpoint_period should be 1 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 1 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 1 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 1]
+include/assert.inc [slave_checkpoint_period should be 1 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 1 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_checkpoint_period = 2;
+Warnings:
+Warning	1287	'@@slave_checkpoint_period' is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
+include/assert.inc [@@global.replica_checkpoint_period should be 2]
+include/assert.inc [replica_checkpoint_period should be 2 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 2 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 2]
+include/assert.inc [slave_checkpoint_period should be 2 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_checkpoint_period = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_checkpoint_period' is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
+include/assert.inc [@@global.replica_checkpoint_period should be 300]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 300 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 300]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 300 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_checkpoint_period;
+include/assert.inc [@@global.replica_checkpoint_period should be 300]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 300]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_checkpoint_period = 2;
+Warnings:
+Warning	1287	'@@slave_checkpoint_period' is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
+include/assert.inc [@@global.replica_checkpoint_period should be 2]
+include/assert.inc [replica_checkpoint_period should be 2 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 2 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 2]
+include/assert.inc [slave_checkpoint_period should be 2 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_checkpoint_period = 12323;
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 12323 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 12323 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_checkpoint_period;
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should not exist in the persist file]
+SET GLOBAL replica_checkpoint_period = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_checkpoint_period = 1;
+include/assert.inc [@@global.replica_checkpoint_period should be 300]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 1 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 1 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 300]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 1 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_checkpoint_period = 2;
+Warnings:
+Warning	1287	'@@slave_checkpoint_period' is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
+include/assert.inc [@@global.replica_checkpoint_period should be 300]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 2 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 300]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_checkpoint_period = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_checkpoint_period' is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
+include/assert.inc [@@global.replica_checkpoint_period should be 300]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 300 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 300]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 300 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_checkpoint_period;
+include/assert.inc [@@global.replica_checkpoint_period should be 300]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 300]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_checkpoint_period = 2;
+Warnings:
+Warning	1287	'@@slave_checkpoint_period' is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
+include/assert.inc [@@global.replica_checkpoint_period should be 300]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 2 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 300]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_checkpoint_period = 12323;
+include/assert.inc [@@global.replica_checkpoint_period should be 300]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 12323 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 300]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 12323 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_checkpoint_period;
+include/assert.inc [@@global.replica_checkpoint_period should be 300]
+include/assert.inc [replica_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 300]
+include/assert.inc [slave_checkpoint_period should be 300 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should not exist in the persist file]
+SET GLOBAL replica_checkpoint_period = DEFAULT;
+SET PERSIST_ONLY replica_checkpoint_period = 12323;
+sysvar:
+- name=replica_compressed_protocol
+- alias=slave_compressed_protocol
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_compressed_protocol ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_compressed_protocol = ON;
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value ON in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_compressed_protocol = OFF;
+Warnings:
+Warning	1287	'@@slave_compressed_protocol' is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value OFF in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_compressed_protocol = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_compressed_protocol' is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value OFF in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value OFF in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_compressed_protocol;
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should not exist in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_compressed_protocol = OFF;
+Warnings:
+Warning	1287	'@@slave_compressed_protocol' is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value OFF in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_compressed_protocol = 1;
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value ON in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_compressed_protocol;
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should not exist in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should not exist in the persist file]
+SET GLOBAL replica_compressed_protocol = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_compressed_protocol = ON;
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value ON in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_compressed_protocol = OFF;
+Warnings:
+Warning	1287	'@@slave_compressed_protocol' is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value OFF in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_compressed_protocol = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_compressed_protocol' is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value OFF in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value OFF in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_compressed_protocol;
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should not exist in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_compressed_protocol = OFF;
+Warnings:
+Warning	1287	'@@slave_compressed_protocol' is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value OFF in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_compressed_protocol = 1;
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value ON in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_compressed_protocol;
+include/assert.inc [@@global.replica_compressed_protocol should be 0]
+include/assert.inc [replica_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should not exist in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 0]
+include/assert.inc [slave_compressed_protocol should be 0 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should not exist in the persist file]
+SET GLOBAL replica_compressed_protocol = DEFAULT;
+SET PERSIST_ONLY replica_compressed_protocol = 1;
+sysvar:
+- name=replica_exec_mode
+- alias=slave_exec_mode
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_exec_mode ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_exec_mode = IDEMPOTENT;
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value IDEMPOTENT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value IDEMPOTENT in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_exec_mode = STRICT;
+Warnings:
+Warning	1287	'@@slave_exec_mode' is deprecated and will be removed in a future release. Please use replica_exec_mode instead.
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value STRICT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value STRICT in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_exec_mode = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_exec_mode' is deprecated and will be removed in a future release. Please use replica_exec_mode instead.
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value STRICT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value STRICT in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_exec_mode;
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should not exist in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_exec_mode = STRICT;
+Warnings:
+Warning	1287	'@@slave_exec_mode' is deprecated and will be removed in a future release. Please use replica_exec_mode instead.
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value STRICT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value STRICT in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_exec_mode = 'IDEMPOTENT';
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value IDEMPOTENT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value IDEMPOTENT in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_exec_mode;
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should not exist in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should not exist in the persist file]
+SET GLOBAL replica_exec_mode = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_exec_mode = IDEMPOTENT;
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value IDEMPOTENT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value IDEMPOTENT in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_exec_mode = STRICT;
+Warnings:
+Warning	1287	'@@slave_exec_mode' is deprecated and will be removed in a future release. Please use replica_exec_mode instead.
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value STRICT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value STRICT in the persist file]
+# R1. SET <old>  = DEFAULT
+# R1. RESET <old>
+RESET PERSIST slave_exec_mode;
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should not exist in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_exec_mode = STRICT;
+Warnings:
+Warning	1287	'@@slave_exec_mode' is deprecated and will be removed in a future release. Please use replica_exec_mode instead.
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value STRICT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value STRICT in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_exec_mode = 'IDEMPOTENT';
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value IDEMPOTENT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value IDEMPOTENT in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_exec_mode;
+include/assert.inc [@@global.replica_exec_mode should be STRICT]
+include/assert.inc [replica_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should not exist in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be STRICT]
+include/assert.inc [slave_exec_mode should be STRICT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should not exist in the persist file]
+SET GLOBAL replica_exec_mode = DEFAULT;
+SET PERSIST_ONLY replica_exec_mode = 'IDEMPOTENT';
+sysvar:
+- name=replica_load_tmpdir
+- alias=slave_load_tmpdir
+- invalid=["NULL", "ON"]
+- global=1
+- session=0
+- cmdline=1
+- persist=0
+- persist_as_readonly=0
+- dynamic=0
+---- replica_load_tmpdir ----
+sysvar:
+- name=replica_max_allowed_packet
+- alias=slave_max_allowed_packet
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_max_allowed_packet ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_max_allowed_packet = 1024;
+include/assert.inc [@@global.replica_max_allowed_packet should be 1024]
+include/assert.inc [replica_max_allowed_packet should be 1024 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 1024 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 1024 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1024]
+include/assert.inc [slave_max_allowed_packet should be 1024 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 1024 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 1024 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_max_allowed_packet = 2048;
+Warnings:
+Warning	1287	'@@slave_max_allowed_packet' is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
+include/assert.inc [@@global.replica_max_allowed_packet should be 2048]
+include/assert.inc [replica_max_allowed_packet should be 2048 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 2048 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 2048 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 2048]
+include/assert.inc [slave_max_allowed_packet should be 2048 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 2048 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 2048 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_max_allowed_packet = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_max_allowed_packet' is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
+include/assert.inc [@@global.replica_max_allowed_packet should be 1073741824]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 1073741824 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1073741824]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 1073741824 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_max_allowed_packet;
+include/assert.inc [@@global.replica_max_allowed_packet should be 1073741824]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should not exist in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1073741824]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_max_allowed_packet = 2048;
+Warnings:
+Warning	1287	'@@slave_max_allowed_packet' is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
+include/assert.inc [@@global.replica_max_allowed_packet should be 2048]
+include/assert.inc [replica_max_allowed_packet should be 2048 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 2048 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 2048 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 2048]
+include/assert.inc [slave_max_allowed_packet should be 2048 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 2048 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 2048 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_max_allowed_packet = 65536;
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 65536 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_max_allowed_packet;
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should not exist in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should not exist in the persist file]
+SET GLOBAL replica_max_allowed_packet = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_max_allowed_packet = 1024;
+include/assert.inc [@@global.replica_max_allowed_packet should be 1073741824]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 1024 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 1024 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1073741824]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 1024 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 1024 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_max_allowed_packet = 2048;
+Warnings:
+Warning	1287	'@@slave_max_allowed_packet' is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
+include/assert.inc [@@global.replica_max_allowed_packet should be 1073741824]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 2048 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 2048 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1073741824]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 2048 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 2048 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_max_allowed_packet = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_max_allowed_packet' is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
+include/assert.inc [@@global.replica_max_allowed_packet should be 1073741824]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 1073741824 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1073741824]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 1073741824 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_max_allowed_packet;
+include/assert.inc [@@global.replica_max_allowed_packet should be 1073741824]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should not exist in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1073741824]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_max_allowed_packet = 2048;
+Warnings:
+Warning	1287	'@@slave_max_allowed_packet' is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
+include/assert.inc [@@global.replica_max_allowed_packet should be 1073741824]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 2048 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 2048 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1073741824]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 2048 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 2048 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_max_allowed_packet = 65536;
+include/assert.inc [@@global.replica_max_allowed_packet should be 1073741824]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1073741824]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 65536 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_max_allowed_packet;
+include/assert.inc [@@global.replica_max_allowed_packet should be 1073741824]
+include/assert.inc [replica_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should not exist in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 1073741824]
+include/assert.inc [slave_max_allowed_packet should be 1073741824 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should not exist in the persist file]
+SET GLOBAL replica_max_allowed_packet = DEFAULT;
+SET PERSIST_ONLY replica_max_allowed_packet = 65536;
+sysvar:
+- name=replica_net_timeout
+- alias=slave_net_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_net_timeout ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_net_timeout = 1;
+include/assert.inc [@@global.replica_net_timeout should be 1]
+include/assert.inc [replica_net_timeout should be 1 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 1 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 1 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 1]
+include/assert.inc [slave_net_timeout should be 1 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 1 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_net_timeout = 2;
+Warnings:
+Warning	1287	'@@slave_net_timeout' is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
+include/assert.inc [@@global.replica_net_timeout should be 2]
+include/assert.inc [replica_net_timeout should be 2 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 2 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 2]
+include/assert.inc [slave_net_timeout should be 2 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_net_timeout = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_net_timeout' is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
+include/assert.inc [@@global.replica_net_timeout should be 60]
+include/assert.inc [replica_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 60 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 60 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 60]
+include/assert.inc [slave_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 60 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 60 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_net_timeout;
+include/assert.inc [@@global.replica_net_timeout should be 60]
+include/assert.inc [replica_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should not exist in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 60]
+include/assert.inc [slave_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_net_timeout = 2;
+Warnings:
+Warning	1287	'@@slave_net_timeout' is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
+include/assert.inc [@@global.replica_net_timeout should be 2]
+include/assert.inc [replica_net_timeout should be 2 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 2 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 2]
+include/assert.inc [slave_net_timeout should be 2 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_net_timeout = 65536;
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_net_timeout;
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should not exist in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should not exist in the persist file]
+SET GLOBAL replica_net_timeout = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_net_timeout = 1;
+include/assert.inc [@@global.replica_net_timeout should be 60]
+include/assert.inc [replica_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 1 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 1 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 60]
+include/assert.inc [slave_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 1 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_net_timeout = 2;
+Warnings:
+Warning	1287	'@@slave_net_timeout' is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
+include/assert.inc [@@global.replica_net_timeout should be 60]
+include/assert.inc [replica_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 2 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 60]
+include/assert.inc [slave_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_net_timeout = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_net_timeout' is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
+include/assert.inc [@@global.replica_net_timeout should be 60]
+include/assert.inc [replica_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 60 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 60 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 60]
+include/assert.inc [slave_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 60 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 60 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_net_timeout;
+include/assert.inc [@@global.replica_net_timeout should be 60]
+include/assert.inc [replica_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should not exist in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 60]
+include/assert.inc [slave_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_net_timeout = 2;
+Warnings:
+Warning	1287	'@@slave_net_timeout' is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
+include/assert.inc [@@global.replica_net_timeout should be 60]
+include/assert.inc [replica_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 2 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 60]
+include/assert.inc [slave_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_net_timeout = 65536;
+include/assert.inc [@@global.replica_net_timeout should be 60]
+include/assert.inc [replica_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 60]
+include/assert.inc [slave_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_net_timeout;
+include/assert.inc [@@global.replica_net_timeout should be 60]
+include/assert.inc [replica_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should not exist in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 60]
+include/assert.inc [slave_net_timeout should be 60 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should not exist in the persist file]
+SET GLOBAL replica_net_timeout = DEFAULT;
+SET PERSIST_ONLY replica_net_timeout = 65536;
+sysvar:
+- name=replica_parallel_workers
+- alias=slave_parallel_workers
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+---- replica_parallel_workers ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_parallel_workers = 1;
+include/assert.inc [@@global.replica_parallel_workers should be 1]
+include/assert.inc [replica_parallel_workers should be 1 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 1 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 1 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 1]
+include/assert.inc [slave_parallel_workers should be 1 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 1 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_parallel_workers = 2;
+Warnings:
+Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
+include/assert.inc [@@global.replica_parallel_workers should be 2]
+include/assert.inc [replica_parallel_workers should be 2 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 2 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 2]
+include/assert.inc [slave_parallel_workers should be 2 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_parallel_workers = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 4 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 4 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_parallel_workers;
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should not exist in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_parallel_workers = 2;
+Warnings:
+Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
+include/assert.inc [@@global.replica_parallel_workers should be 2]
+include/assert.inc [replica_parallel_workers should be 2 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 2 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 2]
+include/assert.inc [slave_parallel_workers should be 2 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_parallel_workers = 100;
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 100 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 100 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_parallel_workers;
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should not exist in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should not exist in the persist file]
+SET GLOBAL replica_parallel_workers = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_parallel_workers = 1;
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 1 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 1 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 1 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_parallel_workers = 2;
+Warnings:
+Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 2 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_parallel_workers = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 4 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 4 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_parallel_workers;
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should not exist in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_parallel_workers = 2;
+Warnings:
+Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 2 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_parallel_workers = 100;
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 100 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 100 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_parallel_workers;
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should not exist in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should not exist in the persist file]
+SET GLOBAL replica_parallel_workers = DEFAULT;
+SET PERSIST_ONLY replica_parallel_workers = 100;
+sysvar:
+- name=replica_pending_jobs_size_max
+- alias=slave_pending_jobs_size_max
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_pending_jobs_size_max ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_pending_jobs_size_max = 65536;
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 65536]
+include/assert.inc [replica_pending_jobs_size_max should be 65536 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 65536]
+include/assert.inc [slave_pending_jobs_size_max should be 65536 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 65536 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_pending_jobs_size_max = 32768;
+Warnings:
+Warning	1287	'@@slave_pending_jobs_size_max' is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 32768]
+include/assert.inc [replica_pending_jobs_size_max should be 32768 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 32768 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 32768 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 32768]
+include/assert.inc [slave_pending_jobs_size_max should be 32768 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 32768 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 32768 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_pending_jobs_size_max = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_pending_jobs_size_max' is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 134217728]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 134217728 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 134217728]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 134217728 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_pending_jobs_size_max;
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 134217728]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should not exist in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 134217728]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_pending_jobs_size_max = 32768;
+Warnings:
+Warning	1287	'@@slave_pending_jobs_size_max' is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 32768]
+include/assert.inc [replica_pending_jobs_size_max should be 32768 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 32768 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 32768 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 32768]
+include/assert.inc [slave_pending_jobs_size_max should be 32768 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 32768 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 32768 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_pending_jobs_size_max = 4096;
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 4096 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 4096 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_pending_jobs_size_max;
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should not exist in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should not exist in the persist file]
+SET GLOBAL replica_pending_jobs_size_max = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_pending_jobs_size_max = 65536;
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 134217728]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 134217728]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 65536 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_pending_jobs_size_max = 32768;
+Warnings:
+Warning	1287	'@@slave_pending_jobs_size_max' is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 134217728]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 32768 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 32768 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 134217728]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 32768 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 32768 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_pending_jobs_size_max = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_pending_jobs_size_max' is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 134217728]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 134217728 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 134217728]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 134217728 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_pending_jobs_size_max;
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 134217728]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should not exist in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 134217728]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_pending_jobs_size_max = 32768;
+Warnings:
+Warning	1287	'@@slave_pending_jobs_size_max' is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 134217728]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 32768 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 32768 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 134217728]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 32768 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 32768 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_pending_jobs_size_max = 4096;
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 134217728]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 4096 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 134217728]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 4096 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_pending_jobs_size_max;
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 134217728]
+include/assert.inc [replica_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should not exist in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 134217728]
+include/assert.inc [slave_pending_jobs_size_max should be 134217728 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should not exist in the persist file]
+SET GLOBAL replica_pending_jobs_size_max = DEFAULT;
+SET PERSIST_ONLY replica_pending_jobs_size_max = 4096;
+sysvar:
+- name=replica_preserve_commit_order
+- alias=slave_preserve_commit_order
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+---- replica_preserve_commit_order ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_preserve_commit_order = ON;
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_preserve_commit_order = OFF;
+Warnings:
+Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
+include/assert.inc [@@global.replica_preserve_commit_order should be 0]
+include/assert.inc [replica_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value OFF in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 0]
+include/assert.inc [slave_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_preserve_commit_order = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_preserve_commit_order;
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should not exist in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_preserve_commit_order = OFF;
+Warnings:
+Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
+include/assert.inc [@@global.replica_preserve_commit_order should be 0]
+include/assert.inc [replica_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value OFF in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 0]
+include/assert.inc [slave_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_preserve_commit_order = 1;
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_preserve_commit_order;
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should not exist in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should not exist in the persist file]
+SET GLOBAL replica_preserve_commit_order = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_preserve_commit_order = ON;
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_preserve_commit_order = OFF;
+Warnings:
+Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value OFF in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_preserve_commit_order = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_preserve_commit_order;
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should not exist in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_preserve_commit_order = OFF;
+Warnings:
+Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value OFF in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_preserve_commit_order = 1;
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_preserve_commit_order;
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should not exist in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should not exist in the persist file]
+SET GLOBAL replica_preserve_commit_order = DEFAULT;
+SET PERSIST_ONLY replica_preserve_commit_order = 1;
+sysvar:
+- name=replica_skip_errors
+- alias=slave_skip_errors
+- invalid=[0, 1, 1.5, -1, "ON", null, "'x'"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+---- replica_skip_errors ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_skip_errors = all;
+include/assert.inc [@@global.replica_skip_errors should be OFF]
+include/assert.inc [replica_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should be all in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should have value all in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be OFF]
+include/assert.inc [slave_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should be all in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should have value all in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_skip_errors = ddl_exist_errors;
+Warnings:
+Warning	1287	'@@slave_skip_errors' is deprecated and will be removed in a future release. Please use replica_skip_errors instead.
+include/assert.inc [@@global.replica_skip_errors should be OFF]
+include/assert.inc [replica_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should be ddl_exist_errors in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should have value ddl_exist_errors in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be OFF]
+include/assert.inc [slave_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should be ddl_exist_errors in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should have value ddl_exist_errors in the persist file]
+# R1. SET <old>  = DEFAULT
+# R1. RESET <old>
+RESET PERSIST slave_skip_errors;
+include/assert.inc [@@global.replica_skip_errors should be OFF]
+include/assert.inc [replica_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should not exist in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be OFF]
+include/assert.inc [slave_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_skip_errors = ddl_exist_errors;
+Warnings:
+Warning	1287	'@@slave_skip_errors' is deprecated and will be removed in a future release. Please use replica_skip_errors instead.
+include/assert.inc [@@global.replica_skip_errors should be OFF]
+include/assert.inc [replica_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should be ddl_exist_errors in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should have value ddl_exist_errors in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be OFF]
+include/assert.inc [slave_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should be ddl_exist_errors in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should have value ddl_exist_errors in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_skip_errors = '1,2';
+include/assert.inc [@@global.replica_skip_errors should be OFF]
+include/assert.inc [replica_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should have value 1,2 in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be OFF]
+include/assert.inc [slave_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should have value 1,2 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_skip_errors;
+include/assert.inc [@@global.replica_skip_errors should be OFF]
+include/assert.inc [replica_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should not exist in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be OFF]
+include/assert.inc [slave_skip_errors should be OFF in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source COMPILED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should not exist in the persist file]
+SET PERSIST_ONLY replica_skip_errors = '1,2';
+sysvar:
+- name=replica_sql_verify_checksum
+- alias=slave_sql_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_sql_verify_checksum ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_sql_verify_checksum = ON;
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_sql_verify_checksum = OFF;
+Warnings:
+Warning	1287	'@@slave_sql_verify_checksum' is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
+include/assert.inc [@@global.replica_sql_verify_checksum should be 0]
+include/assert.inc [replica_sql_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 0]
+include/assert.inc [slave_sql_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_sql_verify_checksum = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_sql_verify_checksum' is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_sql_verify_checksum;
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_sql_verify_checksum = OFF;
+Warnings:
+Warning	1287	'@@slave_sql_verify_checksum' is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
+include/assert.inc [@@global.replica_sql_verify_checksum should be 0]
+include/assert.inc [replica_sql_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 0]
+include/assert.inc [slave_sql_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_sql_verify_checksum = 1;
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_sql_verify_checksum;
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should not exist in the persist file]
+SET GLOBAL replica_sql_verify_checksum = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_sql_verify_checksum = ON;
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_sql_verify_checksum = OFF;
+Warnings:
+Warning	1287	'@@slave_sql_verify_checksum' is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_sql_verify_checksum = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_sql_verify_checksum' is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_sql_verify_checksum;
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_sql_verify_checksum = OFF;
+Warnings:
+Warning	1287	'@@slave_sql_verify_checksum' is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_sql_verify_checksum = 1;
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_sql_verify_checksum;
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should not exist in the persist file]
+SET GLOBAL replica_sql_verify_checksum = DEFAULT;
+SET PERSIST_ONLY replica_sql_verify_checksum = 1;
+sysvar:
+- name=replica_transaction_retries
+- alias=slave_transaction_retries
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_transaction_retries ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_transaction_retries = 1;
+include/assert.inc [@@global.replica_transaction_retries should be 1]
+include/assert.inc [replica_transaction_retries should be 1 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 1 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 1 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 1]
+include/assert.inc [slave_transaction_retries should be 1 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 1 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_transaction_retries = 2;
+Warnings:
+Warning	1287	'@@slave_transaction_retries' is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
+include/assert.inc [@@global.replica_transaction_retries should be 2]
+include/assert.inc [replica_transaction_retries should be 2 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 2 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 2]
+include/assert.inc [slave_transaction_retries should be 2 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_transaction_retries = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_transaction_retries' is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
+include/assert.inc [@@global.replica_transaction_retries should be 10]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 10 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 10]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 10 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_transaction_retries;
+include/assert.inc [@@global.replica_transaction_retries should be 10]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should not exist in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 10]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_transaction_retries = 2;
+Warnings:
+Warning	1287	'@@slave_transaction_retries' is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
+include/assert.inc [@@global.replica_transaction_retries should be 2]
+include/assert.inc [replica_transaction_retries should be 2 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 2 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 2]
+include/assert.inc [slave_transaction_retries should be 2 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_transaction_retries = 99;
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 99 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 99 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_transaction_retries;
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should not exist in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should not exist in the persist file]
+SET GLOBAL replica_transaction_retries = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_transaction_retries = 1;
+include/assert.inc [@@global.replica_transaction_retries should be 10]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 1 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 1 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 10]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 1 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_transaction_retries = 2;
+Warnings:
+Warning	1287	'@@slave_transaction_retries' is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
+include/assert.inc [@@global.replica_transaction_retries should be 10]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 2 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 10]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.slave_transaction_retries = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_transaction_retries' is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
+include/assert.inc [@@global.replica_transaction_retries should be 10]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 10 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 10]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 10 in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_transaction_retries;
+include/assert.inc [@@global.replica_transaction_retries should be 10]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should not exist in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 10]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_transaction_retries = 2;
+Warnings:
+Warning	1287	'@@slave_transaction_retries' is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
+include/assert.inc [@@global.replica_transaction_retries should be 10]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 2 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 2 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 10]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 2 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_transaction_retries = 99;
+include/assert.inc [@@global.replica_transaction_retries should be 10]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 99 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 10]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 99 in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_transaction_retries;
+include/assert.inc [@@global.replica_transaction_retries should be 10]
+include/assert.inc [replica_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should not exist in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 10]
+include/assert.inc [slave_transaction_retries should be 10 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should not exist in the persist file]
+SET GLOBAL replica_transaction_retries = DEFAULT;
+SET PERSIST_ONLY replica_transaction_retries = 99;
+sysvar:
+- name=replica_type_conversions
+- alias=slave_type_conversions
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 16]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- replica_type_conversions ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.replica_type_conversions = ALL_LOSSY;
+include/assert.inc [@@global.replica_type_conversions should be ALL_LOSSY]
+include/assert.inc [replica_type_conversions should be ALL_LOSSY in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be ALL_LOSSY in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value ALL_LOSSY in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ALL_LOSSY]
+include/assert.inc [slave_type_conversions should be ALL_LOSSY in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be ALL_LOSSY in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value ALL_LOSSY in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.slave_type_conversions = 'ALL_NON_LOSSY';
+Warnings:
+Warning	1287	'@@slave_type_conversions' is deprecated and will be removed in a future release. Please use replica_type_conversions instead.
+include/assert.inc [@@global.replica_type_conversions should be ALL_NON_LOSSY]
+include/assert.inc [replica_type_conversions should be ALL_NON_LOSSY in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be ALL_NON_LOSSY in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value ALL_NON_LOSSY in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ALL_NON_LOSSY]
+include/assert.inc [slave_type_conversions should be ALL_NON_LOSSY in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be ALL_NON_LOSSY in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value ALL_NON_LOSSY in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.slave_type_conversions = DEFAULT;
+Warnings:
+Warning	1287	'@@slave_type_conversions' is deprecated and will be removed in a future release. Please use replica_type_conversions instead.
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value  in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value  in the persist file]
+# R1. RESET <old>
+RESET PERSIST slave_type_conversions;
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should not exist in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST slave_type_conversions = 'ALL_NON_LOSSY';
+Warnings:
+Warning	1287	'@@slave_type_conversions' is deprecated and will be removed in a future release. Please use replica_type_conversions instead.
+include/assert.inc [@@global.replica_type_conversions should be ALL_NON_LOSSY]
+include/assert.inc [replica_type_conversions should be ALL_NON_LOSSY in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be ALL_NON_LOSSY in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value ALL_NON_LOSSY in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ALL_NON_LOSSY]
+include/assert.inc [slave_type_conversions should be ALL_NON_LOSSY in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be ALL_NON_LOSSY in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value ALL_NON_LOSSY in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST replica_type_conversions = '';
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value  in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value  in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_type_conversions;
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should not exist in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should not exist in the persist file]
+SET GLOBAL replica_type_conversions = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.replica_type_conversions = ALL_LOSSY;
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be ALL_LOSSY in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value ALL_LOSSY in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be ALL_LOSSY in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value ALL_LOSSY in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.slave_type_conversions = 'ALL_NON_LOSSY';
+Warnings:
+Warning	1287	'@@slave_type_conversions' is deprecated and will be removed in a future release. Please use replica_type_conversions instead.
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be ALL_NON_LOSSY in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value ALL_NON_LOSSY in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be ALL_NON_LOSSY in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value ALL_NON_LOSSY in the persist file]
+# R1. SET <old>  = DEFAULT
+# R1. RESET <old>
+RESET PERSIST slave_type_conversions;
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should not exist in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY slave_type_conversions = 'ALL_NON_LOSSY';
+Warnings:
+Warning	1287	'@@slave_type_conversions' is deprecated and will be removed in a future release. Please use replica_type_conversions instead.
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be ALL_NON_LOSSY in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value ALL_NON_LOSSY in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be ALL_NON_LOSSY in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value ALL_NON_LOSSY in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY replica_type_conversions = '';
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value  in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value  in the persist file]
+# R1. RESET <new>
+RESET PERSIST replica_type_conversions;
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [replica_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should not exist in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [slave_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should not exist in the persist file]
+SET GLOBAL replica_type_conversions = DEFAULT;
+SET PERSIST_ONLY replica_type_conversions = '';
+sysvar:
+- name=rpl_stop_replica_timeout
+- alias=rpl_stop_slave_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- rpl_stop_replica_timeout ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.rpl_stop_replica_timeout = 100;
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 100]
+include/assert.inc [rpl_stop_replica_timeout should be 100 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 100 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 100 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 100]
+include/assert.inc [rpl_stop_slave_timeout should be 100 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 100 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 100 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.rpl_stop_slave_timeout = 200;
+Warnings:
+Warning	1287	'@@rpl_stop_slave_timeout' is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 200]
+include/assert.inc [rpl_stop_replica_timeout should be 200 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 200 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 200 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 200]
+include/assert.inc [rpl_stop_slave_timeout should be 200 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 200 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 200 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.rpl_stop_slave_timeout = DEFAULT;
+Warnings:
+Warning	1287	'@@rpl_stop_slave_timeout' is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 31536000]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 31536000 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 31536000]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 31536000 in the persist file]
+# R1. RESET <old>
+RESET PERSIST rpl_stop_slave_timeout;
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 31536000]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should not exist in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 31536000]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST rpl_stop_slave_timeout = 200;
+Warnings:
+Warning	1287	'@@rpl_stop_slave_timeout' is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 200]
+include/assert.inc [rpl_stop_replica_timeout should be 200 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 200 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 200 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 200]
+include/assert.inc [rpl_stop_slave_timeout should be 200 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 200 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 200 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST rpl_stop_replica_timeout = 3;
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 3 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 3 in the persist file]
+# R1. RESET <new>
+RESET PERSIST rpl_stop_replica_timeout;
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should not exist in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should not exist in the persist file]
+SET GLOBAL rpl_stop_replica_timeout = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.rpl_stop_replica_timeout = 100;
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 31536000]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 100 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 100 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 31536000]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 100 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 100 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.rpl_stop_slave_timeout = 200;
+Warnings:
+Warning	1287	'@@rpl_stop_slave_timeout' is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 31536000]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 200 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 200 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 31536000]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 200 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 200 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.rpl_stop_slave_timeout = DEFAULT;
+Warnings:
+Warning	1287	'@@rpl_stop_slave_timeout' is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 31536000]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 31536000 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 31536000]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 31536000 in the persist file]
+# R1. RESET <old>
+RESET PERSIST rpl_stop_slave_timeout;
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 31536000]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should not exist in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 31536000]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY rpl_stop_slave_timeout = 200;
+Warnings:
+Warning	1287	'@@rpl_stop_slave_timeout' is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 31536000]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 200 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 200 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 31536000]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 200 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 200 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY rpl_stop_replica_timeout = 3;
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 31536000]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 3 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 31536000]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 3 in the persist file]
+# R1. RESET <new>
+RESET PERSIST rpl_stop_replica_timeout;
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 31536000]
+include/assert.inc [rpl_stop_replica_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should not exist in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 31536000]
+include/assert.inc [rpl_stop_slave_timeout should be 31536000 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should not exist in the persist file]
+SET GLOBAL rpl_stop_replica_timeout = DEFAULT;
+SET PERSIST_ONLY rpl_stop_replica_timeout = 3;
+sysvar:
+- name=source_verify_checksum
+- alias=master_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- source_verify_checksum ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.source_verify_checksum = ON;
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.master_verify_checksum = OFF;
+Warnings:
+Warning	1287	'@@master_verify_checksum' is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.master_verify_checksum = DEFAULT;
+Warnings:
+Warning	1287	'@@master_verify_checksum' is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value OFF in the persist file]
+# R1. RESET <old>
+RESET PERSIST master_verify_checksum;
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST master_verify_checksum = OFF;
+Warnings:
+Warning	1287	'@@master_verify_checksum' is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST source_verify_checksum = 1;
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST source_verify_checksum;
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should not exist in the persist file]
+SET GLOBAL source_verify_checksum = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.source_verify_checksum = ON;
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value ON in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.master_verify_checksum = OFF;
+Warnings:
+Warning	1287	'@@master_verify_checksum' is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value OFF in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.master_verify_checksum = DEFAULT;
+Warnings:
+Warning	1287	'@@master_verify_checksum' is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value OFF in the persist file]
+# R1. RESET <old>
+RESET PERSIST master_verify_checksum;
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY master_verify_checksum = OFF;
+Warnings:
+Warning	1287	'@@master_verify_checksum' is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value OFF in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be OFF in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value OFF in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY source_verify_checksum = 1;
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value ON in the persist file]
+# R1. RESET <new>
+RESET PERSIST source_verify_checksum;
+include/assert.inc [@@global.source_verify_checksum should be 0]
+include/assert.inc [source_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [source_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 0]
+include/assert.inc [master_verify_checksum should be 0 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [master_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should not exist in the persist file]
+SET GLOBAL source_verify_checksum = DEFAULT;
+SET PERSIST_ONLY source_verify_checksum = 1;
+sysvar:
+- name=sql_replica_skip_counter
+- alias=sql_slave_skip_counter
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=0
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- sql_replica_skip_counter ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.sql_replica_skip_counter = 1;
+include/assert.inc [@@global.sql_replica_skip_counter should be 1]
+include/assert.inc [sql_replica_skip_counter should be 1 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 1 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 1 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 1]
+include/assert.inc [sql_slave_skip_counter should be 1 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 1 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.sql_slave_skip_counter = 2;
+Warnings:
+Warning	1287	'@@sql_slave_skip_counter' is deprecated and will be removed in a future release. Please use sql_replica_skip_counter instead.
+include/assert.inc [@@global.sql_replica_skip_counter should be 2]
+include/assert.inc [sql_replica_skip_counter should be 2 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 2 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 2 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 2]
+include/assert.inc [sql_slave_skip_counter should be 2 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 2 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.sql_slave_skip_counter = DEFAULT;
+Warnings:
+Warning	1287	'@@sql_slave_skip_counter' is deprecated and will be removed in a future release. Please use sql_replica_skip_counter instead.
+include/assert.inc [@@global.sql_replica_skip_counter should be 0]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 0 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 0]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 0 in the persist file]
+# R1. RESET <old>
+RESET PERSIST sql_slave_skip_counter;
+include/assert.inc [@@global.sql_replica_skip_counter should be 0]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should not exist in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should not exist in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 0]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should not exist in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST sql_slave_skip_counter = 2;
+Warnings:
+Warning	1287	'@@sql_slave_skip_counter' is deprecated and will be removed in a future release. Please use sql_replica_skip_counter instead.
+include/assert.inc [@@global.sql_replica_skip_counter should be 2]
+include/assert.inc [sql_replica_skip_counter should be 2 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 2 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 2 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 2]
+include/assert.inc [sql_slave_skip_counter should be 2 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 2 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST sql_replica_skip_counter = 12323;
+include/assert.inc [@@global.sql_replica_skip_counter should be 12323]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 12323 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 12323]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 12323 in the persist file]
+# R1. RESET <new>
+RESET PERSIST sql_replica_skip_counter;
+include/assert.inc [@@global.sql_replica_skip_counter should be 12323]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should not exist in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should not exist in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 12323]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should not exist in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should not exist in the persist file]
+SET GLOBAL sql_replica_skip_counter = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.sql_replica_skip_counter = 1;
+include/assert.inc [@@global.sql_replica_skip_counter should be 0]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 1 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 1 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 0]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 1 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.sql_slave_skip_counter = 2;
+Warnings:
+Warning	1287	'@@sql_slave_skip_counter' is deprecated and will be removed in a future release. Please use sql_replica_skip_counter instead.
+include/assert.inc [@@global.sql_replica_skip_counter should be 0]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 2 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 2 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 0]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 2 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 2 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.sql_slave_skip_counter = DEFAULT;
+Warnings:
+Warning	1287	'@@sql_slave_skip_counter' is deprecated and will be removed in a future release. Please use sql_replica_skip_counter instead.
+include/assert.inc [@@global.sql_replica_skip_counter should be 0]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 0 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 0]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 0 in the persist file]
+# R1. RESET <old>
+RESET PERSIST sql_slave_skip_counter;
+include/assert.inc [@@global.sql_replica_skip_counter should be 0]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should not exist in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should not exist in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 0]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should not exist in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY sql_slave_skip_counter = 2;
+Warnings:
+Warning	1287	'@@sql_slave_skip_counter' is deprecated and will be removed in a future release. Please use sql_replica_skip_counter instead.
+include/assert.inc [@@global.sql_replica_skip_counter should be 0]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 2 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 2 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 0]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 2 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 2 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY sql_replica_skip_counter = 12323;
+include/assert.inc [@@global.sql_replica_skip_counter should be 0]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 12323 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 0]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 12323 in the persist file]
+# R1. RESET <new>
+RESET PERSIST sql_replica_skip_counter;
+include/assert.inc [@@global.sql_replica_skip_counter should be 0]
+include/assert.inc [sql_replica_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should not exist in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should not exist in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 0]
+include/assert.inc [sql_slave_skip_counter should be 0 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should not exist in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should not exist in the persist file]
+SET GLOBAL sql_replica_skip_counter = DEFAULT;
+SET PERSIST_ONLY sql_replica_skip_counter = 12323;
+sysvar:
+- name=sync_source_info
+- alias=sync_master_info
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+---- sync_source_info ----
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST.sync_source_info = 1;
+include/assert.inc [@@global.sync_source_info should be 1]
+include/assert.inc [sync_source_info should be 1 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 1 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 1 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 1]
+include/assert.inc [sync_master_info should be 1 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 1 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST.sync_master_info = 999;
+Warnings:
+Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
+include/assert.inc [@@global.sync_source_info should be 999]
+include/assert.inc [sync_source_info should be 999 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 999 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 999 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 999]
+include/assert.inc [sync_master_info should be 999 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 999 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 999 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST.sync_master_info = DEFAULT;
+Warnings:
+Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
+include/assert.inc [@@global.sync_source_info should be 10000]
+include/assert.inc [sync_source_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 10000 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 10000 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 10000]
+include/assert.inc [sync_master_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 10000 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 10000 in the persist file]
+# R1. RESET <old>
+RESET PERSIST sync_master_info;
+include/assert.inc [@@global.sync_source_info should be 10000]
+include/assert.inc [sync_source_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_source_info should not exist in the persist file]
+include/assert.inc [@@global.sync_master_info should be 10000]
+include/assert.inc [sync_master_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_master_info should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST sync_master_info = 999;
+Warnings:
+Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
+include/assert.inc [@@global.sync_source_info should be 999]
+include/assert.inc [sync_source_info should be 999 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 999 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 999 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 999]
+include/assert.inc [sync_master_info should be 999 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 999 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 999 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST sync_source_info = 123456;
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 123456 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 123456 in the persist file]
+# R1. RESET <new>
+RESET PERSIST sync_source_info;
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_source_info should not exist in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_master_info should not exist in the persist file]
+SET GLOBAL sync_source_info = DEFAULT;
+# R1. SET <new> when variable was previously unset
+SET @@PERSIST_ONLY.sync_source_info = 1;
+include/assert.inc [@@global.sync_source_info should be 10000]
+include/assert.inc [sync_source_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 1 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 1 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 10000]
+include/assert.inc [sync_master_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 1 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 1 in the persist file]
+# R1. SET <old> when variable was previously set through <new>
+SET @@PERSIST_ONLY.sync_master_info = 999;
+Warnings:
+Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
+include/assert.inc [@@global.sync_source_info should be 10000]
+include/assert.inc [sync_source_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 999 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 999 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 10000]
+include/assert.inc [sync_master_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 999 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 999 in the persist file]
+# R1. SET <old>  = DEFAULT
+SET @@PERSIST_ONLY.sync_master_info = DEFAULT;
+Warnings:
+Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
+include/assert.inc [@@global.sync_source_info should be 10000]
+include/assert.inc [sync_source_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 10000 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 10000 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 10000]
+include/assert.inc [sync_master_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 10000 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 10000 in the persist file]
+# R1. RESET <old>
+RESET PERSIST sync_master_info;
+include/assert.inc [@@global.sync_source_info should be 10000]
+include/assert.inc [sync_source_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_source_info should not exist in the persist file]
+include/assert.inc [@@global.sync_master_info should be 10000]
+include/assert.inc [sync_master_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_master_info should not exist in the persist file]
+# R1. SET <old> when variable was previously unset
+SET PERSIST_ONLY sync_master_info = 999;
+Warnings:
+Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
+include/assert.inc [@@global.sync_source_info should be 10000]
+include/assert.inc [sync_source_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 999 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 999 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 10000]
+include/assert.inc [sync_master_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 999 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 999 in the persist file]
+# R1. SET <new> when variable was previously set through <old>
+SET PERSIST_ONLY sync_source_info = 123456;
+include/assert.inc [@@global.sync_source_info should be 10000]
+include/assert.inc [sync_source_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 123456 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 10000]
+include/assert.inc [sync_master_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 123456 in the persist file]
+# R1. RESET <new>
+RESET PERSIST sync_source_info;
+include/assert.inc [@@global.sync_source_info should be 10000]
+include/assert.inc [sync_source_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_source_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_source_info should not exist in the persist file]
+include/assert.inc [@@global.sync_master_info should be 10000]
+include/assert.inc [sync_master_info should be 10000 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source DYNAMIC in P_S.variables_info]
+include/assert.inc [sync_master_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_master_info should not exist in the persist file]
+SET GLOBAL sync_source_info = DEFAULT;
+SET PERSIST_ONLY sync_source_info = 123456;
+
+==== R2.1. Server restart with both old and new name in file ====
+
+# restart
+include/assert_error_log.inc [server: 1, pattern: NONE]
+sysvar:
+- name=init_replica
+- alias=init_slave
+- invalid=[7, 1.9, "FALSE"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.init_replica should be SELECT(3)]
+include/assert.inc [init_replica should be SELECT(3) in P_S.global_variables]
+include/assert.inc [init_replica should have source PERSISTED in P_S.variables_info]
+include/assert.inc [init_replica should be SELECT(3) in P_S.persisted_variables]
+include/assert.inc [init_replica should have value SELECT(3) in the persist file]
+include/assert.inc [@@global.init_slave should be SELECT(3)]
+include/assert.inc [init_slave should be SELECT(3) in P_S.global_variables]
+include/assert.inc [init_slave should have source PERSISTED in P_S.variables_info]
+include/assert.inc [init_slave should be SELECT(3) in P_S.persisted_variables]
+include/assert.inc [init_slave should have value SELECT(3) in the persist file]
+sysvar:
+- name=log_replica_updates
+- alias=log_slave_updates
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+include/assert.inc [@@global.log_replica_updates should be 1]
+include/assert.inc [log_replica_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_replica_updates should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_replica_updates should be ON in P_S.persisted_variables]
+include/assert.inc [log_replica_updates should have value ON in the persist file]
+include/assert.inc [@@global.log_slave_updates should be 1]
+include/assert.inc [log_slave_updates should be 1 in P_S.global_variables]
+include/assert.inc [log_slave_updates should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slave_updates should be ON in P_S.persisted_variables]
+include/assert.inc [log_slave_updates should have value ON in the persist file]
+sysvar:
+- name=log_slow_replica_statements
+- alias=log_slow_slave_statements
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value ON in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value ON in the persist file]
+sysvar:
+- name=replica_allow_batching
+- alias=slave_allow_batching
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+sysvar:
+- name=replica_checkpoint_group
+- alias=slave_checkpoint_group
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 2000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 2000 in the persist file]
+sysvar:
+- name=replica_checkpoint_period
+- alias=slave_checkpoint_period
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 12323 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 12323 in the persist file]
+sysvar:
+- name=replica_compressed_protocol
+- alias=slave_compressed_protocol
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value ON in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value ON in the persist file]
+sysvar:
+- name=replica_exec_mode
+- alias=slave_exec_mode
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value IDEMPOTENT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value IDEMPOTENT in the persist file]
+sysvar:
+- name=replica_load_tmpdir
+- alias=slave_load_tmpdir
+- invalid=["NULL", "ON"]
+- global=1
+- session=0
+- cmdline=1
+- persist=0
+- persist_as_readonly=0
+- dynamic=0
+sysvar:
+- name=replica_max_allowed_packet
+- alias=slave_max_allowed_packet
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 65536 in the persist file]
+sysvar:
+- name=replica_net_timeout
+- alias=slave_net_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
+sysvar:
+- name=replica_parallel_workers
+- alias=slave_parallel_workers
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 100 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 100 in the persist file]
+sysvar:
+- name=replica_pending_jobs_size_max
+- alias=slave_pending_jobs_size_max
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 4096 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 4096 in the persist file]
+sysvar:
+- name=replica_preserve_commit_order
+- alias=slave_preserve_commit_order
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+sysvar:
+- name=replica_skip_errors
+- alias=slave_skip_errors
+- invalid=[0, 1, 1.5, -1, "ON", null, "'x'"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+include/assert.inc [@@global.replica_skip_errors should be 1,2]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should have value 1,2 in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be 1,2]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should have value 1,2 in the persist file]
+sysvar:
+- name=replica_sql_verify_checksum
+- alias=slave_sql_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+sysvar:
+- name=replica_transaction_retries
+- alias=slave_transaction_retries
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 99 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 99 in the persist file]
+sysvar:
+- name=replica_type_conversions
+- alias=slave_type_conversions
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 16]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value  in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value  in the persist file]
+sysvar:
+- name=rpl_stop_replica_timeout
+- alias=rpl_stop_slave_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 3 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 3 in the persist file]
+sysvar:
+- name=source_verify_checksum
+- alias=master_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value ON in the persist file]
+sysvar:
+- name=sql_replica_skip_counter
+- alias=sql_slave_skip_counter
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=0
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sql_replica_skip_counter should be 12323]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 12323 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 12323]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 12323 in the persist file]
+sysvar:
+- name=sync_source_info
+- alias=sync_master_info
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_source_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 123456 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_master_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 123456 in the persist file]
+
+==== R2.2. Server restart with only new name in file ====
+
+# restart
+include/assert_error_log.inc [server: 1, pattern: NONE]
+sysvar:
+- name=log_slow_replica_statements
+- alias=log_slow_slave_statements
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value ON in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should not exist in the persist file]
+sysvar:
+- name=replica_allow_batching
+- alias=slave_allow_batching
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should not exist in the persist file]
+sysvar:
+- name=replica_checkpoint_group
+- alias=slave_checkpoint_group
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 2000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should not exist in the persist file]
+sysvar:
+- name=replica_checkpoint_period
+- alias=slave_checkpoint_period
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 12323 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should not exist in the persist file]
+sysvar:
+- name=replica_compressed_protocol
+- alias=slave_compressed_protocol
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value ON in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should not exist in the persist file]
+sysvar:
+- name=replica_exec_mode
+- alias=slave_exec_mode
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value IDEMPOTENT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should not exist in the persist file]
+sysvar:
+- name=replica_load_tmpdir
+- alias=slave_load_tmpdir
+- invalid=["NULL", "ON"]
+- global=1
+- session=0
+- cmdline=1
+- persist=0
+- persist_as_readonly=0
+- dynamic=0
+sysvar:
+- name=replica_max_allowed_packet
+- alias=slave_max_allowed_packet
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should not exist in the persist file]
+sysvar:
+- name=replica_net_timeout
+- alias=slave_net_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should not exist in the persist file]
+sysvar:
+- name=replica_parallel_workers
+- alias=slave_parallel_workers
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 100 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should not exist in the persist file]
+sysvar:
+- name=replica_pending_jobs_size_max
+- alias=slave_pending_jobs_size_max
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 4096 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should not exist in the persist file]
+sysvar:
+- name=replica_preserve_commit_order
+- alias=slave_preserve_commit_order
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should not exist in the persist file]
+sysvar:
+- name=replica_skip_errors
+- alias=slave_skip_errors
+- invalid=[0, 1, 1.5, -1, "ON", null, "'x'"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+include/assert.inc [@@global.replica_skip_errors should be 1,2]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should have value 1,2 in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be 1,2]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should not exist in the persist file]
+sysvar:
+- name=replica_sql_verify_checksum
+- alias=slave_sql_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should not exist in the persist file]
+sysvar:
+- name=replica_transaction_retries
+- alias=slave_transaction_retries
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 99 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should not exist in the persist file]
+sysvar:
+- name=replica_type_conversions
+- alias=slave_type_conversions
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 16]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value  in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should not exist in the persist file]
+sysvar:
+- name=rpl_stop_replica_timeout
+- alias=rpl_stop_slave_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 3 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should not exist in the persist file]
+sysvar:
+- name=source_verify_checksum
+- alias=master_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should not exist in the persist file]
+sysvar:
+- name=sql_replica_skip_counter
+- alias=sql_slave_skip_counter
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=0
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sql_replica_skip_counter should be 12323]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 12323 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 12323]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should not exist in the persist file]
+sysvar:
+- name=sync_source_info
+- alias=sync_master_info
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_source_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 123456 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_master_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should not exist in the persist file]
+SET PERSIST binlog_format = 'row';
+RESET PERSIST binlog_format;
+sysvar:
+- name=log_slow_replica_statements
+- alias=log_slow_slave_statements
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value ON in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value ON in the persist file]
+sysvar:
+- name=replica_allow_batching
+- alias=slave_allow_batching
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+sysvar:
+- name=replica_checkpoint_group
+- alias=slave_checkpoint_group
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 2000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 2000 in the persist file]
+sysvar:
+- name=replica_checkpoint_period
+- alias=slave_checkpoint_period
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 12323 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 12323 in the persist file]
+sysvar:
+- name=replica_compressed_protocol
+- alias=slave_compressed_protocol
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value ON in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value ON in the persist file]
+sysvar:
+- name=replica_exec_mode
+- alias=slave_exec_mode
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value IDEMPOTENT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value IDEMPOTENT in the persist file]
+sysvar:
+- name=replica_load_tmpdir
+- alias=slave_load_tmpdir
+- invalid=["NULL", "ON"]
+- global=1
+- session=0
+- cmdline=1
+- persist=0
+- persist_as_readonly=0
+- dynamic=0
+sysvar:
+- name=replica_max_allowed_packet
+- alias=slave_max_allowed_packet
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 65536 in the persist file]
+sysvar:
+- name=replica_net_timeout
+- alias=slave_net_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
+sysvar:
+- name=replica_parallel_workers
+- alias=slave_parallel_workers
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 100 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 100 in the persist file]
+sysvar:
+- name=replica_pending_jobs_size_max
+- alias=slave_pending_jobs_size_max
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 4096 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 4096 in the persist file]
+sysvar:
+- name=replica_preserve_commit_order
+- alias=slave_preserve_commit_order
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+sysvar:
+- name=replica_skip_errors
+- alias=slave_skip_errors
+- invalid=[0, 1, 1.5, -1, "ON", null, "'x'"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+include/assert.inc [@@global.replica_skip_errors should be 1,2]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should have value 1,2 in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be 1,2]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should have value 1,2 in the persist file]
+sysvar:
+- name=replica_sql_verify_checksum
+- alias=slave_sql_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+sysvar:
+- name=replica_transaction_retries
+- alias=slave_transaction_retries
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 99 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 99 in the persist file]
+sysvar:
+- name=replica_type_conversions
+- alias=slave_type_conversions
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 16]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value  in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value  in the persist file]
+sysvar:
+- name=rpl_stop_replica_timeout
+- alias=rpl_stop_slave_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 3 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 3 in the persist file]
+sysvar:
+- name=source_verify_checksum
+- alias=master_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value ON in the persist file]
+sysvar:
+- name=sql_replica_skip_counter
+- alias=sql_slave_skip_counter
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=0
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sql_replica_skip_counter should be 12323]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 12323 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 12323]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 12323 in the persist file]
+sysvar:
+- name=sync_source_info
+- alias=sync_master_info
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_source_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 123456 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_master_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 123456 in the persist file]
+
+==== R2.3. Server restart with only old name in file ====
+
+* R5.3: no deprecation warnings up till now
+# restart
+* R4.2: deprecation warnings when loading file containing only old names
+include/assert_error_log.inc [server: 1, pattern: 
+.*The variable init_slave has been renamed to init_replica, and the old name deprecated.*
+.*The variable log_slave_updates has been renamed to log_replica_updates, and the old name deprecated.*
+.*The variable log_slow_slave_statements has been renamed to log_slow_replica_statements, and the old name deprecated.*
+.*The variable slave_allow_batching has been renamed to replica_allow_batching, and the old name deprecated.*
+.*The variable slave_checkpoint_group has been renamed to replica_checkpoint_group, and the old name deprecated.*
+.*The variable slave_checkpoint_period has been renamed to replica_checkpoint_period, and the old name deprecated.*
+.*The variable slave_compressed_protocol has been renamed to replica_compressed_protocol, and the old name deprecated.*
+.*The variable slave_exec_mode has been renamed to replica_exec_mode, and the old name deprecated.*
+.*The variable slave_max_allowed_packet has been renamed to replica_max_allowed_packet, and the old name deprecated.*
+.*The variable slave_net_timeout has been renamed to replica_net_timeout, and the old name deprecated.*
+.*The variable slave_parallel_workers has been renamed to replica_parallel_workers, and the old name deprecated.*
+.*The variable slave_pending_jobs_size_max has been renamed to replica_pending_jobs_size_max, and the old name deprecated.*
+.*The variable slave_preserve_commit_order has been renamed to replica_preserve_commit_order, and the old name deprecated.*
+.*The variable slave_skip_errors has been renamed to replica_skip_errors, and the old name deprecated.*
+.*The variable slave_sql_verify_checksum has been renamed to replica_sql_verify_checksum, and the old name deprecated.*
+.*The variable slave_transaction_retries has been renamed to replica_transaction_retries, and the old name deprecated.*
+.*The variable slave_type_conversions has been renamed to replica_type_conversions, and the old name deprecated.*
+.*The variable rpl_stop_slave_timeout has been renamed to rpl_stop_replica_timeout, and the old name deprecated.*
+.*The variable master_verify_checksum has been renamed to source_verify_checksum, and the old name deprecated.*
+.*The variable sql_slave_skip_counter has been renamed to sql_replica_skip_counter, and the old name deprecated.*
+.*The variable sync_master_info has been renamed to sync_source_info, and the old name deprecated.*]
+sysvar:
+- name=log_slow_replica_statements
+- alias=log_slow_slave_statements
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should not exist in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value ON in the persist file]
+sysvar:
+- name=replica_allow_batching
+- alias=slave_allow_batching
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should not exist in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+sysvar:
+- name=replica_checkpoint_group
+- alias=slave_checkpoint_group
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 2000 in the persist file]
+sysvar:
+- name=replica_checkpoint_period
+- alias=slave_checkpoint_period
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 12323 in the persist file]
+sysvar:
+- name=replica_compressed_protocol
+- alias=slave_compressed_protocol
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should not exist in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value ON in the persist file]
+sysvar:
+- name=replica_exec_mode
+- alias=slave_exec_mode
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should not exist in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value IDEMPOTENT in the persist file]
+sysvar:
+- name=replica_load_tmpdir
+- alias=slave_load_tmpdir
+- invalid=["NULL", "ON"]
+- global=1
+- session=0
+- cmdline=1
+- persist=0
+- persist_as_readonly=0
+- dynamic=0
+sysvar:
+- name=replica_max_allowed_packet
+- alias=slave_max_allowed_packet
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should not exist in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 65536 in the persist file]
+sysvar:
+- name=replica_net_timeout
+- alias=slave_net_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should not exist in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
+sysvar:
+- name=replica_parallel_workers
+- alias=slave_parallel_workers
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should not exist in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 100 in the persist file]
+sysvar:
+- name=replica_pending_jobs_size_max
+- alias=slave_pending_jobs_size_max
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should not exist in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 4096 in the persist file]
+sysvar:
+- name=replica_preserve_commit_order
+- alias=slave_preserve_commit_order
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should not exist in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+sysvar:
+- name=replica_skip_errors
+- alias=slave_skip_errors
+- invalid=[0, 1, 1.5, -1, "ON", null, "'x'"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+include/assert.inc [@@global.replica_skip_errors should be 1,2]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should not exist in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be 1,2]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should have value 1,2 in the persist file]
+sysvar:
+- name=replica_sql_verify_checksum
+- alias=slave_sql_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+sysvar:
+- name=replica_transaction_retries
+- alias=slave_transaction_retries
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should not exist in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 99 in the persist file]
+sysvar:
+- name=replica_type_conversions
+- alias=slave_type_conversions
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 16]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should not exist in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value  in the persist file]
+sysvar:
+- name=rpl_stop_replica_timeout
+- alias=rpl_stop_slave_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should not exist in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 3 in the persist file]
+sysvar:
+- name=source_verify_checksum
+- alias=master_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value ON in the persist file]
+sysvar:
+- name=sql_replica_skip_counter
+- alias=sql_slave_skip_counter
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=0
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sql_replica_skip_counter should be 12323]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should not exist in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 12323]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 12323 in the persist file]
+sysvar:
+- name=sync_source_info
+- alias=sync_master_info
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_source_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should not exist in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_master_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 123456 in the persist file]
+SET PERSIST binlog_format = 'row';
+RESET PERSIST binlog_format;
+sysvar:
+- name=log_slow_replica_statements
+- alias=log_slow_slave_statements
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should have value ON in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source PERSISTED in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should be ON in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should have value ON in the persist file]
+sysvar:
+- name=replica_allow_batching
+- alias=slave_allow_batching
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should have value ON in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_allow_batching should be ON in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should have value ON in the persist file]
+sysvar:
+- name=replica_checkpoint_group
+- alias=slave_checkpoint_group
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should have value 2000 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should have value 2000 in the persist file]
+sysvar:
+- name=replica_checkpoint_period
+- alias=slave_checkpoint_period
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should have value 12323 in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should have value 12323 in the persist file]
+sysvar:
+- name=replica_compressed_protocol
+- alias=slave_compressed_protocol
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should have value ON in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should be ON in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should have value ON in the persist file]
+sysvar:
+- name=replica_exec_mode
+- alias=slave_exec_mode
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should have value IDEMPOTENT in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should have value IDEMPOTENT in the persist file]
+sysvar:
+- name=replica_load_tmpdir
+- alias=slave_load_tmpdir
+- invalid=["NULL", "ON"]
+- global=1
+- session=0
+- cmdline=1
+- persist=0
+- persist_as_readonly=0
+- dynamic=0
+sysvar:
+- name=replica_max_allowed_packet
+- alias=slave_max_allowed_packet
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should have value 65536 in the persist file]
+sysvar:
+- name=replica_net_timeout
+- alias=slave_net_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should have value 65536 in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should have value 65536 in the persist file]
+sysvar:
+- name=replica_parallel_workers
+- alias=slave_parallel_workers
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should have value 100 in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should have value 100 in the persist file]
+sysvar:
+- name=replica_pending_jobs_size_max
+- alias=slave_pending_jobs_size_max
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should have value 4096 in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should have value 4096 in the persist file]
+sysvar:
+- name=replica_preserve_commit_order
+- alias=slave_preserve_commit_order
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should have value ON in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should be ON in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should have value ON in the persist file]
+sysvar:
+- name=replica_skip_errors
+- alias=slave_skip_errors
+- invalid=[0, 1, 1.5, -1, "ON", null, "'x'"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+include/assert.inc [@@global.replica_skip_errors should be 1,2]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should have value 1,2 in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be 1,2]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should have value 1,2 in the persist file]
+sysvar:
+- name=replica_sql_verify_checksum
+- alias=slave_sql_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should have value ON in the persist file]
+sysvar:
+- name=replica_transaction_retries
+- alias=slave_transaction_retries
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should have value 99 in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should have value 99 in the persist file]
+sysvar:
+- name=replica_type_conversions
+- alias=slave_type_conversions
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 16]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [replica_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should have value  in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source PERSISTED in P_S.variables_info]
+include/assert.inc [slave_type_conversions should be  in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should have value  in the persist file]
+sysvar:
+- name=rpl_stop_replica_timeout
+- alias=rpl_stop_slave_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should have value 3 in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source PERSISTED in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should have value 3 in the persist file]
+sysvar:
+- name=source_verify_checksum
+- alias=master_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [source_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should have value ON in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source PERSISTED in P_S.variables_info]
+include/assert.inc [master_verify_checksum should be ON in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should have value ON in the persist file]
+sysvar:
+- name=sql_replica_skip_counter
+- alias=sql_slave_skip_counter
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=0
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sql_replica_skip_counter should be 12323]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_replica_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_replica_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_replica_skip_counter should have value 12323 in the persist file]
+include/assert.inc [@@global.sql_slave_skip_counter should be 12323]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.global_variables]
+include/assert.inc [sql_slave_skip_counter should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sql_slave_skip_counter should be 12323 in P_S.persisted_variables]
+include/assert.inc [sql_slave_skip_counter should have value 12323 in the persist file]
+sysvar:
+- name=sync_source_info
+- alias=sync_master_info
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_source_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_source_info should have value 123456 in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source PERSISTED in P_S.variables_info]
+include/assert.inc [sync_master_info should be 123456 in P_S.persisted_variables]
+include/assert.inc [sync_master_info should have value 123456 in the persist file]
+
+==== R3.1. Server restart with both old and new names on command line ====
+* Also checking R4.3 (deprecation warning for old name on command line)
+
+RESET PERSIST;
+# restart
+* R4.3: deprecation warnings when using old names on command line
+include/assert_error_log.inc [server: 1, pattern: 
+.*The syntax .init_slave. is deprecated and will be removed in a future release. Please use init_replica instead.
+.*The syntax .log_slave_updates. is deprecated and will be removed in a future release. Please use log_replica_updates instead.
+.*The syntax .log_slow_slave_statements. is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
+.*The syntax .slave_allow_batching. is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
+.*The syntax .slave_checkpoint_group. is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
+.*The syntax .slave_checkpoint_period. is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
+.*The syntax .slave_compressed_protocol. is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
+.*The syntax .slave_exec_mode. is deprecated and will be removed in a future release. Please use replica_exec_mode instead.
+.*The syntax .slave_load_tmpdir. is deprecated and will be removed in a future release. Please use replica_load_tmpdir instead.
+.*The syntax .slave_max_allowed_packet. is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
+.*The syntax .slave_net_timeout. is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
+.*The syntax .slave_parallel_workers. is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
+.*The syntax .slave_pending_jobs_size_max. is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
+.*The syntax .slave_preserve_commit_order. is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
+.*The syntax .slave_skip_errors. is deprecated and will be removed in a future release. Please use replica_skip_errors instead.
+.*The syntax .slave_sql_verify_checksum. is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
+.*The syntax .slave_transaction_retries. is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
+.*The syntax .slave_type_conversions. is deprecated and will be removed in a future release. Please use replica_type_conversions instead.
+.*The syntax .rpl_stop_slave_timeout. is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
+.*The syntax .master_verify_checksum. is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
+.*The syntax .sync_master_info. is deprecated and will be removed in a future release. Please use sync_source_info instead.]
+sysvar:
+- name=log_slow_replica_statements
+- alias=log_slow_slave_statements
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should not exist in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should not exist in the persist file]
+sysvar:
+- name=replica_allow_batching
+- alias=slave_allow_batching
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should not exist in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should not exist in the persist file]
+sysvar:
+- name=replica_checkpoint_group
+- alias=slave_checkpoint_group
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should not exist in the persist file]
+sysvar:
+- name=replica_checkpoint_period
+- alias=slave_checkpoint_period
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should not exist in the persist file]
+sysvar:
+- name=replica_compressed_protocol
+- alias=slave_compressed_protocol
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should not exist in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should not exist in the persist file]
+sysvar:
+- name=replica_exec_mode
+- alias=slave_exec_mode
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should not exist in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should not exist in the persist file]
+sysvar:
+- name=replica_load_tmpdir
+- alias=slave_load_tmpdir
+- invalid=["NULL", "ON"]
+- global=1
+- session=0
+- cmdline=1
+- persist=0
+- persist_as_readonly=0
+- dynamic=0
+include/assert.inc [@@global.replica_load_tmpdir should have the expected value]
+include/assert.inc [replica_load_tmpdir should have the expected value in P_S.global_variables]
+include/assert.inc [replica_load_tmpdir should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_load_tmpdir should not exist in P_S.persisted_variables]
+include/assert.inc [replica_load_tmpdir should not exist in the persist file]
+include/assert.inc [@@global.slave_load_tmpdir should have the expected value]
+include/assert.inc [slave_load_tmpdir should have the expected value in P_S.global_variables]
+include/assert.inc [slave_load_tmpdir should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_load_tmpdir should not exist in P_S.persisted_variables]
+include/assert.inc [slave_load_tmpdir should not exist in the persist file]
+sysvar:
+- name=replica_max_allowed_packet
+- alias=slave_max_allowed_packet
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should not exist in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should not exist in the persist file]
+sysvar:
+- name=replica_net_timeout
+- alias=slave_net_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should not exist in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should not exist in the persist file]
+sysvar:
+- name=replica_parallel_workers
+- alias=slave_parallel_workers
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should not exist in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should not exist in the persist file]
+sysvar:
+- name=replica_pending_jobs_size_max
+- alias=slave_pending_jobs_size_max
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should not exist in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should not exist in the persist file]
+sysvar:
+- name=replica_preserve_commit_order
+- alias=slave_preserve_commit_order
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should not exist in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should not exist in the persist file]
+sysvar:
+- name=replica_skip_errors
+- alias=slave_skip_errors
+- invalid=[0, 1, 1.5, -1, "ON", null, "'x'"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+include/assert.inc [@@global.replica_skip_errors should be 1,2]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should not exist in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be 1,2]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should not exist in the persist file]
+sysvar:
+- name=replica_sql_verify_checksum
+- alias=slave_sql_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should not exist in the persist file]
+sysvar:
+- name=replica_transaction_retries
+- alias=slave_transaction_retries
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should not exist in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should not exist in the persist file]
+sysvar:
+- name=replica_type_conversions
+- alias=slave_type_conversions
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 16]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should not exist in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should not exist in the persist file]
+sysvar:
+- name=rpl_stop_replica_timeout
+- alias=rpl_stop_slave_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should not exist in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should not exist in the persist file]
+sysvar:
+- name=source_verify_checksum
+- alias=master_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [source_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [master_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should not exist in the persist file]
+sysvar:
+- name=sql_replica_skip_counter
+- alias=sql_slave_skip_counter
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=0
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+sysvar:
+- name=sync_source_info
+- alias=sync_master_info
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [sync_source_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_source_info should not exist in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [sync_master_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_master_info should not exist in the persist file]
+
+==== R3.2. Server restart with only new names on command line ====
+
+RESET PERSIST;
+# restart
+include/assert_error_log.inc [server: 1, pattern: NONE]
+sysvar:
+- name=log_slow_replica_statements
+- alias=log_slow_slave_statements
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should not exist in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should not exist in the persist file]
+sysvar:
+- name=replica_allow_batching
+- alias=slave_allow_batching
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should not exist in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should not exist in the persist file]
+sysvar:
+- name=replica_checkpoint_group
+- alias=slave_checkpoint_group
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should not exist in the persist file]
+sysvar:
+- name=replica_checkpoint_period
+- alias=slave_checkpoint_period
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should not exist in the persist file]
+sysvar:
+- name=replica_compressed_protocol
+- alias=slave_compressed_protocol
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should not exist in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should not exist in the persist file]
+sysvar:
+- name=replica_exec_mode
+- alias=slave_exec_mode
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should not exist in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should not exist in the persist file]
+sysvar:
+- name=replica_load_tmpdir
+- alias=slave_load_tmpdir
+- invalid=["NULL", "ON"]
+- global=1
+- session=0
+- cmdline=1
+- persist=0
+- persist_as_readonly=0
+- dynamic=0
+include/assert.inc [@@global.replica_load_tmpdir should have the expected value]
+include/assert.inc [replica_load_tmpdir should have the expected value in P_S.global_variables]
+include/assert.inc [replica_load_tmpdir should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_load_tmpdir should not exist in P_S.persisted_variables]
+include/assert.inc [replica_load_tmpdir should not exist in the persist file]
+include/assert.inc [@@global.slave_load_tmpdir should have the expected value]
+include/assert.inc [slave_load_tmpdir should have the expected value in P_S.global_variables]
+include/assert.inc [slave_load_tmpdir should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_load_tmpdir should not exist in P_S.persisted_variables]
+include/assert.inc [slave_load_tmpdir should not exist in the persist file]
+sysvar:
+- name=replica_max_allowed_packet
+- alias=slave_max_allowed_packet
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should not exist in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should not exist in the persist file]
+sysvar:
+- name=replica_net_timeout
+- alias=slave_net_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should not exist in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should not exist in the persist file]
+sysvar:
+- name=replica_parallel_workers
+- alias=slave_parallel_workers
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should not exist in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should not exist in the persist file]
+sysvar:
+- name=replica_pending_jobs_size_max
+- alias=slave_pending_jobs_size_max
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should not exist in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should not exist in the persist file]
+sysvar:
+- name=replica_preserve_commit_order
+- alias=slave_preserve_commit_order
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should not exist in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should not exist in the persist file]
+sysvar:
+- name=replica_skip_errors
+- alias=slave_skip_errors
+- invalid=[0, 1, 1.5, -1, "ON", null, "'x'"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+include/assert.inc [@@global.replica_skip_errors should be 1,2]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should not exist in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be 1,2]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should not exist in the persist file]
+sysvar:
+- name=replica_sql_verify_checksum
+- alias=slave_sql_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should not exist in the persist file]
+sysvar:
+- name=replica_transaction_retries
+- alias=slave_transaction_retries
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should not exist in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should not exist in the persist file]
+sysvar:
+- name=replica_type_conversions
+- alias=slave_type_conversions
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 16]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should not exist in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should not exist in the persist file]
+sysvar:
+- name=rpl_stop_replica_timeout
+- alias=rpl_stop_slave_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should not exist in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should not exist in the persist file]
+sysvar:
+- name=source_verify_checksum
+- alias=master_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [source_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [master_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should not exist in the persist file]
+sysvar:
+- name=sql_replica_skip_counter
+- alias=sql_slave_skip_counter
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=0
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+sysvar:
+- name=sync_source_info
+- alias=sync_master_info
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [sync_source_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_source_info should not exist in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [sync_master_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_master_info should not exist in the persist file]
+
+==== R3.3. Server restart with only old names on command line ====
+* Also checking R4.3 (deprecation warning for old name on command line)
+
+RESET PERSIST;
+# restart
+* R4.3: deprecation warnings when using old names on command line
+include/assert_error_log.inc [server: 1, pattern: 
+.*The syntax .init_slave. is deprecated and will be removed in a future release. Please use init_replica instead.
+.*The syntax .log_slave_updates. is deprecated and will be removed in a future release. Please use log_replica_updates instead.
+.*The syntax .log_slow_slave_statements. is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
+.*The syntax .slave_allow_batching. is deprecated and will be removed in a future release. Please use replica_allow_batching instead.
+.*The syntax .slave_checkpoint_group. is deprecated and will be removed in a future release. Please use replica_checkpoint_group instead.
+.*The syntax .slave_checkpoint_period. is deprecated and will be removed in a future release. Please use replica_checkpoint_period instead.
+.*The syntax .slave_compressed_protocol. is deprecated and will be removed in a future release. Please use replica_compressed_protocol instead.
+.*The syntax .slave_exec_mode. is deprecated and will be removed in a future release. Please use replica_exec_mode instead.
+.*The syntax .slave_load_tmpdir. is deprecated and will be removed in a future release. Please use replica_load_tmpdir instead.
+.*The syntax .slave_max_allowed_packet. is deprecated and will be removed in a future release. Please use replica_max_allowed_packet instead.
+.*The syntax .slave_net_timeout. is deprecated and will be removed in a future release. Please use replica_net_timeout instead.
+.*The syntax .slave_parallel_workers. is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
+.*The syntax .slave_pending_jobs_size_max. is deprecated and will be removed in a future release. Please use replica_pending_jobs_size_max instead.
+.*The syntax .slave_preserve_commit_order. is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
+.*The syntax .slave_skip_errors. is deprecated and will be removed in a future release. Please use replica_skip_errors instead.
+.*The syntax .slave_sql_verify_checksum. is deprecated and will be removed in a future release. Please use replica_sql_verify_checksum instead.
+.*The syntax .slave_transaction_retries. is deprecated and will be removed in a future release. Please use replica_transaction_retries instead.
+.*The syntax .slave_type_conversions. is deprecated and will be removed in a future release. Please use replica_type_conversions instead.
+.*The syntax .rpl_stop_slave_timeout. is deprecated and will be removed in a future release. Please use rpl_stop_replica_timeout instead.
+.*The syntax .master_verify_checksum. is deprecated and will be removed in a future release. Please use source_verify_checksum instead.
+.*The syntax .sync_master_info. is deprecated and will be removed in a future release. Please use sync_source_info instead.]
+sysvar:
+- name=log_slow_replica_statements
+- alias=log_slow_slave_statements
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.log_slow_replica_statements should be 1]
+include/assert.inc [log_slow_replica_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_replica_statements should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [log_slow_replica_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_replica_statements should not exist in the persist file]
+include/assert.inc [@@global.log_slow_slave_statements should be 1]
+include/assert.inc [log_slow_slave_statements should be 1 in P_S.global_variables]
+include/assert.inc [log_slow_slave_statements should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [log_slow_slave_statements should not exist in P_S.persisted_variables]
+include/assert.inc [log_slow_slave_statements should not exist in the persist file]
+sysvar:
+- name=replica_allow_batching
+- alias=slave_allow_batching
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_allow_batching should be 1]
+include/assert.inc [replica_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [replica_allow_batching should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [replica_allow_batching should not exist in the persist file]
+include/assert.inc [@@global.slave_allow_batching should be 1]
+include/assert.inc [slave_allow_batching should be 1 in P_S.global_variables]
+include/assert.inc [slave_allow_batching should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_allow_batching should not exist in P_S.persisted_variables]
+include/assert.inc [slave_allow_batching should not exist in the persist file]
+sysvar:
+- name=replica_checkpoint_group
+- alias=slave_checkpoint_group
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_group should be 2000]
+include/assert.inc [replica_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_group should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_group should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_group should be 2000]
+include/assert.inc [slave_checkpoint_group should be 2000 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_group should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_checkpoint_group should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_group should not exist in the persist file]
+sysvar:
+- name=replica_checkpoint_period
+- alias=slave_checkpoint_period
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_checkpoint_period should be 12323]
+include/assert.inc [replica_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [replica_checkpoint_period should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [replica_checkpoint_period should not exist in the persist file]
+include/assert.inc [@@global.slave_checkpoint_period should be 12323]
+include/assert.inc [slave_checkpoint_period should be 12323 in P_S.global_variables]
+include/assert.inc [slave_checkpoint_period should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_checkpoint_period should not exist in P_S.persisted_variables]
+include/assert.inc [slave_checkpoint_period should not exist in the persist file]
+sysvar:
+- name=replica_compressed_protocol
+- alias=slave_compressed_protocol
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_compressed_protocol should be 1]
+include/assert.inc [replica_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [replica_compressed_protocol should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [replica_compressed_protocol should not exist in the persist file]
+include/assert.inc [@@global.slave_compressed_protocol should be 1]
+include/assert.inc [slave_compressed_protocol should be 1 in P_S.global_variables]
+include/assert.inc [slave_compressed_protocol should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_compressed_protocol should not exist in P_S.persisted_variables]
+include/assert.inc [slave_compressed_protocol should not exist in the persist file]
+sysvar:
+- name=replica_exec_mode
+- alias=slave_exec_mode
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 2]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_exec_mode should be IDEMPOTENT]
+include/assert.inc [replica_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [replica_exec_mode should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [replica_exec_mode should not exist in the persist file]
+include/assert.inc [@@global.slave_exec_mode should be IDEMPOTENT]
+include/assert.inc [slave_exec_mode should be IDEMPOTENT in P_S.global_variables]
+include/assert.inc [slave_exec_mode should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_exec_mode should not exist in P_S.persisted_variables]
+include/assert.inc [slave_exec_mode should not exist in the persist file]
+sysvar:
+- name=replica_load_tmpdir
+- alias=slave_load_tmpdir
+- invalid=["NULL", "ON"]
+- global=1
+- session=0
+- cmdline=1
+- persist=0
+- persist_as_readonly=0
+- dynamic=0
+include/assert.inc [@@global.replica_load_tmpdir should have the expected value]
+include/assert.inc [replica_load_tmpdir should have the expected value in P_S.global_variables]
+include/assert.inc [replica_load_tmpdir should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_load_tmpdir should not exist in P_S.persisted_variables]
+include/assert.inc [replica_load_tmpdir should not exist in the persist file]
+include/assert.inc [@@global.slave_load_tmpdir should have the expected value]
+include/assert.inc [slave_load_tmpdir should have the expected value in P_S.global_variables]
+include/assert.inc [slave_load_tmpdir should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_load_tmpdir should not exist in P_S.persisted_variables]
+include/assert.inc [slave_load_tmpdir should not exist in the persist file]
+sysvar:
+- name=replica_max_allowed_packet
+- alias=slave_max_allowed_packet
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_max_allowed_packet should be 65536]
+include/assert.inc [replica_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [replica_max_allowed_packet should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [replica_max_allowed_packet should not exist in the persist file]
+include/assert.inc [@@global.slave_max_allowed_packet should be 65536]
+include/assert.inc [slave_max_allowed_packet should be 65536 in P_S.global_variables]
+include/assert.inc [slave_max_allowed_packet should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_max_allowed_packet should not exist in P_S.persisted_variables]
+include/assert.inc [slave_max_allowed_packet should not exist in the persist file]
+sysvar:
+- name=replica_net_timeout
+- alias=slave_net_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_net_timeout should be 65536]
+include/assert.inc [replica_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [replica_net_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [replica_net_timeout should not exist in the persist file]
+include/assert.inc [@@global.slave_net_timeout should be 65536]
+include/assert.inc [slave_net_timeout should be 65536 in P_S.global_variables]
+include/assert.inc [slave_net_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_net_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [slave_net_timeout should not exist in the persist file]
+sysvar:
+- name=replica_parallel_workers
+- alias=slave_parallel_workers
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_parallel_workers should be 100]
+include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [replica_parallel_workers should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [replica_parallel_workers should not exist in the persist file]
+include/assert.inc [@@global.slave_parallel_workers should be 100]
+include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
+include/assert.inc [slave_parallel_workers should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_parallel_workers should not exist in P_S.persisted_variables]
+include/assert.inc [slave_parallel_workers should not exist in the persist file]
+sysvar:
+- name=replica_pending_jobs_size_max
+- alias=slave_pending_jobs_size_max
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_pending_jobs_size_max should be 4096]
+include/assert.inc [replica_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [replica_pending_jobs_size_max should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [replica_pending_jobs_size_max should not exist in the persist file]
+include/assert.inc [@@global.slave_pending_jobs_size_max should be 4096]
+include/assert.inc [slave_pending_jobs_size_max should be 4096 in P_S.global_variables]
+include/assert.inc [slave_pending_jobs_size_max should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_pending_jobs_size_max should not exist in P_S.persisted_variables]
+include/assert.inc [slave_pending_jobs_size_max should not exist in the persist file]
+sysvar:
+- name=replica_preserve_commit_order
+- alias=slave_preserve_commit_order
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=1
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [replica_preserve_commit_order should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [replica_preserve_commit_order should not exist in the persist file]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [slave_preserve_commit_order should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_preserve_commit_order should not exist in P_S.persisted_variables]
+include/assert.inc [slave_preserve_commit_order should not exist in the persist file]
+sysvar:
+- name=replica_skip_errors
+- alias=slave_skip_errors
+- invalid=[0, 1, 1.5, -1, "ON", null, "'x'"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=1
+- dynamic=0
+include/assert.inc [@@global.replica_skip_errors should be 1,2]
+include/assert.inc [replica_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [replica_skip_errors should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [replica_skip_errors should not exist in the persist file]
+include/assert.inc [@@global.slave_skip_errors should be 1,2]
+include/assert.inc [slave_skip_errors should be 1,2 in P_S.global_variables]
+include/assert.inc [slave_skip_errors should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_skip_errors should not exist in P_S.persisted_variables]
+include/assert.inc [slave_skip_errors should not exist in the persist file]
+sysvar:
+- name=replica_sql_verify_checksum
+- alias=slave_sql_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_sql_verify_checksum should be 1]
+include/assert.inc [replica_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [replica_sql_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [replica_sql_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.slave_sql_verify_checksum should be 1]
+include/assert.inc [slave_sql_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [slave_sql_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_sql_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [slave_sql_verify_checksum should not exist in the persist file]
+sysvar:
+- name=replica_transaction_retries
+- alias=slave_transaction_retries
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_transaction_retries should be 99]
+include/assert.inc [replica_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [replica_transaction_retries should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [replica_transaction_retries should not exist in the persist file]
+include/assert.inc [@@global.slave_transaction_retries should be 99]
+include/assert.inc [slave_transaction_retries should be 99 in P_S.global_variables]
+include/assert.inc [slave_transaction_retries should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_transaction_retries should not exist in P_S.persisted_variables]
+include/assert.inc [slave_transaction_retries should not exist in the persist file]
+sysvar:
+- name=replica_type_conversions
+- alias=slave_type_conversions
+- invalid=[1.5, "ON", "'x'", "NULL", "'FOO_BAR'", -1, 16]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.replica_type_conversions should be ]
+include/assert.inc [replica_type_conversions should be  in P_S.global_variables]
+include/assert.inc [replica_type_conversions should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [replica_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [replica_type_conversions should not exist in the persist file]
+include/assert.inc [@@global.slave_type_conversions should be ]
+include/assert.inc [slave_type_conversions should be  in P_S.global_variables]
+include/assert.inc [slave_type_conversions should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [slave_type_conversions should not exist in P_S.persisted_variables]
+include/assert.inc [slave_type_conversions should not exist in the persist file]
+sysvar:
+- name=rpl_stop_replica_timeout
+- alias=rpl_stop_slave_timeout
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.rpl_stop_replica_timeout should be 3]
+include/assert.inc [rpl_stop_replica_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_replica_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [rpl_stop_replica_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_replica_timeout should not exist in the persist file]
+include/assert.inc [@@global.rpl_stop_slave_timeout should be 3]
+include/assert.inc [rpl_stop_slave_timeout should be 3 in P_S.global_variables]
+include/assert.inc [rpl_stop_slave_timeout should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [rpl_stop_slave_timeout should not exist in P_S.persisted_variables]
+include/assert.inc [rpl_stop_slave_timeout should not exist in the persist file]
+sysvar:
+- name=source_verify_checksum
+- alias=master_verify_checksum
+- invalid=[0.1, 2, -1, "''", "'x'", "'TRUE'", "'1'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.source_verify_checksum should be 1]
+include/assert.inc [source_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [source_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [source_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [source_verify_checksum should not exist in the persist file]
+include/assert.inc [@@global.master_verify_checksum should be 1]
+include/assert.inc [master_verify_checksum should be 1 in P_S.global_variables]
+include/assert.inc [master_verify_checksum should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [master_verify_checksum should not exist in P_S.persisted_variables]
+include/assert.inc [master_verify_checksum should not exist in the persist file]
+sysvar:
+- name=sql_replica_skip_counter
+- alias=sql_slave_skip_counter
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=0
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+sysvar:
+- name=sync_source_info
+- alias=sync_master_info
+- invalid=[1.5, "ON", "'x'", "NULL"]
+- global=1
+- session=0
+- cmdline=1
+- persist=1
+- persist_as_readonly=0
+- dynamic=1
+include/assert.inc [@@global.sync_source_info should be 123456]
+include/assert.inc [sync_source_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_source_info should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [sync_source_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_source_info should not exist in the persist file]
+include/assert.inc [@@global.sync_master_info should be 123456]
+include/assert.inc [sync_master_info should be 123456 in P_S.global_variables]
+include/assert.inc [sync_master_info should have source COMMAND_LINE in P_S.variables_info]
+include/assert.inc [sync_master_info should not exist in P_S.persisted_variables]
+include/assert.inc [sync_master_info should not exist in the persist file]
+#### Clean up ####
+# restart

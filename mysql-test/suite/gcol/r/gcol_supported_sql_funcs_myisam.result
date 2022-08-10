@@ -809,7 +809,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` int GENERATED ALWAYS AS (field(_latin1'aa',`a`,`b`)) VIRTUAL
+  `c` int GENERATED ALWAYS AS (field(_utf8mb4'aa',`a`,`b`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('aa','bb',default);
 insert into t1 values ('bb','aa',default);
@@ -1208,7 +1208,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,_utf8mb4'aa',_utf8mb4'bb')) VIRTUAL
+  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,_latin1'aa',_utf8mb4'bb')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('maa',default);
 select * from t1;
@@ -1600,6 +1600,8 @@ set sql_warnings = 0;
 # BINARY
 set sql_warnings = 1;
 create table t1 (a varchar(10), b varbinary(10) generated always as (binary a) virtual) charset latin1;
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2429,6 +2431,8 @@ t1	CREATE TABLE `t1` (
   `b` int GENERATED ALWAYS AS (second(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('10:05:03',default);
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '10:05:03' at row 1 is deprecated. Prefer the standard '-'.
 select * from t1;
 a	b
 2010-05-03 00:00:00	0

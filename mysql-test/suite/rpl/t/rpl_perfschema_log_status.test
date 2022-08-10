@@ -58,6 +58,9 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 }
 --source include/save_master_pos.inc
 
+# Sleep before collecting positions
+--sleep 5
+
 # Save current slave relay log coordinates
 --let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
 --let $relay_log_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)

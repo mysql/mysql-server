@@ -8,10 +8,10 @@ sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-4
+5
 select count(*) from performance_schema.setup_consumers;
 count(*)
-15
+16
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 1
@@ -115,7 +115,7 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 show global variables like "performance_schema_max_mutex_classes";
 Variable_name	Value
-performance_schema_max_mutex_classes	300
+performance_schema_max_mutex_classes	350
 select count(*) > 0 from performance_schema.setup_instruments
 where name like "wait/synch/mutex/%";
 count(*) > 0

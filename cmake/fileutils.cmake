@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ FUNCTION(ADD_OBJDUMP_TARGET TARGET_NAME FILE_NAME)
     )
 
   IF(WIN32)
-    SET(OBJDUMP_COMMAND "${DUMPBIN_EXECUTABLE}" /dependents /headers)
+    SET(OBJDUMP_COMMAND "${DUMPBIN_EXECUTABLE}" /dependents /headers /exports)
   ELSEIF(APPLE)
     SET(OBJDUMP_COMMAND otool -L)
   ELSEIF(SOLARIS)

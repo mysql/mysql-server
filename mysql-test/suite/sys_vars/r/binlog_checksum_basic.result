@@ -7,8 +7,8 @@ select @@session.binlog_checksum as 'no session var';
 ERROR HY000: Variable 'binlog_checksum' is a GLOBAL variable
 set @@global.binlog_checksum = CRC32;
 set @@global.binlog_checksum = CRC32;
-set @@global.master_verify_checksum = 0;
-set @@global.master_verify_checksum = default;
+set @@global.source_verify_checksum = 0;
+set @@global.source_verify_checksum = default;
 set @@global.binlog_checksum = ADLER32;
 ERROR 42000: Variable 'binlog_checksum' can't be set to the value of 'ADLER32'
 #

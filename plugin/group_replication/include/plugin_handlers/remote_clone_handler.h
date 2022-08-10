@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,9 +153,10 @@ class Remote_clone_handler : public Group_event_observer {
                         bool is_leaving, bool *skip_election,
                         enum_primary_election_mode *election_mode,
                         std::string &suggested_primary) override;
-  int after_primary_election(std::string primary_uuid, bool primary_changed,
-                             enum_primary_election_mode election_mode,
-                             int error) override;
+  int after_primary_election(
+      std::string primary_uuid,
+      enum_primary_election_primary_change_status primary_change_status,
+      enum_primary_election_mode election_mode, int error) override;
   int before_message_handling(const Plugin_gcs_message &message,
                               const std::string &message_origin,
                               bool *skip_message) override;
@@ -164,8 +165,10 @@ class Remote_clone_handler : public Group_event_observer {
     The thread callback passed onto mysql_thread_create.
 
     @param[in] arg a pointer to a Remote_clone_handler instance.
+
+    @return Does not return.
   */
-  [[noreturn]] static void *launch_thread(void *arg);
+  static void *launch_thread(void *arg);
 
   /**
     The clone thread process.

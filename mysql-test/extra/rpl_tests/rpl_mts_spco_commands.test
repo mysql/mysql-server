@@ -1,5 +1,5 @@
 # Aim of the testcase is to check if different operations on tables
-# respect slave-preserve-commit-order.
+# respect replica-preserve-commit-order.
 #
 # Commands tested are:
 # 1) ANALYZE TABLE
@@ -16,7 +16,7 @@
 # 12) CREATE INDEX
 # 13) DROP INDEX
 #
-# This test uses extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+# This test uses extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 # to check the ordering of commits.
 
 --let $rpl_skip_start_slave = 1
@@ -26,7 +26,7 @@
 --source include/master-slave.inc
 
 # Start slave with 10 worker threads
---let $mts_slave_parallel_workers= 10
+--let $mts_replica_parallel_workers= 10
 --let $mts_spco_save_gtid_executed = 1
 --let $mts_spco_check_gtid_executed_before_rollback = 0
 
@@ -37,12 +37,12 @@
 CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 CALL mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
 
-SET @save_slave_parallel_workers= @@global.slave_parallel_workers;
-SET @save_slave_parallel_type= @@global.slave_parallel_type;
-SET @save_slave_preserve_commit_order= @@global.slave_preserve_commit_order;
-SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
---eval SET GLOBAL slave_parallel_workers= $mts_slave_parallel_workers
-SET GLOBAL slave_preserve_commit_order= ON;
+SET @save_replica_parallel_workers= @@global.replica_parallel_workers;
+SET @save_replica_parallel_type= @@global.replica_parallel_type;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
+SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
+--eval SET GLOBAL replica_parallel_workers= $mts_replica_parallel_workers
+SET GLOBAL replica_preserve_commit_order= ON;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master1.inc
@@ -72,7 +72,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -103,7 +103,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLE t3
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -134,7 +134,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --let $mts_spco_end_statement = DROP TABLE t3; DROP TABLE t4
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 # Refresh master connection to reset TIMESTAMP value
 --disconnect master
@@ -172,7 +172,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --let $mts_spco_end_statement = RENAME TABLE t10 to t1; TRUNCATE TABLE t1; TRUNCATE TABLE t2
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 --echo
 --echo # $tc_count.2 Check for RENAME multiple tables
@@ -199,7 +199,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --let $mts_spco_end_statement = DROP TABLE t10, t2, t30
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 --echo
@@ -232,7 +232,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --let $mts_spco_end_statement = DROP TABLE t10, t20; TRUNCATE TABLE t1; TRUNCATE TABLE t2
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 --echo
@@ -263,7 +263,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 --echo
@@ -298,7 +298,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP DATABASE db1; DROP DATABASE db10; DROP DATABASE db20
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 --echo
@@ -331,7 +331,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --let $mts_spco_assert_text4 =
 --let $mts_spco_assert_cond4 =
 
@@ -364,7 +364,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLESPACE ts1
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 --echo
@@ -394,7 +394,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLE t11; DROP TABLESPACE ts11
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 --echo
@@ -424,7 +424,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 --echo
@@ -454,7 +454,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP INDEX idx1 ON t3; DROP TABLE t3
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 --echo
@@ -484,7 +484,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = TRUNCATE TABLE t1; DROP TABLE t2, t3
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 
 --echo
@@ -511,7 +511,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = DROP TABLE t1
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 
@@ -542,7 +542,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = TRUNCATE TABLE t1
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 
@@ -572,7 +572,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = DROP TABLE t1
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 
@@ -603,7 +603,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = TRUNCATE TABLE t1
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 --inc $tc_count
 
 
@@ -633,7 +633,7 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 --let $mts_spco_rollback_statement = ROLLBACK
 --let $mts_spco_end_statement = DROP TABLE t1; DROP TABLE t2; DROP TABLE t3
 
---source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--source extra/rpl_tests/rpl_mts_replica_preserve_commit_order_nobinlog.inc
 
 
 --echo
@@ -648,9 +648,11 @@ SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_depen
 
 --source include/stop_slave.inc
 
-SET GLOBAL slave_parallel_type=@save_slave_parallel_type;
-SET GLOBAL slave_parallel_workers=@save_slave_parallel_workers;
-SET GLOBAL slave_preserve_commit_order=@save_slave_preserve_commit_order;
+SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers=@save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order=@save_replica_preserve_commit_order;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

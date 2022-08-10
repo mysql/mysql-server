@@ -18,8 +18,8 @@ let $workers= 4;
 connection slave;
 
 source include/stop_slave.inc;
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-eval set @@global.slave_parallel_workers= $workers;
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+eval set @@global.replica_parallel_workers= $workers;
 source include/start_slave.inc;
 
 
@@ -349,8 +349,9 @@ while ($n)
 
 --source include/sync_slave_sql_with_master.inc
 
-
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+--disable_warnings
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 
 --source include/rpl_end.inc
 

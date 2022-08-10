@@ -106,7 +106,7 @@ SELECT COUNT(@@GLOBAL.thread_handling);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT thread_handling = @@SESSION.thread_handling;
---echo Expected error 'Readonly variable'
+SELECT thread_handling;
+--echo Expected error 'Unknown column'
 
 

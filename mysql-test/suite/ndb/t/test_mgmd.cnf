@@ -9,6 +9,10 @@
 [mysqld]
 ndbcluster
 
+# Don't wait for connect to cluster since none will be started
+ndb-wait-connected=0
+ndb-wait-setup=0
+
 [ENV]
 # The started ndb_mgmd's will be started from base + 1
 NDBT_BASE_PORT= @mysqld.1.port

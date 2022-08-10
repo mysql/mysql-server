@@ -1,0 +1,10 @@
+##########################################################################
+# Test script to test UPDATE on table having INSTANT ADD columns.
+#
+# This test is to be run in debug mode only and with debug flag
+##########################################################################
+
+--source include/have_debug.inc
+let $is_debug=1;
+
+--source suite/innodb/t/instant_ddl_update.test

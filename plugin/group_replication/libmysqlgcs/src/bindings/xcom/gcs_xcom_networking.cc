@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,9 +38,9 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
 
 #if defined(_WIN32)
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_win32.cc"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_win32.h"
 #else
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_ix.cc"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_ix.h"
 #endif
 
 /**

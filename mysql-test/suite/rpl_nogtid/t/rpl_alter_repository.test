@@ -6,7 +6,7 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/no_valgrind_without_big.inc
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 --connection slave
 --source include/stop_slave.inc
@@ -15,10 +15,10 @@ ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 --let $saved_relay_repo= `SELECT @@global.relay_log_info_repository`
 --let $saved_master_repo= `SELECT @@global.master_info_repository`
---let $saved_sync_master= `SELECT @@global.sync_master_info`
+--let $saved_sync_master= `SELECT @@global.sync_source_info`
 SET @@global.relay_log_info_repository="TABLE";
 SET @@global.master_info_repository="TABLE";
-SET @@global.sync_master_info= 1;
+SET @@global.sync_source_info= 1;
 --source include/start_slave.inc
 
 --connection master
@@ -76,7 +76,7 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 #      is not properly configured and working.
 #
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--let $rpl_server_parameters= --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 --connection slave
 --error ER_SLAVE_CONFIGURATION
@@ -89,7 +89,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 #      restared.
 #
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--let $rpl_server_parameters= --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 --connection slave
 --source include/start_slave.inc
@@ -168,7 +168,7 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 #      is not properly configured and working.
 #
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--let $rpl_server_parameters= --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 --connection slave
 --error ER_SLAVE_CONFIGURATION
@@ -181,7 +181,7 @@ UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 #      restared.
 #
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--let $rpl_server_parameters= --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 --connection slave
 
@@ -277,7 +277,7 @@ DROP TABLE t_innodb;
 --disable_query_log
 --eval SET @@global.relay_log_info_repository="$saved_relay_repo"
 --eval SET @@global.master_info_repository="$saved_master_repo"
---eval SET @@global.sync_master_info=$saved_sync_master
+--eval SET @@global.sync_source_info=$saved_sync_master
 --enable_query_log
 
 --query_vertical SELECT * FROM mysql.slave_master_info

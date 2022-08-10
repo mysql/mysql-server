@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 #include <vector>
 
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/plugin_psi.h"
+#include "sql/malloc_allocator.h"
 
 class Group_service_message : public Plugin_gcs_message {
  public:
@@ -131,7 +133,7 @@ class Group_service_message : public Plugin_gcs_message {
   /**The message identifier*/
   std::string m_tag;
   /**The message data*/
-  std::vector<uchar> m_data;
+  std::vector<uchar, Malloc_allocator<uchar>> m_data;
   /**
      A pointer to the message data, memory ownership belongs to the
      message creator.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ Foreign_key_column_usage::Foreign_key_column_usage() {
   m_target_def.add_field(FIELD_REFERENCED_COLUMN_NAME,
                          "FIELD_REFERENCED_COLUMN_NAME",
                          "referenced_column_name VARCHAR(64) NOT NULL "
-                         "COLLATE utf8_tolower_ci");
+                         "COLLATE utf8mb3_tolower_ci");
 
   m_target_def.add_index(INDEX_PK_FOREIGN_KEY_ID_ORDINAL_POSITION,
                          "INDEX_PK_FOREIGN_KEY_ID_ORDINAL_POSITION",

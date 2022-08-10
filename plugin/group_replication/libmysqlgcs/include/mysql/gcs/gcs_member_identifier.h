@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ class Gcs_member_identifier {
   Gcs_member_identifier &operator=(const Gcs_member_identifier &) = default;
   Gcs_member_identifier &operator=(Gcs_member_identifier &&) = default;
 
-  virtual ~Gcs_member_identifier() {}
+  virtual ~Gcs_member_identifier() = default;
 
   /**
     @return the member identifier

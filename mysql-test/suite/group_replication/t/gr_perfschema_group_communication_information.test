@@ -1,0 +1,177 @@
+################################################################################
+# WL #9149
+#
+# This test checks the basic functionality of the Group Replication
+# performance_schema.replication_group_communication_information table.
+#
+# Test:
+#  0) The test uses 2 servers: M1 and M2. Confirm the table is empty before
+#     starting Group Replication. M1 bootstraps the group in single-primary
+#     mode.
+#  1) Confirm the preferred consensus leader is the PRIMARY.
+#  2) Switch to multi-primary mode. Confirm everyone is a preferred consensus
+#     leader.
+#  3) Confirm write_concurrency matches the result of
+#     group_replication_get_write_concurrency.
+#  4) Confirm protocol_version matches the result of
+#     group_replication_get_communication_protocol.
+#  5) Switch to single-primary mode. Switch communication_protocol to 8.0.21.
+#     Confirm everyone is a preferred consensus leader even in single-primary
+#     mode.
+#  6) Cleanup.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 2
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode= 1
+--source include/group_replication.inc
+
+--echo #########################################################################
+--echo # 0) The test uses 2 servers: M1 and M2. Confirm the table is empty
+--echo #    before starting Group Replication. M1 bootstraps the group in
+--echo #    single-primary mode.
+--let $assert_text= The performance_schema.replication_group_communication_information table should be empty
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_group_communication_information]" = "0"
+--source include/assert.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo ########################################################################
+--echo # 1) Confirm the preferred consensus leader is the PRIMARY.
+--let $preferred_leader_uuid= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
+--let $primary_uuid= query_get_value(SELECT member_id FROM performance_schema.replication_group_members WHERE member_role = "PRIMARY", member_id, 1)
+--let $assert_text= The UUID of the PRIMARY member should match the UUID of the preferred consensus leader
+--let $assert_cond= "$primary_uuid" = "$preferred_leader_uuid"
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $preferred_leader_uuid= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
+--let $primary_uuid= query_get_value(SELECT member_id FROM performance_schema.replication_group_members WHERE member_role = "PRIMARY", member_id, 1)
+--let $assert_text= The UUID of the PRIMARY member should match the UUID of the preferred consensus leader
+--let $assert_cond= "$primary_uuid" = "$preferred_leader_uuid"
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # 2) Switch to multi-primary mode, confirm everyone is a preferred
+--echo #    consensus leader.
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--let $preferred_leader_uuids= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
+--let $primary_uuid_1= query_get_value(SELECT member_id FROM performance_schema.replication_group_members WHERE member_role = "PRIMARY", member_id, 1)
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE write_consensus_leaders_preferred LIKE "%$primary_uuid_1%"
+--source include/wait_condition_or_abort.inc
+--let $primary_uuid_2= query_get_value(SELECT member_id FROM performance_schema.replication_group_members WHERE member_role = "PRIMARY", member_id, 2)
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE write_consensus_leaders_preferred LIKE "%$primary_uuid_2%"
+--source include/wait_condition_or_abort.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $preferred_leader_uuids= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
+--let $primary_uuid_1= query_get_value(SELECT member_id FROM performance_schema.replication_group_members WHERE member_role = "PRIMARY", member_id, 1)
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE write_consensus_leaders_preferred LIKE "%$primary_uuid_1%"
+--source include/wait_condition_or_abort.inc
+--let $primary_uuid_2= query_get_value(SELECT member_id FROM performance_schema.replication_group_members WHERE member_role = "PRIMARY", member_id, 2)
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE write_consensus_leaders_preferred LIKE "%$primary_uuid_2%"
+--source include/wait_condition_or_abort.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo ########################################################################
+--echo # 3) Confirm write_concurrency matches the result of
+--echo #    group_replication_get_write_concurrency.
+--let $write_concurrency_udf= `SELECT group_replication_get_write_concurrency()`
+--let $write_concurrency_table= query_get_value(SELECT write_concurrency FROM performance_schema.replication_group_communication_information, write_concurrency, 1)
+--let $assert_text= write_concurrency ($write_concurrency_table) should be $write_concurrency_udf
+--let $assert_cond= "$write_concurrency_table" = "$write_concurrency_udf"
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $write_concurrency_udf= `SELECT group_replication_get_write_concurrency()`
+--let $write_concurrency_table= query_get_value(SELECT write_concurrency FROM performance_schema.replication_group_communication_information, write_concurrency, 1)
+--let $assert_text= write_concurrency ($write_concurrency_table) should be $write_concurrency_udf
+--let $assert_cond= "$write_concurrency_table" = "$write_concurrency_udf"
+--source include/assert.inc
+
+
+--echo ########################################################################
+--echo # 4) Confirm protocol_version matches the result of
+--echo #    group_replication_get_communication_protocol.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $communication_protocol_udf= `SELECT group_replication_get_communication_protocol()`
+--let $communication_protocol_table= query_get_value(SELECT protocol_version FROM performance_schema.replication_group_communication_information, protocol_version, 1)
+--let $assert_text= protocol_version ($communication_protocol_table) should be $communication_protocol_udf
+--let $assert_cond= "$communication_protocol_table" = "$communication_protocol_udf"
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $communication_protocol_udf= `SELECT group_replication_get_communication_protocol()`
+--let $communication_protocol_table= query_get_value(SELECT protocol_version FROM performance_schema.replication_group_communication_information, protocol_version, 1)
+--let $assert_text= protocol_version ($communication_protocol_table) should be $communication_protocol_udf
+--let $assert_cond= "$communication_protocol_table" = "$communication_protocol_udf"
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # 5) Switch to single-primary mode. Switch communication_protocol to
+--echo #    8.0.21. Confirm everyone is a preferred consensus leader even in
+--echo #    single-primary
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_single_primary_mode();
+SELECT group_replication_set_communication_protocol("8.0.21");
+
+--let $preferred_leader_uuids= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
+--let $member_uuid_1= $primary_uuid_1
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE write_consensus_leaders_preferred LIKE "%$member_uuid_1%"
+--source include/wait_condition.inc
+--let $member_uuid_2= $primary_uuid_2
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE write_consensus_leaders_preferred LIKE "%$member_uuid_2%"
+--source include/wait_condition_or_abort.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_perfschema_group_communication_information
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= A member is joining the group while a group configuration operation is occurring. The member will now leave the group
+--let $assert_count= 0
+--let $assert_text= There is no warning about a member joining the group while a group configuration operation is occurring
+--source include/assert_grep.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $preferred_leader_uuids= query_get_value(SELECT write_consensus_leaders_preferred FROM performance_schema.replication_group_communication_information, write_consensus_leaders_preferred, 1)
+--let $member_uuid_1= $primary_uuid_1
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE write_consensus_leaders_preferred LIKE "%$member_uuid_1%"
+--source include/wait_condition_or_abort.inc
+--let $member_uuid_2= $primary_uuid_2
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE write_consensus_leaders_preferred LIKE "%$member_uuid_2%"
+--source include/wait_condition_or_abort.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_perfschema_group_communication_information
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= A member is joining the group while a group configuration operation is occurring. The member will now leave the group
+--let $assert_count= 0
+--let $assert_text= There is no warning about a member joining the group while a group configuration operation is occurring
+--source include/assert_grep.inc
+
+--echo ########################################################################
+--echo # 6) Cleanup.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $rpl_group_replication_reset_persistent_vars= 1
+--source include/group_replication_end.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,16 +53,19 @@ extern trx_purge_t *purge_sys;
 /** Calculates the file address of an undo log header when we have the file
  address of its history list node.
  @return file address of the log */
-UNIV_INLINE
-fil_addr_t trx_purge_get_log_from_hist(
+static inline fil_addr_t trx_purge_get_log_from_hist(
     fil_addr_t node_addr); /*!< in: file address of the history
                            list node of the log */
+
+/** Initialize in-memory purge structures */
+void trx_purge_sys_mem_create();
 
 /** Creates the global purge system control structure and inits the history
 mutex.
 @param[in]      n_purge_threads   number of purge threads
 @param[in,out]  purge_queue       UNDO log min binary heap */
-void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue);
+void trx_purge_sys_initialize(uint32_t n_purge_threads,
+                              purge_pq_t *purge_queue);
 
 /** Frees the global purge system control structure. */
 void trx_purge_sys_close(void);
@@ -138,7 +141,7 @@ to truncate an undo tablespace. */
 namespace undo {
 
 /** Magic Number to indicate truncate action is complete. */
-const ib_uint32_t s_magic = 76845412;
+const uint32_t s_magic = 76845412;
 
 /** Truncate Log file Prefix. */
 const char *const s_log_prefix = "undo_";
@@ -158,7 +161,7 @@ along with a boolean showing whether the undo space number is in use. */
 extern struct space_id_account *space_id_bank;
 
 /** Check if the space_id is an undo space ID in the reserved range.
-@param[in]	space_id	undo tablespace ID
+@param[in]      space_id        undo tablespace ID
 @return true if it is in the reserved undo space ID range. */
 inline bool is_reserved(space_id_t space_id) {
   return (space_id >= dict_sys_t::s_min_undo_space_id &&
@@ -220,7 +223,7 @@ and s_undo_space_id_range = 400,000:
 
 This is done to maintain backward compatibility to when there was only one
 space_id per undo space number.
-@param[in]	space_id	undo tablespace ID
+@param[in]      space_id        undo tablespace ID
 @return space number of the undo tablespace */
 /* clang-format on */
 inline space_id_t id2num(space_id_t space_id) {
@@ -292,14 +295,14 @@ undo tablespaces. The slot will be marked as in-use.
 space_id_t get_next_available_space_num();
 
 /** Build a standard undo tablespace name from a space_id.
-@param[in]	space_id	id of the undo tablespace.
+@param[in]      space_id        id of the undo tablespace.
 @return tablespace name of the undo tablespace file */
 char *make_space_name(space_id_t space_id);
 
 /** Build a standard undo tablespace file name from a space_id.
 This will create a name like 'undo_001' if the space_id is in the
 reserved range, else it will be like 'undo001'.
-@param[in]	space_id	id of the undo tablespace.
+@param[in]      space_id        id of the undo tablespace.
 @return file_name of the undo tablespace file */
 char *make_file_name(space_id_t space_id);
 
@@ -319,6 +322,7 @@ struct Tablespace {
         m_space_name(),
         m_file_name(),
         m_log_file_name(),
+        m_log_file_name_old(),
         m_rsegs() {}
 
   /** Copy Constructor
@@ -331,6 +335,7 @@ struct Tablespace {
         m_space_name(),
         m_file_name(),
         m_log_file_name(),
+        m_log_file_name_old(),
         m_rsegs() {
     ut_ad(m_id == 0 || is_reserved(m_id));
 
@@ -341,29 +346,34 @@ struct Tablespace {
     vector. This constructor is only used in the global
     undo::Tablespaces object where rollback segments are
     tracked. */
-    m_rsegs = UT_NEW_NOKEY(Rsegs());
+    m_rsegs = ut::new_withkey<Rsegs>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
   /** Destructor */
   ~Tablespace() {
     if (m_space_name != nullptr) {
-      ut_free(m_space_name);
+      ut::free(m_space_name);
       m_space_name = nullptr;
     }
 
     if (m_file_name != nullptr) {
-      ut_free(m_file_name);
+      ut::free(m_file_name);
       m_file_name = nullptr;
     }
 
     if (m_log_file_name != nullptr) {
-      ut_free(m_log_file_name);
+      ut::free(m_log_file_name);
       m_log_file_name = nullptr;
+    }
+
+    if (m_log_file_name_old != nullptr) {
+      ut::free(m_log_file_name_old);
+      m_log_file_name_old = nullptr;
     }
 
     /* Clear the cached rollback segments.  */
     if (m_rsegs != nullptr) {
-      UT_DELETE(m_rsegs);
+      ut::delete_(m_rsegs);
       m_rsegs = nullptr;
     }
   }
@@ -419,9 +429,10 @@ struct Tablespace {
   }
 
   /** Build a log file name based on space_id
-  @param[in]	space_id	id of the undo tablespace.
+  @param[in]  space_id  id of the undo tablespace.
+  @param[in]  location  directory location of the file.
   @return DB_SUCCESS or error code */
-  char *make_log_file_name(space_id_t space_id);
+  char *make_log_file_name(space_id_t space_id, const char *location);
 
   /** Get the undo log filename. Make it if not yet made.
   NOTE: This is only called from stack objects so there is no
@@ -430,10 +441,20 @@ struct Tablespace {
   @return tablespace filename created from the space_id */
   char *log_file_name() {
     if (m_log_file_name == nullptr) {
-      m_log_file_name = make_log_file_name(m_id);
+      m_log_file_name = make_log_file_name(m_id, srv_undo_dir);
     }
 
     return (m_log_file_name);
+  }
+
+  /** Get the old undo log filename from the srv_log_group_home_dir.
+  Make it if not yet made. */
+  char *log_file_name_old() {
+    if (m_log_file_name_old == nullptr) {
+      m_log_file_name_old = make_log_file_name(m_id, srv_log_group_home_dir);
+    }
+
+    return (m_log_file_name_old);
   }
 
   /** Get the undo tablespace ID.
@@ -627,9 +648,13 @@ struct Tablespace {
   from the space number. */
   char *m_file_name;
 
-  /** The tablespace log file name, auto-generated when needed
-  from the space number. */
+  /** The truncation log file name, auto-generated when needed
+  from the space number and the srv_undo_dir. */
   char *m_log_file_name;
+
+  /** The old truncation log file name, auto-generated when needed
+  from the space number and the srv_log_group_home_dir. */
+  char *m_log_file_name_old;
 
   /** List of rollback segments within this tablespace.
   This is not always used. Must call init_rsegs to use it. */
@@ -640,7 +665,7 @@ struct Tablespace {
 rollback segments. */
 class Tablespaces {
   using Tablespaces_Vector =
-      std::vector<Tablespace *, ut_allocator<Tablespace *>>;
+      std::vector<Tablespace *, ut::allocator<Tablespace *>>;
 
  public:
   Tablespaces() { init(); }
@@ -657,7 +682,7 @@ class Tablespaces {
   This does not deallocate any memory. */
   void clear() {
     for (auto undo_space : m_spaces) {
-      UT_DELETE(undo_space);
+      ut::delete_(undo_space);
     }
     m_spaces.clear();
   }
@@ -675,15 +700,15 @@ class Tablespaces {
   The vector has been pre-allocated to 128 so read threads will
   not loose what is pointed to. If tablespace_name and file_name
   are standard names, they are optional.
-  @param[in]	ref_undo_space	undo tablespace */
+  @param[in]    ref_undo_space  undo tablespace */
   void add(Tablespace &ref_undo_space);
 
   /** Drop an existing explicit undo::Tablespace.
-  @param[in]	undo_space	pointer to undo space */
+  @param[in]    undo_space      pointer to undo space */
   void drop(Tablespace *undo_space);
 
   /** Drop an existing explicit undo::Tablespace.
-  @param[in]	ref_undo_space	reference to undo space */
+  @param[in]    ref_undo_space  reference to undo space */
   void drop(Tablespace &ref_undo_space);
 
   /** Check if the given space_id is in the vector.
@@ -753,13 +778,13 @@ class Tablespaces {
 #endif /* UNIV_DEBUG */
 
   /** Get a shared lock on m_spaces. */
-  void s_lock() { rw_lock_s_lock(m_latch); }
+  void s_lock() { rw_lock_s_lock(m_latch, UT_LOCATION_HERE); }
 
   /** Release a shared lock on m_spaces. */
   void s_unlock() { rw_lock_s_unlock(m_latch); }
 
   /** Get an exclusive lock on m_spaces. */
-  void x_lock() { rw_lock_x_lock(m_latch); }
+  void x_lock() { rw_lock_x_lock(m_latch, UT_LOCATION_HERE); }
 
   /** Release an exclusive lock on m_spaces. */
   void x_unlock() { rw_lock_x_unlock(m_latch); }
@@ -837,7 +862,7 @@ and they do not contain an RSEG_ARRAY page. */
 extern Space_Ids s_under_construction;
 
 /** Add undo tablespace to s_under_construction vector.
-@param[in]	space_id	space id of tablespace to
+@param[in]      space_id        space id of tablespace to
 truncate */
 void add_space_to_construction_list(space_id_t space_id);
 
@@ -845,7 +870,7 @@ void add_space_to_construction_list(space_id_t space_id);
 void clear_construction_list();
 
 /** Is an undo tablespace under construction at the moment.
-@param[in]	space_id	space id to check
+@param[in]      space_id        space id to check
 @return true if marked for truncate, else false. */
 bool is_under_construction(space_id_t space_id);
 
@@ -1056,6 +1081,9 @@ struct trx_purge_t {
 
   /** Set of all THDs allocated by the purge system. */
   ut::unordered_set<THD *> thds;
+
+  /** Set of all rseg queue. */
+  std::vector<trx_rseg_t *> rsegs_queue;
 };
 
 /** Choose the rollback segment with the smallest trx_no. */
@@ -1082,7 +1110,7 @@ struct TrxUndoRsegsIterator {
   TrxUndoRsegs m_trx_undo_rsegs;
 
   /** Track the current element in m_trx_undo_rseg */
-  Rseg_Iterator m_iter;
+  typename Rsegs_array<2>::iterator m_iter;
 
   /** Sentinel value */
   static const TrxUndoRsegs NullElement;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ class PT_handler_read_base : public Parse_tree_root {
   PT_limit_clause *const m_opt_limit_clause;
 };
 
-inline PT_handler_read_base::~PT_handler_read_base() {}
+inline PT_handler_read_base::~PT_handler_read_base() = default;
 
 class PT_handler_table_scan final : public PT_handler_read_base {
   typedef PT_handler_read_base super;

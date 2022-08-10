@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ class mock_gcs_sock_probe_interface : public Gcs_sock_probe_interface {
 class GcsXComNetworking : public GcsBaseTest {
  protected:
   GcsXComNetworking() : m_sock_probe_mock() {}
-  ~GcsXComNetworking() override {}
+  ~GcsXComNetworking() override = default;
 
   void SetUp() override {
     m_sock_probe_mock.mock_gcs_sock_probe_interface_default();

@@ -80,9 +80,9 @@ SELECT @@innodb_api_disable_rowlock = @@GLOBAL.innodb_api_enable_binlog;
 
 
 --echo '#---------------------BS_STVARS_035_05----------------------#'
-################################################################################
-#   Check if innodb_log_file_size can be accessed with and without @@ sign     #
-################################################################################
+##################################################################################
+#   Check if innodb_api_disable_rowlock can be accessed with and without @@ sign #
+##################################################################################
 
 SELECT COUNT(@@innodb_api_disable_rowlock);
 --echo 1 Expected
@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_api_disable_rowlock);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_api_disable_rowlock = @@SESSION.innodb_api_enable_binlog;
---echo Expected error 'Readonly variable'
+SELECT innodb_api_disable_rowlock;
+--echo Expected error 'Unknown column'
 
 

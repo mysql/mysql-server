@@ -1,0 +1,57 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#########################################################################
+# 0) The test uses 2 servers: M1 and M2. Confirm the table is empty
+#    before starting Group Replication. M1 bootstraps the group in
+#    single-primary mode.
+include/assert.inc [The performance_schema.replication_group_communication_information table should be empty]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+########################################################################
+# 1) Confirm the preferred consensus leader is the PRIMARY.
+include/assert.inc [The UUID of the PRIMARY member should match the UUID of the preferred consensus leader]
+[connection server1]
+include/assert.inc [The UUID of the PRIMARY member should match the UUID of the preferred consensus leader]
+########################################################################
+# 2) Switch to multi-primary mode, confirm everyone is a preferred
+#    consensus leader.
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+[connection server2]
+[connection server1]
+########################################################################
+# 3) Confirm write_concurrency matches the result of
+#    group_replication_get_write_concurrency.
+include/assert.inc [write_concurrency (10) should be 10]
+[connection server2]
+include/assert.inc [write_concurrency (10) should be 10]
+########################################################################
+# 4) Confirm protocol_version matches the result of
+#    group_replication_get_communication_protocol.
+[connection server1]
+include/assert.inc [protocol_version (8.0.27) should be 8.0.27]
+[connection server2]
+include/assert.inc [protocol_version (8.0.27) should be 8.0.27]
+########################################################################
+# 5) Switch to single-primary mode. Switch communication_protocol to
+#    8.0.21. Confirm everyone is a preferred consensus leader even in
+#    single-primary
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode();
+group_replication_switch_to_single_primary_mode()
+Mode switched to single-primary successfully.
+SELECT group_replication_set_communication_protocol("8.0.21");
+group_replication_set_communication_protocol("8.0.21")
+The operation group_replication_set_communication_protocol completed successfully
+include/assert_grep.inc [There is no warning about a member joining the group while a group configuration operation is occurring]
+[connection server2]
+include/assert_grep.inc [There is no warning about a member joining the group while a group configuration operation is occurring]
+########################################################################
+# 6) Cleanup.
+[connection server1]
+include/group_replication_end.inc

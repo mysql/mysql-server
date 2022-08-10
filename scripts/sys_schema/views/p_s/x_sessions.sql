@@ -1,4 +1,4 @@
--- Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 --                  state: Sending data
 --                   time: 0
 --      current_statement: select * from sys.x$session
+--       execution_engine: PRIMARY
 --      statement_latency: 16285980000
 --               progress: NULL
 --           lock_latency: 15450000000

@@ -1,0 +1,240 @@
+################################################################################
+# This test validates new transactions are rejected immediately if UDF
+# group_replication_set_as_primary is executed with
+# `running_transactions_timeout` option.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+# 2. Execute change primary from server2(secondary) and block the operation.
+# 3. Execute transaction on server1(primary), transactions should fail.
+# 4. Execute commands which are unaffected with
+#    group_replication_set_as_primary() in execution.
+# 5. Unblock change primary from server2 and reap the operation.
+# 6. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+# 7. Execute change primary from server2(primary) and block the operation.
+# 8. Execute transaction on server2(primary), transactions should fail.
+# 9. Execute commands which are not stopped.
+# 10. Unblock change primary from server2 and reap the operation.
+# 11. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+# 12. Cleanup.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+CREATE TABLE t1(c1 int primary key);
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Execute change primary from server2(secondary) and block the operation.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+
+--replace_result $server2_uuid SERVER2_UUID
+--send_eval SELECT group_replication_set_as_primary("$server2_uuid", 1);
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
+--source include/wait_condition.inc
+
+--echo
+--echo # 3. Execute transaction on server1(primary), transactions should fail.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+INSERT INTO t1 values(1);
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+CREATE TABLE t2(c1 int primary key);
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+CREATE TABLE t1(c1 int primary key);
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+SELECT c1 FROM t1;
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+DO group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--echo
+--echo # 4. Execute commands which are unaffected with
+--echo #    group_replication_set_as_primary() in execution.
+
+DO SLEEP(1);
+
+SELECT SLEEP(1);
+
+SELECT COUNT(*) from performance_schema.replication_group_members;
+
+SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='debug sync point: now';
+
+SELECT COUNT(*)=1 FROM sys.version;
+
+--echo
+--echo # 5. Unblock change primary from server2 and reap the operation.
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $server2_uuid SERVER2_UUID
+--reap
+
+--echo
+--echo # 6. Assert primary changed.
+--echo #    Assert data is not present on M1 and M2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is no value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'Check table t2 does not exist.'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t2\"]" = 0
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 7. Execute change primary from server2(primary) and block the operation.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid SERVER1_UUID
+--send_eval SELECT group_replication_set_as_primary("$server1_uuid", 1);
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_transaction_monitor"
+--source include/wait_condition.inc
+
+--echo
+--echo # 8. Execute transaction on server2(primary), transactions should fail.
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+INSERT INTO t1 values(1);
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+CREATE TABLE t2(c1 int primary key);
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+CREATE TABLE t1(c1 int primary key);
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+SELECT c1 FROM t1;
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+DO group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--error ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--echo
+--echo # 9. Execute commands which are not stopped.
+
+DO SLEEP(1);
+
+SELECT SLEEP(1);
+
+SELECT COUNT(*) from performance_schema.replication_group_members;
+
+SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='debug sync point: now';
+
+SELECT COUNT(*)=1 FROM sys.version;
+
+--echo
+--echo # 10. Unblock change primary from server2 and reap the operation.
+
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $server1_uuid SERVER1_UUID
+--reap
+
+--echo
+--echo # 11. Assert primary changed.
+--echo #    Assert data is not present on M1 and M2.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is no value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'Check table t2 does not exist.'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t2\"]" = 0
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 12. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+--source include/group_replication_end.inc

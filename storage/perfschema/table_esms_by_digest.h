@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class PFS_index_esms_by_digest : public PFS_engine_index {
         m_key_1("SCHEMA_NAME"),
         m_key_2("DIGEST") {}
 
-  ~PFS_index_esms_by_digest() override {}
+  ~PFS_index_esms_by_digest() override = default;
 
   virtual bool match(PFS_statements_digest_stat *pfs);
 
@@ -111,7 +111,7 @@ class table_esms_by_digest : public PFS_engine_table {
   table_esms_by_digest();
 
  public:
-  ~table_esms_by_digest() override {}
+  ~table_esms_by_digest() override = default;
 
  protected:
   int make_row(PFS_statements_digest_stat *);

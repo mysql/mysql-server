@@ -145,6 +145,8 @@ DO innodb_redo_log_archive_start('label1');
 --error 0, 1
 --force-rmdir $INNODB_DIRECTORIES
 --error 0, 1
+--force-rmdir $INNODB_LOG_GROUP_HOME_DIR/#innodb_redo
+--error 0, 1
 --force-rmdir $INNODB_LOG_GROUP_HOME_DIR
 --error 0, 1
 --force-rmdir $INNODB_TEMP_TABLESPACES_DIR
@@ -162,6 +164,7 @@ DO innodb_redo_log_archive_start('label1');
 --mkdir $INNODB_DATA_HOME_DIR/xxx
 --mkdir $INNODB_DIRECTORIES
 --mkdir $INNODB_LOG_GROUP_HOME_DIR
+--mkdir $INNODB_LOG_GROUP_HOME_DIR/#innodb_redo
 --mkdir $INNODB_TEMP_TABLESPACES_DIR
 --mkdir $EXT_DIR/tmp
 --mkdir $INNODB_TMPDIR
@@ -173,8 +176,11 @@ DO innodb_redo_log_archive_start('label1');
 --echo #
 --move_file $MYSQLD_DATADIR/ibdata1 $INNODB_DATA_HOME_DIR/ibdata1
 --move_file $MYSQLD_DATADIR/ib_buffer_pool $INNODB_DATA_HOME_DIR/ib_buffer_pool
---move_file $MYSQLD_DATADIR/ib_logfile0 $INNODB_LOG_GROUP_HOME_DIR/ib_logfile0
---move_file $MYSQLD_DATADIR/ib_logfile1 $INNODB_LOG_GROUP_HOME_DIR/ib_logfile1
+
+--let MOVE_FILES_FROM = $MYSQLD_DATADIR/#innodb_redo/#ib_redo*
+--let MOVE_FILES_TO = $INNODB_LOG_GROUP_HOME_DIR/#innodb_redo/
+--source include/move_files.inc
+
 --move_file $MYSQLD_DATADIR/undo_001 $INNODB_UNDO_DIRECTORY/undo_001
 --move_file $MYSQLD_DATADIR/undo_002 $INNODB_UNDO_DIRECTORY/undo_002
 --echo #
@@ -236,8 +242,11 @@ DO innodb_redo_log_archive_start('9');
 --echo #
 --move_file $INNODB_DATA_HOME_DIR/ibdata1 $MYSQLD_DATADIR/ibdata1
 --move_file $INNODB_DATA_HOME_DIR/ib_buffer_pool $MYSQLD_DATADIR/ib_buffer_pool
---move_file $INNODB_LOG_GROUP_HOME_DIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile0
---move_file $INNODB_LOG_GROUP_HOME_DIR/ib_logfile1 $MYSQLD_DATADIR/ib_logfile1
+
+--let MOVE_FILES_FROM = $INNODB_LOG_GROUP_HOME_DIR/#innodb_redo/#ib_redo*
+--let MOVE_FILES_TO = $MYSQLD_DATADIR/#innodb_redo/
+--source include/move_files.inc
+
 --move_file $INNODB_UNDO_DIRECTORY/undo_001 $MYSQLD_DATADIR/undo_001
 --move_file $INNODB_UNDO_DIRECTORY/undo_002 $MYSQLD_DATADIR/undo_002
 --echo #
@@ -249,6 +258,7 @@ DO innodb_redo_log_archive_start('9');
 --rmdir $INNODB_TMPDIR
 --rmdir $EXT_DIR/tmp
 --rmdir $INNODB_TEMP_TABLESPACES_DIR
+--rmdir $INNODB_LOG_GROUP_HOME_DIR/#innodb_redo
 --rmdir $INNODB_LOG_GROUP_HOME_DIR
 --rmdir $INNODB_DIRECTORIES
 --rmdir $INNODB_DATA_HOME_DIR/xxx

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -52,8 +52,8 @@ sym_tab_t *sym_tab_create(
 
   sym_tab = static_cast<sym_tab_t *>(mem_heap_alloc(heap, sizeof(sym_tab_t)));
 
-  UT_LIST_INIT(sym_tab->sym_list, &sym_node_t::sym_list);
-  UT_LIST_INIT(sym_tab->func_node_list, &func_node_t::func_node_list);
+  UT_LIST_INIT(sym_tab->sym_list);
+  UT_LIST_INIT(sym_tab->func_node_list);
 
   sym_tab->heap = heap;
 
@@ -65,12 +65,9 @@ sym_tab_t *sym_tab_create(
  originally created. Frees also SQL explicit cursor definitions. */
 void sym_tab_free_private(sym_tab_t *sym_tab) /*!< in, own: symbol table */
 {
-  sym_node_t *sym;
-  func_node_t *func;
   THD *thd = current_thd;
 
-  for (sym = UT_LIST_GET_FIRST(sym_tab->sym_list); sym != nullptr;
-       sym = UT_LIST_GET_NEXT(sym_list, sym)) {
+  for (auto sym : sym_tab->sym_list) {
     /* Close the tables opened in pars_retrieve_table_def(). */
 
     if (sym->token_type == SYM_TABLE_REF_COUNTED) {
@@ -81,7 +78,7 @@ void sym_tab_free_private(sym_tab_t *sym_tab) /*!< in, own: symbol table */
       }
 
       sym->table = nullptr;
-      sym->resolved = FALSE;
+      sym->resolved = false;
       sym->token_type = SYM_UNSET;
       sym->mdl = nullptr;
     }
@@ -97,8 +94,7 @@ void sym_tab_free_private(sym_tab_t *sym_tab) /*!< in, own: symbol table */
     }
   }
 
-  for (func = UT_LIST_GET_FIRST(sym_tab->func_node_list); func != nullptr;
-       func = UT_LIST_GET_NEXT(func_node_list, func)) {
+  for (auto func : sym_tab->func_node_list) {
     eval_node_free_val_buf(func);
   }
 }
@@ -117,7 +113,7 @@ sym_node_t *sym_tab_add_int_lit(sym_tab_t *sym_tab, /*!< in: symbol table */
   node->common.type = QUE_NODE_SYMBOL;
 
   node->table = nullptr;
-  node->resolved = TRUE;
+  node->resolved = true;
   node->token_type = SYM_LIT;
 
   node->indirection = nullptr;
@@ -158,7 +154,7 @@ sym_node_t *sym_tab_add_str_lit(sym_tab_t *sym_tab, /*!< in: symbol table */
   node->common.type = QUE_NODE_SYMBOL;
 
   node->table = nullptr;
-  node->resolved = TRUE;
+  node->resolved = true;
   node->token_type = SYM_LIT;
 
   node->indirection = nullptr;
@@ -204,7 +200,7 @@ sym_node_t *sym_tab_add_bound_lit(
   node->common.brother = node->common.parent = nullptr;
 
   node->table = nullptr;
-  node->resolved = TRUE;
+  node->resolved = true;
   node->token_type = SYM_LIT;
 
   node->indirection = nullptr;
@@ -278,7 +274,7 @@ sym_node_t *sym_tab_rebind_lit(
     ut_a(dtype_get_mtype(dtype) == DATA_CHAR ||
          dtype_get_mtype(dtype) == DATA_VARCHAR);
 
-    /* Don't force [FALSE] creation of sub-nodes (for LIKE) */
+    /* Don't force [false] creation of sub-nodes (for LIKE) */
     pars_like_rebind(node, static_cast<const byte *>(address), length);
   }
 
@@ -310,7 +306,7 @@ sym_node_t *sym_tab_add_null_lit(sym_tab_t *sym_tab) /*!< in: symbol table */
   node->common.type = QUE_NODE_SYMBOL;
 
   node->table = nullptr;
-  node->resolved = TRUE;
+  node->resolved = true;
   node->token_type = SYM_LIT;
 
   node->indirection = nullptr;
@@ -374,7 +370,7 @@ sym_node_t *sym_tab_add_bound_id(sym_tab_t *sym_tab, /*!< in: symbol table */
   node->common.type = QUE_NODE_SYMBOL;
 
   node->table = nullptr;
-  node->resolved = FALSE;
+  node->resolved = false;
   node->token_type = SYM_UNSET;
   node->indirection = nullptr;
 

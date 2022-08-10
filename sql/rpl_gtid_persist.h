@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ class Gtid_table_access_context : public System_table_access {
   static const LEX_CSTRING TABLE_NAME;
 
   Gtid_table_access_context() : m_drop_thd_object(nullptr) {}
-  ~Gtid_table_access_context() override {}
+  ~Gtid_table_access_context() override = default;
 
   /**
     Initialize the gtid_executed table access context as following:
@@ -67,7 +67,7 @@ class Gtid_table_access_context : public System_table_access {
   /**
     De-initialize the gtid_executed table access context as following:
       - Close the table
-      - Reenable binlog if needed
+      - Re-enable binlog if needed
       - Destroy the created THD if needed.
 
     @param thd         Thread requesting to close the table
@@ -119,8 +119,8 @@ class Gtid_table_persistor {
  public:
   static const uint number_fields = 3;
 
-  Gtid_table_persistor() {}
-  virtual ~Gtid_table_persistor() {}
+  Gtid_table_persistor() = default;
+  virtual ~Gtid_table_persistor() = default;
 
   /**
     Insert the gtid into table.
@@ -280,7 +280,7 @@ class Gtid_table_persistor {
   /**
     Fill a gtid interval into fields of the gtid_executed table.
 
-    @param  fields   Reference to table fileds.
+    @param  fields   Reference to table fields.
     @param  sid      The source id of the gtid interval.
     @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.

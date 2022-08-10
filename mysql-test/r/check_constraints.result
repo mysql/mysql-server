@@ -2368,9 +2368,9 @@ VALUES(B'1111111',0,5,5,5,1,1,1.2,1.2,1.2);
 ERROR HY000: Check constraint 't1_chk_10' is violated.
 INSERT INTO t1(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
 VALUES(B'1111111',0,5,5,5,11,11,10.2,10.2,10.2);
-SELECT * FROM t1;
-c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11
-	0	5	5	5	11	11	10.20	10.20	10.20	NULL
+SELECT HEX(c1), c2, c3, c4, c5, c6, c7, c8, c9, c10, c11 FROM t1;
+HEX(c1)	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11
+7F	0	5	5	5	11	11	10.20	10.20	10.20	NULL
 DROP TABLE t1;
 DROP DATABASE test1;
 #-----------------------------------------------------------------------
@@ -2447,9 +2447,9 @@ VALUES(B'1111000',0,10,10,10,5,5,9.1,9.1,9.1);
 ERROR HY000: Check constraint 't2_chk_2' is violated.
 INSERT INTO t2(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10)
 VALUES(B'1111000',1,11,11,11,5,5,9.1,9.1,9.1);
-SELECT * FROM t2;
-c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
-x	1	11	11	11	5	5	9.10	9.10	9.10
+SELECT HEX(c1), c2, c3, c4, c5, c6, c7, c8, c9, c10 FROM t2;
+HEX(c1)	c2	c3	c4	c5	c6	c7	c8	c9	c10
+78	1	11	11	11	5	5	9.10	9.10	9.10
 DROP TABLE t2;
 DROP DATABASE test2;
 USE test;
@@ -3519,5 +3519,45 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_chk_2` CHECK ((`f2` < 1105)),
   CONSTRAINT `t1_chk_3` CHECK ((`f2` < 1105)),
   CONSTRAINT `t1_chk_4` CHECK ((`f6` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# Bug#33394135 - adding CHECK constraint with alter table CHANGE column
+#                name is not working
+#
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 1);
+# Without fix, adding check constraint to a column with ALTER TABLE
+# CHANGE column doesn't work. With fix, check constraint is added
+# to the column with COPY algorithm. This alter operation is not
+# supported with the INPLACE and INSTANT algorithm.
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 CHANGE f1 f3 INT CHECK (f3 > 0), ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f3` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f3` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Without fix, adding check constraint to a column with ALTER TABLE
+# MODIFY column doesn't work. With fix, check constraint is added
+# to the column with COPY algorithm. This alter operation is not
+# supported with the INPLACE and INSTANT algorithm.
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY f2 INT CHECK (f2 > 0), ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f3` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f3` > 0)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f2` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;

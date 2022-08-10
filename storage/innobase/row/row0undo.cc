@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -142,9 +142,9 @@ undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
   undo->trx = trx;
 
   undo->partial = partial_rollback;
-  btr_pcur_init(&(undo->pcur));
+  undo->pcur.init();
 
-  undo->heap = mem_heap_create(256);
+  undo->heap = mem_heap_create(256, UT_LOCATION_HERE);
 
   return (undo);
 }
@@ -182,9 +182,10 @@ bool row_undo_search_clust_to_pcur(
     goto func_exit;
   }
 
-  rec = btr_pcur_get_rec(&node->pcur);
+  rec = node->pcur.get_rec();
 
-  offsets = rec_get_offsets(rec, clust_index, offsets, ULINT_UNDEFINED, &heap);
+  offsets = rec_get_offsets(rec, clust_index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
 
   found = row_get_rec_roll_ptr(rec, clust_index, offsets) == node->roll_ptr;
 
@@ -220,14 +221,14 @@ bool row_undo_search_clust_to_pcur(
 
     if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
       node->undo_row = dtuple_copy(node->row, node->heap);
-      row_upd_replace(node->trx, node->undo_row, &node->undo_ext, clust_index,
+      row_upd_replace(node->undo_row, &node->undo_ext, clust_index,
                       node->update, node->heap);
     } else {
       node->undo_row = nullptr;
       node->undo_ext = nullptr;
     }
 
-    btr_pcur_store_position(&node->pcur, &mtr);
+    node->pcur.store_position(&mtr);
   }
 
   if (heap) {
@@ -235,7 +236,7 @@ bool row_undo_search_clust_to_pcur(
   }
 
 func_exit:
-  btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+  node->pcur.commit_specify_mtr(&mtr);
   return (found);
 }
 
@@ -243,9 +244,9 @@ func_exit:
  If none left, or a partial rollback completed, returns control to the
  parent node, which is always a query thread node.
  @return DB_SUCCESS if operation successfully completed, else error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_undo(undo_node_t *node, /*!< in: row undo node */
-             que_thr_t *thr)    /*!< in: query thread */
+[[nodiscard]] static dberr_t row_undo(
+    undo_node_t *node, /*!< in: row undo node */
+    que_thr_t *thr)    /*!< in: query thread */
 {
   dberr_t err;
   trx_t *trx;
@@ -301,7 +302,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   /* Do some cleanup */
-  btr_pcur_close(&(node->pcur));
+  node->pcur.close();
 
   mem_heap_empty(node->heap);
 
@@ -311,16 +312,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 }
 
 void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
-  ulint *offsets = nullptr;
   /* In case of partial rollback implicit lock on the
   record is released in the middle of transaction, which
   can break the serializability of IODKU and REPLACE
   statements. Normal rollback is not affected by this
-  becasue we release the locks after the rollback. So
+  because we release the locks after the rollback. So
   to prevent any other transaction modifying the record
   in between the partial rollback we convert the implicit
-  lock on the record to explict. When the record is actually
-  deleted this lock be inherited by the next record.  */
+  lock on the record to explicit. When the record is actually
+  deleted this lock will be inherited by the next record.  */
 
   if (!node->partial || (node->trx == nullptr) ||
       node->trx->isolation_level < trx_t::REPEATABLE_READ) {
@@ -328,15 +328,15 @@ void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
   }
 
   ut_ad(node->trx->in_rollback);
-  auto index = btr_cur_get_index(cursor);
+  auto index = cursor->index;
   auto rec = btr_cur_get_rec(cursor);
   auto block = btr_cur_get_block(cursor);
   auto heap_no = page_rec_get_heap_no(rec);
 
   if (heap_no != PAGE_HEAP_NO_SUPREMUM && !dict_index_is_spatial(index) &&
       !index->table->is_temporary() && !index->table->is_intrinsic()) {
-    lock_rec_convert_active_impl_to_expl(block, rec, index, offsets, node->trx,
-                                         heap_no);
+    lock_rec_convert_impl_to_expl(block, rec, index,
+                                  Rec_offsets().compute(rec, index));
   }
 }
 
@@ -367,11 +367,12 @@ que_thr_t *row_undo_step(que_thr_t *thr) /*!< in: query thread */
     /* SQL error detected */
 
     if (err == DB_OUT_OF_FILE_SPACE) {
-      ib::fatal(ER_IB_MSG_1041) << "Out of tablespace during rollback."
-                                   " Consider increasing your tablespace.";
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1041)
+          << "Out of tablespace during rollback."
+             " Consider increasing your tablespace.";
     }
 
-    ib::fatal(ER_IB_MSG_1042)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1042)
         << "Error (" << ut_strerr(err) << ") in rollback.";
   }
 

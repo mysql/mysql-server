@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,8 +187,7 @@ class Opt_trace_stmt {
     return trace_buffer.alloced_length() + query_buffer.alloced_length();
   }
 
-  void assert_current_struct(
-      const Opt_trace_struct *s MY_ATTRIBUTE((unused))) const {
+  void assert_current_struct(const Opt_trace_struct *s [[maybe_unused]]) const {
     assert(current_struct == s);
   }
 
@@ -757,7 +756,7 @@ void Buffer::prealloc() {
       We jump from 0 to first_increment and then multiply by 1.5. Unlike
       addition of a constant length, multiplying is expected to give amortized
       constant reallocation time; 1.5 is a commonly seen factor in the
-      litterature.
+      literature.
     */
     size_t new_size = (alloced == 0) ? first_increment : (alloced * 15 / 10);
     size_t max_size = allowed_mem_size;

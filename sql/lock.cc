@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -330,7 +330,9 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count,
   if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_system_lock);
 
-  DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
+  ulonglong lock_start_usec = my_micro_time();
+
+  DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info()));
   if (sql_lock->table_count &&
       lock_external(thd, sql_lock->table, sql_lock->table_count)) {
     /* Clear the lock type of all lock data to avoid reusage. */
@@ -368,7 +370,9 @@ end:
   if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
     track_table_access(thd, tables, count);
 
-  thd->set_time_after_lock();
+  ulonglong lock_end_usec = my_micro_time();
+  thd->inc_lock_usec(lock_end_usec - lock_start_usec);
+
   return sql_lock;
 }
 
@@ -781,12 +785,14 @@ bool lock_schema_name(THD *thd, const char *db) {
   @param thd               - Thread invoking this function.
   @param tablespace_set    - Set of tablespace names to be lock.
   @param lock_wait_timeout - Lock timeout.
+  @param mem_root          - Memory root on which MDL_request objects
+                             can be allocated.
 
   @return true - On failure
   @return false - On Success.
 */
 bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
-                           ulong lock_wait_timeout) {
+                           ulong lock_wait_timeout, MEM_ROOT *mem_root) {
   // Stop if we have nothing to lock
   if (tablespace_set->empty()) return false;
 
@@ -795,7 +801,7 @@ bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
   for (const std::string &tablespace : *tablespace_set) {
     assert(!tablespace.empty());
 
-    MDL_request *tablespace_request = new (thd->mem_root) MDL_request;
+    MDL_request *tablespace_request = new (mem_root) MDL_request;
     if (tablespace_request == nullptr) return true;
     MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE, "",
                      tablespace.c_str(), MDL_INTENTION_EXCLUSIVE,
@@ -1005,7 +1011,7 @@ std::atomic<int32> Global_read_lock::m_atomic_active_requests;
 
 bool acquire_shared_global_read_lock(THD *thd,
                                      unsigned long lock_wait_timeout) {
-  // If we cannot acuqire protection against GRL, err out.
+  // If we cannot acquire protection against GRL, err out.
   if (thd->global_read_lock.can_acquire_protection()) return true;
 
   MDL_request grl_request;
@@ -1115,7 +1121,7 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd) {
   MDL_request mdl_request;
   DBUG_TRACE;
   /*
-    If we didn't succeed lock_global_read_lock(), or if we already suceeded
+    If we didn't succeed lock_global_read_lock(), or if we already succeeded
     make_global_read_lock_block_commit(), do nothing.
   */
   if (m_state != GRL_ACQUIRED) return false;

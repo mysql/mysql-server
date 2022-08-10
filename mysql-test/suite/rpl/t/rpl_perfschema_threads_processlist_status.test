@@ -38,10 +38,10 @@
 --echo ==== Initialize ====
 
 --connection slave
---let $old_slave_parallel_workers= `SELECT @@GLOBAL.SLAVE_PARALLEL_WORKERS`
---let $old_slave_transaction_retries= `SELECT @@GLOBAL.SLAVE_TRANSACTION_RETRIES`
-SET GLOBAL SLAVE_TRANSACTION_RETRIES= 0;
-SET GLOBAL SLAVE_PARALLEL_WORKERS= 1;
+--let $old_replica_parallel_workers= `SELECT @@GLOBAL.REPLICA_PARALLEL_WORKERS`
+--let $old_replica_transaction_retries= `SELECT @@GLOBAL.REPLICA_TRANSACTION_RETRIES`
+SET GLOBAL REPLICA_TRANSACTION_RETRIES= 0;
+SET GLOBAL REPLICA_PARALLEL_WORKERS= 1;
 --source include/start_slave.inc
 
 --echo ==== Test ====
@@ -61,7 +61,7 @@ if ($group_replication_plugin_installed)
   # initial configured number of workers on group_replicatin_applier
   # channel. group_replication_applier is not restarted during the
   # test, so its configuration remains.
-  --let $workers= 1 + $old_slave_parallel_workers
+  --let $workers= 1 + $old_replica_parallel_workers
   --let $assert_cond= COUNT(*) = $workers FROM performance_schema.threads WHERE PROCESSLIST_STATE = "Waiting for an event from Coordinator"
 }
 --let $assert_text= The worker status should be set in P_S.threads
@@ -146,10 +146,12 @@ EOF
 --echo ==== Clean up ====
 
 --source include/stop_slave.inc
---replace_result $old_slave_parallel_workers OLD_VALUE
-eval SET GLOBAL SLAVE_PARALLEL_WORKERS= $old_slave_parallel_workers;
---replace_result $old_slave_transaction_retries OLD_VALUE
-eval SET GLOBAL SLAVE_TRANSACTION_RETRIES= $old_slave_transaction_retries;
+--disable_warnings
+--replace_result $old_replica_parallel_workers OLD_VALUE
+eval SET GLOBAL REPLICA_PARALLEL_WORKERS= $old_replica_parallel_workers;
+--enable_warnings
+--replace_result $old_replica_transaction_retries OLD_VALUE
+eval SET GLOBAL REPLICA_TRANSACTION_RETRIES= $old_replica_transaction_retries;
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ class Event_impl : public Entity_object_impl, public Event {
   Event_impl();
   Event_impl(const Event_impl &);
 
-  ~Event_impl() override {}
+  ~Event_impl() override = default;
 
  public:
   const Object_table &object_table() const override;
@@ -370,6 +370,14 @@ class Event_impl : public Entity_object_impl, public Event {
   Object_id m_schema_collation_id;
 
   Event *clone() const override { return new Event_impl(*this); }
+
+  Event *clone_dropped_object_placeholder() const override {
+    Event_impl *placeholder = new Event_impl();
+    placeholder->set_id(id());
+    placeholder->set_schema_id(schema_id());
+    placeholder->set_name(name());
+    return placeholder;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

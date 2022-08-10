@@ -36,7 +36,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.
 explain format=tree select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 EXPLAIN
 -> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))  (cost=1.46 rows=1)
-    -> Index range scan on t1 using PRIMARY  (cost=1.46 rows=6)
+    -> Covering index range scan on t1 using PRIMARY over ('1999-07-01' <= event_date <= '1999-07-15' AND 100100 <= type)  (cost=1.46 rows=6)
 
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 event_date	type	event_id
@@ -701,6 +701,7 @@ explain select * from t1 where a=binary 'aaa';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	11	NULL	2	100.00	Using index condition; Using MRR
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1739	Cannot use ref access on index 'a' due to type or collation conversion on field 'a'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(cast('aaa' as char charset binary)))
 explain select * from t1 where a='aaa' collate latin1_bin;
@@ -1249,7 +1250,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b`,
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 EXPLAIN
 -> Filter: (0 not between t1.b and t1.c)  (cost=2.15 rows=3)
-    -> Index range scan on t1 using sort_union(idx1,idx2)  (cost=2.15 rows=3)
+    -> Sort-deduplicate by row ID  (cost=2.15 rows=3)
+        -> Index range scan on t1 using idx1 over (0 < b)  (cost=0.46 rows=2)
+        -> Index range scan on t1 using idx2 over (c < 0)  (cost=0.36 rows=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 (                                      
@@ -1596,11 +1599,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t1 WHERE a >= '2009/09/23';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '20090923';
 a
 2009-09-23
@@ -1621,11 +1627,15 @@ a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '2009:09:23';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23' at row 1 is deprecated. Prefer the standard '-'.
 # DATE vs DATETIME
 EXPLAIN
 SELECT * FROM t2 WHERE a >= '2009/09/23';
@@ -1633,16 +1643,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t2 WHERE a >= '2009/09/23';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '2009/09/23';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '20090923';
 a
 2009-09-23 12:00:00
@@ -1663,11 +1678,15 @@ a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '2009:09:23';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23' at row 1 is deprecated. Prefer the standard '-'.
 # DATETIME vs DATETIME
 EXPLAIN
 SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
@@ -1675,11 +1694,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23 12:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '20090923120000';
 a
 2009-09-23 12:00:00
@@ -1700,11 +1722,15 @@ a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23 12:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '2009:09:23 12:00:00';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23 12:00:00' at row 1 is deprecated. Prefer the standard '-'.
 # DATETIME vs DATE
 EXPLAIN
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
@@ -1712,16 +1738,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '20090923000000';
 a
 2009-09-23
@@ -1742,11 +1773,15 @@ a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '2009:09:23 00:00:00';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 # Test of the new get_date_from_str implementation
 # Behavior differs slightly between the trunk and mysql-pe.
 # The former may give errors for the truncated values, while the latter
@@ -1766,6 +1801,7 @@ str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
 1
 Warnings:
 Warning	1292	Truncated incorrect date value: ''
+Warning	4095	Delimiter '/' in position 4 in datetime value '2007/10/20' at row 1 is deprecated. Prefer the standard '-'.
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
 str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND ''
 NULL
@@ -2669,6 +2705,9 @@ b
 2001-01-01
 2001-01-01 00:00:00
 2001.01.01
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row # is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row # is deprecated. Prefer the standard '-'.
+Warnings:
 
 # range/ref access cannot be used for any of the queries below.
 # See BUG#13814468 about 'Range checked for each record'
@@ -2678,6 +2717,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = cast(`test`.`t2`.`b` as datetime(6))) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
@@ -2688,12 +2729,19 @@ a	b
 2001-01-01 00:00:00	2001-01-01 00:00:00
 2001-01-01 00:00:00	2001.01.01
 2001-01-01 11:22:33	2001-01-01 11:22:33
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 
 EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (cast(`test`.`t2`.`b` as datetime(6)) = `test`.`t1`.`a`) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
@@ -2704,6 +2752,11 @@ a	b
 2001-01-01 00:00:00	2001-01-01 00:00:00
 2001-01-01 00:00:00	2001.01.01
 2001-01-01 11:22:33	2001-01-01 11:22:33
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 
 DROP TABLE t1,t2;
 #
@@ -3552,10 +3605,10 @@ DROP TABLE t1, t2, t3;
 # Bug #21318711: WRONG RESULTS FOR TRUNCATED COLUMN AND AGGREGATION
 #
 CREATE TABLE t1 (
-col1 VARCHAR(5),
+col1 VARCHAR(5) CHARSET utf8mb4 COLLATE utf8mb4_bin,
 col2 INT NOT NULL,
 PRIMARY KEY (col1, col2)
-) ENGINE=InnoDB, CHARSET utf8mb4;
+);
 INSERT INTO t1 VALUES ('abcde', 10);
 EXPLAIN SELECT MAX(col2) FROM t1 WHERE col1 = 'abcdeaa';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3653,11 +3706,11 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (66136540), (68983250), (89627210), (77869520),
 (82543190), (67538270), (77282760), (77908170),
@@ -3891,4 +3944,120 @@ SELECT f1,f2 FROM t WHERE f1 NOT IN(-0.1,0.1);
 f1	f2
 0	0
 DROP TABLE t;
+#
+# Bug#32523520: OPTIMIZER LOSES PART OF RANGE WHEN OR MULTIPLE
+#	       IDENTICAL RANGES IN RANGE PLAN
+#
+CREATE TABLE t1( a INTEGER, b INTEGER, c INTEGER,
+d VARCHAR(10), PRIMARY KEY (a, b, c));
+INSERT INTO t1 VALUES (1, 1, 1, 'a'), (2, 2, 2,'b'), (3, 3, 3, 'c');
+EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE (a=1 AND b=1 AND c=1)
+OR (a=1 AND b=1 AND c=1) OR (a=1 AND b=2 AND c=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	12	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` FORCE INDEX (PRIMARY) where (((`test`.`t1`.`c` = 1) and (`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1)) or ((`test`.`t1`.`c` = 1) and (`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1)) or ((`test`.`t1`.`c` = 2) and (`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` = 1)))
+SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE (a=1 AND b=1 AND c=1)
+OR (a=1 AND b=1 AND c=1) OR (a=1 AND b=2 AND c=2);
+a	b	c	d
+1	1	1	a
+DROP TABLE t1;
+#
+# Bug #31870920: WRONG RESULT WHEN SELECT INT COLUMN WITH RANGE
+#
+CREATE TABLE t1(f1 INTEGER, KEY(f1));
+INSERT INTO t1 VALUES(0),(0),(0);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT f1 FROM t1 WHERE f1 NOT IN (0.1, -0.1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	f1	f1	5	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` not in (0.1,<cache>(-(0.1))))
+SELECT f1 FROM t1 WHERE f1 NOT IN (0.1, -0.1);
+f1
+0
+0
+0
+DROP TABLE t1;
+#
+# Bug#33067554: INDEX_MERGE: ASSERTION FAILURE:
+#               ROW0SEL.CC:5584:PREBUILT->CAN_PREFETCH_RECORDS() ||
+#               RECORD_BUFFER == NULLPTR
+#
+CREATE TABLE t (
+a INTEGER,
+b INTEGER,
+pk TEXT NOT NULL,
+PRIMARY KEY (pk(110)),
+KEY (a),
+KEY (b)
+);
+INSERT INTO t VALUES
+(51,16777216,''), (-128,0,' nsj  mizb'),
+(0,5900842,' qdblp vgc'), (0,-128,'c  z'),
+(-1,-125,'d'), (95,3345,'dtphyrp'),
+(97,14396343,'du'), (127,0,'fnwyz'),
+(-128,0,'fszpsqd'), (-128,32767,'g uevfc'),
+(-128,0,'hh  lhozu '), (0,0,'m tkr'),
+(0,246,'mgmtel'), (-1,2147483647,'n  hjh'),
+(127,0,'ssw'), (127,0,'t zl'), (0,-1,'uns');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT b FROM t WHERE a = 0 AND b = 0;
+b
+0
+DROP TABLE t;
+# Bug#17769777 EXCESSIVE MEMORY CONSUMPTION WITH MANY AND / BETWEEN
+#              ITEMS
+# Bug#17413040 USING MANY WHERE CONDITIONS MAKES RANGE SCAN DISABLED
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY (a)
+)ENGINE=INNODB;
+INSERT INTO t1 VALUES (0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6),
+(7, 7), (8, 8), (9, 9);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET RANGE_OPTIMIZER_MAX_MEM_SIZE= 100;
+EXPLAIN SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a	a	5	NULL	10	10.00	Using where
+Warnings:
+Warning	3170	Memory capacity of 100 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((0,0),(1,1)))
+SET RANGE_OPTIMIZER_MAX_MEM_SIZE= DEFAULT;
+EXPLAIN SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	2	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((0,0),(1,1)))
+DROP TABLE t1;
+# End of test for Bug#17769777 and Bug#17413040
+#
+# Bug#33282123: Const table optimization for aggregates goes wrong with
+#               NO PAD collations
+#
+CREATE TABLE t1 (col1 VARCHAR(5), col2 INTEGER, PRIMARY KEY (col1, col2));
+INSERT INTO t1 VALUES ('abcde', 10);
+# Used to return 10. The expected result is NULL.
+SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
+MAX(col2)
+NULL
+DROP TABLE t1;
+#
+# Bug#33611112: Reverse index scan is not sorted on implicit InnoDB primary key
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY (a), KEY (b));
+INSERT INTO t1 VALUES (1, NULL), (2, NULL), (3, 3), (4, NULL);
+SELECT a FROM t1 WHERE b IS NULL GROUP BY a ORDER BY a DESC;
+a
+4
+2
+1
+DROP TABLE t1;
 set optimizer_switch=default;

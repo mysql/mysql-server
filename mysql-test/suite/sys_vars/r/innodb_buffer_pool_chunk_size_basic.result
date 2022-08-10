@@ -43,6 +43,6 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_chunk_size);
 COUNT(@@GLOBAL.innodb_buffer_pool_chunk_size)
 1
 1 Expected
-SELECT innodb_buffer_pool_chunk_size = @@SESSION.innodb_buffer_pool_chunk_size;
+SELECT innodb_buffer_pool_chunk_size;
 ERROR 42S22: Unknown column 'innodb_buffer_pool_chunk_size' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

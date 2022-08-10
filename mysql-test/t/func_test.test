@@ -412,3 +412,40 @@ DROP TABLE t1;
 DO NULLIF((GREATEST(FROM_UNIXTIME(1537024679) , _utf32 "*b!" )),
           (FROM_UNIXTIME(1537013301) )
 	 );
+
+--echo #
+--echo # Bug #33624777 sum(least(a, NULL)) result error
+--echo #
+
+CREATE TABLE t1 (a DOUBLE, b DOUBLE);
+CREATE TABLE t2 (a INTEGER, b INTEGER);
+
+INSERT INTO t1 values(1, NULL), (1, 1);
+INSERT INTO t2 values(1, NULL), (1, 1);
+
+SELECT SUM(LEAST(a, b)) FROM t1;
+SELECT SUM(LEAST(a, b)) FROM t2;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo #Bug 33758255 - An edge case for base BUG 32038406 -
+--echo #               FILESORT USED FOR ORDER BY ...DESC EVEN WHEN
+--echo #               DESCENDING INDEX AVAILABLE AND USED
+--echo #
+
+CREATE TABLE t1 (
+c1 VARCHAR(10),
+c2 VARCHAR(10),
+c3 DATE NOT NULL,
+c4 INT,
+UNIQUE KEY ix (c1, c3 DESC, c4 DESC));
+
+EXPLAIN
+SELECT c1 FROM t1
+WHERE c1= 'abc' AND
+      c2 IN ('def') AND
+      c3 BETWEEN '2022-03-16' AND '2022-03-16'
+ORDER BY c3 DESC;
+
+DROP TABLE t1;

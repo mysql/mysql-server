@@ -37,16 +37,16 @@ STATS_SAMPLE_PAGES=-5;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-5' at line 2
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=0;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '0' at line 2
+ERROR 42000: The valid range for stats_sample_pages is [1, 65535]. Error near '0' at line 2
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=67000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '67000' at line 2
+ERROR 42000: The valid range for stats_sample_pages is [1, 65535]. Error near '67000' at line 2
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=670000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '670000' at line 2
+ERROR 42000: The valid range for stats_sample_pages is [1, 65535]. Error near '670000' at line 2
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=65536;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '65536' at line 2
+ERROR 42000: The valid range for stats_sample_pages is [1, 65535]. Error near '65536' at line 2
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=65535;
 SHOW CREATE TABLE test_ps_sample_pages;

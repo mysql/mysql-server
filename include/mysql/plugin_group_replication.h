@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,9 @@ struct GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS {
                           size_t length);
   void (*set_member_version)(void *const context, const char &value,
                              size_t length);
+  void (*set_member_incoming_communication_protocol)(void *const context,
+                                                     const char &value,
+                                                     size_t length);
 };
 
 /*

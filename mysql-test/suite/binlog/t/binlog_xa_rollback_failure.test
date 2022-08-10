@@ -28,8 +28,15 @@ XA PREPARE '1';
 --echo #    it fails.
 --echo #
 let $binlog_before_xa_rollback = query_get_value(SHOW MASTER STATUS, Position, 1);
---error ER_XAER_RMFAIL
+
+--disable_result_log
+--let $xa_error = ER_XAER_RMFAIL
+if (`SELECT @@GLOBAL.xa_detach_on_prepare = 1`) {
+  --let $xa_error = ER_XAER_NOTA
+}
+--error $xa_error
 XA ROLLBACK '2';
+--enable_result_log
 
 --echo #
 --echo # 3) Check that nothing is written to binary log.

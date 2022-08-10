@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,10 @@
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 
+typedef std::list<Gcs_member_identifier,
+                  Malloc_allocator<Gcs_member_identifier>>
+    Members_list;
+
 // Define the data packet type
 #define DATA_PACKET_TYPE 1
 
@@ -51,7 +55,7 @@ class Packet {
   */
   Packet(int type) : packet_type(type) {}
 
-  virtual ~Packet() {}
+  virtual ~Packet() = default;
 
   /**
    @return the packet type
@@ -74,11 +78,12 @@ class Data_packet : public Packet {
 
     @param[in]  data             the packet data
     @param[in]  len              the packet length
+    @param[in]  key              the memory instrument key
     @param[in]  consistency_level  the transaction consistency level
     @param[in]  online_members     the ONLINE members when the transaction
                                    message was delivered
   */
-  Data_packet(const uchar *data, ulong len,
+  Data_packet(const uchar *data, ulong len, PSI_memory_key key,
               enum_group_replication_consistency_level consistency_level =
                   GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
               std::list<Gcs_member_identifier> *online_members = nullptr)
@@ -87,7 +92,7 @@ class Data_packet : public Packet {
         len(len),
         m_consistency_level(consistency_level),
         m_online_members(online_members) {
-    payload = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(0));
+    payload = (uchar *)my_malloc(key, len, MYF(0));
     memcpy(payload, data, len);
   }
 
@@ -120,6 +125,12 @@ class Data_packet : public Packet {
         If not specified, this field has a default value of 0.
 */
 class Pipeline_event {
+  enum class Processing_state {
+    DEFAULT,
+    DELAYED_VIEW_CHANGE_WAITING_FOR_CONSISTENT_TRANSACTIONS,
+    DELAYED_VIEW_CHANGE_RESUMED
+  };
+
  public:
   /**
     Create a new pipeline wrapper based on a packet.
@@ -138,7 +149,7 @@ class Pipeline_event {
                  int modifier = UNDEFINED_EVENT_MODIFIER,
                  enum_group_replication_consistency_level consistency_level =
                      GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
-                 std::list<Gcs_member_identifier> *online_members = nullptr)
+                 Members_list *online_members = nullptr)
       : packet(base_packet),
         log_event(nullptr),
         event_context(modifier),
@@ -163,7 +174,7 @@ class Pipeline_event {
                  int modifier = UNDEFINED_EVENT_MODIFIER,
                  enum_group_replication_consistency_level consistency_level =
                      GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
-                 std::list<Gcs_member_identifier> *online_members = nullptr)
+                 Members_list *online_members = nullptr)
       : packet(nullptr),
         log_event(base_event),
         event_context(modifier),
@@ -323,15 +334,59 @@ class Pipeline_event {
     @note the memory allocated for the list ownership belongs to the
           caller
   */
-  std::list<Gcs_member_identifier> *get_online_members() {
-    return m_online_members;
-  }
+  Members_list *get_online_members() { return m_online_members; }
 
   /**
     Release memory ownership of m_online_members.
   */
   void release_online_members_memory_ownership() {
     m_online_members_memory_ownership = false;
+  }
+
+  /**
+    Set view change cannot be processed now and should be delayed due to
+    consistent transaction.
+  */
+  void set_delayed_view_change_waiting_for_consistent_transactions() {
+    assert(m_packet_processing_state == Processing_state::DEFAULT);
+    m_packet_processing_state = Processing_state::
+        DELAYED_VIEW_CHANGE_WAITING_FOR_CONSISTENT_TRANSACTIONS;
+  }
+
+  /**
+    Check if current view change is delayed due to consistent transaction.
+
+    @return is event being queued for later processing
+      @retval true     event is being queued
+      @retval false    event is not being queued
+  */
+  bool is_delayed_view_change_waiting_for_consistent_transactions() {
+    return m_packet_processing_state ==
+           Processing_state::
+               DELAYED_VIEW_CHANGE_WAITING_FOR_CONSISTENT_TRANSACTIONS;
+  }
+
+  /**
+    Allow resume the log of delayed views that were waiting for consistent
+    transactions from previous view to complete.
+  */
+  void set_delayed_view_change_resumed() {
+    assert(m_packet_processing_state ==
+           Processing_state::
+               DELAYED_VIEW_CHANGE_WAITING_FOR_CONSISTENT_TRANSACTIONS);
+    m_packet_processing_state = Processing_state::DELAYED_VIEW_CHANGE_RESUMED;
+  }
+
+  /**
+    Check if old view change processing is resumed.
+
+    @return is event being processed from queue
+      @retval true     event is being processed from queue
+      @retval false    event is not being processed from queue
+  */
+  bool is_delayed_view_change_resumed() {
+    return m_packet_processing_state ==
+           Processing_state::DELAYED_VIEW_CHANGE_RESUMED;
   }
 
  private:
@@ -376,7 +431,7 @@ class Pipeline_event {
     }
 
     packet = new Data_packet(reinterpret_cast<const uchar *>(ostream.c_ptr()),
-                             ostream.length());
+                             ostream.length(), key_transaction_data);
 
     delete log_event;
     log_event = nullptr;
@@ -391,8 +446,9 @@ class Pipeline_event {
   /* Format description event used on conversions */
   Format_description_log_event *format_descriptor;
   enum_group_replication_consistency_level m_consistency_level;
-  std::list<Gcs_member_identifier> *m_online_members;
+  Members_list *m_online_members;
   bool m_online_members_memory_ownership;
+  Processing_state m_packet_processing_state{Processing_state::DEFAULT};
 };
 
 /**
@@ -501,7 +557,7 @@ class Pipeline_action {
  public:
   Pipeline_action(int action_type) { type = action_type; }
 
-  virtual ~Pipeline_action() {}
+  virtual ~Pipeline_action() = default;
 
   /**
     Returns this action type.
@@ -531,7 +587,7 @@ class Event_handler {
  public:
   Event_handler() : next_in_pipeline(nullptr) {}
 
-  virtual ~Event_handler() {}
+  virtual ~Event_handler() = default;
 
   /**
     Initialization as defined in the handler implementation.

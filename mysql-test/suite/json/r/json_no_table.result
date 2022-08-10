@@ -367,14 +367,6 @@ ERROR 42000: Invalid JSON path expression. The error is around character positio
 # invalid json path
 select json_length( '{ "foo" : [ true, false ] }', '$.foo[bar]' );
 ERROR 42000: Invalid JSON path expression. The error is around character position 6.
-
-# wildcards not allowed in path expressions for this function
-select json_length( 'true', '$.*' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
-
-# wildcards not allowed in path expressions for this function
-select json_length( 'true', '$.foo**.bar' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[0]' );
 json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[0]' )
 1
@@ -390,6 +382,12 @@ json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[2][0]' )
 select json_length( '[ 1, [ 2, 3, 4 ], {"a": 1} ]', '$[2][0]' );
 json_length( '[ 1, [ 2, 3, 4 ], {"a": 1} ]', '$[2][0]' )
 1
+select json_length('{"a":1,"b":2}', '$.*');
+json_length('{"a":1,"b":2}', '$.*')
+2
+select json_length('{"foo":[{"bar":1},{"bar":2}]}', '$.foo**.bar');
+json_length('{"foo":[{"bar":1},{"bar":2}]}', '$.foo**.bar')
+2
 select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[2][1]' );
 json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[2][1]' )
 NULL
@@ -3786,7 +3784,8 @@ ERROR 42000: Invalid JSON path expression. The error is around character positio
 SELECT JSON_SET('[1,2,3]', '$[0 to 1]', 123);
 ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 SELECT JSON_LENGTH('[1,2,3]', '$[0 to 1]');
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+JSON_LENGTH('[1,2,3]', '$[0 to 1]')
+2
 SELECT j->'$[last]', j->'$[last-1]', j->'$[last-2]',
 j->'$**[last]', j->'$**[last-1]', j->'$**[last-2]'
 FROM (SELECT JSON_ARRAY(1,2) j) t;
@@ -3808,7 +3807,7 @@ Warning	1287	'JSON_MERGE' is deprecated and will be removed in a future release.
 # The view uses the non-deprecated variant of the function.
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select json_merge_preserve('{}','{}') AS `col`	utf8	utf8_general_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select json_merge_preserve('{}','{}') AS `col`	utf8mb3	utf8mb3_general_ci
 SELECT * FROM v;
 col
 {}
@@ -4196,11 +4195,11 @@ ERROR HY000: Incorrect type for argument 1 in function json_unquote.
 do ((json_depth(from_unixtime(1536999222)))<=>(1));
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_depth; a JSON string or JSON type is required.
 do ((json_length('key2','key1'))<=>(1));
-ERROR 22032: Invalid JSON text in argument 1 to function json_length: "Invalid value." at position 0.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 0.
 do ((1)not in((json_keys(4353)),(current_role())));
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
 do ((1)<=>(json_length(2,'key2')));
-ERROR 22032: Invalid data type for JSON data in argument 1 to function json_length; a JSON string or JSON type is required.
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
 do aes_decrypt(json_type(1),json_keys('-4*2c*'));
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_type; a JSON string or JSON type is required.
 do ((1)not in ((json_remove(19,'{}')),((not(1)))));
@@ -4265,3 +4264,33 @@ JSON_SEARCH('["abc"]', 'one', CAST('abc' AS CHAR CHARSET utf16))
 SELECT JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16));
 JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16))
 "$[0]"
+# Bug32787464: Json_wrapper::compare const: assertion
+#              `other_type != enum_json_type::J_ERROR' failed
+DO NULLIF(NULLIF(JSON_OBJECTAGG('ab',' *. b$_ 7?C **c3'),
+EXTRACT(MINUTE_MICROSECOND FROM json_storage_size('* .$B7$'))
+), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 0.
+#
+# Bug #32864910 ASSERTION `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
+#
+do st_geometryn(st_astext(1, 'axis-order=srid-defined'),
+st_aswkt(least(not(json_arrayagg('aa')), connection_id())));
+ERROR 22023: Invalid GIS data provided to function st_astext.
+do conv(null,1,((json_merge_preserve('1',1 ,'1') or 1) <=>
+(json_arrayagg(1) and 1)));
+ERROR 22032: Invalid data type for JSON data in argument 2 to function json_merge_preserve; a JSON string or JSON type is required.
+do nullif(json_arrayagg(convert(utc_timestamp() using gb2312)) <=>
+instr(1 , 0xf722a67b), -9223372036854775809);
+ERROR HY000: Cannot convert string '\xF7"\xA6{' from binary to utf8mb3
+do nullif(st_within(
+st_asbinary(st_aswkt(('B ~')) ,'axis-order=long-lat') ,
+st_aswkt('2031-05-29 01:40:44.878673' +
+interval(!json_arrayagg('')) second_microsecond,
+'axis-order=long-lat')), connection_id());
+ERROR 22023: Invalid GIS data provided to function st_astext.
+#
+# Bug#32942328: ITEM_FUNC_COALESCE::VAL_JSON:
+#               ASSERTION `!CURRENT_THD->IS_ERROR() && HAS_VALUE'
+#
+DO 1 IN (JSON_PRETTY(''), ANY_VALUE(JSON_ARRAYAGG('')));
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.

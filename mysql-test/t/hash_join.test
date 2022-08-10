@@ -1,6 +1,8 @@
 --echo #
 --echo # Start out by testing some simple in-memory inner hash joins.
 --echo #
+# Test case is unstable in valgrind
+--source include/not_valgrind.inc
 
 --echo # Join on two integer columns.
 CREATE TABLE t1 (col1 INTEGER);
@@ -175,6 +177,7 @@ TRUNCATE performance_schema.file_summary_by_event_name;
 
 eval $hash_join_file_operations;
 SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
+--skip_if_hypergraph  # Chooses different plan.
 eval $hash_join_file_operations;
 
 SET join_buffer_size = DEFAULT;
@@ -1262,18 +1265,17 @@ eval $hash_join_file_operations;
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 1;
 --enable_result_log
---skip_if_hypergraph  # No such logic in the hypergraph optimizer.
 eval $hash_join_file_operations;
 
 --echo # This should spill to disk since we have sorting.
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 ORDER BY t1.col1 LIMIT 1;
+--skip_if_hypergraph  # Chooses different plan.
 eval $hash_join_file_operations;
 
 --echo # This should spill to disk since we have (implicit) grouping.
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT SUM(t1.col1) FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 10;
---skip_if_hypergraph  # May choose not using a hash join due to the LIMIT.
 eval $hash_join_file_operations;
 
 SET join_buffer_size = DEFAULT;
@@ -2504,3 +2506,59 @@ SELECT 1 FROM t AS a INNER JOIN t AS b ON a.a=b.b;
 eval explain $query;
 eval $query;
 DROP TABLE t;
+
+--echo # Bug#33204161: Strings with ASCII charset and UCS2 don't match in join
+
+CREATE TABLE t1(wstr_name VARCHAR(64) COLLATE ucs2_general_ci);
+CREATE TABLE t2(str_name VARCHAR(64) COLLATE ascii_general_ci);
+
+INSERT INTO t1 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
+INSERT INTO t2 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
+
+let $query =
+SELECT wstr_name, str_name
+FROM t1 INNER JOIN t2 ON t1.wstr_name = t2.str_name;
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#33787914: int-decimal. using left join, the returned result is incorrect
+
+CREATE TABLE t(a DECIMAL(5, 3));
+INSERT INTO t VALUES (0.1), (0.2), (0.3), (0.01), (0.91), (0.001), (0.991);
+--sorted_result
+SELECT * FROM t AS t1, t AS t2 WHERE 1 - t1.a = 1 - t2.a;
+--sorted_result
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a;
+DROP TABLE t;
+
+--echo # Bug#33794977: Wrong results from hash join with compound hash keys
+
+CREATE TABLE t(a VARCHAR(10), b VARCHAR(10));
+INSERT INTO t VALUES ('x', 'xx'), ('xx', 'x');
+--sorted_result
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a AND t1.b = t2.b;
+DROP TABLE t;
+
+CREATE TABLE t(a DECIMAL(3,0), b DECIMAL(3,0));
+INSERT INTO t
+VALUES (0, 128), (128, 0), (382, 1), (1, 382), (-1, 385), (385, -1);
+--sorted_result
+SELECT * FROM t AS t1, t AS t2 WHERE t1.a = t2.a AND t1.b = t2.b;
+DROP TABLE t;
+
+--echo # Bug#33638843: Hypergraph Offload issue : Invalid Join condition
+
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TABLE t2 (f1 INTEGER);
+CREATE VIEW vmerge AS SELECT 1 AS f1, f1 AS b_f1 FROM t2;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t2 VALUES (1),(2);
+
+--replace_regex /cost=\d+.\d+(\.\.\d+\.\d+)?/cost=***/  /rows=\d+/rows=***/
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN vmerge AS v ON t1.f1 = v.f1;
+
+DROP TABLE t1,t2;
+DROP VIEW vmerge;

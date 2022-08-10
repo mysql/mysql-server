@@ -144,4 +144,35 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t2;
 DROP TABLE t1;
 include/rpl_sync.inc
+CREATE TABLE t1(a BINARY(1), b BINARY(1), c BINARY(1), PRIMARY KEY (a,b,c));
+CREATE TABLE t2(d BINARY(1), e BINARY(1), f BINARY(1), PRIMARY KEY (d,e,f), CONSTRAINT foreign_key_t2_t1 FOREIGN KEY (d,e,f) REFERENCES t1(a,b,c));
+INSERT INTO t1 VALUES (1,2,3);
+INSERT INTO t1 VALUES (4,2,3);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_column_foreign_key_on_multiple_column_primary_key_insert';
+INSERT INTO t2 VALUES (1,2,3);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_column_foreign_key_on_multiple_column_primary_key_update';
+UPDATE t2 SET d=4 WHERE d=1;
+SET @@GLOBAL.DEBUG= @debug_saved;
+DROP TABLE t2;
+DROP TABLE t1;
+include/rpl_sync.inc
+CREATE TABLE t1 (a BINARY(1) PRIMARY KEY, b BINARY(1) NOT NULL, c BINARY(1) NOT NULL, UNIQUE KEY key_b_c(b,c));
+CREATE TABLE t2 (d BINARY(1) PRIMARY KEY, e BINARY(1) NOT NULL, f BINARY(1) NOT NULL, UNIQUE KEY key_e_f(e,f), FOREIGN KEY(e,f) REFERENCES t1(b,c));
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_multiple_column_unique_key_insert';
+INSERT INTO t1 VALUES (1,2,3);
+SET @@GLOBAL.DEBUG= @debug_saved;
+INSERT INTO t1 VALUES (4,5,6);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_column_foreign_key_on_multiple_column_unique_key_insert';
+INSERT INTO t2 VALUES (1,2,3);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_column_foreign_key_on_multiple_column_unique_key_update';
+UPDATE t2 SET d=4,e=5,f=6 WHERE d=1;
+SET @@GLOBAL.DEBUG= @debug_saved;
+DROP TABLE t2;
+DROP TABLE t1;
+include/rpl_sync.inc
 include/rpl_end.inc

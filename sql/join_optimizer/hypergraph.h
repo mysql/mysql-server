@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _HYPERGRAPH_H
-#define _HYPERGRAPH_H 1
+#ifndef SQL_JOIN_OPTIMIZER_HYPERGRAPH_H_
+#define SQL_JOIN_OPTIMIZER_HYPERGRAPH_H_ 1
 
 /**
   @file
@@ -36,26 +36,18 @@
   The main user of Hypergraph is subgraph_enumeration.h.
  */
 
-#include <stdint.h>
-
+#include <stddef.h>
 #include <algorithm>
 #include <vector>
 
-namespace hypergraph {
+#include "sql/join_optimizer/node_map.h"
 
-// Since our graphs can never have more than 61 tables, node sets and edge lists
-// are implemented using 64-bit bit sets. This allows for a compact
-// representation and very fast set manipulation; the algorithm does a fair
-// amount of intersections and unions. If we should need extensions to larger
-// graphs later (this will require additional heuristics for reducing the search
-// space), we can use dynamic bit sets, although at a performance cost (we'd
-// probably templatize off the NodeMap type).
-using NodeMap = uint64_t;
+namespace hypergraph {
 
 struct Node {
   // List of edges (indexes into the hypergraph's “edges” array) that touch this
   // node. We split these into simple edges (only one node on each side) and
-  // complex edges (all others), becaues we can often quickly discard all simple
+  // complex edges (all others), because we can often quickly discard all simple
   // edges by testing the set of interesting nodes against the
   // “simple_neighborhood” bitmap.
   //
@@ -79,7 +71,7 @@ struct Node {
       sizeof(std::vector<unsigned>) * 2 + sizeof(NodeMap);
   char padding[std::max<int>(1, 64 - Size)];
 };
-static_assert(sizeof(Node) >= 64, "");
+static_assert(sizeof(Node) >= 64);
 
 struct Hyperedge {
   // The endpoints (hypernodes) of this hyperedge. See the comment about
@@ -91,13 +83,25 @@ struct Hyperedge {
 };
 
 struct Hypergraph {
+ public:
   std::vector<Node> nodes;  // Maximum 8*sizeof(NodeMap) elements.
   std::vector<Hyperedge> edges;
 
   void AddNode();
   void AddEdge(NodeMap left, NodeMap right);
+
+  // NOTE: Since every edge is stored twice (see AddEdge), also updates the
+  // corresponding opposite-direction edge automatically. Also note that this
+  // will shift internal edge lists around, so even after no-op changes,
+  // you are not guaranteed to get back subgraph pairs in the same order
+  // as before.
+  void ModifyEdge(unsigned edge_idx, NodeMap new_left, NodeMap new_right);
+
+ private:
+  void AttachEdgeToNodes(size_t left_first_idx, size_t right_first_idx,
+                         NodeMap left, NodeMap right);
 };
 
 }  // namespace hypergraph
 
-#endif  // !defined(_HYPERGRAPH_H)
+#endif  // SQL_JOIN_OPTIMIZER_HYPERGRAPH_H_

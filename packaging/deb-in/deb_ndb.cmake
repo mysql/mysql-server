@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -144,7 +144,6 @@ Description: nodejs
 /usr/bin/ndbinfo_select_all
 /usr/bin/ndbxfrm
 
-/usr/share/man/man1/ndb-common-options.1*
 /usr/share/man/man1/ndb_blob_tool.1*
 /usr/share/man/man1/ndb_config.1*
 /usr/share/man/man1/ndb_cpcd.1*

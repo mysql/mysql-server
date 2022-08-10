@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,10 @@ SET(include_dirs
   ${PROJECT_SOURCE_DIR}/tests/
 )
 
-IF(NOT WIN32)
-  ADD_LIBRARY(plugin_info_tests SHARED ${PLUGIN_INFO_SOURCES})
-ELSE()
+IF(WIN32)
   ADD_LIBRARY(plugin_info_tests STATIC ${PLUGIN_INFO_SOURCES})
+ELSE()
+  ADD_LIBRARY(plugin_info_tests SHARED ${PLUGIN_INFO_SOURCES})
 ENDIF()
 
 TARGET_LINK_LIBRARIES(plugin_info_tests harness-library router_lib)

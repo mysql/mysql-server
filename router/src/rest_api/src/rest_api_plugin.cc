@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,14 @@
 #include <array>
 #include <string>
 
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"  // ::join()
 #include "mysqlrouter/http_server_component.h"
-#include "mysqlrouter/plugin_config.h"
 #include "mysqlrouter/rest_api_utils.h"
 
 #include "rest_api.h"
@@ -46,13 +48,15 @@ static const char kSectionName[]{"rest_api"};
 // one shared setting
 std::string require_realm_api;
 
-class RestApiPluginConfig : public mysqlrouter::BasePluginConfig {
+class RestApiPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string require_realm;
 
+  using StringOption = mysql_harness::StringOption;
+
   explicit RestApiPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        require_realm(get_option_string(section, "require_realm")) {}
+      : mysql_harness::BasePluginConfig(section),
+        require_realm(get_option(section, "require_realm", StringOption{})) {}
 
   std::string get_default(const std::string & /* option */) const override {
     return {};
@@ -269,18 +273,26 @@ static const std::array<const char *, 2> plugin_requires = {{
     "logger",
 }};
 
+const std::array<const char *, 1> supported_options{"require_realm"};
+
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_api = {
-    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "REST_API", VERSION_NUMBER(0, 0, 1),
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "REST_API",
+    VERSION_NUMBER(0, 0, 1),
     // requires
-    plugin_requires.size(), plugin_requires.data(),
+    plugin_requires.size(),
+    plugin_requires.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

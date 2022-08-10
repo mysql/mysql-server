@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
+#include <cstring>
 
 #include "MgmtSrvr.hpp"
 #include "ndb_mgmd_error.h"
@@ -35,6 +37,7 @@
 #include <NdbApiSignal.hpp>
 #include <kernel_types.h>
 #include <GlobalSignalNumbers.h>
+#include <signaldata/FsOpenReq.hpp>
 #include <signaldata/TestOrd.hpp>
 #include <signaldata/TamperOrd.hpp>
 #include <signaldata/StartOrd.hpp>
@@ -102,7 +105,6 @@ MgmtSrvr::logLevelThread_C(void* m)
   return 0;
 }
 
-extern EventLogger * g_eventLogger;
 
 #ifdef NOT_USED
 static NdbOut&
@@ -1028,7 +1030,7 @@ MgmtSrvr::~MgmtSrvr()
   delete m_local_config;
 
   if (m_opts.bind_address != nullptr)
-    free((void*)m_opts.bind_address);
+    free(const_cast<char*>(m_opts.bind_address));
   NdbMutex_Destroy(m_local_config_mutex);
   NdbMutex_Destroy(m_reserved_nodes_mutex);
 }
@@ -3101,7 +3103,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
   req->nodegroupId = RNIL;
   req->senderData = 77;
   req->senderRef = ss.getOwnRef();
-  bzero(req->nodes, sizeof(req->nodes));
+  std::memset(req->nodes, 0, sizeof(req->nodes));
 
   if (ng)
   {
@@ -3184,7 +3186,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
 }
 
 int
-MgmtSrvr::dropNodegroup(int ng)
+MgmtSrvr::dropNodegroup(unsigned ng)
 {
   int res;
   SignalSender ss(theFacade);
@@ -3268,7 +3270,32 @@ MgmtSrvr::dropNodegroup(int ng)
     }
   }
 
-  return endSchemaTrans(ss, nodeId, transId, transKey, 0);
+  int ret = endSchemaTrans(ss, nodeId, transId, transKey, 0);
+  if (ret == 0)
+  {
+    // Check whether nodegroup is dropped using the current cached node states
+    bool ng_is_empty = true;
+    NodeId node_id = 0;
+    while (getNextNodeId(&node_id, NDB_MGM_NODE_TYPE_NDB))
+    {
+      const trp_node& node = getNodeInfo(node_id);
+      if (node.is_connected() && node.m_state.nodeGroup == ng)
+      {
+        ng_is_empty = false;
+        break;
+      }
+    }
+    if (!ng_is_empty)
+    {
+      /*
+       * Some node is still reported to belong to dropped nodegroup.
+       * Wait for 4 heartbeats, when either the heartbeat with new nodegroup
+       * information should have arrived, or node should been declared failed.
+       */
+      NdbSleep_MilliSleep(4 * 100);
+    }
+  }
+  return ret;
 }
 
 
@@ -3406,14 +3433,21 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
   const int BufSz = 12; /* 32 bit signed = 10 digits + sign + trailing \0 */
   char buf[BufSz];  
   int b  = 0;
-  memset(buf, 0, BufSz);
+  std::memset(buf, 0, BufSz);
   for (size_t i = 0; i <= strlen(args); i++){
+    if (b == NDB_ARRAY_SIZE(buf))
+    {
+      return -1;
+    }
+    if (numArgs == NDB_ARRAY_SIZE(args_array))
+    {
+      return -1;
+    }
     if (args[i] == ' ' || args[i] == 0){
-      assert(b < BufSz);
       assert(buf[b] == 0);
       args_array[numArgs] = atoi(buf);
       numArgs++;
-      memset(buf, 0, BufSz);
+      std::memset(buf, 0, BufSz);
       b = 0;
     } else {
       buf[b] = args[i];
@@ -3612,7 +3646,7 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
       Uint32 theData[25];
       EventReport repData;
     };
-    bzero(theData, sizeof(theData));
+    std::memset(theData, 0, sizeof(theData));
     EventReport * event = &repData;
     event->setEventType(NDB_LE_Disconnected);
     event->setNodeId(_ownNodeId);
@@ -3721,8 +3755,8 @@ MgmtSrvr::clear_connect_address_cache(NodeId nodeid)
  ***************************************************************************/
 
 MgmtSrvr::NodeIdReservations::NodeIdReservations()
+    : m_reservations()  // zero fill using value initialization
 {
-  memset(m_reservations, 0, sizeof(m_reservations));
 }
 
 
@@ -4084,7 +4118,7 @@ MgmtSrvr::build_node_list_from_config(NodeId node_id,
       if (node_id) {
         // Caller asked for this exact nodeid, but it is not the correct type.
         BaseString type_string, current_type_string;
-        const char *alias, *str;
+        const char *alias, *str = nullptr;
         alias = ndb_mgm_get_node_type_alias_string(type, &str);
         type_string.assfmt("%s(%s)", alias, str);
         alias = ndb_mgm_get_node_type_alias_string(
@@ -4178,7 +4212,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
     error_code= NDB_MGM_ALLOCID_CONFIG_RETRY;
 
     BaseString type_string;
-    const char *alias, *str;
+    const char *alias, *str = nullptr;
     char addr_buf[NDB_ADDR_STRLEN];
     alias= ndb_mgm_get_node_type_alias_string(type, &str);
     type_string.assfmt("%s(%s)", alias, str);
@@ -4430,7 +4464,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
        * be backwards compatible wrt error messages
        */
       BaseString type_string, type_c_string;
-      const char *alias, *str;
+      const char *alias, *str = nullptr;
       alias= ndb_mgm_get_node_type_alias_string(type, &str);
       type_string.assfmt("%s(%s)", alias, str);
       alias= ndb_mgm_get_node_type_alias_string(NDB_MGM_NODE_TYPE_MGM, &str);
@@ -4573,7 +4607,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     {
       if (error_code == 0)
       {
-        const char *alias, *str;
+        const char *alias, *str = nullptr;
         alias = ndb_mgm_get_node_type_alias_string(type, &str);
         error_string.appfmt("No free node id found for %s(%s).",
                             alias,
@@ -4657,8 +4691,8 @@ MgmtSrvr::eventReport(const Uint32 *theSignalData,
                       Uint32 len,
                       const Uint32 *theData)
 {
-  const EventReport * const eventReport = (EventReport *)&theSignalData[0];
-  
+  const EventReport* const eventReport = (const EventReport*)&theSignalData[0];
+
   NodeId nodeId = eventReport->getNodeId();
   Ndb_logevent_type type = eventReport->getEventType();
   // Log event
@@ -4693,7 +4727,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted,
 
   SimpleSignal ssig;
   BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
-  EncryptionPasswordData epd;
+  EncryptionKeyMaterial epd;
   /*
    * Single-threaded backup.  Set instance key 1.  In the kernel
    * this maps to main instance 0 or worker instance 1 (if MT LQH).
@@ -4721,12 +4755,36 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted,
     if (ndbd_support_backup_file_encryption(
         getNodeInfo(nodeId).m_info.m_version))
     {
-      epd.password_length = password_length;
-      strncpy(epd.encryption_password, encryption_password,
-              MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH);
+      epd.length = password_length;
+      Uint32 section_size;
+      if (ndbd_support_encryption_key_material(
+              getNodeInfo(nodeId).m_info.m_version))
+      {
+        if (password_length > epd.MAX_LENGTH)
+          return BackupRef::EncryptionPasswordTooLong;
+        memcpy(epd.data, encryption_password, password_length);
+        section_size = epd.get_needed_words();
+      }
+      else
+      {
+        /*
+         * For sending to old data nodes, version 8.0.28 and older, password
+         * need to be null-terminated, and also need to have a nul in position
+         * MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH.
+         * And the section size must be exact
+         * MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 8 bytes.
+         */
+        if (password_length > MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH)
+          return BackupRef::EncryptionPasswordTooLong;
+        memcpy(epd.data, encryption_password, password_length + 1);
+        epd.data[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] = 0;
+
+        section_size =
+            ndb_ceil_div(4 + MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 4, 4);
+      }
 
       ssig.ptr[0].p = (Uint32*)&epd;
-      ssig.ptr[0].sz = (sizeof(EncryptionPasswordData) + 3) / 4;
+      ssig.ptr[0].sz = section_size;
       ssig.header.m_noOfSections = 1;
       req->flags |= BackupReq::ENCRYPTED_BACKUP;
     }
@@ -5119,7 +5177,6 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
   }
   SimpleSignal ssig;
   UtilBuffer buf;
-  UtilBuffer *buf_ptr = &buf;
   new_config.pack(buf, v2);
   ssig.ptr[0].p = (Uint32*)buf.get_data();
   ssig.ptr[0].sz = (buf.length() + 3) / 4;
@@ -5171,8 +5228,7 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
             /**
              * Free old buffer and create a new one.
              */
-            delete buf_ptr;
-            buf_ptr = new (buf_ptr) UtilBuffer;
+            buf.assign(nullptr, 0);
             require(new_config.pack(buf, v2_new));
             v2 = v2_new;
           }

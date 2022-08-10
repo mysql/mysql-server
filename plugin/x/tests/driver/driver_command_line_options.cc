@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -202,6 +202,11 @@ void Driver_command_line_options::print_help() {
   std::cout << "-B, --bindump         Dump binary representation of messages "
                "sent, in format suitable for\n";
   std::cout << "--trace-protocol      Enable X Protocol tracing\n";
+  std::cout << "--history-protocol=<0|1|true|false>\n";
+  std::cout << "                      Enable/disable X Protocol message "
+               "tracing into\n";
+  std::cout << "                      history buffer, which is printed at test "
+               "failure\n";
   std::cout << "--verbose             Enable extra verbose messages\n";
   std::cout << "--daemon              Work as a daemon (unix only)\n";
   std::cout << "--help                Show command line help\n";
@@ -326,6 +331,10 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
       m_connection_options.socket = get_socket_name();
     } else if (check_arg(argv, i, "--trace-protocol", nullptr)) {
       m_connection_options.trace_protocol = true;
+    } else if (check_arg_with_value(argv, i, "--history-protocol", nullptr,
+                                    value)) {
+      m_connection_options.trace_protocol_history =
+          boolean_argument(value, &exit_code);
     } else if (check_arg(argv, i, "--close-no-sync", nullptr)) {
       m_connection_options.dont_wait_for_disconnect = true;
     } else if (check_arg(argv, i, "--bindump", "-B")) {

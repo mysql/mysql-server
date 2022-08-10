@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -257,7 +257,7 @@ bool mbr_within_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
 }
 
 void mbr_join(const dd::Spatial_reference_system *srs, double *a,
-              const double *b, int n_dim MY_ATTRIBUTE((unused))) {
+              const double *b, int n_dim [[maybe_unused]]) {
   assert(n_dim == 2);
 
   try {
@@ -291,7 +291,7 @@ void mbr_join(const dd::Spatial_reference_system *srs, double *a,
 }
 
 double mbr_join_area(const dd::Spatial_reference_system *srs, const double *a,
-                     const double *b, int n_dim MY_ATTRIBUTE((unused))) {
+                     const double *b, int n_dim [[maybe_unused]]) {
   assert(n_dim == 2);
 
   double area = 0.0;
@@ -311,10 +311,10 @@ double mbr_join_area(const dd::Spatial_reference_system *srs, const double *a,
       gis::Geographic_box b_box(
           gis::Geographic_point(srs->to_radians(b[0]), srs->to_radians(b[2])),
           gis::Geographic_point(srs->to_radians(b[1]), srs->to_radians(b[3])));
-      bg::expand(a_box, b_box);
-      area = bg::area(
-          a_box, bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
-                     srs->semi_major_axis(), srs->semi_minor_axis())));
+      bg::strategies::geographic<> strategies(bg::srs::spheroid<double>(
+          srs->semi_major_axis(), srs->semi_minor_axis()));
+      bg::expand(a_box, b_box, strategies);
+      area = bg::area(a_box, strategies);
     }
   } catch (...) {
     assert(false); /* purecov: inspected */
@@ -325,7 +325,7 @@ double mbr_join_area(const dd::Spatial_reference_system *srs, const double *a,
 }
 
 double compute_area(const dd::Spatial_reference_system *srs, const double *a,
-                    int n_dim MY_ATTRIBUTE((unused))) {
+                    int n_dim [[maybe_unused]]) {
   assert(n_dim == 2);
 
   double area = 0.0;
@@ -339,9 +339,9 @@ double compute_area(const dd::Spatial_reference_system *srs, const double *a,
       gis::Geographic_box a_box(
           gis::Geographic_point(srs->to_radians(a[0]), srs->to_radians(a[2])),
           gis::Geographic_point(srs->to_radians(a[1]), srs->to_radians(a[3])));
-      area = bg::area(
-          a_box, bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
-                     srs->semi_major_axis(), srs->semi_minor_axis())));
+      bg::strategies::area::geographic<> strategies(bg::srs::spheroid<double>(
+          srs->semi_major_axis(), srs->semi_minor_axis()));
+      area = bg::area(a_box, strategies);
     }
   } catch (...) {
     assert(false); /* purecov: inspected */
@@ -352,7 +352,7 @@ double compute_area(const dd::Spatial_reference_system *srs, const double *a,
 
 int get_mbr_from_store(const dd::Spatial_reference_system *srs,
                        const uchar *store, uint size,
-                       uint n_dims MY_ATTRIBUTE((unused)), double *mbr,
+                       uint n_dims [[maybe_unused]], double *mbr,
                        gis::srid_t *srid) {
   assert(n_dims == 2);
   // The SRS should match the SRID of the geometry, with one exception: For
@@ -419,8 +419,7 @@ int get_mbr_from_store(const dd::Spatial_reference_system *srs,
 
 double rtree_area_increase(const dd::Spatial_reference_system *srs,
                            const uchar *mbr_a, const uchar *mbr_b,
-                           int mbr_len MY_ATTRIBUTE((unused)),
-                           double *ab_area) {
+                           int mbr_len [[maybe_unused]], double *ab_area) {
   assert(mbr_len == sizeof(double) * 4);
 
   double a_xmin = float8get(mbr_a);
@@ -456,13 +455,11 @@ double rtree_area_increase(const dd::Spatial_reference_system *srs,
                                                       srs->to_radians(b_ymin)),
                                 gis::Geographic_point(srs->to_radians(b_xmax),
                                                       srs->to_radians(b_ymax)));
-      a_area = bg::area(
-          a_box, bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
-                     srs->semi_major_axis(), srs->semi_minor_axis())));
-      bg::expand(a_box, b_box);
-      *ab_area = bg::area(
-          a_box, bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
-                     srs->semi_major_axis(), srs->semi_minor_axis())));
+      bg::strategies::geographic<> strategies(bg::srs::spheroid<double>(
+          srs->semi_major_axis(), srs->semi_minor_axis()));
+      a_area = bg::area(a_box, strategies);
+      bg::expand(a_box, b_box, strategies);
+      *ab_area = bg::area(a_box, strategies);
     }
     if (std::isinf(a_area)) a_area = std::numeric_limits<double>::max();
     if (std::isinf(*ab_area)) *ab_area = std::numeric_limits<double>::max();
@@ -476,7 +473,7 @@ double rtree_area_increase(const dd::Spatial_reference_system *srs,
 
 double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
                               const uchar *mbr_a, const uchar *mbr_b,
-                              int mbr_len MY_ATTRIBUTE((unused))) {
+                              int mbr_len [[maybe_unused]]) {
   assert(mbr_len == sizeof(double) * 4);
 
   double a_xmin = float8get(mbr_a);
@@ -499,8 +496,9 @@ double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
       gis::Cartesian_box b_box(gis::Cartesian_point(b_xmin, b_ymin),
                                gis::Cartesian_point(b_xmax, b_ymax));
       gis::Cartesian_box overlapping_box;
-      bg::intersection(a_box, b_box, overlapping_box);
-      area = bg::area(overlapping_box);
+      if (bg::intersection(a_box, b_box, overlapping_box)) {
+        area = bg::area(overlapping_box);
+      }
     } else {
       assert(srs->is_geographic());
       gis::Geographic_box a_box(gis::Geographic_point(srs->to_radians(a_xmin),
@@ -512,14 +510,11 @@ double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
                                 gis::Geographic_point(srs->to_radians(b_xmax),
                                                       srs->to_radians(b_ymax)));
       gis::Geographic_box overlapping_box;
-      bg::intersection(a_box, b_box, overlapping_box,
-                       bg::strategy::intersection::geographic_segments<>(
-                           bg::srs::spheroid<double>(srs->semi_major_axis(),
-                                                     srs->semi_minor_axis())));
-      area =
-          bg::area(overlapping_box,
-                   bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
-                       srs->semi_major_axis(), srs->semi_minor_axis())));
+      bg::strategies::geographic<> strategies(bg::srs::spheroid<double>(
+          srs->semi_major_axis(), srs->semi_minor_axis()));
+      if (bg::intersection(a_box, b_box, overlapping_box, strategies)) {
+        area = bg::area(overlapping_box, strategies);
+      }
     }
   } catch (...) {
     assert(false); /* purecov: inspected */

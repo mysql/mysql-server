@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,6 +309,36 @@ NdbOperation::interpretedUpdateTuple()
   }//if
 }//NdbOperation::interpretedUpdateTuple()
 
+/******************************************************************************
+ * int interpretedWriteTuple();
+ ****************************************************************************/
+int
+NdbOperation::interpretedWriteTuple()
+{
+  NdbTransaction* tNdbCon = theNdbCon;
+  /* Interpreted write only supported in 8.0.30 and above */
+  if (!ndbd_interpreted_write_supported(
+          theNdbCon->getNdb()->getMinDbNodeVersion())) {
+    setErrorCode(4003);
+    return -1;
+  }
+  int tErrorLine = theErrorLine;
+  if (theStatus == Init) {
+    theStatus = OperationDefined;
+    tNdbCon->theSimpleState = 0;
+    theOperationType = WriteRequest;
+    theAI_LenInCurrAI = 25;
+    theLockMode = LM_Exclusive;
+    theErrorLine = tErrorLine++;
+    m_abortOption = AbortOnError;
+    initInterpreter();
+    return 0;
+  } else {
+    setErrorCode(4200);
+    return -1;
+  }//if
+}//NdbOperation::interpretedWriteTuple()
+
 /*****************************************************************************
  * int interpretedDeleteTuple();
  *****************************************************************************/
@@ -490,22 +520,32 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   Uint32 tData;
   Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
   OperationType tOpType = theOperationType;
-  OperationStatus tStatus = theStatus;
-
   
   if ((tOpType == UpdateRequest) ||
       (tOpType == WriteRequest)) {
     if (theInterpretIndicator == 0) {
-      if (tStatus == SetValue) {
+      if (theStatus == SetValue) {
         ;
       } else {
         setErrorCodeAbort(4234);
         DBUG_RETURN(-1);
       }//if
     } else {
-      if (tStatus == GetValue) {
+      if (theStatus == GetValue) {
         theInitialReadSize = theTotalCurrAI_Len - 5;
-      } else if	(tStatus == ExecInterpretedValue) {
+        //--------------------------------------------------------------------
+        // If the operation is an interpreted write, then transfer the keyinfo
+        // data to Attrinfo since it was skipped at the equal() stage searching
+        // for the row.
+        // For more info check out, NdbOperation::transferKeyInfoToAttrInfo()
+        //--------------------------------------------------------------------
+        if (tOpType == WriteRequest) {
+          if (transferKeyInfoToAttrInfo() != 0) {
+            setErrorCodeAbort(4559);
+            DBUG_RETURN(-1);
+          }
+        }
+      } else if	(theStatus == ExecInterpretedValue) {
 	//--------------------------------------------------------------------
 	// We insert an exit from interpretation since we are now starting 
 	// to set values in the tuple by setValue.
@@ -515,7 +555,19 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 	}
         theInterpretedSize = theTotalCurrAI_Len - 
           (theInitialReadSize + 5);
-      } else if (tStatus == SetValueInterpreted) {
+        //--------------------------------------------------------------------
+        // If the operation is an interpreted write, then transfer the keyinfo
+        // data to Attrinfo since it was skipped at the equal() stage searching
+        // for the row.
+        // For more info check out, NdbOperation::transferKeyInfoToAttrInfo()
+        //--------------------------------------------------------------------
+        if (tOpType == WriteRequest) {
+          if (transferKeyInfoToAttrInfo() != 0) {
+            setErrorCodeAbort(4559);
+            DBUG_RETURN(-1);
+          }
+        }
+      } else if (theStatus == SetValueInterpreted) {
         ; // Simply continue adding new setValue
       } else {
 	//--------------------------------------------------------------------
@@ -617,13 +669,13 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
    * If it is not aligned then we start by copying the value to tempData and 
    * use this as aValue instead.
    *************************************************************************/
-  
-  tReturnCode = insertATTRINFOloop((Uint32*)aValue, sizeInWords);
+
+  tReturnCode = insertATTRINFOloop((const Uint32*)aValue, sizeInWords);
   if (tReturnCode == -1) {
     DBUG_RETURN(tReturnCode);
   }//if
   if (bitsInLastWord != 0) {
-    tData = *(Uint32*)(aValue + sizeInWords*4);
+    tData = *(const Uint32*)(aValue + sizeInWords * 4);
     tData = convertEndian(tData);
     tData = tData & ((1 << bitsInLastWord) - 1);
     tData = convertEndian(tData);
@@ -663,6 +715,7 @@ NdbOperation::setAnyValue(Uint32 any_value)
     }
   }
   // Fall through - let setValue call set error
+  [[fallthrough]];
   default:
     return setValue(impl, (const char *)&any_value);
   }
@@ -745,8 +798,8 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
 }
 
 /* const variant of getBlobHandle - only returns existing blob handles */
-NdbBlob*
-NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo) const
+NdbBlob* NdbOperation::getBlobHandle(NdbTransaction* /*aCon*/,
+                                     const NdbColumnImpl* tAttrInfo) const
 {
   NdbBlob* tBlob = theBlobList;
   while (tBlob != NULL) {
@@ -858,9 +911,9 @@ NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon,
     {
       /*
        * For read request, it is safe to cast away const-ness for the
-       * m_attribute_row.
+       * m_attribute_row. // TODO: why?
        */
-      memcpy((char *)&m_attribute_row[col->offset], &bh, sizeof(bh));
+      memcpy(const_cast<char*>(&m_attribute_row[col->offset]), &bh, sizeof(bh));
     }
   }
 
@@ -1204,10 +1257,11 @@ NdbOperation::handleOperationOptions (const OperationType type,
     }
 
     // Only certain operation types allow extra GetValues
-    // Update could be made to support it in future
     if (type == ReadRequest ||
         type == ReadExclusive ||
-        type == DeleteRequest)
+        type == DeleteRequest ||
+        type == UpdateRequest ||
+        type == WriteRequest)
     {
       // Could be readTuple(), or lockCurrentTuple().
       // We perform old-school NdbRecAttr reads on
@@ -1242,12 +1296,6 @@ NdbOperation::handleOperationOptions (const OperationType type,
       // Bad operation type for GetValue
       switch (type)
       {
-      case WriteRequest : 
-      case UpdateRequest :
-      {
-        return 4502;
-        // GetValue not allowed in Update operation
-      }
       case InsertRequest :
       {
         return 4503;
@@ -1361,10 +1409,18 @@ NdbOperation::handleOperationOptions (const OperationType type,
     if (! ((type == ReadRequest)   ||
            (type == ReadExclusive) ||
            (type == UpdateRequest) ||
-           (type == DeleteRequest)))
+           (type == DeleteRequest) ||
+           (type == WriteRequest)))
       /* NdbInterpretedCode not supported for operation type */
       return 4539;
-    
+
+    /* Interpreted write onlys supported in 8.0.30 and above */
+    if (type == WriteRequest &&
+        !ndbd_interpreted_write_supported(
+            op->theNdbCon->getNdb()->getMinDbNodeVersion())) {
+      return 4003;
+    }
+
     /* Check the program's for the same table as the
      * operation, within a major version number
      * Perhaps NdbInterpretedCode should not contain the table

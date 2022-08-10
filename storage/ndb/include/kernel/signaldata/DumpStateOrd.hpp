@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,6 +154,7 @@ public:
     LqhKillAndSendToDead = 2355,
     LqhSetTransientPoolMaxSize = 2356,
     LqhResetTransientPoolMaxSize = 2357,
+    LqhDumpOpRecLookup = 2358,
 
     AccDumpOneScanRec = 2400,
     AccDumpAllScanRec = 2401,
@@ -164,6 +165,9 @@ public:
     AccDumpNotFreeOpRecs = 2406,
     AccSetTransientPoolMaxSize = 2407,
     AccResetTransientPoolMaxSize = 2408,
+    AccDumpOneOpRecLocal = 2409,
+    AccDumpOpPrecedingLocks = 2410,
+
     DumpPageMemory = 1000, // Acc & TUP
     DumpPageMemoryOnFail = 1001,
     TcDumpSetOfScanFragRec = 2500,
@@ -182,6 +186,7 @@ public:
     TcDumpPoolLevels = 2555,
     TcSetTransientPoolMaxSize = 2556,
     TcResetTransientPoolMaxSize = 2557,
+    TcSetTransErrorLogLevel = 2558,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
     /**

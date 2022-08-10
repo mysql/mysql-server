@@ -433,7 +433,7 @@ ERROR 42000: PROCEDURE очень_очень_очень_очень_очень_о
 SHOW CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e`()
-BEGIN END	utf8	utf8_general_ci	utf8mb4_0900_ai_ci
+BEGIN END	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 #
 # Test case to verify stored function with case and accent insensitive names.
@@ -532,3 +532,22 @@ func2()
 NULL
 DROP FUNCTION func1;
 DROP FUNCTION func2;
+#
+# Bug#33079184 - sp_lex_instr::reset_lex_and_exec_core: assertion
+#                `error || m_lex->is_exec_started()' failed.
+# Assertion to make sure sp instruction execution is started unless
+# there is an error, failed.
+#
+CREATE PROCEDURE p()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+SET @x = 0;
+WHILE @x < 2 DO
+CASE((SELECT q > 1)) WHEN 1 THEN SELECT 1; END CASE;
+SET @x = @x + 1;
+END WHILE;
+END$
+# Without fix, assertion fails for following statement in debug build.
+# In non-debug build, statement executes successfully.
+CALL p();
+DROP PROCEDURE p;

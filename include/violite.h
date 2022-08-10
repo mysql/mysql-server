@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,9 @@
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
-#include "mysql/components/services/my_io_bits.h"
-#include "mysql/components/services/my_thread_bits.h"
-#include "mysql/components/services/mysql_socket_bits.h"
+#include "mysql/components/services/bits/my_io_bits.h"
+#include "mysql/components/services/bits/my_thread_bits.h"
+#include "mysql/components/services/bits/mysql_socket_bits.h"
 
 #include "mysql/psi/mysql_socket.h"
 
@@ -51,7 +51,7 @@ struct Vio;
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 
-#if !defined(_WIN32) && !defined(HAVE_KQUEUE) && !defined(__SUNPRO_CC)
+#if !defined(_WIN32) && !defined(HAVE_KQUEUE)
 #define USE_PPOLL_IN_VIO
 #endif
 
@@ -140,7 +140,6 @@ enum enum_vio_io_event {
 #define VIO_LOCALHOST 1            /* a localhost connection */
 #define VIO_BUFFERED_READ 2        /* use buffered read */
 #define VIO_READ_BUFFER_SIZE 16384 /* size of read buffer */
-#define OPENSSL_ERROR_LENGTH 512   /* Openssl error code max length */
 
 MYSQL_VIO vio_new(my_socket sd, enum enum_vio_type type, uint flags);
 MYSQL_VIO mysql_socket_vio_new(MYSQL_SOCKET mysql_socket,
@@ -258,7 +257,7 @@ struct st_VioSSLFd {
 int sslaccept(struct st_VioSSLFd *, MYSQL_VIO, long timeout,
               unsigned long *errptr);
 int sslconnect(struct st_VioSSLFd *, MYSQL_VIO, long timeout,
-               unsigned long *errptr, SSL **ssl);
+               SSL_SESSION *session, unsigned long *errptr, SSL **ssl);
 
 struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
@@ -267,10 +266,6 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const long ssl_ctx_flags, const char *server_host);
 
 long process_tls_version(const char *tls_version);
-
-int set_fips_mode(const uint fips_mode, char *err_string);
-
-uint get_fips_mode();
 
 struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,

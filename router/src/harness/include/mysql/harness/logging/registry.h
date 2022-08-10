@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -262,6 +262,15 @@ HARNESS_EXPORT
 void set_log_level_for_all_loggers(Registry &registry, LogLevel level);
 
 /**
+ * Set log levels for all handlers to specified value
+ *
+ * @param registry Registry object, typically managed by DIM
+ * @param level Log level for logger
+ */
+HARNESS_EXPORT
+void set_log_level_for_all_handlers(const Registry &registry, LogLevel level);
+
+/**
  * Converts string with log timestamp precision description to
  * LogTimestampPrecision type.
  *
@@ -382,6 +391,10 @@ void create_main_log_handler(Registry &registry, const std::string &program,
 /** Set log level for all registered loggers. */
 HARNESS_EXPORT
 void set_log_level_for_all_loggers(LogLevel level);
+
+/** Set log level for all registered handlers. */
+HARNESS_EXPORT
+void set_log_level_for_all_handlers(LogLevel level);
 
 /** Set timestamp precision for all registered loggers. */
 HARNESS_EXPORT

@@ -13,6 +13,8 @@ b int,
 bv varbinary(26920) not null,
 primary key(a,av)
 ) engine=ndb;
+Warnings:
+Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
 Add 100 rows
 Start a backup with completion stalled
 
@@ -40,6 +42,8 @@ Allow backup to complete...
 Waiting for backup to complete
 Backup completed
 truncate t1;
+Warnings:
+Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
 Now restore it and check the log content
 drop table t1;
 create table txt (a varbinary(36000));

@@ -127,14 +127,6 @@ MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
 0	MULTIPOLYGON	62
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
------
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
-dist	buffer	buf_area
-0	POLYGON	36
------
-GeometryCollection(MultiPolygon(((0 0, 3 0, 3 3, 0 3, 0 0)),((6 6,6 9,9 9,9 6,6 6))))
-dist	buffer	buf_area
-0	MULTIPOLYGON	18
 #
 # Testing ST_BUFFER with negative distance
 #
@@ -178,7 +170,7 @@ ERROR HY000: Incorrect arguments to st_buffer
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
--1	POLYGON	6.14
+-1	POLYGON	8
 # Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
@@ -218,7 +210,7 @@ ST_GeomFromText('POINT(5 10)')));
 ST_AsText(ST_UNION(
 ST_GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)),((6 6, 6 11, 11 11, 11 6, 6 6)))'),
 ST_GeomFromText('POINT(5 10)')))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)),((6 6,11 6,11 11,6 11,6 6))),POINT(5 10))
+GEOMETRYCOLLECTION(POLYGON((0 0,5 0,5 5,0 5,0 0)),POLYGON((6 6,11 6,11 11,6 11,6 6)),POINT(5 10))
 DROP PROCEDURE p1;
 #
 # Bug #13833019 ASSERTION `T1->RESULT_RANGE' FAILED IN GCALC_OPERATION_REDUCER::END_COUPLE

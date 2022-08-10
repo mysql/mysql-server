@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,10 +30,10 @@ my_service<SERVICE_TYPE(mysql_string_converter)>
 my_service<SERVICE_TYPE(udf_registration)> *Udf_registration::h_service =
     nullptr;
 
-std::string Error_capture::s_message;
+const char *Error_capture::s_message = "";
 std::string Error_capture::get_last_error() {
   std::string err = s_message;
-  s_message.clear();
+  s_message = "";
   return err;
 }
 
@@ -143,20 +143,27 @@ bool Character_set_converter::convert(const std::string &out_charset_name,
     s_message = "Create string failed.";
     return true;
   } else {
+    static char msg_buf[256];
     h_string_factory->destroy(out_string);
     if ((*h_service)
             ->convert_from_buffer(&out_string, in_buffer.c_str(),
                                   in_buffer.length(),
                                   in_charset_name.c_str())) {
       h_string_factory->destroy(out_string);
-      s_message = "Failed to retrieve the buffer in charset " + in_charset_name;
+      snprintf(msg_buf, sizeof(msg_buf) - 1,
+               "Failed to retrieve the buffer in charset %s",
+               in_charset_name.c_str());
+      s_message = msg_buf;
       return true;
     }
     if ((*h_service)
             ->convert_to_buffer(out_string, out_buffer, out_buffer_length,
                                 out_charset_name.c_str())) {
       h_string_factory->destroy(out_string);
-      s_message = "Failed to convert the buffer in charset " + out_charset_name;
+      snprintf(msg_buf, sizeof(msg_buf) - 1,
+               "Failed to convert the buffer in charset %s",
+               out_charset_name.c_str());
+      s_message = msg_buf;
       return true;
     }
   }

@@ -1,0 +1,47 @@
+--source include/not_valgrind.inc
+
+--echo ## Test: Upgrade data directory.
+--echo #   a) start MySQLd with 5.7 data directory, do the upgrade.
+--echo #   b) verify that X Plugin "information about acceptin client
+--echo #      connections (logs) are printed after upgrade finishes.
+
+--echo
+--echo ## a) Restart the server with 5.7 data directory.
+--echo # Copy and unzip the datadir.
+copy_file $MYSQLTEST_VARDIR/std_data/data_57.zip $MYSQL_TMP_DIR/data_57.zip;
+file_exists $MYSQL_TMP_DIR/data_57.zip;
+mkdir $MYSQL_TMP_DIR/data_57/;
+exec unzip -qo $MYSQL_TMP_DIR/data_57.zip -d $MYSQL_TMP_DIR/data_57/;
+let $DATADIR = $MYSQL_TMP_DIR/data_57/data/;
+
+--echo # Mark that error-logs generated until now are not important.
+let $error_pattern = SAVEPOS;
+source ../include/assert_error_log_sequence.inc;
+
+--echo # Restart the server with "5.7" data directory.
+replace_result $DATADIR DATADIR;
+let $restart_parameters = restart: --datadir=$DATADIR;
+let $wait_counter=3000;
+source include/restart_mysqld.inc;
+
+--echo
+--echo ## b) Confirm that X Plugin "accepting" logs are printed after upgrade.
+# The 5.7 data dir, doesn't have mtr directory. We must create i manually.
+disable_query_log;
+CREATE SCHEMA mtr;
+enable_query_log;
+let $error_pattern =System.*Server upgrade from '50700' to '800..' started.
+System.*Server upgrade from '50700' to '800..' completed.
+System.*X Plugin ready for connections. Bind-address: .* port: ;
+
+let $ignore_line_count=0;
+--source ../include/assert_error_log_sequence.inc
+
+--echo
+--echo ## Cleanup: restart the server and restore the default database.
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+# Remove files created by the test.
+--remove_file $MYSQL_TMP_DIR/data_57.zip
+--force-rmdir $MYSQL_TMP_DIR/data_57/

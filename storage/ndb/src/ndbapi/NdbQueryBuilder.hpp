@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,7 +197,7 @@ public:
    *
    * Specifying a 'FirstInnerJoin' is only required when the firstInner
    * is not an ancestor Op. of this Op in the tree of QueryOperations.
-   * That is if firstInner and this Op are in seperate branches of the
+   * That is if firstInner and this Op are in separate branches of the
    * QueryTree -> This Op has no linkedValue dependencies on other Ops
    * in the nest starting with firstInner.
    */
@@ -232,6 +232,8 @@ public:
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
   int setInterpretedCode(const class NdbInterpretedCode& code);
+
+  int setParameters(const NdbQueryOperand* const parameters[]);
 
   const NdbQueryOptionsImpl& getImpl() const;
 

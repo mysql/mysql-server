@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,8 +145,9 @@ static inline int decimal_string_size(const decimal_t *dec) {
 #define E_DEC_BAD_NUM 8
 #define E_DEC_OOM 16
 
-#define E_DEC_ERROR 31
-#define E_DEC_FATAL_ERROR 30
+#define E_DEC_FATAL_ERROR \
+  (E_DEC_OVERFLOW | E_DEC_DIV_ZERO | E_DEC_BAD_NUM | E_DEC_OOM)
+#define E_DEC_ERROR (E_DEC_FATAL_ERROR | E_DEC_TRUNCATED)
 
 static constexpr int DECIMAL_MAX_SCALE{30};
 static constexpr int DECIMAL_NOT_SPECIFIED{DECIMAL_MAX_SCALE + 1};

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,7 +36,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <vector>
 #include "fil0fil.h" /* SPACE_UNKNOWN */
 #include "ha_prototypes.h"
-#include "log0log.h"
 #include "mem0mem.h"
 #include "os0file.h"
 
@@ -46,11 +45,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** MEB routine to get the master key. MEB will extract
 the key from the keyring encrypted file stored in backup.
-@param[in]	key_id		the id of the master key
-@param[in]	key_type	master key type
-@param[out]	key		the master key being returned
-@param[out]	key_length	the length of the returned key
-@retval	0 if the key is being returned, 1 otherwise. */
+@param[in]      key_id          the id of the master key
+@param[in]      key_type        master key type
+@param[out]     key             the master key being returned
+@param[out]     key_length      the length of the returned key
+@retval 0 if the key is being returned, 1 otherwise. */
 extern int meb_key_fetch(const char *key_id, char **key_type,
                          const char *user_id, void **key, size_t *key_length);
 #endif /* UNIV_HOTBACKUP */
@@ -85,7 +84,6 @@ class Datafile {
         m_flags(),
         m_exists(),
         m_is_valid(),
-        m_first_page_buf(),
         m_first_page(),
         m_atomic_write(),
         m_filepath(),
@@ -93,7 +91,8 @@ class Datafile {
         m_file_info(),
         m_encryption_key(),
         m_encryption_iv(),
-        m_encryption_op_in_progress(NONE) {
+        m_encryption_op_in_progress(Encryption::Progress::NONE),
+        m_encryption_master_key_id(0) {
     m_handle.m_file = OS_FILE_CLOSED;
   }
 
@@ -108,7 +107,6 @@ class Datafile {
         m_flags(flags),
         m_exists(),
         m_is_valid(),
-        m_first_page_buf(),
         m_first_page(),
         m_atomic_write(),
         m_filepath(),
@@ -116,7 +114,8 @@ class Datafile {
         m_file_info(),
         m_encryption_key(),
         m_encryption_iv(),
-        m_encryption_op_in_progress(NONE) {
+        m_encryption_op_in_progress(Encryption::Progress::NONE),
+        m_encryption_master_key_id(0) {
     ut_ad(m_name != nullptr);
     m_handle.m_file = OS_FILE_CLOSED;
     /* No op */
@@ -132,14 +131,14 @@ class Datafile {
         m_flags(file.m_flags),
         m_exists(file.m_exists),
         m_is_valid(file.m_is_valid),
-        m_first_page_buf(),
         m_first_page(),
         m_atomic_write(file.m_atomic_write),
         m_last_os_error(),
         m_file_info(),
         m_encryption_key(),
         m_encryption_iv(),
-        m_encryption_op_in_progress(NONE) {
+        m_encryption_op_in_progress(Encryption::Progress::NONE),
+        m_encryption_master_key_id(0) {
     m_name = mem_strdup(file.m_name);
     ut_ad(m_name != nullptr);
 
@@ -177,7 +176,7 @@ class Datafile {
     m_last_os_error = 0;
 
     if (m_filepath != nullptr) {
-      ut_free(m_filepath);
+      ut::free(m_filepath);
       m_filepath = nullptr;
       m_filename = nullptr;
     }
@@ -190,11 +189,11 @@ class Datafile {
 
     /* Do not make a copy of the first page,
     it should be reread if needed */
-    m_first_page_buf = nullptr;
     m_first_page = nullptr;
     m_encryption_key = nullptr;
     m_encryption_iv = nullptr;
-    m_encryption_op_in_progress = NONE;
+    m_encryption_op_in_progress = Encryption::Progress::NONE;
+    m_encryption_master_key_id = 0;
 
     m_atomic_write = file.m_atomic_write;
 
@@ -202,8 +201,8 @@ class Datafile {
   }
 
   /** Initialize the name and flags of this datafile.
-  @param[in]	name	tablespace name, will be copied
-  @param[in]	flags	tablespace flags */
+  @param[in]    name    tablespace name, will be copied
+  @param[in]    flags   tablespace flags */
   void init(const char *name, uint32_t flags);
 
   /** Release the resources. */
@@ -211,17 +210,16 @@ class Datafile {
 
   /** Open a data file in read-only mode to check if it exists
   so that it can be validated.
-  @param[in]	strict	whether to issue error messages
+  @param[in]    strict  whether to issue error messages
   @return DB_SUCCESS or error code */
-  dberr_t open_read_only(bool strict) MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t open_read_only(bool strict);
 
   /** Open a data file in read-write mode during start-up so that
   doublewrite pages can be restored and then it can be validated.
-  @param[in]	read_only_mode	if true, then readonly mode checks
+  @param[in]    read_only_mode  if true, then readonly mode checks
                                   are enforced.
   @return DB_SUCCESS or error code */
-  dberr_t open_read_write(bool read_only_mode)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t open_read_write(bool read_only_mode);
 
   /** Initialize OS specific file info. */
   void init_file_info();
@@ -240,9 +238,9 @@ class Datafile {
   Prepend the dirpath to filename using the extension given.
   If dirpath is nullptr, prepend the default datadir to filepath.
   Store the result in m_filepath.
-  @param[in]	dirpath		directory path
-  @param[in]	filename	filename or filepath
-  @param[in]	ext		filename extension */
+  @param[in]    dirpath         directory path
+  @param[in]    filename        filename or filepath
+  @param[in]    ext             filename extension */
   void make_filepath(const char *dirpath, const char *filename,
                      ib_file_suffix ext);
 
@@ -254,50 +252,49 @@ class Datafile {
   extract a file-per-table tablespace name from m_filepath; else it is a
   general tablespace, so just call it that for now. The value of m_name
   will be freed in the destructor.
-  @param[in]	name	Tablespace Name if known, nullptr if not */
+  @param[in]    name    Tablespace Name if known, nullptr if not */
   void set_name(const char *name);
 
   /** Validates the datafile and checks that it conforms with the expected
   space ID and flags.  The file should exist and be successfully opened
   in order for this function to validate it.
-  @param[in]	space_id	The expected tablespace ID.
-  @param[in]	flags		The expected tablespace flags.
-  @param[in]	for_import	if it is for importing
+  @param[in]    space_id        The expected tablespace ID.
+  @param[in]    flags           The expected tablespace flags.
+  @param[in]    for_import      if it is for importing
   @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
   m_is_valid is also set true on success, else false. */
-  dberr_t validate_to_dd(space_id_t space_id, uint32_t flags, bool for_import)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t validate_to_dd(space_id_t space_id, uint32_t flags,
+                                       bool for_import);
 
-  /** Validates this datafile for the purpose of recovery.
-  The file should exist and be successfully opened. We initially
-  open it in read-only mode because we just want to read the SpaceID.
-  However, if the first page is corrupt and needs to be restored
-  from the doublewrite buffer, we will reopen it in write mode and
-  ry to restore that page.
-  @param[in]	space_id	Expected space ID
+  /** Validates this datafile for the purpose of recovery.  The file should
+  exist and be successfully opened. We initially open it in read-only mode
+  because we just want to read the SpaceID.  However, if the first page is
+  corrupt and needs to be restored from the doublewrite buffer, we will reopen
+  it in write mode and try to restore that page. The file will be closed when
+  returning from this method.
+  @param[in]    space_id        Expected space ID
   @retval DB_SUCCESS on success
   m_is_valid is also set true on success, else false. */
-  dberr_t validate_for_recovery(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t validate_for_recovery(space_id_t space_id);
 
-  /** Checks the consistency of the first page of a datafile when the
-  tablespace is opened.  This occurs before the fil_space_t is created
-  so the Space ID found here must not already be open.
-  m_is_valid is set true on success, else false.
-  @param[in]	space_id	Expected space ID
-  @param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
-  @param[in]	for_import	if it is for importing
+  /**  Checks the consistency of the first page of a datafile when the
+  tablespace is opened. This occurs before the fil_space_t is created so the
+  Space ID found here must not already be open. m_is_valid is set true on
+  success, else false. The datafile is always closed when returning from this
+  method.
+  @param[in]    space_id        Expected space ID
+  @param[out]   flush_lsn       contents of FIL_PAGE_FILE_FLUSH_LSN
+  @param[in]    for_import      if it is for importing
   (only valid for the first file of the system tablespace)
   @retval DB_WRONG_FILE_NAME tablespace in file header doesn't match
           expected value
   @retval DB_SUCCESS on if the datafile is valid
   @retval DB_CORRUPTION if the datafile is not readable
-  @retval DB_INVALID_ENCRYPTION_META if the encrypption meta data
+  @retval DB_INVALID_ENCRYPTION_META if the encryption meta data
           is not readable
   @retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-  dberr_t validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
-                              bool for_import)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t validate_first_page(space_id_t space_id,
+                                            lsn_t *flush_lsn, bool for_import);
 
   /** Get LSN of first page */
   lsn_t get_flush_lsn() {
@@ -315,7 +312,10 @@ class Datafile {
 
   /** Get Datafile::m_handle.
   @return m_handle */
-  pfs_os_file_t handle() const { return (m_handle); }
+  pfs_os_file_t handle() const {
+    ut_ad(is_open());
+    return (m_handle);
+  }
 
   /** Get Datafile::m_order.
   @return m_order */
@@ -352,13 +352,13 @@ class Datafile {
   /** Do a quick test if the filepath provided looks the same as this filepath
   byte by byte. If they are two different looking paths to the same file,
   same_as() will be used to show that after the files are opened.
-  @param[in]	other	filepath to compare with
+  @param[in]    other   filepath to compare with
   @retval true if it is the same filename by byte comparison
   @retval false if it looks different */
   bool same_filepath_as(const char *other) const;
 
   /** Test if another opened datafile is the same file as this object.
-  @param[in]	other	Datafile to compare with
+  @param[in]    other   Datafile to compare with
   @return true if it is the same file, else false */
   bool same_as(const Datafile &other) const;
 
@@ -373,14 +373,14 @@ class Datafile {
 
 #ifdef UNIV_HOTBACKUP
   /** Set the tablespace ID.
-  @param[in]	space_id	Tablespace ID to set */
+  @param[in]    space_id        Tablespace ID to set */
   void set_space_id(space_id_t space_id) {
     ut_ad(space_id <= 0xFFFFFFFFU);
     m_space_id = space_id;
   }
 
   /** Set th tablespace flags
-  @param[in]	flags	Tablespace flags */
+  @param[in]    flags   Tablespace flags */
   void set_flags(uint32_t flags) { m_flags = flags; }
 #endif /* UNIV_HOTBACKUP */
 
@@ -401,32 +401,30 @@ class Datafile {
   }
 
   /** Create/open a data file.
-  @param[in]	read_only_mode	if true, then readonly mode checks
+  @param[in]    read_only_mode  if true, then readonly mode checks
                                   are enforced.
   @return DB_SUCCESS or error code */
-  dberr_t open_or_create(bool read_only_mode)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t open_or_create(bool read_only_mode);
 
   /** Reads a few significant fields from the first page of the
   datafile, which must already be open.
-  @param[in]	read_only_mode	If true, then readonly mode checks
+  @param[in]    read_only_mode  If true, then readonly mode checks
                                   are enforced.
   @return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
-  dberr_t read_first_page(bool read_only_mode)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t read_first_page(bool read_only_mode);
 
   /** Free the first page from memory when it is no longer needed. */
   void free_first_page();
 
   /** Set the Datafile::m_open_flags.
-  @param open_flags	The Open flags to set. */
+  @param open_flags     The Open flags to set. */
   void set_open_flags(os_file_create_t open_flags) {
     m_open_flags = open_flags;
   }
 
   /** Finds a given page of the given space id from the double write buffer
   and copies it to the corresponding .ibd file.
-  @param[in]	restore_page_no		Page number to restore
+  @param[in]    restore_page_no         Page number to restore
   @return DB_SUCCESS if page was restored from doublewrite, else DB_ERROR */
   dberr_t restore_from_doublewrite(page_no_t restore_page_no);
 
@@ -461,10 +459,10 @@ class Datafile {
   space_id_t m_space_id;
 
   /** Server version */
-  uint32 m_server_version;
+  uint32_t m_server_version;
 
   /** Space version */
-  uint32 m_space_version;
+  uint32_t m_space_version;
 
   /** Tablespace flags. Contained in the datafile header.
   If this is a system tablespace, FSP_SPACE_FLAGS are only valid
@@ -478,9 +476,6 @@ class Datafile {
   bool m_is_valid;
 
   /** Buffer to hold first page */
-  byte *m_first_page_buf;
-
-  /** Pointer to the first page held in the buffer above */
   byte *m_first_page;
 
   /** true if atomic writes enabled for this file */
@@ -512,6 +507,9 @@ class Datafile {
   byte *m_encryption_iv;
 
   /** Encryption operation in progress */
-  encryption_op_type m_encryption_op_in_progress;
+  Encryption::Progress m_encryption_op_in_progress;
+
+  /** Master key id read from first page */
+  uint32_t m_encryption_master_key_id;
 };
 #endif /* fsp0file_h */

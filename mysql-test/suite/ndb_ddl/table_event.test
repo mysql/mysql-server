@@ -4,8 +4,6 @@
 #
 
 --source setup.inc
-# Retrieve the list of events created in NDB
---source retrieve_event_list.inc
 # Check that event have been created for mysql.ndb_apply_status
 let $check_event_dbname = mysql;
 let $check_event_tabname = ndb_apply_status;

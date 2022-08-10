@@ -1,7 +1,7 @@
 #ifndef SQL_CREATE_FIELD_INCLUDED
 #define SQL_CREATE_FIELD_INCLUDED
 
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <optional>
+
 #include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_base.h"
-#include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/field.h"
 #include "sql/gis/srid.h"
@@ -95,8 +96,8 @@ class Create_field {
     NULL for columns added.
   */
   const char *change;
-  const char *after;    // Put column after this one
-  LEX_CSTRING comment;  // Comment for field
+  const char *after{nullptr};  // Put column after this one
+  LEX_CSTRING comment;         // Comment for field
 
   /**
      The declared default value, if any, otherwise NULL. Note that this member
@@ -173,7 +174,7 @@ class Create_field {
 
   /// Holds the expression to be used to generate default values.
   Value_generator *m_default_val_expr{nullptr};
-  Nullable<gis::srid_t> m_srid;
+  std::optional<gis::srid_t> m_srid;
 
   // Whether the field is actually an array of the field's type;
   bool is_array{false};
@@ -221,8 +222,8 @@ class Create_field {
             List<String> *interval_list, const CHARSET_INFO *cs,
             bool has_explicit_collation, uint uint_geom_type,
             Value_generator *gcol_info, Value_generator *default_val_expr,
-            Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden,
-            bool is_array = false);
+            std::optional<gis::srid_t> srid,
+            dd::Column::enum_hidden_type hidden, bool is_array = false);
 
   ha_storage_media field_storage_type() const {
     return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);
@@ -236,7 +237,7 @@ class Create_field {
   /// The maximum display width of this column.
   ///
   /// The "display width" is the number of code points that is needed to print
-  /// out the string represenation of a value. It can be given by the user
+  /// out the string representation of a value. It can be given by the user
   /// both explicitly and implicitly. If a user creates a table with the columns
   /// "a VARCHAR(3), b INT(3)", both columns are given an explicit display width
   /// of 3 code points. But if a user creates a table with the columns
@@ -247,7 +248,7 @@ class Create_field {
   /// This is related to storage size for some types (VARCHAR, BLOB etc), but
   /// not for all types (an INT is four bytes regardless of the display width).
   ///
-  /// A "code point" is bascially a numeric value. For instance, ASCII
+  /// A "code point" is basically a numeric value. For instance, ASCII
   /// compromises of 128 code points (0x00 to 0x7F), while unicode contains way
   /// more. In most cases a code point represents a single graphical unit (aka
   /// grapheme), but not always. For instance, É may consists of two code points

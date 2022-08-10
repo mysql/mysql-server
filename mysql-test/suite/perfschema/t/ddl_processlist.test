@@ -22,4 +22,9 @@ create unique index test_index
 drop index `PRIMARY`
   on performance_schema.processlist;
 
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.processlist;
+
+DROP TABLE test.create_select;
+
 set @@global.performance_schema_show_processlist = @save_processlist;

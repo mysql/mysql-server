@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef SYSFILE_HPP
 #define SYSFILE_HPP
 
+#include "util/require.h"
 #include <ndb_types.h>
 #include <ndb_limits.h>
 #include <NodeBitmask.hpp>
@@ -77,9 +78,9 @@ public:
   /**
    * No of 32 bits words in the sysfile
    */
-  STATIC_CONST( SYSFILE_SIZE32_v1 = _SYSFILE_SIZE32_v1 );
-  STATIC_CONST( SYSFILE_SIZE32_v2 = _SYSFILE_SIZE32_v2 );
-  STATIC_CONST( SYSFILE_FILE_SIZE = _SYSFILE_FILE_SIZE);
+  static constexpr Uint32 SYSFILE_SIZE32_v1 = _SYSFILE_SIZE32_v1;
+  static constexpr Uint32 SYSFILE_SIZE32_v2 = _SYSFILE_SIZE32_v2;
+  static constexpr Uint32 SYSFILE_FILE_SIZE = _SYSFILE_FILE_SIZE;
   // MAGIC_v2 is set to {'N', 'D', 'B', 'S', 'Y', 'S', 'F', '2'} in Sysfile.cpp.
   static const char MAGIC_v2[8];
   static constexpr size_t MAGIC_SIZE_v2 = 8;
@@ -136,7 +137,7 @@ public:
     ,NS_NotDefined             = 8
     ,NS_Configured             = 9
   };
-  STATIC_CONST( NODE_STATUS_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 4) );
+  static constexpr Uint32 NODE_STATUS_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 4);
   Uint32 nodeStatus[NODE_STATUS_SIZE];
 
   Uint32 getNodeStatus(NodeId) const;

@@ -73,17 +73,17 @@ set global innodb_optimize_fulltext_only=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_optimize_fulltext_only'
 set global innodb_optimize_fulltext_only=2;
 ERROR 42000: Variable 'innodb_optimize_fulltext_only' can't be set to the value of '2'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_optimize_fulltext_only=-3;
+ERROR 42000: Variable 'innodb_optimize_fulltext_only' can't be set to the value of '-3'
 select @@global.innodb_optimize_fulltext_only;
 @@global.innodb_optimize_fulltext_only
-1
+0
 select * from performance_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_optimize_fulltext_only	ON
+innodb_optimize_fulltext_only	OFF
 select * from performance_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_optimize_fulltext_only	ON
+innodb_optimize_fulltext_only	OFF
 set global innodb_optimize_fulltext_only='AUTO';
 ERROR 42000: Variable 'innodb_optimize_fulltext_only' can't be set to the value of 'AUTO'
 SET @@global.innodb_optimize_fulltext_only = @start_global_value;

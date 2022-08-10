@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include "sql/plugin_table.h"
 #include "sql/sql_list.h"
 
-#include "storage/ndb/src/kernel/vm/NdbinfoTables.cpp"
+#include "debugger/Ndbinfo.hpp"
 #include "util/BaseString.hpp"
 
 static constexpr const char *opt_table_prefix{"ndb$"};
@@ -45,7 +45,7 @@ static constexpr const char *opt_table_prefix{"ndb$"};
  * at metadata creation time.
  *
  */
-struct view {
+static struct view {
   const char *schema_name;
   const char *view_name;
   const char *sql;
@@ -83,12 +83,6 @@ struct view {
      "FROM `ndbinfo`.`ndb$membership` "
      "GROUP BY arbitrator, arb_ticket, arb_connected"},
     {"ndbinfo", "backup_id", "SELECT id FROM `ndbinfo`.`ndb$backup_id`"},
-    // The blocks, dict_obj_types and config_params used
-    // to be stored in a different engine but have now
-    // been folded into hardcoded ndbinfo tables whose
-    // name include the special prefix.
-    // These views are defined to provide backward compatibility
-    // for code using the old names.
     {"ndbinfo", "blocks",
      "SELECT block_number, block_name "
      "FROM `ndbinfo`.`ndb$blocks`"},
@@ -322,9 +316,26 @@ struct view {
     {"ndbinfo", "error_messages",
      "SELECT error_code, error_description, error_status, error_classification "
      "FROM `ndbinfo`.`ndb$error_messages`"},
+    {"ndbinfo", "files",
+     "SELECT id, type_name AS type, fq_name AS name, "
+     "parent_obj_id as parent, tablespace_name as parent_name, "
+     "free_extents, total_extents, extent_size, initial_size, "
+     "maximum_size, autoextend_size "
+     "FROM ndbinfo.dict_obj_info info "
+     "JOIN ndbinfo.dict_obj_types types ON info.type = types.type_id "
+     "LEFT OUTER JOIN information_schema.files f ON f.file_id = info.id "
+     "AND f.engine = 'ndbcluster' "
+     "WHERE info.type in (20,21) OR info.parent_obj_type in (20,21) "
+     "ORDER BY parent, id"},
+    {"ndbinfo", "hash_maps",
+     "SELECT id, version, state, fq_name "
+     "FROM ndbinfo.dict_obj_info WHERE type=24"},
     {"ndbinfo", "hwinfo",
      "SELECT * "
      "FROM `ndbinfo`.`ndb$hwinfo`"},
+    {"ndbinfo", "index_stats",
+     "SELECT * "
+     "FROM `ndbinfo`.`ndb$index_stats`"},
     {"ndbinfo", "locks_per_fragment",
      "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
      "types.type_name AS type, table_id, node_id, block_instance, "
@@ -649,65 +660,176 @@ struct view {
      "FROM `ndbinfo`.`ndb$transporters`"},
 };
 
-size_t num_views = sizeof(views) / sizeof(views[0]);
+static constexpr size_t num_views = sizeof(views) / sizeof(views[0]);
 
 // These tables are hardcoded(aka. virtual) in ha_ndbinfo
-struct lookup {
+static struct lookup {
   const char *schema_name;
   const char *lookup_table_name;
   const char *columns;
-} lookups[] = {{"ndbinfo", "ndb$backup_id",
-                "id BIGINT UNSIGNED, "
-                "fragment INT UNSIGNED, "
-                "row_id BIGINT UNSIGNED"},
-               {
-                   "ndbinfo",
-                   "ndb$blocks",
-                   "block_number INT UNSIGNED, "
-                   "block_name VARCHAR(512)",
-               },
-               {"ndbinfo", "ndb$config_params",
-                "param_number INT UNSIGNED, "
-                "param_name VARCHAR(512), "
-                "param_description VARCHAR(512), "
-                "param_type VARCHAR(512), "
-                "param_default VARCHAR(512), "
-                "param_min VARCHAR(512), "
-                "param_max VARCHAR(512), "
-                "param_mandatory INT UNSIGNED, "
-                "param_status VARCHAR(512)"},
-               {
-                   "ndbinfo",
-                   "ndb$dblqh_tcconnect_state",
-                   "state_int_value INT UNSIGNED, "
-                   "state_name VARCHAR(256), "
-                   "state_friendly_name VARCHAR(256), "
-                   "state_description VARCHAR(256)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$dbtc_apiconnect_state",
-                   "state_int_value INT UNSIGNED, "
-                   "state_name VARCHAR(256), "
-                   "state_friendly_name VARCHAR(256), "
-                   "state_description VARCHAR(256)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$dict_obj_types",
-                   "type_id INT UNSIGNED, "
-                   "type_name VARCHAR(512)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$error_messages",
-                   "error_code INT UNSIGNED, "
-                   "error_description VARCHAR(512), "
-                   "error_status VARCHAR(512), "
-                   "error_classification VARCHAR(512)",
-               }};
+} lookups[] = {
+    {"ndbinfo", "blobs",
+     "table_id INT UNSIGNED NOT NULL, "
+     "database_name varchar(64) NOT NULL, "
+     "table_name varchar(64) NOT NULL, "
+     "column_id INT UNSIGNED NOT NULL, "
+     "column_name varchar(64) NOT NULL, "
+     "inline_size int unsigned NOT NULL, "
+     "part_size int unsigned NOT NULL, "
+     "stripe_size int unsigned NOT NULL, "
+     "blob_table_name varchar(128) not null"},
+    {"ndbinfo", "dictionary_columns",
+     "table_id INT UNSIGNED NOT NULL, "
+     "column_id INT UNSIGNED NOT NULL, "
+     "name VARCHAR(64) NOT NULL, "
+     "column_type VARCHAR(512) NOT NULL, "
+     "default_value VARCHAR(512) NOT NULL, "
+     "nullable enum('NOT NULL', 'NULL') NOT NULL, "
+     "array_type enum('FIXED', 'SHORT_VAR', 'MEDIUM_VAR') NOT NULL, "
+     "storage_type enum('MEMORY', 'DISK') NOT NULL, "
+     "primary_key INT UNSIGNED NOT NULL, "
+     "partition_key INT UNSIGNED NOT NULL, "
+     "dynamic INT UNSIGNED NOT NULL, "
+     "auto_inc INT UNSIGNED NOT NULL"},
+    {
+        "ndbinfo",
+        "dictionary_tables",
+        "table_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "database_name varchar(64) NOT NULL, "
+        "table_name varchar(64) NOT NULL, "
+        "status enum('New','Changed','Retrieved','Invalid','Altered') NOT "
+        "NULL, "
+        "attributes INT UNSIGNED NOT NULL, "
+        "primary_key_cols INT UNSIGNED NOT NULL, "
+        "primary_key VARCHAR(64) NOT NULL, "
+        "`storage` enum('memory','disk','default') NOT NULL, "
+        "`logging` INT UNSIGNED NOT NULL, "
+        "`dynamic` INT UNSIGNED NOT NULL, "
+        "read_backup INT UNSIGNED NOT NULL, "
+        "fully_replicated INT UNSIGNED NOT NULL, "
+        "`checksum` INT UNSIGNED NOT NULL, "
+        "`row_size` INT UNSIGNED NOT NULL, "
+        "`min_rows` BIGINT UNSIGNED, "
+        "`max_rows` BIGINT UNSIGNED, "
+        "`tablespace` INT UNSIGNED, "
+        "fragment_type enum('Single', 'AllSmall', 'AllMedium','AllLarge',"
+        "'DistrKeyHash','DistrKeyLin','UserDefined',"
+        "'unused', 'HashMapPartition') NOT NULL, "
+        "hash_map VARCHAR(512) NOT NULL, "
+        "`fragments` INT UNSIGNED NOT NULL, "
+        "`partitions` INT UNSIGNED NOT NULL, "
+        "partition_balance VARCHAR(64) NOT NULL, "
+        "contains_GCI INT UNSIGNED NOT NULL, "
+        "single_user_mode enum('locked','read_only','read_write') NOT NULL, "
+        "force_var_part INT UNSIGNED NOT NULL, "
+        "GCI_bits INT UNSIGNED NOT NULL, "
+        "author_bits INT UNSIGNED NOT NULL",
+    },
+    {"ndbinfo", "events",
+     "event_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+     "name varchar(192) NOT NULL, "
+     "table_id INT UNSIGNED NOT NULL, "
+     "reporting  enum('updated', 'all', 'subscribe', 'DDL') NOT NULL, "
+     "columns varchar(512) NOT NULL, "
+     "table_event SET('INSERT','DELETE','UPDATE','SCAN','DROP','ALTER',"
+     "'CREATE','GCP_COMPLETE','CLUSTER_FAILURE','STOP',"
+     "'NODE_FAILURE','SUBSCRIBE','UNSUBSCRIBE','ALL') NOT NULL"},
+    {"ndbinfo", "foreign_keys",
+     "object_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+     "name varchar(140) NOT NULL, "
+     "parent_table varchar(140) NOT NULL, "
+     "parent_columns varchar(512) NOT NULL, "
+     "child_table varchar(140) NOT NULL, "
+     "child_columns varchar(512) NOT NULL, "
+     "parent_index varchar(140) NOT NULL, "
+     "child_index varchar(140) NOT NULL, "
+     "on_update_action enum('No Action','Restrict','Cascade','Set Null',"
+     "'Set Default') NOT NULL,"
+     "on_delete_action enum('No Action','Restrict','Cascade','Set Null',"
+     "'Set Default') NOT NULL"},
+    {"ndbinfo", "index_columns",
+     "table_id int unsigned NOT NULL, "
+     "database_name VARCHAR(64) NOT NULL, "
+     "table_name VARCHAR(64) NOT NULL, "
+     "index_object_id int unsigned NOT NULL, "
+     "index_name VARCHAR(64) NOT NULL, "
+     "index_type INT UNSIGNED NOT NULL, "
+     "status enum('new','changed','retrieved','invalid','altered') NOT NULL, "
+     "columns VARCHAR(512) NOT NULL"},
+    {"ndbinfo", "ndb$backup_id",
+     "id BIGINT UNSIGNED, "
+     "fragment INT UNSIGNED, "
+     "row_id BIGINT UNSIGNED"},
+    {
+        "ndbinfo",
+        "ndb$blocks",
+        "block_number INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "block_name VARCHAR(512)",
+    },
+    {"ndbinfo", "ndb$config_params",
+     "param_number INT UNSIGNED NOT NULL PRIMARY KEY, "
+     "param_name VARCHAR(512), "
+     "param_description VARCHAR(512), "
+     "param_type VARCHAR(512), "
+     "param_default VARCHAR(512), "
+     "param_min VARCHAR(512), "
+     "param_max VARCHAR(512), "
+     "param_mandatory INT UNSIGNED, "
+     "param_status VARCHAR(512)"},
+    {
+        "ndbinfo",
+        "ndb$dblqh_tcconnect_state",
+        "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "state_name VARCHAR(256), "
+        "state_friendly_name VARCHAR(256), "
+        "state_description VARCHAR(256)",
+    },
+    {
+        "ndbinfo",
+        "ndb$dbtc_apiconnect_state",
+        "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "state_name VARCHAR(256), "
+        "state_friendly_name VARCHAR(256), "
+        "state_description VARCHAR(256)",
+    },
+    {
+        "ndbinfo",
+        "ndb$dict_obj_types",
+        "type_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "type_name VARCHAR(512)",
+    },
+    {
+        "ndbinfo",
+        "ndb$error_messages",
+        "error_code INT UNSIGNED, "
+        "error_description VARCHAR(512), "
+        "error_status VARCHAR(512), "
+        "error_classification VARCHAR(512)",
+    },
+    {
+        "ndbinfo",
+        "ndb$index_stats",
+        "index_id INT UNSIGNED, "
+        "index_version INT UNSIGNED, "
+        "sample_version INT UNSIGNED",
+    }};
 
-size_t num_lookups = sizeof(lookups) / sizeof(lookups[0]);
+static constexpr size_t num_lookups = sizeof(lookups) / sizeof(lookups[0]);
+
+struct obsolete_object {
+  const char *schema_name;
+  const char *name;
+};
+
+/* Views that were present in previous versions */
+static struct obsolete_object obsolete_views[] = {
+    {"ndbinfo", "dummy_view"}  // replace this with an actual deleted view
+};
+
+/* Base tables that were present in previous versions */
+static struct obsolete_object obsolete_tables[] = {
+    {"ndbinfo", "dummy_table"}  // replace this with an actual deleted table
+};
 
 static int compare_names(const void *px, const void *py) {
   const Ndbinfo::Table *const *x =
@@ -717,9 +839,59 @@ static int compare_names(const void *px, const void *py) {
   return strcmp((*x)->m.name, (*y)->m.name);
 }
 
-bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
+static Plugin_table *ndbinfo_define_table(const Ndbinfo::Table &table) {
   THD *thd = current_thd;  // For string allocation
+  BaseString table_name, table_sql, table_options;
+  const char *separator = "";
 
+  table_name.assfmt("%s%s", opt_table_prefix, table.m.name);
+
+  for (int j = 0; j < table.m.ncols; j++) {
+    const Ndbinfo::Column &col = table.col[j];
+
+    table_sql.appfmt("%s", separator);
+    separator = ",";
+
+    table_sql.appfmt("`%s` ", col.name);
+
+    switch (col.coltype) {
+      case Ndbinfo::Number:
+        table_sql.appfmt("INT UNSIGNED");
+        break;
+      case Ndbinfo::Number64:
+        table_sql.appfmt("BIGINT UNSIGNED");
+        break;
+      case Ndbinfo::String:
+        table_sql.appfmt("VARCHAR(512)");
+        break;
+      default:
+        abort();
+    }
+
+    if (col.comment[0] != '\0')
+      table_sql.appfmt(" COMMENT \"%s\"", col.comment);
+  }
+
+  table_options.appfmt(" COMMENT=\"%s\" ENGINE=NDBINFO CHARACTER SET latin1",
+                       table.m.comment);
+
+  return new Plugin_table("ndbinfo", thd_strdup(thd, table_name.c_str()),
+                          thd_strdup(thd, table_sql.c_str()),
+                          thd_strdup(thd, table_options.c_str()), nullptr);
+}
+
+bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
+  /* Drop views from previous versions */
+  for (const obsolete_object &v : obsolete_views)
+    plugin_tables->push_back(
+        new Plugin_view(v.schema_name, v.name, nullptr, nullptr));
+
+  /* Drop base tables from previous versions */
+  for (const obsolete_object &t : obsolete_tables)
+    plugin_tables->push_back(
+        new Plugin_table(t.schema_name, t.name, nullptr, nullptr, nullptr));
+
+  /* Sort Ndbinfo tables; define Ndbinfo tables as tables in DD */
   const Ndbinfo::Table **tables =
       new const Ndbinfo::Table *[Ndbinfo::getNumTables()];
 
@@ -728,72 +900,31 @@ bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
   }
   qsort(tables, Ndbinfo::getNumTables(), sizeof(tables[0]), compare_names);
 
-  for (int i = 0; i < Ndbinfo::getNumTables(); i++) {
-    const char *separator = "";
-    const Ndbinfo::Table &table = *tables[i];
-    BaseString table_name, table_sql, table_options;
+  for (int i = 0; i < Ndbinfo::getNumTables(); i++)
+    plugin_tables->push_back(ndbinfo_define_table(*tables[i]));
 
-    table_name.assfmt("%s%s", opt_table_prefix, table.m.name);
-
-    for (int j = 0; j < table.m.ncols; j++) {
-      const Ndbinfo::Column &col = table.col[j];
-
-      table_sql.appfmt("%s", separator);
-      separator = ",";
-
-      table_sql.appfmt("`%s` ", col.name);
-
-      switch (col.coltype) {
-        case Ndbinfo::Number:
-          table_sql.appfmt("INT UNSIGNED");
-          break;
-        case Ndbinfo::Number64:
-          table_sql.appfmt("BIGINT UNSIGNED");
-          break;
-        case Ndbinfo::String:
-          table_sql.appfmt("VARCHAR(512)");
-          break;
-        default:
-          abort();
-      }
-
-      if (col.comment[0] != '\0')
-        table_sql.appfmt(" COMMENT \"%s\"", col.comment);
-    }
-
-    table_options.appfmt(" COMMENT=\"%s\" ENGINE=NDBINFO CHARACTER SET latin1",
-                         table.m.comment);
-
-    plugin_tables->push_back(
-        new Plugin_table("ndbinfo", thd_strdup(thd, table_name.c_str()),
-                         thd_strdup(thd, table_sql.c_str()),
-                         thd_strdup(thd, table_options.c_str()), nullptr));
-  }
   delete[] tables;
 
-  lookup l;
-  view v;
+  /* Require virtual tables (lookups) defined above to be sorted by name */
+  for (size_t i = 0; i < num_lookups; i++)
+    assert(i == 0 || strcmp(lookups[i - 1].lookup_table_name,
+                            lookups[i].lookup_table_name) < 0);
 
-  for (size_t i = 0; i < num_lookups; i++) {  // create hard-coded tables
-    assert(i == 0 || /* assert that list is alphabetized */
-           strcmp(l.lookup_table_name, lookups[i].lookup_table_name) < 0);
-    l = lookups[i];
-
-    /* Create lookup table */
+  /* Create lookup tables in DD */
+  for (const lookup &l : lookups)
     plugin_tables->push_back(
         new Plugin_table(l.schema_name, l.lookup_table_name, l.columns,
                          "ENGINE=NDBINFO CHARACTER SET latin1", nullptr));
-  }
 
-  for (size_t i = 0; i < num_views; i++) {  // create views
-    assert(i == 0 || strcmp(v.view_name, views[i].view_name) < 0);
-    v = views[i];
+  /* Require views defined above to be sorted by name */
+  for (size_t i = 0; i < num_views; i++)
+    assert(i == 0 || strcmp(views[i - 1].view_name, views[i].view_name) < 0);
 
-    /* Create the view */
+  /* Create views in DD */
+  for (const view &v : views)
     plugin_tables->push_back(
         new Plugin_view(v.schema_name, v.view_name, v.sql,
                         "DEFINER=`root`@`localhost` SQL SECURITY INVOKER"));
-  }
 
   return false;
 }

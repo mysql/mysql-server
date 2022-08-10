@@ -1,0 +1,69 @@
+--source include/have_ndb.inc
+
+--echo #
+--echo # Bug#28714864: Running 'analyze' on table with unsupported index length crashes the data nodes
+--echo #
+
+--echo #setup
+create table t1(
+  a int auto_increment primary key,
+  b varchar(3053),
+  c varchar(3056),
+  d varchar(3072),
+  col1 varchar(762) not null,
+  col2 varchar(762) not null,
+  col3 varchar(762) not null,
+  col4 varchar(762) not null
+) engine ndb charset latin1;
+
+--echo # populate enough rows to generate index stats
+--disable_query_log
+insert into t1 (b, c, d, col1, col2, col3, col4)
+  values (repeat('a', 3051), repeat('b', 3056), repeat('c', 3072),
+          repeat('d', 762), repeat('e', 762), repeat('f', 762), repeat('g', 762));
+insert into t1 (b, c, d, col1, col2, col3, col4)
+  values (repeat('h', 3051), repeat('i', 3056), repeat('j', 3072),
+          repeat('k', 762), repeat('l', 762), repeat('m', 762), repeat('n', 762));
+let $i = 5;
+while ($i)
+{
+  eval insert into t1 (b, c, d, col1, col2, col3, col4)
+    select b, c, d, col1, col2, col3, col4 from t1;
+  dec $i;
+}
+--enable_query_log
+
+--echo # create index on b - it has the maximum key size supported by ndb index stat
+create index idxb on t1(b); # max key size = 3056 (col size = 3053, length bytes = 2, nullmask = 1)
+
+--echo # analyze should run fine and create statistics
+analyze table t1;
+drop index idxb on t1;
+
+--echo # create index on c - it has a key size unsupported by ndb index stat
+--echo # a warning should be returned
+create index idxc on t1(c); # max key size = 3059 (col size = 3056, length bytes = 2, nullmask = 1)
+
+--echo # analyze should run fine but statistics aren't created
+analyze table t1;
+drop index idxc on t1;
+
+--echo # create index on d - it has the maximum key size allowed by mysql(3072)
+--echo # but the key size is unsupported by ndb index stat
+--echo # a warning should be returned
+create index idxd on t1(d); # max key size = 3075 (col size = 3072, length bytes = 2, nullmask = 1)
+
+--echo # analyze should run fine but statistics aren't created
+analyze table t1;
+drop index idxd on t1;
+
+--echo # create index on col1..col4 - it has the maximum key size supported by ndb index stat
+# max key size = 3056 (total col size = 3048[762 * 4], length bytes = 8[2 * 4], nullmask = 0)
+create index idxcol on t1(col1, col2, col3, col4);
+
+--echo # analyze should run fine
+analyze table t1;
+drop index idxcol on t1;
+
+--echo #cleanup
+drop table t1;

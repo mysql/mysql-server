@@ -1,4 +1,0 @@
-#!/bin/bash
-echo "Installing development dependencies for WARP"
-sudo dnf groupinstall "development tools" -y
-sudo dnf install gcc-g++ bison ncurses-devel openssl-devel rpcgen cmake libtirpc-devel -y

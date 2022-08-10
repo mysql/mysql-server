@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,7 +46,7 @@ static Sharded_key_value_store<KV_STORE_SHARDS_COUNT> kv_store_shard;
  * */
 static Lock_free_shared_block_pool<SHARED_BLOCK_POOL_SIZE> shared_block_pool;
 
-/** Small helper function which debug-prints the miscelaneous statistics which
+/** Small helper function which debug-prints the miscellaneous statistics which
  * key-value store has collected.
  * */
 void kv_store_shards_debug_dump() { kv_store_shard.dbug_print(); }
@@ -102,8 +102,6 @@ Handler::Handler(handlerton *hton, TABLE_SHARE *table_share_arg)
 #endif /* HAVE_WINNUMA */
 }
 
-Handler::~Handler() {}
-
 int Handler::create(const char *table_name, TABLE *mysql_table,
                     HA_CREATE_INFO *, dd::Table *) {
   DBUG_TRACE;
@@ -131,11 +129,12 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
     DBUG_EXECUTE_IF("temptable_create_return_non_result_type_exception",
                     throw 42;);
 
+    size_t per_table_limit = thd_get_tmp_table_size(ha_thd());
     auto &kv_store = kv_store_shard[thd_thread_id(ha_thd())];
     const auto insert_result = kv_store.emplace(
         std::piecewise_construct, std::forward_as_tuple(table_name),
         std::forward_as_tuple(mysql_table, m_shared_block,
-                              all_columns_are_fixed_size));
+                              all_columns_are_fixed_size, per_table_limit));
 
     ret = insert_result.second ? Result::OK : Result::TABLE_EXIST;
 
@@ -842,8 +841,8 @@ uint Handler::max_supported_key_length() const {
   return length;
 }
 
-uint Handler::max_supported_key_part_length(
-    HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
+uint Handler::max_supported_key_part_length(HA_CREATE_INFO *create_info
+                                            [[maybe_unused]]) const {
   DBUG_TRACE;
 
   const uint length = std::numeric_limits<uint>::max();

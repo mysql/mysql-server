@@ -6,11 +6,13 @@ include/rpl_default_connections.inc
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
 SET @save.innodb_lock_wait_timeout=@@GLOBAL.innodb_lock_wait_timeout;
 SET @@global.innodb_lock_wait_timeout=1;
-SET @save.slave_transaction_retries= @@global.slave_transaction_retries;
-SET @@global.slave_transaction_retries= 0;
+SET @save.replica_transaction_retries= @@global.replica_transaction_retries;
+SET @@global.replica_transaction_retries= 0;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
 SET @save.max_relay_log_size= @@global.max_relay_log_size;
 SET @@global.max_relay_log_size=4096;
 include/stop_slave_sql.inc
+SET GLOBAL replica_preserve_commit_order= OFF;
 include/start_slave_sql.inc
 include/assert.inc [the max size of relay log must be 4096]
 CREATE DATABASE db4;
@@ -47,7 +49,10 @@ DROP DATABASE db2;
 DROP DATABASE db1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 SET @@global.innodb_lock_wait_timeout=@save.innodb_lock_wait_timeout;
-SET @@global.slave_transaction_retries= @save.slave_transaction_retries;
+SET @@global.replica_transaction_retries= @save.replica_transaction_retries;
 SET @@global.max_relay_log_size= @save.max_relay_log_size;
+include/stop_slave_sql.inc [FOR CHANNEL 'channel_1']
+SET @@global.replica_preserve_commit_order= @save_replica_preserve_commit_order;
+include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
 include/rpl_end.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';

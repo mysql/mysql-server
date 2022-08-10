@@ -128,7 +128,7 @@ while ($server_number <= 3)
 # --mysqld=--binlog-format=X, it gives the following warning.
 # The following statement uses connection server_3 (set in the loop above).
 CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
-CALL mtr.add_suppression('You need to use --log-bin to make --log-slave-updates work.');
+CALL mtr.add_suppression('You need to use --log-bin to make --log-replica-updates work.');
 
 --source include/rpl_connection_master.inc
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.');
@@ -159,9 +159,17 @@ CREATE TABLE t1 (a INT);
 # NULL
 --error ER_MALFORMED_GTID_SET_SPECIFICATION
 SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL, 5);
-
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL, NULL);
 --error ER_MALFORMED_GTID_SET_SPECIFICATION
 SELECT WAIT_FOR_EXECUTED_GTID_SET(NULL);
+
+set @null = NULL;
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET(@null, @null);
+
+--error ER_MALFORMED_GTID_SET_SPECIFICATION
+SELECT WAIT_FOR_EXECUTED_GTID_SET(5, NULL);
 
 # Invalid GTID set
 --error ER_MALFORMED_GTID_SET_SPECIFICATION

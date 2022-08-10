@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -124,13 +124,13 @@ class Mysql_connection {
   Master_info *m_mi{nullptr};
 
   /* The host or ip address for mysql client connection. */
-  std::string m_host{nullptr};
+  std::string m_host;
 
   /* The port for mysql client connection. */
   uint m_port{0};
 
   /* The network_namespace for mysql client connection. */
-  std::string m_network_namespace{nullptr};
+  std::string m_network_namespace;
 
   /* The flag to determine its IO or Monitor IO thread. */
   bool m_is_io_thread{false};

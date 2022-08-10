@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -29,15 +29,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-/** Write first blob page.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@return code as returned by the zlib. */
-int zInserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
+int zInserter::write_first_page(big_rec_field_t &field) {
   buf_block_t *rec_block = m_ctx->block();
   mtr_t *mtr = start_blob_mtr();
 
-  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH, mtr);
+  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
+               UT_LOCATION_HERE, mtr);
 
   buf_block_t *blob_block = alloc_blob_page();
 
@@ -54,8 +51,8 @@ int zInserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
   ut_ad(!dict_index_is_spatial(m_ctx->index()));
 
   const ulint field_no = field.field_no;
-  byte *field_ref =
-      btr_rec_get_field_ref(m_ctx->rec(), m_ctx->get_offsets(), field_no);
+  byte *field_ref = btr_rec_get_field_ref(m_ctx->index(), m_ctx->rec(),
+                                          m_ctx->get_offsets(), field_no);
   ref_t blobref(field_ref);
 
   if (err == Z_OK) {
@@ -63,35 +60,37 @@ int zInserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
   } else if (err == Z_STREAM_END) {
     blobref.set_length(m_stream.total_in, nullptr);
   } else {
-    ut_ad(0);
-    return (err);
+    ut_d(ut_error);
+    ut_o(return (err));
   }
 
   blobref.update(m_ctx->space(), m_cur_blob_page_no, FIL_PAGE_NEXT, nullptr);
 
   /* After writing the first blob page, update the blob reference. */
   if (!m_ctx->is_bulk()) {
-    m_ctx->zblob_write_blobref(field_no, &m_blob_mtr);
+    m_ctx->zblob_write_blobref(m_ctx->index()->get_field_off_pos(field_no),
+                               &m_blob_mtr);
   }
 
   m_prev_page_no = page_get_page_no(blob_page);
 
   /* Commit mtr and release uncompressed page frame to save memory.*/
-  blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
+  blob_free(m_ctx->index(), m_cur_blob_block, false, mtr);
 
   return (err);
 }
 
 /** For the given blob field, update its length in the blob reference
 which is available in the clustered index record.
-@param[in]	field	the concerned blob field. */
+@param[in]      field   the concerned blob field. */
 void zInserter::update_length_in_blobref(big_rec_field_t &field) {
   /* After writing the last blob page, update the blob reference
   with the correct length. */
 
   const ulint field_no = field.field_no;
-  byte *field_ref =
-      btr_rec_get_field_ref(m_ctx->rec(), m_ctx->get_offsets(), field_no);
+  /* DO HERE */
+  byte *field_ref = btr_rec_get_field_ref(m_ctx->index(), m_ctx->rec(),
+                                          m_ctx->get_offsets(), field_no);
 
   ref_t blobref(field_ref);
   blobref.set_length(m_stream.total_in, nullptr);
@@ -103,7 +102,7 @@ void zInserter::update_length_in_blobref(big_rec_field_t &field) {
 
 /** Write one small blob field data. Refer to ref_t to determine
 the definition of small blob.
-@param[in]	blob_j	the blob field number
+@param[in]      blob_j  the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t zInserter::write_one_small_blob(size_t blob_j) {
   const big_rec_t *vec = m_ctx->get_big_rec_vec();
@@ -115,10 +114,10 @@ dberr_t zInserter::write_one_small_blob(size_t blob_j) {
   m_stream.next_in = (Bytef *)field.data;
   m_stream.avail_in = static_cast<uInt>(field.len);
 
-  err = write_first_page(blob_j, field);
+  err = write_first_page(field);
 
   for (ulint nth_blob_page = 1; err == Z_OK; ++nth_blob_page) {
-    err = write_single_blob_page(blob_j, field, nth_blob_page);
+    err = write_single_blob_page(field, nth_blob_page);
   }
 
   ut_ad(err == Z_STREAM_END);
@@ -127,7 +126,7 @@ dberr_t zInserter::write_one_small_blob(size_t blob_j) {
 }
 
 /** Write one blob field data.
-@param[in]	blob_j	the blob field number
+@param[in]      blob_j  the blob field number
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t zInserter::write_one_blob(size_t blob_j) {
   const big_rec_t *vec = m_ctx->get_big_rec_vec();
@@ -141,12 +140,12 @@ dberr_t zInserter::write_one_blob(size_t blob_j) {
 
   m_ctx->check_redolog();
 
-  err = write_first_page(blob_j, field);
+  err = write_first_page(field);
 
   for (ulint nth_blob_page = 1; err == Z_OK; ++nth_blob_page) {
     const ulint commit_freq = 4;
 
-    err = write_single_blob_page(blob_j, field, nth_blob_page);
+    err = write_single_blob_page(field, nth_blob_page);
 
     if (nth_blob_page % commit_freq == 0) {
       m_ctx->check_redolog();
@@ -230,20 +229,15 @@ int zInserter::write_into_single_page() {
   return (err);
 }
 
-/** Write one blob page.  This function will be repeatedly called
-with an increasing nth_blob_page to completely write a BLOB.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@param[in]	nth_blob_page	count of the BLOB page (starting from 1).
-@return code as returned by the zlib. */
-int zInserter::write_single_blob_page(size_t blob_j, big_rec_field_t &field,
+int zInserter::write_single_blob_page(big_rec_field_t &field,
                                       ulint nth_blob_page) {
   ut_ad(nth_blob_page > 0);
 
   buf_block_t *rec_block = m_ctx->block();
   mtr_t *mtr = start_blob_mtr();
 
-  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH, mtr);
+  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
+               UT_LOCATION_HERE, mtr);
 
   buf_block_t *blob_block = alloc_blob_page();
   page_t *blob_page = buf_block_get_frame(blob_block);
@@ -263,7 +257,7 @@ int zInserter::write_single_blob_page(size_t blob_j, big_rec_field_t &field,
   }
 
   /* Commit mtr and release uncompressed page frame to save memory.*/
-  blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
+  blob_free(m_ctx->index(), m_cur_blob_block, false, mtr);
 
   return (err);
 }
@@ -277,7 +271,7 @@ dberr_t zInserter::prepare() {
   kilobytes for small objects.  We use reduced memLevel
   to limit the memory consumption, and preallocate the
   heap, hoping to avoid memory fragmentation. */
-  m_heap = mem_heap_create(250000);
+  m_heap = mem_heap_create(250000, UT_LOCATION_HERE);
 
   if (m_heap == nullptr) {
     return (DB_OUT_OF_MEMORY);

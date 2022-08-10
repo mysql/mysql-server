@@ -96,6 +96,11 @@ call mtr.add_suppression("Error while executing a group configuration operation:
 call mtr.add_suppression("Error writing relay log configuration.");
 call mtr.add_suppression("Failed to stop the group replication applier thread.");
 call mtr.add_suppression("Error while executing a group configuration operation: Mode switched to single-primary with reported warnings: *");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Error while executing a group configuration operation: Mode switched to single-primary successfully. This information is local, the operation coordinator is terminating and no status is known about other members termination.");
+call mtr.add_suppression("Error running internal SQL query: SET SESSION group_replication_consistency= EVENTUAL;. Internal failure.");
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server1

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,12 +35,12 @@
 #include "sql/current_thd.h"            // current_thd
 #include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress()
 #include "sql/field.h"                  // Field
-#include "sql/mysqld.h"                 // key_LOCK_cost_const
-#include "sql/records.h"                // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/mysqld.h"     // key_LOCK_cost_const
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"   // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_lex.h"        // lex_start/lex_end
 #include "sql/sql_tmp_table.h"  // init_cache_tmp_engine_properties
 #include "sql/table.h"          // TABLE
@@ -242,16 +242,16 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   /*
     The server constant table has the following columns:
 
-    cost_name   VARCHAR(64) NOT NULL COLLATE utf8_general_ci
+    cost_name   VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
     cost_value  FLOAT DEFAULT NULL
     last_update TIMESTAMP
     comment     VARCHAR(1024) DEFAULT NULL
   */
 
   // Prepare to read from the table
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();
 
@@ -305,18 +305,18 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   /*
     The engine constant table has the following columns:
 
-    engine_name VARCHAR(64) NOT NULL COLLATE utf8_general_ci,
+    engine_name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci,
     device_type INTEGER NOT NULL,
-    cost_name   VARCHAR(64) NOT NULL COLLATE utf8_general_ci,
+    cost_name   VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci,
     cost_value  FLOAT DEFAULT NULL,
     last_update TIMESTAMP
     comment     VARCHAR(1024) DEFAULT NULL,
   */
 
   // Prepare to read from the table
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();
 

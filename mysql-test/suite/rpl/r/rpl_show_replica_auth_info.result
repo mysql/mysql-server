@@ -1,0 +1,67 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Init ====
+include/suppress_messages.inc
+# Connection 1 un-suppresses message <The syntax.*show-.*-auth-info.*is deprecated>.
+# Connection 2 un-suppresses message <The syntax.*show-.*-auth-info.*is deprecated>.
+include/save_error_log_position.inc
+==== R2: show-replica-auth-info ====
+[connection slave]
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1 parameters: --show-replica-auth-info]
+[connection slave]
+include/start_slave.inc
+[connection master]
+* R2.1: No deprecation warning
+include/assert_error_log.inc [server: 1, pattern: NONE]
+* R2.1, R2.2: Have columns
+SHOW REPLICAS;
+Server_Id	Host	User	Password	Port	Source_Id	Replica_UUID
+2	127.0.0.1	USER	PASS	REPLICA_PORT	1	REPLICA_UUID
+SHOW SLAVE HOSTS;
+Server_id	Host	User	Password	Port	Master_id	Slave_UUID
+2	127.0.0.1	USER	PASS	REPLICA_PORT	1	REPLICA_UUID
+Warnings:
+Warning	1287	'SHOW SLAVE HOSTS' is deprecated and will be removed in a future release. Please use SHOW REPLICAS instead
+==== R3: show-slave-auth-info ====
+include/assert_error_log.inc [server: 1, pattern: NONE]
+[connection slave]
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1 parameters: --show-slave-auth-info]
+[connection slave]
+include/start_slave.inc
+[connection master]
+* R3.1: Deprecation warning
+include/assert_error_log.inc [server: 1, pattern: The syntax 'show-slave-auth-info' is deprecated and will be removed in a future release. Please use show-replica-auth-info instead.]
+* R3.2, R3.3: Have columns
+SHOW REPLICAS;
+Server_Id	Host	User	Password	Port	Source_Id	Replica_UUID
+2	127.0.0.1	USER	PASS	REPLICA_PORT	1	REPLICA_UUID
+SHOW SLAVE HOSTS;
+Server_id	Host	User	Password	Port	Master_id	Slave_UUID
+2	127.0.0.1	USER	PASS	REPLICA_PORT	1	REPLICA_UUID
+Warnings:
+Warning	1287	'SHOW SLAVE HOSTS' is deprecated and will be removed in a future release. Please use SHOW REPLICAS instead
+==== R1: no command-line options ====
+[connection slave]
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+[connection slave]
+include/start_slave.inc
+[connection master]
+* R1.1: No deprecation warning
+include/assert_error_log.inc [server: 1, pattern: NONE]
+* R1.2, R1.3: No columns
+SHOW REPLICAS;
+Server_Id	Host	Port	Source_Id	Replica_UUID
+2	127.0.0.1	REPLICA_PORT	1	REPLICA_UUID
+SHOW SLAVE HOSTS;
+Server_id	Host	Port	Master_id	Slave_UUID
+2	127.0.0.1	REPLICA_PORT	1	REPLICA_UUID
+Warnings:
+Warning	1287	'SHOW SLAVE HOSTS' is deprecated and will be removed in a future release. Please use SHOW REPLICAS instead
+==== Clean up ====
+include/rpl_end.inc

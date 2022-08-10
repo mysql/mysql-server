@@ -37,7 +37,7 @@ call mtr.add_suppression("The master's UUID has changed, although this should no
 RESET SLAVE;
 RESET MASTER;
 
-SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1);
 --disable_query_log
 eval SET @restore_slave_heartbeat_timeout=$slave_heartbeat_timeout;
@@ -45,7 +45,7 @@ eval SET @restore_slave_heartbeat_timeout=$slave_heartbeat_timeout;
 
 --connection master
 RESET MASTER;
-SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 SET @restore_event_scheduler=@@global.event_scheduler;
 --echo
 
@@ -55,24 +55,24 @@ SET @restore_event_scheduler=@@global.event_scheduler;
 
 --connection slave
 
-# Default value of slave_heartbeat_timeout = slave_net_timeout/2
+# Default value of slave_heartbeat_timeout = replica_net_timeout/2
 --echo *** Default value ***
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
-let $slave_net_timeout= query_get_value(SHOW VARIABLES LIKE 'slave_net_timeout', Value, 1);
+let $replica_net_timeout= query_get_value(SHOW VARIABLES LIKE 'replica_net_timeout', Value, 1);
 let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1);
-let $result= query_get_value(SELECT $slave_net_timeout/$slave_heartbeat_timeout AS Result, Result, 1);
---echo slave_net_timeout/slave_heartbeat_timeout=$result
+let $result= query_get_value(SELECT $replica_net_timeout/$slave_heartbeat_timeout AS Result, Result, 1);
+--echo replica_net_timeout/slave_heartbeat_timeout=$result
 
 RESET SLAVE;
 RESET MASTER;
 --echo
 
-# Reset slave set slave_heartbeat_timeout = slave_net_timeout/2
+# Reset slave set slave_heartbeat_timeout = replica_net_timeout/2
 --echo *** Reset slave affect ***
 --disable_warnings
-SET @@global.slave_net_timeout=30;
+SET @@global.replica_net_timeout=30;
 --enable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
@@ -83,70 +83,70 @@ RESET MASTER;
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 --echo
 
-# Check default value of slave_heartbeat_timeout if slave_net_timeout is changed
---echo *** Default value if slave_net_timeout changed ***
+# Check default value of slave_heartbeat_timeout if replica_net_timeout is changed
+--echo *** Default value if replica_net_timeout changed ***
 --disable_warnings
-SET @@global.slave_net_timeout=50;
+SET @@global.replica_net_timeout=50;
 --enable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry;
 select heartbeat_interval from performance_schema.replication_connection_configuration;
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 
 RESET SLAVE;
 RESET MASTER;
 
 --echo
 
-# Set slave_net_timeout less than current value of heartbeat_interval
---echo *** Warning if updated slave_net_timeout < slave_heartbeat_timeout ***
+# Set replica_net_timeout less than current value of heartbeat_interval
+--echo *** Warning if updated replica_net_timeout < slave_heartbeat_timeout ***
 let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1);
 --replace_result $slave_heartbeat_timeout SLAVE_HEARTBEAT_TIMEOUT
-eval SET @@global.slave_net_timeout=FLOOR($slave_heartbeat_timeout)-1;
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+eval SET @@global.replica_net_timeout=FLOOR($slave_heartbeat_timeout)-1;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
 RESET MASTER;
 --echo
 
-# Set value of slave_heartbeat_period greater than slave_net_timeout
---echo *** Warning if updated slave_heartbeat_timeout > slave_net_timeout ***
-let $slave_net_timeout= query_get_value(SHOW VARIABLES LIKE 'slave_net_timeout', Value, 1);
-inc $slave_net_timeout;
---replace_result $MASTER_MYPORT MASTER_PORT $slave_net_timeout SLAVE_NET_TIMEOUT
+# Set value of slave_heartbeat_period greater than replica_net_timeout
+--echo *** Warning if updated slave_heartbeat_timeout > replica_net_timeout ***
+let $replica_net_timeout= query_get_value(SHOW VARIABLES LIKE 'replica_net_timeout', Value, 1);
+inc $replica_net_timeout;
+--replace_result $MASTER_MYPORT MASTER_PORT $replica_net_timeout REPLICA_NET_TIMEOUT
 --replace_column 2 ####
-eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=$slave_net_timeout;
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=$replica_net_timeout;
 RESET SLAVE;
 RESET MASTER;
 
 --echo 
 
-# Changing of slave_net_timeout shouldn't affect to current value of slave_heartbeat_period
+# Changing of replica_net_timeout shouldn't affect to current value of slave_heartbeat_period
 --echo *** CHANGE MASTER statement only updates slave_heartbeat_period ***
 --disable_warnings
-SET @@global.slave_net_timeout=20;
+SET @@global.replica_net_timeout=20;
 --enable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=5;
-SHOW VARIABLES LIKE 'slave_net_timeout';
+SHOW VARIABLES LIKE 'replica_net_timeout';
 select heartbeat_interval from performance_schema.replication_connection_configuration;
-SET @@global.slave_net_timeout=2*@@global.slave_net_timeout;
-SHOW VARIABLES LIKE 'slave_net_timeout';
+SET @@global.replica_net_timeout=2*@@global.replica_net_timeout;
+SHOW VARIABLES LIKE 'replica_net_timeout';
 select heartbeat_interval from performance_schema.replication_connection_configuration;
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
 RESET MASTER;
 --echo
 
-# Master value of slave_net_timeout shouldn't affect to slave's slave_heartbeat_period
---echo *** Update slave_net_timeout on master ***
+# Master value of replica_net_timeout shouldn't affect to slave's slave_heartbeat_period
+--echo *** Update replica_net_timeout on master ***
 --connection master
 --disable_warnings
-SET @@global.slave_net_timeout=500;
+SET @@global.replica_net_timeout=500;
 --enable_warnings
 --connection slave
-SET @@global.slave_net_timeout=200;
+SET @@global.replica_net_timeout=200;
 RESET SLAVE;
 RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -155,15 +155,15 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_M
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
-SHOW VARIABLES LIKE 'slave_net_timeout';
+SHOW VARIABLES LIKE 'replica_net_timeout';
 select heartbeat_interval from performance_schema.replication_connection_configuration;
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
 --connection master
 
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 --echo
 
 # Start/stop slave shouldn't change slave_heartbeat_period
@@ -171,7 +171,7 @@ SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 --connection slave
 --disable_warnings
 
-SET @@global.slave_net_timeout=100;
+SET @@global.replica_net_timeout=100;
 --enable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
@@ -189,7 +189,7 @@ select heartbeat_interval from performance_schema.replication_connection_configu
 --echo *** Reload slave ***
 --connection slave
 --disable_warnings
-SET @@global.slave_net_timeout=50;
+SET @@global.replica_net_timeout=50;
 --enable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
@@ -197,7 +197,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_M
 --let $rpl_server_number= 2
 --source include/rpl_restart_server.inc
 select heartbeat_interval from performance_schema.replication_connection_configuration;
-SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 --echo
 
 # Disable heartbeat
@@ -438,12 +438,12 @@ while ($i) {
 # Use compressed protocol between master and slave
 --echo *** Compressed protocol ***
 --connection master
-SET @@global.slave_compressed_protocol=1;
+SET @@global.replica_compressed_protocol=1;
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
-SET @@global.slave_compressed_protocol=1;
+SET @@global.replica_compressed_protocol=1;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0.1;
@@ -454,9 +454,9 @@ let $table= replication_connection_status;
 let $status_col_comparsion= >;
 --source include/wait_for_rpl_pfs_status.inc
 --echo Heartbeat event received
-SET @@global.slave_compressed_protocol=0;
+SET @@global.replica_compressed_protocol=0;
 --connection master
-SET @@global.slave_compressed_protocol=0;
+SET @@global.replica_compressed_protocol=0;
 --echo
 
 # Check received heartbeat events after reset of master
@@ -529,7 +529,7 @@ let $status_col_comparsion= >;
 #eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='$slave_binlog';
 
 # BUG#12403008 RPL_HEARTBEAT_BASIC FAILS SPORADICALLY ON PUSHBUILD
-# MASTER_HEARTBEAT_PERIOD had the default value (slave_net_timeout/2)
+# MASTER_HEARTBEAT_PERIOD had the default value (replica_net_timeout/2)
 # so wait on "Heartbeat event received on master", that only waits for
 # 1 minute, sometimes timeout before heartbeat arrives.
 --replace_column 2 ####
@@ -582,7 +582,7 @@ let $slave_rcvd_heartbeats= query_get_value(select count_received_heartbeats fro
 #--source include/stop_slave.inc
 DROP TABLE t1;
 --connection slave
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 
 #--let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

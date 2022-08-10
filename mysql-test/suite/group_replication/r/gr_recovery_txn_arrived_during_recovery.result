@@ -1,0 +1,88 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 01. Boot start server1
+[connection server1]
+include/save_sysvars.inc [ "GLOBAL.group_replication_consistency" ]
+SET GLOBAL group_replication_consistency= 'AFTER';
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Start server2
+[connection server2]
+include/save_sysvars.inc [ "GLOBAL.group_replication_consistency" ]
+SET GLOBAL group_replication_consistency= 'AFTER';
+include/start_group_replication.inc
+
+############################################################
+# 3. Stop GR on server1
+[connection server1]
+include/stop_group_replication.inc
+
+############################################################
+# 4. Execute transactions on the new primary
+[connection server2]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+
+############################################################
+# 5. Add debug points in server1
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,recovery_thread_wait_after_wait_for_applier_module_recovery';
+
+############################################################
+# 6. Start GR on server1, let it waits after
+#    after_wait_for_applier_module_recovery
+include/start_group_replication.inc
+SET DEBUG_SYNC = "now WAIT_FOR signal.recovery_thread_wait_after_wait_for_applier_module_recovery";
+include/assert.inc [Verify MEMBER_STATE is RECOVERING]
+
+############################################################
+# 7. Add debug points in server1, server waits
+#    before_commit_hook_wait
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_commit_hook_wait';
+
+############################################################
+# 8. Commit a transaction on server2 while server1 is
+#    in recovery
+[connection server2]
+INSERT INTO t1 VALUES (4);
+############################################################
+# 9. On server1, wait for the transaction to reach debug
+#    sync point
+[connection server1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_before_commit_hook_wait_reached";
+############################################################
+# 10. Resume recovery on server1, verify that server1 is
+#     online
+SET @@GLOBAL.DEBUG= '-d,recovery_thread_wait_after_wait_for_applier_module_recovery';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_thread_resume_after_wait_for_applier_module_recovery";
+include/gr_wait_for_member_state.inc
+############################################################
+# 11. Resume transaction recived during recovery, verify all
+#     members are still online and server1 executed the
+#     transaction
+SET @@GLOBAL.DEBUG= '-d,group_replication_before_commit_hook_wait';
+SET DEBUG_SYNC= "now SIGNAL continue_commit";
+############################################################
+# 12. Verify that all members are still online and server1
+#     executed the transaction
+include/assert.inc [There are three members in the group]
+include/assert.inc [On the recovered member, the table should contain 4 elements]
+############################################################
+# 13.  Verify that all members have same data
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+############################################################
+# 14. Cleaning up
+SET DEBUG_SYNC= 'RESET';
+include/restore_sysvars.inc
+[connection server2]
+include/restore_sysvars.inc
+DROP TABLE t1;
+include/group_replication_end.inc

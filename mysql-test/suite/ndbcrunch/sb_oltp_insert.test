@@ -1,0 +1,13 @@
+# Run benchmark oltp_insert
+#
+# - inserts, "INSERT ..."
+#
+--source sb_init.inc
+
+let $bench_name = oltp_insert;
+# Run with only 1 thread, otherwise pk violations occur when inserting
+# same rows from different threads
+let $bench_threads = 1;
+--source sb_run.inc
+
+--source sb_cleanup.inc

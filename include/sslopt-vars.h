@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,13 @@
   @file include/sslopt-vars.h
 */
 
+#include <stddef.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <functional>
 
 #include "m_string.h"
-#include "my_inttypes.h"
+#include "my_getopt.h"
 #include "mysql.h"
 #include "template_utils.h"
 #include "typelib.h"
@@ -38,16 +41,6 @@
 #ifdef MYSQL_SERVER
 #error This header is supposed to be used only in the client
 #endif
-
-#include <stddef.h>
-#include <stdio.h>
-#include <sys/types.h>
-
-#include "m_string.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
-#include "mysql.h"
-#include "typelib.h"
 
 const char *ssl_mode_names_lib[] = {"DISABLED",  "PREFERRED",       "REQUIRED",
                                     "VERIFY_CA", "VERIFY_IDENTITY", NullS};
@@ -70,6 +63,8 @@ static char *opt_ssl_crlpath = nullptr;
 static char *opt_tls_version = nullptr;
 static ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
 static bool ssl_mode_set_explicitly = false;
+static char *opt_ssl_session_data = nullptr;
+static bool opt_ssl_session_data_continue_on_failed_reuse = false;
 
 static inline int set_client_ssl_options(MYSQL *mysql) {
   /*
@@ -98,8 +93,61 @@ static inline int set_client_ssl_options(MYSQL *mysql) {
   if (opt_ssl_fips_mode > 0 && mysql_errno(mysql) == CR_SSL_FIPS_MODE_ERR)
     return 1;
   mysql_options(mysql, MYSQL_OPT_TLS_CIPHERSUITES, opt_tls_ciphersuites);
+  if (opt_ssl_session_data) {
+    FILE *fi = fopen(opt_ssl_session_data, "rb");
+    char buff[4096], *bufptr = &buff[0];
+    size_t read = 0;
 
+    if (!fi) {
+      fprintf(stderr, "Error: Can't open the ssl session data file.\n");
+      return 1;
+    }
+    long file_length = sizeof(buff) - 1;
+    if (0 == fseek(fi, 0, SEEK_END)) {
+      file_length = ftell(fi);
+      if (file_length > 0)
+        file_length = std::min(file_length, 65536L);
+      else
+        file_length = sizeof(buff) - 1;
+      fseek(fi, 0, SEEK_SET);
+    }
+    if (file_length > (long)(sizeof(buff) - 1)) {
+      bufptr = (char *)malloc(file_length + 1);
+      if (bufptr)
+        bufptr[file_length] = 0;
+      else {
+        bufptr = &buff[0];
+        file_length = sizeof(buff) - 1;
+      }
+    }
+    read = fread(bufptr, 1, file_length, fi);
+    if (!read) {
+      fprintf(stderr, "Error: Can't read the ssl session data file.\n");
+      fclose(fi);
+      if (bufptr != &buff[0]) free(bufptr);
+      return 1;
+    }
+    assert(read <= (size_t)file_length);
+    bufptr[read] = 0;
+    fclose(fi);
+
+    int ret = 0;
+    if (read) ret = mysql_options(mysql, MYSQL_OPT_SSL_SESSION_DATA, buff);
+    if (bufptr != &buff[0]) free(bufptr);
+    return ret;
+  }
   return 0;
+}
+
+inline static bool ssl_client_check_post_connect_ssl_setup(
+    MYSQL *mysql, std::function<void(const char *)> report_error) {
+  if (opt_ssl_session_data && !opt_ssl_session_data_continue_on_failed_reuse &&
+      !mysql_get_ssl_session_reused(mysql)) {
+    report_error(
+        "--ssl-session-data specified but the session was not reused.");
+    return true;
+  }
+  return false;
 }
 
 #define SSL_SET_OPTIONS(mysql) set_client_ssl_options(mysql)

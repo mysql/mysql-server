@@ -1,0 +1,62 @@
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+--source include/not_hypergraph.inc
+--source include/not_log_bin.inc
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, data BLOB);
+DELIMITER |;
+CREATE PROCEDURE populate()
+BEGIN
+ DECLARE p1 INT DEFAULT 1;
+ label1: loop
+   INSERT INTO t1 VALUES (p1, REPEAT('a', 3200));
+   SET p1 = p1 + 1;
+   IF p1 < 10000 THEN
+     iterate label1;
+   END IF;
+ leave label1;
+ end loop label1;
+END;|
+
+DELIMITER ;|
+
+CALL populate();
+
+--let $OUTFILE = `SELECT @@secure_file_priv`
+
+--echo # Generate data into temporary file
+--disable_query_log
+eval SELECT * FROM t1 ORDER BY rand(28) INTO OUTFILE '$OUTFILE/fseg_reserve_factor.dat';
+--enable_query_log
+
+SET GLOBAL innodb_segment_reserve_factor = 1.0;
+CREATE TABLE t2 LIKE t1;
+--echo # Load data into t2 from temporary file
+--disable_query_log
+eval LOAD DATA INFILE '$OUTFILE/fseg_reserve_factor.dat' INTO TABLE t2;
+--enable_query_log
+
+SET GLOBAL innodb_segment_reserve_factor = 30.0;
+CREATE TABLE t3 LIKE t1;
+--echo # Load data into t3 from temporary file
+--disable_query_log
+eval LOAD DATA INFILE '$OUTFILE/fseg_reserve_factor.dat' INTO TABLE t3;
+--enable_query_log
+
+SET innodb_interpreter = 'init';
+SET innodb_interpreter = 'count_page_type test/t2';
+SELECT @@innodb_interpreter_output;
+SET innodb_interpreter = 'count_used_and_free test/t2';
+SELECT @@innodb_interpreter_output;
+SET innodb_interpreter = 'count_page_type test/t3';
+SELECT @@innodb_interpreter_output;
+SET innodb_interpreter = 'count_used_and_free test/t3';
+SELECT @@innodb_interpreter_output;
+SET innodb_interpreter = 'destroy';
+
+--remove_file '$OUTFILE/fseg_reserve_factor.dat';
+
+SET GLOBAL innodb_segment_reserve_factor = DEFAULT;
+DROP TABLE t1, t2, t3;
+DROP PROCEDURE populate;
+

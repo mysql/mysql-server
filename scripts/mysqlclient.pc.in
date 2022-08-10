@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,5 +29,5 @@ Description: MySQL client library
 Version: @LIBMYSQL_OS_SHLIB_VERSION@
 Cflags: -I${includedir} @CFLAGS@
 Libs: -L${libdir}@RPATH_OPTION_PC@ -l@LIBMYSQL_OS_OUTPUT_NAME@
-Libs.private: @QUOTED_CMAKE_CXX_LINK_FLAGS@ @CONFIG_LIBS_PRIVATE@
+Libs.private: @CONFIG_LIBS_PRIVATE@
 Requires.private: @CONFIG_REQUIRES_PRIVATE@

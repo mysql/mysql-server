@@ -44,13 +44,17 @@ INSERT INTO t1 (f2) VALUES
 
 SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+pumpkin' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+cheese' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+(pumpkin cheese)' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH(f2)
   AGAINST('+pumpkin +(souffle)' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(f2)
   AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(f2)
   AGAINST('+pumpkin +(>souffle <tart)' IN BOOLEAN MODE);
+--sorted_result
 SELECT * FROM t1 WHERE MATCH(f2)
   AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
 

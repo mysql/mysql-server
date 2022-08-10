@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
  */
 class BitmaskImpl {
 public:
-  STATIC_CONST( NotFound = (unsigned)-1 );
+  static constexpr Uint32 NotFound = (unsigned)-1;
 
   /**
    * get - Check if bit n is set.
@@ -258,7 +258,7 @@ private:
 };
 
 inline bool
-BitmaskImpl::get(unsigned size ATTRIBUTE_UNUSED, const Uint32 data[],
+BitmaskImpl::get(unsigned size [[maybe_unused]], const Uint32 data[],
                  unsigned n)
 {
   assert(n < (size << 5));
@@ -282,7 +282,7 @@ BitmaskImpl::set(unsigned size, Uint32 data[], unsigned n, bool value)
 }
 
 inline void
-BitmaskImpl::set(unsigned size ATTRIBUTE_UNUSED, Uint32 data[],
+BitmaskImpl::set(unsigned size [[maybe_unused]], Uint32 data[],
                  unsigned n)
 {
   assert(n < (size << 5));
@@ -298,7 +298,7 @@ BitmaskImpl::set(unsigned size, Uint32 data[])
 }
 
 inline void
-BitmaskImpl::setRange(unsigned size ATTRIBUTE_UNUSED, Uint32 data[],
+BitmaskImpl::setRange(unsigned size [[maybe_unused]], Uint32 data[],
                       unsigned start, unsigned len)
 {
   if (len == 0)
@@ -340,7 +340,7 @@ BitmaskImpl::assign(unsigned size, Uint32 dst[], const Uint32 src[])
 }
 
 inline void
-BitmaskImpl::clear(unsigned size ATTRIBUTE_UNUSED,
+BitmaskImpl::clear(unsigned size [[maybe_unused]],
                    Uint32 data[], unsigned n)
 {
   assert(n < (size << 5));
@@ -357,14 +357,14 @@ BitmaskImpl::clear(unsigned size, Uint32 data[])
 
 inline
 Uint32
-BitmaskImpl::getWord(unsigned size ATTRIBUTE_UNUSED, const Uint32 data[],
+BitmaskImpl::getWord(unsigned size [[maybe_unused]], const Uint32 data[],
                      unsigned word_pos)
 {
   return data[word_pos];
 }
 
 inline void
-BitmaskImpl::setWord(unsigned size ATTRIBUTE_UNUSED, Uint32 data[],
+BitmaskImpl::setWord(unsigned size [[maybe_unused]], Uint32 data[],
                      unsigned word_pos, Uint32 new_word)
 {
   data[word_pos] = new_word;
@@ -429,7 +429,7 @@ BitmaskImpl::clz(Uint32 x)
   return 31 - x;
 #elif defined HAVE__BITSCANREVERSE
   unsigned long r;
-  unsigned char res = _BitScanReverse(&r, (unsigned long)x);
+  unsigned char res [[maybe_unused]] = _BitScanReverse(&r, (unsigned long)x);
   assert(res > 0);
   return 31 - (Uint32)r;
 #else
@@ -485,7 +485,7 @@ BitmaskImpl::ffs(Uint32 x)
   return __builtin_ffs(x) - 1;
 #elif defined HAVE__BITSCANFORWARD
   unsigned long r;
-  unsigned char res = _BitScanForward(&r, (unsigned long)x);
+  unsigned char res [[maybe_unused]] = _BitScanForward(&r, (unsigned long)x);
   assert(res > 0);
   return (Uint32)r;
 #elif defined HAVE_FFS
@@ -538,7 +538,7 @@ BitmaskImpl::fls(Uint32 x)
   return 31 - __builtin_clz(x);
 #elif defined HAVE__BITSCANREVERSE
   unsigned long r;
-  unsigned char res = _BitScanReverse(&r, (unsigned long)x);
+  unsigned char res [[maybe_unused]] = _BitScanReverse(&r, (unsigned long)x);
   assert(res > 0);
   return (Uint32)r;
 #else
@@ -637,7 +637,7 @@ BitmaskImpl::find_next(unsigned size, const Uint32 data[], unsigned n)
 }
 
 inline unsigned
-BitmaskImpl::find_prev(unsigned size ATTRIBUTE_UNUSED,
+BitmaskImpl::find_prev(unsigned size [[maybe_unused]],
                        const Uint32 data[], unsigned n)
 {
   if (n >= (Uint32) 0xffffffff /* -1 */) // allow one bit outside array for easier use
@@ -796,7 +796,7 @@ BitmaskImpl::count_bits(Uint32 x)
 
 inline
 Uint32
-BitmaskImpl::toArray(Uint8* dst, Uint32 len ATTRIBUTE_UNUSED,
+BitmaskImpl::toArray(Uint8* dst, Uint32 len [[maybe_unused]],
                      unsigned size, const Uint32 * data)
 {
   assert(len >= size * 32);
@@ -843,9 +843,9 @@ public:
   
   Data rep;
 public:
-  STATIC_CONST( Size = size );
-  STATIC_CONST( NotFound = BitmaskImpl::NotFound );
-  STATIC_CONST( TextLength = size * 8 );
+  static constexpr Uint32 Size = size;
+  static constexpr Uint32 NotFound = BitmaskImpl::NotFound;
+  static constexpr Uint32 TextLength = size * 8;
 
   /**
    * Return the length- number of words required to store the bitmask.
@@ -1568,7 +1568,7 @@ public:
 };
 
 inline void
-BitmaskImpl::getField(unsigned size ATTRIBUTE_UNUSED, const Uint32 src[],
+BitmaskImpl::getField(unsigned size [[maybe_unused]], const Uint32 src[],
 		      unsigned pos, unsigned len, Uint32 dst[])
 {
   assert(pos + len <= (size << 5));
@@ -1590,7 +1590,7 @@ BitmaskImpl::getField(unsigned size ATTRIBUTE_UNUSED, const Uint32 src[],
 }
 
 inline void
-BitmaskImpl::setField(unsigned size ATTRIBUTE_UNUSED, Uint32 dst[],
+BitmaskImpl::setField(unsigned size [[maybe_unused]], Uint32 dst[],
 		      unsigned pos, unsigned len, const Uint32 src[])
 {
   assert(pos + len <= (size << 5));

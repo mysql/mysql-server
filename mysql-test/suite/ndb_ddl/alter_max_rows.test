@@ -102,8 +102,10 @@ ALTER TABLE t3
   max_rows=33332 /* Small enough to still be at default number of frags */;
 
 --echo Note! The value of MAX_ROWS in NDB is still 33333
---let $ndb_desc_opts= -d ndb_ddl_test t3
---source suite/ndb/include/ndb_desc_print.inc
+--let $ndb_describe_db= ndb_ddl_test
+--let $ndb_describe_table= t3
+--let $ndb_describe_print_exit= 2
+--source suite/ndb/include/ndb_describe_table.inc
 
 #
 # Check that inplace ALTER TABLE ... REORGANIZE PARTITION is

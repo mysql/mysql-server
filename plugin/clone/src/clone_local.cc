@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ int Local::clone_exec() {
   auto thd = m_clone_client.get_thd();
   auto dir_name = m_clone_client.get_data_dir();
   auto is_master = m_clone_client.is_master();
-  auto acquire_backup_lock = (is_master && clone_ddl_timeout != 0);
+  auto acquire_backup_lock = (is_master && clone_block_ddl);
   auto num_workers = m_clone_client.get_max_concurrency() - 1;
 
   auto &client_vector = m_clone_client.get_storage_vector();

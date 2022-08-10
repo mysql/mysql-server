@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,21 @@ STRING(REPLACE "\n" "| " WITH_KERBEROS_DOC_STRING "${WITH_KERBEROS_DOC}")
 FUNCTION(WARN_MISSING_SYSTEM_KERBEROS OUTPUT_WARNING)
   IF(NOT KERBEROS_FOUND AND WITH_KERBEROS STREQUAL "system")
     MESSAGE(WARNING "Cannot find KERBEROS development libraries. "
+      "You need to install the required packages:\n"
+      "  Debian/Ubuntu:              apt install libkrb5-dev\n"
+      "  RedHat/Fedora/Oracle Linux: yum install krb5-devel\n"
+      "  SuSE:                       zypper install krb5-devel\n"
+      )
+    SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
+FUNCTION(WARN_MISSING_SYSTEM_KERBEROS_GSSAPI OUTPUT_WARNING)
+  MESSAGE(STATUS "KERBEROS_FOUND  ${KERBEROS_FOUND}")
+  MESSAGE(STATUS "GSSAPI_FOUND  ${GSSAPI_FOUND}")
+  MESSAGE(STATUS "WITH_KERBEROS  ${WITH_KERBEROS}")
+  IF((NOT KERBEROS_FOUND OR NOT GSSAPI_FOUND) AND WITH_KERBEROS STREQUAL "system")
+    MESSAGE(WARNING "Cannot find KERBEROS and GSSAPI development libraries. "
       "You need to install the required packages:\n"
       "  Debian/Ubuntu:              apt install libkrb5-dev\n"
       "  RedHat/Fedora/Oracle Linux: yum install krb5-devel\n"
@@ -88,6 +103,44 @@ MACRO(FIND_SYSTEM_KERBEROS)
         SET(KERBEROS_LIBRARIES "${MY_KRB5_LIBS}")
       ENDIF()
     ENDIF()
+
+    FIND_LIBRARY(SYSTEM_GSSAPI_LIBRARIES NAMES "gssapi_krb5")
+    SET(GSSAPI_LIBRARIES "${SYSTEM_GSSAPI_LIBRARIES}")
+    MESSAGE(STATUS "GSSAPI_LIBRARIES  ${GSSAPI_LIBRARIES}")
+  ELSEIF(WIN32)
+    # authentication_kerberos and authentication_kerberos_client plug-ins shall
+    # not be officially built on windows, Linux MySQL server with Kerberos and
+    # windows java mysql client with Kerberos shall work.
+    FIND_PATH(KERBEROS_ROOT_DIR
+      NAMES include/krb5/krb5.h
+      )
+    FIND_PATH(KERBEROS_INCLUDE_DIR
+      NAMES krb5/krb5.h
+      HINTS ${KERBEROS_ROOT_DIR}/include
+      )
+    FIND_PATH(GSSAPI_INCLUDE_DIR
+      NAMES gssapi/gssapi.h
+      HINTS ${KERBEROS_ROOT_DIR}/include
+      )
+    FIND_FILE(KERBEROS_LIBRARIES
+      NAMES krb5_64.dll
+      PATHS ${KERBEROS_ROOT_DIR}/bin
+      NO_CMAKE_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_SYSTEM_ENVIRONMENT_PATH
+      )
+    FIND_FILE(GSSAPI_LIBRARIES
+      NAMES gssapi64.dll
+      PATHS ${KERBEROS_ROOT_DIR}/bin
+      NO_CMAKE_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_SYSTEM_ENVIRONMENT_PATH
+      )
+    IF(KERBEROS_INCLUDE_DIR)
+      MESSAGE(STATUS "KERBEROS_INCLUDE_DIR ${KERBEROS_INCLUDE_DIR}")
+      SET(HAVE_KRB5_KRB5_H 1 CACHE INTERNAL "")
+      SET(GSSAPI_FOUND 1)
+    ENDIF()
   ELSEIF(SOLARIS OR APPLE)
     # Solaris: /usr/lib/64/libkrb5.so
     # Apple: /usr/lib/libkrb5.dylib   which depends on /System/..../Heimdal
@@ -115,10 +168,25 @@ MACRO(FIND_SYSTEM_KERBEROS)
         HINTS ${CMAKE_REQUIRED_INCLUDES}
         )
     ENDIF()
+	SET(KERBEROS_FOUND 1)
     CMAKE_POP_CHECK_STATE()
   ENDIF()
 
-ENDMACRO()
+  IF(GSSAPI_LIBRARIES)
+    CMAKE_PUSH_CHECK_STATE()
+    CHECK_INCLUDE_FILE(gssapi/gssapi.h HAVE_GSSAPI_GSSAPI_H)
+    IF(HAVE_GSSAPI_GSSAPI_H)
+      FIND_PATH(GSSAPI_INCLUDE_DIR
+        NAMES "gssapi/gssapi.h"
+        HINTS ${CMAKE_REQUIRED_INCLUDES}
+        )
+      MESSAGE(STATUS "GSSAPI_INCLUDE_DIR  ${GSSAPI_INCLUDE_DIR}")
+      SET(GSSAPI_FOUND 1)
+    ENDIF()
+	CMAKE_POP_CHECK_STATE()
+  ENDIF()
+
+ENDMACRO(FIND_SYSTEM_KERBEROS)
 
 # Lookup and copy misc libraries, 'objdump -p xx | grep NEED' shows:
 # libkrb5.so depends on:
@@ -155,8 +223,21 @@ MACRO(FIND_CUSTOM_KERBEROS)
     HINTS ${KERBEROS_ROOT_DIR}/include
     )
 
+  FIND_PATH(GSSAPI_INCLUDE_DIR
+    NAMES gssapi/gssapi.h
+    HINTS ${KERBEROS_ROOT_DIR}/include
+    )
+
   FIND_LIBRARY(KERBEROS_CUSTOM_LIBRARY
     NAMES "krb5"
+    PATHS ${WITH_KERBEROS}/lib
+    NO_DEFAULT_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_SYSTEM_ENVIRONMENT_PATH
+    )
+
+  FIND_LIBRARY(GSSAPI_LIBRARIES
+    NAMES "gssapi_krb5"
     PATHS ${WITH_KERBEROS}/lib
     NO_DEFAULT_PATH
     NO_CMAKE_ENVIRONMENT_PATH
@@ -180,7 +261,12 @@ MACRO(FIND_CUSTOM_KERBEROS)
     SET(HAVE_KRB5_KRB5_H 1 CACHE INTERNAL "")
   ENDIF()
 
-ENDMACRO()
+  IF(GSSAPI_INCLUDE_DIR AND KERBEROS_CUSTOM_LIBRARY_gssapi_krb5)
+    MESSAGE(STATUS "GSSAPI_INCLUDE_DIR ${GSSAPI_INCLUDE_DIR}")
+    SET(GSSAPI_FOUND 1)
+    SET(HAVE_GSSAPI_GSSAPI_H 1 CACHE INTERNAL "")
+  ENDIF()
+ENDMACRO(FIND_CUSTOM_KERBEROS)
 
 MACRO(MYSQL_CHECK_KERBEROS)
   # No Kerberos support for these platforms:
@@ -193,8 +279,16 @@ MACRO(MYSQL_CHECK_KERBEROS)
     SET(WITH_KERBEROS "none" CACHE INTERNAL "")
   ENDIF()
 
+  IF(WIN32)
+    SET(KERBEROS_LIB_SSPI 1)
+    MESSAGE(STATUS "Kerberos client is supported in windows using SSPI.")
+  ELSE()
+    UNSET(KERBEROS_LIB_SSPI)
+    UNSET(KERBEROS_LIB_SSPI CACHE)
+  ENDIF()
+
   IF(NOT WITH_KERBEROS)
-    IF(WITH_AUTHENTICATION_LDAP)
+    IF(WITH_AUTHENTICATION_LDAP OR WITH_AUTHENTICATION_CLIENT_PLUGINS)
       SET(WITH_KERBEROS "system" CACHE STRING "${WITH_KERBEROS_DOC_STRING}")
     ELSE()
       SET(WITH_KERBEROS "none" CACHE STRING "${WITH_KERBEROS_DOC_STRING}")
@@ -225,6 +319,9 @@ MACRO(MYSQL_CHECK_KERBEROS)
     MESSAGE(FATAL_ERROR "Could not find KERBEROS")
   ENDIF()
 
+  MESSAGE(STATUS "HAVE_KRB5_KRB5_H  ${HAVE_KRB5_KRB5_H}")
+  MESSAGE(STATUS "KERBEROS_LIBRARIES  ${KERBEROS_LIBRARIES}")
+
   IF((KERBEROS_LIBRARIES OR KERBEROS_CUSTOM_LIBRARY) AND HAVE_KRB5_KRB5_H)
     SET(KERBEROS_FOUND 1)
   ELSE()
@@ -239,7 +336,7 @@ MACRO(MYSQL_CHECK_KERBEROS)
     SET(KERBEROS_LIB_CONFIGURED 1)
   ENDIF()
 
-ENDMACRO()
+ENDMACRO(MYSQL_CHECK_KERBEROS)
 
 MACRO(MYSQL_CHECK_KERBEROS_DLLS)
   IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
@@ -253,11 +350,15 @@ MACRO(MYSQL_CHECK_KERBEROS_DLLS)
       COPY_CUSTOM_SHARED_LIBRARY("${${VAR_NAME}}" ""
         COPIED_LIBRARY_NAME COPIED_TARGET_NAME
         )
+      # MESSAGE(STATUS "COPIED_LIBRARY_NAME ${COPIED_LIBRARY_NAME}")
       ADD_DEPENDENCIES(${kerberos_target} ${COPIED_TARGET_NAME})
-      # Append all which are NEEDED by libkrb5.so
-      IF(NOT COPIED_LIBRARY_NAME MATCHES "gssapi")
+
+      IF(COPIED_LIBRARY_NAME MATCHES "gssapi")
+        SET(GSSAPI_LIBRARIES "${COPIED_LIBRARY_NAME}")
+      ELSE()
+        # Append all which are NEEDED by libkrb5.so
         LIST(APPEND KERBEROS_LIBRARIES "${COPIED_LIBRARY_NAME}")
       ENDIF()
     ENDFOREACH()
   ENDIF()
-ENDMACRO()
+ENDMACRO(MYSQL_CHECK_KERBEROS_DLLS)

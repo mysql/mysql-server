@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,7 +121,7 @@ bool Open_dictionary_tables_ctx::open_tables() {
   }
 
   // Lock the tables.
-  if (lock_tables(m_thd, table_list, counter, flags)) return true;
+  if (lock_dictionary_tables(m_thd, table_list, counter, flags)) return true;
 
   return false;
 }
@@ -139,7 +139,7 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
     : otx(thd, TL_WRITE),
       m_thd(thd),
       m_kill_immunizer(thd),
-      m_lex_saved(nullptr),
+      m_query_tables_list_backup(new Query_tables_list()),
       m_saved_in_sub_stmt(thd->in_sub_stmt),
       m_saved_time_zone_used(thd->time_zone_used),
       m_saved_auto_increment_increment(
@@ -149,10 +149,11 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
   m_saved_mode = m_thd->variables.sql_mode;
   m_thd->variables.sql_mode = 0;  // Reset during DD operations
 
-  // Save old lex
-  m_lex_saved = m_thd->lex;
-  m_thd->lex = new (m_thd->mem_root) st_lex_local;
-  lex_start(m_thd);
+  /*
+    Backup and reset part of LEX which will be accessed while opening
+    and closing data-dictionary tables.
+  */
+  m_thd->lex->reset_n_backup_query_tables_list(m_query_tables_list_backup);
 
   m_thd->reset_n_backup_open_tables_state(&m_open_tables_state_backup,
                                           Open_tables_state::SYSTEM_TABLES);
@@ -209,10 +210,7 @@ Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx() {
 
   m_thd->restore_backup_open_tables_state(&m_open_tables_state_backup);
 
-  // Restore the lex
-  lex_end(m_thd->lex);
-  delete (st_lex_local *)m_thd->lex;
-  m_thd->lex = m_lex_saved;
+  m_thd->lex->restore_backup_query_tables_list(m_query_tables_list_backup);
 
   // Restore auto_inc_intervals_in_cur_stmt_for_binlog
   m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.clear();  // XXX: remove?
@@ -227,6 +225,8 @@ Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx() {
   m_thd->in_sub_stmt = m_saved_in_sub_stmt;
 
   m_thd->time_zone_used = m_saved_time_zone_used;
+
+  delete m_query_tables_list_backup;
 }
 
 }  // namespace dd

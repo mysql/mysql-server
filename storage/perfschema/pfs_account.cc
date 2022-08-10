@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -75,9 +75,51 @@ static const uchar *account_hash_get_key(const uchar *entry, size_t *length) {
   assert(typed_entry != nullptr);
   account = *typed_entry;
   assert(account != nullptr);
-  *length = account->m_key.m_key_length;
-  result = account->m_key.m_hash_key;
+  *length = sizeof(account->m_key);
+  result = &account->m_key;
   return reinterpret_cast<const uchar *>(result);
+}
+
+static uint account_hash_func(const LF_HASH *, const uchar *key,
+                              size_t key_len [[maybe_unused]]) {
+  const PFS_account_key *account_key;
+  uint64 nr1;
+  uint64 nr2;
+
+  assert(key_len == sizeof(PFS_account_key));
+  account_key = reinterpret_cast<const PFS_account_key *>(key);
+  assert(account_key != nullptr);
+
+  nr1 = 0;
+  nr2 = 0;
+
+  account_key->m_user_name.hash(&nr1, &nr2);
+  account_key->m_host_name.hash(&nr1, &nr2);
+
+  return nr1;
+}
+
+static int account_hash_cmp_func(const uchar *key1,
+                                 size_t key_len1 [[maybe_unused]],
+                                 const uchar *key2,
+                                 size_t key_len2 [[maybe_unused]]) {
+  const PFS_account_key *account_key1;
+  const PFS_account_key *account_key2;
+  int cmp;
+
+  assert(key_len1 == sizeof(PFS_account_key));
+  assert(key_len2 == sizeof(PFS_account_key));
+  account_key1 = reinterpret_cast<const PFS_account_key *>(key1);
+  account_key2 = reinterpret_cast<const PFS_account_key *>(key2);
+  assert(account_key1 != nullptr);
+  assert(account_key2 != nullptr);
+
+  cmp = account_key1->m_user_name.sort(&account_key2->m_user_name);
+  if (cmp != 0) {
+    return cmp;
+  }
+  cmp = account_key1->m_host_name.sort(&account_key2->m_host_name);
+  return cmp;
 }
 
 /**
@@ -86,8 +128,10 @@ static const uchar *account_hash_get_key(const uchar *entry, size_t *length) {
 */
 int init_account_hash(const PFS_global_param *param) {
   if ((!account_hash_inited) && (param->m_account_sizing != 0)) {
-    lf_hash_init(&account_hash, sizeof(PFS_account *), LF_HASH_UNIQUE, 0, 0,
-                 account_hash_get_key, &my_charset_bin);
+    lf_hash_init3(&account_hash, sizeof(PFS_account *), LF_HASH_UNIQUE,
+                  account_hash_get_key, account_hash_func,
+                  account_hash_cmp_func, nullptr /* ctor */, nullptr /* dtor */,
+                  nullptr /* init */);
     account_hash_inited = true;
   }
   return 0;
@@ -111,31 +155,15 @@ static LF_PINS *get_account_hash_pins(PFS_thread *thread) {
   return thread->m_account_hash_pins;
 }
 
-static void set_account_key(PFS_account_key *key, const char *user,
-                            uint user_length, const char *host,
-                            uint host_length) {
-  assert(user_length <= USERNAME_LENGTH);
-  assert(host_length <= HOSTNAME_LENGTH);
-
-  char *ptr = &key->m_hash_key[0];
-  if (user_length > 0) {
-    memcpy(ptr, user, user_length);
-    ptr += user_length;
-  }
-  ptr[0] = 0;
-  ptr++;
-  if (host_length > 0) {
-    memcpy(ptr, host, host_length);
-    ptr += host_length;
-  }
-  ptr[0] = 0;
-  ptr++;
-  key->m_key_length = ptr - &key->m_hash_key[0];
+static void set_account_key(PFS_account_key *key, const PFS_user_name *user,
+                            const PFS_host_name *host) {
+  key->m_user_name = *user;
+  key->m_host_name = *host;
 }
 
-PFS_account *find_or_create_account(PFS_thread *thread, const char *username,
-                                    uint username_length, const char *hostname,
-                                    uint hostname_length) {
+PFS_account *find_or_create_account(PFS_thread *thread,
+                                    const PFS_user_name *user,
+                                    const PFS_host_name *host) {
   LF_PINS *pins = get_account_hash_pins(thread);
   if (unlikely(pins == nullptr)) {
     global_account_container.m_lost++;
@@ -143,7 +171,7 @@ PFS_account *find_or_create_account(PFS_thread *thread, const char *username,
   }
 
   PFS_account_key key;
-  set_account_key(&key, username, username_length, hostname, hostname_length);
+  set_account_key(&key, user, host);
 
   PFS_account **entry;
   PFS_account *pfs;
@@ -153,7 +181,7 @@ PFS_account *find_or_create_account(PFS_thread *thread, const char *username,
 
 search:
   entry = reinterpret_cast<PFS_account **>(
-      lf_hash_search(&account_hash, pins, key.m_hash_key, key.m_key_length));
+      lf_hash_search(&account_hash, pins, &key, sizeof(key)));
   if (entry && (entry != MY_LF_ERRPTR)) {
     pfs = *entry;
     pfs->inc_refcount();
@@ -166,30 +194,17 @@ search:
   pfs = global_account_container.allocate(&dirty_state);
   if (pfs != nullptr) {
     pfs->m_key = key;
-    if (username_length > 0) {
-      pfs->m_username = &pfs->m_key.m_hash_key[0];
-    } else {
-      pfs->m_username = nullptr;
-    }
-    pfs->m_username_length = username_length;
 
-    if (hostname_length > 0) {
-      pfs->m_hostname = &pfs->m_key.m_hash_key[username_length + 1];
-    } else {
-      pfs->m_hostname = nullptr;
-    }
-    pfs->m_hostname_length = hostname_length;
-
-    pfs->m_user = find_or_create_user(thread, username, username_length);
-    pfs->m_host = find_or_create_host(thread, hostname, hostname_length);
+    pfs->m_user = find_or_create_user(thread, &key.m_user_name);
+    pfs->m_host = find_or_create_host(thread, &key.m_host_name);
 
     pfs->init_refcount();
     pfs->reset_stats();
     pfs->m_disconnected_count = 0;
 
-    if (username_length > 0 && hostname_length > 0) {
-      lookup_setup_actor(thread, username, username_length, hostname,
-                         hostname_length, &pfs->m_enabled, &pfs->m_history);
+    if (user->length() > 0 && host->length() > 0) {
+      lookup_setup_actor(thread, &key.m_user_name, &key.m_host_name,
+                         &pfs->m_enabled, &pfs->m_history);
     } else {
       pfs->m_enabled = true;
       pfs->m_history = true;
@@ -539,28 +554,17 @@ void PFS_account::aggregate_memory(bool alive, PFS_user *safe_user,
 }
 
 void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
-  if (likely(safe_user != nullptr && safe_host != nullptr)) {
-    /*
-      Aggregate STATUS_BY_ACCOUNT to:
-      - STATUS_BY_USER
-      - STATUS_BY_HOST
-    */
-    safe_user->m_status_stats.aggregate(&m_status_stats);
-    safe_host->m_status_stats.aggregate(&m_status_stats);
-    m_status_stats.reset();
-    return;
-  }
+  /*
+    Never aggregate to global_status_var,
+    because of the parallel THD -> global_status_var flow.
+  */
 
   if (safe_user != nullptr) {
     /*
       Aggregate STATUS_BY_ACCOUNT to:
       - STATUS_BY_USER
-      - GLOBAL_STATUS
     */
     safe_user->m_status_stats.aggregate(&m_status_stats);
-    m_status_stats.aggregate_to(&global_status_var);
-    m_status_stats.reset();
-    return;
   }
 
   if (safe_host != nullptr) {
@@ -569,15 +573,8 @@ void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
       - STATUS_BY_HOST
     */
     safe_host->m_status_stats.aggregate(&m_status_stats);
-    m_status_stats.reset();
-    return;
   }
 
-  /*
-    Aggregate STATUS_BY_ACCOUNT to:
-    - GLOBAL_STATUS
-  */
-  m_status_stats.aggregate_to(&global_status_var);
   m_status_stats.reset();
   return;
 }
@@ -683,14 +680,13 @@ static void purge_account(PFS_thread *thread, PFS_account *account) {
   }
 
   PFS_account **entry;
-  entry = reinterpret_cast<PFS_account **>(
-      lf_hash_search(&account_hash, pins, account->m_key.m_hash_key,
-                     account->m_key.m_key_length));
+  entry = reinterpret_cast<PFS_account **>(lf_hash_search(
+      &account_hash, pins, &account->m_key, sizeof(account->m_key)));
   if (entry && (entry != MY_LF_ERRPTR)) {
     assert(*entry == account);
     if (account->get_refcount() == 0) {
-      lf_hash_delete(&account_hash, pins, account->m_key.m_hash_key,
-                     account->m_key.m_key_length);
+      lf_hash_delete(&account_hash, pins, &account->m_key,
+                     sizeof(account->m_key));
       account->aggregate(false, account->m_user, account->m_host);
       if (account->m_user != nullptr) {
         account->m_user->release();
@@ -709,7 +705,7 @@ static void purge_account(PFS_thread *thread, PFS_account *account) {
 
 class Proc_purge_account : public PFS_buffer_processor<PFS_account> {
  public:
-  Proc_purge_account(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_purge_account(PFS_thread *thread) : m_thread(thread) {}
 
   void operator()(PFS_account *pfs) override {
     PFS_user *user = sanitize_user(pfs->m_user);
@@ -739,13 +735,15 @@ void purge_all_account(void) {
 class Proc_update_accounts_derived_flags
     : public PFS_buffer_processor<PFS_account> {
  public:
-  Proc_update_accounts_derived_flags(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_update_accounts_derived_flags(PFS_thread *thread)
+      : m_thread(thread) {}
 
   void operator()(PFS_account *pfs) override {
-    if (pfs->m_username_length > 0 && pfs->m_hostname_length > 0) {
-      lookup_setup_actor(m_thread, pfs->m_username, pfs->m_username_length,
-                         pfs->m_hostname, pfs->m_hostname_length,
-                         &pfs->m_enabled, &pfs->m_history);
+    if (pfs->m_key.m_user_name.length() > 0 &&
+        pfs->m_key.m_host_name.length() > 0) {
+      lookup_setup_actor(m_thread, &pfs->m_key.m_user_name,
+                         &pfs->m_key.m_host_name, &pfs->m_enabled,
+                         &pfs->m_history);
     } else {
       pfs->m_enabled = true;
       pfs->m_history = true;

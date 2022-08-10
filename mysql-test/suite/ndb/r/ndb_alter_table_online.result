@@ -326,6 +326,24 @@ drop index i1 on t1;
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 DROP TABLE t1;
+#
+# Bug#34224193 Adding default value for not null column with
+#              ALTER TABLE have issues.
+#
+CREATE TABLE t1 (
+pk int AUTO_INCREMENT PRIMARY KEY,
+col1 int NOT NULL,
+col2 int NOT NULL DEFAULT 0
+) ENGINE=ndbcluster;
+ALTER TABLE t1 algorithm=inplace, CHANGE col1 col1 int NOT NULL DEFAULT 0;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding or removing default value is not supported. Try ALGORITHM=COPY.
+ALTER TABLE t1 CHANGE col1 col1 int NOT NULL DEFAULT 0;
+INSERT INTO t1() VALUE();
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE t1 algorithm=inplace, CHANGE col1 col1 int NOT NULL;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding or removing default value is not supported. Try ALGORITHM=COPY.
+DROP TABLE t1;
 ****************************************
 * Adding dropping primary key
 ****************************************
@@ -571,11 +589,11 @@ insert into t1 (c1) values (1), (2), (3);
 alter table t1 algorithm=copy, modify c1 int auto_increment;
 alter table t1 algorithm=inplace, add column c500 bit(1) column_format DYNAMIC;
 alter table t1 algorithm=copy, add column c502 varchar(18001) character set latin1;
-ERROR HY000: Can't create destination table for copying alter table
+ERROR HY000: Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 738 'Record too big' from NDB
-Error	1005	Can't create destination table for copying alter table
+Error	1005	Can't create destination table for copying alter table (use SHOW WARNINGS for more info).
 alter table t1 algorithm=inplace, add column c502 varchar(18001) character set latin1;
 ERROR HY000: Got error 140 'Record too big' from NDBCLUSTER
 show warnings;

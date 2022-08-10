@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -52,163 +52,140 @@ struct upd_t;
 #ifdef UNIV_DEBUG
 /** Gets pointer to the type struct of SQL data field.
  @return pointer to the type struct */
-UNIV_INLINE
-dtype_t *dfield_get_type(const dfield_t *field) /*!< in: SQL data field */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline dtype_t *dfield_get_type(
+    const dfield_t *field); /*!< in: SQL data field */
 /** Gets pointer to the data in a field.
  @return pointer to data */
-UNIV_INLINE
-void *dfield_get_data(const dfield_t *field) /*!< in: field */
-    MY_ATTRIBUTE((warn_unused_result));
-#else /* UNIV_DEBUG */
+[[nodiscard]] static inline void *dfield_get_data(
+    const dfield_t *field); /*!< in: field */
+#else                       /* UNIV_DEBUG */
 #define dfield_get_type(field) (&(field)->type)
 #define dfield_get_data(field) ((field)->data)
 #endif /* UNIV_DEBUG */
 
 /** Sets the type struct of SQL data field.
-@param[in]	field	SQL data field
-@param[in]	type	pointer to data type struct */
-UNIV_INLINE
-void dfield_set_type(dfield_t *field, const dtype_t *type);
+@param[in]      field   SQL data field
+@param[in]      type    pointer to data type struct */
+static inline void dfield_set_type(dfield_t *field, const dtype_t *type);
 
 /** Gets length of field data.
  @return length of data; UNIV_SQL_NULL if SQL null data */
-UNIV_INLINE
-uint32_t dfield_get_len(const dfield_t *field) /*!< in: field */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline uint32_t dfield_get_len(
+    const dfield_t *field); /*!< in: field */
 
 /** Sets length in a field.
-@param[in]	field	field
-@param[in]	len	length or UNIV_SQL_NULL */
-UNIV_INLINE
-void dfield_set_len(dfield_t *field, ulint len);
+@param[in]      field   field
+@param[in]      len     length or UNIV_SQL_NULL */
+static inline void dfield_set_len(dfield_t *field, ulint len);
 
 /** Determines if a field is SQL NULL
  @return nonzero if SQL null data */
-UNIV_INLINE
-ulint dfield_is_null(const dfield_t *field) /*!< in: field */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ulint dfield_is_null(
+    const dfield_t *field); /*!< in: field */
 /** Determines if a field is externally stored
  @return nonzero if externally stored */
-UNIV_INLINE
-ulint dfield_is_ext(const dfield_t *field) /*!< in: field */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool dfield_is_ext(
+    const dfield_t *field); /*!< in: field */
 /** Sets the "external storage" flag */
-UNIV_INLINE
-void dfield_set_ext(dfield_t *field); /*!< in/out: field */
+static inline void dfield_set_ext(dfield_t *field); /*!< in/out: field */
 
 /** Gets spatial status for "external storage"
-@param[in,out]	field		field */
-UNIV_INLINE
-spatial_status_t dfield_get_spatial_status(const dfield_t *field);
+@param[in,out]  field           field */
+static inline spatial_status_t dfield_get_spatial_status(const dfield_t *field);
 
 /** Sets spatial status for "external storage"
-@param[in,out]	field		field
-@param[in]	spatial_status	spatial status */
-UNIV_INLINE
-void dfield_set_spatial_status(dfield_t *field,
-                               spatial_status_t spatial_status);
+@param[in,out]  field           field
+@param[in]      spatial_status  spatial status */
+static inline void dfield_set_spatial_status(dfield_t *field,
+                                             spatial_status_t spatial_status);
 
 /** Sets pointer to the data and length in a field.
-@param[in]	field	field
-@param[in]	data	data
-@param[in]	len	length or UNIV_SQL_NULL */
-UNIV_INLINE
-void dfield_set_data(dfield_t *field, const void *data, ulint len);
+@param[in]      field   field
+@param[in]      data    data
+@param[in]      len     length or UNIV_SQL_NULL */
+static inline void dfield_set_data(dfield_t *field, const void *data,
+                                   ulint len);
 
 /** Sets pointer to the data and length in a field.
-@param[in]	field	field
-@param[in]	mbr	data */
-UNIV_INLINE
-void dfield_write_mbr(dfield_t *field, const double *mbr);
+@param[in]      field   field
+@param[in]      mbr     data */
+static inline void dfield_write_mbr(dfield_t *field, const double *mbr);
 
 /** Sets a data field to SQL NULL. */
-UNIV_INLINE
-void dfield_set_null(dfield_t *field); /*!< in/out: field */
+static inline void dfield_set_null(dfield_t *field); /*!< in/out: field */
 
 /** Writes an SQL null field full of zeros.
-@param[in]	data	pointer to a buffer of size len
-@param[in]	len	SQL null size in bytes */
-UNIV_INLINE
-void data_write_sql_null(byte *data, ulint len);
+@param[in]      data    pointer to a buffer of size len
+@param[in]      len     SQL null size in bytes */
+static inline void data_write_sql_null(byte *data, ulint len);
 
 /** Copies the data and len fields.
-@param[out]	field1	field to copy to
-@param[in]	field2	field to copy from */
-UNIV_INLINE
-void dfield_copy_data(dfield_t *field1, const dfield_t *field2);
+@param[out]     field1  field to copy to
+@param[in]      field2  field to copy from */
+static inline void dfield_copy_data(dfield_t *field1, const dfield_t *field2);
 
 /** Copies a data field to another.
-@param[out]	field1	field to copy to
-@param[in]	field2	field to copy from */
-UNIV_INLINE
-void dfield_copy(dfield_t *field1, const dfield_t *field2);
+@param[out]     field1  field to copy to
+@param[in]      field2  field to copy from */
+static inline void dfield_copy(dfield_t *field1, const dfield_t *field2);
 
 /** Copies the data pointed to by a data field.
-@param[in,out]	field	data field
-@param[in]	heap	memory heap where allocated */
-UNIV_INLINE
-void dfield_dup(dfield_t *field, mem_heap_t *heap);
+@param[in,out]  field   data field
+@param[in]      heap    memory heap where allocated */
+static inline void dfield_dup(dfield_t *field, mem_heap_t *heap);
 
 /** Copies the data pointed to by a data field.
 This function works for multi-value fields only.
 @param[in,out]  field   data field
 @param[in]      heap    memory heap where allocated */
-UNIV_INLINE
-void dfield_multi_value_dup(dfield_t *field, mem_heap_t *heap);
+static inline void dfield_multi_value_dup(dfield_t *field, mem_heap_t *heap);
 
 /** Determine if a field is of multi-value type
-@param[in]	field	data field
+@param[in]      field   data field
 @return true if multi-value type field, otherwise false */
-UNIV_INLINE
-bool dfield_is_multi_value(const dfield_t *field);
+static inline bool dfield_is_multi_value(const dfield_t *field);
 
 /** Tests if two data fields are equal.
 If len==0, tests the data length and content for equality.
 If len>0, tests the first len bytes of the content for equality.
-@param[in]	field1		first field to compare
-@param[in]	field2		second field to compare
-@param[in]	len		maximum prefix to compare,
+@param[in]      field1          first field to compare
+@param[in]      field2          second field to compare
+@param[in]      len             maximum prefix to compare,
                                 or 0 to compare the whole field length.
                                 This works only if !multi_val
 @return true if both fields are NULL or if they are equal */
-inline bool dfield_datas_are_binary_equal(const dfield_t *field1,
-                                          const dfield_t *field2, ulint len)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] inline bool dfield_datas_are_binary_equal(const dfield_t *field1,
+                                                        const dfield_t *field2,
+                                                        ulint len);
 /** Tests if dfield data length and content is equal to the given.
- @return true if equal */
-UNIV_INLINE
-bool dfield_data_is_binary_equal(
-    const dfield_t *field, /*!< in: field */
-    ulint len,             /*!< in: data length or UNIV_SQL_NULL */
-    const byte *data)      /*!< in: data */
-    MY_ATTRIBUTE((warn_unused_result));
+@param[in] field Field
+@param[in] len   Data length or UNIV_SQL_NULL
+@param[in] data  Data
+@return true if equal */
+[[nodiscard]] static inline bool dfield_data_is_binary_equal(
+    const dfield_t *field, ulint len, const byte *data);
 /** Gets number of fields in a data tuple.
  @return number of fields */
-UNIV_INLINE
-ulint dtuple_get_n_fields(const dtuple_t *tuple) /*!< in: tuple */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ulint dtuple_get_n_fields(
+    const dtuple_t *tuple); /*!< in: tuple */
 
 /** Gets number of virtual fields in a data tuple.
-@param[in]	tuple	dtuple to check
+@param[in]      tuple   dtuple to check
 @return number of fields */
-UNIV_INLINE
-ulint dtuple_get_n_v_fields(const dtuple_t *tuple);
+static inline ulint dtuple_get_n_v_fields(const dtuple_t *tuple);
 
 #ifdef UNIV_DEBUG
 /** Gets nth field of a tuple.
-@param[in]	tuple	tuple
-@param[in]	n	index of field
+@param[in]      tuple   tuple
+@param[in]      n       index of field
 @return nth field */
-UNIV_INLINE
-dfield_t *dtuple_get_nth_field(const dtuple_t *tuple, ulint n);
+static inline dfield_t *dtuple_get_nth_field(const dtuple_t *tuple, ulint n);
 
 /** Gets nth virtual field of a tuple.
-@param[in]	tuple	tuple
-@param[in]	n	the nth field to get
+@param[in]      tuple   tuple
+@param[in]      n       the nth field to get
 @return nth field */
-UNIV_INLINE
-dfield_t *dtuple_get_nth_v_field(const dtuple_t *tuple, ulint n);
+static inline dfield_t *dtuple_get_nth_v_field(const dtuple_t *tuple, ulint n);
 
 #else /* UNIV_DEBUG */
 #define dtuple_get_nth_field(tuple, n) ((tuple)->fields + (n))
@@ -217,28 +194,24 @@ dfield_t *dtuple_get_nth_v_field(const dtuple_t *tuple, ulint n);
 #endif /* UNIV_DEBUG */
 /** Gets info bits in a data tuple.
  @return info bits */
-UNIV_INLINE
-ulint dtuple_get_info_bits(const dtuple_t *tuple) /*!< in: tuple */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ulint dtuple_get_info_bits(
+    const dtuple_t *tuple); /*!< in: tuple */
 
 /** Sets info bits in a data tuple.
-@param[in]	tuple		tuple
-@param[in]	info_bits	info bits */
-UNIV_INLINE
-void dtuple_set_info_bits(dtuple_t *tuple, ulint info_bits);
+@param[in]      tuple           tuple
+@param[in]      info_bits       info bits */
+static inline void dtuple_set_info_bits(dtuple_t *tuple, ulint info_bits);
 
 /** Gets number of fields used in record comparisons.
  @return number of fields used in comparisons in rem0cmp.* */
-UNIV_INLINE
-ulint dtuple_get_n_fields_cmp(const dtuple_t *tuple) /*!< in: tuple */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ulint dtuple_get_n_fields_cmp(
+    const dtuple_t *tuple); /*!< in: tuple */
 
 /** Gets number of fields used in record comparisons.
-@param[in]	tuple		tuple
-@param[in]	n_fields_cmp	number of fields used in comparisons in
+@param[in]      tuple           tuple
+@param[in]      n_fields_cmp    number of fields used in comparisons in
                                 rem0cmp */
-UNIV_INLINE
-void dtuple_set_n_fields_cmp(dtuple_t *tuple, ulint n_fields_cmp);
+static inline void dtuple_set_n_fields_cmp(dtuple_t *tuple, ulint n_fields_cmp);
 
 /* Estimate the number of bytes that are going to be allocated when
 creating a new dtuple_t object */
@@ -249,20 +222,19 @@ creating a new dtuple_t object */
  The size of the chunk must be at least DTUPLE_EST_ALLOC(n_fields).
  The default value for number of fields used in record comparisons
  for this tuple is n_fields.
- @param[in,out]	buf		buffer to use
- @param[in]	buf_size	buffer size
- @param[in]	n_fields	number of field
- @param[in]	n_v_fields	number of fields on virtual columns
+ @param[in,out] buf             buffer to use
+ @param[in]     buf_size        buffer size
+ @param[in]     n_fields        number of field
+ @param[in]     n_v_fields      number of fields on virtual columns
  @return created tuple (inside buf) */
-UNIV_INLINE
-dtuple_t *dtuple_create_from_mem(void *buf, ulint buf_size, ulint n_fields,
-                                 ulint n_v_fields)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline dtuple_t *dtuple_create_from_mem(void *buf,
+                                                             ulint buf_size,
+                                                             ulint n_fields,
+                                                             ulint n_v_fields);
 /** Creates a data tuple to a memory heap. The default value for number
  of fields used in record comparisons for this tuple is n_fields.
  @return own: created tuple */
-UNIV_INLINE
-dtuple_t *dtuple_create(
+static inline dtuple_t *dtuple_create(
     mem_heap_t *heap, /*!< in: memory heap where the tuple
                       is created, DTUPLE_EST_ALLOC(n_fields)
                       bytes will be allocated from this heap */
@@ -270,24 +242,22 @@ dtuple_t *dtuple_create(
     MY_ATTRIBUTE((malloc));
 
 /** Initialize the virtual field data in a dtuple_t
-@param[in,out]		vrow	dtuple contains the virtual fields */
-UNIV_INLINE
-void dtuple_init_v_fld(const dtuple_t *vrow);
+@param[in,out]          vrow    dtuple contains the virtual fields */
+static inline void dtuple_init_v_fld(const dtuple_t *vrow);
 
 /** Duplicate the virtual field data in a dtuple_t
-@param[in,out]		vrow	dtuple contains the virtual fields
-@param[in]		heap	heap memory to use */
-UNIV_INLINE
-void dtuple_dup_v_fld(const dtuple_t *vrow, mem_heap_t *heap);
+@param[in,out]          vrow    dtuple contains the virtual fields
+@param[in]              heap    heap memory to use */
+static inline void dtuple_dup_v_fld(const dtuple_t *vrow, mem_heap_t *heap);
 
 /** Creates a data tuple with possible virtual columns to a memory heap.
-@param[in]	heap		memory heap where the tuple is created
-@param[in]	n_fields	number of fields
-@param[in]	n_v_fields	number of fields on virtual col
+@param[in]      heap            memory heap where the tuple is created
+@param[in]      n_fields        number of fields
+@param[in]      n_v_fields      number of fields on virtual col
 @return own: created tuple */
-UNIV_INLINE
-dtuple_t *dtuple_create_with_vcol(mem_heap_t *heap, ulint n_fields,
-                                  ulint n_v_fields);
+static inline dtuple_t *dtuple_create_with_vcol(mem_heap_t *heap,
+                                                ulint n_fields,
+                                                ulint n_v_fields);
 /** Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this.
 @param[in] tuple                Tuple.
@@ -295,69 +265,64 @@ dtuple_create, but if you want later to set it smaller, you can use this.
 void dtuple_set_n_fields(dtuple_t *tuple, ulint n_fields);
 
 /** Copies a data tuple's virtaul fields to another. This is a shallow copy;
-@param[in,out]	d_tuple		destination tuple
-@param[in]	s_tuple		source tuple */
-UNIV_INLINE
-void dtuple_copy_v_fields(dtuple_t *d_tuple, const dtuple_t *s_tuple);
+@param[in,out]  d_tuple         destination tuple
+@param[in]      s_tuple         source tuple */
+static inline void dtuple_copy_v_fields(dtuple_t *d_tuple,
+                                        const dtuple_t *s_tuple);
 /** Copies a data tuple to another.  This is a shallow copy; if a deep copy
  is desired, dfield_dup() will have to be invoked on each field.
  @return own: copy of tuple */
-UNIV_INLINE
-dtuple_t *dtuple_copy(const dtuple_t *tuple, /*!< in: tuple to copy from */
-                      mem_heap_t *heap)      /*!< in: memory heap
-                                             where the tuple is created */
+static inline dtuple_t *dtuple_copy(
+    const dtuple_t *tuple, /*!< in: tuple to copy from */
+    mem_heap_t *heap)      /*!< in: memory heap
+                           where the tuple is created */
     MY_ATTRIBUTE((malloc));
 
 /** The following function returns the sum of data lengths of a tuple. The space
 occupied by the field structs or the tuple struct is not counted.
-@param[in]	tuple	typed data tuple
-@param[in]	comp	nonzero=ROW_FORMAT=COMPACT
+@param[in]      tuple   typed data tuple
+@param[in]      comp    nonzero=ROW_FORMAT=COMPACT
 @return sum of data lens */
-UNIV_INLINE
-ulint dtuple_get_data_size(const dtuple_t *tuple, ulint comp);
+static inline ulint dtuple_get_data_size(const dtuple_t *tuple, ulint comp);
 /** Compare two data tuples.
 @param[in] tuple1 first data tuple
 @param[in] tuple2 second data tuple
 @return whether tuple1==tuple2 */
-bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool dtuple_coll_eq(const dtuple_t *tuple1,
+                                  const dtuple_t *tuple2);
 
 /** Compute a hash value of a prefix of an index record.
-@param[in]	tuple		index record
-@param[in]	n_fields	number of fields to include
-@param[in]	n_bytes		number of bytes to fold in the last field
-@param[in]	fold		fold value of the index identifier
-@return the folded value */
-UNIV_INLINE
-ulint dtuple_fold(const dtuple_t *tuple, ulint n_fields, ulint n_bytes,
-                  ulint fold) MY_ATTRIBUTE((warn_unused_result));
+@param[in]      tuple           index record
+@param[in]      n_fields        number of fields to include
+@param[in]      n_bytes         number of bytes to hash in the last field
+@param[in]      hash_value      hash value of the index identifier
+@return the hashed value */
+[[nodiscard]] static inline uint64_t dtuple_hash(const dtuple_t *tuple,
+                                                 ulint n_fields, ulint n_bytes,
+                                                 uint64_t hash_value);
 
 /** Sets types of fields binary in a tuple.
-@param[in]	tuple	data tuple
-@param[in]	n	number of fields to set */
-UNIV_INLINE
-void dtuple_set_types_binary(dtuple_t *tuple, ulint n);
+@param[in]      tuple   data tuple
+@param[in]      n       number of fields to set */
+static inline void dtuple_set_types_binary(dtuple_t *tuple, ulint n);
 
 /** Checks if a dtuple contains an SQL null value.
  @return true if some field is SQL null */
-UNIV_INLINE
-bool dtuple_contains_null(const dtuple_t *tuple) /*!< in: dtuple */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool dtuple_contains_null(
+    const dtuple_t *tuple); /*!< in: dtuple */
 /** Checks that a data field is typed. Asserts an error if not.
  @return true if ok */
-bool dfield_check_typed(const dfield_t *field) /*!< in: data field */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool dfield_check_typed(
+    const dfield_t *field); /*!< in: data field */
 /** Checks that a data tuple is typed. Asserts an error if not.
  @return true if ok */
-bool dtuple_check_typed(const dtuple_t *tuple) /*!< in: tuple */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool dtuple_check_typed(const dtuple_t *tuple); /*!< in: tuple */
 #ifdef UNIV_DEBUG
 /** Validates the consistency of a tuple which must be complete, i.e,
  all fields must have been set.
  @return true if ok */
-bool dtuple_validate(const dtuple_t *tuple) /*!< in: tuple */
-    MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG */
+[[nodiscard]] bool dtuple_validate(const dtuple_t *tuple); /*!< in: tuple */
+#endif                                                     /* UNIV_DEBUG */
 /** Pretty prints a dfield value according to its data type. Also the hex string
  is printed if a string contains non-printable characters. */
 void dfield_print_also_hex(const dfield_t *dfield); /*!< in: dfield */
@@ -368,19 +333,19 @@ void dfield_print_also_hex(const dfield_t *dfield); /*!< in: dfield */
 void dtuple_print(FILE *f, const dtuple_t *tuple);
 
 /** Print the contents of a tuple.
-@param[out]	o	output stream
-@param[in]	field	array of data fields
-@param[in]	n	number of data fields */
+@param[out]     o       output stream
+@param[in]      field   array of data fields
+@param[in]      n       number of data fields */
 void dfield_print(std::ostream &o, const dfield_t *field, ulint n);
 
 /** Print the contents of a tuple.
-@param[out]	o	output stream
-@param[in]	tuple	data tuple */
+@param[out]     o       output stream
+@param[in]      tuple   data tuple */
 void dtuple_print(std::ostream &o, const dtuple_t *tuple);
 
 /** Print the contents of a tuple.
-@param[out]	o	output stream
-@param[in]	tuple	data tuple */
+@param[out]     o       output stream
+@param[in]      tuple   data tuple */
 inline std::ostream &operator<<(std::ostream &o, const dtuple_t &tuple) {
   dtuple_print(o, &tuple);
   return (o);
@@ -396,9 +361,9 @@ to determine uniquely the insertion place of the tuple in the index.
 @return own: created big record vector, NULL if we are not able to
 shorten the entry enough, i.e., if there are too many fixed-length or
 short fields in entry or the index is clustered */
-big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
-                                  dtuple_t *entry)
-    MY_ATTRIBUTE((malloc, warn_unused_result));
+[[nodiscard]] big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
+                                                dtuple_t *entry)
+    MY_ATTRIBUTE((malloc));
 
 /** Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created
@@ -408,9 +373,9 @@ from entry with dtuple_convert_big_rec.
 void dtuple_convert_back_big_rec(dtuple_t *entry, big_rec_t *vector);
 
 /** Frees the memory in a big rec vector. */
-UNIV_INLINE
-void dtuple_big_rec_free(big_rec_t *vector); /*!< in, own: big rec vector; it is
-                                     freed in this function */
+static inline void dtuple_big_rec_free(
+    big_rec_t *vector); /*!< in, own: big rec vector; it is
+                freed in this function */
 
 /*######################################################################*/
 
@@ -443,20 +408,20 @@ struct multi_value_data {
 
   /** Allocate specified number of elements for all arrays and initialize
   the structure accordingly
-  @param[in]		num	number of elements to allocate
-  @param[in]		bitset	true if memory for bitset should be
+  @param[in]            num     number of elements to allocate
+  @param[in]            bitset  true if memory for bitset should be
                                 allocated too
-  @param[in,out]	heap	memory heap */
+  @param[in,out]        heap    memory heap */
   void alloc(uint32_t num, bool bitset, mem_heap_t *heap);
 
   /** Allocate the bitset for current data array
-  @param[in,out]	heap	memory heap
-  @param[in]		size	size of the bitset, if 0 or default,
+  @param[in,out]        heap    memory heap
+  @param[in]            size    size of the bitset, if 0 or default,
                                 the size would be num_v */
   void alloc_bitset(mem_heap_t *heap, uint32_t size = 0);
 
   /** Check if two multi_value_data are equal or not, regardless of bitset
-  @param[in]	multi_value	Another multi-value data to be compared
+  @param[in]    multi_value     Another multi-value data to be compared
   @return true if two data structures are equal, otherwise false */
   bool equal(const multi_value_data *multi_value) const {
     if (num_v != multi_value->num_v) {
@@ -474,8 +439,8 @@ struct multi_value_data {
   }
 
   /** Copy a multi_value_data structure
-  @param[in]		multi_value	multi_value structure to copy from
-  @param[in,out]	heap		memory heap */
+  @param[in]            multi_value     multi_value structure to copy from
+  @param[in,out]        heap            memory heap */
   void copy(const multi_value_data *multi_value, mem_heap_t *heap) {
     if (num_alc < multi_value->num_v) {
       alloc(multi_value->num_v, (multi_value->bitset != nullptr), heap);
@@ -489,9 +454,9 @@ struct multi_value_data {
   is equal to a record on multi-value index should understand that this
   function can only be used for equality comparison, rather than order
   comparison
-  @param[in]	type	type of the data
-  @param[in]	data	data value to compare
-  @param[in]	len	length of data
+  @param[in]    type    type of the data
+  @param[in]    data    data value to compare
+  @param[in]    len     length of data
   @return true if the value exists in current data set, otherwise false */
   bool has(const dtype_t *type, const byte *data, uint64_t len) const;
 
@@ -500,8 +465,8 @@ struct multi_value_data {
   is equal to a record on multi-value index should understand that this
   function can only be used for equality comparison, rather than order
   comparison
-  @param[in]    mtype	mtype of data
-  @param[in]	prtype	prtype of data
+  @param[in]    mtype   mtype of data
+  @param[in]    prtype  prtype of data
   @param[in]    data    data value to compare
   @param[in]    len     length of data
   @return true if the value exists in current data set, otherwise false */
@@ -530,8 +495,8 @@ struct multi_value_data {
  private:
   /** Copy a multi_value_data structure, current one should be bigger
   or equal to the one to be copied
-  @param[in]		multi_value	multi_value structure to copy from
-  @param[in,out]	heap		memory heap */
+  @param[in]            multi_value     multi_value structure to copy from
+  @param[in,out]        heap            memory heap */
   void copy_low(const multi_value_data *multi_value, mem_heap_t *heap) {
     ut_ad(num_alc >= multi_value->num_v);
     for (uint32_t i = 0; i < multi_value->num_v; ++i) {
@@ -558,39 +523,39 @@ struct multi_value_data {
 class Multi_value_logger {
  public:
   /** Constructor
-  @param[in]	mv_data		multi-value data structure to log
-  @param[in]	field_len	multi-value data field length */
+  @param[in]    mv_data         multi-value data structure to log
+  @param[in]    field_len       multi-value data field length */
   Multi_value_logger(const multi_value_data *mv_data, uint32_t field_len)
       : m_mv_data(mv_data), m_field_len(field_len) {}
 
   /** Get the log length for the multi-value data
-  @param[in]	precise	true if precise length is needed, false if rough
+  @param[in]    precise true if precise length is needed, false if rough
                 estimation is OK
   @return the total log length for the multi-value data */
   uint32_t get_log_len(bool precise) const;
 
   /** Log the multi-value data to specified memory
-  @param[in,out]	ptr	the memory to write
+  @param[in,out]        ptr     the memory to write
   @return next to the end of the multi-value data log */
   byte *log(byte **ptr);
 
   /** Read the log length for the multi-value data log starting from ptr
-  @param[in]	ptr	log starting from here
+  @param[in]    ptr     log starting from here
   @return the length of this log */
   static uint32_t read_log_len(const byte *ptr);
 
   /** Read the multi-value data from the ptr
-  @param[in]		ptr	log starting from here
-  @param[in,out]	field	multi-value data field to store the array
-  @param[in,out]	heap	memory heap
+  @param[in]            ptr     log starting from here
+  @param[in,out]        field   multi-value data field to store the array
+  @param[in,out]        heap    memory heap
   @return next to the end of the multi-value data log */
   static const byte *read(const byte *ptr, dfield_t *field, mem_heap_t *heap);
 
   /** Estimate how many multi-value keys at most can be accomodated into the
   log of specified size.
-  @param[in]	log_size	max log size
-  @param[in]	key_length	max multi-value key length, charset considered
-  @param[out]	num_keys	max possible number of multi-value keys
+  @param[in]    log_size        max log size
+  @param[in]    key_length      max multi-value key length, charset considered
+  @param[out]   num_keys        max possible number of multi-value keys
   @return the total size of the keys, let's assume all keys are concatenated
   one by one compactly */
   static uint32_t get_keys_capacity(uint32_t log_size, uint32_t key_length,
@@ -637,8 +602,8 @@ class Multi_value_logger {
 
 /** Structure for an SQL data field */
 struct dfield_t {
-  void *data;       /*!< pointer to data */
-  unsigned ext : 1; /*!< TRUE=externally stored, FALSE=local */
+  void *data; /*!< pointer to data */
+  bool ext;   /*!< true=externally stored, false=local */
   unsigned spatial_status : 2;
   /*!< spatial status of externally stored field
   in undo log for purge */
@@ -649,14 +614,14 @@ struct dfield_t {
 
   void reset() {
     data = nullptr;
-    ext = FALSE;
+    ext = false;
     spatial_status = SPATIAL_UNKNOWN, len = 0;
   }
 
   /** Create a deep copy of this object
-  @param[in]	heap	the memory heap in which the clone will be
+  @param[in]    heap    the memory heap in which the clone will be
                           created.
-  @return	the cloned object. */
+  @return       the cloned object. */
   dfield_t *clone(mem_heap_t *heap);
 
   byte *blobref() const;
@@ -669,17 +634,17 @@ struct dfield_t {
       : data(nullptr), ext(0), spatial_status(0), len(0), type({0, 0, 0, 0}) {}
 
   /** Print the dfield_t object into the given output stream.
-  @param[in]	out	the output stream.
-  @return	the ouput stream. */
+  @param[in]    out     the output stream.
+  @return       the ouput stream. */
   std::ostream &print(std::ostream &out) const;
 
   /** Adjust and(or) set virtual column value which is read from undo
   or online DDL log
-  @param[in]	vcol	virtual column definition
-  @param[in]	comp	true if compact format
-  @param[in]	field	virtual column value
-  @param[in]	len	value length
-  @param[in,out]	heap	memory heap to keep value when necessary */
+  @param[in]    vcol    virtual column definition
+  @param[in]    comp    true if compact format
+  @param[in]    field   virtual column value
+  @param[in]    len     value length
+  @param[in,out]        heap    memory heap to keep value when necessary */
   void adjust_v_data_mysql(const dict_v_col_t *vcol, bool comp,
                            const byte *field, ulint len, mem_heap_t *heap);
 };
@@ -687,11 +652,11 @@ struct dfield_t {
 /** Compare a multi-value clustered index field with a secondary index
 field, to see if they are equal. If the clustered index field is the
 array, then equal means it contains the secondary index field
-@param[in]	clust_field	clustered index field
-@param[in]	clust_len	clustered index field length
-@param[in]	sec_field	secondary index field
-@param[in]	sec_len		secondary index field length
-@param[in]	col		the column tied to this field
+@param[in]      clust_field     clustered index field
+@param[in]      clust_len       clustered index field length
+@param[in]      sec_field       secondary index field
+@param[in]      sec_len         secondary index field length
+@param[in]      col             the column tied to this field
 @return true if they are equal, otherwise false */
 bool is_multi_value_clust_and_sec_equal(const byte *clust_field,
                                         uint64_t clust_len,
@@ -700,48 +665,53 @@ bool is_multi_value_clust_and_sec_equal(const byte *clust_field,
 
 /** Overloading the global output operator to easily print the given dfield_t
 object into the given output stream.
-@param[in]	out	the output stream
-@param[in]	obj	the given object to print.
+@param[in]      out     the output stream
+@param[in]      obj     the given object to print.
 @return the output stream. */
 inline std::ostream &operator<<(std::ostream &out, const dfield_t &obj) {
   return (obj.print(out));
 }
 
+#ifdef UNIV_DEBUG
+/** Value of dtuple_t::magic_n */
+constexpr uint32_t DATA_TUPLE_MAGIC_N = 65478679;
+#endif
+
 /** Structure for an SQL data tuple of fields (logical record) */
 struct dtuple_t {
   /** info bits of an index record: the default is 0; this field is used if an
   index record is built from a data tuple */
-  ulint info_bits;
+  uint16_t info_bits;
 
   /** Number of fields in dtuple */
-  ulint n_fields;
+  uint16_t n_fields;
 
   /** number of fields which should be used in comparison services of rem0cmp.*;
   the index search is performed by comparing only these fields, others are
   ignored; the default value in dtuple creation is the same value as n_fields */
-  ulint n_fields_cmp;
+  uint16_t n_fields_cmp;
 
   /** Fields. */
   dfield_t *fields;
 
   /** Number of virtual fields. */
-  ulint n_v_fields;
+  uint16_t n_v_fields;
 
   /** Fields on virtual column */
   dfield_t *v_fields;
 
   /** Data tuples can be linked into a list using this field */
   UT_LIST_NODE_T(dtuple_t) tuple_list;
+
 #ifdef UNIV_DEBUG
-  /** memory heap where this tuple is allocated. */
-  mem_heap_t *m_heap;
+  /** Memory heap where this tuple is allocated. */
+  mem_heap_t *m_heap{};
+
+  /** Value of dtuple_t::magic_n */
+  static constexpr size_t MAGIC_N = 614679;
 
   /** Magic number, used in debug assertions */
-  ulint magic_n;
-
-/** Value of dtuple_t::magic_n */
-#define DATA_TUPLE_MAGIC_N 65478679
-
+  size_t magic_n{MAGIC_N};
 #endif /* UNIV_DEBUG */
 
   /** Print the tuple to the output stream.
@@ -749,7 +719,7 @@ struct dtuple_t {
   @return stream */
   std::ostream &print(std::ostream &out) const {
     dtuple_print(out, this);
-    return (out);
+    return out;
   }
 
   /** Read the trx id from the tuple (DB_TRX_ID)
@@ -758,14 +728,14 @@ struct dtuple_t {
 
   /** Ignore at most n trailing default fields if this is a tuple
   from instant index
-  @param[in]	index	clustered index object for this tuple */
+  @param[in]    index   clustered index object for this tuple */
   void ignore_trailing_default(const dict_index_t *index);
 
   /** Compare a data tuple to a physical record.
-  @param[in]	rec		record
-  @param[in]	index		index
-  @param[in]	offsets		rec_get_offsets(rec)
-  @param[in,out]	matched_fields	number of completely matched fields
+  @param[in]    rec             record
+  @param[in]    index           index
+  @param[in]    offsets         rec_get_offsets(rec)
+  @param[in,out]        matched_fields  number of completely matched fields
   @return the comparison result of dtuple and rec
   @retval 0 if dtuple is equal to rec
   @retval negative if dtuple is less than rec
@@ -774,9 +744,9 @@ struct dtuple_t {
               ulint *matched_fields) const;
 
   /** Compare a data tuple to a physical record.
-  @param[in]	rec		record
-  @param[in]	index		index
-  @param[in]	offsets		rec_get_offsets(rec)
+  @param[in]    rec             record
+  @param[in]    index           index
+  @param[in]    offsets         rec_get_offsets(rec)
   @return the comparison result of dtuple and rec
   @retval 0 if dtuple is equal to rec
   @retval negative if dtuple is less than rec
@@ -790,34 +760,34 @@ struct dtuple_t {
 
   /** Get number of externally stored fields.
   @retval number of externally stored fields. */
-  inline ulint get_n_ext() const {
-    ulint n_ext = 0;
-    for (size_t i = 0; i < n_fields; ++i) {
+  inline size_t get_n_ext() const {
+    size_t n_ext = 0;
+    for (uint32_t i = 0; i < n_fields; ++i) {
       if (dfield_is_ext(&fields[i])) {
-        n_ext++;
+        ++n_ext;
       }
     }
-    return (n_ext);
+    return n_ext;
   }
 
   /** Does tuple has externally stored fields.
   @retval true if there is externally stored fields. */
   inline bool has_ext() const {
-    for (size_t i = 0; i < n_fields; ++i) {
+    for (uint32_t i = 0; i < n_fields; ++i) {
       if (dfield_is_ext(&fields[i])) {
-        return (true);
+        return true;
       }
     }
-    return (false);
+    return false;
   }
 };
 
 /** A slot for a field in a big rec vector */
 struct big_rec_field_t {
   /** Constructor.
-  @param[in]	field_no_	the field number
-  @param[in]	len_		the data length
-  @param[in]	data_		the data */
+  @param[in]    field_no_       the field number
+  @param[in]    len_            the data length
+  @param[in]    data_           the data */
   big_rec_field_t(ulint field_no_, ulint len_, void *data_)
       : field_no(field_no_),
         len(len_),
@@ -840,15 +810,15 @@ struct big_rec_field_t {
   bool ext_in_new;
 
   /** Print the big_rec_field_t object into the given output stream.
-  @param[in]	out	the output stream.
-  @return	the ouput stream. */
+  @param[in]    out     the output stream.
+  @return       the ouput stream. */
   std::ostream &print(std::ostream &out) const;
 };
 
 /** Overloading the global output operator to easily print the given
 big_rec_field_t object into the given output stream.
-@param[in]	out	the output stream
-@param[in]	obj	the given object to print.
+@param[in]      out     the output stream
+@param[in]      obj     the given object to print.
 @return the output stream. */
 inline std::ostream &operator<<(std::ostream &out, const big_rec_field_t &obj) {
   return (obj.print(out));
@@ -864,7 +834,7 @@ struct big_rec_t {
   big_rec_field_t *fields; /*!< stored fields */
 
   /** Constructor.
-  @param[in]	max	the capacity of the array of fields. */
+  @param[in]    max     the capacity of the array of fields. */
   explicit big_rec_t(const ulint max)
       : heap(nullptr), capacity(max), n_fields(0), fields(nullptr) {}
 
@@ -877,22 +847,22 @@ struct big_rec_t {
 
   /** Allocate a big_rec_t object in the given memory heap, and for
   storing n_fld number of fields.
-  @param[in]	heap	memory heap in which this object is allocated
-  @param[in]	n_fld	maximum number of fields that can be stored in
+  @param[in]    heap    memory heap in which this object is allocated
+  @param[in]    n_fld   maximum number of fields that can be stored in
                   this object
   @return the allocated object */
   static big_rec_t *alloc(mem_heap_t *heap, ulint n_fld);
 
   /** Print the current object into the given output stream.
-  @param[in]	out	the output stream.
-  @return	the ouput stream. */
+  @param[in]    out     the output stream.
+  @return       the ouput stream. */
   std::ostream &print(std::ostream &out) const;
 };
 
 /** Overloading the global output operator to easily print the given
 big_rec_t object into the given output stream.
-@param[in]	out	the output stream
-@param[in]	obj	the given object to print.
+@param[in]      out     the output stream
+@param[in]      obj     the given object to print.
 @return the output stream. */
 inline std::ostream &operator<<(std::ostream &out, const big_rec_t &obj) {
   return (obj.print(out));

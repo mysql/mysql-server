@@ -1,0 +1,43 @@
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+syntax = "proto2";
+
+option optimize_for = LITE_RUNTIME;
+
+package protobuf_replication_group_member_actions;
+
+message Action {
+  required string name = 1;
+  required string event = 2;
+  required bool enabled = 3;
+  required string type = 4;
+  required uint32 priority = 5;
+  required string error_handling = 6;
+}
+
+message ActionList {
+  required string origin = 1;
+  required uint64 version = 2;
+  required bool force_update = 3 [default = false];
+  repeated Action action = 4;
+}

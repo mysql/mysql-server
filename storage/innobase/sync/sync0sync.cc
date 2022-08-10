@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -61,7 +61,7 @@ mysql_pfs_key_t buf_pool_free_list_mutex_key;
 mysql_pfs_key_t buf_pool_zip_free_mutex_key;
 mysql_pfs_key_t buf_pool_zip_hash_mutex_key;
 mysql_pfs_key_t buf_pool_zip_mutex_key;
-mysql_pfs_key_t cache_last_read_mutex_key;
+mysql_pfs_key_t ddl_autoinc_mutex_key;
 mysql_pfs_key_t dict_foreign_err_mutex_key;
 mysql_pfs_key_t dict_persist_dirty_tables_mutex_key;
 mysql_pfs_key_t dict_sys_mutex_key;
@@ -86,6 +86,7 @@ mysql_pfs_key_t log_flusher_mutex_key;
 mysql_pfs_key_t log_write_notifier_mutex_key;
 mysql_pfs_key_t log_flush_notifier_mutex_key;
 mysql_pfs_key_t log_limits_mutex_key;
+mysql_pfs_key_t log_files_mutex_key;
 mysql_pfs_key_t log_cmdq_mutex_key;
 mysql_pfs_key_t log_sn_lock_key;
 mysql_pfs_key_t log_sn_mutex_key;
@@ -127,6 +128,8 @@ mysql_pfs_key_t lock_sys_table_mutex_key;
 mysql_pfs_key_t lock_sys_page_mutex_key;
 mysql_pfs_key_t lock_wait_mutex_key;
 mysql_pfs_key_t trx_sys_mutex_key;
+mysql_pfs_key_t trx_sys_shard_mutex_key;
+mysql_pfs_key_t trx_sys_serialisation_mutex_key;
 mysql_pfs_key_t srv_sys_mutex_key;
 mysql_pfs_key_t srv_threads_mutex_key;
 #ifndef PFS_SKIP_EVENT_MUTEX
@@ -195,7 +198,7 @@ static void sync_print_wait_info(FILE *file) {
 }
 
 /** Prints info of the sync system.
-@param[in]	file	where to print */
+@param[in]      file    where to print */
 void sync_print(FILE *file) {
 #ifdef UNIV_DEBUG
   rw_lock_list_print_info(file);
@@ -207,7 +210,7 @@ void sync_print(FILE *file) {
 }
 
 /** Print the filename "basename" e.g., p = "/a/b/c/d/e.cc" -> p = "e.cc"
-@param[in]	filename	Name from where to extract the basename
+@param[in]      filename        Name from where to extract the basename
 @return the basename */
 const char *sync_basename(const char *filename) {
   const char *ptr = filename + strlen(filename) - 1;
@@ -223,8 +226,8 @@ const char *sync_basename(const char *filename) {
 
 /** String representation of the filename and line number where the
 latch was created
-@param[in]	id		Latch ID
-@param[in]	created		Filename and line number where it was crated
+@param[in]      id              Latch ID
+@param[in]      created         Filename and line number where it was crated
 @return the string representation */
 std::string sync_mutex_to_string(latch_id_t id, const std::string &created) {
   std::ostringstream msg;
@@ -278,8 +281,7 @@ void MutexMonitor::reset() {
 
   mutex_enter(&rw_lock_list_mutex);
 
-  for (rw_lock_t *rw_lock = UT_LIST_GET_FIRST(rw_lock_list); rw_lock != nullptr;
-       rw_lock = UT_LIST_GET_NEXT(list, rw_lock)) {
+  for (auto rw_lock : rw_lock_list) {
     rw_lock->count_os_wait = 0;
   }
 

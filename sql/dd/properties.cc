@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,6 +133,9 @@ bool Properties::get(const String_type &key, Value_type *value) const {
 
 template bool Properties::get<bool>(const String_type &, bool *) const;
 
+template bool Properties::get<unsigned short>(const String_type &,
+                                              unsigned short *) const;
+
 template bool Properties::get<unsigned int>(const String_type &,
                                             unsigned int *) const;
 
@@ -150,12 +153,19 @@ template bool Properties::get<MYSQL_LEX_CSTRING>(const String_type &,
                                                  MYSQL_LEX_CSTRING *,
                                                  MEM_ROOT *) const;
 
+template bool Properties::get<short>(const String_type &, short *) const;
+
 template bool Properties::get<int>(const String_type &, int *) const;
 
 template bool Properties::get<long>(const String_type &, long *) const;
 
 template bool Properties::get<long long>(const String_type &,
                                          long long *) const;
+
+template bool Properties::from_str<short>(const String_type &, short *);
+
+template bool Properties::from_str<unsigned short>(const String_type &,
+                                                   unsigned short *);
 
 template bool Properties::from_str<int>(const String_type &, int *);
 
@@ -172,26 +182,28 @@ template bool Properties::from_str<long long>(const String_type &, long long *);
 template bool Properties::from_str<unsigned long long>(const String_type &,
                                                        unsigned long long *);
 
-template String_type Properties::to_str<int>(int);
+template String_type Properties::to_str<bool>(bool);
 
-template String_type Properties::to_str<Field::geometry_type>(
-    Field::geometry_type);
+template String_type Properties::to_str<short>(short);
+
+template String_type Properties::to_str<int>(int);
 
 template String_type Properties::to_str<long>(long);
 
 template String_type Properties::to_str<long long>(long long);
 
-template String_type Properties::to_str<unsigned long long>(unsigned long long);
-
-template String_type Properties::to_str<bool>(bool);
+template String_type Properties::to_str<unsigned short>(unsigned short);
 
 template String_type Properties::to_str<unsigned int>(unsigned int);
 
 template String_type Properties::to_str<unsigned long>(unsigned long);
 
+template String_type Properties::to_str<unsigned long long>(unsigned long long);
+
 template String_type Properties::to_str<char const *>(char const *);
 
-template String_type Properties::to_str<unsigned short>(unsigned short);
+template String_type Properties::to_str<Field::geometry_type>(
+    Field::geometry_type);
 
 template String_type Properties::to_str<row_type>(row_type);
 

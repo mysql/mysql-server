@@ -49,7 +49,7 @@ SET(WARP_PLUGIN_STATIC  "warp")
 SET(WARP_PLUGIN_SHARED  "warp_udf")
 SET(WARP_PLUGIN_MANDATORY TRUE)
 
-SET(WARP_SOURCES  ha_warp.cc ha_warp.h)
+SET(WARP_SOURCES  ../../sql/abstract_query_plan.cc ha_warp.cc ha_warp.h)
 SET(FASTBIT_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so.1  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so.1.0.0)
 
 MYSQL_ADD_PLUGIN(warp ${WARP_SOURCES} STORAGE_ENGINE MANDATORY)

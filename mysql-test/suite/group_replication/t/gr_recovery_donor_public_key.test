@@ -19,6 +19,8 @@
 #    must change to ONLINE.
 # 6. Clean up.
 ################################################################################
+
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/big_test.inc
 --source include/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1

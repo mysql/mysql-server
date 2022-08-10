@@ -1,27 +1,28 @@
- /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/*
+  Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "WakeupHandler.hpp"
 #include "Ndb.hpp"
 #include "NdbImpl.hpp"
@@ -97,8 +98,7 @@ void MultiNdbWakeupHandler::finalize_wait(int *nready)
   *nready = num_completed_trans;
 }
 
-
-void MultiNdbWakeupHandler::registerNdb(Ndb *obj, Uint32 pos)
+void MultiNdbWakeupHandler::registerNdb(Ndb* obj)
 {
   NdbMutex_Lock(obj->theImpl->m_mutex);
   obj->theImpl->wakeHandler = this;
@@ -169,7 +169,7 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
   for (Uint32 i = 0; i < cnt; i++)
   {
     /* Register the Ndb's */
-    registerNdb(objs[i], i);
+    registerNdb(objs[i]);
   }
 
   int ret = -1;
@@ -238,8 +238,8 @@ void MultiNdbWakeupHandler::swapNdbsInArray(Uint32 indexA, Uint32 indexB)
   objs[indexB] = a;
 }
 
-
-void MultiNdbWakeupHandler::notifyTransactionCompleted(Ndb* from)
+void MultiNdbWakeupHandler::notifyTransactionCompleted(Ndb* from
+                                                       [[maybe_unused]])
 {
   Uint32 num_completed_trans;
   if (!wakeNdb->theImpl->is_locked_for_poll())

@@ -5,13 +5,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 CALL mtr.add_suppression('The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.');
-SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
-SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
-SET @save_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET @save_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
-SET @@GLOBAL.slave_parallel_type = LOGICAL_CLOCK;
-SET @@GLOBAL.slave_parallel_workers = 3;
-SET @@GLOBAL.slave_transaction_retries = 0;
+SET @@GLOBAL.replica_parallel_type = LOGICAL_CLOCK;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @@GLOBAL.replica_parallel_workers = 3;
+SET @@GLOBAL.replica_transaction_retries = 0;
 SET @@GLOBAL.innodb_lock_wait_timeout = 1;
 include/start_slave.inc
 [connection master]
@@ -43,9 +47,11 @@ ROLLBACK;
 [connection master]
 DROP TABLE child, parent;
 [connection slave]
-SET @@GLOBAL.slave_parallel_type= @save_slave_parallel_type;
-SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
-SET @@GLOBAL.slave_transaction_retries= @save_slave_transaction_retries;
+SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
+SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
 SET @@GLOBAL.innodb_lock_wait_timeout= @save_innodb_lock_wait_timeout;
 include/start_slave_sql.inc
 include/rpl_end.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,17 @@ MACRO(FIND_ICU_VERSION)
     "^.*U_ICU_VERSION_MAJOR_NUM[\t ]+([0-9]+)$" "\\1"
     ICU_MAJOR_VERSION ${ICU_MAJOR_VERSION_INFO}
     )
+
+  SET(ICU_VERSION "${ICU_MAJOR_VERSION}")
+  SET(ICU_VERSION "${ICU_VERSION}" CACHE INTERNAL "ICU major")
+  MESSAGE(STATUS "ICU_VERSION (${WITH_ICU}) is ${ICU_VERSION}")
+  IF(WITH_ICU STREQUAL "system")
+    MESSAGE(STATUS "ICU_INCLUDE_DIR ${ICU_INCLUDE_DIR}")
+  ELSE()
+    MESSAGE(STATUS "ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIRS}")
+  ENDIF()
+  MESSAGE(STATUS "ICU_LIBRARIES ${ICU_LIBRARIES}")
+
 ENDMACRO()
 
 #
@@ -60,6 +71,12 @@ MACRO (FIND_ICU install_root)
   IF("${install_root}" STREQUAL "system")
     SET(EXTRA_FIND_LIB_ARGS)
     SET(EXTRA_FIND_INC_ARGS)
+    IF(APPLE)
+      SET(EXTRA_FIND_LIB_ARGS HINTS "${HOMEBREW_HOME}/icu4c"
+        PATH_SUFFIXES "lib")
+      SET(EXTRA_FIND_INC_ARGS HINTS "${HOMEBREW_HOME}/icu4c"
+        PATH_SUFFIXES "include")
+    ENDIF()
   ELSE()
     SET(EXTRA_FIND_LIB_ARGS HINTS "${install_root}"
       PATH_SUFFIXES "lib" "lib64" NO_DEFAULT_PATH)
@@ -102,13 +119,22 @@ MACRO (FIND_ICU install_root)
 
 ENDMACRO()
 
+SET(ICU_VERSION_DIR "icu-release-69-1")
+SET(BUNDLED_ICU_PATH ${CMAKE_SOURCE_DIR}/extra/icu/${ICU_VERSION_DIR})
+
+# ICU data files come in two flavours, big and little endian.
+# (Actually, there's an 'e' for EBCDIC version as well.)
+IF(SOLARIS_SPARC)
+  SET(ICUDT_DIR "icudt69b")
+ELSE()
+  SET(ICUDT_DIR "icudt69l")
+ENDIF()
+
+
 MACRO (MYSQL_USE_BUNDLED_ICU)
   SET(WITH_ICU "bundled" CACHE STRING "Use bundled icu library")
-  SET(BUILD_BUNDLED_ICU 1)
-  # To do: remove
-  SET(UDATA_DEBUG 1)
-  SET(ICU_DIR ${CMAKE_SOURCE_DIR}/extra/icu)
-  SET(ICU_SOURCE_DIR ${ICU_DIR}/source)
+
+  SET(ICU_SOURCE_DIR ${BUNDLED_ICU_PATH}/source)
   SET(ICU_COMMON_DIR ${ICU_SOURCE_DIR}/common)
 
   SET(ICU_INCLUDE_DIRS
@@ -122,7 +148,7 @@ MACRO (MYSQL_USE_BUNDLED_ICU)
   UNSET(ICU_LIB_PATH)
   UNSET(ICU_LIB_PATH CACHE)
 
-  ADD_SUBDIRECTORY(${ICU_DIR})
+  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/extra/icu)
 
   SET(ICU_LIBRARIES icui18n icuuc icustubdata)
 
@@ -153,9 +179,5 @@ MACRO (MYSQL_CHECK_ICU)
       "ICU version must be at least ${MIN_ICU_VERSION_REQUIRED}, "
       "found ${ICU_MAJOR_VERSION}.\nPlease use -DWITH_ICU=bundled")
   ENDIF()
-
-  MESSAGE(STATUS "ICU_MAJOR_VERSION = ${ICU_MAJOR_VERSION}")
-  MESSAGE(STATUS "ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIRS}")
-  MESSAGE(STATUS "ICU_LIBRARIES ${ICU_LIBRARIES}")
 
 ENDMACRO()

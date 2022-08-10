@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,18 @@
 
 #include <signaldata/UtilPrepare.hpp>
 
-bool 
-printUTIL_PREPARE_REQ(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
+bool printUTIL_PREPARE_REQ(FILE* out,
+                           const Uint32* data,
+                           Uint32 len,
+                           Uint16 /*rec*/)
 {
-  UtilPrepareReq* sig = (UtilPrepareReq*)data;
+  if (len < UtilPrepareReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const UtilPrepareReq* sig = (const UtilPrepareReq*)data;
   fprintf(out, " senderRef: H'%.8x senderData: H'%.8x schemaTransId: H'%.8x\n",
 	  sig->senderRef,
 	  sig->senderData,
@@ -36,20 +44,36 @@ printUTIL_PREPARE_REQ(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
   return true;
 }
 
-bool 
-printUTIL_PREPARE_CONF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
+bool printUTIL_PREPARE_CONF(FILE* out,
+                            const Uint32* data,
+                            Uint32 len,
+                            Uint16 /*rec*/)
 {
-  UtilPrepareConf* sig = (UtilPrepareConf*)data;
+  if (len < UtilPrepareConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const UtilPrepareConf* sig = (const UtilPrepareConf*)data;
   fprintf(out, " senderData: H'%.8x prepareId: %d\n",
 	  sig->senderData,
 	  sig->prepareId);
   return true;
 }
 
-bool 
-printUTIL_PREPARE_REF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
+bool printUTIL_PREPARE_REF(FILE* out,
+                           const Uint32* data,
+                           Uint32 len,
+                           Uint16 /*rec*/)
 {
-  UtilPrepareRef* sig = (UtilPrepareRef*)data;
+  if (len < UtilPrepareRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const UtilPrepareRef* sig = (const UtilPrepareRef*)data;
   fprintf(out, " senderData: H'%.8x, ", sig->senderData);
   fprintf(out, " error: %d, ", sig->errorCode);
 

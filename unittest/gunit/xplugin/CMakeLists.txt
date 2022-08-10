@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -45,9 +45,7 @@ INCLUDE_DIRECTORIES(
   ${MYSQLX_CLIENT_INCLUDE_DIR}
 )
 
-# Protobuf 3 will generate #if PROTOBUF_INLINE_NOT_IN_HEADERS
-# which may fail with -Werror=undef
-ADD_DEFINITIONS(-DPROTOBUF_INLINE_NOT_IN_HEADERS=0 -DXPLUGIN_DISABLE_LOG)
+ADD_DEFINITIONS(-DXPLUGIN_DISABLE_LOG)
 # Protobuf 3.7.0 will generate #if 3007000 < PROTOBUF_MIN_PROTOC_VERSION
 IF(PROTOBUF_VERSION_NUMBER MATCHES "3007000")
   ADD_DEFINITIONS(-DPROTOBUF_MIN_PROTOC_VERSION=2006000)

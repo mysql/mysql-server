@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,8 @@
 class CopyTabReq {
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLengthExtra = 23 );
-  STATIC_CONST( SignalLength = 21 );
+  static constexpr Uint32 SignalLengthExtra = 23;
+  static constexpr Uint32 SignalLength = 21;
 
   enum TabLcpStatus
   {
@@ -56,7 +56,7 @@ private:
 class CopyTabConf {
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 private:
   Uint32 nodeId;

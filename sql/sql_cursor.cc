@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include "my_compiler.h"
 
 #include "my_inttypes.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql_com.h"
 #include "sql/debug_sync.h"
 #include "sql/field.h"
@@ -230,6 +230,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   parent_locker = thd->m_statement_psi;
   thd->m_digest = nullptr;
   thd->m_statement_psi = nullptr;
+  DBUG_EXECUTE_IF("bug33218625_kill_injection", thd->killed = THD::KILL_QUERY;);
 
   bool rc = mysql_execute_command(thd);
 
@@ -276,12 +277,6 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
 
   return false;
 }
-
-/****************************************************************************
-  Server_side_cursor
-****************************************************************************/
-
-void Server_side_cursor::operator delete(void *, size_t) {}
 
 /***************************************************************************
  Materialized_cursor
@@ -406,7 +401,6 @@ bool Materialized_cursor::fetch(ulong num_rows) {
   THD *thd = current_thd;
 
   int res = 0;
-  result->begin_dataset();
   for (fetch_limit += num_rows; fetch_count < fetch_limit; fetch_count++) {
     if ((res = table->file->ha_rnd_next(table->record[0]))) break;
     /* Send data only if the read was successful. */

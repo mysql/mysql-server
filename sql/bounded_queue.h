@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,14 +115,18 @@ class Bounded_queue {
 
     if (m_queue.size() == m_queue.capacity()) {
       const Key_type &pq_top = m_queue.top();
-      const uint MY_ATTRIBUTE((unused)) rec_sz =
+      [[maybe_unused]] const uint rec_sz =
           m_sort_param->make_sortkey(pq_top, element_size, opaque);
-      assert(rec_sz <= m_element_size);
+      // UINT_MAX means error, but we do not want to add a dependency
+      // on class THD here, as in current_thd->is_error().
+      assert(rec_sz <= m_element_size || rec_sz == UINT_MAX);
       m_queue.update_top();
     } else {
-      const uint MY_ATTRIBUTE((unused)) rec_sz = m_sort_param->make_sortkey(
+      [[maybe_unused]] const uint rec_sz = m_sort_param->make_sortkey(
           m_sort_keys[m_queue.size()], element_size, opaque);
-      assert(rec_sz <= m_element_size);
+      // UINT_MAX means error, but we do not want to add a dependency
+      // on class THD here, as in current_thd->is_error().
+      assert(rec_sz <= m_element_size || rec_sz == UINT_MAX);
       m_queue.push(m_sort_keys[m_queue.size()]);
     }
   }

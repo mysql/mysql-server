@@ -102,20 +102,14 @@ if ($mecab_charset == '') {
   -- skip Test fail to load mecab parser, IPADIC files for $ipadic_charset might be missing.
 }
 
-if ($mecab_charset != $mysql_charset) {
-  UNINSTALL PLUGIN mecab;
-  --remove_file $MYSQL_DATADIR/mecabrc
-  -- skip Test mecab charset mismatch (MeCab: $mecab_charset vs MySQL: $mysql_charset). Correct IPADIC files might be missing.
-}
-
 --enable_query_log
 
 SHOW STATUS LIKE 'mecab_charset';
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 eval CREATE TABLE page (
   page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
-  page_title varchar(255) CHARACTER SET $mecab_charset NOT NULL DEFAULT '',
+  page_title varchar(255) CHARACTER SET $mysql_charset NOT NULL DEFAULT '',
   PRIMARY KEY (page_id),
   FULLTEXT KEY page_title (page_title) WITH PARSER mecab
 ) ENGINE=InnoDB;
@@ -134,7 +128,8 @@ INSERT INTO page VALUES
 (11,'鉄道');
 
 SET GLOBAL innodb_ft_aux_table="test/page";
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+ORDER BY WORD, DOC_ID, POSITION;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 
 SHOW CREATE TABLE page;
@@ -153,7 +148,7 @@ SELECT * FROM page WHERE MATCH(page_title) AGAINST("<ラフィタ・カスティ
 SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道');
 SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道' WITH QUERY EXPANSION);
 
-eval ALTER TABLE page add column c1 varchar(100) CHARACTER SET $mecab_charset DEFAULT 'ﾚﾓﾅ';
+eval ALTER TABLE page add column c1 varchar(100) CHARACTER SET $mysql_charset DEFAULT 'ﾚﾓﾅ';
 ALTER TABLE page ADD FULLTEXT INDEX idx1 (page_title,c1) WITH PARSER mecab;
 SELECT * FROM page WHERE MATCH(page_title,c1) AGAINST('ﾚﾓﾅ');
 SELECT * FROM page WHERE MATCH(page_title,c1) AGAINST('-ﾚﾓﾅ' IN BOOLEAN MODE);
@@ -169,22 +164,22 @@ CREATE TABLE page (
 
 INSERT INTO page VALUES (1,'日本');
 
-# We don't return charset mismatch error because of parallel fts build.
+--error ER_ERROR_ON_WRITE
 CREATE FULLTEXT INDEX ft_idx ON page(page_title) WITH PARSER mecab;
 
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+ORDER BY WORD, DOC_ID, POSITION;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 
---error ER_ERROR_ON_WRITE
 INSERT INTO page VALUES (2,'日本');
 
---error ER_ERROR_ON_WRITE
+--error ER_FT_MATCHING_KEY_NOT_FOUND
 SELECT * FROM page WHERE MATCH(page_title) AGAINST('日本');
 
 DROP TABLE page;
 
 # Test utf8mb4
-if ($mecab_charset == 'utf8')
+if ($mecab_charset == 'utf8mb4')
 {
   SET NAMES utf8mb4;
 
@@ -202,7 +197,8 @@ if ($mecab_charset == 'utf8')
     (3,'鉄道😊100電車');
 
   SET GLOBAL innodb_ft_aux_table="test/page";
-  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+  ORDER BY WORD, DOC_ID, POSITION;
   SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 
   SHOW CREATE TABLE page;
@@ -232,7 +228,8 @@ if ($mysql_win_charset)
     (3,'鉄道ⅴ100電車');
 
   SET GLOBAL innodb_ft_aux_table="test/page";
-  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+  ORDER BY WORD, DOC_ID, POSITION;
   SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 
   SHOW CREATE TABLE page;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@ class Source_IO_monitor {
   Source_IO_monitor();
 
   /* Source_IO_monitor class destructor */
-  ~Source_IO_monitor() {}
+  virtual ~Source_IO_monitor();
 
   /* Source_IO_monitor class copy constructor (restricted) */
   Source_IO_monitor(const Source_IO_monitor &) = delete;
@@ -139,12 +139,12 @@ class Source_IO_monitor {
   /**
     Fetch Source_IO_monitor class instance.
 
-    @return Reference to the Source_IO_monitor class instance.
+    @return Pointer to the Source_IO_monitor class instance.
   */
-  static Source_IO_monitor &get_instance();
+  static Source_IO_monitor *get_instance();
 
   /**
-    Creates and lauches new Monitor IO thread.
+    Creates and launches new Monitor IO thread.
 
     @param[in] thread_key  instrumentation key
 
@@ -230,9 +230,6 @@ class Source_IO_monitor {
   /* The Monitor IO thread THD object. */
   THD *m_monitor_thd{nullptr};
 
-  /* The flag to determine if Monitor IO thread initiated */
-  static bool m_monitor_thd_initiated;
-
   /* The flag to determine if Monitor IO thread aborted */
   bool m_abort_monitor{false};
 
@@ -251,6 +248,8 @@ class Source_IO_monitor {
   /* Monitor IO thread state */
   thread_state m_monitor_thd_state;
 
+  bool m_primary_lost_contact_with_majority_warning_logged{false};
+
   /* Sql queries result column number */
   enum enum_res_col {
     COL_GROUP_NAME = 0,
@@ -259,16 +258,6 @@ class Source_IO_monitor {
     COL_STATE,
     COL_ROLE,
   };
-
-  /**
-    Initialized mutex and condition variables.
-  */
-  void init_mutex();
-
-  /**
-    Destroy initialized mutex and condition variables.
-  */
-  void cleanup_mutex();
 
   /**
     It gets stored senders details for channel from
@@ -354,7 +343,7 @@ class Source_IO_monitor {
       uint &curr_highest_group_weight, uint &curr_conn_weight);
 
   /**
-    Store gathered memebership details to
+    Store gathered membership details to
     replication_asynchronous_connection_failover table.
 
     @param[in] channel_name        The managed channel for which failover
@@ -398,7 +387,6 @@ class Source_IO_monitor {
     @param[in]  table_op     The Rpl_sys_table_access class object.
     @param[in]  table        The table object.
     @param[in]  field_name   The name of column/field of the table.
-    @param[in]  field_name   The name of column/field of the table.
     @param[in]  conn_detail  std::tuple containing <channel, host, port,
                              network_namespace, weight, group_name>
 
@@ -415,6 +403,15 @@ class Source_IO_monitor {
       Rpl_sys_table_access &table_op, TABLE *table,
       std::vector<std::string> field_name,
       RPL_FAILOVER_SOURCE_TUPLE conn_detail);
+
+  /**
+    Checks if primary member has lost contact with majority
+
+    @return status
+      @retval true  primary member has lost contact with majority
+      @retval false otherwise
+  */
+  bool has_primary_lost_contact_with_majority();
 
   /**
     Gets the Json key for primary weight for the Configuration column of

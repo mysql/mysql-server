@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -664,4 +664,70 @@ ndbd_support_backup_file_encryption(Uint32 x)
 {
   return x >= NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION;
 }
+
+/*
+ * NdbInterpreter may compare NULL values according to the semantic
+ * specified by the SQL standard, which is what MySQL expect. (WL#14476)
+ */
+#define NDBD_SUPPORT_SQL_COMPARE_SEMANTICS NDB_MAKE_VERSION(8,0,26)
+static
+inline
+int
+ndbd_support_sql_compare_semantics(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_SQL_COMPARE_SEMANTICS;
+}
+
+/*
+ * Only send GSN_TRP_KEEP_ALIVE to data nodes from 8.0.27 and newer.
+ */
+#define NDBD_SUPPORT_TRP_KEEP_ALIVE NDB_MAKE_VERSION(8,0,27)
+static
+inline
+bool
+ndbd_support_trp_keep_alive(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_TRP_KEEP_ALIVE;
+}
+
+/*
+ * SPJ implemented support for creating parameters to be sent in attrInfo
+ * section to LDMs, together with the Interpreter code. (WL#14388)
+ */
+#define NDBD_SUPPORT_PARAM_CMP NDB_MAKE_VERSION(8,0,27)
+static
+inline
+int
+ndbd_support_param_cmp(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_PARAM_CMP;
+}
+
+/*
+ * Replace EncryptionPasswordData with EncryptionKeyMaterial. Mostly compatible
+ * but old code had some redundant checks. New ndb_mgmd need to maintain the
+ * conditions when sending to old data nodes.
+ */
+#define NDBD_SUPPORT_ENCRYPTION_KEY_MATERIAL NDB_MAKE_VERSION(8,0,29)
+static
+inline
+bool
+ndbd_support_encryption_key_material(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_ENCRYPTION_KEY_MATERIAL;
+}
+
+/*
+ * Along with the newly added conflcit detection and resolution algorithms
+ * for INSERTs, support for Interpreted write is also added from 8.0.30.
+ */
+#define NDBD_INTERPRETED_WRITE NDB_MAKE_VERSION(8, 0, 30)
+static
+inline
+bool
+ndbd_interpreted_write_supported(Uint32 v)
+{
+  return v >= NDBD_INTERPRETED_WRITE;
+}
+
 #endif

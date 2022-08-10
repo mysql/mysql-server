@@ -176,7 +176,9 @@ SET global.max_prepared_stmt_count = 8000;
 --Error ER_UNKNOWN_TABLE
 SELECT global.max_prepared_stmt_count;
 --Error ER_BAD_FIELD_ERROR
-SELECT max_prepared_stmt_count = @@session.max_prepared_stmt_count;
+SELECT max_prepared_stmt_count;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.max_prepared_stmt_count;
 
 
 ##############################  

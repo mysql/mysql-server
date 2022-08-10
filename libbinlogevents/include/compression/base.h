@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,7 +172,7 @@ class Compressor : public Base_compressor_decompressor {
             element and false in the second. If not all bytes were compressed,
             it returns the number of remaining bytes not processed and false on
             the second element. If there was an error, then the second element
-            returns true and the first  elemement returns the number of bytes
+            returns true, and the first element returns the number of bytes
             processed until the error happened.
 
    */
@@ -204,7 +204,7 @@ class Decompressor : public Base_compressor_decompressor {
             element and false in the second. If not all bytes were decompressed,
             it returns the number of remaining bytes not processed and false on
             the second element. If there was an error, then the second element
-            returns true and the first  elemement returns the number of bytes
+            returns true, and the first element returns the number of bytes
             processed until the error happened.
    */
   virtual std::tuple<std::size_t, bool> decompress(const unsigned char *data,

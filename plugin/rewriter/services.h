@@ -1,6 +1,6 @@
 #ifndef SERVICES_INCLUDED
 #define SERVICES_INCLUDED
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
   The layer handles:
 
   - Copying between server and plugin memory. This is necessary on some
-    platforms (e.g. Windows) where dynamicly linked libraries have their own
+    platforms (e.g. Windows) where dynamically linked libraries have their own
     heap.
 
   - Wrapping raw const char * in std::string classes.
@@ -74,7 +74,7 @@ class Digest {
 
 class Literal_visitor {
  public:
-  virtual ~Literal_visitor() {}
+  virtual ~Literal_visitor() = default;
   virtual bool visit(MYSQL_ITEM item) = 0;
 };
 

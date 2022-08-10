@@ -19,26 +19,65 @@ DROP TABLE IF EXISTS `£Ô£¹b`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET collation_connection = ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 CREATE TABLE `£Ô£±a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£±b` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£²a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£²b` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£³a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£³b` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£´a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£´b` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£µa` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£µb` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£¶a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£¶b` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£·a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£·b` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£¸a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£¸b` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£¹a` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Ô£¹b` (`£Ã£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO `£Ô£±a` VALUES ('Ž±'),('Ž¶'),('Ž»');
 INSERT INTO `£Ô£±b` VALUES ('Ž±');
 INSERT INTO `£Ô£²a` VALUES ('¤¢'),('¤«'),('¤µ');

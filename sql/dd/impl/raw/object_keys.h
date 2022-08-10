@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ struct Raw_key;
 // Key type to be used for keys that are not supported by an object type.
 class Void_key : public Object_key {
  public:
-  Void_key() {}
+  Void_key() = default;
 
  public:
   /* purecov: begin inspected */
@@ -75,7 +75,7 @@ class Void_key : public Object_key {
 // Entity_object-id primary key for global objects.
 class Primary_id_key : public Object_key {
  public:
-  Primary_id_key() {}
+  Primary_id_key() = default;
 
   Primary_id_key(Object_id object_id) : m_object_id(object_id) {}
 
@@ -121,7 +121,7 @@ class Parent_id_range_key : public Object_key {
 // Entity_object-name key for global objects.
 class Global_name_key : public Object_key {
  public:
-  Global_name_key() {}
+  Global_name_key() = default;
 
   Global_name_key(int name_column_no, const String_type &object_name,
                   const CHARSET_INFO *cs)
@@ -164,7 +164,7 @@ class Global_name_key : public Object_key {
 // Entity_object-name key for objects which are identified within a container.
 class Item_name_key : public Object_key {
  public:
-  Item_name_key() {}
+  Item_name_key() = default;
 
   Item_name_key(int container_id_column_no, Object_id container_id,
                 int name_column_no, const String_type &object_name,
@@ -217,7 +217,7 @@ class Item_name_key : public Object_key {
 // TODO: find a better name.
 class Se_private_id_key : public Object_key {
  public:
-  Se_private_id_key() {}
+  Se_private_id_key() = default;
 
   /* purecov: begin deadcode */
   Se_private_id_key(int index_no, int engine_column_no,
@@ -433,7 +433,7 @@ class Index_stat_range_key : public Object_key {
 
 class Routine_name_key : public Object_key {
  public:
-  Routine_name_key() {}
+  Routine_name_key() = default;
 
   Routine_name_key(int index_no, int container_id_column_no,
                    Object_id container_id, int type_column_no, uint type,

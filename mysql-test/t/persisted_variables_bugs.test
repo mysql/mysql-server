@@ -1,4 +1,5 @@
 --source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
 
 --echo #
 --echo # Bug #27016247: SET PERSIST_ONLY DOES NOT CONSIDER RUNTIME VALIDATION
@@ -251,7 +252,7 @@ CREATE USER u1;
 # persist some static and dynamic variables
 SET PERSIST_ONLY ft_query_expansion_limit=80, innodb_api_enable_mdl=1;
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
-SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
 
 --connect(con1, localhost, u1)
 SHOW GRANTS;
@@ -298,7 +299,7 @@ disconnect con1;
 --connect(con1, localhost, u1)
 SHOW GRANTS;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 --error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 RESET PERSIST ft_query_expansion_limit;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
@@ -311,7 +312,7 @@ disconnect con1;
 # grant SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN
 --connect(con1, localhost, u1)
 SHOW GRANTS;
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 RESET PERSIST ft_query_expansion_limit;
 RESET PERSIST;
 
@@ -320,7 +321,7 @@ connection default;
 SELECT * FROM performance_schema.persisted_variables;
 # set variables to default
 SET GLOBAL sort_buffer_size = default, max_connections = default,
-  slave_net_timeout = default, max_heap_table_size = default;
+  replica_net_timeout = default, max_heap_table_size = default;
 DROP USER u1;
 disconnect con1;
 
@@ -330,7 +331,7 @@ disconnect con1;
 --echo #
 
 SELECT @@global.innodb_strict_mode, @@global.innodb_lock_wait_timeout;
-SELECT @@global.myisam_repair_threads, @@global.myisam_sort_buffer_size;
+SELECT @@global.myisam_sort_buffer_size;
 # enum variable type
 SELECT @@global.myisam_stats_method;
 SET PERSIST innodb_strict_mode=0;
@@ -338,8 +339,6 @@ SET GLOBAL innodb_lock_wait_timeout = 150;
 SELECT @@global.innodb_lock_wait_timeout;
 SET PERSIST innodb_lock_wait_timeout = 110;
 SELECT @@global.innodb_lock_wait_timeout;
-SET GLOBAL myisam_repair_threads=27;
-SET PERSIST myisam_repair_threads=12;
 SET GLOBAL myisam_sort_buffer_size=16777216;
 SET PERSIST myisam_sort_buffer_size=default;
 SELECT @@global.innodb_lock_wait_timeout;
@@ -348,12 +347,11 @@ SET PERSIST myisam_stats_method=nulls_equal;
 --source include/restart_mysqld.inc
 SELECT @@global.innodb_strict_mode;
 SELECT @@global.innodb_lock_wait_timeout;
-SELECT @@global.myisam_repair_threads;
 SELECT @@global.myisam_sort_buffer_size;
 SELECT @@global.myisam_stats_method;
 SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
 SET GLOBAL innodb_strict_mode=default, innodb_lock_wait_timeout=default,
-  myisam_repair_threads=default, myisam_stats_method=default;
+  myisam_stats_method=default;
 RESET PERSIST;
 
 --echo #
@@ -442,5 +440,89 @@ EOF
 
 --echo # start server with all defaults
 --source include/start_mysqld.inc
+
+--echo #
+--echo # Bug #32761053: SET PERSIST_ONLY ... = DEFAULT IS BROKEN FOR ENUM VARIABLES
+--echo #
+
+SET PERSIST_ONLY replica_exec_mode = DEFAULT;
+SELECT * FROM performance_schema.persisted_variables
+  WHERE variable_name='replica_exec_mode';
+
+RESET PERSIST;
+
+
+--echo #
+--echo # Bug #32640588: SOURCE FOR SKIP_SLAVE_START DISPLAYED AS COMPILED
+--echo #   WHEN IT IS PERSISTED
+--echo #
+
+--echo # Should both be "COMPILED"
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+  WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+SET PERSIST_ONLY skip_replica_start = ON;
+--echo # Should still be "COMPILED" pre-restart
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+  WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+--source include/restart_mysqld.inc
+--echo # Success criteria: Should be "PERSISTED" post-restart
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+  WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+RESET PERSIST;
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Bug #33388488: NO DEPRECATION WARNING ON SERVER RESTART IF TWO OR MORE
+--echo # PERSISTED OPTIONS
+--echo #
+
+SET PERSIST transaction_write_set_extraction='XXHASH64';
+SET PERSIST avoid_temporal_upgrade=TRUE;
+
+--let LOG_ERR=$MYSQLTEST_VARDIR/tmp/myerror.err
+--let $restart_parameters=restart:--log_error=$LOG_ERR --no-console
+--replace_result $LOG_ERR LOG_ERR
+--source include/restart_mysqld.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting transaction_write_set_extraction
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+RESET PERSIST;
+--remove_file $LOG_ERR
+
+SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
+SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
+
+--let $restart_parameters=restart:--log_error=$LOG_ERR --no-console
+--replace_result $LOG_ERR LOG_ERR
+--source include/restart_mysqld.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting transaction_write_set_extraction
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+RESET PERSIST;
+--remove_file $LOG_ERR
+
+# set to default
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
 
 --echo # End of the 8.0 tests

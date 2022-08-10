@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_force_load_corrupted);
 COUNT(@@GLOBAL.innodb_force_load_corrupted)
 1
 1 Expected
-SELECT innodb_force_load_corrupted = @@SESSION.innodb_force_load_corrupted;
+SELECT innodb_force_load_corrupted;
 ERROR 42S22: Unknown column 'innodb_force_load_corrupted' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

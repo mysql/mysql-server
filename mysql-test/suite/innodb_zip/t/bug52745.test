@@ -1,8 +1,16 @@
 -- source include/have_innodb_max_16k.inc
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+--enable_query_log
+
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+
 let $file_per_table=`select @@innodb_file_per_table`;
 SET GLOBAL innodb_file_per_table=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET SESSION innodb_strict_mode=OFF;
+--replace_regex /> [0-9]+/> NNNN/
 CREATE TABLE bug52745 (
   a2 int(10) unsigned DEFAULT NULL,
   col37 time DEFAULT NULL,
@@ -60,6 +68,7 @@ CREATE TABLE bug52745 (
   col89 float unsigned zerofill DEFAULT NULL,
   col90 tinyblob
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
 SET sql_mode = (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
 INSERT IGNORE INTO bug52745 SET
 col40='0000-00-00 00:00:00',

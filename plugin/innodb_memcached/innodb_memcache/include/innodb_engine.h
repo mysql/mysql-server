@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -103,33 +103,33 @@ struct innodb_conn_data_struct {
   void *result;                  /*!< result info */
   void **row_buf;                /*!< row buffer to cache row read,
                                  it is array of 16k pages */
-  ib_ulint_t row_buf_slot;       /*!< row buffer pages used so far */
-  ib_ulint_t row_buf_used;       /*!< row buffer used (for multi-get)
-                                 in a 16k buffer */
+  uint64_t row_buf_slot;         /*!< row buffer pages used so far */
+  uint64_t row_buf_used;         /*!< row buffer used (for multi-get)
+                                   in a 16k buffer */
   bool range;                    /*!< range search */
   innodb_range_key_t *range_key; /*!< range search key */
   bool multi_get;                /*!< multiple get */
   void *cmd_buf;                 /*!< buffer for incoming command */
-  ib_ulint_t cmd_buf_len;        /*!< cmd buffer len */
+  uint64_t cmd_buf_len;          /*!< cmd buffer len */
 #ifdef UNIV_MEMCACHED_SDI
   void *sdi_buf;
   uint64_t sdi_buf_len;
-#endif                         /* UNIV_MEMCACHED_SDI */
-  bool result_in_use;          /*!< result set or above row_buf
-                               contain active result set */
-  bool use_default_mem;        /*!<  whether to use default engine
-                               (memcached) memory */
-  char *mul_col_buf;           /*!< buffer to construct final result
-                               from multiple mapped column */
-  ib_ulint_t mul_col_buf_len;  /*!< mul_col_buf len */
-  ib_ulint_t mul_col_buf_used; /*!< used length for multi-col
+#endif                       /* UNIV_MEMCACHED_SDI */
+  bool result_in_use;        /*!< result set or above row_buf
+                             contain active result set */
+  bool use_default_mem;      /*!<  whether to use default engine
+                             (memcached) memory */
+  char *mul_col_buf;         /*!< buffer to construct final result
+                             from multiple mapped column */
+  uint64_t mul_col_buf_len;  /*!< mul_col_buf len */
+  uint64_t mul_col_buf_used; /*!< used length for multi-col
                               buffer */
-  mem_list_t mul_used_buf;     /*!< list of multi-result buffer that
-                               can no longer fit additional result */
-  bool in_use;                 /*!< whether the connection
-                               is processing a request */
-  bool is_stale;               /*!< connection closed, this is
-                               stale */
+  mem_list_t mul_used_buf;   /*!< list of multi-result buffer that
+                             can no longer fit additional result */
+  bool in_use;               /*!< whether the connection
+                             is processing a request */
+  bool is_stale;             /*!< connection closed, this is
+                             stale */
   bool is_waiting_for_mdl;
   /*!< Used to detrmine if the connection is
   locked and waiting on MDL */
@@ -193,7 +193,7 @@ typedef struct innodb_engine {
                             for InnoDB Memcached */
   ib_trx_level_t trx_level; /*!< transaction isolation
                             level */
-  ib_ulint_t bk_commit_interval;
+  uint64_t bk_commit_interval;
   /*!< background commit
   interval in seconds */
   int cfg_status;              /*!< configure status */

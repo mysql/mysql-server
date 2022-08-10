@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 #include <functional>
+#include <optional>
 #include <sstream>
 #include <vector>
 
@@ -34,10 +35,10 @@
 #include "client/base/abstract_program.h"
 #include "compression.h"
 #include "m_ctype.h"
+#include "multi_factor_passwordopt-vars.h"
 #include "mysys_err.h"
 #include "typelib.h"
 
-using Mysql::Nullable;
 using Mysql::Tools::Base::Abstract_program;
 using namespace Mysql::Tools::Base::Options;
 using std::string;
@@ -100,10 +101,20 @@ void Mysql_connection_options::create_options() {
       ->set_value_step(1024)
       ->set_value(1024 * 1024L - 1024);
   this->create_new_password_option(
-          &this->m_password, "password",
+          &this->m_password[0], "password",
           "Password to use when connecting to server. If password is not given,"
           " it's solicited on the tty.")
       ->set_short_character('p');
+  this->create_new_password_option(
+      &this->m_password[0], "password1",
+      "Password for first factor authentication plugin.");
+  this->create_new_password_option(
+      &this->m_password[1], "password2",
+      "Password for second factor authentication plugin.");
+  this->create_new_password_option(
+      &this->m_password[2], "password3",
+      "Password for third factor authentication plugin.");
+
 #ifdef _WIN32
   this->create_new_option("pipe", "Use named pipes to connect to server.")
       ->set_short_character('W')
@@ -190,13 +201,20 @@ MYSQL *Mysql_connection_options::create_connection() {
     set_get_server_public_key_option(connection,
                                      &this->m_get_server_public_key);
 
+  /* set passwords for --password{1,2,3} */
+  set_password_options(connection);
+
   if (!mysql_real_connect(connection, this->get_null_or_string(this->m_host),
-                          this->get_null_or_string(this->m_user),
-                          this->get_null_or_string(this->m_password), nullptr,
-                          this->m_mysql_port,
+                          this->get_null_or_string(this->m_user), nullptr,
+                          nullptr, this->m_mysql_port,
                           this->get_null_or_string(this->m_mysql_unix_port),
                           0)) {
     this->db_error(connection, "while connecting to the MySQL server");
+    mysql_close(connection);
+    return nullptr;
+  }
+
+  if (this->m_ssl_options_provider.check_connection(connection)) {
     mysql_close(connection);
     return nullptr;
   }
@@ -219,11 +237,11 @@ CHARSET_INFO *Mysql_connection_options::get_current_charset() const {
 }
 
 void Mysql_connection_options::set_current_charset(CHARSET_INFO *charset) {
-  m_default_charset = string(replace_utf8_utf8mb3(charset->csname));
+  m_default_charset = string(charset->csname);
 }
 
 const char *Mysql_connection_options::get_null_or_string(
-    Nullable<string> &maybe_string) {
+    std::optional<string> &maybe_string) {
   if (maybe_string.has_value()) {
     return maybe_string.value().c_str();
   } else {
@@ -232,14 +250,14 @@ const char *Mysql_connection_options::get_null_or_string(
 }
 
 #ifdef _WIN32
-void Mysql_connection_options::pipe_protocol_callback(
-    char *not_used MY_ATTRIBUTE((unused))) {
+void Mysql_connection_options::pipe_protocol_callback(char *not_used
+                                                      [[maybe_unused]]) {
   this->m_protocol = MYSQL_PROTOCOL_PIPE;
 }
 #endif
 
-void Mysql_connection_options::protocol_callback(
-    char *not_used MY_ATTRIBUTE((unused))) {
+void Mysql_connection_options::protocol_callback(char *not_used
+                                                 [[maybe_unused]]) {
   this->m_protocol = find_type_or_exit(this->m_protocol_string.value().c_str(),
                                        &sql_protocol_typelib, "protocol");
 }

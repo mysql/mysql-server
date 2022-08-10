@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,3 +42,56 @@ std::string ndb_bitmap_to_hex_string(const MY_BITMAP *bitmap) {
   os << "}";
   return os.str();
 }
+
+#ifdef TEST_NDB_BITMAP
+#include <NdbTap.hpp>
+
+TAPTEST(NdbBitmap) {
+  Ndb_bitmap_buf<1> buf1;
+  OK(buf1.size_in_bytes() == 4);
+
+  Ndb_bitmap_buf<16> buf16;
+  OK(buf16.size_in_bytes() == 4);
+
+  Ndb_bitmap_buf<31> buf31;
+  OK(buf31.size_in_bytes() == 4);
+
+  Ndb_bitmap_buf<32> buf32;
+  OK(buf32.size_in_bytes() == 4);
+  {
+    MY_BITMAP b32;
+    ndb_bitmap_init(&b32, buf32, 32);
+    bitmap_set_bit(&b32, 0);
+    bitmap_set_bit(&b32, 1);
+    bitmap_set_bit(&b32, 31);
+    OK(bitmap_is_set(&b32, 0));
+    OK(bitmap_is_set(&b32, 1));
+    OK(bitmap_is_set(&b32, 31));
+  }
+
+  Ndb_bitmap_buf<33> buf33;
+  OK(buf33.size_in_bytes() == 8);
+
+  Ndb_bitmap_buf<510> buf510;
+  OK(buf510.size_in_bytes() == 64);
+
+  Ndb_bitmap_buf<511> buf511;
+  OK(buf511.size_in_bytes() == 64);
+
+  Ndb_bitmap_buf<512> buf512;
+  OK(buf512.size_in_bytes() == 64);
+  {
+    MY_BITMAP b512;
+    ndb_bitmap_init(&b512, buf512, 512);
+    bitmap_set_bit(&b512, 0);
+    bitmap_set_bit(&b512, 1);
+    bitmap_set_bit(&b512, 1);
+    bitmap_set_bit(&b512, 511);
+    OK(bitmap_is_set(&b512, 0));
+    OK(bitmap_is_set(&b512, 1));
+    OK(bitmap_is_set(&b512, 511));
+  }
+
+  return 1;  // OK
+}
+#endif

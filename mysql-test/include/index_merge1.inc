@@ -618,6 +618,11 @@ if ($index_merge_random_rows_in_EXPLAIN)
 }
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 
+# Demonstrates printing index merge in EXPLAIN FORMAT=tree.
+--skip_if_hypergraph   # Different query plan.
+--replace_regex /\(cost=[0-9. ]*/(/
+explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
+
 if ($index_merge_random_rows_in_EXPLAIN)
 {
   --replace_column 10 # 11 #

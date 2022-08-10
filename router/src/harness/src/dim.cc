@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ namespace mysql_harness {
 
 // we define them here to make sure they're not inlined
 // (that could be dangerous when called from other DLLs)
-DIM::DIM() {}
-DIM::~DIM() {}
+DIM::DIM() = default;
+DIM::~DIM() = default;
 
 }  // namespace mysql_harness

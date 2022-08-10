@@ -3,10 +3,10 @@
 -- source include/master-slave.inc
 
 --connection slave
-show variables like 'slave_allow_batching';
+show variables like 'replica_allow_batching';
 
-set global slave_allow_batching=ON;
-show variables like 'slave_allow_batching';
+set global replica_allow_batching=ON;
+show variables like 'replica_allow_batching';
 
 --echo Now the normal test
 --connection master
@@ -17,7 +17,6 @@ let $extra_index= ;
 
 --connection slave
 stop slave;
-set global slave_allow_batching=OFF;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

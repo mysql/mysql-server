@@ -133,7 +133,9 @@ SUBPARTITION BY HASH (`c2`)
   SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
 test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
@@ -146,7 +148,9 @@ test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/
 ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
 test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
@@ -157,8 +161,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQL_TMP_DIR
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 #
 # If implicit tablespaces that exist in unknown locations are
 # part of a TRUNCATE statement, they will be recreated in
@@ -192,7 +194,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t1.ibd
 test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t2.ibd
@@ -205,7 +209,9 @@ test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/
 ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQLD_DATADIR/test/t1.ibd
 test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQLD_DATADIR/test/t2.ibd
@@ -216,8 +222,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQL_TMP_DIR
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 #
 # EXCHANGE PARTITION does not recreate tablespaces, so files in unknown
 # locations will remain there through the exchange.
@@ -263,7 +267,9 @@ SUBPARTITION BY HASH (`c2`)
   SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
 test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
@@ -276,7 +282,9 @@ test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/
 ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
 test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
@@ -287,8 +295,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQLD_DATADI
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 TRUNCATE TABLE t2;
 Warnings:
 Warning	3121	The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location.
@@ -305,7 +311,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
 test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t2.ibd
@@ -318,7 +326,9 @@ test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/
 ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
 test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQLD_DATADIR/test/t2.ibd
@@ -329,8 +339,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQLD_DATADI
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 ALTER TABLE tsp1 EXCHANGE PARTITION s4 WITH TABLE t2;
 SHOW WARNINGS;
 Level	Code	Message
@@ -356,7 +364,9 @@ SUBPARTITION BY HASH (`c2`)
   SUBPARTITION s4 ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
 test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
@@ -369,7 +379,9 @@ test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p2#
 ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
 test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
@@ -380,8 +392,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQLD_DATADI
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 #
 # RENAME TABLE does not recreate tablespaces, so files in unknown
 # locations will remain there. No error message is issued.
@@ -473,7 +483,9 @@ SUBPARTITION BY HASH (`c2`)
   SUBPARTITION s4 ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/asserted_test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t1.ibd
 test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t2.ibd
@@ -486,7 +498,9 @@ test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p2#
 ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+mtr/asserted_test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/asserted_test_suppressions	MYSQLD_DATADIR/mtr/asserted_test_suppressions.ibd
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_ignored_global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_ignored_global_suppressions	MYSQLD_DATADIR/mtr/test_ignored_global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQLD_DATADIR/test/t1.ibd
 test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQLD_DATADIR/test/t2.ibd
@@ -497,8 +511,6 @@ test/tsp1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p1#sp#s2	MYSQLD_DATADI
 test/tsp1#p#p2#sp#s3	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s3	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s3.ibd
 test/tsp1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/tsp1#p#p2#sp#s4	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s4.ibd
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/remote_dir/ts1.ibd
-Warnings:
-Warning	1812	Tablespace is missing for table undo_004.
 #
 # Validate the messages that should have been put into the error log.
 #

@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,7 +215,7 @@ class Protocol_classic : public Protocol {
 
 class Protocol_text : public Protocol_classic {
  public:
-  Protocol_text() {}
+  Protocol_text() = default;
   Protocol_text(THD *thd_arg) : Protocol_classic(thd_arg) {}
   bool store_null() override;
   bool store_tiny(longlong from, uint32 zerofill) override;
@@ -240,7 +240,7 @@ class Protocol_binary final : public Protocol_text {
   uint bit_fields;
 
  public:
-  Protocol_binary() {}
+  Protocol_binary() = default;
   Protocol_binary(THD *thd_arg) : Protocol_text(thd_arg) {}
   void start_row() override;
   bool store_null() override;

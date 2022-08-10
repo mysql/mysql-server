@@ -9,7 +9,7 @@ INSERT INTO t1 VALUES (-12);
 # Show the hidden columns so we can see the computed value.
 SET SESSION debug="+d,show_hidden_columns";
 SELECT * FROM t1;
-col1	3bb8c14d415110ac3b3c55ce9108ae2d
+col1	!hidden!functional_index!0!0
 -12	12
 SET SESSION debug="-d,show_hidden_columns";
 # Sync slave with master, and verify that the table exists on the slave.
@@ -18,7 +18,7 @@ include/sync_slave_sql_with_master.inc
 # reflected on the slave.
 SET SESSION debug="+d,show_hidden_columns";
 SELECT * FROM t1;
-col1	3bb8c14d415110ac3b3c55ce9108ae2d
+col1	!hidden!functional_index!0!0
 -12	12
 SET SESSION debug="-d,show_hidden_columns";
 EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
@@ -31,7 +31,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `!hidden!functional_index!0!0` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
@@ -46,7 +46,7 @@ include/sync_slave_sql_with_master.inc
 # reflected on the slave.
 SET SESSION debug="+d,show_hidden_columns";
 SELECT * FROM t1;
-col1	3bb8c14d415110ac3b3c55ce9108ae2d
+col1	!hidden!functional_index!0!0
 -12	12
 EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -57,7 +57,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `!hidden!functional_index!0!0` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
@@ -70,7 +70,7 @@ include/sync_slave_sql_with_master.inc
 # reflected on the slave.
 SET SESSION debug="+d,show_hidden_columns";
 SELECT * FROM t1;
-col1	3bb8c14d415110ac3b3c55ce9108ae2d
+col1	!hidden!functional_index!0!0
 -12	12
 EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -81,7 +81,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `!hidden!functional_index!0!0` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";

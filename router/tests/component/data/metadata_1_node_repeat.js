@@ -33,7 +33,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_set_session_options",
       "router_set_gr_consistency_level",
       "select_port",
-      "router_start_transaction",
       "router_commit",
       "router_select_schema_version",
       "router_select_group_replication_primary_member",
@@ -43,7 +42,7 @@ var common_responses = common_stmts.prepare_statement_responses(
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
-      "router_update_version_v1",
+      "router_update_attributes_v1",
     ],
     options);
 
@@ -52,8 +51,15 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
 var router_select_metadata =
     common_stmts.get("router_select_metadata", options);
 
+var router_start_transaction =
+    common_stmts.get("router_start_transaction", options);
+
 if (mysqld.global.md_query_count === undefined) {
   mysqld.global.md_query_count = 0;
+}
+
+if (mysqld.global.transaction_count === undefined) {
+  mysqld.global.transaction_count = 0;
 }
 
 ({
@@ -67,6 +73,9 @@ if (mysqld.global.md_query_count === undefined) {
     } else if (stmt === router_select_metadata.stmt) {
       mysqld.global.md_query_count++;
       return router_select_metadata;
+    } else if (stmt === router_start_transaction.stmt) {
+      mysqld.global.transaction_count++;
+      return router_start_transaction;
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }

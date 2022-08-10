@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 /*
   Support for Chinese(BIG5) characters.
-  This file is basicly usa7 character sets with some extra functions
+  This file is basically usa7 character sets with some extra functions
   for big5 handling
  */
 
@@ -1220,7 +1220,7 @@ static int my_strnncoll_big5_internal(const uchar **a_res, const uchar **b_res,
 /* Compare strings */
 
 extern "C" {
-static int my_strnncoll_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_big5(const CHARSET_INFO *cs [[maybe_unused]],
                              const uchar *a, size_t a_length, const uchar *b,
                              size_t b_length, bool b_is_prefix) {
   size_t length = std::min(a_length, b_length);
@@ -1230,7 +1230,7 @@ static int my_strnncoll_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 /* compare strings, ignore end space */
 
-static int my_strnncollsp_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncollsp_big5(const CHARSET_INFO *cs [[maybe_unused]],
                                const uchar *a, size_t a_length, const uchar *b,
                                size_t b_length) {
   size_t length = std::min(a_length, b_length);
@@ -1282,13 +1282,12 @@ static size_t my_strnxfrm_big5(const CHARSET_INFO *cs, uchar *dst,
   return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
-static uint ismbchar_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint ismbchar_big5(const CHARSET_INFO *cs [[maybe_unused]],
                           const char *p, const char *e) {
   return (isbig5head(*(p)) && (e) - (p) > 1 && isbig5tail(*((p) + 1)) ? 2 : 0);
 }
 
-static uint mbcharlen_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           uint c) {
+static uint mbcharlen_big5(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (isbig5head(c) ? 2 : 1);
 }
 }  // extern "C"
@@ -6422,8 +6421,8 @@ static int func_uni_big5_onechar(int code) {
 }
 
 extern "C" {
-static int my_wc_mb_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_big5(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                         uchar *s, uchar *e) {
   int code;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -6443,8 +6442,8 @@ static int my_wc_mb_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return 2;
 }
 
-static int my_mb_wc_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         my_wc_t *pwc, const uchar *s, const uchar *e) {
+static int my_mb_wc_big5(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
+                         const uchar *s, const uchar *e) {
   int hi;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -6465,9 +6464,9 @@ static int my_mb_wc_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   Returns a well formed length of a BIG5 string.
   CP950 and HKSCS additional characters are also accepted.
 */
-static size_t my_well_formed_len_big5(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_big5(const CHARSET_INFO *cs [[maybe_unused]],
+                                      const char *b, const char *e, size_t pos,
+                                      int *error) {
   const char *b0 = b;
   const char *emb = e - 1; /* Last possible end of an MB character */
 
@@ -6507,7 +6506,7 @@ static MY_CHARSET_HANDLER my_charset_big5_handler = {nullptr, /* init */
                                                      ismbchar_big5,
                                                      mbcharlen_big5,
                                                      my_numchars_mb,
-                                                     my_charpos_mb,
+                                                     my_charpos_mb3,
                                                      my_well_formed_len_big5,
                                                      my_lengthsp_8bit,
                                                      my_numcells_8bit,
@@ -6537,7 +6536,7 @@ CHARSET_INFO my_charset_big5_chinese_ci = {
     0,                                               /* number     */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state      */
     "big5",                                          /* cs name    */
-    "big5_chinese_ci",                               /* name       */
+    "big5_chinese_ci",                               /* m_coll_name */
     "Big5 Traditional Chinese",                      /* comment    */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
@@ -6572,7 +6571,7 @@ CHARSET_INFO my_charset_big5_bin = {
     0,                              /* number     */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
     "big5",                         /* cs name    */
-    "big5_bin",                     /* name       */
+    "big5_bin",                     /* m_coll_name */
     "Big5 Traditional Chinese",     /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

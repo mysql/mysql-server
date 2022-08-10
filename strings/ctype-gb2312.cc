@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -235,14 +235,13 @@ static const uchar sort_order_gb2312[] = {
 #define isgb2312tail(c) (0xa1 <= (uchar)(c) && (uchar)(c) <= 0xfe)
 
 extern "C" {
-static uint ismbchar_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint ismbchar_gb2312(const CHARSET_INFO *cs [[maybe_unused]],
                             const char *p, const char *e) {
   return (isgb2312head(*(p)) && (e) - (p) > 1 && isgb2312tail(*((p) + 1)) ? 2
                                                                           : 0);
 }
 
-static uint mbcharlen_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                             uint c) {
+static uint mbcharlen_gb2312(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (isgb2312head(c) ? 2 : 1);
 }
 }  // extern "C"
@@ -6442,8 +6441,8 @@ static int func_uni_gb2312_onechar(int code) {
 }
 
 extern "C" {
-static int my_wc_mb_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_gb2312(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                           uchar *s, uchar *e) {
   int code;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -6463,7 +6462,7 @@ static int my_wc_mb_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return 2;
 }
 
-static int my_mb_wc_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_mb_wc_gb2312(const CHARSET_INFO *cs [[maybe_unused]],
                            my_wc_t *pwc, const uchar *s, const uchar *e) {
   int hi;
 
@@ -6485,9 +6484,9 @@ static int my_mb_wc_gb2312(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 /*
   Returns well formed length of a EUC-KR string.
 */
-static size_t my_well_formed_len_gb2312(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_gb2312(const CHARSET_INFO *cs [[maybe_unused]],
+                                        const char *b, const char *e,
+                                        size_t pos, int *error) {
   const char *b0 = b;
   const char *emb = e - 1; /* Last possible end of an MB character */
 
@@ -6527,7 +6526,7 @@ static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_gb2312,
                                                 mbcharlen_gb2312,
                                                 my_numchars_mb,
-                                                my_charpos_mb,
+                                                my_charpos_mb3,
                                                 my_well_formed_len_gb2312,
                                                 my_lengthsp_8bit,
                                                 my_numcells_8bit,
@@ -6557,7 +6556,7 @@ CHARSET_INFO my_charset_gb2312_chinese_ci = {
     0,                              /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state      */
     "gb2312",                       /* cs name    */
-    "gb2312_chinese_ci",            /* name */
+    "gb2312_chinese_ci",            /* m_coll_name */
     "GB2312 Simplified Chinese",    /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */
@@ -6592,7 +6591,7 @@ CHARSET_INFO my_charset_gb2312_bin = {
     0,                              /* number */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state      */
     "gb2312",                       /* cs name    */
-    "gb2312_bin",                   /* name */
+    "gb2312_bin",                   /* m_coll_name */
     "GB2312 Simplified Chinese",    /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

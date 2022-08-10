@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -30,10 +30,10 @@ TempTable miscellaneous helper utilities declarations. */
 
 #include "my_compiler.h"
 
-#define TEMPTABLE_UNUSED MY_ATTRIBUTE((unused))
+#define TEMPTABLE_UNUSED [[maybe_unused]]
 
 #ifdef NDEBUG
-#define TEMPTABLE_UNUSED_NODBUG MY_ATTRIBUTE((unused))
+#define TEMPTABLE_UNUSED_NODBUG [[maybe_unused]]
 #else /* NDEBUG */
 #define TEMPTABLE_UNUSED_NODBUG
 #endif /* NDEBUG */

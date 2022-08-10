@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #include <ndb_global.h>
 
 #include "Logger.hpp"
+
+#include <time.h>
 
 #include <LogHandler.hpp>
 #include <ConsoleLogHandler.hpp>
@@ -109,10 +111,10 @@ Logger::removeConsoleHandler()
   }
 }
 
+#ifdef _WIN32
 bool
 Logger::createEventLogHandler(const char* source_name)
 {
-#ifdef _WIN32
   Guard g(m_handler_mutex);
 
   LogHandler* log_handler = new EventLogHandler(source_name);
@@ -126,10 +128,8 @@ Logger::createEventLogHandler(const char* source_name)
   }
 
   return true;
-#else
-  return false;
-#endif
 }
+#endif
 
 bool
 Logger::createFileHandler(char*filename)

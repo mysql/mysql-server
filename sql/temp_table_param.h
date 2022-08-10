@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,23 +42,48 @@ struct MEM_ROOT;
 template <typename T>
 using Mem_root_vector = std::vector<T, Mem_root_allocator<T>>;
 
+enum Copy_func_type : int;
+
 /**
    Helper class for copy_funcs(); represents an Item to copy from table to
    next tmp table.
 */
 class Func_ptr {
  public:
-  explicit Func_ptr(Item *f) : m_func(f) {}
+  Func_ptr(Item *item, Field *result_field);
+
   Item *func() const { return m_func; }
-  void set_override_result_field(Field *f) { m_override_result_field = f; }
-  Field *override_result_field() const { return m_override_result_field; }
+  void set_func(Item *func);
+  Field *result_field() const { return m_result_field; }
+  Item_field *result_item() const;
+  bool should_copy(Copy_func_type type) const {
+    return m_func_bits & (1 << type);
+  }
 
  private:
   Item *m_func;
+  Field *m_result_field;
 
-  /// If not nullptr, copy_funcs() will save the result of m_func here instead
-  /// of in m_func's usual designated result field.
-  Field *m_override_result_field = nullptr;
+  // A premade Item_field for m_result_field (may be nullptr if allocation
+  // failed). This has two purposes:
+  //
+  //  - It avoids repeated constructions if the field is used multiple times
+  //    (e.g., first in a SELECT list, then in a sort order).
+  //  - It gives a canonical, unique item, so that we can compare it with ==
+  //    (in FindReplacementItem(), where ->eq would have a metadata issues).
+  //    This is important if we are to replace it with something else again
+  //    later.
+  //
+  // It is created on-demand to avoid getting into the thd->stmt_arena field
+  // list for a temporary table that is freed later anyway.
+  mutable Item_field *m_result_item = nullptr;
+
+  // A bitmap where all CFT_* enums are bit indexes, and we have a 1 if m_func
+  // is of the type given by that enum. E.g., if m_func is an Item_field,
+  // (1 << CFT_FIELDS) will be set here. This is used for quickly finding out
+  // which items to copy in copy_funcs(), without having to look at the actual
+  // items (which involves virtual function calls).
+  int m_func_bits;
 };
 
 /// Used by copy_funcs()
@@ -91,17 +116,8 @@ class Temp_table_param {
   ha_rows end_write_records{HA_POS_ERROR};
 
   /**
-    Number of normal fields in the query, including those referred to
-    from aggregate functions. Hence, "SELECT `field1`,
-    SUM(`field2`) from t1" sets this counter to 2.
-
-    @see count_field_types
-  */
-  uint field_count;
-  /**
-    Number of fields in the query that have functions. Includes both
-    aggregate functions (e.g., SUM) and non-aggregates (e.g., RAND)
-    and windowing functions.
+    Number of items in the query. Includes both aggregate functions (e.g., SUM),
+    and non-aggregates (e.g., RAND), window functions and fields.
     Also counts functions referred to from windowing or aggregate functions,
     i.e., "SELECT SUM(RAND())" sets this counter to 2.
 
@@ -138,7 +154,7 @@ class Temp_table_param {
   */
   uint outer_sum_func_count;
   /**
-    Enabled when we have atleast one outer_sum_func. Needed when used
+    Enabled when we have at least one outer_sum_func. Needed when used
     along with distinct.
 
     @see create_tmp_table
@@ -177,9 +193,6 @@ class Temp_table_param {
   /// create_result_table()).
   bool force_hash_field_for_unique{false};
 
-  /// (Last) window's tmp file step can be skipped
-  bool m_window_short_circuit;
-
   /// This tmp table is used for a window's frame buffer
   bool m_window_frame_buffer{false};
 
@@ -191,7 +204,6 @@ class Temp_table_param {
         group_buff(nullptr),
         items_to_copy(nullptr),
         keyinfo(nullptr),
-        field_count(0),
         func_count(0),
         sum_func_count(0),
         hidden_field_count(0),
@@ -207,7 +219,6 @@ class Temp_table_param {
         skip_create_table(false),
         bit_fields_as_long(false),
         can_use_pk_for_unique(true),
-        m_window_short_circuit(false),
         m_window(nullptr) {}
 
   void cleanup() { copy_fields.clear(); }

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@ SET(CMAKE_HAVE_PTHREAD_H CACHE  INTERNAL "") # Only needed by CMake
 # Libraries
 # Not checked for Windows HAVE_LIBM
 # Not checked for Windows HAVE_LIBNSL
-# Not checked for Windows HAVE_LIBCRYPT
 # Not checked for Windows HAVE_LIBSOCKET
 # Not checked for Windows HAVE_LIBDL
 # Not checked for Windows HAVE_LIBRT

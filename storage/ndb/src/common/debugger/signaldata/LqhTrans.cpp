@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,10 +25,18 @@
 
 #include <signaldata/LqhTransConf.hpp>
 
-bool
-printLQH_TRANSCONF(FILE * output, const Uint32 * theData, 
-		   Uint32 len, Uint16 receiverBlockNo) {
-  const LqhTransConf * const sig = (LqhTransConf *)theData;
+bool printLQH_TRANSCONF(FILE *output,
+                        const Uint32 *theData,
+                        Uint32 len,
+                        Uint16 /*receiverBlockNo*/)
+{
+  if (len < LqhTransConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const LqhTransConf *const sig = (const LqhTransConf *)theData;
   fprintf(output, " tcRef: %x\n", sig->tcRef);
   fprintf(output, " lqhNodeId: %x\n", sig->lqhNodeId);
   fprintf(output, " operationStatus: %x\n", sig->operationStatus);
@@ -47,4 +55,3 @@ printLQH_TRANSCONF(FILE * output, const Uint32 * theData,
   fprintf(output, " tableId: %x\n", sig->tableId);
   return true;
 }
-

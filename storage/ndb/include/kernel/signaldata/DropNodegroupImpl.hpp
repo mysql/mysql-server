@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ struct DropNodegroupImplReq {
    */
   friend bool printDROP_NODEGROUP_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
   enum {
     RT_PARSE    = 0x1,
@@ -74,7 +74,7 @@ struct DropNodegroupImplRef {
    */
   friend bool printDROP_NODEGROUP_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   enum ErrorCode {
     NoError = 0,
@@ -101,7 +101,7 @@ struct DropNodegroupImplConf {
    */
   friend bool printDROP_NODEGROUP_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderData;
   Uint32 senderRef;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ struct HASH_ROW_PREAMBLE {
       const_iterator search_state;
 
   /**
-    Wether this search_state is usable or not.
+    whether this search_state is usable or not.
    */
   bool is_search_state_inited;
 };
@@ -175,7 +175,7 @@ class Hash_slave_rows {
 
   /**
      Deletes the entry pointed by entry. It also frees memory used
-     holding entry contents. This is the way to release memeory
+     holding entry contents. This is the way to release memory
      used for entry, freeing it explicitly with my_free will cause
      undefined behavior.
 
@@ -252,7 +252,7 @@ class table_def {
     containing an uninitialized table_def object which is only conditionally
     initialized. See Table_map_log_event::do_apply_event().
   */
-  table_def() {}
+  table_def() = default;
 
   /**
     Constructor.
@@ -403,7 +403,7 @@ class table_def {
 
       - Each column on the master that also exists on the slave can be
         converted according to the current settings of @c
-        SLAVE_TYPE_CONVERSIONS.
+        REPLICA_TYPE_CONVERSIONS.
 
     @param thd   Current thread
     @param rli   Pointer to relay log info
@@ -480,7 +480,7 @@ class Deferred_log_events {
  public:
   Deferred_log_events();
   ~Deferred_log_events();
-  /* queue for exection at Query-log-event time prior the Query */
+  /* queue for execution at Query-log-event time prior to the Query */
   int add(Log_event *ev);
   bool is_empty();
   bool execute(Relay_log_info *rli);
@@ -539,7 +539,7 @@ std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
   new instance will be initialized within the constructor and disposed of in the
   destructor.
 
-  If the given `THD` object poitner passed on the constructor is not `nullptr`,
+  If the given `THD` object pointer passed on the constructor is not `nullptr`,
   the reference is kept and nothing is disposed on the destructor.
 
   Casting operator to `THD*` is also provided, to easy code replacemente.
@@ -559,7 +559,7 @@ class THD_instance_guard {
     If the given `THD` object pointer is `nullptr`, a new instance will be
     initialized within the constructor and disposed of in the destructor.
 
-    If the given `THD` object poitner is not `nullptr`, the reference is kept
+    If the given `THD` object pointer is not `nullptr`, the reference is kept
     and nothing is disposed on the destructor.
 
     @param thd `THD` object reference that determines if an existence instance

@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqlbinlog\fR
+.\"     Title: mysqlbinlog
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/04/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLBINLOG" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -213,6 +213,8 @@ environment variable\&.
 .PP
 \fBmysqlbinlog\fR
 sets the value of
+pseudo_replica_mode
+or
 pseudo_slave_mode
 to true before executing any SQL statements\&. This system variable affects the handling of XA transactions, the
 original_commit_timestamp
@@ -992,7 +994,7 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1019,7 +1021,7 @@ is used\&. To create
 \&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.
+mysql_config_editor(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1194,8 +1196,10 @@ the section called \(lqUSING MYSQLBINLOG TO BACK UP BINARY LOG FILES\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-read\-from\-remote\-master=\fR\fB\fItype\fR\fR
-Read binary logs from a MySQL server with the
+\fB\-\-read\-from\-remote\-source=\fR\fB\fItype\fR\fR
+From MySQL 8\&.0\&.26, use
+\fB\-\-read\-from\-remote\-source\fR, and before MySQL 8\&.0\&.26, use
+\fB\-\-read\-from\-remote\-master\fR\&. Both options have the same effect\&. The options read binary logs from a MySQL server with the
 COM_BINLOG_DUMP
 or
 COM_BINLOG_DUMP_GTID
@@ -1203,11 +1207,13 @@ commands by setting the option value to either
 BINLOG\-DUMP\-NON\-GTIDS
 or
 BINLOG\-DUMP\-GTIDS, respectively\&. If
+\fB\-\-read\-from\-remote\-source=BINLOG\-DUMP\-GTIDS\fR
+or
 \fB\-\-read\-from\-remote\-master=BINLOG\-DUMP\-GTIDS\fR
 is combined with
 \fB\-\-exclude\-gtids\fR, transactions can be filtered out on the source, avoiding unnecessary network traffic\&.
 .sp
-The connection parameter options are used with this option or the
+The connection parameter options are used with these options or the
 \fB\-\-read\-from\-remote\-server\fR
 option\&. These options are
 \fB\-\-host\fR,
@@ -1215,11 +1221,24 @@ option\&. These options are
 \fB\-\-port\fR,
 \fB\-\-protocol\fR,
 \fB\-\-socket\fR, and
-\fB\-\-user\fR\&. If neither of the remote options is specified, the connection parameter options are ignored\&.
+\fB\-\-user\fR\&. If none of the remote options is specified, the connection parameter options are ignored\&.
 .sp
 The
 REPLICATION SLAVE
-privilege is required to use this option\&.
+privilege is required to use these options\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-read\-from\-remote\-master=\fR\fB\fItype\fR\fR
+Use this option before MySQL 8\&.0\&.26 rather than
+\fB\-\-read\-from\-remote\-source\fR\&. Both options have the same effect\&.
 .RE
 .sp
 .RS 4
@@ -1511,21 +1530,22 @@ Display only the statements contained in the log, without any extra information 
 .IP \(bu 2.3
 .\}
 \fB\-\-skip\-gtids[=(true|false)]\fR
-Do not display any GTIDs in the output\&. This is needed when writing to a dump file from one or more binary logs containing GTIDs, as shown in this example:
+Do not include the GTIDs from the binary log files in the output dump file\&. For example:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
 mysqlbinlog \-\-skip\-gtids binlog\&.000001 >  /tmp/dump\&.sql
-mysqlbinlog \-\-skip\-gtids binlog\&.000002 >> /tmp/dump\&.sql
 mysql \-u root \-p \-e "source /tmp/dump\&.sql"
 .fi
 .if n \{\
 .RE
 .\}
 .sp
-The use of this option is otherwise not normally recommended in production\&.
+You should not normally use this option in production or in recovery, except in the specific, and rare, scenarios where the GTIDs are actively unwanted\&. For example, an administrator might want to duplicate selected transactions (such as table definitions) from a deployment to another, unrelated, deployment that will not replicate to or from the original\&. In that scenario,
+\fB\-\-skip\-gtids\fR
+can be used to enable the administrator to apply the transactions as if they were new, and ensure that the deployments remain unrelated\&. However, you should only use this option if the inclusion of the GTIDs causes a known issue for your use case\&.
 .RE
 .sp
 .RS 4
@@ -2299,7 +2319,7 @@ statements\&. Omitting extraneous lines, the output for the row events produced 
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -2341,7 +2361,7 @@ option\&. This output level also shows table partition information where applica
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-v \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \-v \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -2400,7 +2420,7 @@ TRUE\&. The output contains an additional comment following each column change:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-vv \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \-vv \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -2464,7 +2484,7 @@ provides a convenient way to see row events only as SQL statements:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-v \-\-base64\-output=DECODE\-ROWS \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \-v \-\-base64\-output=DECODE\-ROWS \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -3182,7 +3202,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

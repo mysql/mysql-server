@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #define RPL_TRANSACTION_CTX_H
 
 #include "mysql/service_rpl_transaction_ctx.h"  // Transaction_termination_ctx
+#include "sql/rpl_gtid.h"                       // rpl_gno
 
 /**
   Server side support to provide a service to plugins to report if
@@ -34,7 +35,7 @@
 class Rpl_transaction_ctx {
  public:
   Rpl_transaction_ctx();
-  virtual ~Rpl_transaction_ctx() {}
+  virtual ~Rpl_transaction_ctx() = default;
 
   /**
     Set transaction context, that is, notify the server that for
@@ -80,7 +81,7 @@ class Rpl_transaction_ctx {
 
     @return gno   gno value.
   */
-  long long int get_gno();
+  rpl_gno get_gno();
 
   /**
    Reset transaction context to default values.

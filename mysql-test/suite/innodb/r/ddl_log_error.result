@@ -18,6 +18,30 @@ ALTER TABLESPACE my_ts ENCRYPTION='Y';
 ERROR HY000: Failed to alter: TABLESPACE my_ts
 SET SESSION DEBUG="-d,ddl_log_return_error_from_insert";
 # Cleanup
+DROP TABLESPACE my_ts;
 DROP TABLE t1;
 # Restarting server without keyring to restore server state
 # restart: 
+#
+# Bug #32716838 ALTER TABLE MAY CRASH IF DDL LOG LOSE,
+# IN NON-FILE-PER-TABLE MODE
+#
+SET @innodb_file_per_table_orig=@@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+0
+# Setup
+CREATE TABLE t1 (c1 INT);
+SET SESSION DEBUG="+d,ddl_log_return_error_from_insert";
+# Run few DDLs. All DDLs should give error now.
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=COPY;
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=INPLACE;
+ERROR HY000: Got error 11 - 'InnoDB error' from storage engine
+DROP TABLE t1;
+ERROR HY000: Storage engine can't drop table 'test.t1'
+SET SESSION DEBUG="-d,ddl_log_return_error_from_insert";
+# Cleanup
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=@innodb_file_per_table_orig;

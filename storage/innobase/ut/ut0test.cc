@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,6 +53,8 @@ Tester::Tester() noexcept {
   /* Kindly keep the commands in alphabetical order. */
   DISPATCH(corrupt_ondisk_page0);
   DISPATCH(corrupt_ondisk_root_page);
+  DISPATCH(count_page_type);
+  DISPATCH(count_used_and_free);
   DISPATCH(dblwr_force_crash);
   DISPATCH(find_fil_page_lsn);
   DISPATCH(find_flush_sync_lsn);
@@ -73,6 +75,86 @@ void Tester::init() noexcept {
   m_thd = current_thd;
   XLOG("Initialization successfully completed");
   set_output(sout);
+}
+
+void scan_page_type(space_id_t space_id,
+                    std::map<page_type_t, page_no_t> &result_map) {
+  mtr_t mtr;
+
+  bool found;
+  const page_size_t page_size = fil_space_get_page_size(space_id, &found);
+  ut_ad(found);
+  fil_space_t *space = fil_space_acquire(space_id);
+
+  for (page_no_t page_no = 0; page_no < space->size; ++page_no) {
+    const page_id_t page_id(space_id, page_no);
+    mtr_start(&mtr);
+    buf_block_t *block =
+        buf_page_get(page_id, page_size, RW_S_LATCH, UT_LOCATION_HERE, &mtr);
+    page_type_t page_type = block->get_page_type();
+    result_map[page_type]++;
+    mtr_commit(&mtr);
+  }
+
+  fil_space_release(space);
+}
+
+DISPATCH_FUNCTION_DEF(Tester::count_page_type) {
+  std::ostringstream sout;
+  mtr_t mtr;
+  std::map<page_type_t, page_no_t> result_map;
+
+  TLOG("Tester::count_page_type()");
+  ut_ad(tokens.size() == 2);
+  ut_ad(tokens[0] == "count_page_type");
+
+  const std::string space_name = tokens[1];
+
+  const space_id_t space_id = fil_space_get_id_by_name(space_name.c_str());
+
+  scan_page_type(space_id, result_map);
+
+  page_no_t total = 0;
+  for (auto it : result_map) {
+    sout << fil_get_page_type_str(it.first) << ": " << it.second << std::endl;
+    total += it.second;
+  }
+  sout << "Total: " << total << std::endl;
+  set_output(sout);
+
+  return RET_PASS;
+}
+
+DISPATCH_FUNCTION_DEF(Tester::count_used_and_free) {
+  std::ostringstream sout;
+  mtr_t mtr;
+  std::map<page_type_t, page_no_t> result_map;
+
+  TLOG("Tester::count_used_and_free()");
+  ut_ad(tokens.size() == 2);
+  ut_ad(tokens[0] == "count_used_and_free");
+
+  const std::string space_name = tokens[1];
+
+  const space_id_t space_id = fil_space_get_id_by_name(space_name.c_str());
+
+  scan_page_type(space_id, result_map);
+
+  page_no_t total = 0;
+  for (auto it : result_map) {
+    total += it.second;
+  }
+  const page_no_t pages_free = result_map[FIL_PAGE_TYPE_ALLOCATED];
+  const page_no_t used = total - pages_free;
+  const double fill_factor = (used / (double)total) * 100;
+  const double free_factor = (pages_free / (double)total) * 100;
+  sout << "Total= " << total << ", used=" << used << ", free=" << pages_free
+       << std::endl;
+  sout << "Fill factor= " << fill_factor << ", free factor= " << free_factor
+       << std::endl;
+  set_output(sout);
+
+  return RET_PASS;
 }
 
 dict_table_t *Tester::is_table_open(
@@ -181,7 +263,8 @@ Ret_t Tester::find_fil_page_lsn(std::vector<std::string> &tokens) noexcept {
 
   mtr_t mtr;
   mtr_start(&mtr);
-  buf_block_t *block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
+  buf_block_t *block =
+      buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
   lsn_t newest_lsn = block->page.get_newest_lsn();
   mtr_commit(&mtr);
 
@@ -222,27 +305,27 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   const os_offset_t offset = page_no * page_size.physical();
 
   /* When the space file is currently open we are not able to write to it
-   * directly on Windows. We must use the currently opened handle. Moreover,
-   * on Windows a file opened for the AIO access must be accessed only by AIO
-   * methods. The AIO requires that the i/o buffer be aligned to OS block size
-   * and also its size divisible by OS block size. */
+  directly on Windows. We must use the currently opened handle. Moreover,
+  on Windows a file opened for the asynchronous access must be accessed only in
+  a way that allows asynchronous completion of the request. This requires that
+  the i/o buffer be aligned to OS block size and also its size divisible by OS
+  block size. */
 
   IORequest read_io_type(IORequest::READ);
-  const dberr_t err =
-      os_aio(read_io_type, AIO_mode::SYNC, node->name, node->handle, buf.data(),
-             offset, OS_FILE_LOG_BLOCK_SIZE, false, nullptr, nullptr);
+  const dberr_t err = os_file_read(read_io_type, node->name, node->handle,
+                                   buf.data(), offset, OS_FILE_LOG_BLOCK_SIZE);
   if (err != DB_SUCCESS) {
     page_type_t page_type = fil_page_get_type(buf.data());
     TLOG("Could not read page_id=" << page_id << ", page_type=" << page_type
                                    << ", err=" << err);
     /* Since we do not pass encryption information in IORequest, if page is
-     * encrypted on disk, it cannot be decrypted by i/o layer. But the encrypted
-     * data will be available in the provided buffer. */
+    encrypted on disk, it cannot be decrypted by i/o layer. But the encrypted
+    data will be available in the provided buffer. */
 
     if (err == DB_IO_DECRYPT_FAIL) {
       /* We expect this only for encrypted pages.  For this function, this error
-       * is OK because we will only read one header field and the header is not
-       * encrypted. */
+      is OK because we will only read one header field and the header is not
+      encrypted. */
       ut_ad(Encryption::is_encrypted_page(buf.data()));
     } else {
       return RET_FAIL;
@@ -276,7 +359,7 @@ Ret_t Tester::find_tablespace_file_name(
   char *filename = fil_space_get_first_path(space_id);
   sout << filename;
   set_output(sout);
-  ut_free(filename);
+  ut::free(filename);
   return RET_PASS;
 }
 
@@ -353,7 +436,7 @@ Ret_t Tester::corrupt_ondisk_root_page(
 Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
                                 const size_t prefix_length) {
   TLOG("Tester::clear_page_prefix()");
-  aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> mem;
+  ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> mem;
   /* We read before write, as writes have to have length divisible by
   OS_FILE_LOG_BLOCK_SIZE thus we need to learn the content of non-zeroed suffix.
   Also, it's easier to spot errors during read than write, and this requires
@@ -361,7 +444,7 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
   const auto buf_size =
       ut_uint64_align_up(prefix_length, OS_FILE_LOG_BLOCK_SIZE);
 
-  mem.create(buf_size);
+  mem.alloc(ut::Count(buf_size));
   const page_id_t page_id{space_id, page_no};
   fil_space_t *space = fil_space_get(space_id);
 
@@ -377,16 +460,16 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
   const os_offset_t offset = page_no * page_size_bytes;
 
   /* When the space file is currently open we are not able to write to it
-   * directly on Windows. We must use the currently opened handle. Moreover,
-   * on Windows a file opened for the AIO access must be accessed only by AIO
-   * methods. The AIO requires the operations to be aligned and with size
-   * divisible by OS block size, so we first read block of the first page, to
-   * corrupt it and write back. */
+  directly on Windows. We must use the currently opened handle. Moreover,
+  on Windows a file opened for the AIO access must be accessed only by AIO
+  methods. The AIO requires the operations to be aligned and with size
+  divisible by OS block size, so we first read block of the first page, to
+  corrupt it and write back. */
 
   byte *buf = mem;
   IORequest read_io_type(IORequest::READ);
-  dberr_t err = os_aio(read_io_type, AIO_mode::SYNC, node->name, node->handle,
-                       buf, offset, buf_size, false, nullptr, nullptr);
+  dberr_t err = os_file_read(read_io_type, node->name, node->handle, buf,
+                             offset, buf_size);
   if (err != DB_SUCCESS) {
     page_type_t page_type = fil_page_get_type(buf);
     TLOG("Could not read page_id=" << page_id << ", page type=" << page_type
@@ -394,7 +477,7 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
 
     if (err == DB_IO_DECRYPT_FAIL) {
       /* We expect this only for encrypted pages. Since this function doesn't
-       * actually read (or use) the contents, this error is OK. */
+      actually read (or use) the contents, this error is OK. */
       ut_ad(Encryption::is_encrypted_page(buf));
     } else {
       return RET_FAIL;
@@ -405,8 +488,8 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
   memset(buf, 0x00, prefix_length);
 
   IORequest write_io_type(IORequest::WRITE);
-  err = os_aio(write_io_type, AIO_mode::SYNC, node->name, node->handle, buf,
-               offset, buf_size, false, nullptr, nullptr);
+  err = os_file_write(write_io_type, node->name, node->handle, buf, offset,
+                      buf_size);
   if (err == DB_SUCCESS) {
     TLOG("Successfully zeroed prefix of page_id=" << page_id << ", prefix="
                                                   << prefix_length);
@@ -470,8 +553,8 @@ DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {
 
   mtr.start();
 
-  buf_block_t *block =
-      buf_page_get(page_id, page_size_t(space->flags), RW_X_LATCH, &mtr);
+  buf_block_t *block = buf_page_get(page_id, page_size_t(space->flags),
+                                    RW_X_LATCH, UT_LOCATION_HERE, &mtr);
 
   if (block != nullptr) {
     byte *page = block->frame;
@@ -499,7 +582,7 @@ DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {
 }
 
 Ret_t Tester::print_dblwr_has_encrypted_pages(
-    std::vector<std::string> &tokens) noexcept {
+    std::vector<std::string> &) noexcept {
   std::ostringstream sout;
   if (dblwr::has_encrypted_pages()) {
     std::string m1("Double write file has encrypted pages.");
@@ -618,8 +701,10 @@ int interpreter_run(const char *command) noexcept {
 
 }  // namespace ib
 
-void ib_interpreter_update(MYSQL_THD thd, SYS_VAR *var, void *var_ptr,
-                           const void *save) {
+void ib_interpreter_update(MYSQL_THD thd [[maybe_unused]],
+                           SYS_VAR *var [[maybe_unused]],
+                           void *var_ptr [[maybe_unused]],
+                           const void *save [[maybe_unused]]) {
   TLOG("ib_interpreter_update");
 
   /* Point the THD variables - innodb_interpreter and innodb_interpreter_output
@@ -627,7 +712,8 @@ void ib_interpreter_update(MYSQL_THD thd, SYS_VAR *var, void *var_ptr,
   ib::tl_interpreter.update_thd_variable();
 }
 
-int ib_interpreter_check(THD *thd, SYS_VAR *var, void *save,
+int ib_interpreter_check(THD *thd [[maybe_unused]],
+                         SYS_VAR *var [[maybe_unused]], void *save,
                          struct st_mysql_value *value) {
   TLOG("ib_interpreter_check");
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -638,7 +724,7 @@ int ib_interpreter_check(THD *thd, SYS_VAR *var, void *save,
 
   const char *cmd = value->val_str(value, buff, &len);
 
-  int ret = ib::interpreter_run(cmd);
+  int ret = ib::interpreter_run(cmd ? cmd : "");
 
   TLOG("ib_interpreter_check() is returning: " << ret);
   *static_cast<const char **>(save) = cmd;

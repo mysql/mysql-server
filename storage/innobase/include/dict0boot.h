@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -61,76 +61,77 @@ void dict_hdr_get_new_id(table_id_t *table_id, space_index_t *index_id,
 /** Writes the current value of the row id counter to the dictionary header file
  page. */
 void dict_hdr_flush_row_id(void);
+#ifndef UNIV_HOTBACKUP
 /** Returns a new row id.
  @return the new id */
-UNIV_INLINE
-row_id_t dict_sys_get_new_row_id(void);
+static inline row_id_t dict_sys_get_new_row_id(void);
 /** Reads a row id from a record or other 6-byte stored form.
  @return row id */
-UNIV_INLINE
-row_id_t dict_sys_read_row_id(const byte *field); /*!< in: record field */
+static inline row_id_t dict_sys_read_row_id(
+    const byte *field); /*!< in: record field */
 
 /** Writes a row id to a record or other 6-byte stored form.
-@param[in]	field	record field
-@param[in]	row_id	row id */
-UNIV_INLINE
-void dict_sys_write_row_id(byte *field, row_id_t row_id);
+@param[in]      field   record field
+@param[in]      row_id  row id */
+static inline void dict_sys_write_row_id(byte *field, row_id_t row_id);
+
+/** Check if a table id belongs to old innodb internal system table.
+@param[in]      id              table id
+@return true if the table id belongs to a system table. */
+[[nodiscard]] static inline bool dict_is_old_sys_table(table_id_t id);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Initializes the data dictionary memory structures when the database is
  started. This function is also called when the data dictionary is created.
  @return DB_SUCCESS or error code. */
-dberr_t dict_boot(void) MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t dict_boot(void);
 
 /** Creates and initializes the data dictionary at the server bootstrap.
  @return DB_SUCCESS or error code. */
-dberr_t dict_create(void) MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t dict_create(void);
 
-/** Check if a table id belongs to old innodb internal system table.
-@param[in]	id		table id
-@return true if the table id belongs to a system table. */
-UNIV_INLINE
-bool dict_is_old_sys_table(table_id_t id) MY_ATTRIBUTE((warn_unused_result));
-
-/* Space id and page no where the dictionary header resides */
-#define DICT_HDR_SPACE 0 /* the SYSTEM tablespace */
-#define DICT_HDR_PAGE_NO FSP_DICT_HDR_PAGE_NO
-
-/* The ids for the basic system tables and their indexes */
-#define DICT_TABLES_ID 1
-#define DICT_COLUMNS_ID 2
-#define DICT_INDEXES_ID 3
-#define DICT_FIELDS_ID 4
+/** The ids for the basic system tables and their indexes */
+constexpr uint32_t DICT_TABLES_ID = 1;
+constexpr uint32_t DICT_COLUMNS_ID = 2;
+constexpr uint32_t DICT_INDEXES_ID = 3;
+constexpr uint32_t DICT_FIELDS_ID = 4;
 /* The following is a secondary index on SYS_TABLES */
-#define DICT_TABLE_IDS_ID 5
+constexpr uint32_t DICT_TABLE_IDS_ID = 5;
 
-#define DICT_HDR_FIRST_ID                  \
-  10 /* the ids for tables etc. start      \
-     from this number, except for basic    \
-     system tables and their above defined \
-     indexes; ibuf tables and indexes are  \
-     assigned as the id the number         \
-     DICT_IBUF_ID_MIN plus the space id */
+/** the ids for tables etc. start from this number, except for basic system
+ tables and their above defined indexes; ibuf tables and indexes are assigned
+ as the id the number DICT_IBUF_ID_MIN plus the space id */
+constexpr uint32_t DICT_HDR_FIRST_ID = 10;
 
 /* The offset of the dictionary header on the page */
-#define DICT_HDR FSEG_PAGE_DATA
+constexpr uint32_t DICT_HDR = FSEG_PAGE_DATA;
 
 /*-------------------------------------------------------------*/
 /* Dictionary header offsets */
-#define DICT_HDR_ROW_ID 0        /* The latest assigned row id */
-#define DICT_HDR_TABLE_ID 8      /* The latest assigned table id */
-#define DICT_HDR_INDEX_ID 16     /* The latest assigned index id */
-#define DICT_HDR_MAX_SPACE_ID 24 /* The latest assigned space id,or 0*/
-#define DICT_HDR_MIX_ID_LOW 28   /* Obsolete,always DICT_HDR_FIRST_ID*/
-#define DICT_HDR_TABLES 32       /* Root of SYS_TABLES clust index */
-#define DICT_HDR_TABLE_IDS 36    /* Root of SYS_TABLE_IDS sec index */
-#define DICT_HDR_COLUMNS 40      /* Root of SYS_COLUMNS clust index */
-#define DICT_HDR_INDEXES 44      /* Root of SYS_INDEXES clust index */
-#define DICT_HDR_FIELDS 48       /* Root of SYS_FIELDS clust index */
+/** The latest assigned row id */
+constexpr uint32_t DICT_HDR_ROW_ID = 0;
+/** The latest assigned table id */
+constexpr uint32_t DICT_HDR_TABLE_ID = 8;
+/** The latest assigned index id */
+constexpr uint32_t DICT_HDR_INDEX_ID = 16;
+/** The latest assigned space id,or 0*/
+constexpr uint32_t DICT_HDR_MAX_SPACE_ID = 24;
+/** Obsolete,always DICT_HDR_FIRST_ID*/
+constexpr uint32_t DICT_HDR_MIX_ID_LOW = 28;
+/** Root of SYS_TABLES clust index */
+constexpr uint32_t DICT_HDR_TABLES = 32;
+/** Root of SYS_TABLE_IDS sec index */
+constexpr uint32_t DICT_HDR_TABLE_IDS = 36;
+/** Root of SYS_COLUMNS clust index */
+constexpr uint32_t DICT_HDR_COLUMNS = 40;
+/** Root of SYS_INDEXES clust index */
+constexpr uint32_t DICT_HDR_INDEXES = 44;
+/** Root of SYS_FIELDS clust index */
+constexpr uint32_t DICT_HDR_FIELDS = 48;
 
-#define DICT_HDR_FSEG_HEADER              \
-  56 /* Segment header for the tablespace \
-     segment into which the dictionary    \
-     header is created */
+/* Segment header for the tablespace segment into which the dictionary header is
+ created */
+constexpr uint32_t DICT_HDR_FSEG_HEADER = 56;
 /*-------------------------------------------------------------*/
 
 /* The columns in SYS_TABLES */
@@ -323,13 +324,13 @@ enum dict_fld_sys_virtual_enum {
 
 /* A number of the columns above occur in multiple tables.  These are the
 length of thos fields. */
-#define DICT_FLD_LEN_SPACE 4
-#define DICT_FLD_LEN_FLAGS 4
+constexpr uint32_t DICT_FLD_LEN_SPACE = 4;
+constexpr uint32_t DICT_FLD_LEN_FLAGS = 4;
 
 /* When a row id which is zero modulo this number (which must be a power of
 two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is
 updated */
-#define DICT_HDR_ROW_ID_WRITE_MARGIN 256
+constexpr uint32_t DICT_HDR_ROW_ID_WRITE_MARGIN = 256;
 
 #ifndef UNIV_HOTBACKUP
 #include "dict0boot.ic"

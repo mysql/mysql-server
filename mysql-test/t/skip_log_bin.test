@@ -29,3 +29,25 @@ create table t2 select * from t1;
 
 # clean-up
 drop table t1, t2;
+
+# coverage for WL#14930 - run some statements with the binlog disabled.
+
+--let $saved_binlog_expire_logs_days=`SELECT @@global.expire_logs_days`
+--let $saved_binlog_expire_logs_seconds=`SELECT @@global.binlog_expire_logs_seconds`
+--let $saved_binlog_expire_logs_auto_purge=`SELECT @@global.binlog_expire_logs_auto_purge`
+
+SET @@global.binlog_expire_logs_seconds=3600;
+SET @@global.binlog_expire_logs_auto_purge=ON;
+
+# the following statements will not emit warning or errors
+
+PURGE BINARY LOGS TO 'source-bin.000002';
+--let $date=`SELECT NOW()`
+--replace_result $date DATE
+--eval PURGE BINARY LOGS BEFORE '$date'
+
+--replace_result $saved_binlog_expire_logs_seconds SAVED_BINLOG_EXPIRE_LOGS_SECONDS
+--eval SET @@global.binlog_expire_logs_seconds=$saved_binlog_expire_logs_seconds
+--replace_result $saved_binlog_expire_logs_auto_purge SAVED_BINLOG_EXPIRE_LOGS_AUTO_PURGE
+--eval SET @global.binlog_expire_logs_auto_purge=$saved_binlog_expire_logs_auto_purge
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ class Rpl_applier_reader {
 
      @retval    false     Success
      @retval    true      Error. The thread is killed or flush failed while
-                          executing mts_checkpoint_routine.
+                          executing mta_checkpoint_routine.
 
      @note the The caller must hold m_rli->data_lock and
            relaylog.lock_binlog_end_pos().

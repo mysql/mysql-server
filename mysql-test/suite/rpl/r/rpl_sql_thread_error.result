@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 CALL mtr.add_suppression("Relay log read failure");
 SET @save_debug=@@GLOBAL.debug;
-SET GLOBAL debug="d,force_sql_thread_error";
+SET GLOBAL debug="+d,force_sql_thread_error";
 START SLAVE SQL_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

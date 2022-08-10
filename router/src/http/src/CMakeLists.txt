@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,9 @@ ADD_LIBRARY(http_common
   http_time.cc
   )
 TARGET_LINK_LIBRARIES(http_common
+  PUBLIC
   harness_tls
+  PRIVATE
   ${LIBEVENT_LIBRARIES}
   ${SSL_LIBRARIES}
   )

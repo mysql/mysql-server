@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@
 #include <string>
 
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"
 
 class THD;
 
@@ -51,11 +50,18 @@ class Ndb_local_connection {
   Ndb_local_connection(THD *thd);
   ~Ndb_local_connection();
 
-  bool truncate_table(const char *db, const char *table,
+  /* Possibly sets THD flags to disable writing to binlog and reset server id
+     based on op_anyvalue and log_replica_updates. A copy of the original THD
+     flags and server id is created in the class constructor and restored by
+     its destructor.
+  */
+  void set_binlog_options(bool log_replica_updates, unsigned int op_anyvalue);
+
+  bool truncate_table(const std::string &db, const std::string &table,
                       bool ignore_no_such_table);
 
   bool delete_rows(const std::string &db, const std::string &table,
-                   int ignore_no_such_table, const std::string &where);
+                   bool ignore_no_such_table, const std::string &where);
 
   bool create_util_table(const std::string &table_def_sql);
 
@@ -67,20 +73,16 @@ class Ndb_local_connection {
 
   bool run_acl_statement(const std::string &acl_sql);
 
-  /* Don't use this function for new implementation, backward compat. only */
-  bool raw_run_query(const char *query, size_t query_length,
-                     const int *suppress_errors);
-
  protected:
-  bool execute_query_iso(MYSQL_LEX_STRING sql_text,
-                         const uint *ignore_mysql_errors,
-                         const class Suppressor *suppressor = NULL);
+  bool execute_query_iso(const std::string &sql_query,
+                         const uint *ignore_mysql_errors);
+  bool execute_query(const std::string &sql_query,
+                     const uint *ignore_mysql_errors);
 
   class Ed_result_set *get_results();
 
-  bool execute_query(MYSQL_LEX_STRING sql_text, const uint *ignore_mysql_errors,
-                     const class Suppressor *suppressor = NULL);
-
+  const unsigned int saved_thd_server_id;
+  const unsigned long long saved_thd_options;
   bool m_push_warnings;
   THD *m_thd;
 

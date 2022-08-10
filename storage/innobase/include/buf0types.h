@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,11 +35,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "os0event.h"
 #include "sync0rw.h"
+#include "ut0byte.h"
 #include "ut0mutex.h"
+#include "ut0rnd.h"
 #include "ut0ut.h"
 
 /** Magic value to use instead of checksums when they are disabled */
-#define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
+constexpr uint32_t BUF_NO_CHECKSUM_MAGIC = 0xDEADBEEFUL;
 
 /** Buffer page (uncompressed or compressed) */
 class buf_page_t;
@@ -56,7 +58,7 @@ struct buf_buddy_stat_t;
 /** Doublewrite memory struct */
 struct buf_dblwr_t;
 /** Flush observer for bulk create index */
-class FlushObserver;
+class Flush_observer;
 
 /** A buffer frame. @see page_t */
 typedef byte buf_frame_t;
@@ -139,16 +141,17 @@ inline bool is_checksum_strict(ulint algo) {
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /** @{ */
 /** Zip shift value for the smallest page size */
-#define BUF_BUDDY_LOW_SHIFT UNIV_ZIP_SIZE_SHIFT_MIN
+constexpr uint32_t BUF_BUDDY_LOW_SHIFT = UNIV_ZIP_SIZE_SHIFT_MIN;
 
 /** Smallest buddy page size */
-#define BUF_BUDDY_LOW (1U << BUF_BUDDY_LOW_SHIFT)
+constexpr uint32_t BUF_BUDDY_LOW = (1U << BUF_BUDDY_LOW_SHIFT);
 
 /** Actual number of buddy sizes based on current page size */
 #define BUF_BUDDY_SIZES (UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
 
 /** Maximum number of buddy sizes based on the max page size */
-#define BUF_BUDDY_SIZES_MAX (UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT)
+constexpr uint32_t BUF_BUDDY_SIZES_MAX =
+    UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT;
 
 /** twice the maximum block size of the buddy system;
 the underlying memory is aligned by this amount:
@@ -190,8 +193,8 @@ class page_id_t {
   page_id_t() = delete;
 
   /** Constructor from (space, page_no).
-  @param[in]	space	tablespace id
-  @param[in]	page_no	page number */
+  @param[in]    space   tablespace id
+  @param[in]    page_no page number */
   page_id_t(space_id_t space, page_no_t page_no)
       : m_space(space), m_page_no(page_no) {}
 
@@ -203,36 +206,38 @@ class page_id_t {
   @return page number */
   inline page_no_t page_no() const { return (m_page_no); }
 
-  /** Retrieve the fold value.
-  @return fold value */
-  inline uint32_t fold() const { return (m_space << 20) + m_space + m_page_no; }
+  /** Retrieve the hash value.
+  @return hashed value */
+  inline uint64_t hash() const {
+    return ut::hash_uint64_pair(m_space, m_page_no);
+  }
 
   /** Reset the values from a (space, page_no).
-  @param[in]	space	tablespace id
-  @param[in]	page_no	page number */
+  @param[in]    space   tablespace id
+  @param[in]    page_no page number */
   inline void reset(space_id_t space, page_no_t page_no) {
     m_space = space;
     m_page_no = page_no;
   }
 
   /** Reset the page number only.
-  @param[in]	page_no	page number */
+  @param[in]    page_no page number */
   inline void set_page_no(page_no_t page_no) { m_page_no = page_no; }
 
   /** Check if a given page_id_t object is equal to the current one.
-  @param[in]	a	page_id_t object to compare
+  @param[in]    a       page_id_t object to compare
   @return true if equal */
   inline bool operator==(const page_id_t &a) const {
     return (a.space() == m_space && a.page_no() == m_page_no);
   }
 
   /** Check if a given page_id_t object is not equal to the current one.
-  @param[in]	a	page_id_t object to compare
+  @param[in]    a       page_id_t object to compare
   @return true if not equal */
   inline bool operator!=(const page_id_t &a) const { return !(*this == a); }
 
   /** Provides a lexicographic ordering on <space_id,page_no> pairs
-  @param[in]	other	page_id_t object to compare
+  @param[in]    other   page_id_t object to compare
   @return true if this is strictly smaller than other */
   inline bool operator<(const page_id_t &other) const {
     return m_space < other.space() ||
@@ -250,8 +255,8 @@ class page_id_t {
 };
 
 /** Print the given page_id_t object.
-@param[in,out]	out	the output stream
-@param[in]	page_id	the page_id_t object to be printed
+@param[in,out]  out     the output stream
+@param[in]      page_id the page_id_t object to be printed
 @return the output stream */
 std::ostream &operator<<(std::ostream &out, const page_id_t &page_id);
 

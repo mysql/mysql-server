@@ -139,7 +139,9 @@ ix+0
 truncate table t1;
 insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
 Warnings:
+Warning	4096	Delimiter ' ' in position 19 in datetime value '0000-00-00 00:00:00 some trailer' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 'ix' at row 1
+Warning	4096	Delimiter ' ' in position 19 in datetime value '2003-01-01 00:00:00 some trailer' at row 2 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 'ix' at row 2
 select ix+0 from t1;
 ix+0
@@ -449,19 +451,6 @@ a	b	c
 drop table t1;
 End of 4.1 tests
 set time_zone= @@global.time_zone;
-CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
-UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
-Warnings:
-Warning	1048	Column 'f3' cannot be null
-SELECT f1,f2-f3 FROM t1;
-f1	f2-f3
-1	20010909044659
-DROP TABLE t1;
 End of 5.0 tests
 #
 # Bug #55779: select does not work properly in mysql server
@@ -678,7 +667,7 @@ SET @@sql_mode= @org_mode;
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
-# WL6292 - Test cases to test new behavior with 
+# WL6292 - Test cases to test new behavior with
 #          --explicit_defaults_for_timestamp
 # Almost all the scenario's required to test this WL, is already tested
 # by most of existing test case. Adding some basic tests here.
@@ -687,6 +676,8 @@ CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP);
 ALTER TABLE t1 ADD COLUMN (f3 TIMESTAMP NOT NULL);
 ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
 ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
+Warnings:
+Warning	4095	Delimiter ':' in position 1 in datetime value '0:0:0' at row 1 is deprecated. Prefer the standard '-'.
 ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 # Following is expected out of SHOW CREATE TABLE
 #  `f1` timestamp NULL DEFAULT NULL,

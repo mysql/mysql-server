@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,7 +217,7 @@ class Security_context {
   /**
     Check if a an account has been assigned to the security context
 
-    The account assigment to the security context is always executed in the
+    The account assignment to the security context is always executed in the
     following order:
     1) assign user's name to the context
     2) assign user's hostname to the context
@@ -299,6 +299,9 @@ class Security_context {
 
   void clear_db_restrictions();
 
+  bool is_in_registration_sandbox_mode();
+  void set_registration_sandbox_mode(bool v);
+
   void set_thd(THD *thd);
 
   THD *get_thd();
@@ -368,7 +371,6 @@ class Security_context {
   bool m_password_expired;
   List_of_auth_id_refs m_active_roles;
   Acl_map *m_acl_map;
-  int m_map_checkout_count;
   /**
     True if this account can't be logged into.
   */
@@ -382,6 +384,18 @@ class Security_context {
   bool m_has_drop_policy;
   std::unique_ptr<std::function<void(Security_context *)>> m_drop_policy;
   Restrictions m_restrictions;
+  /**
+    This flag tracks if server should be in sandbox mode or not.
+    When user account connects to server, with any of its authentication
+    plugin's registration step pending, in that case, the connection is
+    set in sandbox(or registration) mode i.e m_registration_sandbox_mode is set
+    to TRUE.
+    During this time only ALTER USER, SET PASSWORD statements are allowed.
+    Once user finishes the registration steps for the authentication plugin
+    via an ALTER USER statement, m_registration_sandbox_mode is set to FALSE,
+    making a full fledged connection, where user can execute any sql statement.
+  */
+  bool m_registration_sandbox_mode;
 
   /**
     m_thd - Thread handle, set to nullptr if this does not belong to any THD yet
@@ -483,6 +497,14 @@ inline bool Security_context::is_skip_grants_user() {
 
 inline void Security_context::clear_db_restrictions() {
   m_restrictions.clear_db();
+}
+
+inline bool Security_context::is_in_registration_sandbox_mode() {
+  return m_registration_sandbox_mode;
+}
+
+inline void Security_context::set_registration_sandbox_mode(bool v) {
+  m_registration_sandbox_mode = v;
 }
 
 inline void Security_context::set_thd(THD *thd) { m_thd = thd; }

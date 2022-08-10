@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqlrouter_keyring\fR
+.\"     Title: mysqlrouter_keyring
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/02/2022
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER_KEYRING\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Router"
+.TH "MYSQLROUTER_KEYRING" "1" "06/02/2022" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,7 +36,7 @@ mysqlrouter_keyring \- MySQL Router Keyring Tool
 .PP
 The
 \fBmysqlrouter_keyring\fR
-utility is a a command line application to manage MySQL Router key rings\&.
+utility is a command line application to manage MySQL Router key rings\&.
 .if n \{\
 .sp
 .\}
@@ -90,9 +90,9 @@ Keyring commands; all commands also accept \-\-master\-key\-reader and \-\-maste
 .sp -1
 .IP \(bu 2.3
 .\}
-\-\-init: Initialize keyring with a master\-key\-file\&.
+init: Initialize keyring with a master\-key\-file\&.
 .sp
-Creates a keyring and master\-key\-file if they doo not exist; and adds keyring to master\-key\-file if it does not yet exist there\&.
+Creates a keyring and master\-key\-file if they do not exist; and adds keyring to master\-key\-file if it does not yet exist there\&.
 .RE
 .sp
 .RS 4
@@ -103,7 +103,7 @@ Creates a keyring and master\-key\-file if they doo not exist; and adds keyring 
 .sp -1
 .IP \(bu 2.3
 .\}
-\-\-list: List usernames stored in the keyring; or list properties of a user stored in the keyring\&.
+list: List usernames stored in the keyring; or list properties of a user stored in the keyring\&.
 .RE
 .sp
 .RS 4
@@ -114,7 +114,7 @@ Creates a keyring and master\-key\-file if they doo not exist; and adds keyring 
 .sp -1
 .IP \(bu 2.3
 .\}
-\-\-get: Get property of user from the keyring\&.
+get: Get property of user from the keyring\&.
 .RE
 .sp
 .RS 4
@@ -125,7 +125,7 @@ Creates a keyring and master\-key\-file if they doo not exist; and adds keyring 
 .sp -1
 .IP \(bu 2.3
 .\}
-\-\-export: Export keyring as JSON\&.
+export: Export all entries of the keyring as JSON\&.
 .RE
 .sp
 .RS 4
@@ -136,7 +136,7 @@ Creates a keyring and master\-key\-file if they doo not exist; and adds keyring 
 .sp -1
 .IP \(bu 2.3
 .\}
-\-\-set: Set property in the keyring\&.
+set: Add or overwrite account of the user in the keyring file
 .RE
 .sp
 .RS 4
@@ -147,7 +147,7 @@ Creates a keyring and master\-key\-file if they doo not exist; and adds keyring 
 .sp -1
 .IP \(bu 2.3
 .\}
-\-delete\-: Delete user from the keyring\&.
+delete: Delete user from the keyring\&.
 .RE
 .PP
 Master\-key commands
@@ -160,7 +160,7 @@ Master\-key commands
 .sp -1
 .IP \(bu 2.3
 .\}
-\-\-master\-key\-list: List keyring\-ids from master\-key\-file\&.
+master\-key\-list: List keyring\-ids from master\-key\-file\&.
 .RE
 .sp
 .RS 4
@@ -171,7 +171,7 @@ Master\-key commands
 .sp -1
 .IP \(bu 2.3
 .\}
-\-\-master\-key\-delete: Delete master\-ley from "keyring" from master\-key\-file\&.
+master\-key\-delete: Delete master\-ley from "keyring" from master\-key\-file\&.
 .RE
 .sp
 .RS 4
@@ -182,7 +182,7 @@ Master\-key commands
 .sp -1
 .IP \(bu 2.3
 .\}
-\-\-master\-key\-rename: Rename keyring\-id in a master\-key\-file\&.
+master\-key\-rename: Rename keyring\-id in a master\-key\-file\&.
 .RE
 .PP
 Examples:
@@ -191,17 +191,17 @@ Examples:
 .RS 4
 .\}
 .nf
-shell> mysqlrouter_keyring init \-\-master\-key\-file=mysqlrouter\&.key data/keyring
-shell> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring
-shell> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring user   
-shell> mysqlrouter_keyring get \-\-master\-key\-file=mysqlrouter\&.key data/keyring someuser key
-shell> mysqlrouter_keyring export \-\-master\-key\-file=mysqlrouter\&.key data/keyring
-shell> mysqlrouter_keyring set \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key value
-shell> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user
-shell> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key
-shell> mysqlrouter_keyring master\-key\-list \-\-master\-key\-file=mysqlrouter\&.key
-shell> mysqlrouter_keyring master\-key\-delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring 
-shell> mysqlrouter_keyring master\-key\-rename \-\-master\-key\-file=mysqlrouter\&.key data/keyring other/data/keyring
+$> mysqlrouter_keyring init \-\-master\-key\-file=mysqlrouter\&.key data/keyring
+$> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring
+$> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring user   
+$> mysqlrouter_keyring get \-\-master\-key\-file=mysqlrouter\&.key data/keyring someuser key
+$> mysqlrouter_keyring export \-\-master\-key\-file=mysqlrouter\&.key data/keyring
+$> mysqlrouter_keyring set \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key value
+$> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user
+$> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key
+$> mysqlrouter_keyring master\-key\-list \-\-master\-key\-file=mysqlrouter\&.key
+$> mysqlrouter_keyring master\-key\-delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring 
+$> mysqlrouter_keyring master\-key\-rename \-\-master\-key\-file=mysqlrouter\&.key data/keyring other/data/keyring
 .fi
 .if n \{\
 .RE
@@ -209,7 +209,7 @@ shell> mysqlrouter_keyring master\-key\-rename \-\-master\-key\-file=mysqlrouter
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2021, Oracle and/or its affiliates.
+Copyright \(co 2006, 2022, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

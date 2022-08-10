@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ namespace thd_manager_unittest {
 
 class ThreadManagerTest : public ::testing::Test {
  protected:
-  ThreadManagerTest() {}
+  ThreadManagerTest() = default;
 
   void SetUp() override {
     Global_THD_manager::create_instance();
@@ -183,15 +183,28 @@ TEST_F(ThreadManagerTest, TestTHDFindFunc) {
   thd_manager->add_thd(&thd2);
   TestFunc2 testFunc2;
   testFunc2.set_search_value(2);
-  THD *thd = thd_manager->find_thd(&testFunc2);
+  THD_ptr thd_ptr = thd_manager->find_thd(&testFunc2);
   /* Returns the last thd which matches. */
-  EXPECT_EQ(2U, thd->server_id);
+  EXPECT_EQ(2U, thd_ptr->server_id);
 
   testFunc2.set_search_value(6);
-  thd = thd_manager->find_thd(&testFunc2);
+  thd_ptr = thd_manager->find_thd(&testFunc2);
   /* Find non existing thd with server_id value 6. Expected to return NULL. */
   const THD *null_thd = nullptr;
-  EXPECT_EQ(null_thd, thd);
+  EXPECT_EQ(null_thd, thd_ptr.get());
+
+  /* Verify if THD being disposed is returned from find_thd() */
+  testFunc2.set_search_value(1);
+  thd_ptr = thd_manager->find_thd(&testFunc2);
+  EXPECT_EQ(1U, thd_ptr->server_id);
+  EXPECT_EQ(false, thd_ptr->is_being_disposed());
+  thd_ptr.release();
+  // Starting thd1 disposal.
+  thd1.release_resources();
+  // Find THD being disposed. Expected to return nullptr.
+  thd_ptr = thd_manager->find_thd(&testFunc2);
+  EXPECT_EQ(null_thd, thd_ptr.get());
+  EXPECT_EQ(true, thd1.release_resources_done());
 
   // Cleanup - Remove added THD.
   thd_manager->remove_thd(&thd1);

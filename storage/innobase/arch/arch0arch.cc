@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,7 +59,7 @@ bool arch_wake_threads() {
 void arch_remove_file(const char *file_path, const char *file_name) {
   char path[MAX_ARCH_PAGE_FILE_NAME_LEN];
 
-  ut_ad(MAX_ARCH_LOG_FILE_NAME_LEN <= MAX_ARCH_PAGE_FILE_NAME_LEN);
+  static_assert(MAX_ARCH_LOG_FILE_NAME_LEN <= MAX_ARCH_PAGE_FILE_NAME_LEN);
   ut_ad(strlen(file_path) + 1 + strlen(file_name) <
         MAX_ARCH_PAGE_FILE_NAME_LEN);
 
@@ -79,8 +79,8 @@ void arch_remove_file(const char *file_path, const char *file_name) {
   bool exists;
 
   os_file_status(path, &exists, &type);
-  ut_a(exists);
-  ut_a(type == OS_FILE_TYPE_FILE);
+  ut_ad(exists);
+  ut_ad(type == OS_FILE_TYPE_FILE);
 #endif /* UNIV_DEBUG */
 
   os_file_delete(innodb_arch_file_key, path);
@@ -89,7 +89,7 @@ void arch_remove_file(const char *file_path, const char *file_name) {
 void arch_remove_dir(const char *dir_path, const char *dir_name) {
   char path[MAX_ARCH_DIR_NAME_LEN];
 
-  ut_ad(sizeof(ARCH_LOG_DIR) <= sizeof(ARCH_PAGE_DIR));
+  static_assert(sizeof(ARCH_LOG_DIR) <= sizeof(ARCH_PAGE_DIR));
   ut_ad(strlen(dir_path) + 1 + strlen(dir_name) + 1 < sizeof(path));
 
   /* Remove only LOG and PAGE archival directories. */
@@ -105,8 +105,8 @@ void arch_remove_dir(const char *dir_path, const char *dir_name) {
   bool exists;
 
   os_file_status(path, &exists, &type);
-  ut_a(exists);
-  ut_a(type == OS_FILE_TYPE_DIR);
+  ut_ad(exists);
+  ut_ad(type == OS_FILE_TYPE_DIR);
 #endif /* UNIV_DEBUG */
 
   os_file_scan_directory(path, arch_remove_file, true);
@@ -116,7 +116,8 @@ void arch_remove_dir(const char *dir_path, const char *dir_name) {
 @return error code */
 dberr_t arch_init() {
   if (arch_log_sys == nullptr) {
-    arch_log_sys = UT_NEW(Arch_Log_Sys(), mem_key_archive);
+    arch_log_sys =
+        ut::new_withkey<Arch_Log_Sys>(ut::make_psi_memory_key(mem_key_archive));
 
     if (arch_log_sys == nullptr) {
       return (DB_OUT_OF_MEMORY);
@@ -126,7 +127,8 @@ dberr_t arch_init() {
   }
 
   if (arch_page_sys == nullptr) {
-    arch_page_sys = UT_NEW(Arch_Page_Sys(), mem_key_archive);
+    arch_page_sys = ut::new_withkey<Arch_Page_Sys>(
+        ut::make_psi_memory_key(mem_key_archive));
 
     if (arch_page_sys == nullptr) {
       return (DB_OUT_OF_MEMORY);
@@ -148,23 +150,43 @@ dberr_t arch_init() {
 /** Free Page and Log archiver system */
 void arch_free() {
   if (arch_log_sys != nullptr) {
-    UT_DELETE(arch_log_sys);
+    ut::delete_(arch_log_sys);
     arch_log_sys = nullptr;
 
     os_event_destroy(log_archiver_thread_event);
   }
 
   if (arch_page_sys != nullptr) {
-    UT_DELETE(arch_page_sys);
+    ut::delete_(arch_page_sys);
     arch_page_sys = nullptr;
 
     os_event_destroy(page_archiver_thread_event);
   }
 }
 
+dberr_t Arch_Group::prepare_file_with_header(
+    uint64_t start_offset, Get_file_header_callback &get_header) {
+  ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> header{};
+  header.alloc(ut::Count{m_header_len});
+
+  dberr_t err = get_header(start_offset, header);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  err = m_file_ctx.open_new(m_begin_lsn, m_file_size, 0);
+
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  return m_file_ctx.write(nullptr, header, m_header_len);
+}
+
 dberr_t Arch_Group::write_to_file(Arch_File_Ctx *from_file, byte *from_buffer,
                                   uint length, bool partial_write,
-                                  bool do_persist) {
+                                  bool do_persist,
+                                  Get_file_header_callback get_header) {
   dberr_t err = DB_SUCCESS;
   uint write_size;
 
@@ -173,14 +195,17 @@ dberr_t Arch_Group::write_to_file(Arch_File_Ctx *from_file, byte *from_buffer,
     ut_ad(m_file_ctx.get_count() == 0);
 
     DBUG_EXECUTE_IF("crash_before_archive_file_creation", DBUG_SUICIDE(););
-    err = m_file_ctx.open_new(m_begin_lsn, m_header_len);
+
+    err = prepare_file_with_header(0, get_header);
 
     if (err != DB_SUCCESS) {
-      return (err);
+      return err;
     }
   }
 
   auto len_left = m_file_ctx.bytes_left();
+
+  uint64_t start_offset = 0;
 
   /* New file is immediately opened when current file is over. */
   ut_ad(len_left != 0);
@@ -190,6 +215,7 @@ dberr_t Arch_Group::write_to_file(Arch_File_Ctx *from_file, byte *from_buffer,
 
     /* Write as much as possible in current file. */
     if (len_left < len_copy) {
+      ut_ad(len_left <= std::numeric_limits<uint>::max());
       write_size = static_cast<uint>(len_left);
     } else {
       write_size = length;
@@ -226,6 +252,7 @@ dberr_t Arch_Group::write_to_file(Arch_File_Ctx *from_file, byte *from_buffer,
 
     ut_ad(length >= write_size);
     length -= write_size;
+    start_offset += write_size;
 
     len_left = m_file_ctx.bytes_left();
 
@@ -233,12 +260,13 @@ dberr_t Arch_Group::write_to_file(Arch_File_Ctx *from_file, byte *from_buffer,
     if (len_left == 0) {
       m_file_ctx.close();
 
-      err = m_file_ctx.open_new(m_begin_lsn, m_header_len);
-      DBUG_EXECUTE_IF("crash_after_archive_file_creation", DBUG_SUICIDE(););
+      err = prepare_file_with_header(start_offset, get_header);
 
       if (err != DB_SUCCESS) {
         return (err);
       }
+
+      DBUG_EXECUTE_IF("crash_after_archive_file_creation", DBUG_SUICIDE(););
 
       len_left = m_file_ctx.bytes_left();
     }
@@ -284,8 +312,7 @@ void Arch_File_Ctx::delete_files(lsn_t begin_lsn) {
 }
 
 dberr_t Arch_File_Ctx::init(const char *path, const char *base_dir,
-                            const char *base_file, uint num_files,
-                            uint64_t file_size) {
+                            const char *base_file, uint num_files) {
   m_base_len = static_cast<uint>(strlen(path));
 
   m_name_len =
@@ -301,11 +328,12 @@ dberr_t Arch_File_Ctx::init(const char *path, const char *base_dir,
 
   /* In case of reinitialise. */
   if (m_name_buf != nullptr) {
-    ut_free(m_name_buf);
+    ut::free(m_name_buf);
     m_name_buf = nullptr;
   }
 
-  m_name_buf = static_cast<char *>(ut_malloc(m_name_len, mem_key_archive));
+  m_name_buf = static_cast<char *>(
+      ut::malloc_withkey(ut::make_psi_memory_key(mem_key_archive), m_name_len));
 
   if (m_name_buf == nullptr) {
     return (DB_OUT_OF_MEMORY);
@@ -329,7 +357,6 @@ dberr_t Arch_File_Ctx::init(const char *path, const char *base_dir,
   m_count = num_files;
 
   m_offset = 0;
-  m_size = file_size;
 
   m_reset.clear();
   m_stop_points.clear();
@@ -338,28 +365,25 @@ dberr_t Arch_File_Ctx::init(const char *path, const char *base_dir,
 }
 
 dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
-                            uint64_t file_offset) {
-  os_file_create_t option;
-  os_file_type_t type;
-
-  bool success;
-  bool exists;
-
+                            uint64_t file_offset, uint64_t file_size) {
   /* Close current file, if open. */
   close();
 
   m_index = file_index;
   m_offset = file_offset;
 
-  ut_ad(m_offset <= m_size);
-
   build_name(m_index, start_lsn, nullptr, 0);
 
-  success = os_file_status(m_name_buf, &exists, &type);
+  bool exists;
+  os_file_type_t type;
+
+  bool success = os_file_status(m_name_buf, &exists, &type);
 
   if (!success) {
     return (DB_CANNOT_OPEN_FILE);
   }
+
+  os_file_create_t option;
 
   if (read_only) {
     if (!exists) {
@@ -379,37 +403,52 @@ dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
     return (DB_CANNOT_OPEN_FILE);
   }
 
-  success = os_file_seek(m_name_buf, m_file.m_file, file_offset);
+  /* For newly created file, zero fill the header section. This is required
+  for archived redo files that are just created. Clone expects the header
+  length to be written. */
+  if (!exists && file_offset != 0 && !read_only) {
+    /* This call would extend the length by multiple of UNIV_PAGE_SIZE. This is
+    not an issue but we need to lseek to keep the current position at offset. */
+    success = os_file_set_size(m_name_buf, m_file, 0, file_offset, false);
+
+    exists = success;
+  }
+
+  if (success) {
+    success = os_file_seek(m_name_buf, m_file.m_file, file_offset);
+  }
+
+  m_size = file_size == 0
+               ? (exists ? os_file_get_size(m_name_buf).m_total_size : 0)
+               : file_size;
+  ut_ad(m_offset <= m_size);
+
+  if (!success) {
+    close();
+  }
 
   return (success ? DB_SUCCESS : DB_IO_ERROR);
 }
 
-dberr_t Arch_File_Ctx::open_new(lsn_t start_lsn, uint64_t file_offset) {
-  dberr_t error;
-
-  /* Create and open next file. */
-  error = open(false, start_lsn, m_count, file_offset);
-
-  if (error != DB_SUCCESS) {
-    return (error);
+dberr_t Arch_File_Ctx::open_new(lsn_t start_lsn, uint64_t new_file_size,
+                                uint64_t initial_file_size) {
+  auto err = open(false, start_lsn, m_count, initial_file_size, new_file_size);
+  if (err != DB_SUCCESS) {
+    return err;
   }
-
-  /* Increase file count. */
   ++m_count;
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
-dberr_t Arch_File_Ctx::open_next(lsn_t start_lsn, uint64_t file_offset) {
+dberr_t Arch_File_Ctx::open_next(lsn_t start_lsn, uint64_t file_offset,
+                                 uint64_t file_size) {
   dberr_t error;
 
   /* Get next file index. */
   ++m_index;
-  if (m_index == m_count) {
-    m_index = 0;
-  }
 
   /* Open next file. */
-  error = open(true, start_lsn, m_index, file_offset);
+  error = open(true, start_lsn, m_index, file_offset, file_size);
 
   return (error);
 }
@@ -426,6 +465,29 @@ dberr_t Arch_File_Ctx::read(byte *to_buffer, uint64_t offset, uint size) {
       os_file_read(request, m_path_name, m_file, to_buffer, offset, size);
 
   return (err);
+}
+
+dberr_t Arch_File_Ctx::resize_and_overwrite_with_zeros(uint64_t file_size) {
+  ut_ad(m_size <= file_size);
+
+  m_size = file_size;
+
+  byte *buf = static_cast<byte *>(
+      ut::zalloc_withkey(ut::make_psi_memory_key(mem_key_archive), file_size));
+
+  /* Make sure that the physical file size is the same as logical by filling
+  the file with all-zeroes. Page archiver recovery expects that the physical
+  file size is the same as logical file size. */
+  const dberr_t err = write(nullptr, buf, 0, file_size);
+
+  ut::free(buf);
+
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  flush();
+  return DB_SUCCESS;
 }
 
 dberr_t Arch_File_Ctx::write(Arch_File_Ctx *from_file, byte *from_buffer,
@@ -513,7 +575,7 @@ int start_log_archiver_background() {
 
   if (ret) {
     srv_threads.m_log_archiver =
-        os_thread_create(log_archiver_thread_key, log_archiver_thread);
+        os_thread_create(log_archiver_thread_key, 0, log_archiver_thread);
 
     srv_threads.m_log_archiver.start();
 
@@ -535,7 +597,7 @@ int start_page_archiver_background() {
 
   if (ret) {
     srv_threads.m_page_archiver =
-        os_thread_create(page_archiver_thread_key, page_archiver_thread);
+        os_thread_create(page_archiver_thread_key, 0, page_archiver_thread);
 
     srv_threads.m_page_archiver.start();
 

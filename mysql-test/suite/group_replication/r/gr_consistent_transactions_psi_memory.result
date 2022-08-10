@@ -1,0 +1,60 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables for the event
+#    consistent_transactions.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions	YES	NULL	global_statistics	0	Memory used to hold transaction and list of members that must prepare that transaction for the Group Replication Transaction Consistency Guarantees.
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions in the setup_instruments table after starting GR']
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions';
+EVENT_NAME
+memory/group_rpl/consistent_transactions
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions in the memory_summary_global_by_event_name table after starting GR']
+
+############################################################
+# 2. Verify that the sum of bytes allocated is greater than
+#    zero for a transaction.
+[connection server_1]
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=innodb;
+SET @@SESSION.group_replication_consistency= AFTER;
+SET @@GLOBAL.DEBUG= '+d,group_replication_consistency_manager_after_certification';
+INSERT INTO t1 VALUES(1);;
+[connection server1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_consistency_manager_after_certification_reached";
+include/assert.inc ['The sum bytes allocated must be greater than 0']
+SET @@GLOBAL.DEBUG= '-d,group_replication_consistency_manager_after_certification';
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_consistency_manager_after_certification_continue";
+[connection server_1]
+DROP TABLE t1;
+
+############################################################
+# 3. Stop GR
+include/stop_group_replication.inc
+include/uninstall_group_replication_plugin.inc
+
+##############################################################
+# 4. Verify that the entries corresponding to the instrumented
+#    consistent_transactions remain in the tables after
+#    stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions	YES	NULL	global_statistics	0	Memory used to hold transaction and list of members that must prepare that transaction for the Group Replication Transaction Consistency Guarantees.
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions in the setup_instruments table after stopping GR']
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions in the memory_summary_global_by_event_name table after stopping GR']
+
+#################################################################
+# 5. Assert that the number of bytes allocated for
+#    consistent_transactions event must be 0.
+include/assert.inc ['The sum of bytes allocated must be zero after stopping GR']
+
+#################################################################
+# 6. Clean up.
+include/install_group_replication_plugin.inc
+include/group_replication_end.inc

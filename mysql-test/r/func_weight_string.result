@@ -61,16 +61,20 @@ drop table t1;
 #
 # BUG#11898467 - SERVER CRASHES ON SELECT HEX(WEIGHT_STRING(STR AS [CHAR|BINARY](N))) IF N IS BIG 
 #
-SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000)));
-HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000)))
+SET GLOBAL max_allowed_packet=1024;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000)));
+HEX(WEIGHT_STRING('ab' AS CHAR(1000000)))
 NULL
 Warnings:
-Warning	1301	Result of weight_string() was larger than max_allowed_packet (67108864) - truncated
-SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000)));
-HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000)))
+Warning	1301	Result of weight_string() was larger than max_allowed_packet (1024) - truncated
+SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000)));
+HEX(WEIGHT_STRING('ab' AS BINARY(1000000)))
 NULL
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (1024) - truncated
+SET GLOBAL max_allowed_packet=default;
 #
 # BUG#21974321: WEIGHT_STRING RESULT IS WRONG IF USED IN A
 #               VIEW (AS CHAR CLAUSE IS LOST)
@@ -87,13 +91,13 @@ CREATE VIEW v5 AS SELECT WEIGHT_STRING(a AS BINARY(2)) AS b FROM t1;
 CREATE VIEW v6 AS SELECT WEIGHT_STRING(a AS BINARY(6)) AS b FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select weight_string(_latin1'ab') AS `b`	utf8	utf16_unicode_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select weight_string(_latin1'ab') AS `b`	utf8mb3	utf16_unicode_ci
 SHOW CREATE VIEW v5;
 View	Create View	character_set_client	collation_connection
-v5	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v5` AS select weight_string(cast(`t1`.`a` as char(2) charset binary)) AS `b` from `t1`	utf8	utf16_unicode_ci
+v5	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v5` AS select weight_string(cast(`t1`.`a` as char(2) charset binary)) AS `b` from `t1`	utf8mb3	utf16_unicode_ci
 SHOW CREATE VIEW v6;
 View	Create View	character_set_client	collation_connection
-v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select weight_string(cast(`t1`.`a` as char(6) charset binary)) AS `b` from `t1`	utf8	utf16_unicode_ci
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select weight_string(cast(`t1`.`a` as char(6) charset binary)) AS `b` from `t1`	utf8mb3	utf16_unicode_ci
 DROP VIEW v1;
 DROP VIEW v5;
 DROP VIEW v6;
@@ -109,22 +113,22 @@ CREATE VIEW v5 AS SELECT WEIGHT_STRING(a AS BINARY(2)) AS b FROM t1;
 CREATE VIEW v6 AS SELECT WEIGHT_STRING(a AS BINARY(6)) AS b FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select weight_string(_latin1'ab') AS `b`	utf8	utf16_unicode_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select weight_string(_latin1'ab') AS `b`	utf8mb3	utf16_unicode_ci
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select weight_string(`t1`.`a`) AS `b` from `t1`	utf8	utf16_unicode_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select weight_string(`t1`.`a`) AS `b` from `t1`	utf8mb3	utf16_unicode_ci
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select weight_string(`t1`.`a` as char(2)) AS `b` from `t1`	utf8	utf16_unicode_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select weight_string(`t1`.`a` as char(2)) AS `b` from `t1`	utf8mb3	utf16_unicode_ci
 SHOW CREATE VIEW v4;
 View	Create View	character_set_client	collation_connection
-v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select weight_string(`t1`.`a` as char(6)) AS `b` from `t1`	utf8	utf16_unicode_ci
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select weight_string(`t1`.`a` as char(6)) AS `b` from `t1`	utf8mb3	utf16_unicode_ci
 SHOW CREATE VIEW v5;
 View	Create View	character_set_client	collation_connection
-v5	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v5` AS select weight_string(cast(`t1`.`a` as char(2) charset binary)) AS `b` from `t1`	utf8	utf16_unicode_ci
+v5	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v5` AS select weight_string(cast(`t1`.`a` as char(2) charset binary)) AS `b` from `t1`	utf8mb3	utf16_unicode_ci
 SHOW CREATE VIEW v6;
 View	Create View	character_set_client	collation_connection
-v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select weight_string(cast(`t1`.`a` as char(6) charset binary)) AS `b` from `t1`	utf8	utf16_unicode_ci
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select weight_string(cast(`t1`.`a` as char(6) charset binary)) AS `b` from `t1`	utf8mb3	utf16_unicode_ci
 SELECT HEX(b) FROM v1;
 HEX(b)
 4142
@@ -188,3 +192,12 @@ SELECT DISTINCT HEX(WEIGHT_STRING(ch)) FROM t1;
 HEX(WEIGHT_STRING(ch))
 140127014D014D00
 DROP TABLE t1;
+#
+# Bug #32744772 REGRESSION: TRIM CRASHES IN STRING::LENGTH
+#
+SET NAMES DEFAULT;
+DO ltrim(weight_string(1));
+ERROR HY000: Cannot convert string '\x80\x00\x00\x00\x00\x00...' from binary to utf8mb4
+DO rtrim(weight_string(1));
+ERROR HY000: Cannot convert string '\x80\x00\x00\x00\x00\x00...' from binary to utf8mb4
+SET NAMES latin1;

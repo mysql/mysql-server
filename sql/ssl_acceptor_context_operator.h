@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class TLS_channel {
   /**
   Initialize the single instance of the acceptor
 
-  @param [out] out          Object initialized by the funciton
+  @param [out] out          Object initialized by the function
   @param [in]  channel      Name of the channel
   @param [in]  use_ssl_arg  Pass false if you don't want the actual
                             SSL context created
@@ -105,7 +105,7 @@ class Lock_and_access_ssl_acceptor_context {
  public:
   Lock_and_access_ssl_acceptor_context(Ssl_acceptor_context_container *context)
       : read_lock_(context->lock_) {}
-  ~Lock_and_access_ssl_acceptor_context() {}
+  ~Lock_and_access_ssl_acceptor_context() = default;
 
   /** Access protected @ref Ssl_acceptor_context_data */
   operator const Ssl_acceptor_context_data *() {

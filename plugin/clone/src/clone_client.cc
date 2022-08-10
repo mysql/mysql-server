@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -751,6 +751,12 @@ int Client::clone() {
     /* Negotiate clone protocol and SE versions */
     err = remote_command(rpc_com, false);
 
+    /* Delay clone after dropping database if requested */
+
+    if (err == 0 && rpc_com == COM_INIT) {
+      assert(is_master());
+      err = delay_if_needed();
+    }
     snprintf(
         info_mesg, 128, "Command %s",
         is_master() ? (restart ? "COM_REINIT" : "COM_INIT") : "COM_ATTACH");
@@ -1170,7 +1176,7 @@ void Client::use_other_configs() {
       try {
         int timeout_minutes = std::stoi(key_val.second);
         s_reconnect_timeout = Time_Min(timeout_minutes);
-      } catch (const std::exception &e) {
+      } catch (...) {
         assert(false);
       }
     }
@@ -1279,7 +1285,7 @@ int Client::prepare_command_buffer(Command_RPC com, size_t &buf_len) {
       break;
 
     case COM_MAX:
-      /* Fall through */
+      [[fallthrough]];
 
     default:
       assert(false);
@@ -1355,8 +1361,14 @@ int Client::serialize_init_cmd(size_t &buf_len) {
   int4store(buf_ptr, m_share->m_protocol_version);
   buf_ptr += 4;
 
-  /* Store DDL timeout */
-  int4store(buf_ptr, clone_ddl_timeout);
+  /* Store DDL timeout value. Default is no lock. */
+  uint32_t timeout_value = clone_ddl_timeout;
+
+  if (!clone_block_ddl) {
+    timeout_value |= NO_BACKUP_LOCK_FLAG;
+  }
+
+  int4store(buf_ptr, timeout_value);
   buf_ptr += 4;
 
   /* Store SE information and Locators */
@@ -1382,9 +1394,11 @@ int Client::receive_response(Command_RPC com, bool use_aux) {
   uint32_t timeout_sec = 0;
 
   /* Need to wait a little more than DDL lock timeout during INIT
-  to avoid network timeout */
+  to avoid network timeout. Other than DDL lock, we currently would
+  need to load the tablespaces [clone_init_tablespaces] and check
+  through all tables for compression in donor[clone_init_compression]. */
   if (com == COM_INIT) {
-    timeout_sec = clone_ddl_timeout + 5;
+    timeout_sec = clone_ddl_timeout + 300;
   }
 
   while (!last_packet) {
@@ -1532,6 +1546,7 @@ int Client::handle_response(const uchar *packet, size_t length, int in_err,
 
       /* COM_RES_DATA must follow COM_RES_DATA_DESC and is handled
       in apply_file_cbk(). Fall through to return error. */
+      [[fallthrough]];
     default:
       assert(false);
       err = ER_CLONE_PROTOCOL;
@@ -1725,14 +1740,85 @@ int Client::set_error(const uchar *buffer, size_t length) {
   return (err);
 }
 
-int Client_Cbk::file_cbk(Ha_clone_file from_file MY_ATTRIBUTE((unused)),
-                         uint len MY_ATTRIBUTE((unused))) {
+int Client::wait(Time_Sec wait_time) {
+  int ret_error = 0;
+  auto start_time = Clock::now();
+  auto print_time = start_time;
+  auto sec = wait_time;
+  auto min = std::chrono::duration_cast<Time_Min>(wait_time);
+  std::ostringstream log_strm;
+
+  LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE,
+               "Begin Delay after data drop");
+
+  sec -= std::chrono::duration_cast<Time_Sec>(min);
+  log_strm << "Wait time remaining is " << min.count() << " minutes and "
+           << sec.count() << " seconds.";
+  std::string log_str(log_strm.str());
+  LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, log_str.c_str());
+  log_strm.str("");
+
+  for (;;) {
+    Time_Msec sleep_time(100);
+    std::this_thread::sleep_for(sleep_time);
+    auto cur_time = Clock::now();
+
+    auto duration_sec =
+        std::chrono::duration_cast<Time_Sec>(cur_time - start_time);
+
+    /* Check for total time elapsed. */
+    if (duration_sec >= wait_time) {
+      break;
+    }
+
+    auto duration_print =
+        std::chrono::duration_cast<Time_Min>(cur_time - print_time);
+
+    if (duration_print.count() >= 1) {
+      print_time = Clock::now();
+      auto remaining_time = wait_time - duration_sec;
+      min = std::chrono::duration_cast<Time_Min>(remaining_time);
+      log_strm << "Wait time remaining is " << min.count() << " minutes.";
+      std::string log_str(log_strm.str());
+      LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, log_str.c_str());
+      log_strm.str("");
+    }
+
+    /* Check for interrupt */
+    if (thd_killed(get_thd())) {
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      ret_error = ER_QUERY_INTERRUPTED;
+      break;
+    }
+  }
+
+  LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE,
+               "End Delay after data drop");
+  return ret_error;
+}
+
+int Client::delay_if_needed() {
+  /* Delay only if replacing current data directory. */
+  if (get_data_dir() != nullptr) {
+    return 0;
+  }
+
+  if (clone_delay_after_data_drop == 0) {
+    return 0;
+  }
+
+  auto err = wait(Time_Sec(clone_delay_after_data_drop));
+
+  return err;
+}
+
+int Client_Cbk::file_cbk(Ha_clone_file from_file [[maybe_unused]],
+                         uint len [[maybe_unused]]) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Client");
   return (ER_NOT_SUPPORTED_YET);
 }
 
-int Client_Cbk::buffer_cbk(uchar *from_buffer MY_ATTRIBUTE((unused)),
-                           uint buf_len) {
+int Client_Cbk::buffer_cbk(uchar *from_buffer [[maybe_unused]], uint buf_len) {
   auto client = get_clone_client();
 
   uint64_t data_estimate = 0;

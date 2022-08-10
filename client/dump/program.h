@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define PROGRAM_INCLUDED
 
 #include <atomic>
+#include <optional>
 
 #include "client/base/abstract_connection_program.h"
 #include "client/dump/mysql_chain_element_options.h"
@@ -70,7 +71,7 @@ class Program : public Mysql::Tools::Base::Abstract_connection_program {
   Mysqldump_tool_chain_maker_options *m_mysqldump_tool_chain_maker_options;
   bool m_single_transaction;
   bool m_watch_progress;
-  Mysql::Nullable<std::string> m_error_log_file;
+  std::optional<std::string> m_error_log_file;
   FILE *m_stderr;
   std::atomic<uint32_t> m_error_code;
 };

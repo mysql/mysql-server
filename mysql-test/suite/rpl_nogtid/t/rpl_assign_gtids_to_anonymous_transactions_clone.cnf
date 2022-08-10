@@ -5,7 +5,7 @@
 [mysqld.2]
 
 [mysqld.3]
-skip-slave-start=   TRUE
+skip-replica-start=   TRUE
 
 [ENV]
 SERVER_MYPORT_3= @mysqld.3.port

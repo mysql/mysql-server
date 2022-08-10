@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,14 +59,15 @@
 #include "mysql/service_mysql_alloc.h"  // my_free
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "prealloced_array.h"  // Prealloced_array
-#include "sql/composite_iterators.h"
+#include "prealloced_array.h"                // Prealloced_array
 #include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
 #include "sql/dd/info_schema/tablespace_stats.h"  // dd::info_schema::Tablesp...
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
 #include "sql/item.h"            // Name_resolution_context
 #include "sql/item_subselect.h"  // Subquery_strategy
+#include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/key_spec.h"  // KEY_CREATE_INFO
 #include "sql/mdl.h"
@@ -74,7 +75,6 @@
 #include "sql/parse_tree_node_base.h"  // enum_parsing_context
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"  // OPTION_NO_CONST_TABLES
-#include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_array.h"
 #include "sql/sql_connect.h"  // USER_RESOURCES
@@ -381,7 +381,7 @@ struct LEX_MASTER_INFO {
   } ssl,
       ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt,
       retry_count_opt, auto_position, port_opt, get_public_key,
-      m_source_connection_auto_failover;
+      m_source_connection_auto_failover, m_gtid_only;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *ssl_crl, *ssl_crlpath, *tls_version;
   /*
@@ -848,6 +848,12 @@ class Query_expression {
     return move(m_root_iterator);
   }
   AccessPath *root_access_path() const { return m_root_access_path; }
+
+  // Asks each query block to switch to an access path with in2exists
+  // conditions removed (if they were ever added).
+  // See JOIN::change_to_access_path_without_in2exists().
+  void change_to_access_path_without_in2exists(THD *thd);
+
   void clear_root_access_path() {
     m_root_access_path = nullptr;
     m_root_iterator.reset();
@@ -920,9 +926,25 @@ class Query_expression {
     @param create_iterators If false, only access paths are created,
       not iterators. Only top level query blocks (these that we are to call
       exec() on) should have iterators. See also force_create_iterators().
+
+    @param finalize_access_paths Relevant for the hypergraph optimizer only.
+      If false, the given access paths will _not_ be finalized, so you cannot
+      create iterators from it before finalize() is called (see
+      FinalizePlanForQueryBlock()), and create_iterators must also be false.
+      This is relevant only if you are potentially optimizing multiple times
+      (see change_to_access_path_without_in2exists()), since you are only
+      allowed to finalize a query block once. The fake_query_block, if any,
+      is always finalized.
    */
-  bool optimize(THD *thd, TABLE *materialize_destination,
-                bool create_iterators);
+  bool optimize(THD *thd, TABLE *materialize_destination, bool create_iterators,
+                bool finalize_access_paths);
+
+  /**
+    For any non-finalized query block, finalize it so that we are allowed to
+    create iterators. Must be called after the final access path is chosen
+    (ie., after any calls to change_to_access_path_without_in2exists()).
+   */
+  bool finalize(THD *thd);
 
   /**
     Do everything that would be needed before running Init() on the root
@@ -985,6 +1007,7 @@ class Query_expression {
   bool change_query_result(THD *thd, Query_result_interceptor *result,
                            Query_result_interceptor *old_result);
   bool set_limit(THD *thd, Query_block *provider);
+  bool has_any_limit() const;
 
   inline bool is_union() const;
   bool union_needs_tmp_table(LEX *lex);
@@ -1187,7 +1210,7 @@ class Query_block {
   */
   bool is_straight_join() {
     bool straight_join = true;
-    /// false for exmaple in t1 STRAIGHT_JOIN t2 JOIN t3.
+    /// false for example in t1 STRAIGHT_JOIN t2 JOIN t3.
     for (TABLE_LIST *tbl = leaf_tables->next_leaf; tbl; tbl = tbl->next_leaf)
       straight_join &= tbl->straight;
     return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
@@ -1790,7 +1813,7 @@ class Query_block {
 
   bool setup_conds(THD *thd);
   bool prepare(THD *thd, mem_root_deque<Item *> *insert_field_list);
-  bool optimize(THD *thd);
+  bool optimize(THD *thd, bool finalize_access_paths);
   void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = nullptr);
 
   bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);
@@ -1807,6 +1830,12 @@ class Query_block {
   bool field_list_is_empty() const;
 
   void remove_hidden_fields();
+  /// Creates a clone for the given expression by re-parsing the
+  /// expression. Used in condition pushdown to derived tables.
+  Item *clone_expression(THD *thd, Item *item, bool is_system_view);
+  /// Returns an expression from the select list of the query block
+  /// using the field's index in a derived table.
+  Item *get_derived_expr(uint expr_index);
 
   // ************************************************
   // * Members (most of these should not be public) *
@@ -2417,8 +2446,6 @@ struct st_trg_chistics {
   LEX_CSTRING anchor_trigger_name;
 };
 
-extern sys_var *trg_new_row_fake_var;
-
 class Sroutine_hash_entry;
 
 /*
@@ -2511,8 +2538,8 @@ class Query_tables_list {
     These constructor and destructor serve for creation/destruction
     of Query_tables_list instances which are used as backup storage.
   */
-  Query_tables_list() {}
-  ~Query_tables_list() {}
+  Query_tables_list() = default;
+  ~Query_tables_list() = default;
 
   /* Initializes (or resets) Query_tables_list object for "real" use. */
   void reset_query_tables_list(bool init);
@@ -2709,6 +2736,15 @@ class Query_tables_list {
       slave.
     */
     BINLOG_STMT_UNSAFE_ACL_TABLE_READ_IN_DML_DDL,
+
+    /**
+      Generating invisible primary key for a table created using CREATE TABLE...
+      SELECT... is unsafe because order in which rows are retrieved by the
+      SELECT determines which (if any) rows are inserted. This order cannot be
+      predicted and values for generated invisible primary key column may
+      differ on source and replica when @@session.binlog_format=STATEMENT.
+    */
+    BINLOG_STMT_UNSAFE_CREATE_SELECT_WITH_GIPK,
 
     /* the last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
@@ -3437,7 +3473,7 @@ class Lex_input_stream {
   /** End of the query text in the input stream, in the raw buffer. */
   const char *m_end_of_query;
 
-  /** Begining of the query text in the input stream, in the raw buffer. */
+  /** Beginning of the query text in the input stream, in the raw buffer. */
   const char *m_buf;
 
   /** Length of the raw buffer. */
@@ -3696,9 +3732,6 @@ struct LEX : public Query_tables_list {
       Plugins_array;
   Plugins_array plugins;
 
-  Prealloced_array<Item_func_get_system_var *, 1> plugin_var_bind_list{
-      PSI_NOT_INSTRUMENTED};
-
   /// Table being inserted into (may be a view)
   TABLE_LIST *insert_table;
   /// Leaf table being inserted into (always a base table)
@@ -3845,6 +3878,17 @@ struct LEX : public Query_tables_list {
     clause. Otherwise this is 0.
   */
   uint reparse_common_table_expr_at;
+  /**
+    If currently re-parsing a condition which is pushed down to a derived
+    table, this will be set to true.
+  */
+  bool reparse_derived_table_condition{false};
+  /**
+    If currently re-parsing a condition that is being pushed down to a
+    derived table, this has the positions of all the parameters that are
+    part of that condition in the original statement. Otherwise it is empty.
+  */
+  std::vector<uint> reparse_derived_table_params_at;
 
   enum SSL_type ssl_type; /* defined in violite.h */
   enum enum_duplicates duplicates;
@@ -3873,6 +3917,19 @@ struct LEX : public Query_tables_list {
   */
   uint8 context_analysis_only;
   bool drop_if_exists;
+  /**
+    refers to optional IF EXISTS clause in REVOKE sql. This flag when set to
+    true will report warnings in case privilege being granted is not granted to
+    given user/role. When set to false error is reported.
+  */
+  bool grant_if_exists;
+  /**
+    refers to optional IGNORE UNKNOWN USER clause in REVOKE sql. This flag when
+    set to true will report warnings in case target user/role for which
+    privilege being granted does not exists. When set to false error is
+    reported.
+  */
+  bool ignore_unknown_user;
   bool drop_temporary;
   bool autocommit;
   bool verbose, no_write_to_binlog;
@@ -3986,7 +4043,13 @@ struct LEX : public Query_tables_list {
 
   bool check_preparation_invalid(THD *thd);
 
-  void cleanup(THD *thd, bool full) { unit->cleanup(thd, full); }
+  void cleanup(THD *thd, bool full) {
+    unit->cleanup(thd, full);
+    if (full) {
+      m_IS_table_stats.invalidate_cache();
+      m_IS_tablespace_stats.invalidate_cache();
+    }
+  }
 
   bool is_exec_started() const { return m_exec_started; }
   void set_exec_started() { m_exec_started = true; }
@@ -4244,9 +4307,6 @@ struct LEX : public Query_tables_list {
 
   void release_plugins();
 
-  bool add_plugin_var(Item_func_get_system_var *);
-  bool rebind_plugin_vars(THD *);
-
   /**
     IS schema queries read some dynamic table statistics from SE.
     These statistics are cached, to avoid opening of table more
@@ -4303,7 +4363,27 @@ struct LEX : public Query_tables_list {
     m_is_replication_deprecated_syntax_used = true;
   }
 
+ private:
+  bool m_was_replication_command_executed{false};
+
+ public:
+  bool was_replication_command_executed() const {
+    return m_was_replication_command_executed;
+  }
+
+  void set_was_replication_command_executed() {
+    m_was_replication_command_executed = true;
+  }
+
   bool set_channel_name(LEX_CSTRING name = {});
+
+ private:
+  bool rewrite_required{false};
+
+ public:
+  void set_rewrite_required() { rewrite_required = true; }
+  void reset_rewrite_required() { rewrite_required = false; }
+  bool is_rewrite_required() { return rewrite_required; }
 };
 
 /**
@@ -4410,9 +4490,24 @@ class Yacc_state {
   Input parameters to the parser.
 */
 struct Parser_input {
+  /**
+    True if the text parsed corresponds to an actual query,
+    and not another text artifact.
+    This flag is used to disable digest parsing of nested:
+    - view definitions
+    - table trigger definitions
+    - table partition definitions
+    - event scheduler event definitions
+  */
+  bool m_has_digest;
+  /**
+    True if the caller needs to compute a digest.
+    This flag is used to request explicitly a digest computation,
+    independently of the performance schema configuration.
+  */
   bool m_compute_digest;
 
-  Parser_input() : m_compute_digest(false) {}
+  Parser_input() : m_has_digest(false), m_compute_digest(false) {}
 };
 
 /**
@@ -4433,7 +4528,7 @@ class Parser_state {
       : m_input(), m_lip(grammar_selector_token), m_yacc(), m_comment(false) {}
 
  public:
-  Parser_state() : m_input(), m_lip(-1), m_yacc(), m_comment(false) {}
+  Parser_state() : m_input(), m_lip(~0U), m_yacc(), m_comment(false) {}
 
   /**
      Object initializer. Must be called before usage.
@@ -4509,7 +4604,8 @@ class Common_table_expr_parser_state : public Parser_state {
 };
 
 /**
-  Parser state for Derived table select expressions
+  Parser state for Derived table's condition parser.
+  (Used in condition pushdown to derived tables)
 */
 class Derived_expr_parser_state : public Parser_state {
  public:
@@ -4523,12 +4619,12 @@ struct st_lex_local : public LEX {
     return (*THR_MALLOC)->Alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
+  static void operator delete(void *ptr [[maybe_unused]],
+                              size_t size [[maybe_unused]]) {
     TRASH(ptr, size);
   }
   static void operator delete(
@@ -4586,13 +4682,45 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
 }
 
 /**
+   Check if the given string is invalid using the system charset.
+
+   @param       string_val       Reference to the string.
+   @param       charset_info     Pointer to charset info.
+   @param[out]  invalid_sub_str  If string has an invalid encoding then invalid
+                                 string in printable ASCII format is stored.
+
+   @return true if the string has an invalid encoding using
+                the system charset else false.
+*/
+
+inline bool is_invalid_string(const LEX_CSTRING &string_val,
+                              const CHARSET_INFO *charset_info,
+                              std::string &invalid_sub_str) {
+  size_t valid_len;
+  bool len_error;
+
+  if (validate_string(charset_info, string_val.str, string_val.length,
+                      &valid_len, &len_error)) {
+    char printable_buff[32];
+    convert_to_printable(
+        printable_buff, sizeof(printable_buff), string_val.str + valid_len,
+        static_cast<uint>(std::min<size_t>(string_val.length - valid_len, 3)),
+        charset_info, 3);
+    invalid_sub_str = printable_buff;
+    return true;
+  }
+  return false;
+}
+
+/**
   In debug mode, verify that we're not adding an item twice to the fields list
   with inconsistent hidden flags. Must be called before adding the item to
   fields.
  */
-inline void assert_consistent_hidden_flags(
-    const mem_root_deque<Item *> &fields MY_ATTRIBUTE((unused)),
-    Item *item MY_ATTRIBUTE((unused)), bool hidden MY_ATTRIBUTE((unused))) {
+inline void assert_consistent_hidden_flags(const mem_root_deque<Item *> &fields
+                                           [[maybe_unused]],
+                                           Item *item [[maybe_unused]],
+                                           bool hidden [[maybe_unused]]) {
 #ifndef NDEBUG
   if (std::find(fields.begin(), fields.end(), item) != fields.end()) {
     // The item is already in the list, so we can't add it

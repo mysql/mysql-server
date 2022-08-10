@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/query_options.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // has_commit_order_manager
+#include "sql/rpl_replica_commit_order_manager.h"  // has_commit_order_manager
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"  // thd->lex

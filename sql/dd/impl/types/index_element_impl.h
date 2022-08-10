@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ class Index_element_impl : public Weak_object_impl, public Index_element {
   Index_element_impl(const Index_element_impl &src, Index_impl *parent,
                      Column *column);
 
-  ~Index_element_impl() override {}
+  ~Index_element_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

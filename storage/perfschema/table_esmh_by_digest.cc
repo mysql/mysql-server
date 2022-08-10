@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,7 @@ int table_esmh_by_digest::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esmh_by_digest::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_esmh_by_digest::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_esmh_by_digest *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_esmh_by_digest);

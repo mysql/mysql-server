@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -76,7 +76,7 @@ step over the ':' in a Windows filepath.
 A Windows path normally looks like "C:\ibdata\ibdata1:1G", but a Windows raw
 partition may have a specification like "\\.\C::1Gnewraw" or
 "\\.\PHYSICALDRIVE2:1Gnewraw".
-@param[in]	ptr		system tablespace file path spec
+@param[in]      ptr             system tablespace file path spec
 @return next character in string after the file name */
 char *SysTablespace::parse_file_name(char *ptr) {
   const char *start = ptr;
@@ -94,7 +94,7 @@ char *SysTablespace::parse_file_name(char *ptr) {
 optionally ending in upper or lower case G, M, or K,
 to a number of megabytes, rounding down to the nearest megabyte.
 Then return the number of pages in the file.
-@param[in,out]	ptr	Pointer to a numeric string
+@param[in,out]  ptr     Pointer to a numeric string
 @return the number of pages in the file. */
 page_no_t SysTablespace::parse_units(char *&ptr) {
   char *endp;
@@ -129,8 +129,8 @@ page_no_t SysTablespace::parse_units(char *&ptr) {
 }
 
 /** Parse the input params and populate member variables.
-@param[in]	filepath_spec	path to data files
-@param[in]	supports_raw	true if the tablespace supports raw devices
+@param[in]      filepath_spec   path to data files
+@param[in]      supports_raw    true if the tablespace supports raw devices
 @return true on success parse */
 bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
   char *filepath;
@@ -154,7 +154,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       ib::error(ER_IB_MSG_431) << "File Path Specification '" << filepath_spec
                                << "' is missing a file name.";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
 
@@ -162,7 +162,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       ib::error(ER_IB_MSG_432) << "File Path Specification '" << filepath_spec
                                << "' is missing a file size.";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
 
@@ -176,7 +176,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
           << "Invalid File Path Specification: '" << filepath_spec
           << "'. An invalid file size was specified.";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
 
@@ -199,7 +199,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
             << "'. Only the last"
                " file defined can be 'autoextend'.";
 
-        ut_free(input_str);
+        ut::free(input_str);
         return (false);
       }
     }
@@ -215,7 +215,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
             << "' Tablespace"
                " doesn't support raw devices";
 
-        ut_free(input_str);
+        ut::free(input_str);
         return (false);
       }
 
@@ -232,7 +232,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
           << "File Path Specification: '" << filepath_spec
           << "' has unrecognized characters after '" << input_str << "'";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
   }
@@ -242,7 +242,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
                              << "' must contain"
                                 " at least one data file definition";
 
-    ut_free(input_str);
+    ut::free(input_str);
     return (false);
   }
 
@@ -307,7 +307,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 
   ut_ad(n_files == ulint(m_files.size()));
 
-  ut_free(input_str);
+  ut::free(input_str);
 
   return (true);
 }
@@ -324,7 +324,7 @@ void SysTablespace::shutdown() {
 }
 
 /** Verify the size of the physical file.
-@param[in]	file	data file object
+@param[in]      file    data file object
 @return DB_SUCCESS if OK else error code. */
 dberr_t SysTablespace::check_size(Datafile &file) {
   os_offset_t size = os_file_get_size(file.m_handle);
@@ -376,7 +376,7 @@ dberr_t SysTablespace::check_size(Datafile &file) {
 }
 
 /** Set the size of the file.
-@param[in,out]	file	data file object
+@param[in,out]  file    data file object
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::set_size(Datafile &file) {
   ut_a(!srv_read_only_mode || m_ignore_read_only);
@@ -390,8 +390,7 @@ dberr_t SysTablespace::set_size(Datafile &file) {
 
   bool success = os_file_set_size(
       file.m_filepath, file.m_handle, 0,
-      static_cast<os_offset_t>(file.m_size) << UNIV_PAGE_SIZE_SHIFT,
-      m_ignore_read_only ? false : srv_read_only_mode, true);
+      static_cast<os_offset_t>(file.m_size) << UNIV_PAGE_SIZE_SHIFT, true);
 
   if (success) {
     ib::info(ER_IB_MSG_441)
@@ -409,7 +408,7 @@ dberr_t SysTablespace::set_size(Datafile &file) {
 }
 
 /** Create a data file.
-@param[in,out]	file	data file object
+@param[in,out]  file    data file object
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::create_file(Datafile &file) {
   dberr_t err = DB_SUCCESS;
@@ -424,13 +423,13 @@ dberr_t SysTablespace::create_file(Datafile &file) {
       written over */
       m_created_new_raw = true;
 
-      /* Fall through. */
+      [[fallthrough]];
 
     case SRV_OLD_RAW:
 
-      srv_start_raw_disk_in_use = TRUE;
+      srv_start_raw_disk_in_use = true;
 
-      /* Fall through. */
+      [[fallthrough]];
 
     case SRV_NOT_RAW:
       err =
@@ -446,7 +445,7 @@ dberr_t SysTablespace::create_file(Datafile &file) {
 }
 
 /** Open a data file.
-@param[in,out]	file	data file object
+@param[in,out]  file    data file object
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::open_file(Datafile &file) {
   dberr_t err = DB_SUCCESS;
@@ -459,10 +458,10 @@ dberr_t SysTablespace::open_file(Datafile &file) {
       written over */
       m_created_new_raw = true;
 
-      /* Fall through */
+      [[fallthrough]];
 
     case SRV_OLD_RAW:
-      srv_start_raw_disk_in_use = TRUE;
+      srv_start_raw_disk_in_use = true;
 
       if (srv_read_only_mode && !m_ignore_read_only) {
         ib::error(ER_IB_MSG_443)
@@ -473,7 +472,7 @@ dberr_t SysTablespace::open_file(Datafile &file) {
         return (DB_ERROR);
       }
 
-      /* Fall through */
+      [[fallthrough]];
 
     case SRV_NOT_RAW:
       err =
@@ -509,9 +508,7 @@ dberr_t SysTablespace::open_file(Datafile &file) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Check the tablespace header for this tablespace.
-@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
-@return DB_SUCCESS or error code */
+
 dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   /* Only relevant for the system tablespace. */
   ut_ad(space_id() == TRX_SYS_SPACE);
@@ -536,12 +533,19 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
     return (err);
   }
 
+  err = recv_sys->dblwr->reduced_load();
+
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
+
   /* Check the contents of the first page of the first datafile. */
   for (int retry = 0; retry < 2; ++retry) {
     err = it->validate_first_page(it->m_space_id, flushed_lsn, false);
 
     if (err != DB_SUCCESS &&
-        (retry == 1 || it->restore_from_doublewrite(0) != DB_SUCCESS)) {
+        (retry == 1 || it->open_or_create(srv_read_only_mode) != DB_SUCCESS ||
+         it->restore_from_doublewrite(0) != DB_SUCCESS)) {
       it->close();
 
       return (err);
@@ -572,8 +576,8 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
 }
 
 /** Check if a file can be opened in the correct mode.
-@param[in,out]	file	data file object
-@param[out]	reason	exact reason if file_status check failed.
+@param[in,out]  file    data file object
+@param[out]     reason  exact reason if file_status check failed.
 @return DB_SUCCESS or error code. */
 dberr_t SysTablespace::check_file_status(const Datafile &file,
                                          file_status_t &reason) {
@@ -629,15 +633,15 @@ dberr_t SysTablespace::check_file_status(const Datafile &file,
       break;
 
     default:
-      ut_ad(0);
+      ut_d(ut_error);
   }
 
   return (err);
 }
 
 /** Note that the data file was not found.
-@param[in]	file		data file object
-@param[in]	create_new_db	true if a new instance to be created
+@param[in]      file            data file object
+@param[in]      create_new_db   true if a new instance to be created
 @return DB_SUCCESS or error code */
 dberr_t SysTablespace::file_not_found(Datafile &file, bool create_new_db) {
   file.m_exists = false;
@@ -685,7 +689,7 @@ dberr_t SysTablespace::file_not_found(Datafile &file, bool create_new_db) {
 }
 
 /** Note that the data file was found.
-@param[in,out]	file	data file object */
+@param[in,out]  file    data file object */
 void SysTablespace::file_found(Datafile &file) {
   /* Note that the file exists and can be opened
   in the appropriate mode. */
@@ -790,12 +794,6 @@ dberr_t SysTablespace::check_file_spec(bool create_new_db,
   return (err);
 }
 
-/** Open or create the data files
-@param[in]  is_temp		whether this is a temporary tablespace
-@param[in]  create_new_db	whether we are creating a new database
-@param[out] sum_new_sizes	sum of sizes of the new files added
-@param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
-@return DB_SUCCESS or error code */
 dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
                                       page_no_t *sum_new_sizes,
                                       lsn_t *flush_lsn) {
@@ -849,11 +847,11 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
     the tablespace should be on the same medium. */
 
     if (fil_fusionio_enable_atomic_write(it->m_handle)) {
-      if (dblwr::enabled) {
+      if (dblwr::is_enabled()) {
         ib::info(ER_IB_MSG_456) << "FusionIO atomic IO enabled,"
                                    " disabling the double write buffer";
 
-        dblwr::enabled = false;
+        dblwr::g_mode = dblwr::Mode::OFF;
       }
 
       it->m_atomic_write = true;
@@ -865,16 +863,23 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
 #endif /* !NO_FALLOCATE && UNIV_LINUX*/
   }
 
-  if (!create_new_db && flush_lsn) {
-    /* Validate the header page in the first datafile
-    and read LSNs fom the others. */
-    err = read_lsn_and_check_flags(flush_lsn);
-    if (err != DB_SUCCESS) {
-      return (err);
+  if (flush_lsn != nullptr) {
+    if (create_new_db) {
+      /* There are no data files, so we assign the initial value
+      to flush_lsn instead of reading it from disk. */
+      *flush_lsn = LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
+    } else {
+      /* Validate the header page in the first datafile in the
+      system tablespace and read flush_lsn from the validated
+      header page. */
+      err = read_lsn_and_check_flags(flush_lsn);
+      if (err != DB_SUCCESS) {
+        return (err);
+      }
     }
   }
 
-  /* Close the curent handles, add space and file info to the
+  /* Close the current handles, add space and file info to the
   fil_system cache and the Data Dictionary, and re-open them
   in file_system cache so that they stay open until shutdown. */
   ulint node_counter = 0;

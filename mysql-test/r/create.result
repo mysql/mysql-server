@@ -139,6 +139,8 @@ e	decimal(3,1)	NO		0.0
 f	bigint	NO		0	
 drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
+Warnings:
+Warning	4096	Delimiter ' ' in position 11 in datetime value '2001-12-29  20:45:11' at row 1 is superfluous and is deprecated. Please remove.
 describe t2;
 Field	Type	Null	Key	Default	Extra
 d	date	YES		NULL	
@@ -704,11 +706,11 @@ primary key (a)
 ) select 'test' as a ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(112) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `a` varchar(112) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -724,11 +726,11 @@ b int not null, primary key (a)
 ) select a, 1 as b from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
   `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -739,13 +741,13 @@ b int not null, primary key (a)
 ) select a, 1 as c from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1364	Field 'b' doesn't have a default value
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` int NOT NULL,
-  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
   `c` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -756,12 +758,12 @@ b int null, primary key (a)
 ) select a, 1 as c from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` int DEFAULT NULL,
-  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
   `c` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -772,11 +774,11 @@ b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
   `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -787,11 +789,11 @@ b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
   `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -808,7 +810,7 @@ primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 drop table t2;
 create table t2 ( 
 a1 varchar(12) charset utf8 collate utf8_bin,
@@ -816,7 +818,7 @@ a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 drop table t1, t2;
 create table t1 ( 
 a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
@@ -829,7 +831,7 @@ primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 drop table t2;
 create table t2 ( a int default 3, b int default 3)
 select a1,a2 from t1;
@@ -1087,7 +1089,7 @@ Table	Create Table
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
 View	Create View	character_set_client	collation_connection
-имя_вью_кодировке_утф8_длиной_больше_чем_42	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `имя_вью_кодировке_утф8_длиной_больше_чем_42` AS select `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`.`имя_поля_в_кодировке_утф8_длиной_больше_чем_45` AS `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` from `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`	utf8	utf8_general_ci
+имя_вью_кодировке_утф8_длиной_больше_чем_42	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `имя_вью_кодировке_утф8_длиной_больше_чем_42` AS select `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`.`имя_поля_в_кодировке_утф8_длиной_больше_чем_45` AS `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` from `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`	utf8mb3	utf8mb3_general_ci
 create trigger имя_триггера_в_кодировке_утф8_длиной_больше_чем_49
 before insert on имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48 for each row set @a:=1;
 select TRIGGER_NAME from information_schema.triggers where
@@ -1174,9 +1176,9 @@ create table t1 as select * from information_schema.character_sets;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `CHARACTER_SET_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
-  `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
-  `DESCRIPTION` varchar(2048) CHARACTER SET utf8 NOT NULL,
+  `CHARACTER_SET_NAME` varchar(64) CHARACTER SET utf8mb3 NOT NULL,
+  `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8mb3 NOT NULL,
+  `DESCRIPTION` varchar(2048) CHARACTER SET utf8mb3 NOT NULL,
   `MAXLEN` int unsigned NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -1199,7 +1201,7 @@ c6 VARCHAR(255))
 COLLATE latin1_bin;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1207,8 +1209,8 @@ t1	CREATE TABLE `t1` (
   `c1` int DEFAULT '12' COMMENT 'column1',
   `c2` int DEFAULT NULL COMMENT 'column2',
   `c3` int NOT NULL COMMENT 'column3',
-  `c4` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'a',
-  `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
+  `c4` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL DEFAULT 'a',
+  `c5` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT 'b',
   `c6` varchar(255) COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 
@@ -1220,8 +1222,8 @@ t2	CREATE TABLE `t2` (
   `c1` int DEFAULT '12' COMMENT 'column1',
   `c2` int DEFAULT NULL COMMENT 'column2',
   `c3` int NOT NULL COMMENT 'column3',
-  `c4` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'a',
-  `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
+  `c4` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL DEFAULT 'a',
+  `c5` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT 'b',
   `c6` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
@@ -2240,6 +2242,8 @@ DROP TABLE t1, t2, t3;
 SET SQL_MODE= DEFAULT;
 # Test cases added for coverage.
 CREATE TABLE t1(fld1 DATETIME NOT NULL DEFAULT '1111:11:11');
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '1111:11:11' at row 1 is deprecated. Prefer the standard '-'.
 # CREATE TABLE..SELECT using fields of another table.
 CREATE TABLE t2 AS SELECT * FROM t1;
 # Default value is copied from the source table column.
@@ -2251,6 +2255,8 @@ t2	CREATE TABLE `t2` (
 DROP TABLE t1, t2;
 # CREATE TABLE..SELECT based on trigger fields.
 CREATE TABLE t1 (fld1 INT, fld2 DATETIME DEFAULT '1211:1:1');
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '1211:1:1' at row 1 is deprecated. Prefer the standard '-'.
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
 FOR EACH ROW
 BEGIN
@@ -2258,6 +2264,8 @@ CREATE TEMPORARY TABLE t2 AS SELECT NEW.fld1, NEW.fld2;
 END
 |
 INSERT INTO t1 VALUES (1, '1111:11:11');
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '1111:11:11' at row 1 is deprecated. Prefer the standard '-'.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
@@ -3036,24 +3044,42 @@ DROP PROCEDURE p1;
 #
 # Bug#32227101: CREATE TABLE PRODUCES CORE
 #
-# key_block_size = 2^31-1 - rejected by Innodb
+# Bug#33114368: 'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
+# DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
+#
+# These issues are related and arise from insufficient input checking
+# of numeric table options.
+# From bug#33114368 we see that even if no overflow occurs on CREATE,
+# there can be a risk of overflow when the option value is used
+# elsewhere.
+# The safest thing to do is to constrain values to the largest
+# value permitted by the frm-file format (unless the range of the option
+# value has been explicitly changed in 8.0).
+#
+# key_block_size, parser type: signed_num (int)
+# std::uint32_t HA_CREATE_INFO::key_block_size
+# 2 bytes in frm
+# Only settable for myisam, but also used in Innodb
+# key_block_size = 2^31-1 - rejected by explicit check 
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483647;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-# key_block_size = -(2^31)+1 - rejected by Innodb
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '2147483647' at line 1
+# key_block_size = -(2^31)+1 - rejected by parser (parser switched
+# back to using ulong_num now that there is an explicit check).
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483647;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-# key_block_size = 2^31 - now rejected by parser
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2147483647' at line 1
+# key_block_size = 2^31 - rejected by explicit check
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483648;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2147483648' at line 1
-# key_block_size = -2^31 - now rejected by parser
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '2147483648' at line 1
+# key_block_size = -2^31 - rejected by parser (parser switched
+# back to using ulong_num now that there is an explicit check).
 CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483648;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2147483648' at line 1
-# key_block_size = 2^32-1 - now rejected by parser
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2147483648' at line 1
+# key_block_size = 2^32-1 - rejected by explicit check
 CREATE TABLE t2(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967295;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4294967295' at line 1
-# key_block_size = 2^32 - now rejected by parser
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '4294967295' at line 1
+# key_block_size = 2^32 - rejected by explicit check
 CREATE TABLE t3(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967296;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4294967296' at line 1
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '4294967296' at line 1
 # key_block_size = 3927749503218772669 - now rejected by parser
 CREATE TABLE t4(
 c0 DECIMAL ZEROFILL  UNIQUE KEY STORAGE MEMORY,
@@ -3061,4 +3087,51 @@ c1 DECIMAL ZEROFILL  PRIMARY KEY COLUMN_FORMAT DYNAMIC UNIQUE KEY STORAGE MEMORY
 c2 FLOAT ZEROFILL  COMMENT 'asdf'  COLUMN_FORMAT FIXED NULL STORAGE MEMORY,
 c3 TINYINT(120) ZEROFILL   STORAGE DISK UNIQUE KEY NULL COMMENT 'asdf'
 ) CHECKSUM = 1, AUTO_INCREMENT = 1093400439, KEY_BLOCK_SIZE = 3927749503218772669, COMPRESSION = 'NONE';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '3927749503218772669, COMPRESSION = 'NONE'' at line 6
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '3927749503218772669, COMPRESSION = 'NONE'' at line 6
+# Only values which will fit in the two bytes allocated in the frm file
+# format are accepted.
+CREATE TABLE t1(a INT) ENGINE=myisam key_block_size=65535;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	0	0	0	1970324836974591	1024	0	1	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	KEY_BLOCK_SIZE=65535	
+DROP TABLE t1;
+#
+# Bug #33114368	'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
+# DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
+#
+# avg_row_length, parser type: ulong_num (ulong) 
+# ulong HA_CREATE_INFO::avg_row_length
+# 4 bytes in frm
+CREATE TABLE t1(a INT) avg_row_length=18446744073709551615;
+ERROR 42000: The valid range for avg_row_length is [0,4294967295]. Error near '18446744073709551615' at line 1
+CREATE TABLE t1(a INT) avg_row_length=4294967296;
+ERROR 42000: The valid range for avg_row_length is [0,4294967295]. Error near '4294967296' at line 1
+# Only values which will fit in the four bytes allocated in the frm file
+# format are accepted.
+CREATE TABLE t1(a INT) avg_row_length=4294967295;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	avg_row_length=4294967295	
+DROP TABLE t1;
+# max_rows, parser type: ulonglong_num (ulonglong)
+# ulonglong HA_CREATE_INFO::max_rows
+# 4 bytes in frm
+# max_rows is capped and a warning produced
+CREATE TABLE t1(a INT) max_rows=18446744073709551615;
+Warnings:
+Warning	4074	max_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	max_rows=4294967295	
+DROP TABLE t1;
+# min_rows, parser type: ulonglong_num (ulonglong)
+# ulonglong HA_CREATE_INFO::min_rows
+# 4 bytes in frm
+# min_rows is capped and a warning produced
+CREATE TABLE t1(a INT) min_rows=18446744073709551615;
+Warnings:
+Warning	4074	min_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	min_rows=4294967295	
+DROP TABLE t1;

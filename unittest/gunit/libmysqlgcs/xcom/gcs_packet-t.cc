@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ namespace gcs_xcom_packet_unittest {
 
 class GcsPacketTest : public GcsBaseTest {
  protected:
-  GcsPacketTest() {}
+  GcsPacketTest() = default;
 
   void SetUp() override { lz4_stage = new Gcs_message_stage_lz4(true, 1024); }
 

@@ -4,7 +4,7 @@
 CREATE DATABASE FoO COLLATE ascii_bin;
 CREATE DATABASE Foo COLLATE utf8_unicode_ci;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 USE FoO;
 CREATE TABLE t1(a INT);
 # t1 should inherit ascii_bin
@@ -21,7 +21,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci
 DROP TABLE t1;
 DROP DATABASE FoO;
 DROP DATABASE Foo;

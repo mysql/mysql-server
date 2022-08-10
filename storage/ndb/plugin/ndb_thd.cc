@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,9 +61,9 @@ bool applying_binlog(const THD *thd) {
 
   if (thd->rli_fake) {
     /*
-      Thread is in "pseudo_slave_mode" which is entered implicitly when the
+      Thread is in "pseudo_replica_mode" which is entered implicitly when the
       first BINLOG statement is executed (see 'mysql_client_binlog_statement')
-      and explicitly ended when SET @pseudo_slave_mode=0 is finally executed.
+      and explicitly ended when SET @pseudo_replica_mode=0 is finally executed.
     */
     DBUG_PRINT("info", ("THD is in pseduo slave mode"));
     return true;
@@ -128,6 +128,8 @@ void log_and_clear_thd_conditions(THD *thd,
       case condition_logging_level::ERROR: {
         ndb_log_error("Got error '%u: %s'", err->mysql_errno(),
                       err->message_text());
+        // Detect when "Duplicate entry" error occurs.
+        assert(err->mysql_errno() != 1062);
       } break;
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ Handshake::Handshake(const char *ssp, side_t side)
   // Obtain credentials for the authentication handshake.
 
   ret = AcquireCredentialsHandle(
-      NULL, (SEC_CHAR *)ssp,
+      NULL, const_cast<SEC_CHAR *>(ssp),
       side == SERVER ? SECPKG_CRED_INBOUND : SECPKG_CRED_OUTBOUND, NULL, NULL,
       NULL, NULL, &m_cred, &m_expire);
 

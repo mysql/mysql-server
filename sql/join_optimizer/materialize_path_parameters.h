@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,18 +43,51 @@ struct MaterializePathParameters {
     int select_number;
     JOIN *join;
     bool disable_deduplication_by_hash_field;
-    bool copy_fields_and_items;
+    bool copy_items;
     Temp_table_param *temp_table_param;
     bool is_recursive_reference;
   };
   Mem_root_array<QueryBlock> query_blocks;
   Mem_root_array<const AccessPath *> *invalidators;
+
+  /// Handle to table to materialize into.
   TABLE *table;
+
+  /// If materializing a CTE, points to it (see m_cte), otherwise nullptr.
   Common_table_expr *cte;
+
+  /// The query expression we are materializing.
   Query_expression *unit;
+
+  /**
+      @see JOIN. If we are materializing across JOINs, e.g. derived tables,
+      ref_slice should be left at -1.
+  */
   int ref_slice;
+
+  /**
+     True if rematerializing on every Init() call (e.g., because we
+     have a dependency on a value from outside the query block).
+  */
   bool rematerialize;
+
+  /**
+     Used for when pushing LIMIT down to MaterializeIterator; this is
+     more efficient than having a LimitOffsetIterator above the
+     MaterializeIterator, since we can stop materializing when there are
+     enough rows. (This is especially important for recursive CTEs.)
+     Note that we cannot have a LimitOffsetIterator _below_ the
+     MaterializeIterator, as that would count wrong if we have deduplication,
+     and would not work at all for recursive CTEs.
+     Set to HA_POS_ERROR for no limit.
+  */
   ha_rows limit_rows;
+
+  /**
+     True if this is the top level iterator for a
+     materialized derived table transformed from a scalar subquery which needs
+     run-time cardinality check.
+  */
   bool reject_multiple_rows;
 };
 

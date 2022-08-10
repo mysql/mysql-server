@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,12 +39,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <map>
 
 #include "data0data.h"
+#include "ddl0ddl.h"
 #include "handler0alter.h"
 #include "lob0lob.h"
+#include "log0chkp.h"
 #include "que0que.h"
 #include "row0ext.h"
 #include "row0ins.h"
-#include "row0merge.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0upd.h"
 #include "srv0mon.h"
@@ -74,22 +76,26 @@ enum row_op {
 };
 
 /** Size of the modification log entry header, in bytes */
-#define ROW_LOG_HEADER_SIZE 2 /*op, extra_size*/
+/**op, extra_size*/
+constexpr uint32_t ROW_LOG_HEADER_SIZE = 2;
 
 /** Log block for modifications during online ALTER TABLE */
 struct row_log_buf_t {
-  byte *block;            /*!< file block buffer */
-  ut_new_pfx_t block_pfx; /*!< opaque descriptor of "block". Set
-                       by ut_allocator::allocate_large() and fed to
-                       ut_allocator::deallocate_large(). */
-  mrec_buf_t buf;         /*!< buffer for accessing a record
-                          that spans two blocks */
-  ulint blocks;           /*!< current position in blocks */
-  ulint bytes;            /*!< current position within block */
-  ulonglong total;        /*!< logical position, in bytes from
-                          the start of the row_log_table log;
-                          0 for row_log_online_op() and
-                          row_log_apply(). */
+  /** File block buffer */
+  byte *block;
+
+  /** Buffer for accessing a record that spans two blocks */
+  ddl::mrec_buf_t buf;
+
+  /** Current position in blocks */
+  ulint blocks;
+
+  /** Current position within block */
+  ulint bytes;
+
+  /** logical position, in bytes from the start of the row_log_table log; 0 for
+  row_log_online_op() and row_log_apply(). */
+  ulonglong total;
 };
 
 /** Tracks BLOB allocation during online ALTER TABLE */
@@ -157,8 +163,9 @@ If a page number maps to 0, it is an off-page column that has been freed.
 If a page number maps to a nonzero number, the number is a byte offset
 into the index->online_log, indicating that the page is safe to access
 when applying log records starting from that offset. */
-typedef std::map<page_no_t, row_log_table_blob_t, std::less<page_no_t>,
-                 ut_allocator<std::pair<const page_no_t, row_log_table_blob_t>>>
+typedef std::map<
+    page_no_t, row_log_table_blob_t, std::less<page_no_t>,
+    ut::allocator<std::pair<const page_no_t, row_log_table_blob_t>>>
     page_no_map;
 
 /** @brief Buffer for logging modifications during online index creation
@@ -174,71 +181,82 @@ When head.blocks == tail.blocks, the reader will access tail.block
 directly. When also head.bytes == tail.bytes, both counts will be
 reset to 0 and the file will be truncated. */
 struct row_log_t {
-  int fd;              /*!< file descriptor */
-  ib_mutex_t mutex;    /*!< mutex protecting error,
-                       max_trx and tail */
-  page_no_map *blobs;  /*!< map of page numbers of off-page columns
-                       that have been freed during table-rebuilding
-                       ALTER TABLE (row_log_table_*); protected by
-                       index->lock X-latch only */
-  dict_table_t *table; /*!< table that is being rebuilt,
-                       or NULL when this is a secondary
-                       index that is being created online */
-  bool same_pk;        /*!< whether the definition of the PRIMARY KEY
-                       has remained the same */
+  /** File descriptor */
+  ddl::Unique_os_file_descriptor file;
+
+  /** Mutex protecting error, max_trx and tail */
+  ib_mutex_t mutex;
+
+  /** Map of page numbers of off-page columns that have been freed during
+  table-rebuilding ALTER TABLE (row_log_table_*); protected by index->lock
+  X-latch only */
+  page_no_map *blobs;
+
+  /** Table that is being rebuilt, or NULL when this is a secondary index that
+  is being created online */
+  dict_table_t *table;
+
+  /** Whether the definition of the PRIMARY KEY has remained the same */
+  bool same_pk;
+
+  /** Default values of added columns, or NULL */
   const dtuple_t *add_cols;
-  /*!< default values of added columns, or NULL */
-  const ulint *col_map; /*!< mapping of old column numbers to
-                        new ones, or NULL if !table */
-  dberr_t error;        /*!< error that occurred during online
-                        table rebuild */
-  trx_id_t max_trx;     /*!< biggest observed trx_id in
-                        row_log_online_op();
-                        protected by mutex and index->lock S-latch,
-                        or by index->lock X-latch only */
-  row_log_buf_t tail;   /*!< writer context;
-                        protected by mutex and index->lock S-latch,
-                        or by index->lock X-latch only */
-  row_log_buf_t head;   /*!< reader context; protected by MDL only;
-                        modifiable by row_log_apply_ops() */
-  ulint n_old_col;
-  /*!< number of non-virtual column in
-  old table */
-  ulint n_old_vcol;
-  /*!< number of virtual column in old table */
-  const char *path; /*!< where to create temporary file during
-                    log operation */
+
+  /** Mapping of old column numbers to new ones, or NULL if !table */
+  const ulint *col_map;
+
+  /** Error that occurred during online table rebuild */
+  dberr_t error;
+
+  /** Biggest observed trx_id in row_log_online_op(); protected by mutex and
+  index->lock S-latch, or by index->lock X-latch only */
+  trx_id_t max_trx;
+
+  /** writer context; protected by mutex and index->lock S-latch, or by
+  index->lock X-latch only */
+  row_log_buf_t tail;
+
+  /** Reader context; protected by MDL only; modifiable by
+  row_log_apply_ops() */
+  row_log_buf_t head;
+
+  /** number of non-virtual column in old table */
+  size_t n_old_col;
+
+  /** number of virtual column in old table */
+  size_t n_old_vcol;
+
+  /** Where to create temporary file during log operation */
+  const char *path;
 };
 
 /** Create the file or online log if it does not exist.
 @param[in,out] log     online rebuild log
 @return true if success, false if not */
-static MY_ATTRIBUTE((warn_unused_result)) int row_log_tmpfile(row_log_t *log) {
+[[nodiscard]] static bool row_log_tmpfile(row_log_t *log) {
   DBUG_TRACE;
-  if (log->fd < 0) {
-    log->fd = row_merge_file_create_low(log->path);
-    DBUG_EXECUTE_IF("row_log_tmpfile_fail",
-                    if (log->fd > 0) row_merge_file_destroy_low(log->fd);
-                    log->fd = -1;);
-    if (log->fd >= 0) {
+  if (!log->file.is_open()) {
+    log->file = ddl::file_create_low(log->path);
+    DBUG_EXECUTE_IF("row_log_tmpfile_fail", log->file.close(););
+    if (log->file.is_open()) {
       MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_LOG_FILES);
     }
   }
 
-  return log->fd;
+  return log->file.is_open();
 }
 
 /** Allocate the memory for the log buffer.
-@param[in,out]	log_buf	Buffer used for log operation
+@param[in,out]  log_buf Buffer used for log operation
 @return true if success, false if not */
-static MY_ATTRIBUTE((warn_unused_result)) bool row_log_block_allocate(
-    row_log_buf_t &log_buf) {
+[[nodiscard]] static bool row_log_block_allocate(row_log_buf_t &log_buf) {
   DBUG_TRACE;
   if (log_buf.block == nullptr) {
     DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", return false;);
 
-    log_buf.block = ut_allocator<byte>(mem_key_row_log_buf)
-                        .allocate_large(srv_sort_buf_size, &log_buf.block_pfx);
+    log_buf.block = static_cast<uint8_t *>(ut::malloc_large_page_withkey(
+        ut::make_psi_memory_key(mem_key_row_log_buf), srv_sort_buf_size,
+        ut::fallback_to_normal_page_t{}));
 
     if (log_buf.block == nullptr) {
       return false;
@@ -248,14 +266,11 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_log_block_allocate(
 }
 
 /** Free the log buffer.
-@param[in,out]	log_buf	Buffer used for log operation */
+@param[in,out]  log_buf Buffer used for log operation */
 static void row_log_block_free(row_log_buf_t &log_buf) {
   DBUG_TRACE;
-  if (log_buf.block != nullptr) {
-    ut_allocator<byte>(mem_key_row_log_buf)
-        .deallocate_large(log_buf.block, &log_buf.block_pfx);
-    log_buf.block = nullptr;
-  }
+  ut::free_large_page(log_buf.block, ut::fallback_to_normal_page_t{});
+  log_buf.block = nullptr;
 }
 
 /** Logs an operation to a secondary index that is (or was) being created. */
@@ -283,12 +298,12 @@ void row_log_online_op(
 
   ut_ad(dict_index_is_online_ddl(index));
 
-  /* Compute the size of the record. This differs from
-  row_merge_buf_encode(), because here we do not encode
-  extra_size+1 (and reserve 0 as the end-of-chunk marker). */
+  /* Compute the size of the record. This differs from ddl::buf_encode(),
+  because here we do not encode extra_size+1 (and reserve 0 as the
+  end-of-chunk marker). */
 
-  size = rec_get_converted_size_temp(index, tuple->fields, tuple->n_fields,
-                                     nullptr, &extra_size);
+  size = rec_get_serialize_size(index, tuple->fields, tuple->n_fields, nullptr,
+                                &extra_size, MAX_ROW_VERSION);
   ut_ad(size >= extra_size);
   ut_ad(size <= sizeof log->tail.buf);
 
@@ -334,8 +349,8 @@ void row_log_online_op(
     *b++ = (byte)extra_size;
   }
 
-  rec_convert_dtuple_to_temp(b + extra_size, index, tuple->fields,
-                             tuple->n_fields, nullptr);
+  rec_serialize_dtuple(b + extra_size, index, tuple->fields, tuple->n_fields,
+                       nullptr);
   b += size;
 
   if (mrec_size >= avail_size) {
@@ -357,12 +372,12 @@ void row_log_online_op(
 
     UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 
-    if (row_log_tmpfile(log) < 0) {
+    if (!row_log_tmpfile(log)) {
       log->error = DB_OUT_OF_MEMORY;
       goto err_exit;
     }
 
-    err = os_file_write_int_fd(request, "(modification log)", log->fd,
+    err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
                                log->tail.block, byte_offset, srv_sort_buf_size);
 
     log->tail.blocks++;
@@ -399,7 +414,7 @@ dberr_t row_log_table_get_error(
 
 /** Starts logging an operation to a table that is being rebuilt.
  @return pointer to log, or NULL if no logging is necessary */
-static MY_ATTRIBUTE((warn_unused_result)) byte *row_log_table_open(
+[[nodiscard]] static byte *row_log_table_open(
     row_log_t *log, /*!< in/out: online rebuild log */
     ulint size,     /*!< in: size of log record */
     ulint *avail)   /*!< out: available size for log record */
@@ -431,15 +446,14 @@ static MY_ATTRIBUTE((warn_unused_result)) byte *row_log_table_open(
   }
 }
 
-/** Stops logging an operation to a table that is being rebuilt. */
-static void row_log_table_close_func(
-    row_log_t *log, /*!< in/out: online rebuild log */
-#ifdef UNIV_DEBUG
-    const byte *b, /*!< in: end of log record */
-#endif             /* UNIV_DEBUG */
-    ulint size,    /*!< in: size of log record */
-    ulint avail)   /*!< in: available size for log record */
-{
+/** Stops logging an operation to a table that is being rebuilt.
+ @param[in,out] log online rebuild log
+ @param[in] b end of log record
+ @param[in] size size od log record
+ @param[in] avail available size for log record */
+static void row_log_table_close_func(row_log_t *log,
+                                     IF_DEBUG(const byte *b, ) ulint size,
+                                     ulint avail) {
   ut_ad(mutex_own(&log->mutex));
 
   if (size >= avail) {
@@ -461,12 +475,12 @@ static void row_log_table_close_func(
 
     UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 
-    if (row_log_tmpfile(log) < 0) {
+    if (!row_log_tmpfile(log)) {
       log->error = DB_OUT_OF_MEMORY;
       goto err_exit;
     }
 
-    err = os_file_write_int_fd(request, "(modification log)", log->fd,
+    err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
                                log->tail.block, byte_offset, srv_sort_buf_size);
 
     log->tail.blocks++;
@@ -488,18 +502,16 @@ err_exit:
   mutex_exit(&log->mutex);
 }
 
-#ifdef UNIV_DEBUG
-#define row_log_table_close(log, b, size, avail) \
-  row_log_table_close_func(log, b, size, avail)
-#else /* UNIV_DEBUG */
-#define row_log_table_close(log, b, size, avail) \
-  row_log_table_close_func(log, size, avail)
-#endif /* UNIV_DEBUG */
+static inline void row_log_table_close(row_log_t *log,
+                                       const byte *b [[maybe_unused]],
+                                       ulint size, ulint avail) {
+  row_log_table_close_func(log, IF_DEBUG(b, ) size, avail);
+}
 
 /** Check whether a virtual column is indexed in the new table being
 created during alter table
-@param[in]	index	cluster index
-@param[in]	v_no	virtual column number
+@param[in]      index   cluster index
+@param[in]      v_no    virtual column number
 @return true if it is indexed, else false */
 bool row_log_col_is_indexed(const dict_index_t *index, ulint v_no) {
   return (
@@ -509,7 +521,6 @@ bool row_log_col_is_indexed(const dict_index_t *index, ulint v_no) {
 /** Logs a delete operation to a table that is being rebuilt.
  This will be merged in row_log_table_apply_delete(). */
 void row_log_table_delete(
-    trx_t *trx,             /*!< in: current transaction */
     const rec_t *rec,       /*!< in: clustered index leaf page record,
                             page X-latched */
     const dtuple_t *ventry, /*!< in: dtuple holding virtual column info */
@@ -551,18 +562,19 @@ void row_log_table_delete(
 
     /* The PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR are in the first
     fields of the record. */
-    heap = mem_heap_create(DATA_TRX_ID_LEN +
-                           DTUPLE_EST_ALLOC(new_index->n_uniq + 2));
+    heap = mem_heap_create(
+        DATA_TRX_ID_LEN + DTUPLE_EST_ALLOC(new_index->n_uniq + 2),
+        UT_LOCATION_HERE);
     old_pk = tuple = dtuple_create(heap, new_index->n_uniq + 2);
     dict_index_copy_types(tuple, new_index, tuple->n_fields);
     dtuple_set_n_fields_cmp(tuple, new_index->n_uniq);
 
     for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
       ulint len;
-      const void *field = rec_get_nth_field(rec, offsets, i, &len);
+      const void *field = rec_get_nth_field(nullptr, rec, offsets, i, &len);
       dfield_t *dfield = dtuple_get_nth_field(tuple, i);
       ut_ad(len != UNIV_SQL_NULL);
-      ut_ad(!rec_offs_nth_extern(offsets, i));
+      ut_ad(!rec_offs_nth_extern(index, offsets, i));
       dfield_set_data(dfield, field, len);
     }
 
@@ -574,7 +586,7 @@ void row_log_table_delete(
     }
   } else {
     /* The PRIMARY KEY has changed. Translate the tuple. */
-    old_pk = row_log_table_get_pk(trx, rec, index, offsets, nullptr, &heap);
+    old_pk = row_log_table_get_pk(rec, index, offsets, nullptr, &heap);
 
     if (!old_pk) {
       ut_ad(index->online_log->error != DB_SUCCESS);
@@ -589,8 +601,9 @@ void row_log_table_delete(
         dtuple_get_nth_field(old_pk, old_pk->n_fields - 2)->len);
   ut_ad(DATA_ROLL_PTR_LEN ==
         dtuple_get_nth_field(old_pk, old_pk->n_fields - 1)->len);
-  old_pk_size = rec_get_converted_size_temp(
-      new_index, old_pk->fields, old_pk->n_fields, nullptr, &old_pk_extra_size);
+  old_pk_size =
+      rec_get_serialize_size(new_index, old_pk->fields, old_pk->n_fields,
+                             nullptr, &old_pk_extra_size, MAX_ROW_VERSION);
   ut_ad(old_pk_extra_size < 0x100);
 
   /* 2 = 1 (extra_size) + at least 1 byte payload */
@@ -599,22 +612,22 @@ void row_log_table_delete(
   /* Check if we need to log virtual column data */
   if (ventry->n_v_fields > 0) {
     ulint v_extra;
-    mrec_size +=
-        rec_get_converted_size_temp(new_index, nullptr, 0, ventry, &v_extra);
+    mrec_size += rec_get_serialize_size(new_index, nullptr, 0, ventry, &v_extra,
+                                        MAX_ROW_VERSION);
   }
 
   if (byte *b = row_log_table_open(index->online_log, mrec_size, &avail_size)) {
     *b++ = ROW_T_DELETE;
     *b++ = static_cast<byte>(old_pk_extra_size);
 
-    rec_convert_dtuple_to_temp(b + old_pk_extra_size, new_index, old_pk->fields,
-                               old_pk->n_fields, nullptr);
+    rec_serialize_dtuple(b + old_pk_extra_size, new_index, old_pk->fields,
+                         old_pk->n_fields, nullptr);
 
     b += old_pk_size;
 
     /* log virtual columns */
     if (ventry->n_v_fields > 0) {
-      rec_convert_dtuple_to_temp(b, new_index, nullptr, 0, ventry);
+      rec_serialize_dtuple(b, new_index, nullptr, 0, ventry);
       b += mach_read_from_2(b);
     } else if (index->table->n_v_cols) {
       mach_write_to_2(b, 2);
@@ -628,34 +641,22 @@ func_exit:
   mem_heap_free(heap);
 }
 
-/** Logs an insert or update to a table that is being rebuilt. */
-static void row_log_table_low_redundant(
-    const rec_t *rec,         /*!< in: clustered index leaf
-                              page record in ROW_FORMAT=REDUNDANT,
-                              page X-latched */
-    const dtuple_t *ventry,   /*!< in: dtuple holding virtual
-                              column info or NULL */
-    const dtuple_t *o_ventry, /*!< in: old dtuple holding virtual
-                             column info or NULL */
-    dict_index_t *index,      /*!< in/out: clustered index, S-latched
-                              or X-latched */
-    bool insert,              /*!< in: true if insert,
-                              false if update */
-    const dtuple_t *old_pk,   /*!< in: old PRIMARY KEY value
-                              (if !insert and a PRIMARY KEY
-                              is being created) */
-    const dict_index_t *new_index)
-/*!< in: clustered index of the
-new table, not latched */
-{
-  ulint old_pk_size;
-  ulint old_pk_extra_size;
-  ulint size;
-  ulint extra_size;
-  ulint mrec_size;
-  ulint avail_size;
-  mem_heap_t *heap = nullptr;
-  dtuple_t *tuple;
+/** Logs an insert or update to a table that is being rebuilt.
+@param[in]      rec             clustered index leaf page record in
+                                ROW_FORMAT=REDUNDANT, page X-latched
+@param[in]      ventry          dtuple holding virtual column info or NULL
+@param[in]      o_ventry        old dtuple holding virtual column info or NULL
+@param[in,out]  index           clustered index, S-latched or X-latched
+@param[in]      insert          true if insert, false if update
+@param[in]      old_pk          old PRIMARY KEY value (if !insert and a PRIMARY
+                                KEY is being created)
+@param[in]      new_index       clustered index of the new table, not latched */
+static void row_log_table_low_redundant(const rec_t *rec,
+                                        const dtuple_t *ventry,
+                                        const dtuple_t *o_ventry,
+                                        dict_index_t *index, bool insert,
+                                        const dtuple_t *old_pk,
+                                        const dict_index_t *new_index) {
   ulint num_v = ventry ? dtuple_get_n_v_fields(ventry) : 0;
 
   ut_ad(!page_is_comp(page_align(rec)));
@@ -664,9 +665,23 @@ new table, not latched */
   ut_ad(!dict_table_is_comp(index->table)); /* redundant row format */
   ut_ad(new_index->is_clustered());
 
-  heap = mem_heap_create(DTUPLE_EST_ALLOC(index->n_fields));
-  tuple = dtuple_create_with_vcol(heap, index->n_fields, num_v);
-  dict_index_copy_types(tuple, index, index->n_fields);
+  uint8_t rec_version = 0;
+  bool has_instant_version = false;
+  if (rec_old_is_versioned(rec)) {
+    ut_ad(index->has_row_versions());
+    has_instant_version = true;
+    rec_version = rec_get_instant_row_version_old(rec);
+  }
+
+  const auto n_total_fields = index->get_n_total_fields();
+
+  mem_heap_t *heap =
+      mem_heap_create(DTUPLE_EST_ALLOC(n_total_fields), UT_LOCATION_HERE);
+  /* Create tuple with total fields because for inplace update on record in a
+  table with INSTANT DROP columns, we keep the records on current version i.e.
+  dropped column value may still exists. */
+  dtuple_t *tuple = dtuple_create_with_vcol(heap, n_total_fields, num_v);
+  dict_index_copy_types(tuple, index, n_total_fields);
 
   if (num_v) {
     dict_table_copy_v_types(tuple, index->table);
@@ -675,7 +690,7 @@ new table, not latched */
   dtuple_set_n_fields_cmp(tuple, dict_index_get_n_unique(index));
 
   if (rec_get_1byte_offs_flag(rec)) {
-    for (uint16_t i = 0; i < index->n_fields; i++) {
+    for (uint16_t i = 0; i < n_total_fields; i++) {
       dfield_t *dfield;
       ulint len;
       const void *field;
@@ -686,7 +701,7 @@ new table, not latched */
       dfield_set_data(dfield, field, len);
     }
   } else {
-    for (uint16_t i = 0; i < index->n_fields; i++) {
+    for (uint16_t i = 0; i < n_total_fields; i++) {
       dfield_t *dfield;
       ulint len;
       const void *field;
@@ -696,29 +711,40 @@ new table, not latched */
 
       dfield_set_data(dfield, field, len);
 
-      /* Fields stored as default value is not
-      stored externally. */
-      if (i < rec_get_n_fields_old_raw(rec) && rec_2_is_field_extern(rec, i)) {
+      /* Fields stored as default value is not stored externally. */
+      size_t phy_pos = index->get_field(i)->col->get_col_phy_pos();
+      if (phy_pos < rec_get_n_fields_old_raw(rec) &&
+          rec_2_is_field_extern(index, rec, i)) {
         dfield_set_ext(dfield);
       }
     }
   }
 
-  size = rec_get_converted_size_temp(index, tuple->fields, tuple->n_fields,
-                                     ventry, &extra_size);
+  ulint extra_size;
+  ulint size = rec_get_serialize_size(index, tuple->fields, tuple->n_fields,
+                                      ventry, &extra_size, rec_version);
 
-  mrec_size = ROW_LOG_HEADER_SIZE + size + (extra_size >= 0x80);
+  /* If INSTANT, we need 2 extra bytes to store info bits and version */
+  uint32_t additional_size_for_instant =
+      index->has_row_versions() ? (has_instant_version ? 2 : 1) : 0;
+
+  extra_size += additional_size_for_instant;
+
+  ulint mrec_size = ROW_LOG_HEADER_SIZE + size + (extra_size >= 0x80) +
+                    additional_size_for_instant;
 
   if (num_v) {
     if (o_ventry) {
       ulint v_extra = 0;
-      mrec_size += rec_get_converted_size_temp(new_index, nullptr, 0, o_ventry,
-                                               &v_extra);
+      mrec_size += rec_get_serialize_size(new_index, nullptr, 0, o_ventry,
+                                          &v_extra, MAX_ROW_VERSION);
     }
   } else if (index->table->n_v_cols) {
     mrec_size += 2;
   }
 
+  ulint old_pk_size;
+  ulint old_pk_extra_size;
   if (insert || index->online_log->same_pk) {
     ut_ad(!old_pk);
     old_pk_extra_size = old_pk_size = 0;
@@ -731,23 +757,26 @@ new table, not latched */
           dtuple_get_nth_field(old_pk, old_pk->n_fields - 1)->len);
 
     old_pk_size =
-        rec_get_converted_size_temp(new_index, old_pk->fields, old_pk->n_fields,
-                                    nullptr, &old_pk_extra_size);
+        rec_get_serialize_size(new_index, old_pk->fields, old_pk->n_fields,
+                               nullptr, &old_pk_extra_size, MAX_ROW_VERSION);
     ut_ad(old_pk_extra_size < 0x100);
     mrec_size += 1 /*old_pk_extra_size*/ + old_pk_size;
   }
 
+  ulint avail_size;
   if (byte *b = row_log_table_open(index->online_log, mrec_size, &avail_size)) {
+    /* Write TYPE in 1 byte */
     *b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
 
     if (old_pk_size) {
       *b++ = static_cast<byte>(old_pk_extra_size);
 
-      rec_convert_dtuple_to_temp(b + old_pk_extra_size, new_index,
-                                 old_pk->fields, old_pk->n_fields, ventry);
+      rec_serialize_dtuple(b + old_pk_extra_size, new_index, old_pk->fields,
+                           old_pk->n_fields, ventry);
       b += old_pk_size;
     }
 
+    /* Write extra size in 1 or 2 bytes */
     if (extra_size < 0x80) {
       *b++ = static_cast<byte>(extra_size);
     } else {
@@ -756,13 +785,35 @@ new table, not latched */
       *b++ = static_cast<byte>(extra_size);
     }
 
-    rec_convert_dtuple_to_temp(b + extra_size, index, tuple->fields,
-                               tuple->n_fields, ventry);
+    /* Convert and write record in TEMP format */
+    rec_serialize_dtuple(b + extra_size, index, tuple->fields, tuple->n_fields,
+                         ventry, rec_version);
+
+    /* Write instant metadata in 1 or 2 bytes */
+    if (index->has_row_versions()) {
+      /* Write info bit in 1 byte to indicate INSTANT */
+      byte *temp_rec = b + extra_size;
+      rec_set_info_bits_new_temp(temp_rec, rec_get_info_bits(rec, false));
+      if (has_instant_version) {
+        rec_new_temp_set_versioned(temp_rec, true);
+        /* Write the record version in 1 byte */
+        byte *temp_version = temp_rec - 2;
+        memcpy(temp_version, &rec_version, sizeof(uint8_t));
+        b += 1;
+      } else {
+        rec_new_temp_set_versioned(temp_rec, false);
+      }
+
+      /* Move 'b' to past INSTANT metadata */
+      b += 1;
+    }
+
+    /* Move 'b' to past record data */
     b += size;
 
     if (num_v) {
       if (o_ventry) {
-        rec_convert_dtuple_to_temp(b, new_index, nullptr, 0, o_ventry);
+        rec_serialize_dtuple(b, new_index, nullptr, 0, o_ventry);
         b += mach_read_from_2(b);
       }
     } else if (index->table->n_v_cols) {
@@ -779,34 +830,25 @@ new table, not latched */
   mem_heap_free(heap);
 }
 
-/** Logs an insert or update to a table that is being rebuilt. */
-static void row_log_table_low(
-    const rec_t *rec,         /*!< in: clustered index leaf page record,
-                              page X-latched */
-    const dtuple_t *ventry,   /*!< in: dtuple holding virtual column info */
-    const dtuple_t *o_ventry, /*!< in: dtuple holding old virtual column
-                             info */
-    dict_index_t *index,      /*!< in/out: clustered index, S-latched
-                              or X-latched */
-    const ulint *offsets,     /*!< in: rec_get_offsets(rec,index) */
-    bool insert,              /*!< in: true if insert, false if update */
-    const dtuple_t *old_pk)   /*!< in: old PRIMARY KEY value (if !insert
-                              and a PRIMARY KEY is being created) */
-{
-  ulint omit_size;
-  ulint old_pk_size;
-  ulint old_pk_extra_size;
-  ulint extra_size;
-  ulint mrec_size;
-  ulint avail_size;
-  const dict_index_t *new_index;
-
+/** Logs an insert or update to a table that is being rebuilt.
+@param[in]      rec             clustered index leaf page record, page X-latched
+@param[in]      ventry          dtuple holding virtual column info
+@param[in]      o_ventry        dtuple holding old virtual column info
+@param[in,out]  index           clustered index, S-latched or X-latched
+@param[in]      offsets         rec_get_offsets(rec,index)
+@param[in]      insert          true if insert, false if update
+@param[in]      old_pk          old PRIMARY KEY value (if !insert and a PRIMARY
+                                KEY is being created) */
+static void row_log_table_low(const rec_t *rec, const dtuple_t *ventry,
+                              const dtuple_t *o_ventry, dict_index_t *index,
+                              const ulint *offsets, bool insert,
+                              const dtuple_t *old_pk) {
   if (index->is_corrupted() || !dict_index_is_online_ddl(index) ||
       index->online_log->error != DB_SUCCESS) {
     return;
   }
 
-  new_index = index->online_log->table->first_index();
+  const dict_index_t *new_index = index->online_log->table->first_index();
 
   ut_ad(index->is_clustered());
   ut_ad(new_index->is_clustered());
@@ -818,7 +860,7 @@ static void row_log_table_low(
                             RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
   ut_ad(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
   ut_ad(page_is_leaf(page_align(rec)));
-  ut_ad(!page_is_comp(page_align(rec)) == !rec_offs_comp(offsets));
+  ut_ad(page_is_comp(page_align(rec)) == rec_offs_comp(offsets));
   /* old_pk=row_log_table_get_pk() [not needed in INSERT] is a prefix
   of the clustered index record (PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR),
   with no information on virtual columns */
@@ -837,18 +879,18 @@ static void row_log_table_low(
   ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
 
   /* Check the instant to decide copying info bit or not */
-  omit_size = REC_N_NEW_EXTRA_BYTES -
-              (index->has_instant_cols() ? REC_N_TMP_EXTRA_BYTES : 0);
+  ulint omit_size = REC_N_NEW_EXTRA_BYTES -
+                    (index->has_row_versions() ? REC_N_TMP_EXTRA_BYTES : 0);
 
-  extra_size = rec_offs_extra_size(offsets) - omit_size;
+  ulint extra_size = rec_offs_extra_size(offsets) - omit_size;
 
-  mrec_size = ROW_LOG_HEADER_SIZE + (extra_size >= 0x80) +
-              rec_offs_size(offsets) - omit_size;
+  ulint mrec_size = ROW_LOG_HEADER_SIZE + (extra_size >= 0x80) +
+                    rec_offs_size(offsets) - omit_size;
 
   if (ventry && ventry->n_v_fields > 0) {
     ulint v_extra = 0;
-    uint64_t rec_size =
-        rec_get_converted_size_temp(new_index, nullptr, 0, ventry, &v_extra);
+    uint64_t rec_size = rec_get_serialize_size(new_index, nullptr, 0, ventry,
+                                               &v_extra, MAX_ROW_VERSION);
 
     mrec_size += rec_size;
 
@@ -856,8 +898,8 @@ static void row_log_table_low(
     there must be also nothing to do with old entry. In this case,
     make it same with the case below, by only keep 2 bytes length marker */
     if (rec_size > 2 && o_ventry != nullptr) {
-      mrec_size += rec_get_converted_size_temp(new_index, nullptr, 0, o_ventry,
-                                               &v_extra);
+      mrec_size += rec_get_serialize_size(new_index, nullptr, 0, o_ventry,
+                                          &v_extra, MAX_ROW_VERSION);
     }
   } else if (index->table->n_v_cols) {
     /* Always leave 2 bytes length marker for virtual column
@@ -866,6 +908,8 @@ static void row_log_table_low(
     mrec_size += 2;
   }
 
+  ulint old_pk_size;
+  ulint old_pk_extra_size;
   if (insert || index->online_log->same_pk) {
     ut_ad(!old_pk);
     old_pk_extra_size = old_pk_size = 0;
@@ -878,12 +922,13 @@ static void row_log_table_low(
           dtuple_get_nth_field(old_pk, old_pk->n_fields - 1)->len);
 
     old_pk_size =
-        rec_get_converted_size_temp(new_index, old_pk->fields, old_pk->n_fields,
-                                    nullptr, &old_pk_extra_size);
+        rec_get_serialize_size(new_index, old_pk->fields, old_pk->n_fields,
+                               nullptr, &old_pk_extra_size, MAX_ROW_VERSION);
     ut_ad(old_pk_extra_size < 0x100);
     mrec_size += 1 /*old_pk_extra_size*/ + old_pk_size;
   }
 
+  ulint avail_size;
   if (byte *b = row_log_table_open(index->online_log, mrec_size, &avail_size)) {
     *b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
 
@@ -892,8 +937,8 @@ static void row_log_table_low(
 
       *b++ = static_cast<byte>(old_pk_extra_size);
 
-      rec_convert_dtuple_to_temp(b + old_pk_extra_size, new_index,
-                                 old_pk->fields, old_pk->n_fields, nullptr);
+      rec_serialize_dtuple(b + old_pk_extra_size, new_index, old_pk->fields,
+                           old_pk->n_fields, nullptr);
       b += old_pk_size;
     }
 
@@ -913,13 +958,13 @@ static void row_log_table_low(
     if (ventry && ventry->n_v_fields > 0) {
       uint64_t new_v_size;
 
-      rec_convert_dtuple_to_temp(b, new_index, nullptr, 0, ventry);
+      rec_serialize_dtuple(b, new_index, nullptr, 0, ventry);
       new_v_size = mach_read_from_2(b);
       b += new_v_size;
 
       /* Nothing for new entry to be logged, skip the old one too. */
       if (new_v_size != 2 && o_ventry != nullptr) {
-        rec_convert_dtuple_to_temp(b, new_index, nullptr, 0, o_ventry);
+        rec_serialize_dtuple(b, new_index, nullptr, 0, o_ventry);
         b += mach_read_from_2(b);
       }
     } else if (index->table->n_v_cols) {
@@ -970,23 +1015,20 @@ static const dict_col_t *row_log_table_get_pk_old_col(const dict_table_t *table,
 }
 
 /** Maps an old table column of a PRIMARY KEY column.
-@param[in]	trx		current transaction
-@param[in]	index		index being operated on
-@param[in]	col		old table column (before ALTER TABLE)
-@param[in]	ifield		clustered index field in the new table (after
+@param[in]      index           index being operated on
+@param[in]      ifield          clustered index field in the new table (after
 ALTER TABLE)
-@param[in,out]	dfield		clustered index tuple field in the new table
-@param[in,out]	heap		memory heap for allocating dfield contents
-@param[in]	rec		clustered index leaf page record in the old
+@param[in,out]  dfield          clustered index tuple field in the new table
+@param[in,out]  heap            memory heap for allocating dfield contents
+@param[in]      rec             clustered index leaf page record in the old
 table
-@param[in]	offsets		rec_get_offsets(rec)
-@param[in]	i		rec field corresponding to col
-@param[in]	page_size	page size of the old table
-@param[in]	max_len		maximum length of dfield
-@retval DB_INVALID_NULL		if a NULL value is encountered
-@retval DB_TOO_BIG_INDEX_COL	if the maximum prefix length is exceeded */
-static dberr_t row_log_table_get_pk_col(trx_t *trx, dict_index_t *index,
-                                        const dict_col_t *col,
+@param[in]      offsets         rec_get_offsets(rec)
+@param[in]      i               rec field corresponding to col
+@param[in]      page_size       page size of the old table
+@param[in]      max_len         maximum length of dfield
+@retval DB_INVALID_NULL         if a NULL value is encountered
+@retval DB_TOO_BIG_INDEX_COL    if the maximum prefix length is exceeded */
+static dberr_t row_log_table_get_pk_col(dict_index_t *index,
                                         const dict_field_t *ifield,
                                         dfield_t *dfield, mem_heap_t *heap,
                                         const rec_t *rec, const ulint *offsets,
@@ -995,13 +1037,13 @@ static dberr_t row_log_table_get_pk_col(trx_t *trx, dict_index_t *index,
   const byte *field;
   ulint len;
 
-  field = rec_get_nth_field(rec, offsets, i, &len);
+  field = rec_get_nth_field(nullptr, rec, offsets, i, &len);
 
   if (len == UNIV_SQL_NULL) {
     return (DB_INVALID_NULL);
   }
 
-  if (rec_offs_nth_extern(offsets, i)) {
+  if (rec_offs_nth_extern(index, offsets, i)) {
     ulint field_len = ifield->prefix_len;
     byte *blob_field;
 
@@ -1034,7 +1076,6 @@ static dberr_t row_log_table_get_pk_col(trx_t *trx, dict_index_t *index,
  @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
  or NULL if the PRIMARY KEY definition does not change */
 const dtuple_t *row_log_table_get_pk(
-    trx_t *trx,           /*!< in: current transaction */
     const rec_t *rec,     /*!< in: clustered index leaf page record,
                           page X-latched */
     dict_index_t *index,  /*!< in/out: clustered index, S-latched
@@ -1069,10 +1110,11 @@ const dtuple_t *row_log_table_get_pk(
         ut_ad(pos > 0);
 
         if (!offsets) {
-          offsets = rec_get_offsets(rec, index, nullptr, pos + 1, heap);
+          offsets = rec_get_offsets(rec, index, nullptr, pos + 1,
+                                    UT_LOCATION_HERE, heap);
         }
 
-        trx_id_offs = rec_get_nth_field_offs(offsets, pos, &len);
+        trx_id_offs = rec_get_nth_field_offs(index, offsets, pos, &len);
         ut_ad(len == DATA_TRX_ID_LEN);
       }
 
@@ -1101,11 +1143,13 @@ const dtuple_t *row_log_table_get_pk(
         size += new_index->get_col(i)->get_min_size();
       }
 
-      *heap = mem_heap_create(DTUPLE_EST_ALLOC(new_n_uniq + 2) + size);
+      *heap = mem_heap_create(DTUPLE_EST_ALLOC(new_n_uniq + 2) + size,
+                              UT_LOCATION_HERE);
     }
 
     if (!offsets) {
-      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, heap);
+      offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, heap);
     }
 
     tuple = dtuple_create(*heap, new_n_uniq + 2);
@@ -1132,18 +1176,16 @@ const dtuple_t *row_log_table_get_pk(
         ulint i = dict_col_get_clust_pos(col, index);
 
         if (i == ULINT_UNDEFINED) {
-          ut_ad(0);
           log->error = DB_CORRUPTION;
-          goto err_exit;
+          ut_d(ut_error);
+          ut_o(goto err_exit);
         }
 
-        log->error =
-            row_log_table_get_pk_col(trx, index, col, ifield, dfield, *heap,
-                                     rec, offsets, i, page_size, max_len);
+        log->error = row_log_table_get_pk_col(index, ifield, dfield, *heap, rec,
+                                              offsets, i, page_size, max_len);
 
         if (log->error != DB_SUCCESS) {
-        err_exit:
-          tuple = nullptr;
+          ut_o(err_exit:) tuple = nullptr;
           goto func_exit;
         }
 
@@ -1229,7 +1271,8 @@ void row_log_table_blob_free(
   page_no_map *blobs = index->online_log->blobs;
 
   if (blobs == nullptr) {
-    index->online_log->blobs = blobs = UT_NEW_NOKEY(page_no_map());
+    index->online_log->blobs = blobs =
+        ut::new_withkey<page_no_map>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
 #ifdef UNIV_DEBUG
@@ -1282,18 +1325,15 @@ void row_log_table_blob_alloc(
 
 /** Converts a log record to a table row.
  @return converted row, or NULL if the conversion fails */
-static MY_ATTRIBUTE((warn_unused_result))
-    const dtuple_t *row_log_table_apply_convert_mrec(
-        trx_t *trx,           /*!< in: current transaction */
-        const mrec_t *mrec,   /*!< in: merge record */
-        dict_index_t *index,  /*!< in: index of mrec */
-        const ulint *offsets, /*!< in: offsets of mrec */
-        const row_log_t *log, /*!< in: rebuild context */
-        mem_heap_t *heap,     /*!< in/out: memory heap */
-        trx_id_t trx_id,      /*!< in: DB_TRX_ID of mrec */
-        dberr_t *error)       /*!< out: DB_SUCCESS or
-                              DB_MISSING_HISTORY or
-                              reason of failure */
+[[nodiscard]] static const dtuple_t *row_log_table_apply_convert_mrec(
+    const ddl::mrec_t *mrec, /*!< in: merge record */
+    dict_index_t *index,     /*!< in: index of mrec */
+    const ulint *offsets,    /*!< in: offsets of mrec */
+    const row_log_t *log,    /*!< in: rebuild context */
+    mem_heap_t *heap,        /*!< in/out: memory heap */
+    dberr_t *error)          /*!< out: DB_SUCCESS or
+                             DB_MISSING_HISTORY or
+                             reason of failure */
 {
   dtuple_t *row;
   ulint num_v = dict_table_get_n_v_cols(log->table);
@@ -1322,11 +1362,15 @@ static MY_ATTRIBUTE((warn_unused_result))
       a column prefix, there should also be the full
       field in the clustered index tuple. The row
       tuple comprises full fields, not prefixes. */
-      ut_ad(!rec_offs_nth_extern(offsets, i));
+      ut_ad(!rec_offs_nth_extern(index, offsets, i));
       continue;
     }
 
     const dict_col_t *col = ind_field->col;
+    if (col->is_instant_dropped()) {
+      /* Skip instanly dropped column */
+      continue;
+    }
 
     ulint col_no = log->col_map[dict_col_get_no(col)];
 
@@ -1340,12 +1384,12 @@ static MY_ATTRIBUTE((warn_unused_result))
     ulint len;
     const byte *data;
 
-    if (rec_offs_nth_extern(offsets, i)) {
+    if (rec_offs_nth_extern(index, offsets, i)) {
       ut_ad(rec_offs_any_extern(offsets));
-      rw_lock_x_lock(dict_index_get_lock(index));
+      rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
 
       if (const page_no_map *blobs = log->blobs) {
-        data = rec_get_nth_field(mrec, offsets, i, &len);
+        data = rec_get_nth_field(index, mrec, offsets, i, &len);
         ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
         page_no_t page_no = mach_read_from_4(
@@ -1390,9 +1434,9 @@ static MY_ATTRIBUTE((warn_unused_result))
         /* field length mismatch should not happen
         when rebuilding the redundant row format
         table. */
-        ut_ad(0);
         *error = DB_CORRUPTION;
-        return (nullptr);
+        ut_d(ut_error);
+        ut_o(return (nullptr));
       }
     }
 
@@ -1448,10 +1492,9 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    apply_insert_multi_value(uint32_t flags, dict_index_t *index,
-                             mem_heap_t *offsets_heap, mem_heap_t *heap,
-                             dtuple_t *entry, trx_id_t trx_id, que_thr_t *thr) {
+[[nodiscard]] static dberr_t apply_insert_multi_value(
+    uint32_t flags, dict_index_t *index, mem_heap_t *offsets_heap,
+    mem_heap_t *heap, dtuple_t *entry, trx_id_t trx_id, que_thr_t *thr) {
   dberr_t err = DB_SUCCESS;
   Multi_value_entry_builder_insert mv_entry_builder(index, entry);
 
@@ -1470,21 +1513,20 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Replays an insert operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_log_table_apply_insert_low(
-        que_thr_t *thr,           /*!< in: query graph */
-        const dtuple_t *row,      /*!< in: table row
-                                  in the old table definition */
-        trx_id_t trx_id,          /*!< in: trx_id of the row */
-        mem_heap_t *offsets_heap, /*!< in/out: memory heap
-                                  that can be emptied */
-        mem_heap_t *heap,         /*!< in/out: memory heap */
-        row_merge_dup_t *dup)     /*!< in/out: for reporting
-                                  duplicate key errors */
+[[nodiscard]] static dberr_t row_log_table_apply_insert_low(
+    que_thr_t *thr,           /*!< in: query graph */
+    const dtuple_t *row,      /*!< in: table row
+                              in the old table definition */
+    trx_id_t trx_id,          /*!< in: trx_id of the row */
+    mem_heap_t *offsets_heap, /*!< in/out: memory heap
+                              that can be emptied */
+    mem_heap_t *heap,         /*!< in/out: memory heap */
+    ddl::Dup *dup)            /*!< in/out: for reporting
+                                     duplicate key errors */
 {
   dberr_t error;
   dtuple_t *entry;
-  const row_log_t *log = dup->index->online_log;
+  const row_log_t *log = dup->m_index->online_log;
   dict_index_t *index = log->table->first_index();
   ulint n_index = 0;
 
@@ -1515,7 +1557,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   do {
     n_index++;
-    if (!(index = index->next())) {
+    index = index->next();
+    if (!index) {
       break;
     }
 
@@ -1546,22 +1589,21 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Replays an insert operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_insert(
+[[nodiscard]] static dberr_t row_log_table_apply_insert(
     que_thr_t *thr,           /*!< in: query graph */
-    const mrec_t *mrec,       /*!< in: record to insert */
+    const ddl::mrec_t *mrec,  /*!< in: record to insert */
     const ulint *offsets,     /*!< in: offsets of mrec */
     mem_heap_t *offsets_heap, /*!< in/out: memory heap
                               that can be emptied */
     mem_heap_t *heap,         /*!< in/out: memory heap */
-    row_merge_dup_t *dup,     /*!< in/out: for reporting
-                              duplicate key errors */
+    ddl::Dup *dup,            /*!< in/out: for reporting
+                                     duplicate key errors */
     trx_id_t trx_id)          /*!< in: DB_TRX_ID of mrec */
 {
-  const row_log_t *log = dup->index->online_log;
-  trx_t *trx = thr_get_trx(thr);
+  const row_log_t *log = dup->m_index->online_log;
   dberr_t error;
   const dtuple_t *row = row_log_table_apply_convert_mrec(
-      trx, mrec, dup->index, offsets, log, heap, trx_id, &error);
+      mrec, dup->m_index, offsets, log, heap, &error);
 
   switch (error) {
     case DB_MISSING_HISTORY:
@@ -1577,7 +1619,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_insert(
       ut_ad(row != nullptr);
       break;
     default:
-      ut_ad(0);
+      ut_d(ut_error);
+      [[fallthrough]];
     case DB_INVALID_NULL:
       ut_ad(row == nullptr);
       return (error);
@@ -1588,19 +1631,18 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_insert(
   if (error != DB_SUCCESS) {
     /* Report the erroneous row using the new
     version of the table. */
-    innobase_row_to_mysql(dup->table, log->table, row);
+    innobase_row_to_mysql(dup->m_table, log->table, row);
   }
   return (error);
 }
 
 /** Delete a record from a secondary index.
-@param[in]	index	secondary index
-@param[in]	entry	entry to delete
-@param[in,out]	pcur	B-tree cursor
+@param[in]      index   secondary index
+@param[in]      entry   entry to delete
+@param[in,out]  pcur    B-tree cursor
 @return DB_SUCCESS or error code */
-static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_log_table_delete_sec(dict_index_t *index, const dtuple_t *entry,
-                             btr_pcur_t *pcur) {
+[[nodiscard]] static inline dberr_t row_log_table_delete_sec(
+    dict_index_t *index, const dtuple_t *entry, btr_pcur_t *pcur) {
   dberr_t error;
   mtr_t mtr;
 
@@ -1608,10 +1650,10 @@ static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   mtr_start(&mtr);
 
-  btr_pcur_open(index, entry, PAGE_CUR_LE,
-                BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, pcur, &mtr);
+  pcur->open(index, 0, entry, PAGE_CUR_LE,
+             BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, &mtr, UT_LOCATION_HERE);
 #ifdef UNIV_DEBUG
-  switch (btr_pcur_get_btr_cur(pcur)->flag) {
+  switch (pcur->get_btr_cur()->flag) {
     case BTR_CUR_UNSET:
     case BTR_CUR_DELETE_REF:
     case BTR_CUR_DEL_MARK_IBUF:
@@ -1620,16 +1662,17 @@ static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
       /* We did not request buffering. */
       break;
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       goto flag_ok;
   }
-  ut_ad(0);
+  ut_d(ut_error);
 flag_ok:
 #endif /* UNIV_DEBUG */
 
-  if (page_rec_is_infimum(btr_pcur_get_rec(pcur)) ||
-      btr_pcur_get_low_match(pcur) < index->n_uniq) {
+  if (page_rec_is_infimum(pcur->get_rec()) ||
+      pcur->get_low_match() < index->n_uniq) {
     /* All secondary index entries should be
     found, because new_table is being modified by
     this thread only, and all indexes should be
@@ -1638,24 +1681,24 @@ flag_ok:
     return (DB_INDEX_CORRUPT);
   }
 
-  btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(pcur),
-                             BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
+  btr_cur_pessimistic_delete(&error, false, pcur->get_btr_cur(),
+                             BTR_CREATE_FLAG, false, 0, 0, 0, &mtr, pcur,
+                             nullptr);
   mtr_commit(&mtr);
 
   return (error);
 }
 
 /** Deletes a record from a multi-value index.
-@param[in]	row	row to delete
-@param[in]	ext	external data
-@param[in]	index	multi-value index
-@param[in,out]	pcur	B-tree cursor
-@param[in,out]	heap	memory heap
+@param[in]      row     row to delete
+@param[in]      ext     external data
+@param[in]      index   multi-value index
+@param[in,out]  pcur    B-tree cursor
+@param[in,out]  heap    memory heap
 @return DB_SUCCESS or error code */
-static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    apply_delete_multi_value(const dtuple_t *row, row_ext_t *ext,
-                             dict_index_t *index, btr_pcur_t *pcur,
-                             mem_heap_t *heap) {
+[[nodiscard]] static inline dberr_t apply_delete_multi_value(
+    const dtuple_t *row, row_ext_t *ext, dict_index_t *index, btr_pcur_t *pcur,
+    mem_heap_t *heap) {
   dberr_t err = DB_SUCCESS;
   Multi_value_entry_builder_normal mv_entry_builder(row, ext, index, heap, true,
                                                     false);
@@ -1675,34 +1718,32 @@ static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Deletes a record from a table that is being rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_log_table_apply_delete_low(
-        trx_t *trx,             /*!< in: current transaction*/
-        btr_pcur_t *pcur,       /*!< in/out: B-tree cursor,
-                                will be trashed */
-        const dtuple_t *ventry, /*!< in: dtuple holding
-                                virtual column info */
-        const ulint *offsets,   /*!< in: offsets on pcur */
-        mem_heap_t *heap,       /*!< in/out: memory heap */
-        mtr_t *mtr)             /*!< in/out: mini-transaction,
-                                will be committed */
+[[nodiscard]] static dberr_t row_log_table_apply_delete_low(
+    btr_pcur_t *pcur,       /*!< in/out: B-tree cursor,
+                            will be trashed */
+    const dtuple_t *ventry, /*!< in: dtuple holding
+                            virtual column info */
+    const ulint *offsets,   /*!< in: offsets on pcur */
+    mem_heap_t *heap,       /*!< in/out: memory heap */
+    mtr_t *mtr)             /*!< in/out: mini-transaction,
+                            will be committed */
 {
   dberr_t error;
   row_ext_t *ext = nullptr;
   dtuple_t *row;
-  dict_index_t *index = btr_pcur_get_btr_cur(pcur)->index;
+  dict_index_t *index = pcur->get_btr_cur()->index;
 
   ut_ad(index->is_clustered());
 
   DBUG_PRINT(
       "ib_alter_table",
       ("delete table " IB_ID_FMT "(index " IB_ID_FMT "): %s", index->table->id,
-       index->id, rec_printer(btr_pcur_get_rec(pcur), offsets).str().c_str()));
+       index->id, rec_printer(pcur->get_rec(), offsets).str().c_str()));
 
   if (index->next()) {
     /* Build a row template for purging secondary index entries. */
-    row = row_build(ROW_COPY_DATA, index, btr_pcur_get_rec(pcur), offsets,
-                    nullptr, nullptr, nullptr, &ext, heap);
+    row = row_build(ROW_COPY_DATA, index, pcur->get_rec(), offsets, nullptr,
+                    nullptr, nullptr, &ext, heap);
     if (ventry) {
       dtuple_copy_v_fields(row, ventry);
     }
@@ -1710,8 +1751,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row = nullptr;
   }
 
-  btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(pcur),
-                             BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
+  btr_cur_pessimistic_delete(&error, false, pcur->get_btr_cur(),
+                             BTR_CREATE_FLAG, false, 0, 0, 0, mtr, pcur,
+                             nullptr);
   mtr_commit(mtr);
 
   if (error != DB_SUCCESS) {
@@ -1743,12 +1785,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Replays a delete operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_delete(
-    que_thr_t *thr,           /*!< in: query graph */
+[[nodiscard]] static dberr_t row_log_table_apply_delete(
     ulint trx_id_col,         /*!< in: position of
                               DB_TRX_ID in the new
                               clustered index */
-    const mrec_t *mrec,       /*!< in: merge record */
+    const ddl::mrec_t *mrec,  /*!< in: merge record */
     const ulint *moffsets,    /*!< in: offsets of mrec */
     mem_heap_t *offsets_heap, /*!< in/out: memory heap
                               that can be emptied */
@@ -1762,7 +1803,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_delete(
   btr_pcur_t pcur;
   ulint *offsets;
   ulint num_v = new_table->n_v_cols;
-  trx_t *trx = thr_get_trx(thr);
 
   ut_ad(rec_offs_n_fields(moffsets) == dict_index_get_n_unique(index) + 2);
   ut_ad(!rec_offs_any_extern(moffsets));
@@ -1778,17 +1818,17 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_delete(
   for (ulint i = 0; i < index->n_uniq; i++) {
     ulint len;
     const void *field;
-    field = rec_get_nth_field(mrec, moffsets, i, &len);
+    field = rec_get_nth_field(nullptr, mrec, moffsets, i, &len);
     ut_ad(rec_field_not_null_not_add_col_def(len));
     dfield_set_data(dtuple_get_nth_field(old_pk, i), field, len);
   }
 
   mtr_start(&mtr);
 
-  btr_pcur_open(index, old_pk, PAGE_CUR_LE,
-                BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, &pcur, &mtr);
+  pcur.open(index, 0, old_pk, PAGE_CUR_LE,
+            BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, &mtr, UT_LOCATION_HERE);
 #ifdef UNIV_DEBUG
-  switch (btr_pcur_get_btr_cur(&pcur)->flag) {
+  switch (pcur.get_btr_cur()->flag) {
     case BTR_CUR_UNSET:
     case BTR_CUR_DELETE_REF:
     case BTR_CUR_DEL_MARK_IBUF:
@@ -1797,16 +1837,17 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_delete(
       /* We did not request buffering. */
       break;
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       goto flag_ok;
   }
-  ut_ad(0);
+  ut_d(ut_error);
 flag_ok:
 #endif /* UNIV_DEBUG */
 
-  if (page_rec_is_infimum(btr_pcur_get_rec(&pcur)) ||
-      btr_pcur_get_low_match(&pcur) < index->n_uniq) {
+  if (page_rec_is_infimum(pcur.get_rec()) ||
+      pcur.get_low_match() < index->n_uniq) {
   all_done:
     mtr_commit(&mtr);
     /* The record was not found. All done. */
@@ -1817,10 +1858,10 @@ flag_ok:
     return (DB_SUCCESS);
   }
 
-  offsets = rec_get_offsets(btr_pcur_get_rec(&pcur), index, nullptr,
-                            ULINT_UNDEFINED, &offsets_heap);
+  offsets = rec_get_offsets(pcur.get_rec(), index, nullptr, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &offsets_heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-  ut_a(!rec_offs_any_null_extern(btr_pcur_get_rec(&pcur), offsets));
+  ut_a(!rec_offs_any_null_extern(index, pcur.get_rec(), offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
   /* Only remove the record if DB_TRX_ID,DB_ROLL_PTR match. */
@@ -1828,16 +1869,16 @@ flag_ok:
   {
     ulint len;
     const byte *mrec_trx_id =
-        rec_get_nth_field(mrec, moffsets, trx_id_col, &len);
+        rec_get_nth_field(nullptr, mrec, moffsets, trx_id_col, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
     const byte *rec_trx_id =
-        rec_get_nth_field(btr_pcur_get_rec(&pcur), offsets, trx_id_col, &len);
+        rec_get_nth_field(nullptr, pcur.get_rec(), offsets, trx_id_col, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
 
-    ut_ad(rec_get_nth_field(mrec, moffsets, trx_id_col + 1, &len) ==
+    ut_ad(rec_get_nth_field(nullptr, mrec, moffsets, trx_id_col + 1, &len) ==
           mrec_trx_id + DATA_TRX_ID_LEN);
     ut_ad(len == DATA_ROLL_PTR_LEN);
-    ut_ad(rec_get_nth_field(btr_pcur_get_rec(&pcur), offsets, trx_id_col + 1,
+    ut_ad(rec_get_nth_field(nullptr, pcur.get_rec(), offsets, trx_id_col + 1,
                             &len) == rec_trx_id + DATA_TRX_ID_LEN);
     ut_ad(len == DATA_ROLL_PTR_LEN);
 
@@ -1862,29 +1903,27 @@ flag_ok:
                          &(log->col_map[log->n_old_col]), heap);
   }
 
-  return (
-      row_log_table_apply_delete_low(trx, &pcur, old_pk, offsets, heap, &mtr));
+  return (row_log_table_apply_delete_low(&pcur, old_pk, offsets, heap, &mtr));
 }
 
 /** Replays an update operation on the multi-value index.
-@param[in]	index		multi-value index
-@param[in]	n_index		the sequence of the index
-@param[in]	old_row		old row of the update
-@param[in]	old_ext		old external data of the update
-@param[in]	new_row		new row of the update
-@param[in]	non_mv_upd	true if any non-multi-value field on the index
+@param[in]      index           multi-value index
+@param[in]      n_index         the sequence of the index
+@param[in]      old_row         old row of the update
+@param[in]      old_ext         old external data of the update
+@param[in]      new_row         new row of the update
+@param[in]      non_mv_upd      true if any non-multi-value field on the index
                                 gets updated too
-@param[in]	trx_id		transaction id of the update
-@param[in]	thr		query graph
-@param[in,out]	offsets_heap	memory heap that can be emptied
-@param[in,out]	heap		memory heap
+@param[in]      trx_id          transaction id of the update
+@param[in]      thr             query graph
+@param[in,out]  offsets_heap    memory heap that can be emptied
+@param[in,out]  heap            memory heap
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    apply_update_multi_value(dict_index_t *index, uint32_t n_index,
-                             const dtuple_t *old_row, row_ext_t *old_ext,
-                             const dtuple_t *new_row, bool non_mv_upd,
-                             trx_id_t trx_id, que_thr_t *thr,
-                             mem_heap_t *offsets_heap, mem_heap_t *heap) {
+[[nodiscard]] static dberr_t apply_update_multi_value(
+    dict_index_t *index, uint32_t n_index, const dtuple_t *old_row,
+    row_ext_t *old_ext, const dtuple_t *new_row, bool non_mv_upd,
+    trx_id_t trx_id, que_thr_t *thr, mem_heap_t *offsets_heap,
+    mem_heap_t *heap) {
   btr_pcur_t pcur;
   mtr_t mtr;
   dberr_t error = DB_SUCCESS;
@@ -1903,12 +1942,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       if (row_search_index_entry(index, entry, BTR_MODIFY_TREE, &pcur, &mtr) !=
           ROW_FOUND) {
         mtr_commit(&mtr);
-        ut_ad(0);
-        return (DB_CORRUPTION);
+        ut_d(ut_error);
+        ut_o(return (DB_CORRUPTION));
       }
 
-      btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(&pcur),
-                                 BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
+      btr_cur_pessimistic_delete(&error, false, pcur.get_btr_cur(),
+                                 BTR_CREATE_FLAG, false, 0, 0, 0, &mtr, &pcur,
+                                 nullptr);
 
       if (error != DB_SUCCESS) {
         return (error);
@@ -1945,25 +1985,25 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Replays an update operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
+[[nodiscard]] static dberr_t row_log_table_apply_update(
     que_thr_t *thr,           /*!< in: query graph */
     ulint new_trx_id_col,     /*!< in: position of
                               DB_TRX_ID in the new
                               clustered index */
-    const mrec_t *mrec,       /*!< in: new value */
+    const ddl::mrec_t *mrec,  /*!< in: new value */
     const ulint *offsets,     /*!< in: offsets of mrec */
     mem_heap_t *offsets_heap, /*!< in/out: memory heap
                               that can be emptied */
     mem_heap_t *heap,         /*!< in/out: memory heap */
-    row_merge_dup_t *dup,     /*!< in/out: for reporting
-                              duplicate key errors */
+    ddl::Dup *dup,            /*!< in/out: for reporting
+                                     duplicate key errors */
     trx_id_t trx_id,          /*!< in: DB_TRX_ID of mrec */
     const dtuple_t *old_pk)   /*!< in: PRIMARY KEY and
                               DB_TRX_ID,DB_ROLL_PTR
                               of the old value,
                               or PRIMARY KEY if same_pk */
 {
-  const row_log_t *log = dup->index->online_log;
+  const row_log_t *log = dup->m_index->online_log;
   const dtuple_t *row;
   dict_index_t *index = log->table->first_index();
   mtr_t mtr;
@@ -1977,8 +2017,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   ut_ad(dtuple_get_n_fields(old_pk) ==
         dict_index_get_n_unique(index) + (log->same_pk ? 0 : 2));
 
-  row = row_log_table_apply_convert_mrec(trx, mrec, dup->index, offsets, log,
-                                         heap, trx_id, &error);
+  row = row_log_table_apply_convert_mrec(mrec, dup->m_index, offsets, log, heap,
+                                         &error);
 
   switch (error) {
     case DB_MISSING_HISTORY:
@@ -1994,12 +2034,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
 
       When applying the subsequent ROW_T_DELETE, no matching
       record will be found. */
-      /* Fall through. */
+      [[fallthrough]];
     case DB_SUCCESS:
       ut_ad(row != nullptr);
       break;
     default:
-      ut_ad(0);
+      ut_d(ut_error);
+      [[fallthrough]];
     case DB_INVALID_NULL:
       ut_ad(row == nullptr);
       return (error);
@@ -2007,24 +2048,26 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
 
   mtr_start(&mtr);
 
-  btr_pcur_open(index, old_pk, PAGE_CUR_LE, BTR_MODIFY_TREE, &pcur, &mtr);
+  pcur.open(index, 0, old_pk, PAGE_CUR_LE, BTR_MODIFY_TREE, &mtr,
+            UT_LOCATION_HERE);
 #ifdef UNIV_DEBUG
-  switch (btr_pcur_get_btr_cur(&pcur)->flag) {
+  switch (pcur.get_btr_cur()->flag) {
     case BTR_CUR_UNSET:
     case BTR_CUR_DELETE_REF:
     case BTR_CUR_DEL_MARK_IBUF:
     case BTR_CUR_DELETE_IBUF:
     case BTR_CUR_INSERT_TO_IBUF:
-      ut_ad(0); /* We did not request buffering. */
+      ut_d(ut_error); /* We did not request buffering. */
     case BTR_CUR_HASH:
+    case BTR_CUR_HASH_NOT_ATTEMPTED:
     case BTR_CUR_HASH_FAIL:
     case BTR_CUR_BINARY:
       break;
   }
 #endif /* UNIV_DEBUG */
 
-  if (page_rec_is_infimum(btr_pcur_get_rec(&pcur)) ||
-      btr_pcur_get_low_match(&pcur) < index->n_uniq) {
+  if (page_rec_is_infimum(pcur.get_rec()) ||
+      pcur.get_low_match() < index->n_uniq) {
     /* The record was not found. This should only happen
     when an earlier ROW_T_INSERT or ROW_T_UPDATE was
     diverted because BLOBs were freed when the insert was
@@ -2082,22 +2125,23 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
     if (error != DB_SUCCESS) {
       /* Report the erroneous row using the new
       version of the table. */
-      innobase_row_to_mysql(dup->table, log->table, row);
+      innobase_row_to_mysql(dup->m_table, log->table, row);
     }
 
     return (error);
   }
 
   /* Prepare to update (or delete) the record. */
-  ulint *cur_offsets = rec_get_offsets(btr_pcur_get_rec(&pcur), index, nullptr,
-                                       ULINT_UNDEFINED, &offsets_heap);
+  ulint *cur_offsets =
+      rec_get_offsets(pcur.get_rec(), index, nullptr, ULINT_UNDEFINED,
+                      UT_LOCATION_HERE, &offsets_heap);
 
   if (!log->same_pk) {
     /* Only update the record if DB_TRX_ID,DB_ROLL_PTR match what
     was buffered. */
     ulint len;
     const void *rec_trx_id = rec_get_nth_field(
-        btr_pcur_get_rec(&pcur), cur_offsets, index->n_uniq, &len);
+        nullptr, pcur.get_rec(), cur_offsets, index->n_uniq, &len);
     ut_ad(len == DATA_TRX_ID_LEN);
     ut_ad(dtuple_get_nth_field(old_pk, index->n_uniq)->len == DATA_TRX_ID_LEN);
     ut_ad(dtuple_get_nth_field(old_pk, index->n_uniq + 1)->len ==
@@ -2142,17 +2186,17 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
     ut_ad(log->blobs);
     /* Some BLOBs are missing, so we are interpreting
     this ROW_T_UPDATE as ROW_T_DELETE (see *1). */
-    error = row_log_table_apply_delete_low(trx, &pcur, old_pk, cur_offsets,
-                                           heap, &mtr);
+    error =
+        row_log_table_apply_delete_low(&pcur, old_pk, cur_offsets, heap, &mtr);
     goto func_exit_committed;
   }
 
   /** It allows to create tuple with virtual column information. */
   dtuple_t *entry = row_build_index_entry_low(row, nullptr, index, heap,
                                               ROW_BUILD_FOR_INSERT);
-  upd_t *update = row_upd_build_difference_binary(
-      index, entry, btr_pcur_get_rec(&pcur), cur_offsets, false, nullptr, heap,
-      dup->table, &error);
+  upd_t *update = row_upd_build_difference_binary(index, entry, pcur.get_rec(),
+                                                  cur_offsets, false, nullptr,
+                                                  heap, dup->m_table, &error);
   if (error != DB_SUCCESS) {
     goto func_exit;
   }
@@ -2179,13 +2223,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
       can only get a change of PRIMARY KEY columns
       in the rebuilt table if the PRIMARY KEY was
       redefined (!same_pk). */
-      ut_ad(0);
       error = DB_CORRUPTION;
-      goto func_exit;
+      ut_d(ut_error);
+      ut_o(goto func_exit);
     }
 
-    error = row_log_table_apply_delete_low(trx, &pcur, old_pk, cur_offsets,
-                                           heap, &mtr);
+    error =
+        row_log_table_apply_delete_low(&pcur, old_pk, cur_offsets, heap, &mtr);
     ut_ad(mtr.has_committed());
 
     if (error == DB_SUCCESS) {
@@ -2202,8 +2246,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   if (index->next() != nullptr) {
     /* Construct the row corresponding to the old value of
     the record. */
-    old_row = row_build(ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
-                        cur_offsets, nullptr, nullptr, nullptr, &old_ext, heap);
+    old_row = row_build(ROW_COPY_DATA, index, pcur.get_rec(), cur_offsets,
+                        nullptr, nullptr, nullptr, &old_ext, heap);
     ut_ad(old_row);
 
     DBUG_PRINT("ib_alter_table",
@@ -2220,8 +2264,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   error = btr_cur_pessimistic_update(
       BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG |
           BTR_KEEP_SYS_FLAG | BTR_KEEP_POS_FLAG,
-      btr_pcur_get_btr_cur(&pcur), &cur_offsets, &offsets_heap, heap, &big_rec,
-      update, 0, thr, 0, 0, &mtr);
+      pcur.get_btr_cur(), &cur_offsets, &offsets_heap, heap, &big_rec, update,
+      0, thr, 0, 0, &mtr);
 
   if (big_rec) {
     if (error == DB_SUCCESS) {
@@ -2265,21 +2309,22 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
 
     entry = row_build_index_entry(old_row, old_ext, index, heap);
     if (!entry) {
-      ut_ad(0);
-      return (DB_CORRUPTION);
+      ut_d(ut_error);
+      ut_o(return (DB_CORRUPTION));
     }
 
     mtr_start(&mtr);
 
     if (ROW_FOUND !=
         row_search_index_entry(index, entry, BTR_MODIFY_TREE, &pcur, &mtr)) {
-      ut_ad(0);
       error = DB_CORRUPTION;
-      break;
+      ut_d(ut_error);
+      ut_o(break);
     }
 
-    btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(&pcur),
-                               BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
+    btr_cur_pessimistic_delete(&error, false, pcur.get_btr_cur(),
+                               BTR_CREATE_FLAG, false, 0, 0, 0, &mtr, &pcur,
+                               nullptr);
 
     if (error != DB_SUCCESS) {
       break;
@@ -2307,32 +2352,32 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
 /** Applies an operation to a table that was rebuilt.
  @return NULL on failure (mrec corruption) or when out of data;
  pointer to next record on success */
-static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
-    que_thr_t *thr,           /*!< in: query graph */
-    ulint trx_id_col,         /*!< in: position of
-                              DB_TRX_ID in old index */
-    ulint new_trx_id_col,     /*!< in: position of
-                              DB_TRX_ID in new index */
-    row_merge_dup_t *dup,     /*!< in/out: for reporting
-                              duplicate key errors */
-    dberr_t *error,           /*!< out: DB_SUCCESS
-                              or error code */
-    mem_heap_t *offsets_heap, /*!< in/out: memory heap
-                              that can be emptied */
-    mem_heap_t *heap,         /*!< in/out: memory heap */
-    const mrec_t *mrec,       /*!< in: merge record */
-    const mrec_t *mrec_end,   /*!< in: end of buffer */
-    ulint *offsets)           /*!< in/out: work area
-                              for parsing mrec */
+[[nodiscard]] static const ddl::mrec_t *row_log_table_apply_op(
+    que_thr_t *thr,              /*!< in: query graph */
+    ulint trx_id_col,            /*!< in: position of
+                                 DB_TRX_ID in old index */
+    ulint new_trx_id_col,        /*!< in: position of
+                                 DB_TRX_ID in new index */
+    ddl::Dup *dup,               /*!< in/out: for reporting
+                                        duplicate key errors */
+    dberr_t *error,              /*!< out: DB_SUCCESS
+                                 or error code */
+    mem_heap_t *offsets_heap,    /*!< in/out: memory heap
+                                 that can be emptied */
+    mem_heap_t *heap,            /*!< in/out: memory heap */
+    const ddl::mrec_t *mrec,     /*!< in: merge record */
+    const ddl::mrec_t *mrec_end, /*!< in: end of buffer */
+    ulint *offsets)              /*!< in/out: work area
+                                 for parsing mrec */
 {
-  row_log_t *log = dup->index->online_log;
+  row_log_t *log = dup->m_index->online_log;
   dict_index_t *new_index = log->table->first_index();
   ulint extra_size;
-  const mrec_t *next_mrec;
+  const ddl::mrec_t *next_mrec;
   dtuple_t *old_pk;
 
-  ut_ad(dup->index->is_clustered());
-  ut_ad(dup->index->table != log->table);
+  ut_ad(dup->m_index->is_clustered());
+  ut_ad(dup->m_index->table != log->table);
   ut_ad(log->head.total <= log->tail.total);
 
   *error = DB_SUCCESS;
@@ -2342,13 +2387,13 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
     return (nullptr);
   }
 
-  const mrec_t *const mrec_start = mrec;
+  const ddl::mrec_t *const mrec_start = mrec;
 
   switch (*mrec++) {
     default:
-      ut_ad(0);
       *error = DB_CORRUPTION;
-      return (nullptr);
+      ut_d(ut_error);
+      ut_o(return (nullptr));
     case ROW_T_INSERT:
       extra_size = *mrec++;
 
@@ -2365,8 +2410,8 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
         return (nullptr);
       }
 
-      rec_offs_set_n_fields(offsets, dup->index->n_fields);
-      rec_init_offsets_temp(mrec, dup->index, offsets);
+      rec_offs_set_n_fields(offsets, dup->m_index->get_n_total_fields());
+      rec_deserialize_init_offsets(mrec, dup->m_index, offsets);
 
       next_mrec = mrec + rec_offs_data_size(offsets);
 
@@ -2384,7 +2429,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
 
         ulint len;
         const byte *db_trx_id =
-            rec_get_nth_field(mrec, offsets, trx_id_col, &len);
+            rec_get_nth_field(nullptr, mrec, offsets, trx_id_col, &len);
         ut_ad(len == DATA_TRX_ID_LEN);
         *error =
             row_log_table_apply_insert(thr, mrec, offsets, offsets_heap, heap,
@@ -2406,7 +2451,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
       mrec += extra_size;
 
       rec_offs_set_n_fields(offsets, new_index->n_uniq + 2);
-      rec_init_offsets_temp(mrec, new_index, offsets);
+      rec_deserialize_init_offsets(mrec, new_index, offsets);
       next_mrec = mrec + rec_offs_data_size(offsets);
       if (log->table->n_v_cols) {
         if (next_mrec + 2 > mrec_end) {
@@ -2422,7 +2467,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
 
       log->head.total += next_mrec - mrec_start;
 
-      *error = row_log_table_apply_delete(thr, new_trx_id_col, mrec, offsets,
+      *error = row_log_table_apply_delete(new_trx_id_col, mrec, offsets,
                                           offsets_heap, heap, log);
       break;
 
@@ -2436,8 +2481,8 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
       DB_TRX_ID,new_row. */
       ulint num_v = new_index->table->n_v_cols;
 
-      if (dup->index->online_log->same_pk) {
-        ut_ad(new_index->n_uniq == dup->index->n_uniq);
+      if (dup->m_index->online_log->same_pk) {
+        ut_ad(new_index->n_uniq == dup->m_index->n_uniq);
 
         extra_size = *mrec++;
 
@@ -2454,8 +2499,8 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
           return (nullptr);
         }
 
-        rec_offs_set_n_fields(offsets, dup->index->n_fields);
-        rec_init_offsets_temp(mrec, dup->index, offsets);
+        rec_offs_set_n_fields(offsets, dup->m_index->get_n_total_fields());
+        rec_deserialize_init_offsets(mrec, dup->m_index, offsets);
 
         next_mrec = mrec + rec_offs_data_size(offsets);
 
@@ -2475,9 +2520,9 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
           ulint len;
           dfield_t *dfield;
 
-          ut_ad(!rec_offs_nth_extern(offsets, i));
+          ut_ad(!rec_offs_nth_extern(new_index, offsets, i));
 
-          field = rec_get_nth_field(mrec, offsets, i, &len);
+          field = rec_get_nth_field(nullptr, mrec, offsets, i, &len);
           ut_ad(rec_field_not_null_not_add_col_def(len));
 
           dfield = dtuple_get_nth_field(old_pk, i);
@@ -2495,7 +2540,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
         /* Get offsets for PRIMARY KEY,
         DB_TRX_ID, DB_ROLL_PTR. */
         rec_offs_set_n_fields(offsets, new_index->n_uniq + 2);
-        rec_init_offsets_temp(mrec, new_index, offsets);
+        rec_deserialize_init_offsets(mrec, new_index, offsets);
 
         next_mrec = mrec + rec_offs_data_size(offsets);
         if (next_mrec + 2 > mrec_end) {
@@ -2516,9 +2561,9 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
           ulint len;
           dfield_t *dfield;
 
-          ut_ad(!rec_offs_nth_extern(offsets, i));
+          ut_ad(!rec_offs_nth_extern(new_index, offsets, i));
 
-          field = rec_get_nth_field(mrec, offsets, i, &len);
+          field = rec_get_nth_field(nullptr, mrec, offsets, i, &len);
           ut_ad(rec_field_not_null_not_add_col_def(len));
 
           dfield = dtuple_get_nth_field(old_pk, i);
@@ -2544,8 +2589,8 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
           return (nullptr);
         }
 
-        rec_offs_set_n_fields(offsets, dup->index->n_fields);
-        rec_init_offsets_temp(mrec, dup->index, offsets);
+        rec_offs_set_n_fields(offsets, dup->m_index->get_n_total_fields());
+        rec_deserialize_init_offsets(mrec, dup->m_index, offsets);
 
         next_mrec = mrec + rec_offs_data_size(offsets);
 
@@ -2589,7 +2634,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
       {
         ulint len;
         const byte *db_trx_id =
-            rec_get_nth_field(mrec, offsets, trx_id_col, &len);
+            rec_get_nth_field(nullptr, mrec, offsets, trx_id_col, &len);
         ut_ad(len == DATA_TRX_ID_LEN);
         *error = row_log_table_apply_update(thr, new_trx_id_col, mrec, offsets,
                                             offsets_heap, heap, dup,
@@ -2629,7 +2674,7 @@ inline ulint row_log_progress_inc_per_block() {
 
 /** Estimate how much work is to be done by the log apply phase
 of an ALTER TABLE for this index.
-@param[in]	index	index whose log to assess
+@param[in]      index   index whose log to assess
 @return work to be done by log-apply in abstract units
 */
 ulint row_log_estimate_work(const dict_index_t *index) {
@@ -2648,30 +2693,30 @@ inline ulint row_log_progress_inc_per_block() { return (0); }
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /** Applies operations to a table was rebuilt.
-@param[in]	thr	query graph
-@param[in,out]	dup	for reporting duplicate key errors
-@param[in,out]	stage	performance schema accounting object, used by
+@param[in]      thr     query graph
+@param[in,out]  dup     for reporting duplicate key errors
+@param[in,out]  stage   performance schema accounting object, used by
 ALTER TABLE. If not NULL, then stage->inc() will be called for each block
 of log that is applied.
 @return DB_SUCCESS, or error code on failure */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_log_table_apply_ops(que_thr_t *thr, row_merge_dup_t *dup,
-                            ut_stage_alter_t *stage) {
+[[nodiscard]] static dberr_t row_log_table_apply_ops(que_thr_t *thr,
+                                                     ddl::Dup *dup,
+                                                     Alter_stage *stage) {
   dberr_t error;
-  const mrec_t *mrec = nullptr;
-  const mrec_t *next_mrec;
-  const mrec_t *mrec_end = nullptr; /* silence bogus warning */
-  const mrec_t *next_mrec_end;
+  const ddl::mrec_t *mrec = nullptr;
+  const ddl::mrec_t *next_mrec;
+  const ddl::mrec_t *mrec_end = nullptr; /* silence bogus warning */
+  const ddl::mrec_t *next_mrec_end;
   mem_heap_t *heap;
   mem_heap_t *offsets_heap;
   ulint *offsets;
   bool has_index_lock;
-  dict_index_t *index = const_cast<dict_index_t *>(dup->index);
+  dict_index_t *index = const_cast<dict_index_t *>(dup->m_index);
   dict_table_t *new_table = index->online_log->table;
   dict_index_t *new_index = new_table->first_index();
   ulint n_fields = dict_index_get_n_fields(index);
   ulint n_unique = dict_index_get_n_unique(new_index) + 2;
-  const ulint i = 1 + REC_OFFS_HEADER_SIZE + ut_max(n_fields, n_unique);
+  const ulint i = 1 + REC_OFFS_HEADER_SIZE + std::max(n_fields, n_unique);
   const ulint trx_id_col =
       dict_col_get_clust_pos(index->table->get_sys_col(DATA_TRX_ID), index);
   const ulint new_trx_id_col =
@@ -2691,12 +2736,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
-  offsets = static_cast<ulint *>(ut_malloc_nokey(i * sizeof *offsets));
+  offsets = static_cast<ulint *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, i * sizeof *offsets));
   offsets[0] = i;
   offsets[1] = dict_index_get_n_fields(index);
 
-  heap = mem_heap_create(UNIV_PAGE_SIZE);
-  offsets_heap = mem_heap_create(UNIV_PAGE_SIZE);
+  heap = mem_heap_create(UNIV_PAGE_SIZE, UT_LOCATION_HERE);
+  offsets_heap = mem_heap_create(UNIV_PAGE_SIZE, UT_LOCATION_HERE);
   has_index_lock = true;
 
 next_block:
@@ -2725,7 +2771,8 @@ next_block:
 
   if (UNIV_UNLIKELY(index->online_log->head.blocks >
                     index->online_log->tail.blocks)) {
-  unexpected_eof:
+    /* Note: release-only label. */
+    ut_o(unexpected_eof:);
     ib::error(ER_IB_MSG_960)
         << "Unexpected end of temporary file for table " << index->table->name;
   corruption:
@@ -2737,8 +2784,8 @@ next_block:
     if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
       /* Truncate the file in order to save space. */
-      if (index->online_log->fd > 0 &&
-          ftruncate(index->online_log->fd, 0) == -1) {
+      if (index->online_log->file.is_open() &&
+          ftruncate(index->online_log->file.get(), 0) == -1) {
         perror("ftruncate");
       }
 #endif /* HAVE_FTRUNCATE */
@@ -2781,7 +2828,7 @@ next_block:
     ;
 
     err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->path, index->online_log->fd,
+        request, index->online_log->path, index->online_log->file.get(),
         index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
 
     if (err != DB_SUCCESS) {
@@ -2793,7 +2840,7 @@ next_block:
 
 #ifdef POSIX_FADV_DONTNEED
     /* Each block is read exactly once.  Free up the file cache. */
-    posix_fadvise(index->online_log->fd, ofs, srv_sort_buf_size,
+    posix_fadvise(index->online_log->file.get(), ofs, srv_sort_buf_size,
                   POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
@@ -2821,7 +2868,7 @@ next_block:
     ut_ad(mrec_end > mrec);
     ut_ad(mrec_end < (&index->online_log->head.buf)[1]);
 
-    memcpy((mrec_t *)mrec_end, next_mrec,
+    memcpy((ddl::mrec_t *)mrec_end, next_mrec,
            (&index->online_log->head.buf)[1] - mrec_end);
     mrec =
         row_log_table_apply_op(thr, trx_id_col, new_trx_id_col, dup, &error,
@@ -2938,7 +2985,7 @@ next_block:
 
       mrec = nullptr;
     process_next_block:
-      rw_lock_x_lock(dict_index_get_lock(index));
+      rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
       has_index_lock = true;
 
       index->online_log->head.bytes = 0;
@@ -2954,8 +3001,8 @@ next_block:
       ut_ad(index->online_log->tail.blocks == 0);
       ut_ad(mrec_end ==
             index->online_log->tail.block + index->online_log->tail.bytes);
-      ut_ad(0);
-      goto unexpected_eof;
+      ut_d(ut_error);
+      ut_o(goto unexpected_eof);
     } else {
       memcpy(index->online_log->head.buf, mrec, mrec_end - mrec);
       mrec_end += index->online_log->head.buf - mrec;
@@ -2968,26 +3015,26 @@ interrupted:
   error = DB_INTERRUPTED;
 func_exit:
   if (!has_index_lock) {
-    rw_lock_x_lock(dict_index_get_lock(index));
+    rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
   }
 
   mem_heap_free(offsets_heap);
   mem_heap_free(heap);
   row_log_block_free(index->online_log->head);
-  ut_free(offsets);
+  ut::free(offsets);
   return (error);
 }
 
 /** Apply the row_log_table log to a table upon completing rebuild.
-@param[in]	thr		query graph
-@param[in]	old_table	old table
-@param[in,out]	table		MySQL table (for reporting duplicates)
-@param[in,out]	stage		performance schema accounting object, used by
+@param[in]      thr             query graph
+@param[in]      old_table       old table
+@param[in,out]  table           MySQL table (for reporting duplicates)
+@param[in,out]  stage           performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
-                            struct TABLE *table, ut_stage_alter_t *stage) {
+                            struct TABLE *table, Alter_stage *stage) {
   dberr_t error;
   dict_index_t *clust_index;
 
@@ -2999,18 +3046,17 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
   ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_S));
   clust_index = old_table->first_index();
 
-  rw_lock_x_lock(dict_index_get_lock(clust_index));
+  rw_lock_x_lock(dict_index_get_lock(clust_index), UT_LOCATION_HERE);
 
   if (!clust_index->online_log) {
     ut_ad(dict_index_get_online_status(clust_index) == ONLINE_INDEX_COMPLETE);
     /* This function should not be called unless
     rebuilding a table online. Build in some fault
     tolerance. */
-    ut_ad(0);
     error = DB_ERROR;
+    ut_d(ut_error);
   } else {
-    row_merge_dup_t dup = {clust_index, table, clust_index->online_log->col_map,
-                           0};
+    ddl::Dup dup = {clust_index, table, clust_index->online_log->col_map, 0};
 
     error = row_log_table_apply_ops(thr, &dup, stage);
 
@@ -3024,22 +3070,9 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
   return (error);
 }
 
-/** Allocate the row log for an index and flag the index
- for online creation.
- @retval true if success, false if not */
-bool row_log_allocate(
-    dict_index_t *index, /*!< in/out: index */
-    dict_table_t *table, /*!< in/out: new table being rebuilt,
-                         or NULL when creating a secondary index */
-    bool same_pk,        /*!< in: whether the definition of the
-                         PRIMARY KEY has remained the same */
-    const dtuple_t *add_cols,
-    /*!< in: default values of
-    added columns, or NULL */
-    const ulint *col_map, /*!< in: mapping of old column
-                          numbers to new ones, or NULL if !table */
-    const char *path)     /*!< in: where to create temporary file */
-{
+bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
+                      const dtuple_t *add_cols, const ulint *col_map,
+                      const char *path) {
   row_log_t *log;
   DBUG_TRACE;
 
@@ -3051,13 +3084,12 @@ bool row_log_allocate(
   ut_ad(!add_cols || col_map);
   ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 
-  log = static_cast<row_log_t *>(ut_malloc_nokey(sizeof *log));
+  log = ut::new_withkey<row_log_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
   if (log == nullptr) {
     return false;
   }
 
-  log->fd = -1;
   mutex_create(LATCH_ID_INDEX_ONLINE_LOG, &log->mutex);
 
   log->blobs = nullptr;
@@ -3092,12 +3124,11 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
 {
   MONITOR_ATOMIC_DEC(MONITOR_ONLINE_CREATE_INDEX);
 
-  UT_DELETE(log->blobs);
+  ut::delete_(log->blobs);
   row_log_block_free(log->tail);
   row_log_block_free(log->head);
-  row_merge_file_destroy_low(log->fd);
   mutex_free(&log->mutex);
-  ut_free(log);
+  ut::free(log);
   log = nullptr;
 }
 
@@ -3119,8 +3150,8 @@ trx_id_t row_log_get_max_trx(
 /** Applies an operation to a secondary index that was being created. */
 static void row_log_apply_op_low(
     dict_index_t *index,      /*!< in/out: index */
-    row_merge_dup_t *dup,     /*!< in/out: for reporting
-                              duplicate key errors */
+    ddl::Dup *dup,            /*!< in/out: for reporting
+                                     duplicate key errors */
     dberr_t *error,           /*!< out: DB_SUCCESS or error code */
     mem_heap_t *offsets_heap, /*!< in/out: memory heap for
                               allocating offsets; can be emptied */
@@ -3136,7 +3167,7 @@ static void row_log_apply_op_low(
 
   ut_ad(!index->is_clustered());
 
-  ut_ad(!!rw_lock_own(dict_index_get_lock(index), RW_LOCK_X) == has_index_lock);
+  ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X) == has_index_lock);
 
   ut_ad(!index->is_corrupted());
   ut_ad(trx_id != 0 || op == ROW_OP_DELETE);
@@ -3217,8 +3248,8 @@ static void row_log_apply_op_low(
         a secondary index record, the parameter
         rollback=false will be ignored. */
 
-        btr_cur_pessimistic_delete(error, FALSE, &cursor, BTR_CREATE_FLAG,
-                                   false, 0, 0, 0, &mtr);
+        btr_cur_pessimistic_delete(error, false, &cursor, BTR_CREATE_FLAG,
+                                   false, 0, 0, 0, &mtr, nullptr, nullptr);
         break;
       case ROW_OP_INSERT:
         if (exists) {
@@ -3272,7 +3303,7 @@ static void row_log_apply_op_low(
         duplicate:
           /* Duplicate key */
           ut_ad(dict_index_is_unique(index));
-          row_merge_dup_report(dup, entry->fields);
+          dup->report(entry->fields);
           *error = DB_DUPLICATE_KEY;
           goto func_exit;
         }
@@ -3329,21 +3360,21 @@ func_exit:
 /** Applies an operation to a secondary index that was being created.
  @return NULL on failure (mrec corruption) or when out of data;
  pointer to next record on success */
-static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_apply_op(
-    dict_index_t *index,      /*!< in/out: index */
-    row_merge_dup_t *dup,     /*!< in/out: for reporting
-                              duplicate key errors */
-    dberr_t *error,           /*!< out: DB_SUCCESS or error code */
-    mem_heap_t *offsets_heap, /*!< in/out: memory heap for
-                              allocating offsets; can be emptied */
-    mem_heap_t *heap,         /*!< in/out: memory heap for
-                              allocating data tuples */
-    bool has_index_lock,      /*!< in: true if holding index->lock
-                              in exclusive mode */
-    const mrec_t *mrec,       /*!< in: merge record */
-    const mrec_t *mrec_end,   /*!< in: end of buffer */
-    ulint *offsets)           /*!< in/out: work area for
-                              rec_init_offsets_temp() */
+[[nodiscard]] static const ddl::mrec_t *row_log_apply_op(
+    dict_index_t *index,         /*!< in/out: index */
+    ddl::Dup *dup,               /*!< in/out: for reporting
+                                        duplicate key errors */
+    dberr_t *error,              /*!< out: DB_SUCCESS or error code */
+    mem_heap_t *offsets_heap,    /*!< in/out: memory heap for
+                                 allocating offsets; can be emptied */
+    mem_heap_t *heap,            /*!< in/out: memory heap for
+                                 allocating data tuples */
+    bool has_index_lock,         /*!< in: true if holding index->lock
+                                 in exclusive mode */
+    const ddl::mrec_t *mrec,     /*!< in: merge record */
+    const ddl::mrec_t *mrec_end, /*!< in: end of buffer */
+    ulint *offsets)              /*!< in/out: work area for
+                                 rec_deserialize_init_offsets() */
 
 {
   enum row_op op;
@@ -3355,7 +3386,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_apply_op(
   /* Online index creation is only used for secondary indexes. */
   ut_ad(!index->is_clustered());
 
-  ut_ad(!!rw_lock_own(dict_index_get_lock(index), RW_LOCK_X) == has_index_lock);
+  ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X) == has_index_lock);
 
   if (index->is_corrupted()) {
     *error = DB_INDEX_CORRUPT;
@@ -3384,9 +3415,9 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_apply_op(
       break;
     default:
     corrupted:
-      ut_ad(0);
       *error = DB_CORRUPTION;
-      return (nullptr);
+      ut_d(ut_error);
+      ut_o(return (nullptr));
   }
 
   extra_size = *mrec++;
@@ -3406,7 +3437,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_apply_op(
     return (nullptr);
   }
 
-  rec_init_offsets_temp(mrec, index, offsets);
+  rec_deserialize_init_offsets(mrec, index, offsets);
 
   if (rec_offs_any_extern(offsets)) {
     /* There should never be any externally stored fields
@@ -3435,22 +3466,21 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_apply_op(
 }
 
 /** Applies operations to a secondary index that was being created.
-@param[in]	trx	transaction (for checking if the operation was
+@param[in]      trx     transaction (for checking if the operation was
 interrupted)
-@param[in,out]	index	index
-@param[in,out]	dup	for reporting duplicate key errors
-@param[in,out]	stage	performance schema accounting object, used by
+@param[in,out]  index   index
+@param[in,out]  dup     for reporting duplicate key errors
+@param[in,out]  stage   performance schema accounting object, used by
 ALTER TABLE. If not NULL, then stage->inc() will be called for each block
 of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 static dberr_t row_log_apply_ops(const trx_t *trx, dict_index_t *index,
-                                 row_merge_dup_t *dup,
-                                 ut_stage_alter_t *stage) {
+                                 ddl::Dup *dup, Alter_stage *stage) {
   dberr_t error;
-  const mrec_t *mrec = nullptr;
-  const mrec_t *next_mrec;
-  const mrec_t *mrec_end = nullptr; /* silence bogus warning */
-  const mrec_t *next_mrec_end;
+  const ddl::mrec_t *mrec = nullptr;
+  const ddl::mrec_t *next_mrec;
+  const ddl::mrec_t *mrec_end = nullptr; /* silence bogus warning */
+  const ddl::mrec_t *next_mrec_end;
   mem_heap_t *offsets_heap;
   mem_heap_t *heap;
   ulint *offsets;
@@ -3463,12 +3493,13 @@ static dberr_t row_log_apply_ops(const trx_t *trx, dict_index_t *index,
   ut_ad(index->online_log);
   UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
-  offsets = static_cast<ulint *>(ut_malloc_nokey(i * sizeof *offsets));
+  offsets = static_cast<ulint *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, i * sizeof *offsets));
   offsets[0] = i;
   offsets[1] = dict_index_get_n_fields(index);
 
-  offsets_heap = mem_heap_create(UNIV_PAGE_SIZE);
-  heap = mem_heap_create(UNIV_PAGE_SIZE);
+  offsets_heap = mem_heap_create(UNIV_PAGE_SIZE, UT_LOCATION_HERE);
+  heap = mem_heap_create(UNIV_PAGE_SIZE, UT_LOCATION_HERE);
   has_index_lock = true;
 
 next_block:
@@ -3494,7 +3525,8 @@ next_block:
 
   if (UNIV_UNLIKELY(index->online_log->head.blocks >
                     index->online_log->tail.blocks)) {
-  unexpected_eof:
+    /* Note: release-only label. */
+    ut_o(unexpected_eof:);
     ib::error(ER_IB_MSG_962)
         << "Unexpected end of temporary file for index " << index->name;
   corruption:
@@ -3506,8 +3538,8 @@ next_block:
     if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
       /* Truncate the file in order to save space. */
-      if (index->online_log->fd > 0 &&
-          ftruncate(index->online_log->fd, 0) == -1) {
+      if (index->online_log->file.is_open() &&
+          ftruncate(index->online_log->file.get(), 0) == -1) {
         perror("ftruncate");
       }
 #endif /* HAVE_FTRUNCATE */
@@ -3544,7 +3576,7 @@ next_block:
 
     IORequest request(IORequest::READ | IORequest::ROW_LOG);
     dberr_t err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->path, index->online_log->fd,
+        request, index->online_log->path, index->online_log->file.get(),
         index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
 
     if (err != DB_SUCCESS) {
@@ -3556,7 +3588,7 @@ next_block:
 
 #ifdef POSIX_FADV_DONTNEED
     /* Each block is read exactly once.  Free up the file cache. */
-    posix_fadvise(index->online_log->fd, ofs, srv_sort_buf_size,
+    posix_fadvise(index->online_log->file.get(), ofs, srv_sort_buf_size,
                   POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
@@ -3575,7 +3607,7 @@ next_block:
     ut_ad(mrec_end > mrec);
     ut_ad(mrec_end < (&index->online_log->head.buf)[1]);
 
-    memcpy((mrec_t *)mrec_end, next_mrec,
+    memcpy((ddl::mrec_t *)mrec_end, next_mrec,
            (&index->online_log->head.buf)[1] - mrec_end);
     mrec = row_log_apply_op(index, dup, &error, offsets_heap, heap,
                             has_index_lock, index->online_log->head.buf,
@@ -3676,7 +3708,7 @@ next_block:
 
       mrec = nullptr;
     process_next_block:
-      rw_lock_x_lock(dict_index_get_lock(index));
+      rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
       has_index_lock = true;
 
       index->online_log->head.bytes = 0;
@@ -3692,8 +3724,8 @@ next_block:
       ut_ad(index->online_log->tail.blocks == 0);
       ut_ad(mrec_end ==
             index->online_log->tail.block + index->online_log->tail.bytes);
-      ut_ad(0);
-      goto unexpected_eof;
+      ut_d(ut_error);
+      ut_o(goto unexpected_eof);
     } else {
       memcpy(index->online_log->head.buf, mrec, mrec_end - mrec);
       mrec_end += index->online_log->head.buf - mrec;
@@ -3706,7 +3738,7 @@ interrupted:
   error = DB_INTERRUPTED;
 func_exit:
   if (!has_index_lock) {
-    rw_lock_x_lock(dict_index_get_lock(index));
+    rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
   }
 
   switch (error) {
@@ -3719,7 +3751,7 @@ func_exit:
         /* The log file grew too big. */
         error = DB_ONLINE_LOG_TOO_BIG;
       }
-      /* fall through */
+      [[fallthrough]];
     default:
       /* We set the flag directly instead of
       invoking dict_set_corrupted() here,
@@ -3730,24 +3762,24 @@ func_exit:
   mem_heap_free(heap);
   mem_heap_free(offsets_heap);
   row_log_block_free(index->online_log->head);
-  ut_free(offsets);
+  ut::free(offsets);
   return (error);
 }
 
 /** Apply the row log to the index upon completing index creation.
-@param[in]	trx	transaction (for checking if the operation was
+@param[in]      trx     transaction (for checking if the operation was
 interrupted)
-@param[in,out]	index	secondary index
-@param[in,out]	table	MySQL table (for reporting duplicates)
-@param[in,out]	stage	performance schema accounting object, used by
+@param[in,out]  index   secondary index
+@param[in,out]  table   MySQL table (for reporting duplicates)
+@param[in,out]  stage   performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
-                      struct TABLE *table, ut_stage_alter_t *stage) {
+                      struct TABLE *table, Alter_stage *stage) {
   dberr_t error;
   row_log_t *log;
-  row_merge_dup_t dup = {index, table, nullptr, 0};
+  ddl::Dup dup = {index, table, nullptr, 0};
   DBUG_TRACE;
 
   ut_ad(dict_index_is_online_ddl(index));
@@ -3757,7 +3789,7 @@ dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
 
   log_free_check();
 
-  rw_lock_x_lock(dict_index_get_lock(index));
+  rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
 
   if (!index->table->is_corrupted()) {
     error = row_log_apply_ops(trx, index, &dup, stage);
@@ -3771,11 +3803,11 @@ dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
     invoking dict_set_corrupted() here,
     because the index is not "public" yet. */
     index->type |= DICT_CORRUPT;
-    index->table->drop_aborted = TRUE;
+    index->table->drop_aborted = true;
 
     dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
   } else {
-    ut_ad(dup.n_dup == 0);
+    ut_ad(dup.m_n_dup == 0);
     dict_index_set_online_status(index, ONLINE_INDEX_COMPLETE);
   }
 

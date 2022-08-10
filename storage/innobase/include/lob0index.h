@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,7 +58,7 @@ struct index_entry_mem_t {
   page_no_t get_page_no() const { return (m_page_no); }
 
   /** Print this object into the given output stream.
-  @param[in]	out	the output stream.
+  @param[in]    out     the output stream.
   @return the output stream. */
   std::ostream &print(std::ostream &out) const;
 };
@@ -68,8 +68,8 @@ using List_iem_t = std::list<index_entry_mem_t>;
 
 /** Overloading the global output operator to print the index_entry_mem_t
 object.
-@param[in,out]	out	the output stream.
-@param[in]	obj	an object of type index_entry_mem_t
+@param[in,out]  out     the output stream.
+@param[in]      obj     an object of type index_entry_mem_t
 @return the output stream. */
 inline std::ostream &operator<<(std::ostream &out,
                                 const index_entry_mem_t &obj) {
@@ -105,7 +105,7 @@ struct index_entry_t {
   static const ulint SIZE = OFFSET_LOB_VERSION + 4;
 
   /** Constructor.
-  @param[in]	node	the pointer where index entry is located. */
+  @param[in]    node    the pointer where index entry is located. */
   index_entry_t(flst_node_t *node)
       : m_node(node), m_mtr(nullptr), m_index(nullptr), m_block(nullptr) {}
 
@@ -119,7 +119,7 @@ struct index_entry_t {
       : m_node(nullptr), m_mtr(mtr), m_index(index), m_block(nullptr) {}
 
   /* Move the node pointer to a different place within the same page.
-  @param[in]	addr	new location of node pointer. */
+  @param[in]    addr    new location of node pointer. */
   void reset(fil_addr_t &addr) {
     ut_ad(m_block->page.id.page_no() == addr.page);
 
@@ -131,7 +131,7 @@ struct index_entry_t {
   buf_block_t *get_block() const { return (m_block); }
 
   /* Reset the current object to point to a different node.
-  @param[in]	node	the new file list node. */
+  @param[in]    node    the new file list node. */
   void reset(flst_node_t *node) { m_node = node; }
 
   bool is_null() const {
@@ -162,8 +162,8 @@ struct index_entry_t {
   }
 
   /** Determine if the current index entry be rolled back.
-  @param[in]	trxid		the transaction that is being purged.
-  @param[in]	undo_no		the undo number of trx.
+  @param[in]    trxid           the transaction that is being purged.
+  @param[in]    undo_no         the undo number of trx.
   @return true if this entry can be rolled back, false otherwise. */
   bool can_rollback(trx_id_t trxid, undo_no_t undo_no) {
     /* For rollback, make use of creator trx id. */
@@ -171,8 +171,8 @@ struct index_entry_t {
   }
 
   /** Determine if the current index entry be purged.
-  @param[in]	trxid		the transaction that is being purged.
-  @param[in]	undo_no		the undo number of trx.
+  @param[in]    trxid           the transaction that is being purged.
+  @param[in]    undo_no         the undo number of trx.
   @return true if this entry can be purged, false otherwise. */
   bool can_be_purged(trx_id_t trxid, undo_no_t undo_no) {
     return ((trxid == get_trx_id_modifier()) &&
@@ -196,22 +196,20 @@ struct index_entry_t {
   back to the index list from the versions list.  Then remove the
   current entry from the index list.  Move the versions list from
   current entry to older entry.
-  @param[in]	index		the clustered index containing the LOB.
-  @param[in]	trxid		The transaction identifier.
-  @param[in]	first_page	The first lob page containing index
+  @param[in]    index           the clustered index containing the LOB.
+  @param[in]    first_page      The first lob page containing index
                                   list and free list.
   @return the location of next entry. */
-  fil_addr_t make_old_version_current(dict_index_t *index, trx_id_t trxid,
+  fil_addr_t make_old_version_current(dict_index_t *index,
                                       first_page_t &first_page);
 
   /** Purge the current entry.
   @param[in]  index  the clustered index containing the LOB.
-  @param[in]  trxid  The transaction identifier.
   @param[in]  lst    the base node of index list.
   @param[in]  free_list    the base node of free list.
   @return the location of the next entry. */
-  fil_addr_t purge_version(dict_index_t *index, trx_id_t trxid,
-                           flst_base_node_t *lst, flst_base_node_t *free_list);
+  fil_addr_t purge_version(dict_index_t *index, flst_base_node_t *lst,
+                           flst_base_node_t *free_list);
 
   void add_version(index_entry_t &entry) const {
     flst_node_t *node = entry.get_node_ptr();
@@ -295,7 +293,7 @@ struct index_entry_t {
   /** Write the trx identifier to the index entry. No redo log
   is generated for this modification.  This is meant to be used
   during tablespace import.
-  @param[in]	id	the trx identifier.*/
+  @param[in]    id      the trx identifier.*/
   void set_trx_id_no_redo(trx_id_t id) {
     byte *ptr = get_trxid_ptr();
     mach_write_to_6(ptr, id);
@@ -304,7 +302,7 @@ struct index_entry_t {
   /** Write the modifier trx identifier to the index entry. No redo log
   is generated for this modification.  This is meant to be used
   during tablespace import.
-  @param[in]	id	the trx identifier.*/
+  @param[in]    id      the trx identifier.*/
   void set_trx_id_modifier_no_redo(trx_id_t id) {
     byte *ptr = get_trxid_modifier_ptr();
     mach_write_to_6(ptr, id);
@@ -330,7 +328,7 @@ struct index_entry_t {
   }
 
   /** Set the LOB version of this entry.
-  @param[in]	version		the LOB version number. */
+  @param[in]    version         the LOB version number. */
   void set_lob_version(uint32_t version) {
     byte *ptr = get_lob_version_ptr();
     mlog_write_ulint(ptr, version, MLOG_4BYTES, m_mtr);
@@ -380,13 +378,13 @@ struct index_entry_t {
 
   /** Load the index entry available in the given file address.
   Take x-latch on the index page.
-  @param[in]	addr	the file address of the index entry.
+  @param[in]    addr    the file address of the index entry.
   @return the buffer block containing the index entry. */
   buf_block_t *load_x(const fil_addr_t &addr);
 
   /** Load the index entry available in the given file address.
   Take s-latch on the index page.
-  @param[in]	addr	the file location of index entry.
+  @param[in]    addr    the file location of index entry.
   @return the buffer block. */
   buf_block_t *load_s(const fil_addr_t &addr);
 
@@ -400,9 +398,17 @@ struct index_entry_t {
 
   void remove(flst_base_node_t *bnode) { flst_remove(bnode, m_node, m_mtr); }
 
+  /** Free the data page pointed to by this index entry. The data page is
+  available at offset OFFSET_PAGE_NO.  After the page is freed, mark it as
+  FIL_NULL.  No other fields are modified.  If the index entry points to the
+  first page number of the LOB or if it is FIL_NULL, then this function is a
+  no-op.
+  @param[in]  first_page_no  the first page number of the LOB. */
+  void free_data_page(const page_no_t first_page_no);
+
  private:
   /** Move the version base node from current entry to the given entry.
-  @param[in]	to_entry	The index entry to which the version
+  @param[in]    to_entry        The index entry to which the version
                                   base node is moved to.*/
   void move_version_base_node(index_entry_t &to_entry);
 
@@ -443,9 +449,9 @@ struct index_entry_t {
 };
 
 /** Overloading the global output operator to easily print an index entry.
-@param[in]	out	the output stream.
-@param[in]	obj	the index entry.
-@return	the output stream. */
+@param[in]      out     the output stream.
+@param[in]      obj     the index entry.
+@return the output stream. */
 inline std::ostream &operator<<(std::ostream &out, const index_entry_t &obj) {
   return (obj.print(out));
 }

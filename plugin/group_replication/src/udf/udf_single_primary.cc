@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
   *error = 0;
 
   std::string uuid =
-      (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
+      (args->arg_count >= 1 && args->args[0] != nullptr) ? args->args[0] : "";
   size_t ulength = (args->arg_count > 0) ? args->lengths[0] : 0;
   if (args->arg_count > 0) {
     const char *return_message = nullptr;
@@ -48,6 +48,18 @@ static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
       throw_udf_error(action_name, return_message);
       return result;
     }
+  }
+  int32 running_transactions_timeout =
+      ((args->arg_count >= 2 && args->args[1] != nullptr)
+           ? (*reinterpret_cast<long long *>(args->args[1]))
+           : -1);
+  if (args->arg_count >= 2 && (running_transactions_timeout < 0 ||
+                               running_transactions_timeout > 3600)) {
+    throw_udf_error(
+        "group_replication_set_as_primary",
+        "Valid range for running_transactions_timeout is 0 to 3600.");
+    *error = 1;
+    return result;
   }
 
   std::string current_primary_uuid;
@@ -74,7 +86,8 @@ static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
   my_thread_id udf_thread_id = 0;
   if (current_thd) udf_thread_id = current_thd->thread_id();
 
-  Primary_election_action group_action(uuid, udf_thread_id);
+  Primary_election_action group_action(uuid, udf_thread_id,
+                                       running_transactions_timeout);
   Group_action_diagnostics execution_message_area;
   group_action_coordinator->coordinate_action_execution(
       &group_action, &execution_message_area);
@@ -106,12 +119,23 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     return true;
   }
-
-  if (args->arg_count != 1 || args->arg_type[0] != STRING_RESULT ||
-      args->lengths[0] == 0) {
+  if (args->arg_count > 2) {
+    my_stpcpy(message, "Wrong arguments: UDF accepts maximum of 2 parameters.");
+    return true;
+  }
+  if (args->arg_count == 0 || args->lengths[0] == 0 ||
+      args->arg_type[0] != STRING_RESULT) {
     my_stpcpy(message, "Wrong arguments: You need to specify a server uuid.");
     return true;
   }
+  if (args->arg_count >= 2 && args->arg_type[1] != INT_RESULT) {
+    my_stpcpy(
+        message,
+        "Wrong arguments: Second parameter `running_transactions_timeout` must "
+        "be type integer between 0 - 3600 (seconds).");
+    return true;
+  }
+
   privilege_result privilege = user_has_gr_admin_privilege();
   bool has_privileges = (privilege.status == privilege_status::ok);
   if (!has_privileges) {
@@ -142,14 +166,38 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
 
   const char *uuid_arg = args->args[0];
   if (uuid_arg != nullptr) {
-    size_t ulength = (args->arg_count > 0) ? args->lengths[0] : 0;
-    std::string uuid =
-        (args->arg_count == 1 && args->args[0] != nullptr) ? args->args[0] : "";
+    size_t ulength = args->lengths[0];  // We have validated length > 0
+    std::string uuid = args->args[0];
     const char *return_message = nullptr;
     bool invalid_uuid = validate_uuid_parameter(uuid, ulength, &return_message);
 
     if (invalid_uuid) {
       my_stpcpy(message, return_message);
+      return true;
+    }
+  }
+
+  if (args->arg_count >= 2) {
+    Group_member_info_list *all_members_info =
+        (group_member_mgr == nullptr ? nullptr
+                                     : group_member_mgr->get_all_members());
+    bool is_version_lower_for_running_transactions_timeout = false;
+    Member_version version_introducing_running_transactions_timeout(
+        MEMBER_VERSION_INTRODUCING_RUNNING_TRANSACTION_TIMEOUT);
+    for (Group_member_info *member : *all_members_info) {
+      if (member->get_member_version() <
+          version_introducing_running_transactions_timeout) {
+        is_version_lower_for_running_transactions_timeout = true;
+      }
+      delete member;
+    }
+    delete all_members_info;
+    if (is_version_lower_for_running_transactions_timeout) {
+      const char *return_message =
+          "The optional timeout argument in group_replication_set_as_primary() "
+          "UDF is only supported when all group members have version 8.0.29 or "
+          "higher.";
+      strcpy(message, return_message);
       return true;
     }
   }

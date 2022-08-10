@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <new>
 
 #include <ndb_global.h>
@@ -130,15 +131,13 @@ NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
   return 0;
 }
 
-int
-NdbIndexStat::records_in_range(const NdbDictionary::Index* index, 
-                               NdbTransaction* trans,
-                               const NdbRecord* key_record,
-                               const NdbRecord* result_record,
-                               const NdbIndexScanOperation::IndexBound* ib, 
-                               Uint64 table_rows, 
-                               Uint64* count, 
-                               int flags)
+int NdbIndexStat::records_in_range(const NdbDictionary::Index* /*index*/,
+                                   NdbTransaction* trans,
+                                   const NdbRecord* key_record,
+                                   const NdbRecord* result_record,
+                                   const NdbIndexScanOperation::IndexBound* ib,
+                                   Uint64 /*table_rows*/, Uint64* count,
+                                   int flags [[maybe_unused]])
 {
   DBUG_ENTER("NdbIndexStat::records_in_range");
   Uint64 rows;
@@ -295,8 +294,16 @@ int
 NdbIndexStat::create_systables(Ndb* ndb)
 {
   DBUG_ENTER("NdbIndexStat::create_systables");
-  if (m_impl.create_systables(ndb) == -1)
+  if (m_impl.create_systables(ndb) == -1) {
+    if (getNdbError().code == 721 || getNdbError().code == 4244) {
+      // Probably a race between applications which this app has lost. Check if
+      // the tables have been created either way and treat it as success
+      if (check_systables(ndb) == 0) {
+        DBUG_RETURN(0);
+      }
+    }
     DBUG_RETURN(-1);
+  }
   DBUG_RETURN(0);
 }
 
@@ -632,7 +639,7 @@ NdbIndexStat::get_numrows(const Stat& stat_f, Uint32* rows)
 {
   DBUG_TRACE;
   const NdbIndexStatImpl::Stat& stat =
-  *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
   require(rows != nullptr);
   *rows = stat.m_value.m_num_rows;
   DBUG_PRINT("index_stat", ("rows:%d", *rows));
@@ -665,21 +672,14 @@ NdbIndexStat::get_rpk_pruned(const Stat& stat_f,
   DBUG_ENTER("NdbIndexStat::get_rpk_pruned");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  if (unlikely(stat.m_value.m_empty))
-  {
-    // Should preferabley test get_empty() (or get_numrows()) first.
-    *rpk = -1.0; // returns 'unknown'
-  }
-  else
-  {
-    double factor = stat.m_value.m_unq_factor[k];
-    double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
-    if (stat.m_value.m_rir <= stat.m_value.m_unq[k])
-      x = 1.0;
-    assert(stat.m_value.m_num_fragments > 0);
-    double fragments = stat.m_value.m_num_fragments;
-    *rpk = factor * x / fragments;
-  }
+  double factor = stat.m_value.m_unq_factor[k];
+  double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
+  assert(stat.m_value.m_num_fragments > 0);
+  double fragments = stat.m_value.m_num_fragments;
+  x = factor * x / fragments;
+  if (x < 1.0)
+    x = 1.0;
+  *rpk = x;
 #ifndef NDEBUG
   char buf[100];
   sprintf(buf, "%.2f", *rpk);
@@ -702,15 +702,9 @@ NdbIndexStat::get_rpk(const Stat& stat_f,
   DBUG_ENTER("NdbIndexStat::get_rpk");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  if (unlikely(stat.m_value.m_empty))
-  {
-    // Should preferabley test get_empty() (or get_numrows()) first.
-    *rpk = -1.0; // returns 'unknown'
-  }
-  else
   {
     double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
-    if (stat.m_value.m_rir <= stat.m_value.m_unq[k])
+    if (x < 1.0)
       x = 1.0;
     *rpk = x;
     require(stat.m_value.m_unq_factor[k] > 0);

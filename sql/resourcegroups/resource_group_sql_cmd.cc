@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -35,8 +35,8 @@
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -159,13 +159,10 @@ class Move_thread_to_default_group {
                                       pfs_thread_id);
       if (!pfs_thread_attr.m_system_thread) {
         Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
-        THD *thd =
+        THD_ptr thd_ptr =
             Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-        if (thd != nullptr) {
-          thd->resource_group_ctx()->m_cur_resource_group = nullptr;
-          mysql_mutex_assert_owner(&thd->LOCK_thd_data);
-          mysql_mutex_unlock(&thd->LOCK_thd_data);
-        }
+        if (thd_ptr)
+          thd_ptr->resource_group_ctx()->m_cur_resource_group = nullptr;
       }
     }
   }
@@ -585,12 +582,10 @@ static inline bool check_and_apply_resource_grp(
   // Set resource group context for non-system threads.
   if (!pfs_thread_attr.m_system_thread) {
     Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
-    THD *cur_thd =
+    THD_ptr cur_thd_ptr =
         Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-    if (cur_thd != nullptr) {
-      cur_thd->resource_group_ctx()->m_cur_resource_group = resource_group;
-      mysql_mutex_unlock(&cur_thd->LOCK_thd_data);
-    }
+    if (cur_thd_ptr)
+      cur_thd_ptr->resource_group_ctx()->m_cur_resource_group = resource_group;
   }
 
   if (prev_cur_res_grp != nullptr)

@@ -143,7 +143,9 @@ SET global.table_definition_cache = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.table_definition_cache;
 --Error ER_BAD_FIELD_ERROR
-SELECT table_definition_cache = @@session.table_definition_cache;
+SELECT table_definition_cache;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.table_definition_cache;
 
 ##############################
 #   Restore initial value    #

@@ -211,8 +211,8 @@ SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS TIME);
 SELECT CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS DATETIME);
 --echo #
 
---echo # Casting geometry to CHAR must return SWKB.
-SELECT HEX(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS CHAR));
+--echo # Casting geometry to BINARY must return SWKB.
+SELECT HEX(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS BINARY));
 --echo #
 
 --echo # Casting geometry to DECIMAL must return 0.

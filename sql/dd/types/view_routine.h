@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ class View_routine : virtual public Weak_object {
   typedef tables::View_routine_usage DD_table;
 
  public:
-  ~View_routine() override {}
+  ~View_routine() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // View routine catalog name.

@@ -318,7 +318,7 @@ call mtr.add_suppression("Slave SQL.*:.* Duplicate entry '1729' for key 't101.PR
 let $sss_value= query_get_value(SHOW SLAVE STATUS FOR CHANNEL "channel_3", Last_SQL_Errno, 1);
 # Post Bug#20001173 fix, in STS mode check performance_schema.replication_applier_status_by_worker
 # table for applier status
-let $worker_count= `select @@global.slave_parallel_workers`;
+let $worker_count= `select @@global.replica_parallel_workers`;
 if ($worker_count == 0)
 {
   let $ps_value= query_get_value(select Last_Error_Number from performance_schema.replication_applier_status_by_worker where channel_name = "channel_3", Last_Error_Number, 1);

@@ -1,0 +1,297 @@
+# ==== Purpose ====
+#
+# In this testcase we verify that when we have both FLUSH stage queues non-empty
+# then the thread from BINLOG_FLUSH_STAGE queue is choosen as leader. We add
+# transactions to both flush queues. When thread entered BINLOG_FLUSH_STAGE,
+# COMMIT_ORDER_FLUSH_STAGE was non-empty and already had leader selected so we
+# make commit order leader to wait for after_commit_order_thread_becomes_leader
+# debug sync point andunblock it only when binlog thread reaches
+# before_binlog_leader_wait debug sync point. We check if binlog thread reach
+# after_binlog_leader_wait debug sync point which would happen only when leader
+# is switched i.e. commit order leader thread becomes follower and binlog leader
+# becomes leader for both FLUSH stage queues.
+#
+# ==== Implementation ====
+#
+# 1. We start replica (server2) with the binary log turned off. Replica
+#    also has replica_preserve_commit_order enabled and running with 4
+#    applier workers.
+# 2. On master binlog_transaction_dependency_tracking
+#    is set to COMMIT_ORDER.
+# 3. On master create table t1 and t2 and sync it to slave.
+# 4. On server2 enable after_commit_order_thread_becomes_leader,
+#    before_binlog_leader_wait and before_follower_wait
+#    debug sync point which will be activated for threads having
+#    @@session.timestamp 100, 101 and 102 respectively.
+# 5. On master generate transaction T1 with timestamp 100 and wait for it
+#    to reach after_commit_order_thread_becomes_leader debug sync point on
+#    slave. The thread executing transaction T1 will be choosen as leader for
+#    for COMMIT_ORDER_FLUSH_STAGE stage.
+# 6. On slave generate transactions T2 and T3 with timestamp 101 and 102
+#    which can be applied in parallel, by setting same commit parents
+#    for all the inserts. And wait for T2 to reach
+#    before_binlog_leader_wait debug sync point. The thread executing
+#    transaction T2 will be choosen as leader for BINLOG_FLUSH_STAGE
+#    stage.
+# 7. We signal after_commit_order_thread_becomes_leader, so leader switches from
+#    commit order leader to binlog leader. The new leader is thread
+#    executing transaction T2 binlog leader is verified by waiting for
+#    after_binlog_leader_wait. Before binlog leader thread (T2) reaches
+#    after_binlog_leader_wait it signals next transaction T3 which would
+#    become follower as leader is still blocked on
+#    after_binlog_leader_wait debug sync point.
+# 8. We wait for thread executing T3 to reach
+#    before_follower_wait and then unblock
+#    after_binlog_leader_wait and before_follower_wait debug
+#    sync points.
+# 9. On slave disable after_binlog_leader_wait,
+#    after_commit_order_thread_becomes_leader, before_binlog_leader_wait and
+#    before_follower_wait debug sync points.
+# 10. Perform reap for send executed earlier.
+# 11. Verify data inserted in step 5 and 6 is there on the slave.
+# 12. Cleanup
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+
+--echo
+--echo # 1. We start replica (server2) with the binary log turned off. Replica
+--echo #    also has replica_preserve_commit_order enabled and running with 4
+--echo #    applier workers.
+--echo
+
+--source include/rpl_connection_slave.inc
+
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+
+SET @save_replica_parallel_workers= @@global.replica_parallel_workers;
+SET @save_replica_parallel_type= @@global.replica_parallel_type;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
+
+SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_workers= 4;
+SET GLOBAL replica_preserve_commit_order= ON;
+--source include/start_slave.inc
+
+
+--echo
+--echo # 2. On master binlog_transaction_dependency_tracking
+--echo #    is set to COMMIT_ORDER.
+--echo
+
+--source include/rpl_connection_master.inc
+
+SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
+SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
+
+
+--echo
+--echo # 3. On master create table t1 and t2 and sync it to slave.
+--echo
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+INSERT INTO t2 VALUES (1);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= Verify t2 contains only one row
+--let $assert_cond= "[SELECT COUNT(*) COUNT from t2, COUNT, 1]" = "1"
+--source include/assert.inc
+
+
+--echo
+--echo # 4. On server2 enable after_commit_order_thread_becomes_leader,
+--echo #    before_binlog_leader_wait and before_follower_wait
+--echo #    debug sync point which will be activated for threads having
+--echo #    @@session.timestamp 100, 101 and 102 respectively.
+--echo
+
+--source include/rpl_connection_slave.inc
+
+--let $debug_point=syncpoint_after_commit_order_thread_becomes_leader_100
+--source include/add_debug_point.inc
+
+--let $debug_point=syncpoint_before_binlog_leader_wait_101
+--source include/add_debug_point.inc
+
+--let $debug_point=syncpoint_before_follower_wait_102
+--source include/add_debug_point.inc
+
+--let $debug_point=syncpoint_before_commit_order_leader_waits_for_binlog_leader_100
+--source include/add_debug_point.inc
+
+--echo
+--echo # 5. On master generate transaction T1 with timestamp 100 and wait for it
+--echo #    to reach after_commit_order_thread_becomes_leader debug sync point
+--echo #    on slave. The thread executing transaction T1 will be choosen as
+--echo #    leader for for COMMIT_ORDER_FLUSH_STAGE stage.
+--echo
+
+--source include/rpl_connection_master.inc
+
+# Make the following INSERTs have same commit parent. So they can be applied
+# parallel on slave.
+--let $debug_point=set_commit_parent_100
+--source include/add_debug_point.inc
+
+# transaction T1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET TIMESTAMP = 100; BEGIN; INSERT INTO t1 VALUES (1); COMMIT;
+
+--let $debug_point=set_commit_parent_100
+--source include/remove_debug_point.inc
+
+--source include/rpl_connection_slave.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR reached_after_commit_order_thread_becomes_leader_100";
+
+
+--echo
+--echo # 6. On slave generate transactions T2 and T3 with timestamp 101 and 102
+--echo #    which can be applied in parallel, by setting same commit parents
+--echo #    for all the inserts. And wait for T2 to reach
+--echo #    before_binlog_leader_wait debug sync point. The thread executing
+--echo #    transaction T2 will be choosen as leader for BINLOG_FLUSH_STAGE
+--echo #    stage.
+--echo
+
+# Make the following INSERTs have same commit parent. So they can be applied
+# parallel on slave.
+--let $debug_point=set_commit_parent_100
+--source include/add_debug_point.inc
+
+# transaction T2
+--connect(slave22,127.0.0.1,root,,,$SLAVE_MYPORT,)
+--let $rpl_connection_name= slave22
+--source include/rpl_connection.inc
+--send SET TIMESTAMP = 101; BEGIN; INSERT INTO t2 VALUES (2); COMMIT;
+
+--source include/rpl_connection_slave.inc
+SET DEBUG_SYNC= "now WAIT_FOR reached_before_binlog_leader_wait_101";
+
+# transaction T3
+--connect(slave222,127.0.0.1,root,,,$SLAVE_MYPORT,)
+--let $rpl_connection_name= slave222
+--source include/rpl_connection.inc
+--send SET TIMESTAMP = 102; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;
+
+--source include/rpl_connection_slave.inc
+
+--let $debug_point=set_commit_parent_100
+--source include/remove_debug_point.inc
+
+
+--echo
+--echo # 7. We signal after_commit_order_thread_becomes_leader, so leader
+--echo #    switches from commit order leader (T1) to binlog leader(T2). We
+--echo #    wait for thread executing T1 transaction to reach
+--echo #    before_commit_order_leader_waits_for_binlog_leader. The new leader
+--echo #    is thread executing transaction T2 binlog leader is verified by
+--echo #    waiting for after_binlog_leader_wait. Before binlog leader thread
+--echo #    (T2) reaches after_binlog_leader_wait it signals next transaction T3
+--echo #    which would become follower as leader is still blocked on
+--echo #    after_binlog_leader_wait debug sync point.
+--echo
+
+--let $debug_point=syncpoint_after_binlog_leader_wait_101
+--source include/add_debug_point.inc
+
+SET DEBUG_SYNC= "now SIGNAL continue_before_binlog_leader_wait_101";
+
+SET DEBUG_SYNC= "now WAIT_FOR reached_before_follower_wait_102";
+
+SET DEBUG_SYNC= "now SIGNAL continue_after_commit_order_thread_becomes_leader_100";
+SET DEBUG_SYNC= "now WAIT_FOR reached_before_commit_order_leader_waits_for_binlog_leader_100";
+
+SET DEBUG_SYNC= "now WAIT_FOR reached_after_binlog_leader_wait_101";
+
+
+--echo
+--echo # 8. The thread executing transaction T1, T2 and T3 are waiting on debug
+--echo #    sync point before_commit_order_leader_waits_for_binlog_leader,
+--echo #    after_binlog_leader_wait and before_follower_wait. We unblock all of
+--echo #    them, so that leader (T2) can flush for T1 and T3.
+--echo
+
+SET DEBUG_SYNC= "now SIGNAL continue_after_binlog_leader_wait_101";
+SET DEBUG_SYNC= "now SIGNAL continue_before_follower_wait_102";
+SET DEBUG_SYNC= "now SIGNAL continue_before_commit_order_leader_waits_for_binlog_leader_100";
+
+
+--echo
+--echo # 9. On slave disable after_binlog_leader_wait,
+--echo #    after_commit_order_thread_becomes_leader, before_binlog_leader_wait
+--echo #    and before_follower_wait debug sync points.
+--echo
+
+--let $debug_point=syncpoint_after_binlog_leader_wait_101
+--source include/remove_debug_point.inc
+
+--let $debug_point=syncpoint_after_commit_order_thread_becomes_leader_100
+--source include/remove_debug_point.inc
+
+--let $debug_point=syncpoint_before_binlog_leader_wait_101
+--source include/remove_debug_point.inc
+
+--let $debug_point=syncpoint_before_follower_wait_102
+--source include/remove_debug_point.inc
+
+--let $debug_point=syncpoint_before_commit_order_leader_waits_for_binlog_leader_100
+--source include/remove_debug_point.inc
+
+
+--echo
+--echo # 10. Perform reap for send executed earlier.
+--echo
+
+--let $rpl_connection_name= slave22
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= slave222
+--source include/rpl_connection.inc
+--reap
+
+
+--echo
+--echo # 11. Verify data inserted in step 5 and 6 is there on the slave.
+--echo
+
+--source include/rpl_connection_slave.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 from t1
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 from t2
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 12. Cleanup
+--echo
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+SET GLOBAL replica_parallel_type = @save_replica_parallel_type;
+--disable_warnings
+SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
+--enable_warnings
+SET GLOBAL replica_preserve_commit_order = @save_replica_preserve_commit_order;
+
+--let $rpl_only_running_threads = 1
+--source include/rpl_end.inc

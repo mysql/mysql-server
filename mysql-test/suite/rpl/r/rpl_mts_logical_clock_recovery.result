@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.replica_parallel_workers > 2]
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -45,8 +46,6 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 include/rpl_start_server.inc [server_number=2]
 # Reconnecting to the slave server
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 CREATE TABLE t5 (a int);
 include/wait_for_slave_sql_to_stop.inc
 include/start_slave.inc

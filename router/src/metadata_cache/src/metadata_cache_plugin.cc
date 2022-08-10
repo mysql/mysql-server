@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,13 +31,14 @@
 #include <string>
 #include <thread>
 
-#include "common.h"
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "metadata_cache.h"
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/string.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #include "mysqlrouter/mysql_session.h"  // kSslModePreferred
 #include "mysqlrouter/uri.h"
@@ -51,15 +52,51 @@ static const mysql_harness::AppInfo *g_app_info;
 static const std::string kSectionName = "metadata_cache";
 static const char *kKeyringAttributePassword = "password";
 
+metadata_cache::RouterAttributes g_router_attributes;
+
+static metadata_cache::RouterAttributes get_router_attributes(
+    const mysql_harness::Config *cfg) {
+  metadata_cache::RouterAttributes result;
+
+  if (!cfg->has_any("routing")) return result;
+  for (const auto *routing_section : cfg->get("routing")) {
+    if (routing_section->has("bind_port") &&
+        routing_section->has("destinations") &&
+        routing_section->has("protocol")) {
+      const auto port = routing_section->get("bind_port");
+      const auto protocol = routing_section->get("protocol");
+      const auto destinations = routing_section->get("destinations");
+
+      const bool is_rw =
+          mysql_harness::utility::ends_with(destinations, "PRIMARY");
+      const bool is_ro =
+          mysql_harness::utility::ends_with(destinations, "SECONDARY");
+
+      if (protocol == "classic") {
+        if (is_rw)
+          result.rw_classic_port = port;
+        else if (is_ro)
+          result.ro_classic_port = port;
+      } else if (protocol == "x") {
+        if (is_rw)
+          result.rw_x_port = port;
+        else if (is_ro)
+          result.ro_x_port = port;
+      }
+    }
+  }
+
+  return result;
+}
+
 static void init(mysql_harness::PluginFuncEnv *env) {
   g_app_info = get_app_info(env);
   // If a valid configuration object was found.
   if (g_app_info && g_app_info->config) {
+    g_router_attributes = get_router_attributes(g_app_info->config);
     // if a valid metadata_cache section was found in the router
     // configuration.
     if (g_app_info->config->get(kSectionName).empty()) {
-      log_error("[metadata_cache] section is empty");  // TODO remove after
-                                                       // Loader starts logging
       set_error(env, mysql_harness::kConfigInvalidArgument,
                 "[metadata_cache] section is empty");
     }
@@ -90,24 +127,22 @@ static mysqlrouter::SSLOptions make_ssl_options(
 }
 
 class MetadataServersStateListener
-    : public metadata_cache::ReplicasetStateListenerInterface {
+    : public metadata_cache::ClusterStateListenerInterface {
  public:
-  MetadataServersStateListener(ClusterMetadataDynamicState &dynamic_state,
-                               const std::string &replicaset_name)
-      : dynamic_state_(dynamic_state), replicaset_name_(replicaset_name) {}
+  MetadataServersStateListener(ClusterMetadataDynamicState &dynamic_state)
+      : dynamic_state_(dynamic_state) {}
 
   ~MetadataServersStateListener() override {
-    metadata_cache::MetadataCacheAPI::instance()->remove_state_listener(
-        replicaset_name_, this);
+    metadata_cache::MetadataCacheAPI::instance()->remove_state_listener(this);
   }
 
-  void notify_instances_changed(const LookupResult &instances,
-                                const bool md_servers_reachable,
-                                const unsigned view_id) override {
+  void notify_instances_changed(
+      const LookupResult & /*instances*/,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
+      const bool md_servers_reachable, const uint64_t view_id) override {
     if (!md_servers_reachable) return;
-    auto md_servers = instances.instance_vector;
 
-    if (md_servers.empty()) {
+    if (metadata_servers.empty()) {
       // This happens for example when the router could connect to one of the
       // metadata servers but failed to fetch metadata because the connection
       // went down while querying metadata
@@ -119,11 +154,11 @@ class MetadataServersStateListener
 
     // need to convert from ManagedInstance to uri string
     std::vector<std::string> metadata_servers_str;
-    for (auto &md_server : md_servers) {
+    for (auto &md_server : metadata_servers) {
       mysqlrouter::URI uri;
       uri.scheme = "mysql";
-      uri.host = md_server.host;
-      uri.port = md_server.port;
+      uri.host = md_server.address();
+      uri.port = md_server.port();
       metadata_servers_str.emplace_back(uri.str());
     }
 
@@ -134,7 +169,6 @@ class MetadataServersStateListener
 
  private:
   ClusterMetadataDynamicState &dynamic_state_;
-  std::string replicaset_name_;
 };
 
 /**
@@ -144,7 +178,7 @@ class MetadataServersStateListener
  * @param env plugin's environment
  */
 static void start(mysql_harness::PluginFuncEnv *env) {
-  mysql_harness::rename_thread("MDC Main");
+  my_thread_self_setname("MDC Main");
 
   mysqlrouter::MySQLClientThreadToken api_token;
 
@@ -169,16 +203,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                  "is empty, too."));
     }
 
-    std::chrono::milliseconds ttl{config.ttl};
-    std::chrono::milliseconds auth_cache_ttl{config.auth_cache_ttl};
-    std::chrono::milliseconds auth_cache_refresh_interval{
-        config.auth_cache_refresh_interval};
-    std::string metadata_cluster{config.metadata_cluster};
-
-    // Initialize the defaults.
-    metadata_cluster = metadata_cluster.empty()
-                           ? metadata_cache::kDefaultMetadataCluster
-                           : metadata_cluster;
+    const metadata_cache::MetadataCacheTTLConfig ttl_config{
+        config.ttl, config.auth_cache_ttl, config.auth_cache_refresh_interval};
 
     std::string password;
     try {
@@ -199,39 +225,49 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
     md_cache->instance_name(section->key);
 
-    const std::string replicaset_id = config.get_cluster_type_specific_id();
+    const std::string cluster_type_specific_id =
+        config.get_cluster_type_specific_id();
 
-    md_cache->cache_init(config.cluster_type, config.router_id, replicaset_id,
-                         config.metadata_servers_addresses,
-                         {config.user, password}, ttl, auth_cache_ttl,
-                         auth_cache_refresh_interval, make_ssl_options(section),
-                         metadata_cluster, config.connect_timeout,
-                         config.read_timeout, config.thread_stack_size,
-                         config.use_gr_notifications, config.get_view_id());
+    const std::string clusterset_id = config.get_clusterset_id();
+
+    const metadata_cache::MetadataCacheMySQLSessionConfig session_config{
+        {config.user, password},
+        (int)config.connect_timeout,
+        (int)config.read_timeout,
+        1};
+
+    // we currently support only single metadata-cache instance so there is no
+    // need for locking here
+    g_router_attributes.metadata_user_name = config.user;
+
+    md_cache->cache_init(
+        config.cluster_type, config.router_id, cluster_type_specific_id,
+        clusterset_id, config.metadata_servers_addresses, ttl_config,
+        make_ssl_options(section),
+        mysqlrouter::TargetCluster{
+            mysqlrouter::TargetCluster::TargetType::ByName,
+            config.cluster_name},
+        session_config, g_router_attributes, config.thread_stack_size,
+        config.use_gr_notifications, config.get_view_id());
 
     // register callback
     md_cache_dynamic_state = std::move(config.metadata_cache_dynamic_state);
     if (md_cache_dynamic_state) {
-      md_servers_state_listener.reset(new MetadataServersStateListener(
-          *md_cache_dynamic_state.get(), replicaset_id));
-      md_cache->add_state_listener(replicaset_id,
-                                   md_servers_state_listener.get());
+      md_servers_state_listener.reset(
+          new MetadataServersStateListener(*md_cache_dynamic_state.get()));
+      md_cache->add_state_listener(md_servers_state_listener.get());
     }
 
     // start metadata cache
     md_cache->cache_start();
   } catch (const std::runtime_error &exc) {  // metadata_cache::metadata_error
                                              // inherits from runtime_error
-    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
     clear_running(env);
   } catch (const std::invalid_argument &exc) {
-    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
     clear_running(env);
   } catch (...) {
-    log_error(
-        "Unexpected exception");  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
     clear_running(env);
   }
@@ -248,18 +284,24 @@ static const std::array<const char *, 2> required = {{
 
 extern "C" {
 
-mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache = {
-    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "Metadata Cache, managing information fetched from the Metadata Server",
-    VERSION_NUMBER(0, 0, 1),
-    // requires
-    required.size(), required.data(),
-    // conflicts
-    0, nullptr,
-    init,     // init
-    nullptr,  // deinit
-    start,    // start
-    nullptr,  // stop
-    true      // declares_readiness
+mysql_harness::Plugin METADATA_CACHE_PLUGIN_EXPORT
+    harness_plugin_metadata_cache = {
+        mysql_harness::PLUGIN_ABI_VERSION,
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,
+        "Metadata Cache, managing information fetched from the Metadata Server",
+        VERSION_NUMBER(0, 0, 1),
+        // requires
+        required.size(),
+        required.data(),
+        // conflicts
+        0,
+        nullptr,
+        init,     // init
+        nullptr,  // deinit
+        start,    // start
+        nullptr,  // stop
+        true,     // declares_readiness
+        metadata_cache_supported_options.size(),
+        metadata_cache_supported_options.data(),
 };
 }

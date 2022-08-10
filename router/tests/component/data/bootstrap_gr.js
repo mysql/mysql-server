@@ -6,11 +6,17 @@ if (mysqld.global.innodb_cluster_instances === undefined) {
 }
 
 if (mysqld.global.cluster_name == undefined) {
-  mysqld.global.cluster_name = "mycluster";
+  mysqld.global.cluster_name = "my-cluster";
+}
+
+if (mysqld.global.metadata_version === undefined) {
+  mysqld.global.metadata_version = [2, 0, 3];
 }
 
 var options = {
+  metadata_schema_version: mysqld.global.metadata_version,
   cluster_type: "gr",
+  clusterset_present: 0,
   innodb_cluster_name: mysqld.global.cluster_name,
   innodb_cluster_instances: mysqld.global.innodb_cluster_instances,
 };
@@ -37,6 +43,12 @@ var common_responses = common_stmts.prepare_statement_responses(
     ],
     options);
 
+var common_responses_v2_1 = common_stmts.prepare_statement_responses(
+    [
+      "router_clusterset_present",
+    ],
+    options);
+
 var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
       "router_insert_into_routers",
@@ -46,6 +58,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_grant_on_routers",
       "router_grant_on_v2_routers",
       "router_update_routers_in_metadata",
+      "router_update_router_options_in_metadata",
     ],
     options);
 
@@ -60,6 +73,13 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     var res;
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
+    }
+    // metadata ver 2.1+
+    else if (
+        (mysqld.global.metadata_version[0] >= 2 &&
+         mysqld.global.metadata_version[1] >= 1) &&
+        common_responses_v2_1.hasOwnProperty(stmt)) {
+      return common_responses_v2_1[stmt];
     } else if (
         (res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !==
         undefined) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,10 @@
 
 namespace keyring {
 
-const std::string AES = "AES";
-const std::string RSA = "RSA";
-const std::string DSA = "DSA";
-const std::string SECRET = "SECRET";
+constexpr const char *AES = "AES";
+constexpr const char *RSA = "RSA";
+constexpr const char *DSA = "DSA";
+constexpr const char *SECRET = "SECRET";
 
 enum class Operation_type { fetch = 0, store, remove, generate };
 
@@ -61,7 +61,7 @@ struct IKey : public Keyring_alloc {
   virtual bool is_key_valid() = 0;
   virtual bool is_key_length_valid() = 0;
 
-  virtual ~IKey() {}
+  virtual ~IKey() = default;
 
  protected:
   virtual void set_key_type_enum(const std::string *key_type) = 0;

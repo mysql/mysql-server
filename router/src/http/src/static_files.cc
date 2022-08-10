@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -77,9 +77,8 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   std::string file_path{static_basedir_};
 
   file_path += "/";
-  std::unique_ptr<char, decltype(&free)> unescaped{
-      evhttp_uridecode(parsed_uri.get_path().c_str(), 1, nullptr), &free};
-  file_path += http_uri_path_canonicalize(unescaped.get());
+  const auto unescaped = HttpUri::decode(parsed_uri.get_path(), 1);
+  file_path += http_uri_path_canonicalize(unescaped);
 
   auto out_hdrs = req.get_output_headers();
 

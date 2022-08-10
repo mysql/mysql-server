@@ -1413,6 +1413,10 @@ insert into t3 select * from tmp;
 #insert into tmp select * from t3;
 #insert into t3 select * from tmp;
 
+# Note: Use a single scan thread here to preserve the autoincrement value
+# to existing row order assignment. In practice there is no guarantee of
+# any such order during the alter table.
+set session innodb_parallel_read_threads=1;
 alter table t3 add t2nr int not null auto_increment primary key first;
 
 drop table tmp;

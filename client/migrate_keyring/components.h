@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,10 +137,10 @@ class Keyring_migrate final {
  private:
   Source_keyring_services &src_;
   Destination_keyring_services &dst_;
-  my_h_keyring_keys_metadata_iterator iterator_;
+  my_h_keyring_keys_metadata_iterator iterator_{nullptr};
   options::Mysql_connection mysql_connection_;
-  bool ok_;
-  const size_t maximum_size_;
+  bool ok_{false};
+  const size_t maximum_size_{16384};
 };
 
 }  // namespace components

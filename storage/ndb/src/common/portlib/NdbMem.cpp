@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "ndb_config.h"
 
 #ifdef _WIN32
 #include <malloc.h> // _aligned_alloc
 #include <Windows.h>
 #else
+#include <errno.h>
 #include <stdlib.h> // aligned_alloc or posix_memalign
 #define __STDC_WANT_LIB_EXT1__ 1
 #include <string.h> // explict_bzero or memset_s
@@ -264,11 +266,12 @@ int NdbMem_FreeSpace(void* ptr, size_t len)
 
 void* NdbMem_AlignedAlloc(size_t alignment, size_t size)
 {
-  void* p = NULL;
+  void* p = nullptr;
 #if defined(_ISOC11_SOURCE)
   p = aligned_alloc(alignment, size);
 #elif defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
-  (void) posix_memalign(&p, alignment, size);
+  int err = posix_memalign(&p, alignment, size);
+  if (err != 0) errno = err;
 #elif defined(_WIN32)
   p = _aligned_malloc(size, alignment);
 #else
@@ -277,7 +280,7 @@ void* NdbMem_AlignedAlloc(size_t alignment, size_t size)
     alignment = sizeof(void*);
   }
   char*charp = (char*) malloc(size + alignment);
-  if (charp != NULL)
+  if (charp != nullptr)
   {
     void* q = (void*)(charp + (alignment - ((uintptr_t)charp % alignment)));
     void** qp = (void**)q;

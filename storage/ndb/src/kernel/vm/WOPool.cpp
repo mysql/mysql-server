@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 #if 0
 #include "WOPool.hpp"
 #include <ndbd_exit_codes.h>
-#include <NdbOut.hpp>
 
 #define JAM_FILE_ID 294
 #endif
@@ -47,7 +46,8 @@ WOPool<T>::init(const Record_info& ri, const Pool_context& pc)
   m_record_info.m_offset_magic = ((ri.m_offset_magic + 3) >> 2);
   m_memroot = (WOPage*)m_ctx.get_memroot();
 #ifdef VM_TRACE
-  ndbout_c("WOPool<T>::init(%x, %d)",ri.m_type_id, m_record_info.m_size);
+  g_eventLogger->info("WOPool<T>::init(%x, %d)", ri.m_type_id,
+                      m_record_info.m_size);
 #endif
 }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,18 +36,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 
 /** Gets a rollback segment header.
-@param[in]	space		Space where placed
-@param[in]	page_no		Page number of the header
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction
+@param[in]      space           Space where placed
+@param[in]      page_no         Page number of the header
+@param[in]      page_size       Page size
+@param[in,out]  mtr             Mini-transaction
 @return rollback segment header, page x-latched */
-UNIV_INLINE
-trx_rsegf_t *trx_rsegf_get(space_id_t space, page_no_t page_no,
-                           const page_size_t &page_size, mtr_t *mtr) {
+static inline trx_rsegf_t *trx_rsegf_get(space_id_t space, page_no_t page_no,
+                                         const page_size_t &page_size,
+                                         mtr_t *mtr) {
   buf_block_t *block;
   trx_rsegf_t *header;
 
-  block = buf_page_get(page_id_t(space, page_no), page_size, RW_X_LATCH, mtr);
+  block = buf_page_get(page_id_t(space, page_no), page_size, RW_X_LATCH,
+                       UT_LOCATION_HERE, mtr);
 
   buf_block_dbg_add_level(block, SYNC_RSEG_HEADER);
 
@@ -57,18 +58,20 @@ trx_rsegf_t *trx_rsegf_get(space_id_t space, page_no_t page_no,
 }
 
 /** Gets a newly created rollback segment header.
-@param[in]	space		Space where placed
-@param[in]	page_no		Page number of the header
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction
+@param[in]      space           Space where placed
+@param[in]      page_no         Page number of the header
+@param[in]      page_size       Page size
+@param[in,out]  mtr             Mini-transaction
 @return rollback segment header, page x-latched */
-UNIV_INLINE
-trx_rsegf_t *trx_rsegf_get_new(space_id_t space, page_no_t page_no,
-                               const page_size_t &page_size, mtr_t *mtr) {
+static inline trx_rsegf_t *trx_rsegf_get_new(space_id_t space,
+                                             page_no_t page_no,
+                                             const page_size_t &page_size,
+                                             mtr_t *mtr) {
   buf_block_t *block;
   trx_rsegf_t *header;
 
-  block = buf_page_get(page_id_t(space, page_no), page_size, RW_X_LATCH, mtr);
+  block = buf_page_get(page_id_t(space, page_no), page_size, RW_X_LATCH,
+                       UT_LOCATION_HERE, mtr);
 
   buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
 
@@ -79,8 +82,7 @@ trx_rsegf_t *trx_rsegf_get_new(space_id_t space, page_no_t page_no,
 
 /** Gets the file page number of the nth undo log slot.
  @return page number of the undo log segment */
-UNIV_INLINE
-page_no_t trx_rsegf_get_nth_undo(
+static inline page_no_t trx_rsegf_get_nth_undo(
     trx_rsegf_t *rsegf, /*!< in: rollback segment header */
     ulint n,            /*!< in: index of slot */
     mtr_t *mtr)         /*!< in: mtr */
@@ -92,8 +94,7 @@ page_no_t trx_rsegf_get_nth_undo(
 }
 
 /** Sets the file page number of the nth undo log slot. */
-UNIV_INLINE
-void trx_rsegf_set_nth_undo(
+static inline void trx_rsegf_set_nth_undo(
     trx_rsegf_t *rsegf, /*!< in: rollback segment header */
     ulint n,            /*!< in: index of slot */
     page_no_t page_no,  /*!< in: page number of the undo log segment */
@@ -107,8 +108,7 @@ void trx_rsegf_set_nth_undo(
 
 /** Looks for a free slot for an undo log segment.
  @return slot index or ULINT_UNDEFINED if not found */
-UNIV_INLINE
-ulint trx_rsegf_undo_find_free(
+static inline ulint trx_rsegf_undo_find_free(
     trx_rsegf_t *rsegf, /*!< in: rollback segment header */
     mtr_t *mtr)         /*!< in: mtr */
 {
@@ -118,8 +118,8 @@ ulint trx_rsegf_undo_find_free(
 
 #ifdef UNIV_DEBUG
   if (trx_rseg_n_slots_debug) {
-    max_slots = ut_min(static_cast<ulint>(trx_rseg_n_slots_debug),
-                       static_cast<ulint>(TRX_RSEG_N_SLOTS));
+    max_slots = std::min(static_cast<ulint>(trx_rseg_n_slots_debug),
+                         static_cast<ulint>(TRX_RSEG_N_SLOTS));
   }
 #endif
 
@@ -139,8 +139,8 @@ Before 8.0, this ID is called an rseg_id and is a slot in the TRX_SYS page
 where the space_id can be read.
 After 8.0 this is an undo space number which can be converted directly to
 an undo space ID.
-@param[in]	id		a 7-bit ID from a rollback pointer
-@param[in]	is_temp		true if rseg from Temp Tablespace else false.
+@param[in]      id              a 7-bit ID from a rollback pointer
+@param[in]      is_temp         true if rseg from Temp Tablespace else false.
 @return undo tablespace ID containing the rollback segment */
 inline space_id_t trx_rseg_id_to_space_id(ulint id, bool is_temp) {
   /* The rseg_id must be an undo_space_num between 0 and 127. */
@@ -180,8 +180,8 @@ inline space_id_t trx_rseg_id_to_space_id(ulint id, bool is_temp) {
 
 /** Get a pointer to the rollback segment directory header and x-latches its
 page.
-@param[in]	space_id	Undo Tablespace ID
-@param[in]	mtr		mtr
+@param[in]      space_id        Undo Tablespace ID
+@param[in]      mtr             mtr
 @return pointer to rollback segment directory header with page x-latched. */
 inline trx_rsegsf_t *trx_rsegsf_get(space_id_t space_id, mtr_t *mtr) {
   buf_block_t *block;
@@ -191,7 +191,7 @@ inline trx_rsegsf_t *trx_rsegsf_get(space_id_t space_id, mtr_t *mtr) {
   ut_ad(undo::is_reserved(space_id));
 
   block = buf_page_get(page_id_t(space_id, FSP_RSEG_ARRAY_PAGE_NO),
-                       univ_page_size, RW_X_LATCH, mtr);
+                       univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
   buf_block_dbg_add_level(block, SYNC_RSEG_ARRAY_HEADER);
 
   rsegs_header = RSEG_ARRAY_HEADER + buf_block_get_frame(block);
@@ -201,9 +201,9 @@ inline trx_rsegsf_t *trx_rsegsf_get(space_id_t space_id, mtr_t *mtr) {
 
 /** Get the page number of the nth rollback segment slot in the
 RSEG_ARRAY page for this undo tablespace.
-@param[in]	rsegs_header	rollback segment array page header
-@param[in]	slot		slot index == rseg id
-@param[in]	mtr		mtr
+@param[in]      rsegs_header    rollback segment array page header
+@param[in]      slot            slot index == rseg id
+@param[in]      mtr             mtr
 @return page number, FIL_NULL if slot unused */
 inline page_no_t trx_rsegsf_get_page_no(trx_rsegsf_t *rsegs_header, ulint slot,
                                         mtr_t *mtr) {
@@ -218,13 +218,13 @@ inline page_no_t trx_rsegsf_get_page_no(trx_rsegsf_t *rsegs_header, ulint slot,
 
 /** Sets the page number of the nth rollback segment slot in the
 independent undo tablespace.
-@param[in]	rsegs_header	rollback segment array page header
-@param[in]	slot		slot number on page  == rseg id
-@param[in]	page_no		rollback regment header page number
-@param[in]	mtr		mtr */
-UNIV_INLINE
-void trx_rsegsf_set_page_no(trx_rsegsf_t *rsegs_header, ulint slot,
-                            page_no_t page_no, mtr_t *mtr) {
+@param[in]      rsegs_header    rollback segment array page header
+@param[in]      slot            slot number on page  == rseg id
+@param[in]      page_no         rollback regment header page number
+@param[in]      mtr             mtr */
+static inline void trx_rsegsf_set_page_no(trx_rsegsf_t *rsegs_header,
+                                          ulint slot, page_no_t page_no,
+                                          mtr_t *mtr) {
   ut_ad(rsegs_header);
 
   mlog_write_ulint(

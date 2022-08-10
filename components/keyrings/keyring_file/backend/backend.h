@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class Keyring_file_backend final {
   explicit Keyring_file_backend(const std::string keyring_file_name,
                                 bool read_only);
 
-  ~Keyring_file_backend() {}
+  ~Keyring_file_backend() = default;
 
   /**
     Fetch data

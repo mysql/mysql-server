@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,57 +27,84 @@
 
 #include "sql/histograms/singleton.h"
 
+#include <algorithm>  // std::is_sorted
 #include <iterator>
 #include <new>
-#include <utility>  // std::make_pair
 
 #include "field_types.h"  // enum_field_types
 #include "my_base.h"      // ha_rows
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_time.h"
+#include "sql-common/json_dom.h"       // Json_*
 #include "sql/histograms/value_map.h"  // Value_map
-#include "sql/json_dom.h"              // Json_*
 #include "template_utils.h"
 
 struct MEM_ROOT;
 
 namespace histograms {
 
+// Private constructor
 template <class T>
 Singleton<T>::Singleton(MEM_ROOT *mem_root, const std::string &db_name,
                         const std::string &tbl_name,
-                        const std::string &col_name, Value_map_type data_type)
+                        const std::string &col_name, Value_map_type data_type,
+                        bool *error)
     : Histogram(mem_root, db_name, tbl_name, col_name,
-                enum_histogram_type::SINGLETON, data_type),
-      m_buckets(Histogram_comparator(), singleton_buckets_allocator(mem_root)) {
+                enum_histogram_type::SINGLETON, data_type, error),
+      m_buckets(mem_root) {}
+
+// Public factory method
+template <class T>
+Singleton<T> *Singleton<T>::create(MEM_ROOT *mem_root,
+                                   const std::string &db_name,
+                                   const std::string &tbl_name,
+                                   const std::string &col_name,
+                                   Value_map_type data_type) {
+  bool error = false;
+  Singleton<T> *singleton = new (mem_root)
+      Singleton<T>(mem_root, db_name, tbl_name, col_name, data_type, &error);
+  if (error) return nullptr;
+  return singleton;
 }
 
 template <class T>
-Singleton<T>::Singleton(MEM_ROOT *mem_root, const Singleton<T> &other)
-    : Histogram(mem_root, other),
-      m_buckets(other.m_buckets.begin(), other.m_buckets.end(),
-                Histogram_comparator(), singleton_buckets_allocator(mem_root)) {
+Singleton<T>::Singleton(MEM_ROOT *mem_root, const Singleton<T> &other,
+                        bool *error)
+    : Histogram(mem_root, other, error), m_buckets(mem_root) {
+  if (m_buckets.reserve(other.m_buckets.size())) {
+    *error = true;
+    return;  // OOM
+  }
+  for (const auto &bucket : other.m_buckets) {
+    m_buckets.push_back(bucket);
+  }
 }
 
 template <>
-Singleton<String>::Singleton(MEM_ROOT *mem_root, const Singleton<String> &other)
-    : Histogram(mem_root, other),
-      m_buckets(Histogram_comparator(), singleton_buckets_allocator(mem_root)) {
+Singleton<String>::Singleton(MEM_ROOT *mem_root, const Singleton<String> &other,
+                             bool *error)
+    : Histogram(mem_root, other, error), m_buckets(mem_root) {
   /*
     Copy bucket contents. We need to make duplicates of String data, since they
     are allocated on a MEM_ROOT that most likely will be freed way too early.
   */
+  if (m_buckets.reserve(other.m_buckets.size())) {
+    *error = true;
+    return;  // OOM
+  }
   for (const auto &bucket : other.m_buckets) {
-    char *string_data = bucket.first.dup(mem_root);
+    char *string_data = bucket.value.dup(mem_root);
     if (string_data == nullptr) {
+      *error = true;
       assert(false); /* purecov: deadcode */
       return;        // OOM
     }
 
-    String string_dup(string_data, bucket.first.length(),
-                      bucket.first.charset());
-    m_buckets.emplace(string_dup, bucket.second);
+    String string_dup(string_data, bucket.value.length(),
+                      bucket.value.charset());
+    m_buckets.push_back(
+        SingletonBucket<String>(string_dup, bucket.cumulative_frequency));
   }
 }
 
@@ -117,23 +144,15 @@ bool Singleton<T>::build_histogram(const Value_map<T> &value_map,
       value_map.get_num_null_values() / static_cast<double>(total_count);
 
   // Create buckets with relative frequency, and not absolute frequency.
-  double cumulative_frequency = 0.0;
+  ha_rows cumulative_sum = 0;
 
-  /*
-    Since we are using a std::map with Mem_root_allocator, we are forced to wrap
-    the following section in a try-catch. The Mem_root_allocator will throw an
-    exception of class std::bad_alloc when it runs out of memory.
-  */
-  try {
-    for (const auto &node : value_map) {
-      const double frequency = node.second / static_cast<double>(total_count);
-      cumulative_frequency += frequency;
+  if (m_buckets.reserve(value_map.size())) return true;  // OOM
 
-      m_buckets.emplace(node.first, cumulative_frequency);
-    }
-  } catch (const std::bad_alloc &) {
-    // Out of memory.
-    return true;
+  for (const auto &node : value_map) {
+    cumulative_sum += node.second;
+    const double cumulative_frequency =
+        cumulative_sum / static_cast<double>(total_count);
+    m_buckets.push_back(SingletonBucket<T>(node.first, cumulative_frequency));
   }
 
   return false;
@@ -168,14 +187,14 @@ bool Singleton<T>::histogram_to_json(Json_object *json_object) const {
 }
 
 template <class T>
-bool Singleton<T>::create_json_bucket(const std::pair<T, double> &bucket,
+bool Singleton<T>::create_json_bucket(const SingletonBucket<T> &bucket,
                                       Json_array *json_bucket) {
   // Value
-  if (add_value_json_bucket(bucket.first, json_bucket))
+  if (add_value_json_bucket(bucket.value, json_bucket))
     return true; /* purecov: inspected */
 
   // Cumulative frequency
-  const Json_double frequency(bucket.second);
+  const Json_double frequency(bucket.cumulative_frequency);
   if (json_bucket->append_clone(&frequency))
     return true; /* purecov: inspected */
   return false;
@@ -270,6 +289,8 @@ bool Singleton<T>::json_to_histogram(const Json_object &json_object) {
     return true; /* purecov: deadcode */
 
   const Json_array *buckets = down_cast<const Json_array *>(buckets_dom);
+  if (m_buckets.reserve(buckets->size())) return true;  // OOM
+
   for (size_t i = 0; i < buckets->size(); ++i) {
     const Json_dom *bucket_dom = (*buckets)[i];
     if (bucket_dom == nullptr ||
@@ -292,20 +313,22 @@ bool Singleton<T>::json_to_histogram(const Json_object &json_object) {
     if (extract_json_dom_value(value_dom, &value))
       return true; /* purecov: deadcode */
 
-    m_buckets.emplace(value, cumulative_frequency->value());
+    assert(m_buckets.capacity() > m_buckets.size());
+    m_buckets.push_back(
+        SingletonBucket<T>(value, cumulative_frequency->value()));
   }
+  assert(std::is_sorted(m_buckets.begin(), m_buckets.end(),
+                        Histogram_comparator()));
   return false;
 }
 
 template <class T>
 Histogram *Singleton<T>::clone(MEM_ROOT *mem_root) const {
   DBUG_EXECUTE_IF("fail_histogram_clone", return nullptr;);
-
-  try {
-    return new (mem_root) Singleton<T>(mem_root, *this);
-  } catch (const std::bad_alloc &) {
-    return nullptr; /* purecov: deadcode */
-  }
+  bool error = false;
+  Histogram *singleton = new (mem_root) Singleton<T>(mem_root, *this, &error);
+  if (error) return nullptr;
+  return singleton;
 }
 
 template <class T>
@@ -314,16 +337,17 @@ double Singleton<T>::get_equal_to_selectivity(const T &value) const {
     Find the first histogram bucket where the value is not less than the
     user-provided value.
   */
-  const auto found = m_buckets.lower_bound(value);
+  const auto found = std::lower_bound(m_buckets.begin(), m_buckets.end(), value,
+                                      Histogram_comparator());
 
   if (found == m_buckets.end()) return 0.0;
 
-  if (Histogram_comparator()(value, found->first) == 0) {
+  if (Histogram_comparator()(value, found->value) == 0) {
     if (found == m_buckets.begin())
-      return found->second;
+      return found->cumulative_frequency;
     else {
       const auto previous = std::prev(found, 1);
-      return found->second - previous->second;
+      return found->cumulative_frequency - previous->cumulative_frequency;
     }
   }
 
@@ -336,12 +360,13 @@ double Singleton<T>::get_less_than_selectivity(const T &value) const {
     Find the first histogram bucket where the value is not less than the
     user-provided value.
   */
-  const auto found = m_buckets.lower_bound(value);
+  const auto found = std::lower_bound(m_buckets.begin(), m_buckets.end(), value,
+                                      Histogram_comparator());
   if (found == m_buckets.begin())
     return 0.0;
   else {
     const auto previous = std::prev(found, 1);
-    return previous->second;
+    return previous->cumulative_frequency;
   }
 }
 
@@ -351,13 +376,14 @@ double Singleton<T>::get_greater_than_selectivity(const T &value) const {
     Find the first histogram bucket where the value is greater than the
     user-provided value.
   */
-  const auto found = m_buckets.upper_bound(value);
+  const auto found = std::upper_bound(m_buckets.begin(), m_buckets.end(), value,
+                                      Histogram_comparator());
 
   if (found == m_buckets.begin())
-    return get_non_null_values_frequency();
+    return get_non_null_values_fraction();
   else {
     const auto previous = std::prev(found, 1);
-    return get_non_null_values_frequency() - previous->second;
+    return get_non_null_values_fraction() - previous->cumulative_frequency;
   }
 }
 

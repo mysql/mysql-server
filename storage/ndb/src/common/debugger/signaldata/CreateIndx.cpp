@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,9 +25,17 @@
 
 #include <signaldata/CreateIndx.hpp>
 
-bool
-printCREATE_INDX_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+bool printCREATE_INDX_REQ(FILE* output,
+                          const Uint32* theData,
+                          Uint32 len,
+                          Uint16)
 {
+  if (len < CreateIndxReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateIndxReq* sig = (const CreateIndxReq*)theData;
   fprintf(output, " clientRef: 0x%x", sig->clientRef);
   fprintf(output, " clientData: %u", sig->clientData);
@@ -47,6 +55,12 @@ printCREATE_INDX_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printCREATE_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < CreateIndxConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateIndxConf* sig = (const CreateIndxConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);
@@ -58,8 +72,17 @@ printCREATE_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   return true;
 }
 
-bool printCREATE_INDX_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
+bool printCREATE_INDX_REF(FILE* output,
+                          const Uint32* theData,
+                          Uint32 len,
+                          Uint16)
 {
+  if (len < CreateIndxRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const CreateIndxRef* sig = (const CreateIndxRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " clientData: %u", sig->clientData);

@@ -125,8 +125,10 @@ SET global.slow_launch_time = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.slow_launch_time = 1' at line 1
 SELECT global.slow_launch_time;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT slow_launch_time = @@session.slow_launch_time;
+SELECT slow_launch_time;
 ERROR 42S22: Unknown column 'slow_launch_time' in 'field list'
+SELECT @@session.slow_launch_time;
+ERROR HY000: Variable 'slow_launch_time' is a GLOBAL variable
 SET @@global.slow_launch_time = @start_value;
 SELECT @@global.slow_launch_time;
 @@global.slow_launch_time

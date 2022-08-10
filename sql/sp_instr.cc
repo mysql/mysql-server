@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -211,7 +211,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
   qbuf.length(0);
   const char *cur = query_str.str;
   int prev_pos = 0;
-  bool res = 0;
+  bool res = false;
   thd->query_name_consts = 0;
 
   for (Item_splocal **splocal = sp_vars_uses.begin();
@@ -357,7 +357,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   /*
     In case a session state exists do not cache the SELECT stmt. If we
-    cache SELECT statment when session state information exists, then
+    cache SELECT statement when session state information exists, then
     the result sets of this SELECT are cached which contains changed
     session information. Next time when same query is executed when there
     is no change in session state, then result sets are picked from cache
@@ -476,14 +476,14 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
     statement. To make sure that items are created in the statement mem_root,
     change state to STMT_INITIALIZED_FOR_SP.
 
-    When a "table exists" error occur for CREATE TABLE ... SELECT change state
+    When a "table exists" error occurs for CREATE TABLE ... SELECT change state
     to STMT_INITIALIZED_FOR_SP, as if statement must be reprepared.
 
       Why is this necessary? A useful pointer would be to note how
       PREPARE/EXECUTE uses functions like select_like_stmt_test to implement
       CREATE TABLE .... SELECT. The SELECT part of the DDL is resolved first.
       Then there is an attempt to create the table. So in the execution phase,
-      if "table exists" error occurs or flush table preceeds the execute, the
+      if "table exists" error occurs or flush table precedes the execute, the
       item tree of the select is re-created and followed by an attempt to create
       the table.
 
@@ -565,9 +565,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   cleanup_before_parsing(thd);
 
   // Cleanup and re-init the lex mem_root for re-parse.
-  free_root(&m_lex_mem_root, MYF(0));
-  init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_lex_mem_root, MEM_ROOT_BLOCK_SIZE,
-                 MEM_ROOT_PREALLOC);
+  m_lex_mem_root.ClearForReuse();
 
   /*
     Switch mem-roots. We store the new LEX and its Items in the
@@ -595,7 +593,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   Item *execution_item_list = thd->item_list();
   thd->reset_item_list();
 
-  // Create a new LEX and intialize it.
+  // Create a new LEX and initialize it.
 
   LEX *lex_saved = thd->lex;
 
@@ -682,8 +680,6 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
                                                  bool open_tables) {
   Reprepare_observer reprepare_observer;
-  int reprepare_attempt = 0;
-  const int MAX_REPREPARE_ATTEMPTS = 3;
 
   while (true) {
     DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
@@ -745,17 +741,22 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
           raise it to the user;
     */
     if (stmt_reprepare_observer == nullptr || thd->is_fatal_error() ||
-        thd->killed || thd->get_stmt_da()->mysql_errno() != ER_NEED_REPREPARE)
+        thd->killed || thd->get_stmt_da()->mysql_errno() != ER_NEED_REPREPARE) {
+      /*
+        If an error occurred before execution, make sure next execution is
+        started with a clean statement:
+      */
+      if (m_lex->is_metadata_used() && !m_lex->is_exec_started()) {
+        invalidate();
+      }
       return true;
-
+    }
     /*
-      We take only 3 attempts to reprepare the query, otherwise we might end
-      up in the endless loop.
+      Reprepare_observer ensures that the statement is retried a maximum number
+      of times, to avoid an endless loop.
     */
     assert(stmt_reprepare_observer->is_invalidated());
-    if ((reprepare_attempt++ >= MAX_REPREPARE_ATTEMPTS) ||
-        DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", true,
-                         false)) {
+    if (!stmt_reprepare_observer->can_retry()) {
       /*
         Reprepare_observer sets error status in DA but Sql_condition is not
         added. Please check Reprepare_observer::report_error(). Pushing
@@ -915,7 +916,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
       and therefore pass in a null-pointer instead of a pointer to
       state at the beginning of execution.
     */
-    log_slow_do(thd, nullptr);
+    log_slow_do(thd);
   }
 
   /*
@@ -1711,16 +1712,16 @@ bool sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp) {
 
   sp_rcontext *rctx = thd->sp_runtime_ctx;
 
-  if (rctx->set_case_expr(thd, m_case_expr_id, &m_expr_item) &&
-      !rctx->get_case_expr(m_case_expr_id)) {
-    // Failed to evaluate the value, the case expression is still not
-    // initialized. Set to NULL so we can continue.
+  if (rctx->set_case_expr(thd, m_case_expr_id, &m_expr_item)) {
+    if (!rctx->get_case_expr(m_case_expr_id)) {
+      // Failed to evaluate the value, the case expression is still not
+      // initialized. Set to NULL so we can continue.
+      Item *null_item = new Item_null();
 
-    Item *null_item = new Item_null();
-
-    if (!null_item || rctx->set_case_expr(thd, m_case_expr_id, &null_item)) {
-      // If this also failed, we have to abort.
-      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
+      if (!null_item || rctx->set_case_expr(thd, m_case_expr_id, &null_item)) {
+        // If this also failed, we have to abort.
+        my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
+      }
     }
 
     return true;

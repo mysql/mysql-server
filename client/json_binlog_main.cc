@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 
 #include <string>
 
-#include "json_binary.h"
+#include "sql-common/json_binary.h"
 
 int main() {
   json_binary::Value value = json_binary::parse_binary(nullptr, 0);
@@ -58,7 +58,7 @@ int main() {
   json_binary::Value string_value = json_binary::Value("foo", 3);
 
   std::string string_buf;
-  string_value.to_std_string(&string_buf);
-  string_value.to_pretty_std_string(&string_buf);
+  string_value.to_std_string(&string_buf, [] { assert(false); });
+  string_value.to_pretty_std_string(&string_buf, [] { assert(false); });
   return 0;
 }

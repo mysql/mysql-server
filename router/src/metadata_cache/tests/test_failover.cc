@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -72,17 +72,23 @@ class FailoverTest : public ::testing::Test {
         [](mysqlrouter::MySQLSession *) {}   // and don't try deleting it!
     );
 
-    cmeta = std::make_shared<GRClusterMetadata>("admin", "admin", 1, 1, 1,
-                                                mysqlrouter::SSLOptions());
+    cmeta = std::make_shared<GRClusterMetadata>(
+        metadata_cache::MetadataCacheMySQLSessionConfig{
+            {"admin", "admin"}, 1, 1, 1},
+        mysqlrouter::SSLOptions());
   }
 
   void init_cache() {
     cache = std::make_shared<GRMetadataCache>(
-        kRouterId, group_uuid,
+        kRouterId, group_uuid, "",
         std::vector<mysql_harness::TCPAddress>{
             {"localhost", 32275},
         },
-        cmeta, 10s, -1s, 20s, mysqlrouter::SSLOptions(), "cluster-1",
+        cmeta, metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
+        mysqlrouter::SSLOptions(),
+        mysqlrouter::TargetCluster{
+            mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+        metadata_cache::RouterAttributes{},
         mysql_harness::kDefaultStackSizeInKiloBytes, false);
   }
 
@@ -219,6 +225,8 @@ class DelayCheck {
   time_t start_time_;
 };
 
+namespace std {
+
 std::ostream &operator<<(std::ostream &os, const ServerMode &v) {
   switch (v) {
     case ServerMode::ReadOnly:
@@ -243,12 +251,13 @@ std::ostream &operator<<(std::ostream &os, const ManagedInstance &v) {
   os << "port: " << v.port << ", ";
   os << "xport: " << v.xport << ", ";
   os << "mode: " << v.mode << ", ";
-  os << "mysql_server_uuid: " << v.mysql_server_uuid << ", ";
-  os << "replicaset_name: " << v.replicaset_name;
+  os << "mysql_server_uuid: " << v.mysql_server_uuid;
   os << "}";
 
   return os;
 }
+
+}  // namespace std
 
 MATCHER(PartialInstanceMatcher, "" /* defaults to 'uuid matcher' */) {
   using namespace ::testing;
@@ -270,7 +279,7 @@ TEST_F(FailoverTest, primary_failover_router_member_network_loss) {
   ASSERT_NO_THROW(init_cache());
   expect_metadata_1();
   expect_group_members_1();
-  cache->refresh();
+  cache->refresh(true);
 
   // ensure no expected queries leftover
   ASSERT_FALSE(session->print_expected());
@@ -278,7 +287,7 @@ TEST_F(FailoverTest, primary_failover_router_member_network_loss) {
   // ensure that the instance list returned by a lookup is the expected one
   // in the case everything's online and well
 
-  ASSERT_THAT(cache->replicaset_lookup(replicaset_name),
+  ASSERT_THAT(cache->get_cluster_nodes(),
               ::testing::Pointwise(
                   PartialInstanceMatcher(),
                   std::initializer_list<std::tuple<const char *, ServerMode>>{
@@ -290,15 +299,12 @@ TEST_F(FailoverTest, primary_failover_router_member_network_loss) {
   // ----------------------------------------------------------------
   expect_metadata_1();
   expect_group_members_1();
-  ASSERT_NO_THROW(cache->refresh());
+  ASSERT_NO_THROW(cache->refresh(true));
 
-  cache->mark_instance_reachability(
-      node_1_uuid, metadata_cache::InstanceStatus::Unreachable);
   // this should fail with timeout b/c no primary yet
   {
     DelayCheck t;
-    EXPECT_FALSE(
-        cache->wait_primary_failover(replicaset_name, node_1_uuid, 1s));
+    EXPECT_FALSE(cache->wait_primary_failover(node_1_uuid, 1s));
     EXPECT_GE(t.time_elapsed(), 1);
   }
 }
@@ -307,13 +313,13 @@ TEST_F(FailoverTest, primary_failover_reelection) {
   ASSERT_NO_THROW(init_cache());
   expect_metadata_1();
   expect_group_members_1();
-  cache->refresh();
+  cache->refresh(true);
   // ensure no expected queries leftover
   ASSERT_FALSE(session->print_expected());
 
   // primary is still visible, even tho it's dead.. that's because we pretend
   // we're getting updates from an instance that hasn't noticed that yet
-  ASSERT_THAT(cache->replicaset_lookup(replicaset_name),
+  ASSERT_THAT(cache->get_cluster_nodes(),
               ::testing::Pointwise(
                   PartialInstanceMatcher(),
                   std::initializer_list<std::tuple<const char *, ServerMode>>{
@@ -325,9 +331,9 @@ TEST_F(FailoverTest, primary_failover_reelection) {
   // ---------------------------------------------------
   expect_metadata_1();
   expect_group_members_1_primary_fail(nullptr, node_2_uuid);
-  ASSERT_NO_THROW(cache->refresh());
+  ASSERT_NO_THROW(cache->refresh(true));
 
-  ASSERT_THAT(cache->replicaset_lookup(replicaset_name),
+  ASSERT_THAT(cache->get_cluster_nodes(),
               ::testing::Pointwise(
                   PartialInstanceMatcher(),
                   std::initializer_list<std::tuple<const char *, ServerMode>>{
@@ -338,7 +344,7 @@ TEST_F(FailoverTest, primary_failover_reelection) {
   // this should succeed
   {
     DelayCheck t;
-    EXPECT_TRUE(cache->wait_primary_failover(replicaset_name, node_1_uuid, 2s));
+    EXPECT_TRUE(cache->wait_primary_failover(node_1_uuid, 2s));
     EXPECT_LE(t.time_elapsed(), 1);
   }
 }
@@ -347,18 +353,14 @@ TEST_F(FailoverTest, primary_failover_shutdown) {
   ASSERT_NO_THROW(init_cache());
   expect_metadata_1();
   expect_group_members_1();
-  ASSERT_NO_THROW(cache->refresh());
-
-  cache->mark_instance_reachability(
-      node_1_uuid, metadata_cache::InstanceStatus::Unreachable);
+  ASSERT_NO_THROW(cache->refresh(true));
 
   auto wait_failover_thread = std::thread([&] {
     DelayCheck t;
     // even though we wait for 10s for the primary failover the function should
     // return promptly when the catche->stop() gets called (mimicking terminate
     // request)
-    EXPECT_FALSE(
-        cache->wait_primary_failover(replicaset_name, node_1_uuid, 10s));
+    EXPECT_FALSE(cache->wait_primary_failover(node_1_uuid, 10s));
     EXPECT_LE(t.time_elapsed(), 1);
   });
 

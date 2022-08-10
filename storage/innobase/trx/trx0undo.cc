@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,6 +45,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "current_thd.h"
 #include "dict0dd.h"
 #include "fil0fil.h"
+#include "log0chkp.h"
+#include "log0write.h"
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "srv0mon.h"
@@ -173,8 +175,9 @@ static trx_undo_rec_t *trx_undo_get_prev_rec_from_prev_page(
 
   ut_ad(found);
 
-  buf_block_t *block = buf_page_get(page_id_t(space, prev_page_no), page_size,
-                                    shared ? RW_S_LATCH : RW_X_LATCH, mtr);
+  buf_block_t *block =
+      buf_page_get(page_id_t(space, prev_page_no), page_size,
+                   shared ? RW_S_LATCH : RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
   buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 
@@ -208,13 +211,13 @@ trx_undo_rec_t *trx_undo_get_prev_rec(
 }
 
 /** Gets the next record in an undo log from the next page.
-@param[in]	space		Undo log header space
-@param[in]	page_size	Page size
-@param[in]	undo_page	Undo log page
-@param[in]	page_no		Undo log header page number
-@param[in]	offset		Undo log header offset on page
-@param[in]	mode		Latch mode: RW_S_LATCH or RW_X_LATCH
-@param[in,out]	mtr		Mini-transaction
+@param[in]      space           Undo log header space
+@param[in]      page_size       Page size
+@param[in]      undo_page       Undo log page
+@param[in]      page_no         Undo log header page number
+@param[in]      offset          Undo log header offset on page
+@param[in]      mode            Latch mode: RW_S_LATCH or RW_X_LATCH
+@param[in,out]  mtr             Mini-transaction
 @return undo log record, the page latched, NULL if none */
 static trx_undo_rec_t *trx_undo_get_next_rec_from_next_page(
     space_id_t space, const page_size_t &page_size, const page_t *undo_page,
@@ -281,13 +284,13 @@ trx_undo_rec_t *trx_undo_get_next_rec(
 }
 
 /** Gets the first record in an undo log.
-@param[out]	modifier_trx_id	The modifier trx identifier.
-@param[in]	space		Undo log header space
-@param[in]	page_size	Page size
-@param[in]	page_no		Undo log header page number
-@param[in]	offset		Undo log header offset on page
-@param[in]	mode		Latching mode: RW_S_LATCH or RW_X_LATCH
-@param[in,out]	mtr		Mini-transaction
+@param[out]     modifier_trx_id The modifier trx identifier.
+@param[in]      space           Undo log header space
+@param[in]      page_size       Page size
+@param[in]      page_no         Undo log header page number
+@param[in]      offset          Undo log header offset on page
+@param[in]      mode            Latching mode: RW_S_LATCH or RW_X_LATCH
+@param[in,out]  mtr             Mini-transaction
 @return undo log record, the page latched, NULL if none */
 trx_undo_rec_t *trx_undo_get_first_rec(trx_id_t *modifier_trx_id,
                                        space_id_t space,
@@ -323,10 +326,10 @@ trx_undo_rec_t *trx_undo_get_first_rec(trx_id_t *modifier_trx_id,
 /*============== UNDO LOG FILE COPY CREATION AND FREEING ==================*/
 
 /** Writes the mtr log entry of an undo log page initialization. */
-UNIV_INLINE
-void trx_undo_page_init_log(page_t *undo_page, /*!< in: undo log page */
-                            ulint type,        /*!< in: undo log type */
-                            mtr_t *mtr)        /*!< in: mtr */
+static inline void trx_undo_page_init_log(
+    page_t *undo_page, /*!< in: undo log page */
+    ulint type,        /*!< in: undo log type */
+    mtr_t *mtr)        /*!< in: mtr */
 {
   mlog_write_initial_log_record(undo_page, MLOG_UNDO_INIT, mtr);
 
@@ -384,13 +387,13 @@ static void trx_undo_page_init(
 /** Creates a new undo log segment in file.
  @return DB_SUCCESS if page creation OK possible error codes are:
  DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t trx_undo_seg_create(
-    trx_rseg_t *rseg MY_ATTRIBUTE((unused)), /*!< in: rollback segment */
-    trx_rsegf_t *rseg_hdr, /*!< in: rollback segment header, page
-                          x-latched */
-    ulint type,            /*!< in: type of the segment: TRX_UNDO_INSERT or
-                           TRX_UNDO_UPDATE */
-    ulint *id,             /*!< out: slot index within rseg header */
+[[nodiscard]] static dberr_t trx_undo_seg_create(
+    trx_rseg_t *rseg [[maybe_unused]], /*!< in: rollback segment */
+    trx_rsegf_t *rseg_hdr,             /*!< in: rollback segment header,
+                                      page x-latched */
+    ulint type,                        /*!< in: type of the segment:
+                                       TRX_UNDO_INSERT or            TRX_UNDO_UPDATE */
+    ulint *id, /*!< out: slot index within rseg header */
     page_t **undo_page,
     /*!< out: segment header page x-latched, NULL
     if there was an error */
@@ -434,7 +437,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t trx_undo_seg_create(
 
   /* Allocate a new file segment for the undo log */
   block = fseg_create_general(space, 0, TRX_UNDO_SEG_HDR + TRX_UNDO_FSEG_HEADER,
-                              TRUE, mtr);
+                              true, mtr);
 
   fil_space_release_free_extents(space, n_reserved);
 
@@ -472,8 +475,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t trx_undo_seg_create(
 }
 
 /** Writes the mtr log entry of an undo log header initialization. */
-UNIV_INLINE
-void trx_undo_header_create_log(
+static inline void trx_undo_header_create_log(
     const page_t *undo_page, /*!< in: undo log header page */
     trx_id_t trx_id,         /*!< in: transaction id */
     mtr_t *mtr)              /*!< in: mtr */
@@ -539,13 +541,13 @@ static ulint trx_undo_header_create(
 
   log_hdr = undo_page + free;
 
-  mach_write_to_2(log_hdr + TRX_UNDO_DEL_MARKS, TRUE);
+  mach_write_to_2(log_hdr + TRX_UNDO_DEL_MARKS, true);
 
   mach_write_to_8(log_hdr + TRX_UNDO_TRX_ID, trx_id);
   mach_write_to_2(log_hdr + TRX_UNDO_LOG_START, new_free);
 
   mach_write_to_1(log_hdr + TRX_UNDO_FLAGS, 0);
-  mach_write_to_1(log_hdr + TRX_UNDO_DICT_TRANS, FALSE);
+  mach_write_to_1(log_hdr + TRX_UNDO_DICT_TRANS, false);
 
   mach_write_to_2(log_hdr + TRX_UNDO_NEXT_LOG, 0);
   mach_write_to_2(log_hdr + TRX_UNDO_PREV_LOG, prev_log);
@@ -606,7 +608,6 @@ dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback) {
   dberr_t db_err = DB_SUCCESS;
 
   if (undo_ptr->is_insert_only() || gtid_explicit) {
-    ut_ad(!rollback);
     mutex_enter(&trx->undo_mutex);
     db_err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_UPDATE);
     mutex_exit(&trx->undo_mutex);
@@ -616,11 +617,11 @@ dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback) {
   Cannot do it earlier as GTID information is not known before. Keep the
   debug assert to know if it really happens ever. */
   if (db_err != DB_SUCCESS) {
-    ut_ad(false);
     trx->persists_gtid = false;
     ib::error(ER_IB_CLONE_GTID_PERSIST)
         << "Could not allocate undo segment"
         << " slot for persisting GTID. DB Error: " << db_err;
+    ut_d(ut_error);
   }
   return (db_err);
 }
@@ -654,10 +655,10 @@ void trx_undo_gtid_set(trx_t *trx, trx_undo_t *undo, bool is_xa_prepare) {
 
   /* Verify that we have allocated for GTID */
   if (!undo->gtid_allocated(is_xa_prepare)) {
-    ut_ad(false);
     ib::error(ER_IB_CLONE_GTID_PERSIST)
         << "Could not persist GTID as space for GTID is not allocated.";
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
   undo->flag |= gtid_flag;
 }
@@ -672,7 +673,9 @@ void trx_undo_gtid_read_and_persist(trx_ulogf_t *undo_header) {
   /* Get GTID persister */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
 
-  /* Extract and add XA prepare GTID, if there. */
+  /* Extract and add XA prepare GTID, if there and if and only if the
+     transaction is in PREPARED_IN_TC state, otherwise, there is no assurance
+     that the transaction will be kept in prepared state. */
   if ((flag & TRX_UNDO_FLAG_XA_PREPARE_GTID) != 0) {
     /* Get GTID format version. */
     gtid_desc.m_version = static_cast<uint32_t>(
@@ -686,9 +689,9 @@ void trx_undo_gtid_read_and_persist(trx_ulogf_t *undo_header) {
 
     /* No concurrency is involved during recovery but satisfy
     the interface requirement. */
-    trx_sys_mutex_enter();
+    trx_sys_serialisation_mutex_enter();
     gtid_persistor.add(gtid_desc);
-    trx_sys_mutex_exit();
+    trx_sys_serialisation_mutex_exit();
   }
 
   if ((flag & TRX_UNDO_FLAG_GTID) == 0) {
@@ -707,9 +710,9 @@ void trx_undo_gtid_read_and_persist(trx_ulogf_t *undo_header) {
 
   /* No concurrency is involved during recovery but satisfy
   the interface requirement. */
-  trx_sys_mutex_enter();
+  trx_sys_serialisation_mutex_enter();
   gtid_persistor.add(gtid_desc);
-  trx_sys_mutex_exit();
+  trx_sys_serialisation_mutex_exit();
 }
 
 void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
@@ -728,8 +731,8 @@ void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
 
   /* We must have allocated for GTID but add a safe check. */
   if (!undo->gtid_allocated(is_xa_prepare)) {
-    ut_ad(false);
-    return;
+    ut_d(ut_error);
+    ut_o(return );
   }
 
   Gtid_desc gtid_desc;
@@ -742,7 +745,7 @@ void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
     mlog_write_ulint(undo_header + TRX_UNDO_LOG_GTID_VERSION,
                      gtid_desc.m_version, MLOG_1BYTE, mtr);
     /* Persist fixed length GTID */
-    ut_ad(TRX_UNDO_LOG_GTID_LEN == GTID_INFO_SIZE);
+    static_assert(TRX_UNDO_LOG_GTID_LEN == GTID_INFO_SIZE);
     mlog_write_string(undo_header + gtid_offset, &gtid_desc.m_info[0],
                       TRX_UNDO_LOG_GTID_LEN, mtr);
     undo->flag |= gtid_flag;
@@ -768,9 +771,9 @@ static void trx_undo_read_xid(
 }
 
 /** Adds space for the XA XID after an undo log old-style header.
-@param[in,out]	undo_page	Undo log segment header page
-@param[in,out]	log_hdr		Undo log header
-@param[in,out]	mtr		Mini-transaction
+@param[in,out]  undo_page       Undo log segment header page
+@param[in,out]  log_hdr         Undo log header
+@param[in,out]  mtr             Mini-transaction
 @param[in]      gtid_storage    GTID storage type */
 static void trx_undo_header_add_space_for_xid(
     page_t *undo_page, trx_ulogf_t *log_hdr, mtr_t *mtr,
@@ -798,7 +801,7 @@ static void trx_undo_header_add_space_for_xid(
       break;
 
     default:
-      ut_ad(false);
+      ut_d(ut_error);
   }
 
   ulint new_free = free + (new_limit - TRX_UNDO_LOG_OLD_HDR_SIZE);
@@ -814,8 +817,7 @@ static void trx_undo_header_add_space_for_xid(
 }
 
 /** Writes the mtr log entry of an undo log header reuse. */
-UNIV_INLINE
-void trx_undo_insert_header_reuse_log(
+static inline void trx_undo_insert_header_reuse_log(
     const page_t *undo_page, /*!< in: undo log header page */
     trx_id_t trx_id,         /*!< in: transaction id */
     mtr_t *mtr)              /*!< in: mtr */
@@ -851,7 +853,7 @@ byte *trx_undo_parse_page_header(mlog_id_t type, const byte *ptr,
       default:
         break;
     }
-    ut_ad(0);
+    ut_d(ut_error);
   }
 
   return (const_cast<byte *>(ptr));
@@ -904,7 +906,7 @@ static ulint trx_undo_insert_header_reuse(
   mach_write_to_2(log_hdr + TRX_UNDO_LOG_START, new_free);
 
   mach_write_to_1(log_hdr + TRX_UNDO_FLAGS, 0);
-  mach_write_to_1(log_hdr + TRX_UNDO_DICT_TRANS, FALSE);
+  mach_write_to_1(log_hdr + TRX_UNDO_DICT_TRANS, false);
 
   /* Write the log record MLOG_UNDO_HDR_REUSE */
   trx_undo_insert_header_reuse_log(undo_page, trx_id, mtr);
@@ -949,7 +951,7 @@ buf_block_t *trx_undo_add_page(
 
   new_block = fseg_alloc_free_page_general(
       TRX_UNDO_SEG_HDR + TRX_UNDO_FSEG_HEADER + header_page,
-      undo->top_page_no + 1, FSP_UP, TRUE, mtr, mtr);
+      undo->top_page_no + 1, FSP_UP, true, mtr, mtr);
 
   fil_space_release_free_extents(undo->space, n_reserved);
 
@@ -979,8 +981,8 @@ buf_block_t *trx_undo_add_page(
  @return last page number in remaining log */
 static page_no_t trx_undo_free_page(
     trx_rseg_t *rseg,      /*!< in: rollback segment */
-    ibool in_history,      /*!< in: TRUE if the undo log is in the history
-                           list */
+    bool in_history,       /*!< in: true if the undo log is in the history
+                            list */
     space_id_t space,      /*!< in: space */
     page_no_t hdr_page_no, /*!< in: header page number */
     page_no_t page_no,     /*!< in: page number to free: must not be the
@@ -1028,23 +1030,14 @@ static page_no_t trx_undo_free_page(
   return (last_addr.page);
 }
 
-/** Frees the last undo log page.
- The caller must hold the rollback segment mutex. */
-void trx_undo_free_last_page_func(
-#ifdef UNIV_DEBUG
-    const trx_t *trx, /*!< in: transaction */
-#endif                /* UNIV_DEBUG */
-    trx_undo_t *undo, /*!< in/out: undo log memory copy */
-    mtr_t *mtr)       /*!< in/out: mini-transaction which does not
-                      have a latch to any undo log page or which
-                      has allocated the undo log page */
-{
+void trx_undo_free_last_page_func(IF_DEBUG(const trx_t *trx, ) trx_undo_t *undo,
+                                  mtr_t *mtr) {
   ut_ad(mutex_own(&trx->undo_mutex));
   ut_ad(undo->hdr_page_no != undo->last_page_no);
   ut_ad(undo->size > 0);
 
   undo->last_page_no =
-      trx_undo_free_page(undo->rseg, FALSE, undo->space, undo->hdr_page_no,
+      trx_undo_free_page(undo->rseg, false, undo->space, undo->hdr_page_no,
                          undo->last_page_no, mtr);
 
   undo->size--;
@@ -1125,20 +1118,13 @@ int trx_undo_page_truncate_offset(trx_undo_t *undo, page_t *undo_page,
 }
 
 /** Truncates an undo log from the end. This function is used during a rollback
- to free space from an undo log. */
-#ifdef UNIV_DEBUG
-/**
-@param[in]  trx    transaction for this undo log */
-#endif /* UNIV_DEBUG */
-/**
+ to free space from an undo log.
+@param[in]  trx    transaction for this undo log
 @param[in]  undo   undo log
 @param[in]  limit  all undo records with undo number;
                    This value should be truncated. */
-void trx_undo_truncate_end_func(
-#ifdef UNIV_DEBUG
-    const trx_t *trx,
-#endif /* UNIV_DEBUG */
-    trx_undo_t *undo, undo_no_t limit) {
+void trx_undo_truncate_end_func(IF_DEBUG(const trx_t *trx, ) trx_undo_t *undo,
+                                undo_no_t limit) {
   ut_ad(mutex_own(&trx->undo_mutex));
   ut_ad(mutex_own(&undo->rseg->mutex));
 
@@ -1175,7 +1161,7 @@ void trx_undo_truncate_end_func(
 
     /* Free the last page and move on to the next. */
     ut_ad(undo->last_page_no != undo->hdr_page_no);
-    trx_undo_free_last_page(trx, undo, &mtr);
+    trx_undo_free_last_page_func(IF_DEBUG(trx, ) undo, &mtr);
 
     mtr.commit();
   }
@@ -1186,10 +1172,10 @@ void trx_undo_truncate_end_func(
 /** Truncate the head of an undo log.
 NOTE that only whole pages are freed; the header page is not
 freed, but emptied, if all the records there are below the limit.
-@param[in,out]	rseg		rollback segment
-@param[in]	hdr_page_no	header page number
-@param[in]	hdr_offset	header offset on the page
-@param[in]	limit		first undo number to preserve
+@param[in,out]  rseg            rollback segment
+@param[in]      hdr_page_no     header page number
+@param[in]      hdr_offset      header offset on the page
+@param[in]      limit           first undo number to preserve
 (everything below the limit will be truncated) */
 void trx_undo_truncate_start(trx_rseg_t *rseg, page_no_t hdr_page_no,
                              ulint hdr_offset, undo_no_t limit) {
@@ -1236,7 +1222,7 @@ loop:
     trx_undo_empty_header_page(rseg->space_id, rseg->page_size, hdr_page_no,
                                hdr_offset, &mtr);
   } else {
-    trx_undo_free_page(rseg, TRUE, rseg->space_id, hdr_page_no, page_no, &mtr);
+    trx_undo_free_page(rseg, true, rseg->space_id, hdr_page_no, page_no, &mtr);
   }
 
   mtr.commit();
@@ -1245,19 +1231,15 @@ loop:
 }
 
 /** Frees an undo log segment which is not in the history list.
-@param[in]	undo	undo log
-@param[in]	noredo	whether the undo tablespace is redo logged */
+@param[in]      undo    undo log
+@param[in]      noredo  whether the undo tablespace is redo logged */
 static void trx_undo_seg_free(const trx_undo_t *undo, bool noredo) {
-  trx_rseg_t *rseg;
-  fseg_header_t *file_seg;
-  trx_rsegf_t *rseg_header;
-  trx_usegf_t *seg_header;
-  ibool finished;
-  mtr_t mtr;
+  bool finished;
 
-  rseg = undo->rseg;
+  auto rseg = undo->rseg;
 
   do {
+    mtr_t mtr;
     mtr.start();
 
     if (noredo) {
@@ -1266,17 +1248,18 @@ static void trx_undo_seg_free(const trx_undo_t *undo, bool noredo) {
 
     rseg->latch();
 
-    seg_header = trx_undo_page_get(page_id_t(undo->space, undo->hdr_page_no),
-                                   undo->page_size, &mtr) +
-                 TRX_UNDO_SEG_HDR;
+    auto seg_header =
+        trx_undo_page_get(page_id_t(undo->space, undo->hdr_page_no),
+                          undo->page_size, &mtr) +
+        TRX_UNDO_SEG_HDR;
 
-    file_seg = seg_header + TRX_UNDO_FSEG_HEADER;
+    auto file_seg = seg_header + TRX_UNDO_FSEG_HEADER;
 
     finished = fseg_free_step(file_seg, false, &mtr);
 
     if (finished) {
       /* Update the rseg header */
-      rseg_header =
+      auto rseg_header =
           trx_rsegf_get(rseg->space_id, rseg->page_no, rseg->page_size, &mtr);
       trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL, &mtr);
 
@@ -1381,9 +1364,9 @@ static trx_undo_t *trx_undo_mem_init(
   rec = trx_undo_page_get_last_rec(last_page, page_no, offset);
 
   if (rec == nullptr) {
-    undo->empty = TRUE;
+    undo->empty = true;
   } else {
-    undo->empty = FALSE;
+    undo->empty = false;
     undo->top_offset = rec - last_page;
     undo->top_undo_no = trx_undo_rec_get_undo_no(rec);
   }
@@ -1402,7 +1385,7 @@ add_to_list:
       UT_LIST_ADD_LAST(rseg->update_undo_list, undo);
       /* For XA prepared transaction and XA rolled back transaction, we
       could have GTID to be persisted. */
-      if (state == TRX_UNDO_PREPARED || state == TRX_UNDO_ACTIVE) {
+      if (undo->is_prepared() || state == TRX_UNDO_ACTIVE) {
         trx_undo_gtid_read_and_persist(undo_header);
       }
     } else {
@@ -1483,7 +1466,8 @@ static trx_undo_t *trx_undo_mem_create(trx_rseg_t *rseg, ulint id, ulint type,
 
   ut_a(id < TRX_RSEG_N_SLOTS);
 
-  undo = static_cast<trx_undo_t *>(ut_malloc_nokey(sizeof(*undo)));
+  undo = static_cast<trx_undo_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*undo)));
 
   if (undo == nullptr) {
     return (nullptr);
@@ -1492,11 +1476,11 @@ static trx_undo_t *trx_undo_mem_create(trx_rseg_t *rseg, ulint id, ulint type,
   undo->id = id;
   undo->type = type;
   undo->state = TRX_UNDO_ACTIVE;
-  undo->del_marks = FALSE;
+  undo->del_marks = false;
   undo->trx_id = trx_id;
   undo->xid = *xid;
 
-  undo->dict_operation = FALSE;
+  undo->dict_operation = false;
   undo->flag = 0;
   undo->m_gtid_storage = trx_undo_t::Gtid_storage::NONE;
 
@@ -1509,7 +1493,7 @@ static trx_undo_t *trx_undo_mem_create(trx_rseg_t *rseg, ulint id, ulint type,
   undo->last_page_no = page_no;
   undo->size = 1;
 
-  undo->empty = TRUE;
+  undo->empty = true;
   undo->top_page_no = page_no;
   undo->guess_block = nullptr;
 
@@ -1529,16 +1513,16 @@ static void trx_undo_mem_init_for_reuse(
   ut_a(undo->id < TRX_RSEG_N_SLOTS);
 
   undo->state = TRX_UNDO_ACTIVE;
-  undo->del_marks = FALSE;
+  undo->del_marks = false;
   undo->trx_id = trx_id;
   undo->xid = *xid;
 
-  undo->dict_operation = FALSE;
+  undo->dict_operation = false;
   undo->flag = 0;
   undo->m_gtid_storage = trx_undo_t::Gtid_storage::NONE;
 
   undo->hdr_offset = offset;
-  undo->empty = TRUE;
+  undo->empty = true;
 }
 
 /** Frees an undo log memory copy. */
@@ -1546,11 +1530,10 @@ void trx_undo_mem_free(trx_undo_t *undo) /*!< in: the undo object to be freed */
 {
   ut_a(undo->id < TRX_RSEG_N_SLOTS);
 
-  ut_free(undo);
+  ut::free(undo);
 }
 
 /** Create a new undo log in the given rollback segment.
-@param[in]   trx    transaction
 @param[in]   rseg   rollback segment memory copy
 @param[in]   type   type of the log: TRX_UNDO_INSERT or TRX_UNDO_UPDATE
 @param[in]   trx_id  id of the trx for which the undo log is created
@@ -1562,10 +1545,9 @@ void trx_undo_mem_free(trx_undo_t *undo) /*!< in: the undo object to be freed */
 @retval DB_TOO_MANY_CONCURRENT_TRXS
 @retval DB_OUT_OF_FILE_SPACE
 @retval DB_OUT_OF_MEMORY */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    trx_undo_create(trx_t *trx, trx_rseg_t *rseg, ulint type, trx_id_t trx_id,
-                    const XID *xid, trx_undo_t::Gtid_storage gtid_storage,
-                    trx_undo_t **undo, mtr_t *mtr) {
+[[nodiscard]] static dberr_t trx_undo_create(
+    trx_rseg_t *rseg, ulint type, trx_id_t trx_id, const XID *xid,
+    trx_undo_t::Gtid_storage gtid_storage, trx_undo_t **undo, mtr_t *mtr) {
   trx_rsegf_t *rseg_header;
   page_no_t page_no;
   ulint offset;
@@ -1615,17 +1597,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 /*================ UNDO LOG ASSIGNMENT AND CLEANUP =====================*/
 
 /** Reuses a cached undo log.
-@param[in,out]	trx	Transaction
-@param[in,out]	rseg	Rollback segment memory object
-@param[in]	type	Type of the log: TRX_UNDO_INSERT or TRX_UNDO_UPDATE
-@param[in]	trx_id	Id of the trx for which the undo log is used
-@param[in]	xid	X/Open XA transaction identification
+@param[in,out]  rseg    Rollback segment memory object
+@param[in]      type    Type of the log: TRX_UNDO_INSERT or TRX_UNDO_UPDATE
+@param[in]      trx_id  Id of the trx for which the undo log is used
+@param[in]      xid     X/Open XA transaction identification
 @param[in]      gtid_storage GTID storage type
-@param[in,out]	mtr	Mini-transaction
+@param[in,out]  mtr     Mini-transaction
 @return the undo log memory object, NULL if none cached */
-static trx_undo_t *trx_undo_reuse_cached(trx_t *trx, trx_rseg_t *rseg,
-                                         ulint type, trx_id_t trx_id,
-                                         const XID *xid,
+static trx_undo_t *trx_undo_reuse_cached(trx_rseg_t *rseg, ulint type,
+                                         trx_id_t trx_id, const XID *xid,
                                          trx_undo_t::Gtid_storage gtid_storage,
                                          mtr_t *mtr) {
   trx_undo_t *undo;
@@ -1685,7 +1665,6 @@ static trx_undo_t *trx_undo_reuse_cached(trx_t *trx, trx_rseg_t *rseg,
 /** Marks an undo log header as a header of a data dictionary operation
  transaction. */
 static void trx_undo_mark_as_dict_operation(
-    trx_t *trx,       /*!< in: dict op transaction */
     trx_undo_t *undo, /*!< in: assigned undo log */
     mtr_t *mtr)       /*!< in: mtr */
 {
@@ -1694,10 +1673,10 @@ static void trx_undo_mark_as_dict_operation(
   hdr_page = trx_undo_page_get(page_id_t(undo->space, undo->hdr_page_no),
                                undo->page_size, mtr);
 
-  mlog_write_ulint(hdr_page + undo->hdr_offset + TRX_UNDO_DICT_TRANS, TRUE,
+  mlog_write_ulint(hdr_page + undo->hdr_offset + TRX_UNDO_DICT_TRANS, true,
                    MLOG_1BYTE, mtr);
 
-  undo->dict_operation = TRUE;
+  undo->dict_operation = true;
 }
 
 /** Assigns an undo log for a transaction. A new undo log is created or a cached
@@ -1770,12 +1749,12 @@ dberr_t trx_undo_assign_undo(
           ? nullptr
           :
 #endif
-          trx_undo_reuse_cached(trx, rseg, type, trx->id, trx->xid,
-                                gtid_storage, &mtr);
+          trx_undo_reuse_cached(rseg, type, trx->id, trx->xid, gtid_storage,
+                                &mtr);
 
   if (undo == nullptr) {
-    err = trx_undo_create(trx, rseg, type, trx->id, trx->xid, gtid_storage,
-                          &undo, &mtr);
+    err = trx_undo_create(rseg, type, trx->id, trx->xid, gtid_storage, &undo,
+                          &mtr);
     if (err != DB_SUCCESS) {
       goto func_exit;
     }
@@ -1797,7 +1776,7 @@ dberr_t trx_undo_assign_undo(
   }
 
   if (trx->ddl_operation || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
-    trx_undo_mark_as_dict_operation(trx, undo, &mtr);
+    trx_undo_mark_as_dict_operation(undo, &mtr);
   }
 
   /* For GTID persistence we might add undo segment to prepared transaction. If
@@ -1851,10 +1830,10 @@ page_t *trx_undo_set_state_at_finish(
 }
 
 /** Set the state of the undo log segment at a XA PREPARE or XA ROLLBACK.
-@param[in,out]	trx		Transaction
-@param[in,out]	undo		Insert_undo or update_undo log
-@param[in]	rollback	false=XA PREPARE, true=XA ROLLBACK
-@param[in,out]	mtr		Mini-transaction
+@param[in,out]  trx             Transaction
+@param[in,out]  undo            Insert_undo or update_undo log
+@param[in]      rollback        false=XA PREPARE, true=XA ROLLBACK
+@param[in,out]  mtr             Mini-transaction
 @return undo log segment header page, x-latched */
 page_t *trx_undo_set_state_at_prepare(trx_t *trx, trx_undo_t *undo,
                                       bool rollback, mtr_t *mtr) {
@@ -1875,11 +1854,12 @@ page_t *trx_undo_set_state_at_prepare(trx_t *trx, trx_undo_t *undo,
   offset = mach_read_from_2(seg_hdr + TRX_UNDO_LAST_LOG);
   undo_header = undo_page + offset;
 
-  /* Write GTID information if there. */
-  trx_undo_gtid_write(trx, undo_header, undo, mtr, !rollback);
-
   if (rollback) {
-    ut_ad(undo->state == TRX_UNDO_PREPARED);
+    ut_ad(undo->is_prepared());
+
+    /* Write GTID information if there. */
+    trx_undo_gtid_write(trx, undo_header, undo, mtr, !rollback);
+
     mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, TRX_UNDO_ACTIVE, MLOG_2BYTES,
                      mtr);
     return (undo_page);
@@ -1893,6 +1873,37 @@ page_t *trx_undo_set_state_at_prepare(trx_t *trx, trx_undo_t *undo,
   mlog_write_ulint(undo_header + TRX_UNDO_FLAGS, undo->flag, MLOG_1BYTE, mtr);
 
   trx_undo_write_xid(undo_header, &undo->xid, mtr);
+
+  return (undo_page);
+}
+
+page_t *trx_undo_set_prepared_in_tc(trx_t *trx, trx_undo_t *undo, mtr_t *mtr) {
+  trx_usegf_t *seg_hdr;
+  trx_ulogf_t *undo_header;
+  page_t *undo_page;
+  ulint offset;
+
+  ut_ad(trx && undo && mtr);
+
+  ut_a(undo->id < TRX_RSEG_N_SLOTS);
+
+  undo_page = trx_undo_page_get(page_id_t(undo->space, undo->hdr_page_no),
+                                undo->page_size, mtr);
+
+  seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
+
+  offset = mach_read_from_2(seg_hdr + TRX_UNDO_LAST_LOG);
+  undo_header = undo_page + offset;
+
+  ut_ad(undo->state == TRX_UNDO_PREPARED_80028 ||
+        undo->state == TRX_UNDO_PREPARED);
+
+  /* Write GTID information if there. */
+  trx_undo_gtid_write(trx, undo_header, undo, mtr, true);
+
+  undo->set_prepared_in_tc();
+
+  mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, undo->state, MLOG_2BYTES, mtr);
 
   return (undo_page);
 }
@@ -1940,8 +1951,8 @@ void trx_undo_update_cleanup(trx_t *trx, trx_undo_ptr_t *undo_ptr,
 /** Frees an insert undo log after a transaction commit or rollback.
 Knowledge of inserts is not needed after a commit or rollback, therefore
 the data can be discarded.
-@param[in,out]	undo_ptr	undo log to clean up
-@param[in]	noredo		whether the undo tablespace is redo logged */
+@param[in,out]  undo_ptr        undo log to clean up
+@param[in]      noredo          whether the undo tablespace is redo logged */
 void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo) {
   trx_undo_t *undo;
   trx_rseg_t *rseg;
@@ -1969,6 +1980,7 @@ void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo) {
 
     rseg->unlatch();
 
+    DEBUG_SYNC_C("innodb_commit_wait_for_truncate");
     trx_undo_seg_free(undo, noredo);
 
     rseg->latch();
@@ -1979,15 +1991,12 @@ void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo) {
   rseg->unlatch();
 }
 
-void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
-                                                    ulint expected_undo_state) {
-  ut_a(expected_undo_state == TRX_UNDO_ACTIVE ||
-       expected_undo_state == TRX_UNDO_PREPARED);
-
+void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx, bool prepared) {
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
 
   if (trx->rsegs.m_redo.update_undo) {
-    ut_a(trx->rsegs.m_redo.update_undo->state == expected_undo_state);
+    ut_a(trx->rsegs.m_redo.update_undo->is_prepared() == prepared);
+
     UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->update_undo_list,
                    trx->rsegs.m_redo.update_undo);
     trx_undo_mem_free(trx->rsegs.m_redo.update_undo);
@@ -1996,7 +2005,8 @@ void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
   }
 
   if (trx->rsegs.m_redo.insert_undo) {
-    ut_a(trx->rsegs.m_redo.insert_undo->state == expected_undo_state);
+    ut_a(trx->rsegs.m_redo.insert_undo->is_prepared() == prepared);
+
     UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->insert_undo_list,
                    trx->rsegs.m_redo.insert_undo);
     trx_undo_mem_free(trx->rsegs.m_redo.insert_undo);
@@ -2005,7 +2015,7 @@ void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
   }
 
   if (trx->rsegs.m_noredo.update_undo) {
-    ut_a(trx->rsegs.m_noredo.update_undo->state == expected_undo_state);
+    ut_a(trx->rsegs.m_noredo.update_undo->is_prepared() == prepared);
 
     UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->update_undo_list,
                    trx->rsegs.m_noredo.update_undo);
@@ -2014,7 +2024,7 @@ void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
     trx->rsegs.m_noredo.update_undo = nullptr;
   }
   if (trx->rsegs.m_noredo.insert_undo) {
-    ut_a(trx->rsegs.m_noredo.insert_undo->state == expected_undo_state);
+    ut_a(trx->rsegs.m_noredo.insert_undo->is_prepared() == prepared);
 
     UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->insert_undo_list,
                    trx->rsegs.m_noredo.insert_undo);
@@ -2098,11 +2108,11 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   mtr.start();
 
-  fsp_header_init(new_space_id, n_pages, &mtr, false);
+  fsp_header_init(new_space_id, n_pages, &mtr);
 
   /* If tablespace is to be encrypted, encrypt it now */
   if (is_encrypted && srv_undo_log_encrypt) {
-    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr, false);
+    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr);
     /* Don't expect any error here (unless keyring plugin is uninstalled). In
     that case too, continue truncation processing of tablespace. */
     ut_ad(!ret);
@@ -2125,7 +2135,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
     mtr.start();
 
-    mtr_x_lock(fil_space_get_latch(new_space_id), &mtr);
+    mtr_x_lock(fil_space_get_latch(new_space_id), &mtr, UT_LOCATION_HERE);
 
     rseg->space_id = new_space_id;
 
@@ -2142,28 +2152,22 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
     ut_a(UT_LIST_GET_LEN(rseg->update_undo_list) == 0);
     ut_a(UT_LIST_GET_LEN(rseg->insert_undo_list) == 0);
 
-    trx_undo_t *next_undo;
-
-    for (trx_undo_t *undo = UT_LIST_GET_FIRST(rseg->update_undo_cached);
-         undo != nullptr; undo = next_undo) {
-      next_undo = UT_LIST_GET_NEXT(undo_list, undo);
+    for (auto undo : rseg->update_undo_cached.removable()) {
       UT_LIST_REMOVE(rseg->update_undo_cached, undo);
       MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
       trx_undo_mem_free(undo);
     }
 
-    for (trx_undo_t *undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached);
-         undo != nullptr; undo = next_undo) {
-      next_undo = UT_LIST_GET_NEXT(undo_list, undo);
+    for (auto undo : rseg->insert_undo_cached.removable()) {
       UT_LIST_REMOVE(rseg->insert_undo_cached, undo);
       MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
       trx_undo_mem_free(undo);
     }
 
-    UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
-    UT_LIST_INIT(rseg->update_undo_cached, &trx_undo_t::undo_list);
-    UT_LIST_INIT(rseg->insert_undo_list, &trx_undo_t::undo_list);
-    UT_LIST_INIT(rseg->insert_undo_cached, &trx_undo_t::undo_list);
+    rseg->update_undo_list.clear();
+    rseg->update_undo_cached.clear();
+    rseg->insert_undo_list.clear();
+    rseg->insert_undo_cached.clear();
 
     rseg->max_size =
         mtr_read_ulint(rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, &mtr);
@@ -2181,7 +2185,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
     rseg->last_page_no = FIL_NULL;
     rseg->last_offset = 0;
     rseg->last_trx_no = 0;
-    rseg->last_del_marks = FALSE;
+    rseg->last_del_marks = false;
   }
 
   marked_rsegs->x_unlock();

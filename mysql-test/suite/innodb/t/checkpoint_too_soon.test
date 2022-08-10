@@ -1,0 +1,108 @@
+--source include/have_debug.inc # --debug=+d,crash_after_checkpoint
+
+# This test might take long time if the number of cpu cores dedicated
+# to run the test is not high enough. That is because, this test uses
+# 50 connections in parallel to generate a lot of redo log data before
+# forcing a crash.
+#
+# Therefore, run it only when the --big-test mtr-flag is present.
+--source include/big_test.inc
+
+# We want to quickly produce redo which is difficult to consume.
+# We will modify just one field (val++) in a large record (~1k)
+# which means transaction threads will write just a few bytes
+# related to val fields of just several (16?) records on page,
+# while page cleaners need to flush whole page.
+# We need CHAR not VARCHAR so whole space is always used
+# (for the same reason it must be NOT NULL).
+CREATE TABLE t (
+  id INT PRIMARY KEY,
+  val INT NOT NULL DEFAULT 0,
+  pad1 CHAR(250) NOT NULL DEFAULT "a",
+  pad2 CHAR(250) NOT NULL DEFAULT "a",
+  pad3 CHAR(250) NOT NULL DEFAULT "a",
+  pad4 CHAR(250) NOT NULL DEFAULT "a"
+);
+INSERT INTO t (id) VALUES (1);
+let $i=0;
+# Make the table large enough to span a lot of pages, so that page
+# cleaners need to flush many different pages, not just a few to
+# cover whole dirty set of pages mentioned in redo log.
+while ($i < 16) {
+  # We specify id manually to not have any gaps in numbering which
+  # could happen in case of AUTO_INCREMENT id.
+  INSERT INTO t (id) SELECT id + (SELECT MAX(id) FROM t) FROM t;
+  inc $i;
+}
+SELECT COUNT(*) FROM t;
+# Note we also make that t is small enough to fit in BP, and not trigger flushing
+# due to too many dirty pages/too little free pages etc. Which you can check using:
+SELECT (SUM(IF(type='t',cnt,0))/SUM(cnt)) BETWEEN 0.25 AND 0.75 AS is_ratio_ok
+FROM (
+  SELECT
+    IF(SPACE=(SELECT SPACE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='test/t'),'t','other') AS type,
+    COUNT(*) as cnt
+  FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
+  GROUP BY 1
+  ORDER BY 2 DESC
+) AS aux;
+# We will need to generate redo log in a loop to happen continuously in background,
+# while MTR will spawn more clients and do more stuff, so we use a stored procedure.
+DELIMITER |;
+CREATE PROCEDURE log_spammer(f INT,t INT)
+ BEGIN
+     WHILE 1 DO
+       START TRANSACTION;
+         UPDATE t SET val = val + 1 WHERE id BETWEEN f AND t-1;
+       COMMIT;
+     END WHILE;
+ END|
+DELIMITER ;|
+# We spawn many connections and give each of them a disjoint
+# fragment to work on to avoid synchronization between them.
+let $connections=50;
+let $span=`SELECT FLOOR(COUNT(*)/$connections) FROM t;`;
+let $i=0;
+while ($i < $connections) {
+  --connect(C$i,localhost,root,,test)
+    --send_eval CALL log_spammer($i*$span,($i+1)*$span)
+  inc $i;
+}
+
+--connection default
+echo Waiting for checkpoint age to be big enough to force a checkpoint even during recovery;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+# The value of 6945280 is log.aggressive_checkpoint_min_age and 1200796 is margin = log_free_check_margin(log);
+# observed in log_should_checkpoint() function during recovery.
+# We want this function to return true, so we need large checkpoint age.
+# The 32000 is just some value I found sufficient to give ourselves some time to request crash but not enough to
+# page cleaners to eat too much as they become more and more agressive as redo grows longer.
+# In particular I found myself unable to reach log_lsn_checkpoint_age > 6945280 even with 50 user threads vs 1 PC.
+let $wait_timeout=600;
+let $wait_condition=SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='log_lsn_checkpoint_age' AND `COUNT` > 6945280-1200796+32000;
+let $silent_failure=1;
+--source include/wait_condition.inc
+if (!$success) {
+  --skip Skip rest of the test due to timeout on waiting for big enough checkpoint age
+}
+let $silent_failure=0;
+--source include/kill_mysqld.inc
+# This message is after the kill, not before, to minimize delay between satisfying wait_condition and kill.
+--echo Killed the server while it had large checkpoint age
+--echo Starting server making it crash as soon as it creates a checkpoint
+--error 137
+--exec $MYSQLD_CMD --debug=+d,crash_after_checkpoint
+--echo Starting the usual way
+--source include/start_mysqld.inc
+SELECT COUNT(*) FROM t;
+let $i=0;
+while ($i < $connections) {
+  --disconnect C$i
+  # as each transaction of each thread always sets the same value to all rows in given range
+  # we exepct exactly one distinct value in each range
+  --eval SELECT COUNT(DISTINCT(val)) FROM t WHERE id BETWEEN $i*$span AND ($i+1)*$span-1;
+  inc $i;
+}
+CHECK TABLE t;
+DROP PROCEDURE log_spammer;
+DROP TABLE t;

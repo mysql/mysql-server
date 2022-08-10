@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,8 @@
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_time.h"
+#include "sql-common/json_dom.h"       // Json_*
 #include "sql/histograms/value_map.h"  // Histogram_comparator
-#include "sql/json_dom.h"              // Json_*
 #include "sql/my_decimal.h"            // my_decimal_cmp
 #include "sql/sql_time.h"              // calc_time_diff
 #include "template_utils.h"
@@ -194,26 +194,19 @@ static bool values_are_equal(const T &val1, const T &val2) {
           !Histogram_comparator()(val2, val1));
 }
 
+/*
+  The primary template version of get_distance_from_lower handles
+  longlong and ulonglong.
+*/
 template <class T>
 double Bucket<T>::get_distance_from_lower(const T &value) const {
-  if (Histogram_comparator()(value, get_lower_inclusive()))
-    return 0.0;
-  else if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
-    return 1.0;
-
-  // Make sure that double arithmeric is used in case of very large values.
   const double lower_inclusive = static_cast<double>(get_lower_inclusive());
-  return (value - lower_inclusive + 1.0) /
+  return (value - lower_inclusive) /
          (get_upper_inclusive() - lower_inclusive + 1.0);
 }
 
 template <>
 double Bucket<double>::get_distance_from_lower(const double &value) const {
-  if (Histogram_comparator()(value, get_lower_inclusive()))
-    return 0.0;
-  else if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
-    return 1.0;
-
   return (value - get_lower_inclusive()) /
          (get_upper_inclusive() - get_lower_inclusive());
 }
@@ -426,27 +419,35 @@ double Bucket<my_decimal>::get_distance_from_lower(
          (upper_inclusive_double - lower_inclusive_double);
 }
 
+/*
+  The primary template version of get_distance_from_lower handles everything
+  except longlong and ulonglong. For longlong and ulonglong types we compute the
+  fraction of the bucket that is strictly greater than the provided value,
+  whereas for the remaining non-integral types we rely on the estimates provided
+  by get_distance_from_lower.
+  Since the remaining types will typically have a large number of possible
+  values inside a bucket, and get_distance_from_lower is already a heuristic in
+  some cases, we do not attempt to distinguish between < and <= when estimating
+  the distance as we do with integers.
+*/
 template <class T>
-double Bucket<T>::value_probability() const {
-  /*
-    As default, assume that the number of possible values between the lower and
-    upper value of the bucket is VERY high.
-  */
-  if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
-    return 1.0;
-  return get_num_distinct() / std::numeric_limits<double>::max();
+double Bucket<T>::get_distance_from_upper(const T &value) const {
+  return 1.0 - get_distance_from_lower(value);
 }
 
 template <>
-double Bucket<longlong>::value_probability() const {
-  return get_num_distinct() / (static_cast<double>(get_upper_inclusive()) -
-                               get_lower_inclusive() + 1);
+double Bucket<longlong>::get_distance_from_upper(const longlong &value) const {
+  const double upper_inclusive = static_cast<double>(get_upper_inclusive());
+  return (upper_inclusive - value) /
+         (upper_inclusive - get_lower_inclusive() + 1.0);
 }
 
 template <>
-double Bucket<ulonglong>::value_probability() const {
-  return get_num_distinct() / (static_cast<double>(get_upper_inclusive()) -
-                               get_lower_inclusive() + 1);
+double Bucket<ulonglong>::get_distance_from_upper(
+    const ulonglong &value) const {
+  const double upper_inclusive = static_cast<double>(get_upper_inclusive());
+  return (upper_inclusive - value) /
+         (upper_inclusive - get_lower_inclusive() + 1.0);
 }
 
 // Explicit template instantiations.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,12 +29,13 @@
 class Rpl_async_conn_failover_add_source : public Udf_service_impl {
  private:
   Udf_charset_service m_charset_service;
-  static const std::string m_udf_name;
+  static constexpr const char *m_udf_name =
+      "asynchronous_connection_failover_add_source";
   bool m_initialized{false};
 
  public:
-  Rpl_async_conn_failover_add_source() {}
-  ~Rpl_async_conn_failover_add_source() override {}
+  Rpl_async_conn_failover_add_source() = default;
+  ~Rpl_async_conn_failover_add_source() override = default;
 
   /**
     Initialize variables, acquires the mysql_service_mysql_udf_metadata from the
@@ -84,7 +85,7 @@ class Rpl_async_conn_failover_add_source : public Udf_service_impl {
   static bool add_source_init(UDF_INIT *init_id, UDF_ARGS *args, char *message);
 
   /**
-    Deinitialize variables initalized during init function.
+    Deinitialize variables initialized during init function.
 
     @param[in] init_id     UDF_INIT structure
   */

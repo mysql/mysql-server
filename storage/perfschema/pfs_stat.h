@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -393,6 +393,12 @@ struct PFS_statement_stat {
   ulonglong m_sort_scan{0};
   ulonglong m_no_index_used{0};
   ulonglong m_no_good_index_used{0};
+  /**
+    CPU TIME.
+    Expressed in STORAGE units (nanoseconds).
+  */
+  ulonglong m_cpu_time{0};
+  ulonglong m_count_secondary{0};
 
   void reset() { new (this) PFS_statement_stat(); }
 
@@ -425,6 +431,8 @@ struct PFS_statement_stat {
       m_sort_scan += stat->m_sort_scan;
       m_no_index_used += stat->m_no_index_used;
       m_no_good_index_used += stat->m_no_good_index_used;
+      m_cpu_time += stat->m_cpu_time;
+      m_count_secondary += stat->m_count_secondary;
     }
   }
 };

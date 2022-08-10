@@ -5,6 +5,8 @@ Checking the password expiry with the users created with all 3 plugable authenti
 =======================================================================================
 
 set @default_plugin= @@global.default_authentication_plugin;
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 Creating a user with respect to all the 2 password authentication plugin
 **** Creating user with @default_plugin plugin
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';

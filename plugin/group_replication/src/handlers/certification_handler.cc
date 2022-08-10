@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 using std::string;
 const int GTID_WAIT_TIMEOUT = 10;  // 10 seconds
 const int LOCAL_WAIT_TIMEOUT_ERROR = -1;
+const int DELAYED_VIEW_CHANGE_RESUME_ERROR = -2;
 
 Certification_handler::Certification_handler()
     : cert_module(nullptr),
@@ -52,6 +53,7 @@ Certification_handler::~Certification_handler() {
     delete (*stored_view_info_it)->view_change_pevent;
     delete *stored_view_info_it;
   }
+  pending_view_change_events_waiting_for_consistent_transactions.clear();
 }
 
 int Certification_handler::initialize() {
@@ -147,7 +149,20 @@ int Certification_handler::set_transaction_context(Pipeline_event *pevent) {
     return 1;
     /* purecov: end */
   }
-  transaction_context_packet = new Data_packet(packet->payload, packet->len);
+  transaction_context_packet =
+      new Data_packet(packet->payload, packet->len, key_certification_data);
+
+  DBUG_EXECUTE_IF(
+      "group_replication_certification_handler_set_transaction_context", {
+        const char act[] =
+            "now signal "
+            "signal.group_replication_certification_handler_set_transaction_"
+            "context_reached "
+            "wait_for "
+            "signal.group_replication_certification_handler_set_transaction_"
+            "context_continue";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
 
   return error;
 }
@@ -200,6 +215,17 @@ void Certification_handler::reset_transaction_context() {
   */
   delete transaction_context_pevent;
   transaction_context_pevent = nullptr;
+  DBUG_EXECUTE_IF(
+      "group_replication_certification_handler_reset_transaction_context", {
+        const char act[] =
+            "now signal "
+            "signal.group_replication_certification_handler_reset_transaction_"
+            "context_reached "
+            "wait_for "
+            "signal.group_replication_certification_handler_reset_transaction_"
+            "context_continue";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
 }
 
 int Certification_handler::handle_transaction_context(Pipeline_event *pevent,
@@ -225,8 +251,7 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
   Transaction_context_log_event *tcle = nullptr;
   Log_event *event = nullptr;
   Gtid_log_event *gle = nullptr;
-  std::list<Gcs_member_identifier> *online_members =
-      pevent->get_online_members();
+  Members_list *online_members = pevent->get_online_members();
 
   /*
     Get transaction context.
@@ -493,6 +518,17 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
     next(pevent, cont);
     return error;
   }
+  if (pevent->is_delayed_view_change_waiting_for_consistent_transactions()) {
+    std::string local_gtid_certified_string{};
+    cert_module->get_local_certified_gtid(local_gtid_certified_string);
+    pending_view_change_events_waiting_for_consistent_transactions.push_back(
+        std::make_unique<View_change_stored_info>(
+            pevent, local_gtid_certified_string,
+            cert_module->generate_view_change_group_gtid()));
+    cont->set_transation_discarded(true);
+    cont->signal(0, cont->is_transaction_discarded());
+    return error;
+  }
 
   /*
     If the current view event is a standalone event (not inside a
@@ -512,10 +548,10 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
   }
 
   std::string local_gtid_certified_string;
-  rpl_gno view_change_event_gno = -1;
+  Gtid vlce_gtid = {-1, -1};
   if (!error) {
     error = log_view_change_event_in_order(pevent, local_gtid_certified_string,
-                                           &view_change_event_gno, cont);
+                                           &vlce_gtid, cont);
   }
 
   /*
@@ -525,7 +561,7 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
   if (error) {
     if (LOCAL_WAIT_TIMEOUT_ERROR == error) {
       error = store_view_event_for_delayed_logging(
-          pevent, local_gtid_certified_string, view_change_event_gno, cont);
+          pevent, local_gtid_certified_string, vlce_gtid, cont);
       LogPluginErr(WARNING_LEVEL, ER_GRP_DELAYED_VCLE_LOGGING);
       if (error)
         cont->signal(1, false);
@@ -549,7 +585,7 @@ int Certification_handler::log_delayed_view_change_events(Continuation *cont) {
     error = log_view_change_event_in_order(
         stored_view_info->view_change_pevent,
         stored_view_info->local_gtid_certified,
-        &(stored_view_info->view_change_event_gno), cont);
+        &(stored_view_info->view_change_gtid), cont);
     // if we timeout keep the event
     if (LOCAL_WAIT_TIMEOUT_ERROR != error) {
       delete stored_view_info->view_change_pevent;
@@ -561,8 +597,8 @@ int Certification_handler::log_delayed_view_change_events(Continuation *cont) {
 }
 
 int Certification_handler::store_view_event_for_delayed_logging(
-    Pipeline_event *pevent, std::string &local_gtid_certified_string,
-    rpl_gno event_gno, Continuation *cont) {
+    Pipeline_event *pevent, std::string &local_gtid_certified_string, Gtid gtid,
+    Continuation *cont) {
   DBUG_TRACE;
 
   int error = 0;
@@ -582,8 +618,8 @@ int Certification_handler::store_view_event_for_delayed_logging(
   // -1 means there was a second timeout on a VCLE that we already delayed
   if (view_change_event_id != "-1") {
     m_view_change_event_on_wait = true;
-    View_change_stored_info *vcle_info = new View_change_stored_info(
-        pevent, local_gtid_certified_string, event_gno);
+    View_change_stored_info *vcle_info =
+        new View_change_stored_info(pevent, local_gtid_certified_string, gtid);
     pending_view_change_events.push_back(vcle_info);
     // Use the discard flag to let the applier know this was delayed
     cont->set_transation_discarded(true);
@@ -638,7 +674,7 @@ int Certification_handler::wait_for_local_transaction_execution(
 }
 
 int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
-                                                       rpl_gno *event_gno,
+                                                       Gtid *gtid,
                                                        Continuation *cont) {
   DBUG_TRACE;
   Log_event *event = nullptr;
@@ -662,28 +698,23 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
 
   // GTID event
 
-  if (*event_gno == -1) {
-    *event_gno = cert_module->generate_view_change_group_gno();
+  if (gtid->gno == -1) {
+    *gtid = cert_module->generate_view_change_group_gtid();
   }
-  Gtid gtid = {group_sidno, *event_gno};
-  if (gtid.gno <= 0) {
+  if (gtid->gno <= 0) {
     cont->signal(1, true);
     return 1;
   }
-  Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
+  Gtid_specification gtid_specification = {ASSIGNED_GTID, *gtid};
   /**
-   The original_commit_timestamp of this Gtid_log_event will be zero
-   because the transaction corresponds to a View_change_event, which is
-   generated and committed locally by all members. Consequently, there is no
-   'original master'. So, instead of each member generating a GTID with
-   its own unique original_commit_timestamp (and violating the property that
-   the original_commit_timestamp is the same for a given GTID), this timestamp
-   will not be defined.
+   The original_commit_timestamp for this GTID will be different for each
+   member that generated this View_change_event.
   */
   uint32_t server_version = do_server_version_int(::server_version);
-  Gtid_log_event *gtid_log_event =
-      new Gtid_log_event(event->server_id, true, 0, 0, true, 0, 0,
-                         gtid_specification, server_version, server_version);
+  auto time_stamp_now = my_micro_time();
+  Gtid_log_event *gtid_log_event = new Gtid_log_event(
+      event->server_id, true, 0, 0, true, time_stamp_now, time_stamp_now,
+      gtid_specification, server_version, server_version);
 
   Pipeline_event *gtid_pipeline_event =
       new Pipeline_event(gtid_log_event, fd_event);
@@ -736,12 +767,23 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
 }
 
 int Certification_handler::log_view_change_event_in_order(
-    Pipeline_event *view_pevent, std::string &local_gtid_string,
-    rpl_gno *event_gno, Continuation *cont) {
+    Pipeline_event *view_pevent, std::string &local_gtid_string, Gtid *gtid,
+    Continuation *cont) {
   DBUG_TRACE;
 
   int error = 0;
-  bool first_log_attempt = (*event_gno == -1);
+
+  /*
+    If this view was delayed to wait for consistent transactions to finish, we
+    need to recover its previously computed GTID information.
+  */
+  if (view_pevent->is_delayed_view_change_resumed()) {
+    auto &stored_view_info =
+        pending_view_change_events_waiting_for_consistent_transactions.front();
+    local_gtid_string.assign(stored_view_info->local_gtid_certified);
+    *gtid = stored_view_info->view_change_gtid;
+    pending_view_change_events_waiting_for_consistent_transactions.pop_front();
+  }
 
   Log_event *event = nullptr;
   error = view_pevent->get_LogEvent(&event);
@@ -759,7 +801,12 @@ int Certification_handler::log_view_change_event_in_order(
   // process
   if (unlikely(view_change_event_id == "-1")) return 0;
 
-  if (first_log_attempt) {
+  /*
+    Certification info needs to be added into the `vchange_event` when this view
+    if first handled (no GITD) or when it is being resumed after waiting from
+    consistent transactions.
+  */
+  if ((-1 == gtid->gno) || view_pevent->is_delayed_view_change_resumed()) {
     std::map<std::string, std::string> cert_info;
     cert_module->get_certification_info(&cert_info);
     size_t event_size = 0;
@@ -771,7 +818,7 @@ int Certification_handler::log_view_change_event_in_order(
        To avoid this, we  now instead encode an error that will make the joiner
        leave the group.
     */
-    if (event_size > get_slave_max_allowed_packet()) {
+    if (event_size > get_replica_max_allowed_packet()) {
       cert_info.clear();
       cert_info[Certifier::CERTIFICATION_INFO_ERROR_NAME] =
           "Certification information is too large for transmission.";
@@ -782,6 +829,8 @@ int Certification_handler::log_view_change_event_in_order(
   // Assure the last known local transaction was already executed
   error = wait_for_local_transaction_execution(local_gtid_string);
 
+  DBUG_EXECUTE_IF("simulate_delayed_view_change_resume_error", { error = 1; });
+
   if (!error) {
     /**
      Create a transactional block for the View change log event
@@ -790,10 +839,12 @@ int Certification_handler::log_view_change_event_in_order(
      VCLE
      COMMIT
     */
-    error = inject_transactional_events(view_pevent, event_gno, cont);
-  } else if (LOCAL_WAIT_TIMEOUT_ERROR == error && first_log_attempt) {
+    error = inject_transactional_events(view_pevent, gtid, cont);
+  } else if (view_pevent->is_delayed_view_change_resumed()) {
+    error = DELAYED_VIEW_CHANGE_RESUME_ERROR;
+  } else if ((LOCAL_WAIT_TIMEOUT_ERROR == error) && (-1 == gtid->gno)) {
     // Even if we can't log it, register the position
-    *event_gno = cert_module->generate_view_change_group_gno();
+    *gtid = cert_module->generate_view_change_group_gtid();
   }
 
   return error;

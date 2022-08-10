@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #define NDB_SLEEP_H
 
 #if defined(_WIN32)
-#include <winbase.h>
+#include <windows.h>
 #else
 #include <sys/select.h>
 #include <time.h>

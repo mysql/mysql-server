@@ -18,7 +18,7 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_transaction_bits.h"
+#include "mysql/components/services/bits/psi_transaction_bits.h"
 struct PSI_transaction_locker;
 typedef struct PSI_transaction_locker PSI_transaction_locker;
 struct PSI_transaction_locker_state_v1 {

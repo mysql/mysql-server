@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,13 +64,11 @@ void leave_group_on_failure::leave(
     Delete all members from group info except the local one.
   */
   if (actions[leave_group_on_failure::CLEAN_GROUP_MEMBERSHIP]) {
-    std::vector<Group_member_info *> to_update;
+    Group_member_info_list to_update(
+        (Malloc_allocator<Group_member_info *>(key_group_member_info)));
     group_member_mgr->update(&to_update);
   }
 
-  if (autorejoin_module->is_autorejoin_ongoing()) {
-    set_error_state_due_to_error_during_autorejoin();
-  }
   group_member_mgr->update_member_status(local_member_info->get_uuid(),
                                          Group_member_info::MEMBER_ERROR,
                                          *notification_context);
@@ -135,6 +133,20 @@ void leave_group_on_failure::leave(
   */
   if (actions[leave_group_on_failure::STOP_APPLIER]) {
     bool aborted = false;
+    DBUG_EXECUTE_IF(
+        "group_replication_wait_for_current_events_execution_fail", {
+          /*
+           Inform the test to execute SHUTDOWN and block for shutdown to send
+           kill For blocking sleep has been used, hopefully in 10 seconds
+           shutdown will send kill to the thread
+           */
+          const char act[] =
+              "now signal "
+              "signal.group_replication_wait_for_current_events_execution_fail_"
+              "applier_add_suspension_packet";
+          assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+          my_sleep(10 * 1000 * 1000);
+        };);
     applier_module->add_suspension_packet();
     applier_module->wait_for_applier_complete_suspension(&aborted, false);
   }

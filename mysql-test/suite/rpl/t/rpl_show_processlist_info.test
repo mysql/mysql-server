@@ -34,9 +34,9 @@ CREATE USER IF NOT EXISTS 'user1'@'%' IDENTIFIED WITH 'mysql_native_password';
 
 let $show_statement= SHOW PROCESSLIST;
 let $field= State;
-let $condition= = 'Slave has read all relay log; waiting for more updates';
+let $condition= = 'Replica has read all relay log; waiting for more updates';
 --source include/wait_show_condition.inc
---let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='Slave has read all relay log; waiting for more updates' AND INFO IS NULL;
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='Replica has read all relay log; waiting for more updates' AND INFO IS NULL;
 --source include/wait_condition.inc
 
 --echo

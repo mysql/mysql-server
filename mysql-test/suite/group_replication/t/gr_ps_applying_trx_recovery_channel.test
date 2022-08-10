@@ -12,7 +12,6 @@
 #
 
 # the test enables MTS in one server
---source include/not_mts_slave_parallel_workers.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -26,13 +25,13 @@
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 # Save defaults.
-SET @slave_parallel_type_saved= @@GLOBAL.SLAVE_PARALLEL_TYPE;
-SET @slave_parallel_workers_saved= @@GLOBAL.SLAVE_PARALLEL_WORKERS;
-SET @slave_preserver_commit_order_saved= @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER;
+SET @replica_parallel_type_saved= @@GLOBAL.REPLICA_PARALLEL_TYPE;
+SET @replica_parallel_workers_saved= @@GLOBAL.REPLICA_PARALLEL_WORKERS;
+SET @slave_preserver_commit_order_saved= @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER;
 #
-SET GLOBAL slave_parallel_type= 'LOGICAL_CLOCK';
-SET GLOBAL slave_parallel_workers= 4;
-SET GLOBAL slave_preserve_commit_order= ON;
+SET GLOBAL replica_parallel_type= 'LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_workers= 4;
+SET GLOBAL replica_preserve_commit_order= ON;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --source include/start_group_replication.inc
 
@@ -47,8 +46,10 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 
 --source include/assert.inc
 
 # Restore defaults
-SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
-SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;
-SET @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
+SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
+--disable_warnings
+SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
+--enable_warnings
+SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
 --source include/stop_group_replication.inc
 --source include/group_replication_end.inc

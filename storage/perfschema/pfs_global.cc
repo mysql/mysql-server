@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -148,13 +148,13 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size)) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OVERFLOW, n, size,
-               klass->m_class.m_name);
+               klass->m_class.m_name.str());
     return nullptr;
   }
 
   if (nullptr == (ptr = pfs_malloc(klass, array_size, flags))) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OOM, array_size,
-               klass->m_class.m_name);
+               klass->m_class.m_name.str());
   }
   return ptr;
 }

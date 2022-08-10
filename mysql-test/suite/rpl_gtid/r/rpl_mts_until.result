@@ -12,14 +12,20 @@ CREATE TABLE db3.t1(c1 INT PRIMARY KEY, c2 CHAR(20));
 CREATE VIEW db1.v1 AS SELECT * FROM db1.t1 WHERE c1 <= 4;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
-SET @saved_slave_parallel_type = @@GLOBAL.slave_parallel_type;
-SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET @saved_replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET @saved_relay_log_purge = @@GLOBAL.relay_log_purge;
 SET GLOBAL innodb_lock_wait_timeout = 1000;
 SET GLOBAL relay_log_purge = FALSE;
-SET GLOBAL slave_parallel_type = "LOGICAL_CLOCK";
-SET GLOBAL slave_parallel_workers = 4;
+SET GLOBAL replica_parallel_type = "LOGICAL_CLOCK";
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = 4;
+SET GLOBAL replica_preserve_commit_order=0;
 [connection slave]
 include/stop_slave_sql.inc
 Warnings:
@@ -165,8 +171,10 @@ TRUNCATE db2.t1;
 TRUNCATE db3.t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
-SET GLOBAL slave_parallel_type = "DATABASE";
-SET GLOBAL slave_parallel_workers = 4;
+SET GLOBAL replica_parallel_type = "DATABASE";
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = 4;
 SET GLOBAL innodb_lock_wait_timeout = 1000;
 SET GLOBAL relay_log_purge = FALSE;
 [connection slave]
@@ -319,8 +327,11 @@ DROP DATABASE db2;
 DROP DATABASE db3;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
-SET GLOBAL slave_parallel_type = @saved_slave_parallel_type;
-SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
+SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
+SET GLOBAL replica_preserve_commit_order= @saved_replica_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL relay_log_purge = @saved_relay_log_purge;
 include/rpl_end.inc

@@ -12,8 +12,8 @@ let $table = performance_schema.replication_applier_status_by_coordinator;
 
 --source include/stop_slave.inc
 RESET SLAVE ALL;
-SET @old_slave_parallel_workers= @@global.slave_parallel_workers;
-SET GLOBAL slave_parallel_workers = 4;
+SET @old_replica_parallel_workers= @@global.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 4;
 --disable_query_log
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_DELAY=0 FOR CHANNEL 'channel_1';
 --enable_query_log
@@ -54,7 +54,7 @@ let $col1_act = @t_id;
 # Cleanup
 source include/stop_slave.inc;
 RESET SLAVE ALL;
-SET GLOBAL slave_parallel_workers= @old_slave_parallel_workers;
+SET GLOBAL replica_parallel_workers= @old_replica_parallel_workers;
 --disable_warnings
 --disable_query_log
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';

@@ -68,6 +68,7 @@ while ($i < 100)
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
+
 LOCK TABLES t1 READ;
 
 --let $rpl_connection_name= server_3

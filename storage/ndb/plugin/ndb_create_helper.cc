@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,17 +103,22 @@ bool Ndb_create_helper::have_warning() const {
 }
 
 int Ndb_create_helper::set_create_table_error() const {
+  const char *append_warning_text = "";
+  if (have_warning()) {
+    append_warning_text = " (use SHOW WARNINGS for more info).";
+  }
   if (thd_sql_command(m_thd) == SQLCOM_ALTER_TABLE ||
       thd_sql_command(m_thd) == SQLCOM_CREATE_INDEX) {
     // Error occurred while creating the destination table for a copying
     // alter table, print error message describing the problem
     my_printf_error(ER_CANT_CREATE_TABLE,
-                    "Can\'t create destination table for copying alter table",
-                    MYF(0));
+                    "Can\'t create destination table for copying alter "
+                    "table%s",
+                    MYF(0), append_warning_text);
   } else {
     // Print error saying that table couldn't be created
-    my_printf_error(ER_CANT_CREATE_TABLE, "Can\'t create table \'%-.200s\'",
-                    MYF(0), m_table_name);
+    my_printf_error(ER_CANT_CREATE_TABLE, "Can\'t create table \'%-.200s\'%s",
+                    MYF(0), m_table_name, append_warning_text);
   }
   check_warnings_and_error();
 

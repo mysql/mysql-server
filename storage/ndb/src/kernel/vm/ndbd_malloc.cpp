@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <algorithm>
 #include "ndbd_malloc.hpp"
 #include "my_sys.h"
@@ -40,7 +41,6 @@
 
 #define JAM_FILE_ID 287
 
-extern EventLogger * g_eventLogger;
 
 #define TOUCH_PARALLELISM 8
 #define MIN_START_THREAD_SIZE (128 * 1024 * 1024)
@@ -52,6 +52,7 @@ struct AllocTouchMem
   size_t sz;
   void *p;
   Uint32 index;
+  bool make_readwritable;
 };
 
 
@@ -79,6 +80,7 @@ touch_mem(void* arg)
 
   size_t sz = touch_mem_ptr->sz;
   Uint32 index = touch_mem_ptr->index;
+  bool make_readwritable = touch_mem_ptr->make_readwritable;
   unsigned char *p = (unsigned char *)touch_mem_ptr->p;
   size_t num_pages_per_thread = 1;
   size_t first_page;
@@ -91,6 +93,18 @@ touch_mem(void* arg)
 
   const bool whole_pages = ((uintptr_t)p % TOUCH_PAGE_SIZE == 0) &&
                            (sz % TOUCH_PAGE_SIZE == 0);
+
+  if (make_readwritable)
+  {
+    /*
+     * make_readwritable must call NdbMem_PopulateSpace to change page
+     * protection to read-write, and that function requires whole pages.
+     *
+     * This is needed when memory for example have only been reserved by
+     * NdbMem_ReserveSpace.
+     */
+    require(whole_pages);
+  }
 
   if (tot_pages > TOUCH_PARALLELISM)
   {
@@ -117,10 +131,12 @@ touch_mem(void* arg)
        i += NUM_PAGES_BETWEEN_WATCHDOG_SETS,
        ptr += NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE)
   {
-    const size_t size = std::min(end - ptr,
-        ptrdiff_t(NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE));
+    const size_t size = std::min({
+        ptrdiff_t(end - ptr),
+        ptrdiff_t(NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE),
+        ptrdiff_t(num_pages_per_thread * TOUCH_PAGE_SIZE)});
 
-    if (whole_pages)
+    if (make_readwritable)
     {
       // Populate address space earlier Reserved.
       require(NdbMem_PopulateSpace(ptr, size) == 0);
@@ -155,7 +171,8 @@ touch_mem(void* arg)
 }
 
 void
-ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter)
+ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter,
+                     bool make_readwritable)
 {
   struct NdbThread *thread_ptr[TOUCH_PARALLELISM];
   struct AllocTouchMem touch_mem_struct[TOUCH_PARALLELISM];
@@ -191,6 +208,7 @@ ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter)
     touch_mem_struct[i].sz = sz;
     touch_mem_struct[i].p = p;
     touch_mem_struct[i].index = i;
+    touch_mem_struct[i].make_readwritable = make_readwritable;
 
     thread_ptr[i] = NULL;
     if (sz > MIN_START_THREAD_SIZE)
@@ -235,15 +253,17 @@ void *ndbd_malloc_watched(size_t size, volatile Uint32* watch_dog)
   {
     g_allocated_memory += size;
 
-    ndbd_alloc_touch_mem(p, size, watch_dog);
+    ndbd_alloc_touch_mem(p, size, watch_dog, false /* touch only */);
 
 #ifdef TRACE_MALLOC
     {
       size_t s_m, s_k, s_b;
       xxx(size, &s_m, &s_k, &s_b);
-      fprintf(stderr, "%p malloc(%um %uk %ub)", p, s_m, s_k, s_b);
-      xxx(g_allocated_memory, &s_m, &s_k, &s_b);
-      fprintf(stderr, "\t\ttotal(%um %uk %ub)\n", s_m, s_k, s_b);
+
+      size_t s_m2, s_k2, s_b2;
+      xxx(g_allocated_memory, &s_m2, &s_k2, &s_b2);
+      g_eventLogger->info("%p malloc (%zum %zuk %zub) total (%zum %zuk %zub)",
+                          p, s_m, s_k, s_b, s_m2, s_k2, s_b2);
     }
 #endif
   }
@@ -270,7 +290,7 @@ void ndbd_free(void *p, size_t size)
   {
     g_allocated_memory -= size;
 #ifdef TRACE_MALLOC
-    fprintf(stderr, "%p free(%d)\n", p, size);
+    g_eventLogger->info("%p free(%zu)", p, size);
 #endif
   }
 }

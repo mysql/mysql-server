@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
     my_thread_init();
 
     /* Create thread with input key for PFS */
-    thd = create_thd(true, true, true, thread_key);
+    thd = create_thd(true, true, true, thread_key, 0);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     thd_created = true;
 #endif
@@ -110,6 +110,9 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
     }
   }
 #endif
+
+  mysql_thread_set_secondary_engine(false);
+
   /* Create and set PFS statement key */
   if (statement_key != PSI_NOT_INSTRUMENTED) {
     if (thd->m_statement_psi == nullptr) {
@@ -188,36 +191,35 @@ DEFINE_METHOD(int, mysql_clone_validate_charsets,
 */
 static int get_utf8_config(THD *thd, std::string config_name,
                            String &utf8_val) {
-  char val_buf[1024];
-  SHOW_VAR show;
-  show.type = SHOW_SYS;
+  auto f = [thd, &utf8_val](const System_variable_tracker &, sys_var *var) {
+    char val_buf[1024];
+    SHOW_VAR show;
+    show.type = SHOW_SYS;
+    show.value = pointer_cast<char *>(var);
+    show.name = var->name.str;
 
-  /* Get system configuration parameter. */
-  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  auto var = intern_find_sys_var(config_name.c_str(), config_name.length());
-  mysql_rwlock_unlock(&LOCK_system_variables_hash);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    size_t val_length;
+    const CHARSET_INFO *fromcs;
 
-  if (var == nullptr) {
+    const char *value =
+        get_one_variable(thd, &show, OPT_GLOBAL, SHOW_SYS, nullptr, &fromcs,
+                         val_buf, &val_length);
+
+    uint dummy_err;
+    const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
+    utf8_val.copy(value, val_length, fromcs, tocs, &dummy_err);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+  };
+
+  System_variable_tracker sv =
+      System_variable_tracker::make_tracker(config_name);
+  if (sv.access_system_variable(thd, f, Suppress_not_found_error::YES)) {
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Clone failed to get system configuration parameter.");
     return (ER_INTERNAL_ERROR);
   }
 
-  show.value = reinterpret_cast<char *>(var);
-  show.name = var->name.str;
-
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  size_t val_length;
-  const CHARSET_INFO *fromcs;
-
-  auto value = get_one_variable(thd, &show, OPT_GLOBAL, SHOW_SYS, nullptr,
-                                &fromcs, val_buf, &val_length);
-
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-
-  uint dummy_err;
-  const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
-  utf8_val.copy(value, val_length, fromcs, tocs, &dummy_err);
   return (0);
 }
 
@@ -238,6 +240,44 @@ DEFINE_METHOD(int, mysql_clone_get_configs,
     config_val.assign(utf8_str.c_ptr_quick());
   }
   return (err);
+}
+
+/**
+ Says whether a character is a digit or a dot.
+ @param c character
+ @return true if c is a digit or a dot, otherwise false
+ */
+inline bool is_digit_or_dot(char c) { return std::isdigit(c) || c == '.'; }
+
+/**
+ Compares versions, ignoring suffixes, i.e. 8.0.25 should be the same
+ as 8.0.25-debug, but 8.0.25 isn't the same as 8.0.251.
+ @param ver1 version1 string
+ @param ver2 version2 string
+ @return true if versions match (ignoring suffixes), false otherwise
+ */
+inline bool compare_prefix_version(std::string ver1, std::string ver2) {
+  size_t i;
+  /* we iterate  over both versions */
+  for (i = 0; i < ver1.size() && i < ver2.size(); i++) {
+    if (!is_digit_or_dot(ver1[i])) {
+      /*  If in one version we have something else than digit or dot,
+      we check what's in other version - if we also have a suffix or still
+      a version. */
+      return !is_digit_or_dot(ver2[i]);
+    }
+    /* We still compare version, and have a difference */
+    if (ver1[i] != ver2[i]) return false;
+  }
+  if (i < ver1.size()) {
+    /* we finished iterate over ver2, but still have some digits in ver1 */
+    return !std::isdigit(ver1[i]);
+  }
+  if (i < ver2.size()) {
+    /* we finished iterate over ver1, but still have some digits in ver2 */
+    return !std::isdigit(ver2[i]);
+  }
+  return true;
 }
 
 DEFINE_METHOD(int, mysql_clone_validate_configs,
@@ -270,6 +310,11 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
     if (config_name.compare("version_compile_os") == 0) {
       critical_error = ER_CLONE_OS;
     } else if (config_name.compare("version") == 0) {
+      /* we want to allow to add some suffix to the version and still match
+      i.e. 8.0.25 should be the same as 8.0.25-debug */
+      if (compare_prefix_version(config_val, donor_val)) {
+        continue;
+      }
       critical_error = ER_CLONE_DONOR_VERSION;
     } else if (config_name.compare("version_compile_machine") == 0) {
       critical_error = ER_CLONE_PLATFORM;
@@ -331,7 +376,7 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
 
     server_main_callback.read_parameters(nullptr, &capath, &version, nullptr,
                                          &cipher, &ciphersuites, nullptr, &crl,
-                                         &crlpath);
+                                         &crlpath, nullptr, nullptr);
 
     mysql_ssl_set(mysql, ssl_ctx->m_ssl_key, ssl_ctx->m_ssl_cert,
                   ssl_ctx->m_ssl_ca, capath.c_str(), cipher.c_str());
@@ -517,6 +562,19 @@ DEFINE_METHOD(int, mysql_clone_get_response,
     err = ER_QUERY_INTERRUPTED;
   }
 
+  /* This error is not relevant for client but is raised by network
+  net_read_raw_loop() as the code is compiled in server MYSQL_SERVER.
+  For clone client we need to set valid client network error. */
+  if (err == ER_CLIENT_INTERACTION_TIMEOUT) {
+    /* purecov: begin inspected */
+    thd->clear_error();
+    thd->get_stmt_da()->reset_condition_info(thd);
+    net->last_errno = ER_NET_READ_ERROR;
+    err = ER_NET_READ_ERROR;
+    my_error(ER_NET_READ_ERROR, MYF(0));
+    /* purecov: end */
+  }
+
   if (err == 0) {
     net->last_errno = ER_NET_PACKETS_OUT_OF_ORDER;
     err = ER_NET_PACKETS_OUT_OF_ORDER;
@@ -665,6 +723,32 @@ DEFINE_METHOD(int, mysql_clone_send_error,
               (THD * thd, uchar err_cmd, bool is_fatal)) {
   DBUG_TRACE;
 
+  NET *net = thd->get_protocol_classic()->get_net();
+  auto da = thd->get_stmt_da();
+
+  /* Consider any previous network error as fatal. */
+  if (!is_fatal && net->last_errno != 0) {
+    is_fatal = true;
+  }
+
+  if (is_fatal) {
+    int err = 0;
+
+    /* Handle the case if network layer hasn't set the error in THD. */
+    if (da->is_error()) {
+      err = da->mysql_errno();
+    } else {
+      err = ER_NET_ERROR_ON_WRITE;
+      my_error(err, MYF(0));
+    }
+
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    thd->shutdown_active_vio();
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    return err;
+  }
+
   uchar err_packet[1 + 4 + MYSQL_ERRMSG_SIZE + 1];
   uchar *buf_ptr = &err_packet[0];
   size_t packet_length = 0;
@@ -672,8 +756,6 @@ DEFINE_METHOD(int, mysql_clone_send_error,
   *buf_ptr = err_cmd;
   ++buf_ptr;
   ++packet_length;
-
-  auto da = thd->get_stmt_da();
 
   char *bufp;
 
@@ -685,13 +767,6 @@ DEFINE_METHOD(int, mysql_clone_send_error,
     bufp = reinterpret_cast<char *>(buf_ptr);
     packet_length +=
         snprintf(bufp, MYSQL_ERRMSG_SIZE, "%s", da->message_text());
-    if (is_fatal) {
-      mysql_mutex_lock(&thd->LOCK_thd_data);
-      thd->shutdown_active_vio();
-      mysql_mutex_unlock(&thd->LOCK_thd_data);
-
-      return da->mysql_errno();
-    }
   } else {
     int4store(buf_ptr, ER_INTERNAL_ERROR);
     buf_ptr += 4;
@@ -701,14 +776,6 @@ DEFINE_METHOD(int, mysql_clone_send_error,
     packet_length += snprintf(bufp, MYSQL_ERRMSG_SIZE, "%s", "Unknown Error");
   }
 
-  NET *net = thd->get_protocol_classic()->get_net();
-
-  if (net->last_errno != 0) {
-    return static_cast<int>(net->last_errno);
-  }
-
-  assert(!is_fatal);
-
   /* Clean error in THD */
   thd->clear_error();
   thd->get_stmt_da()->reset_condition_info(thd);
@@ -716,12 +783,18 @@ DEFINE_METHOD(int, mysql_clone_send_error,
 
   if (my_net_write(net, &err_packet[0], packet_length) || net_flush(net)) {
     int err = static_cast<int>(net->last_errno);
+    da = thd->get_stmt_da();
 
-    if (err == 0) {
+    if (err == 0 || !da->is_error()) {
       net->last_errno = ER_NET_PACKETS_OUT_OF_ORDER;
       err = ER_NET_PACKETS_OUT_OF_ORDER;
       my_error(err, MYF(0));
     }
+
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    thd->shutdown_active_vio();
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
     return err;
   }
   return 0;

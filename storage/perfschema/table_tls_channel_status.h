@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ class table_tls_channel_status : public PFS_engine_table {
   int rnd_next() override;
   int rnd_pos(const void *pos) override;
 
-  ~table_tls_channel_status() override {}
+  ~table_tls_channel_status() override = default;
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,

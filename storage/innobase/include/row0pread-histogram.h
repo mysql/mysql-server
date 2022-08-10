@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -99,21 +99,19 @@ class Histogram_sampler {
   void set_error_state(dberr_t err) { m_err = err; }
 
   /** @return true if in error state. */
-  bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_err != DB_SUCCESS);
-  }
+  [[nodiscard]] bool is_error_set() const { return (m_err != DB_SUCCESS); }
 
   /** Each parallel reader thread's init function.
   @param[in]  reader_thread_ctx  context information related to the thread
   @return DB_SUCCESS or error code. */
-  dberr_t start_callback(Parallel_reader::Thread_ctx *reader_thread_ctx)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t start_callback(
+      Parallel_reader::Thread_ctx *reader_thread_ctx);
 
   /** Each parallel reader thread's end function.
   @param[in]  reader_thread_ctx  context information related to the thread
   @return DB_SUCCESS or error code. */
-  dberr_t finish_callback(Parallel_reader::Thread_ctx *reader_thread_ctx)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t finish_callback(
+      Parallel_reader::Thread_ctx *reader_thread_ctx);
 
   /** Convert the row in InnoDB format to MySQL format and store in the buffer
   for server to use.
@@ -133,9 +131,8 @@ class Histogram_sampler {
   @param[in]  ctx       Parallel read context.
   @param[in]  prebuilt  Row meta-data cache.
   @return error code */
-  dberr_t process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
-                               row_prebuilt_t *prebuilt)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
+                                             row_prebuilt_t *prebuilt);
 
   /** Process the record in the leaf page. This would happen only when the root
   page is the leaf page and in such a case we process the page regardless of
@@ -143,9 +140,8 @@ class Histogram_sampler {
   @param[in]  ctx       Parallel read context.
   @param[in]  prebuilt  Row meta-data cache.
   @return error code */
-  dberr_t process_leaf_rec(const Parallel_reader::Ctx *ctx,
-                           row_prebuilt_t *prebuilt)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t process_leaf_rec(const Parallel_reader::Ctx *ctx,
+                                         row_prebuilt_t *prebuilt);
 
  private:
   /** Buffer to store the sampled row which is in the MySQL format. */

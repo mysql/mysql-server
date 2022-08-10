@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,8 @@
 #include <memory>
 #include <sstream>
 
-#include "metadata.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 
 using mysqlrouter::MySQLSession;

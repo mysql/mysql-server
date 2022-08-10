@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -38,16 +38,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** FTS default parser init
  @return 0 */
-static int fts_default_parser_init(
-    MYSQL_FTPARSER_PARAM *param) /*!< in: plugin parser param */
+static int fts_default_parser_init(MYSQL_FTPARSER_PARAM *param [
+    [maybe_unused]]) /*!< in: plugin parser param */
 {
   return (0);
 }
 
 /** FTS default parser deinit
  @return 0 */
-static int fts_default_parser_deinit(
-    MYSQL_FTPARSER_PARAM *param) /*!< in: plugin parser param */
+static int fts_default_parser_deinit(MYSQL_FTPARSER_PARAM *param [
+    [maybe_unused]]) /*!< in: plugin parser param */
 {
   return (0);
 }
@@ -112,7 +112,7 @@ static int fts_query_add_word_for_parser(
       if (cur_node->type != FTS_AST_PARSER_PHRASE_LIST) {
         break;
       }
-      // Fall through.
+      [[fallthrough]];
 
     case FT_TOKEN_WORD:
       term_node = fts_ast_create_node_term_for_parser(state, word, word_len);
@@ -236,7 +236,7 @@ static int fts_parse_query_internal(
 
 /** fts parse query by plugin parser.
  @return 0 if parse successfully, or return non-zero. */
-int fts_parse_by_parser(ibool mode,       /*!< in: parse boolean mode */
+int fts_parse_by_parser(bool mode,        /*!< in: parse boolean mode */
                         uchar *query_str, /*!< in: query string */
                         ulint query_len,  /*!< in: query string length */
                         st_mysql_ftparser *parser, /*!< in: fts plugin parser */

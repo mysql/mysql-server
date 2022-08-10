@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,22 +22,30 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "portlib/ndb_compiler.h"
+#include "util/cstrbuf.h"
+#include "util/require.h"
 #include <LogBuffer.hpp>
 #include <portlib/NdbCondition.h>
 #include <portlib/NdbThread.h>
 #include <BaseString.hpp>
+#include <NdbSleep.h>
 
-size_t
-ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs)
+size_t ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes,
+                                                  size_t /*lost_msgs*/)
 {
-  size_t lost_msg_len = snprintf(NULL, 0, m_lost_msg_fmt, lost_bytes);
-  return lost_msg_len;
+  cstrbuf<0> nullbuf;
+  require(nullbuf.appendf(LOST_BYTES_FMT, lost_bytes) != -1);
+  return nullbuf.untruncated_length();
 }
 
-bool
-ByteStreamLostMsgHandler::writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs)
+bool ByteStreamLostMsgHandler::writeLostMsg(char* buf,
+                                            size_t buf_size,
+                                            size_t lost_bytes,
+                                            size_t /*lost_msgs*/)
 {
-  snprintf(buf, buf_size, m_lost_msg_fmt, lost_bytes);
+  cstrbuf strbuf({buf, buf_size});
+  require(strbuf.appendf(LOST_BYTES_FMT, lost_bytes) != -1);
   return true;
 }
 
@@ -201,8 +209,7 @@ LogBuffer::checkForBufferSpace(size_t write_bytes)
   return ret;
 }
 
-size_t
-LogBuffer::append(void* buf, size_t write_bytes)
+size_t LogBuffer::append(const void* buf, size_t write_bytes)
 {
   Guard g(m_mutex);
   assert(checkInvariants());
@@ -258,7 +265,6 @@ LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
   assert(checkInvariants());
   char* write_ptr = NULL;
   int ret = 0;
-  int res = 0;
   bool buffer_was_empty = (m_size == 0);
 
   // extra byte for null termination, will be discarded
@@ -284,20 +290,22 @@ LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
 
     if(write_ptr)
     {
-      res = vsnprintf(write_ptr, write_bytes, fmt, ap);
-      assert(res >= 0);
+      int res = vsnprintf(write_ptr, write_bytes, fmt, ap);
+      size_t fmt_len = unlikely(res < 0) ? 0 : (size_t)res;
+      assert(fmt_len == len);
+      if (unlikely(fmt_len > len)) fmt_len = len;
 
       if(append_ln)
       {
-        write_ptr[write_bytes - 2] = '\n';
+        write_ptr[fmt_len] = '\n';
       }
       if(write_ptr == m_log_buf && m_write_ptr != m_log_buf)
       {
         //need to wrap the write ptr
         wrapWritePtr();
       }
-      updateWritePtr(write_bytes - 1);
-      ret = write_bytes - 1;
+      updateWritePtr(fmt_len + append_ln);
+      ret = fmt_len + append_ln;
       if(buffer_was_empty)
       {
         // Signal consumers if log buf was empty previously.
@@ -482,6 +490,22 @@ int bytes_lost_t3 = 0;
 int bytes_written_t3 = 0;
 int total_to_write_t3 = 0;
 
+// Helper function to test va_list version of append
+static int append_fmt(LogBuffer* log_buffer,
+                      size_t len,
+                      bool append_ln,
+                      const char* fmt,
+                      ...) ATTRIBUTE_FORMAT(printf, 4, 5);
+
+int append_fmt(
+    LogBuffer* log_buffer, size_t len, bool append_ln, const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  int rc = log_buffer->append(fmt, ap, len, append_ln);
+  va_end(ap);
+  return rc;
+}
 
 void clearbuf(char* buf, uint size)
 {
@@ -504,29 +528,29 @@ void fun(const char* fmt, ...)
   va_end(arguments);
 }
 
-void* thread_producer1(void* dummy)
+void* thread_producer1(void*)
 {
   BaseString string;
   for(int i = 1; i <= 1000; i++)
   {
     if(i%40 == 0)
     {
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     string = string.assfmt("Log %*d\n", 5, i);
-    buf_t2->append((void*)string.c_str(), string.length());
+    buf_t2->append(string.c_str(), string.length());
   }
   NdbThread_Exit(NULL);
   return NULL;
 }
 
-void* thread_producer2(void* dummy)
+void* thread_producer2(void*)
 {
   for(int i = 1;i <= 1000; i++)
   {
     if(i%40 == 0)
     {
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     fun("Log %*d\n", 5, -i);
   }
@@ -534,7 +558,7 @@ void* thread_producer2(void* dummy)
   return NULL;
 }
 
-void* thread_producer3(void* dummy)
+void* thread_producer3(void*)
 {
   char buf[10];
   memset(buf, '$', 10);
@@ -545,11 +569,11 @@ void* thread_producer3(void* dummy)
   {
     if(i % sleep_when == 0)
     {
-      sleep(1);
+      NdbSleep_SecSleep(1);
     }
     to_write_bytes = rand() % 10 + 1;
     total_to_write_t3 += to_write_bytes;
-    int ret = buf_t3->append((void*)buf, to_write_bytes);
+    int ret = buf_t3->append(buf, to_write_bytes);
     if(ret)
     {
       printf("Write: %d bytes\n", ret);
@@ -566,7 +590,7 @@ void* thread_producer3(void* dummy)
   return NULL;
 }
 
-void* thread_consumer1(void* dummy)
+void* thread_consumer1(void*)
 {
   char buf[256];
   size_t bytes = 0;
@@ -578,7 +602,7 @@ void* thread_consumer1(void* dummy)
     get_bytes= 256;
     if(i == 20)
     {
-      sleep(3); // simulate slow IO
+      NdbSleep_SecSleep(3); // simulate slow IO
     }
     if((bytes = buf_t2->get(buf, get_bytes)))
     {
@@ -597,14 +621,14 @@ void* thread_consumer1(void* dummy)
   size_t lost_count = buf_t2->getLostCount();
   if(lost_count)
   {
-    fprintf(stdout, "\n*** %lu BYTES LOST ***\n", (unsigned long)lost_count);
+    fprintf(stdout, LostMsgHandler::LOST_BYTES_FMT, lost_count);
   }
 
   NdbThread_Exit(NULL);
   return NULL;
 }
 
-void* thread_consumer2(void* dummy)
+void* thread_consumer2(void*)
 {
   total_bytes_read_t3 = 0;
   char buf[10];
@@ -662,7 +686,7 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append((void*)"123", 3) == 3);
+  OK(buf_t1->append("123", 3) == 3);
   // 123*******#
   // should return 3 immediately
   bytes = buf_t1->get(buf1, 5, 1000);
@@ -674,10 +698,9 @@ TAPTEST(LogBuffer)
   printf("Sub-test 2 OK\n");
 
 
-  va_list empty_ap;
   // append string of max. length that the log buffer can hold
   // **********#
-  OK(buf_t1->append("123456789", empty_ap, 9) == 9);
+  OK(append_fmt(buf_t1, 9, false, "123456789") == 9);
   // 123456789*#
   bytes = buf_t1->get(buf1, 10);
   // **********#
@@ -689,13 +712,13 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append((void*)"01234", 5) == 5); // w == r, empty logbuf
+  OK(buf_t1->append("01234", 5) == 5);  // w == r, empty logbuf
   // 01234*****#
-  OK(buf_t1->append((void*)"56789", 5) == 5); // w > r, no-wrap
+  OK(buf_t1->append("56789", 5) == 5);  // w > r, no-wrap
   // 0123456789#
   buf_t1->get(buf1, 5); // read in one go, w < r
   // *****56789#
-  OK(buf_t1->append((void*)"01234", 5) == 5); // w < r
+  OK(buf_t1->append("01234", 5) == 5);  // w < r
   // 0123456789#
   clearbuf(buf1, bufsize);
   bytes = buf_t1->get(buf1, 3); // read in one go, w == r
@@ -712,13 +735,13 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append((void*)"01234", 5) == 5);
+  OK(buf_t1->append("01234", 5) == 5);
   // 01234*****#
-  OK(buf_t1->append((void*)"56789", 5) == 5);
+  OK(buf_t1->append("56789", 5) == 5);
   // 0123456789#
   buf_t1->get(buf1, 5);
   // *****56789#
-  OK(buf_t1->append((void*)"01234", 5) == 5);
+  OK(buf_t1->append("01234", 5) == 5);
   // 0123456789#
   clearbuf(buf1, bufsize);
   bytes = buf_t1->get(buf1, 3); // read in one go, w == r
@@ -743,15 +766,15 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append("01234567", empty_ap, 8) == 8);
+  OK(append_fmt(buf_t1, 8, false, "01234567") == 8);
   // 01234567**#
   bytes = buf_t1->get(buf1, 4);
   // ****4567**#
   buf1[bytes] = '\0';
   OK(strcmp(buf1, "0123") == 0);
-  OK(buf_t1->append("012", empty_ap, 3) == 3); // w > r, wrap
+  OK(append_fmt(buf_t1, 3, false, "012") == 3);  // w > r, wrap
   // 012*4567**#
-  OK(buf_t1->append((void*)"3", 1) == 1); // w < r
+  OK(buf_t1->append("3", 1) == 1);  // w < r
   // 01234567**#
   bytes = buf_t1->get(buf1, 10);
   buf1[bytes] = '\0';
@@ -765,7 +788,7 @@ TAPTEST(LogBuffer)
   //check functionality after reading in parts
   //append string of length = size_of_buf - 1
   // **********#
-  OK(buf_t1->append("123456789", empty_ap, 9) == 9);
+  OK(append_fmt(buf_t1, 9, false, "123456789") == 9);
   // 123456789*#
   bytes = buf_t1->get(buf1, 9);
   OK(bytes == 9);
@@ -777,31 +800,31 @@ TAPTEST(LogBuffer)
 
 
   // **********#
-  OK(buf_t1->append((void*)"012345678", 9) == 9);
+  OK(buf_t1->append("012345678", 9) == 9);
   // 012345678*#
   buf_t1->get(buf1, 4);
   // ****45678*#
-  OK(buf_t1->append("90a", empty_ap, 3) == 3); // append in the beginning
+  OK(append_fmt(buf_t1, 3, false, "90a") == 3);  // append in the beginning
   // 90a*45678*#
   OK(buf_t1->get(buf1, 8) == 8); // read in parts
   // **********#
   buf1[8] = '\0';
   OK(strcmp(buf1, "4567890a") == 0);
-  OK(buf_t1->append((void*)"123", 0) == 0); // length zero
-  OK(buf_t1->append("123", empty_ap, 0) == 0); // length zero
+  OK(buf_t1->append("123", 0) == 0);           // length zero
+  OK(append_fmt(buf_t1, 0, false, "123") == 0);  // length zero
   assert(buf_t1->getSize() == 0);
   printf("Sub-test 8 OK\n");
   clearbuf(buf1, bufsize);
 
 
   // **********#
-  buf_t1->append((void*)"01234", 5);
+  buf_t1->append("01234", 5);
   // 01234*****#
-  buf_t1->append((void*)"56789", 5);
+  buf_t1->append("56789", 5);
   // 0123456789#
-  OK(buf_t1->append("will fail", empty_ap, 9) == 0); // full log buffer
+  OK(append_fmt(buf_t1, 9, false, "will fail") == 0);  // full log buffer
   // 0123456789#
-  OK(buf_t1->append("will fail", empty_ap, 9) == 0); // ,,
+  OK(append_fmt(buf_t1, 9, false, "will fail") == 0);  // ,,
   // 0123456789#
   OK(buf_t1->getLostCount() == 18);
   clearbuf(buf1, bufsize);
@@ -815,23 +838,14 @@ TAPTEST(LogBuffer)
   struct NdbThread* log_threadvar1;
   struct NdbThread* prod_threadvar1;
   struct NdbThread* prod_threadvar2;
-  prod_threadvar1 = NdbThread_Create(thread_producer1,
-                       (void**)NULL,
-                       0,
-                       (char*)"thread_test1",
-                       NDB_THREAD_PRIO_MEAN);
+  prod_threadvar1 = NdbThread_Create(
+      thread_producer1, (void**)NULL, 0, "thread_test1", NDB_THREAD_PRIO_MEAN);
 
-  prod_threadvar2 = NdbThread_Create(thread_producer2,
-                         (void**)NULL,
-                         0,
-                         (char*)"thread_test2",
-                         NDB_THREAD_PRIO_MEAN);
+  prod_threadvar2 = NdbThread_Create(
+      thread_producer2, (void**)NULL, 0, "thread_test2", NDB_THREAD_PRIO_MEAN);
 
-  log_threadvar1 = NdbThread_Create(thread_consumer1,
-                     (void**)NULL,
-                     0,
-                     (char*)"thread_io1",
-                     NDB_THREAD_PRIO_MEAN);
+  log_threadvar1 = NdbThread_Create(
+      thread_consumer1, (void**)NULL, 0, "thread_io1", NDB_THREAD_PRIO_MEAN);
 
   NdbThread_WaitFor(prod_threadvar1, NULL);
   NdbThread_WaitFor(prod_threadvar2, NULL);
@@ -848,17 +862,11 @@ TAPTEST(LogBuffer)
 
   struct NdbThread* log_threadvar2;
   struct NdbThread* prod_threadvar3;
-  prod_threadvar3 = NdbThread_Create(thread_producer3,
-                         (void**)NULL,
-                         0,
-                         (char*)"thread_test3",
-                         NDB_THREAD_PRIO_MEAN);
+  prod_threadvar3 = NdbThread_Create(
+      thread_producer3, (void**)NULL, 0, "thread_test3", NDB_THREAD_PRIO_MEAN);
 
-  log_threadvar2 = NdbThread_Create(thread_consumer2,
-                     (void**)NULL,
-                     0,
-                     (char*)"thread_io2",
-                     NDB_THREAD_PRIO_MEAN);
+  log_threadvar2 = NdbThread_Create(
+      thread_consumer2, (void**)NULL, 0, "thread_io2", NDB_THREAD_PRIO_MEAN);
   NdbThread_WaitFor(prod_threadvar3, NULL);
   stop_t3 = true;
   NdbThread_WaitFor(log_threadvar2, NULL);

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -418,7 +418,7 @@ ENDFOREACH()
 SET(ROUTER_INSTALL_CONFIGDIR_RPM    "/etc/mysqlrouter")
 SET(ROUTER_INSTALL_DATADIR_RPM      "/var/lib/mysqlrouter")
 SET(ROUTER_INSTALL_LOGDIR_RPM       "/var/log/mysqlrouter")
-IF (LINUX_FEDORA)
+IF (WITH_SYSTEMD)
   SET(ROUTER_INSTALL_RUNTIMEDIR_RPM "/run/mysqlrouter")
 ELSE()
   SET(ROUTER_INSTALL_RUNTIMEDIR_RPM "/var/run/mysqlrouter")
@@ -442,7 +442,7 @@ SET(ROUTER_INSTALL_LOGROTATEFILE_RPM "mysqlrouter")
 SET(ROUTER_INSTALL_CONFIGDIR_DEB  "/etc/mysqlrouter")
 SET(ROUTER_INSTALL_DATADIR_DEB    "/var/lib/mysqlrouter")
 SET(ROUTER_INSTALL_LOGDIR_DEB     "/var/log/mysqlrouter")
-SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/var/run/mysqlrouter")
+SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/run/mysqlrouter")
 
 SET(ROUTER_INSTALL_BINDIR_DEB     "bin")
 SET(ROUTER_INSTALL_LIBDIR_DEB     "lib/mysqlrouter/private")

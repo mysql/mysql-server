@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ const unsigned int MAX_FAST_DIGEST_ROUNDS = 1000;
 const unsigned int DIGEST_INFO_LENGTH = 1;
 /* Length of iteration info field */
 const unsigned int ITERATION_LENGTH = 3;
-/* Iteration multipler to be used on extracted iteration count */
+/* Iteration multiplier to be used on extracted iteration count */
 const unsigned int ITERATION_MULTIPLIER = 1000;
 /* Upper cap on iterations */
 const long unsigned int MAX_ITERATIONS = 0xFFF * ITERATION_MULTIPLIER;
@@ -86,7 +86,7 @@ class SHA2_password_cache {
  public:
   typedef std::unordered_map<std::string, sha2_cache_entry> password_cache;
 
-  SHA2_password_cache() {}
+  SHA2_password_cache() = default;
   ~SHA2_password_cache();
   bool add(const std::string authorization_id,
            const sha2_cache_entry &entry_to_be_cached);

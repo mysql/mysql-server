@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,32 +43,31 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 /** Build a table definition without updating SYSTEM TABLES
-@param[in,out]	table		dict table object
-@param[in]	create_info	HA_CREATE_INFO object
-@param[in,out]	trx		transaction instance
+@param[in,out]  table           dict table object
+@param[in]      create_info     HA_CREATE_INFO object
+@param[in,out]  trx             transaction instance
 @return DB_SUCCESS or error code */
 dberr_t dict_build_table_def(dict_table_t *table,
                              const HA_CREATE_INFO *create_info, trx_t *trx);
 
 /** Builds a tablespace to store various objects.
-@param[in,out]	trx		DD transaction
-@param[in,out]	tablespace	Tablespace object describing what to build.
+@param[in,out]  trx             DD transaction
+@param[in,out]  tablespace      Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
 dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
-@param[in,out]	table		Table to build in its own tablespace.
-@param[in]	create_info	HA_CREATE_INFO object
-@param[in,out]	trx		Transaction
+@param[in,out]  table           Table to build in its own tablespace.
+@param[in]      create_info     HA_CREATE_INFO object
+@param[in,out]  trx             Transaction
 @return DB_SUCCESS or error code */
 dberr_t dict_build_tablespace_for_table(dict_table_t *table,
                                         const HA_CREATE_INFO *create_info,
                                         trx_t *trx);
 
 /** Assign a new table ID and put it into the table cache and the transaction.
-@param[in,out]	table	Table that needs an ID
-@param[in,out]	trx	Transaction */
-void dict_table_assign_new_id(dict_table_t *table, trx_t *trx);
+@param[in,out]  table   Table that needs an ID */
+void dict_table_assign_new_id(dict_table_t *table);
 
 /** Builds an index definition but doesn't update sys_table. */
 void dict_build_index_def(const dict_table_t *table, /*!< in: table */
@@ -76,14 +75,14 @@ void dict_build_index_def(const dict_table_t *table, /*!< in: table */
                           trx_t *trx); /*!< in/out: InnoDB transaction
                                        handle */
 /** Creates an index tree for the index if it is not a member of a cluster.
- @param[in,out]	index	InnoDB index object
- @param[in,out]	trx	transaction
- @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+ @param[in,out] index   InnoDB index object
+ @param[in,out] trx     transaction
+ @return        DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx);
 
 /** Drop an index tree belonging to a temporary table.
-@param[in]	index		index in a temporary table
-@param[in]	root_page_no	index root page number */
+@param[in]      index           index in a temporary table
+@param[in]      root_page_no    index root page number */
 void dict_drop_temporary_table_index(const dict_index_t *index,
                                      page_no_t root_page_no);
 
@@ -91,19 +90,18 @@ void dict_drop_temporary_table_index(const dict_index_t *index,
 A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
 where the numbers start from 1, and are given locally for this table, that is,
 the number is not global, as it used to be before MySQL 4.0.18.
-@param[in,out]	id_nr	number to use in id generation; incremented if used
-@param[in]	name	table name
-@param[in,out]	foreign	foreign key */
-UNIV_INLINE
-dberr_t dict_create_add_foreign_id(ulint *id_nr, const char *name,
-                                   dict_foreign_t *foreign);
+@param[in,out]  id_nr   number to use in id generation; incremented if used
+@param[in]      name    table name
+@param[in,out]  foreign foreign key */
+static inline dberr_t dict_create_add_foreign_id(ulint *id_nr, const char *name,
+                                                 dict_foreign_t *foreign);
 
 /** Check if a foreign constraint is on columns served as base columns
 of any stored column. This is to prevent creating SET NULL or CASCADE
 constraint on such columns
-@param[in]	local_fk_set	set of foreign key objects, to be added to
+@param[in]      local_fk_set    set of foreign key objects, to be added to
 the dictionary tables
-@param[in]	table		table to which the foreign key objects in
+@param[in]      table           table to which the foreign key objects in
 local_fk_set belong to
 @return true if yes, otherwise, false */
 bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
@@ -136,10 +134,10 @@ struct tab_node_t {
 };
 
 /** Create in-memory tablespace dictionary index & table
-@param[in]	space		tablespace id
-@param[in]	space_discarded	true if space is discarded
-@param[in]	in_flags	space flags to use when space_discarded is true
-@param[in]	is_create	true when creating SDI index
+@param[in]      space           tablespace id
+@param[in]      space_discarded true if space is discarded
+@param[in]      in_flags        space flags to use when space_discarded is true
+@param[in]      is_create       true when creating SDI index
 @return in-memory index structure for tablespace dictionary or NULL */
 dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
                                          uint32_t in_flags, bool is_create);
@@ -174,25 +172,22 @@ struct ind_node_t {
 /** Compose a column number for a virtual column, stored in the "POS" field
 of Sys_columns. The column number includes both its virtual column sequence
 (the "nth" virtual column) and its actual column position in original table
-@param[in]	v_pos		virtual column sequence
-@param[in]	col_pos		column position in original table definition
-@return	composed column position number */
-UNIV_INLINE
-ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos);
+@param[in]      v_pos           virtual column sequence
+@param[in]      col_pos         column position in original table definition
+@return composed column position number */
+static inline ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos);
 
 /** Get the column number for a virtual column (the column position in
 original table), stored in the "POS" field of Sys_columns
-@param[in]	pos		virtual column position
+@param[in]      pos             virtual column position
 @return column position in original table */
-UNIV_INLINE
-ulint dict_get_v_col_mysql_pos(ulint pos);
+static inline ulint dict_get_v_col_mysql_pos(ulint pos);
 
 /** Get a virtual column sequence (the "nth" virtual column) for a
 virtual column, stord in the "POS" field of Sys_columns
-@param[in]	pos		virtual column position
+@param[in]      pos             virtual column position
 @return virtual column sequence */
-UNIV_INLINE
-ulint dict_get_v_col_pos(ulint pos);
+static inline ulint dict_get_v_col_pos(ulint pos);
 
 #include "dict0crea.ic"
 

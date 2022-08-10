@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,14 +24,15 @@
 
 #include <signaldata/FsReadWriteReq.hpp>
 
-bool
-printFSREADWRITEREQ(FILE * output, const Uint32 * theData, 
-		    Uint32 len, Uint16 receiverBlockNo){
-
+bool printFSREADWRITEREQ(FILE *output,
+                         const Uint32 *theData,
+                         Uint32 /*len*/,
+                         Uint16 /*receiverBlockNo*/)
+{
   bool ret = true;
-  
-  const FsReadWriteReq * const sig = (FsReadWriteReq *) theData;
-  
+
+  const FsReadWriteReq *const sig = (const FsReadWriteReq *)theData;
+
   fprintf(output, " UserPointer: %d\n", sig->userPointer);
   fprintf(output, " FilePointer: %d\n", sig->filePointer);
   fprintf(output, " UserReference: H\'%.8x", sig->userReference);
@@ -78,27 +79,33 @@ printFSREADWRITEREQ(FILE * output, const Uint32 * theData,
       FsReadWriteReq::fsFormatMemAddress)
     fprintf(output, " pageData: ");
 
-  unsigned int i;
-  switch(sig->getFormatFlag(sig->operationFlag)){
+  switch(sig->getFormatFlag(sig->operationFlag))
+  {
   case FsReadWriteReq::fsFormatListOfPairs:
-    for (i= 0; i < sig->numberOfPages*2; i += 2){
-      fprintf(output, " H\'%.8x, H\'%.8x\n", sig->data.pageData[i], 
-                                             sig->data.pageData[i + 1]);
+    for (unsigned i = 0; i < sig->numberOfPages; i ++)
+    {
+      fprintf(output, " H\'%.8x, H\'%.8x\n",
+              sig->data.listOfPair[i].varIndex,
+              sig->data.listOfPair[i].fileOffset);
     }
     break;
   case FsReadWriteReq::fsFormatArrayOfPages:
-    fprintf(output, " H\'%.8x, H\'%.8x\n", sig->data.pageData[0], 
-                                           sig->data.pageData[1]);
+    fprintf(output, " H\'%.8x, H\'%.8x\n", sig->data.arrayOfPages.varIndex,
+                                           sig->data.arrayOfPages.fileOffset);
     break;
   case FsReadWriteReq::fsFormatListOfMemPages:
-    for (i= 0; i < (sig->numberOfPages + 1); i++){
-      fprintf(output, " H\'%.8x, ", sig->data.pageData[i]);
+    // Format changed in v8.0.25
+    fprintf(output, " H\'%.8x, ", sig->data.listOfMemPages.fileOffset);
+    for (unsigned i = 0; i < sig->numberOfPages; i++)
+    {
+      fprintf(output, " H\'%.8x, ", sig->data.listOfMemPages.varIndex[i]);
     }
     break;
   case FsReadWriteReq::fsFormatGlobalPage:
-    for (i= 0; i < sig->numberOfPages; i++){
-      fprintf(output, " H\'%.8x, ", sig->data.pageData[i]);
-    }
+    fprintf(output, " H\'%.8x, ", sig->data.globalPage.pageNumber);
+    break;
+  case FsReadWriteReq::fsFormatSharedPage:
+    fprintf(output, " H\'%.8x, ", sig->data.sharedPage.pageNumber);
     break;
   case FsReadWriteReq::fsFormatMemAddress:
     fprintf(output, "memoryOffset: H\'%.8x, ",

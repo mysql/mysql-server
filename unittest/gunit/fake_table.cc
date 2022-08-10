@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,4 +28,4 @@ int Fake_TABLE::highest_table_id = 5;
   This member method exists in sqllib but we need it for
   merge_test_small.cc
 */
-GRANT_INFO::GRANT_INFO() {}
+GRANT_INFO::GRANT_INFO() = default;

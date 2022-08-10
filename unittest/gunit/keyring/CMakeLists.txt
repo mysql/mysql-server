@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,10 @@ SET(TESTS
   converter
   file_io
 )
-# This compiler fails to handle some of the mock functions involved.
-IF(MY_COMPILER_IS_SUNPRO)
-  LIST(REMOVE_ITEM TESTS keys_container)
-ENDIF()
 
+DISABLE_GOOGLEMOCK_UNINITIALIZED_WARNING(
+  keys_container-t.cc
+  )
 
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file_tests")
 

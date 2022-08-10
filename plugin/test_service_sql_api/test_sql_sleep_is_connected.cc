@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -52,7 +52,7 @@ static void ensure_api_ok(const char *function, int result) {
 }
 
 static void ensure_api_ok(const char *function, MYSQL_SESSION result) {
-  if (result == 0) {
+  if (result == nullptr) {
     test_context->log_test_line("ERROR calling ", function, ": returned ",
                                 reinterpret_cast<uintptr_t>(result), "\n");
   }
@@ -74,9 +74,8 @@ static int sql_start_result_metadata(void *, uint, uint,
 ) {
   DBUG_ENTER("sql_start_result_metadata");
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info",
-             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
-  DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
+  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info", ("resultcs->m_coll_name: %s", resultcs->m_coll_name));
   DBUG_RETURN(false);
 }
 
@@ -405,11 +404,11 @@ mysql_declare_plugin(test_daemon){
     "Test sql service commands",
     PLUGIN_LICENSE_GPL,
     test_session_plugin_init,   /* Plugin Init */
-    NULL,                       /* Plugin Check uninstall */
+    nullptr,                    /* Plugin Check uninstall */
     test_session_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

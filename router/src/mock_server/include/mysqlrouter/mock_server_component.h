@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <memory>
 #include <vector>
 
+#include "mysql/harness/stdx/monitor.h"
 #include "mysqlrouter/mock_server_export.h"
 #include "mysqlrouter/mock_server_global_scope.h"
 
@@ -36,21 +37,24 @@ class MySQLServerMock;
 }
 
 class MOCK_SERVER_EXPORT MockServerComponent {
+ public:
   // disable copy, as we are a single-instance
   MockServerComponent(MockServerComponent const &) = delete;
   void operator=(MockServerComponent const &) = delete;
 
-  std::vector<std::weak_ptr<server_mock::MySQLServerMock>> srvs_;
-
-  MockServerComponent() = default;
-
- public:
   static MockServerComponent &get_instance();
 
-  void register_server(std::shared_ptr<server_mock::MySQLServerMock> srv);
+  void register_server(const std::string &name,
+                       std::shared_ptr<server_mock::MySQLServerMock> srv);
 
   std::shared_ptr<MockServerGlobalScope> get_global_scope();
   void close_all_connections();
+
+ private:
+  Monitor<std::map<std::string, std::weak_ptr<server_mock::MySQLServerMock>>>
+      srvs_{{}};
+
+  MockServerComponent() = default;
 };
 
 #endif

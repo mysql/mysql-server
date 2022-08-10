@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,7 +176,7 @@ MYSQL *STDCALL mysql_real_connect_dns_srv(MYSQL *mysql,
   uint port;
   while (!data.pop_next(host, port)) {
     MYSQL *ret =
-        mysql_real_connect(mysql, host.c_str(), user, passwd, db, port, NULL,
+        mysql_real_connect(mysql, host.c_str(), user, passwd, db, port, nullptr,
                            client_flag | CLIENT_REMEMBER_OPTIONS);
     if (ret) return ret;
   }

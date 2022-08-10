@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,6 +109,10 @@ class Log_builtins_keyring {
   }
   static DEFINE_METHOD(int, dedicated_errstream, (void *)) { return -1; }
   static DEFINE_METHOD(log_service_error, close_errstream, (void **)) {
+    return LOG_SERVICE_NOTHING_DONE;
+  }
+  static DEFINE_METHOD(log_service_error, reopen_errstream,
+                       (const char *, void **)) {
     return LOG_SERVICE_NOTHING_DONE;
   }
   static DEFINE_METHOD(int, message, (int, ...)) { return 0; }
@@ -227,7 +231,9 @@ class Log_builtins_keyring {
       keyring_common::service_definition::Log_builtins_keyring::               \
           dedicated_errstream,                                                 \
       keyring_common::service_definition::Log_builtins_keyring::               \
-          close_errstream                                                      \
+          close_errstream,                                                     \
+      keyring_common::service_definition::Log_builtins_keyring::               \
+          reopen_errstream                                                     \
           END_SERVICE_IMPLEMENTATION()
 
 #define KEYRING_LOG_BUILTINS_STRING_IMPLEMENTOR(component_name)              \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -235,9 +235,9 @@ void Protocol_encoder::log_protobuf(const unsigned id,
   log_protobuf(id, direction_name, msg);
 }
 
-void Protocol_encoder::log_protobuf(
-    const unsigned id, const char *direction_name MY_ATTRIBUTE((unused)),
-    const Message *message MY_ATTRIBUTE((unused))) {
+void Protocol_encoder::log_protobuf(const unsigned id,
+                                    const char *direction_name [[maybe_unused]],
+                                    const Message *message [[maybe_unused]]) {
 #ifdef USE_MYSQLX_FULL_PROTO
   std::string text_message;
 
@@ -296,7 +296,7 @@ std::string message_type_to_string(const uint8_t type_id) {
 
 // for message sent as raw buffer only logging its type tag now
 void Protocol_encoder::log_protobuf(const unsigned id,
-                                    uint8_t type MY_ATTRIBUTE((unused))) {
+                                    uint8_t type [[maybe_unused]]) {
   log_debug("%u: SEND RAW- Type: %s", id, message_type_to_string(type).c_str());
 }
 

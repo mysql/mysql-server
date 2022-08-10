@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,8 +69,8 @@ enum AttrInfoType {
   AFTER_VALUES = 2 
 };
 
-  STATIC_CONST( DataLength = 22 );
-  STATIC_CONST( StaticLength = 3 );
+  static constexpr Uint32 DataLength = 22;
+  static constexpr Uint32 StaticLength = 3;
 
 private:
   Uint32 m_connectionPtr; 
@@ -90,7 +90,8 @@ public:
   void setTransactionId1(Uint32 aTransId);
   Uint32 getTransactionId2() const;
   void setTransactionId2(Uint32 aTransId);
-  Uint32* getData() const;
+  Uint32* getData();
+  const Uint32* getData() const;
   int setData(Uint32* aDataBuf, Uint32 aDataLen);
 };
 
@@ -130,11 +131,9 @@ void TrigAttrInfo::setTriggerId(Uint32 aTriggerId)
   m_trigId = aTriggerId;
 }
 
-inline
-Uint32* TrigAttrInfo::getData() const
-{
-  return (Uint32*)&m_data[0];
-}
+inline Uint32* TrigAttrInfo::getData() { return m_data; }
+
+inline const Uint32* TrigAttrInfo::getData() const { return m_data; }
 
 inline
 int TrigAttrInfo::setData(Uint32* aDataBuf, Uint32 aDataLen)

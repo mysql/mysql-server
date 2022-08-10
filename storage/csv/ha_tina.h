@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ class ha_tina : public handler {
   ~ha_tina() override {
     if (chain_alloced) my_free(chain);
     if (file_buff) delete file_buff;
-    free_root(&blobroot, MYF(0));
+    blobroot.Clear();
   }
   const char *table_type() const override { return "CSV"; }
   ulonglong table_flags() const override {

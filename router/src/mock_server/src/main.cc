@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,9 @@
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/stdx/filesystem.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
+
+IMPORT_LOG_FUNCTIONS()
 
 constexpr unsigned kHelpScreenWidth = 72;
 constexpr unsigned kHelpScreenIndent = 8;
@@ -50,6 +53,7 @@ struct MysqlServerMockConfig {
   std::string http_port{};
   std::string xport{};
   bool verbose{false};
+  std::string logging_folder;
 
   std::string ssl_cert;
   std::string ssl_key;
@@ -121,8 +125,9 @@ class MysqlServerMockFrontend {
     mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
     mysql_harness::Config config;
-    const mysql_harness::logging::LogLevel log_level =
-        mysql_harness::logging::get_default_log_level(config);
+    const auto log_level = config_.verbose
+                               ? mysql_harness::logging::LogLevel::kDebug
+                               : mysql_harness::logging::LogLevel::kWarning;
 
     mysql_harness::logging::clear_registry(registry);
     mysql_harness::logging::create_module_loggers(
@@ -130,7 +135,8 @@ class MysqlServerMockFrontend {
         {mysql_harness::logging::kMainLogger, "mock_server", "http_server", "",
          "rest_mock_server"},
         mysql_harness::logging::kMainLogger);
-    mysql_harness::logging::create_main_log_handler(registry, "", "", true);
+    mysql_harness::logging::create_main_log_handler(
+        registry, "mock_server", config_.logging_folder, true);
 
     registry.set_ready();
 
@@ -144,12 +150,13 @@ class MysqlServerMockFrontend {
 
       config_.module_prefix = cwd.native();
     }
-
-    // log to stderr
-    loader_config->set_default("logging_folder", "");
+    loader_config->set_default("logging_folder", config_.logging_folder);
     loader_config->add("logger");
-    loader_config->get("logger", "")
-        .add("level", config_.verbose ? "debug" : "warning");
+    auto &logger_conf = loader_config->get("logger", "");
+    logger_conf.add("level", config_.verbose ? "debug" : "warning");
+    logger_conf.add("timestamp_precision", "ms");
+    const std::string logfile_name = "mock_server_" + config_.port + ".log";
+    logger_conf.add("filename", logfile_name);
 
     // assume all path relative to the installed binary
     auto plugin_dir = mysql_harness::get_plugin_dir(origin_dir_.str());
@@ -165,6 +172,12 @@ class MysqlServerMockFrontend {
     loader_config->set_default(
         "data_folder",
         mysql_harness::Path(base_path).join("var").join("share").str());
+
+    {
+      auto &section = loader_config->add("io");
+      section.add("library", "io");
+      section.add("threads", "1");
+    }
 
     if (!config_.http_port.empty()) {
       auto &rest_mock_server_config =
@@ -222,6 +235,8 @@ class MysqlServerMockFrontend {
       throw std::runtime_error(std::string("init-loader failed: ") +
                                err.what());
     }
+
+    log_debug("Starting");
 
     loader_->start();
   }
@@ -322,6 +337,10 @@ class MysqlServerMockFrontend {
         "directory containing PEM files of CRL", CmdOptionValueReq::required,
         "directory",
         [this](const std::string &value) { config_.ssl_crlpath = value; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--logging-folder"}), "logging folder",
+        CmdOptionValueReq::required, "directory",
+        [this](const std::string &value) { config_.logging_folder = value; });
   }
 
   CmdArgHandler arg_handler_;

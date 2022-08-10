@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <NdbRestarter.hpp>
 #include <NdbOut.hpp>
@@ -180,25 +181,26 @@ NdbRestarter::getMasterNodeId(){
   return node;
 }
 
-int
-NdbRestarter::getNodeGroup(int nodeId){
-  if (!isConnected())
-  {
+int NdbRestarter::getNodeGroup(int nodeId) {
+  if (!isConnected()) {
+    g_err << "getNodeGroup failed: Not connected to ndb_mgmd!!" << endl;
     return -1;
   }
-  
-  if (getStatus() != 0)
-  {
+
+  if (getStatus() != 0) {
+    g_err << "getNodeGroup failed: Failed to get status!!" << endl;
     return -1;
   }
-  
-  for(unsigned i = 0; i < ndbNodes.size(); i++)
-  {
-    if(ndbNodes[i].node_id == nodeId)
-    {
+
+  ndbout << "Node ids from ndb_mgm:- " << endl;
+  for (unsigned i = 0; i < ndbNodes.size(); i++) {
+    ndbout << "ndbNodes[" << i << "].node_id = " << ndbNodes[i].node_id << endl;
+    if (ndbNodes[i].node_id == nodeId) {
       return ndbNodes[i].node_group;
     }
   }
+  g_err << "getNodeGroup failed: Node with id " << nodeId
+         << " not found in mgm!!" << endl;
   return -1;
 }
 
@@ -211,11 +213,13 @@ NdbRestarter::getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_p
 {
   if (!isConnected())
   {
+    g_err << "getNodeGroup failed: Not connected to ndb_mgmd!!" << endl;
     return -1;
   }
 
   if (getStatus() != 0)
   {
+    g_err << "getNodeGroup failed: Failed to get status!!" << endl;
     return -1;
   }
 

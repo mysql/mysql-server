@@ -199,7 +199,7 @@ INSERT INTO t1 (id,a,b) VALUES (10,'aditya','hello');
 connect (con1,localhost,root);
 connection con1;
 
-SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR go_ddl';
+SET DEBUG_SYNC= 'ddl_after_scan SIGNAL opened WAIT_FOR go_ddl';
 send ALTER TABLE t1 ADD CONSTRAINT  pk1 PRIMARY KEY (id);
 
 connection default;
@@ -697,3 +697,128 @@ SELECT ID INTO @tid FROM mysql.tables WHERE NAME='t1';
 SELECT NAME, ORDINAL_POSITION, TYPE, HIDDEN, GENERATION_EXPRESSION_UTF8 FROM mysql.columns WHERE TABLE_ID=@tid ORDER BY ORDINAL_POSITION;
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #30556595  FAILING ASSERTION: !CURSOR->INDEX->IS_COMMITTED()
+--echo # ON TABLE WITH GCOLS
+--echo #
+
+--echo # Set binlog_row_image = MINIMAL.
+SET @old_binlog_row_image = @@binlog_row_image;
+SET @@session.binlog_row_image = 'MINIMAL';
+
+--echo # Testcase-1
+CREATE TABLE t (pid int PRIMARY KEY,
+                uid int,
+                vid int AS (uid) VIRTUAL);
+connect(con1,localhost,root,,);
+--echo # Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+--send ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+--echo # Insert a record to generate an insert row log for the new index.
+--echo # LOG-1 idx_vid : INSERT [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+--echo # Update the record changing PK. It should generate 2 row logs for the new index.
+--echo # LOG-2 idx_vid : DELETE [10, 1]
+--echo # LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SELECT * FROM t;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+connection con1;
+--reap
+connection default;
+--echo # Insert a record to re-use the delete marked record in idx_vid [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+SELECT * FROM t;
+disconnect con1;
+DROP TABLE t;
+
+--echo # Testcase-2
+CREATE TABLE t (pid int PRIMARY KEY,
+                uid int,
+                vid int AS (uid) VIRTUAL);
+connect(con1,localhost,root,,);
+--echo # Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+--send ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+--echo # Start transaction
+BEGIN;
+--echo # Insert a record to generate an insert row log for the new index.
+--echo # LOG-1 idx_vid : INSERT [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+--echo # Update the record changing PK. It should generate 2 row logs for the new index.
+--echo # LOG-2 idx_vid : DELETE [10, 1]
+--echo # LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SELECT * FROM t;
+--echo # Rollback transaction
+--echo # LOG-4 idx_vid : DELETE [10, 2]
+--echo # LOG-5 idx_vid : INSERT [10, 1]
+--echo # LOG-6 idx_vid : DELETE [10, 1]
+ROLLBACK;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+connection con1;
+--reap
+connection default;
+--echo # Insert a record to check valid entry in idx_vid [NULL, 1]
+INSERT INTO t(pid) VALUES (1);
+SELECT * FROM t;
+disconnect con1;
+DROP TABLE t;
+
+--echo # Testcase-3
+CREATE TABLE t (pid int PRIMARY KEY,
+                uid int,
+                vid int AS (uid) VIRTUAL);
+INSERT INTO t(pid, uid) VALUES (1,10);
+connect(con1,localhost,root,,);
+--echo # Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+--send ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+--echo # Update the record changing PK. It should generate 2 row logs for the new index.
+--echo # LOG-2 idx_vid : DELETE [10, 1]
+--echo # LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+connection con1;
+--reap
+connection default;
+--echo # Read [2, 10, 10] row using idx_vid index key.
+--sleep 1
+--skip_if_hypergraph  # Hits assertion. Bug#33888263.
+select * from t where VID=10;
+disconnect con1;
+DROP TABLE t;
+
+--echo # Testcase-4
+CREATE TABLE t (pid int PRIMARY KEY,
+                uid int,
+                vid int AS (uid) VIRTUAL);
+INSERT INTO t(pid, uid) VALUES (1,10);
+connect(con1,localhost,root,,);
+--echo # Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+--send ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+--echo # Update the record changing PK. It should generate 2 row logs for the new index.
+--echo # LOG-2 idx_vid : DELETE [10, 1]
+--echo # LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+connection con1;
+--reap
+connection default;
+--echo # Delete a record.
+--skip_if_hypergraph  # Hits assertion. Bug#33888263.
+delete from t limit 1;
+disconnect con1;
+DROP TABLE t;
+SET @@session.binlog_row_image = @old_binlog_row_image;

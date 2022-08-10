@@ -1,0 +1,780 @@
+# ==== Purpose ====
+#
+# Verify that @@session.terminology_use_previous works as
+# expected, for all tables and SQL statements that it affects.
+#
+# This option affects a number of instrumentation names for mutexes,
+# read/write locks, condition variables, memory allocations, threads,
+# thread stages, and thread commands.
+#
+# These instrumentation names occur in a number of performance_schema
+# tables, INFORMATION_SCHEMA tables, SHOW statements, and in a log
+# file.  The log file is affected only the global value of the option
+# and the logic to test it is different, so it is tested in
+# rpl_terminology_use_previous_logs.  This test checks the
+# tables and statements, not the log file.
+#
+# ==== Requirements ====
+#
+# R1. When @@session.terminology_use_previous = NONE:
+#     R1.1. The new names should be used for all affected identifiers
+#     R1.2. The old names should not be used for any identifiers
+#
+# R2. When @@session.terminology_use_previous != NONE:
+#     R2.1. The old names should be used for all affected identifiers
+#     R2.2. The new names should not be used for any identifiers
+#
+# R3. The default for terminology_use_previous should be NONE.
+#
+# ==== Implementation ====
+#
+# Since a large number of identifiers are affected by the option, and
+# they appear in a variety of monitoring tables and commands, we check
+# all identifiers in all monitoring tables and commands in a
+# programmatic fashion.
+#
+# * Declarative approach
+#
+# We declare the names as data, and we declare the monitoring tables
+# and commands as data, in both cases using a JSON representation.  We
+# use three mtr variables for this:
+#
+#   $classes: a JSON array containing the 7 instrumentation classes
+#     where renamed identifiers occur.
+#
+#   $occurrences: a JSON object, where the keys are instrumentation
+#     classes and the values describe the monitoring tables and
+#     commands where identifiers in the class can be found.
+#
+#   $names: a JSON array, where each element is a JSON document that
+#     contains the old and new name for a renamed identifier.
+#
+# * Execution flow
+#
+# To execute test scenarios, an outer loop iterates over the two
+# possible values for @@terminology_use_previous.  Inside
+# that, we have a loop that iterates over all the instrumentation
+# classes.  Inside that, we have two loops: first one over all the
+# monitoring tables for that class, and then one over all the
+# monitoring commands for that class.  In each of those inner loops,
+# we assert that all the renamed identifiers appear with the old/new
+# name according to terminology_use_previous, and that the
+# other name does not appear.
+#
+# We use the JSON test framework, include/create_json_*, to iterate
+# over JSON arrays and unpack JSON objects into mtr variables.
+#
+# * Assertions for tables
+#
+# The tables we check, in most cases, contains one row per identifier.
+# We create three SELECT queries:
+#
+#  1. A SELECT whose result is the set of identifiers found in the
+#     table
+#
+#  2. A SELECT whose result set is the set of expected identifiers.
+#
+#  3. A SELECT whose result set is the set of identifiers we do *not*
+#     expect - i.e., the old names if
+#     terminology_use_previous is NONE, and the new names
+#     otherwise.
+#
+# We join #1 and #2 and assert that the result set is equal to the
+# full list
+#
+# We join #1 and #3 and assert that the result set is empty.
+#
+# * Assertions for statements
+#
+# The statements we check - actually only SHOW PROCESSLIST - cannot be
+# used in a join operation.  Therefore we first copy the output of
+# SHOW PROCESSLIST into a temporary table, and then assert that the
+# contents of the table is as expected, using the logic for tables
+# described above.  To copy the result into a temporary table, we
+# first write the result to a file and then load the file using LOAD
+# DATA INFILE.
+#
+# * Scenario setup
+#
+# In most tables, and for most instrumentation classes, there is
+# always a row per instrumentation name.  However, for SHOW
+# PROCESSLIST and the related tables, the Thread Command is only
+# visible if some thread is in the relevant state.  So in order to
+# test Thread Command, we take the server to a state where a thread
+# uses the renamed Thread Command.  The relevant Thread Command is
+# "Register Replica", which is used briefly by the source server while
+# a replica is connecting, and we use a debug sync point to force the
+# source to pause it is in this state.
+#
+# ==== Limitations ====
+#
+# We do not test the *history tables* in performance_schema.  The
+# reason is that history tables contain the last N events that
+# occurred during the code execution, for instance, the last N mutex
+# acquisitions among all threads.  That is highly nondeterministic,
+# and highly unstable over the server evolution, so not easy to test
+# in a robust way.
+#
+# We do not test *all* thread stages in SHOW PROCESSLIST,
+# performance_schema.threads, performance_schema.processlist, or
+# INFORMATION_SCHEMA.PROCESSLIST.  Since each of these contains a
+# snapshot of the current server state, testing a stage would require
+# executing the necessary steps to reach each of those stages; i.e., a
+# new test scenario for each stage.  So we only test two of the stages
+# in these cases.
+#
+# ==== References ====
+#
+# WL#14628: Compatibility option to enable old replication terminology
+# in P_S instrumentation
+
+# Test is binlog_format-agnostic.
+--source include/have_binlog_format_row.inc
+
+# Test uses SET debug and SET debug_sync to ensure source is in the
+# middle of the execution of a Thread Command
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+
+# Start replica threads later.
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo #### Specify scenarios ####
+
+# List the performance_schema instrumentation "classes" that we test.
+let $classes =
+[
+  "mutex",
+  "rwlock",
+  "cond",
+  "memory",
+  "thread",
+  "stage",
+  "command"
+];
+--let $json_label = class
+--source include/create_json_iterator.inc
+
+# For each class, list the places we should look for the names in the
+# class.
+#
+# $occurrences is a JSON object, where the keys are names of classes, and
+# the values are in turn JSON objects that describe where names in that
+# class occurs.  The latter has the following members:
+#
+#   prefix: Any prefix that the server prepends to the names in the class.
+#
+#   tables: List of JSON objects, each one describing one table where
+#     the names may occur.  The objects have the following fields:
+#
+#       schema: The table schema. If not given, uses "performance_schema".
+#
+#       table: The table name.
+#
+#       column: The column where the identifier occurs. If not given,
+#         uses "EVENT_NAME".
+#
+#       use_prefix: If 1, this table prepends the class prefix to the names.
+#         If 0, it does not.  If not given, uses 1.
+#
+#       row_count: If set, expect that only this number of identifiers
+#         occurs in the result set. Otherwise, expects that each
+#         identifier occurs at least once.
+#
+#   statements: List of JSON objects, each one describing one SQL
+#     statement whose output may contain the name.  The objects have
+#     the following fields:
+#
+#       sql: The statement.
+#
+#       column_index: The ordinal position of column of the result set in
+#         which the name occurs.
+#
+#       row_count: If set, expect only this number of identifiers
+#         occurs in the result set. Otherwise, expects that each
+#         identifier occurs at least once.
+
+let $events_waits_tables =
+  { "table": "events_waits_summary_by_account_by_event_name" },
+  { "table": "events_waits_summary_by_host_by_event_name" },
+  { "table": "events_waits_summary_by_instance" },
+  { "table": "events_waits_summary_by_thread_by_event_name" },
+  { "table": "events_waits_summary_by_user_by_event_name" },
+  { "table": "events_waits_summary_global_by_event_name" };
+# Don't test history tables, because the existence of instrument names
+# there depends on previous execution history.
+#  { "table": "events_waits_current" },
+#  { "table": "events_waits_history" },
+#  { "table": "events_waits_history_long" },
+
+let $memory_tables =
+  { "table": "memory_summary_by_account_by_event_name" },
+  { "table": "memory_summary_by_host_by_event_name" },
+  { "table": "memory_summary_by_thread_by_event_name" },
+  { "table": "memory_summary_by_user_by_event_name" },
+  { "table": "memory_summary_global_by_event_name" };
+
+let $events_stages_tables =
+  { "table": "events_stages_summary_by_account_by_event_name" },
+  { "table": "events_stages_summary_by_host_by_event_name" },
+  { "table": "events_stages_summary_by_thread_by_event_name" },
+  { "table": "events_stages_summary_by_user_by_event_name" },
+  { "table": "events_stages_summary_global_by_event_name" };
+# Don't test history tables, because the existence of instrument names
+# there depends on previous execution history.
+#  { "table": "events_stages_current" },
+#  { "table": "events_stages_history" },
+#  { "table": "events_stages_history_long" },
+
+let $statement_tables =
+  { "table": "events_statements_summary_by_account_by_event_name" },
+  { "table": "events_statements_summary_by_host_by_event_name" },
+  { "table": "events_statements_summary_by_thread_by_event_name" },
+  { "table": "events_statements_summary_by_user_by_event_name" },
+  { "table": "events_statements_summary_global_by_event_name" };
+# Don't test history tables, because the existence of instrument names
+# there depends on previous execution history.
+#  { "table": "events_statements_history" },
+#  { "table": "events_statements_history_long" },
+
+let $occurrences =
+{
+  "mutex" : {
+    "prefix": "wait/synch/mutex/sql/",
+    "tables": [
+      $events_waits_tables,
+      { "table": "mutex_instances", "column": "NAME" }
+    ]
+  },
+  "rwlock": {
+    "prefix": "wait/synch/rwlock/sql/",
+    "tables": [
+      $events_waits_tables,
+      { "table": "rwlock_instances", "column": "NAME" }
+    ]
+  },
+  "cond": {
+    "prefix": "wait/synch/cond/sql/",
+    "tables": [
+      $events_waits_tables,
+      { "table": "cond_instances", "column": "NAME" }
+    ]
+  },
+  "memory": {
+    "prefix": "memory/sql/",
+    "tables": [
+      $memory_tables
+    ]
+  },
+  "thread": {
+    "prefix": "thread/sql/",
+    "tables": [
+      { "table": "threads", "column": "NAME" }
+    ]
+  },
+  "stage": {
+    "prefix": "stage/sql/",
+    "tables": [
+      $events_stages_tables,
+      { "table": "threads", "column": "PROCESSLIST_STATE", "use_prefix": 0,
+        "row_count": 2 },
+      { "table": "processlist", "column": "STATE", "use_prefix": 0,
+        "row_count": 2 },
+      { "schema": "INFORMATION_SCHEMA", "table": "PROCESSLIST",
+        "column": "STATE", "use_prefix": 0, "row_count": 2 }
+    ],
+    "statements": [
+      { "sql": "SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST",
+        "column_index": 7, "row_count": 2 },
+      { "sql": "SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST",
+        "column_index": 7, "row_count": 2 }
+    ]
+  },
+  "command": {
+    "prefix": "statement/com/",
+    "tables": [
+      $statement_tables,
+      { "table": "threads", "column": "PROCESSLIST_COMMAND", "use_prefix": 0 },
+      { "table": "processlist", "column": "COMMAND", "use_prefix": 0 },
+      { "schema": "INFORMATION_SCHEMA", "table": "PROCESSLIST",
+        "column": "COMMAND", "use_prefix": 0 }
+    ],
+    "statements": [
+      { "sql": "SET @@global.performance_schema_show_processlist = 1; SHOW PROCESSLIST",
+        "column_index": 5 },
+      { "sql": "SET @@global.performance_schema_show_processlist = 0; SHOW PROCESSLIST",
+        "column_index": 5 },
+      { "sql": "SHOW REPLICA STATUS", "column_index": 1, "row_count": 1 },
+      { "sql": "SHOW REPLICA STATUS", "column_index": 45, "row_count": 1 },
+      { "sql": "SHOW SLAVE STATUS", "column_index": 1, "row_count": 1 },
+      { "sql": "SHOW SLAVE STATUS", "column_index": 45, "row_count": 1 }
+    ]
+  }
+};
+
+--let $json_label = class_spec
+--let $json_keys = prefix, tables, statements
+--let $json_defaults = { "tables": [], "statements": [] }
+--source include/create_json_unpacker.inc
+
+--let $json_label = table
+--let $json_keys = schema, table, column, use_prefix, row_count
+--let $json_required = table
+let $json_defaults = {
+  "schema": "performance_schema",
+  "column": "EVENT_NAME",
+  "use_prefix": 1,
+  "row_count": -1
+};
+--source include/create_json_unpacking_iterator.inc
+
+--let $json_label = statement
+--let $json_keys = sql, column_index, row_count
+--let $json_required = sql, column_index
+--let $json_defaults = { "row_count": -1 }
+--source include/create_json_unpacking_iterator.inc
+
+--delimiter ||
+let $names = {
+  "mutex": [
+     { "old": "Master_info::data_lock",
+       "new": "Source_info::data_lock" },
+     { "old": "Master_info::run_lock",
+       "new": "Source_info::run_lock" },
+     { "old": "Master_info::sleep_lock",
+       "new": "Source_info::sleep_lock" },
+     { "old": "Master_info::info_thd_lock",
+       "new": "Source_info::info_thd_lock" },
+     { "old": "Master_info::rotate_lock",
+       "new": "Source_info::rotate_lock" },
+     { "old": "Slave_reporting_capability::err_lock",
+       "new": "Replica_reporting_capability::err_lock" },
+     { "old": "key_mts_temp_table_LOCK",
+       "new": "key_mta_temp_table_LOCK" },
+     { "old": "key_mts_gaq_LOCK",
+       "new": "key_mta_gaq_LOCK" },
+     { "old": "Relay_log_info::slave_worker_hash_lock",
+       "new": "Relay_log_info::replica_worker_hash_lock" },
+     { "old": "LOCK_slave_list",
+       "new": "LOCK_replica_list" },
+     { "old": "LOCK_slave_net_timeout",
+       "new": "LOCK_replica_net_timeout" },
+     { "old": "LOCK_sql_slave_skip_counter",
+       "new": "LOCK_sql_replica_skip_counter" }
+  ],
+
+  "rwlock": [
+     { "old": "LOCK_sys_init_slave",
+       "new": "LOCK_sys_init_replica" }
+  ],
+
+  "cond": [
+     { "old": "Relay_log_info::slave_worker_hash_lock",
+       "new": "Relay_log_info::replica_worker_hash_cond" },
+     { "old": "Master_info::data_cond",
+       "new": "Source_info::data_cond" },
+     { "old": "Master_info::start_cond",
+       "new": "Source_info::start_cond" },
+     { "old": "Master_info::stop_cond",
+       "new": "Source_info::stop_cond" },
+     { "old": "Master_info::sleep_cond",
+       "new": "Source_info::sleep_cond" },
+     { "old": "Master_info::rotate_cond",
+       "new": "Source_info::rotate_cond" },
+     { "old": "Relay_log_info::mts_gaq_cond",
+       "new": "Relay_log_info::mta_gaq_cond" }
+  ],
+
+  "memory": [
+     { "old": "Slave_job_group::group_relay_log_name",
+       "new": "Replica_job_group::group_relay_log_name" },
+     { "old": "rpl_slave::check_temp_dir",
+       "new": "rpl_replica::check_temp_dir" },
+     { "old": "SLAVE_INFO",
+       "new": "REPLICA_INFO" },
+     { "old": "show_slave_status_io_gtid_set",
+       "new": "show_replica_status_io_gtid_set" },
+     { "old": "Relay_log_info::mts_coor",
+       "new": "Relay_log_info::mta_coor" }
+  ],
+
+  "thread": [
+     { "old": "slave_io",
+       "new": "replica_io" },
+     { "old": "slave_sql",
+       "new": "replica_sql" },
+     { "old": "slave_worker",
+       "new": "replica_worker" }
+  ],
+
+  "stage": [
+     { "old": "Changing master",
+       "new": "Changing replication source" },
+     { "old": "Checking master version",
+       "new": "Checking source version" },
+     { "old": "Connecting to master",
+       "new": "Connecting to source" },
+     { "old": "Flushing relay log and master info repository.",
+       "new": "Flushing relay log and source info repository." },
+     { "old": "Killing slave",
+       "new": "Killing replica" },
+     { "old": "Master has sent all binlog to slave; waiting for more updates",
+       "new": "Source has sent all binlog to replica; waiting for more updates" },
+     { "old": "Queueing master event to the relay log",
+       "new": "Queueing source event to the relay log" },
+     { "old": "Reconnecting after a failed master event read",
+       "new": "Reconnecting after a failed source event read" },
+     { "old": "Reconnecting after a failed registration on master",
+       "new": "Reconnecting after a failed registration on source" },
+     { "old": "Registering slave on master",
+       "new": "Registering replica on source" },
+     { "old": "Sending binlog event to slave",
+       "new": "Sending binlog event to replica" },
+     { "old": "Slave has read all relay log; waiting for more updates",
+       "new": "Replica has read all relay log; waiting for more updates" },
+     { "old": "Waiting for slave workers to process their queues",
+       "new": "Waiting for replica workers to process their queues" },
+     { "old": "Waiting for Slave Worker queue",
+       "new": "Waiting for Replica Worker queue" },
+     { "old": "Waiting for Slave Workers to free pending events",
+       "new": "Waiting for Replica Workers to free pending events" },
+     { "old": "Waiting for Slave Worker to release partition",
+       "new": "Waiting for Replica Worker to release partition" },
+     { "old": "Waiting until MASTER_DELAY seconds after master executed event",
+       "new": "Waiting until SOURCE_DELAY seconds after source executed event" },
+     { "old": "Waiting for master to send event",
+       "new": "Waiting for source to send event" },
+     { "old": "Waiting for master update",
+       "new": "Waiting for source update" },
+     { "old": "Waiting for the slave SQL thread to free enough relay log space",
+       "new": "Waiting for the replica SQL thread to free relay log space" },
+     { "old": "Waiting for slave mutex on exit",
+       "new": "Waiting for replica mutex on exit" },
+     { "old": "Waiting for slave thread to start",
+       "new": "Waiting for replica thread to start" },
+     { "old": "Waiting for the slave SQL thread to advance position",
+       "new": "Waiting for the replica SQL thread to advance position" },
+     { "old": "Waiting to reconnect after a failed registration on master",
+       "new": "Waiting to reconnect after a failed registration on source" },
+     { "old": "Waiting to reconnect after a failed master event read",
+       "new": "Waiting to reconnect after a failed source event read" }
+  ],
+
+  "command": [
+     { "old": "Register Slave",
+       "new": "Register Replica",
+       "con": 1 }
+  ]
+}
+||
+--delimiter ;
+--let $json = $names
+--source include/json_check.inc
+
+# ==== Purpose ====
+#
+# For a given instrumentation class, and a given table and column,
+# assert that the column contains the old names and not the new names
+# for the instrumentation class, or vice versa depending on
+# @@session.terminology_use_previous.
+#
+# ==== Usage ====
+#
+# --let $table = TABLE
+# --let $column = COLUMN
+# [--let $schema = SCHEMA]
+# --let $use_prefix = {0|1}
+# --let $terminology_use_previous = {0|1}
+# # In addition, the table `declared_names` must be setup.
+# --source $assertions_for_table
+#
+# Parameters:
+#
+#   declared_names
+#     This table should have the following definition:
+#       CREATE TABLE declared_names(
+#         old TEXT, new TEXT, old_prefixed TEXT, new_prefixed TEXT);
+#     The table should exist on both source and replica, and should
+#     contain the instrumentation names that are expected to be found
+#     on source and replica, respective.  The
+#     'old_prefixed/new_prefixed' columns should be equal to the
+#     'old/new' columns, with the prefix of the instrumentation class
+#     included, for instance, "wait/synch/mutex/sql".
+#
+#   $table, $column, $schema
+#     This script will (in effect) execute the following statement:
+#       SELECT $column FROM $schema.$table
+#     It joins this with declared_names, choosing the join column in
+#     declared_names according to $terminology_use_previous
+#     and $use_prefix.
+#
+#   $terminology_use_previous
+#     The value of @@session.terminology_use_previous.
+#     This must agree with the actual value, and should be the same
+#     on server_1 and server_2.
+#
+#   $use_prefix
+#     If this is 1, the table contents is expected to contain the
+#     prefix, e.g., "wait/synch/mutex/sql/". If it is 0, the table is
+#     expected to not contain the prefix.
+#
+#   $row_count
+#     If this is -1, all instrumentation names in the table are
+#     expected to be found in this table.  Otherwise, exactly the
+#     given number of instrumentation names are expected to be found.
+--let $assertions_for_table = $MYSQLTEST_VARDIR/tmp/assertions_for_table.inc
+--write_file $assertions_for_table END_OF_PROCEDURE
+  --let $prefixed = _prefixed
+  if (!$use_prefix) {
+    --let $prefixed =
+  }
+  # Make show_rpl_debug_info.inc dump the table if the test fails
+  --let $qualified_table = $schema.$table
+  if ($schema == '') {
+    --let $qualified_table = $table
+  }
+  --let $extra_debug_table = $qualified_table
+
+  # Iterate over connections
+  --let $con = 1
+  while ($con <= 2) {
+    --connection server_$con
+    # Number of declared names that we should check on this connection.
+    --let $declared_count = `SELECT COUNT(*) FROM declared_names`
+    # Check if we expect any identifiers at all on this connection.
+    if ($declared_count) {
+      --let $check_version = 0
+      # Iterate over versions, and check for each version that we have
+      # the expected number of names from that version in the result set.
+      while ($check_version < 2) {
+        if ($check_version == 0) {
+          --let $version = new
+        }
+        if ($check_version == 1) {
+          --let $version = old
+        }
+        if ($check_version == $terminology_use_previous) {
+          if ($row_count != -1) {
+            --let $expected_count = $row_count
+          }
+          if ($row_count == -1) {
+            --let $expected_count = $declared_count
+          }
+        }
+        if ($check_version != $terminology_use_previous) {
+          --let $expected_count = 0
+        }
+
+        # SQL to get a result set containing the names of the
+        # '$check_version' from this table.  We join the table we
+        # observe with the table of expected identifiers.
+        let $sql_found_names =
+          FROM $qualified_table AS t, declared_names AS dn
+          WHERE t.$column <=> dn.$version$prefixed;
+
+        if ($debug) {
+          --echo # DEBUG: Observed the following '$version' names:
+          eval SELECT t.$column $sql_found_names;
+        }
+        # Make show_rpl_debug_info.inc execute the SELECT if the test fails
+        --delimiter |
+        let $extra_debug_sql =
+          SELECT t.$column $sql_found_names;
+          SELECT @@session.terminology_use_previous,
+                 @@global.terminology_use_previous
+        |
+        --delimiter ;
+
+        let $select_count_found_names =
+          SELECT COUNT(DISTINCT t.$column) $sql_found_names;
+
+        --let $assert_escape = 1
+        --let $assert_cond = [$select_count_found_names] = $expected_count
+        --let $assert_text = There should be $expected_count unique '$version' $class names in $description on server $con
+        --source include/assert.inc
+
+        --inc $check_version
+      } # while check_version < 2
+    } # if declared_count
+    --inc $con
+  } # while con <= 2
+END_OF_PROCEDURE
+
+--echo
+--echo #### Initialize Server State ####
+
+# Start MTA, so we can observe the 'thread names' in the thread tables.
+--connection server_2
+--source include/disable_binlog.inc
+SET @save_replica_parallel_workers = @@global.replica_parallel_workers;
+SET @@global.replica_parallel_workers = 4;
+--source include/start_slave_sql.inc
+
+# The source will hang in the middle of the initial replication
+# handshake, for the whole duration of the test.  So we increase the
+# timeout to prevent that the replica times out and reconnects, which
+# would create extra messages in the log and make the test fail.
+SET @save_replica_net_timeout = @@global.replica_net_timeout;
+SET @@global.replica_net_timeout = 300;
+
+# Auxiliary table used in the assertion logic.
+CREATE TABLE statement_result (name VARCHAR(256), KEY(name));
+
+# Make dump thread pause during 'register replica', so we can observe
+# that thread state
+
+# Make 'server_1' connection wait for dump thread to reach the state.
+--connection server_1
+--source include/disable_binlog.inc
+CREATE TABLE statement_result (name VARCHAR(256), KEY(name));
+--let $debug_point = syncpoint_begin_register_replica
+--source include/add_debug_point.inc
+send SET @@session.debug_sync = "now WAIT_FOR reached_begin_register_replica";
+# Start connection
+--connection server_2
+START REPLICA IO_THREAD;
+# Wait for 'server_1' to reach the state
+--connection server_1
+--reap
+
+--let $terminology_use_previous = 0
+while ($terminology_use_previous < 2) {
+  --echo
+  --echo #### Test terminology_use_previous=$terminology_use_previous ####
+  --echo
+
+  --connection server_1
+  eval SET @@session.terminology_use_previous = $terminology_use_previous;
+  SELECT @@session.terminology_use_previous;
+
+  --connection server_2
+  eval SET @@session.terminology_use_previous = $terminology_use_previous;
+  SELECT @@session.terminology_use_previous;
+
+  if (!$debug) {
+    --disable_query_log
+  }
+
+  --let $json_array = $classes
+  --source $json_class_start
+  while (!$json_class_done) {
+    --let $class = $json_class_value
+    --echo
+    --echo ---- $class ----
+
+    # Get the class spec from 'occurrences'
+    --let $json_object = $occurrences
+    --let $json_key = $class
+    --source include/json_lookup.inc
+    # Unpack the class spec
+    --let $json_object = $json_value
+    --source $json_class_spec_unpack
+
+    let $create_sql = CREATE TABLE declared_names AS
+      SELECT
+        jt.old AS old,
+        jt.new AS new,
+        CONCAT('$prefix', jt.old) AS old_prefixed,
+        CONCAT('$prefix', jt.new) AS new_prefixed
+      FROM
+        JSON_TABLE(
+          '$names', '$.$class[*]' COLUMNS (
+            old TEXT PATH '$.old',
+            new TEXT PATH '$.new',
+            con TEXT PATH '$.con' DEFAULT '2' ON EMPTY
+          )
+        ) AS jt;
+
+    --connection server_1
+    --eval $create_sql WHERE jt.con = 1
+    if ($debug) {
+      eval SELECT * FROM declared_names;
+    }
+    --connection server_2
+    --eval $create_sql WHERE jt.con = 2
+    if ($debug) {
+      eval SELECT * FROM declared_names;
+    }
+
+    # Iterate over tables.
+    --let $json_array = $tables
+    --source $json_table_start
+    while (!$json_table_done) {
+      --let $description = $schema.$table($column)
+      --echo * $description
+      --source $assertions_for_table
+
+      --source $json_table_next
+    } # while !json_table_done
+
+    # Iterate over statements.
+    --let $json_array = $statements
+    --source $json_statement_start
+    while (!$json_statement_done) {
+      --let $description = $sql(column $column_index)
+      --echo * $description
+
+      --let $statement = SET @@session.terminology_use_previous = $terminology_use_previous; $sql
+      --let $table = statement_result
+      --let $select_columns = $column_index
+      # Execute $statement, storing the result set into the table
+      # statement_result.  Do this on both servers, just in case - it
+      # is decided in $assertions_for_table on which connections the
+      # result should be inspected.
+      --connection server_1
+      --source include/save_result_in_table.inc
+      --connection server_2
+      --source include/save_result_in_table.inc
+
+      --let $schema =
+      --let $column = name
+      --source $assertions_for_table
+
+      --source $json_statement_next
+    } # while !json_statement_done
+
+    --connection server_1
+    DROP TABLE declared_names;
+    TRUNCATE TABLE statement_result;
+    --connection server_2
+    DROP TABLE declared_names;
+    TRUNCATE TABLE statement_result;
+
+    --source $json_class_next
+  } # while !json_class_done
+  --enable_query_log
+
+  --inc $terminology_use_previous
+} # while i <= 2
+
+--echo # Check SET terminology_use_previous = DEFAULT
+eval SET @@session.terminology_use_previous = DEFAULT;
+eval SELECT @@session.terminology_use_previous;
+
+--echo
+--echo #### Clean up ####
+
+# Release the dump thread which is hanging while executing the
+# 'Register replica' command.
+--connection server_1
+SET @@session.debug_sync = "now SIGNAL continue_begin_register_replica";
+# Wait for replica to start
+--connection server_2
+--source include/wait_for_slave_io_to_start.inc
+
+--disable_warnings
+SET @@global.replica_parallel_workers = @save_replica_parallel_workers;
+--enable_warnings
+SET @@global.replica_net_timeout = @save_replica_net_timeout;
+--connection server_1
+--source include/restore_binlog.inc
+--let $debug_point = syncpoint_begin_register_replica
+--source include/remove_debug_point.inc
+DROP TABLE statement_result;
+--source include/sync_slave_sql_with_master.inc
+
+--remove_file $assertions_for_table
+--source include/destroy_json_functions.inc
+
+--source include/rpl_end.inc

@@ -1,5 +1,5 @@
 
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 --source include/have_debug_sync.inc
 
 CALL mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
@@ -1687,22 +1687,6 @@ SHOW WARNINGS;
 SHOW GRANTS FOR u1@h;
 SET debug="-d,wl7158_handle_grant_table_1";
 
-SET debug="+d,wl7158_handle_grant_table_2";
---error ER_ACL_OPERATION_FAILED
-CREATE USER u1@h;
-SHOW WARNINGS;
---error ER_NONEXISTING_GRANT
-SHOW GRANTS FOR u1@h;
-SET debug="-d,wl7158_handle_grant_table_2";
-
-SET debug="+d,wl7158_handle_grant_table_3";
---error ER_ACL_OPERATION_FAILED
-CREATE USER u1@h;
-SHOW WARNINGS;
---error ER_NONEXISTING_GRANT
-SHOW GRANTS FOR u1@h;
-SET debug="-d,wl7158_handle_grant_table_3";
-
 CREATE USER u1@h;
 SET debug="+d,wl7158_modify_grant_table_1";
 # RENAME USER succeeds if there is no error in handler call.
@@ -2260,18 +2244,26 @@ RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
 RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
 RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
 
-#restore the state of the session user
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
-  'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
-  'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
-  'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED',
-  'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);
-INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
- 'mysql.session', 'user', 'root\@localhost',
-  CURRENT_TIMESTAMP, 'Select', '');
-INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance\_schema',
- 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N',
- 'N','N','N','N','N','N','N');
+
+# Remove user mysql.session and re-created as defined in
+# scripts/mysql_system_users.sql
+
+DROP USER 'mysql.session'@localhost;
+
+CREATE USER 'mysql.session'@localhost IDENTIFIED WITH caching_sha2_password AS '$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED' ACCOUNT LOCK;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;
+GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;
+GRANT SELECT ON `performance_schema`.* TO 'mysql.session'@localhost;
+GRANT SUPER ON *.* TO 'mysql.session'@localhost;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SHUTDOWN ON *.* TO 'mysql.session'@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
+
 --disable_query_log ONCE
 --eval UPDATE mysql.tables_priv SET timestamp ='$sess_user_account_priv' WHERE USER= 'mysql.session'
 --disable_query_log ONCE

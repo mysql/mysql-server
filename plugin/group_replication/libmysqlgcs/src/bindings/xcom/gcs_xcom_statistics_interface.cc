@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ Gcs_xcom_statistics::Gcs_xcom_statistics()
       max_message_length(0),
       last_message_timestamp(0) {}
 
-Gcs_xcom_statistics::~Gcs_xcom_statistics() {}
+Gcs_xcom_statistics::~Gcs_xcom_statistics() = default;
 
 long Gcs_xcom_statistics::get_total_messages_sent() {
   return total_messages_sent;

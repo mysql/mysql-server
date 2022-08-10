@@ -74,6 +74,6 @@ SELECT COUNT(@@GLOBAL.admin_ssl_cipher);
 --echo 0 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT admin_ssl_cipher = @@SESSION.admin_ssl_cipher;
---echo Expected error 'Readonly variable'
+SELECT admin_ssl_cipher;
+--echo Expected error 'Unknown column'
 

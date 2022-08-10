@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -38,9 +38,9 @@ using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
 class dynamic_loader : public ::testing::Test {
  protected:
   void SetUp() override {
-    reg = NULL;
-    loader = NULL;
-    ASSERT_FALSE(minimal_chassis_init(&reg, NULL));
+    reg = nullptr;
+    loader = nullptr;
+    ASSERT_FALSE(minimal_chassis_init(&reg, nullptr));
     ASSERT_FALSE(reg->acquire("dynamic_loader",
                               reinterpret_cast<my_h_service *>(
                                   const_cast<loader_type_t **>(&loader))));
@@ -55,7 +55,7 @@ class dynamic_loader : public ::testing::Test {
       ASSERT_FALSE(reg->release(
           reinterpret_cast<my_h_service>(const_cast<loader_type_t *>(loader))));
     }
-    ASSERT_FALSE(minimal_chassis_deinit(reg, NULL));
+    ASSERT_FALSE(minimal_chassis_deinit(reg, nullptr));
   }
   SERVICE_TYPE_NO_CONST(registry) * reg;
   SERVICE_TYPE(dynamic_loader) * loader;
@@ -382,8 +382,7 @@ TEST_F(dynamic_loader, metadata) {
 
   for (; !query_service->is_valid(iterator); query_service->next(iterator)) {
     ASSERT_FALSE(query_service->get(iterator, &name, &urn));
-
-    if (!strcmp(urn, "file://component_example_component1")) {
+    if (!strcmp(urn, absolute_urns[0])) {
       ASSERT_FALSE(
           metadata_query_service->get_value(iterator, "mysql.author", &value));
       ASSERT_STREQ(value, "Oracle Corporation");
@@ -415,7 +414,7 @@ TEST_F(dynamic_loader, metadata) {
         ASSERT_FALSE(metadata_service->get(metadata_iterator, &name, &value));
 
         count++;
-        property_found |= strcmp(name, "test_property");
+        property_found |= (strcmp(name, "test_property") == 0);
       }
       ASSERT_TRUE(metadata_service->get(metadata_iterator, &name, &value));
       ASSERT_TRUE(metadata_service->next(metadata_iterator));

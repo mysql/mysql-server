@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -28,6 +28,12 @@
 bool 
 printDROP_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DropTabReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropTabReq* sig = (const DropTabReq*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -42,6 +48,12 @@ printDROP_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printDROP_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DropTabConf::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropTabConf* sig = (const DropTabConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
@@ -54,6 +66,12 @@ printDROP_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 bool
 printDROP_TAB_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
+  if (len < DropTabRef::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
   const DropTabRef* sig = (const DropTabRef*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);

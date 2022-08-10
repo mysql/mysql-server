@@ -1,4 +1,6 @@
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+SET @old_log_output=@@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 drop table if exists t1,t2,t3,t4;
 drop database if exists client_test_db;
 create table t1
@@ -609,9 +611,9 @@ primary key  (id), unique key code (code)
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (
 id bigint(20) not null auto_increment,
@@ -627,12 +629,12 @@ constraint t2_fk1 foreign key (t1_id) references t1 (id)
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values
@@ -1768,7 +1770,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 execute stmt;
 show create database mysqltest_1;
 Database	Create Database
-mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
+mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8mb3 */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop database mysqltest_1;
 deallocate prepare stmt;
 set @@character_set_server= @old_character_set_server;
@@ -2924,7 +2926,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `c` char(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -2932,7 +2934,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `c` char(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -4032,3 +4034,181 @@ EXECUTE s USING @a, @b;
 a
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
+#
+# Bug #32751973: REGRESSION: HEAP-USE-AFTER-FREE IN ITEM_FIELD::BIND_FIELDS
+#
+CREATE TABLE t1 (a INTEGER);
+PREPARE s FROM 'SELECT 1 FROM t1 WHERE TRUE OR ( SELECT 1 FROM (SELECT a) q ) = 1';
+EXECUTE s;
+1
+DROP TABLE t1;
+#
+# Bug #32808790: DON'T ADD CACHES AROUND PREPARED STATEMENT PARAMETERS
+#
+CREATE TABLE t1 ( pk INTEGER NOT NULL, a INTEGER );
+PREPARE q FROM 'EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk = ?';
+SET @v = 2;
+EXECUTE q USING @v;
+EXPLAIN
+-> Filter: (t1.pk = 2)
+    -> Table scan on t1
+
+DROP TABLE t1;
+# Bug#32213576: MySQL tries to parse string-bound float as integer
+#               and returns wrong error
+CREATE TABLE t (f INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t (f) VALUES (0);
+PREPARE stmt FROM 'UPDATE t SET f = 100 * ?';
+SET @a = '0.3';
+EXECUTE stmt USING @a;
+DEALLOCATE PREPARE stmt;
+SELECT * FROM t;
+f
+30
+DROP TABLE t;
+# Bug#32787037: Passed string type binding for integer column
+#               incorrectly cast to integer
+CREATE TABLE t1 (int_column INT NOT NULL);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT * from t1 where int_column < '1.9';
+int_column
+1
+PREPARE stmt FROM 'SELECT * from t1 where int_column < ?';
+SET @a = '1.9';
+EXECUTE stmt USING @a;
+int_column
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
+# Bug#34213338: Broken integer value empty string validation with
+#               bind vars (8.0.27 to 8.0.28)
+CREATE TABLE ints(i INTEGER);
+CREATE TABLE deci(d DECIMAL(12,4));
+CREATE TABLE dbls(r DOUBLE);
+CREATE TABLE flts(f FLOAT);
+SET @empty = '';
+SET @spaces = '   ';
+SET @intval = '666';
+SET @decval = '777.777';
+SET @dblval = '888.888e100';
+SET @fltval = '1e38';
+SET @intvalx = '  666  ';
+SET @decvalx = '  777.777  ';
+SET @dblvalx = '  888.888e100  ';
+SET @fltvalx = '  1e38  ';
+INSERT INTO ints VALUES ('');
+ERROR HY000: Incorrect integer value: '' for column 'i' at row 1
+INSERT INTO deci VALUES ('');
+ERROR HY000: Incorrect decimal value: '' for column 'd' at row 1
+INSERT INTO dbls VALUES ('');
+ERROR 01000: Data truncated for column 'r' at row 1
+INSERT INTO flts VALUES ('');
+ERROR 01000: Data truncated for column 'f' at row 1
+INSERT INTO ints VALUES ('   ');
+ERROR HY000: Incorrect integer value: '   ' for column 'i' at row 1
+INSERT INTO deci VALUES ('   ');
+ERROR HY000: Incorrect decimal value: '   ' for column 'd' at row 1
+INSERT INTO dbls VALUES ('   ');
+ERROR 01000: Data truncated for column 'r' at row 1
+INSERT INTO flts VALUES ('   ');
+ERROR 01000: Data truncated for column 'f' at row 1
+INSERT INTO ints VALUES (@empty);
+ERROR HY000: Incorrect integer value: '' for column 'i' at row 1
+INSERT INTO deci VALUES (@empty);
+ERROR HY000: Incorrect decimal value: '' for column 'd' at row 1
+INSERT INTO dbls VALUES (@empty);
+ERROR 01000: Data truncated for column 'r' at row 1
+INSERT INTO flts VALUES (@empty);
+ERROR 01000: Data truncated for column 'f' at row 1
+INSERT INTO ints VALUES (@spaces);
+ERROR HY000: Incorrect integer value: '   ' for column 'i' at row 1
+INSERT INTO deci VALUES (@spaces);
+ERROR HY000: Incorrect decimal value: '   ' for column 'd' at row 1
+INSERT INTO dbls VALUES (@spaces);
+ERROR 01000: Data truncated for column 'r' at row 1
+INSERT INTO flts VALUES (@spaces);
+ERROR 01000: Data truncated for column 'f' at row 1
+INSERT INTO ints VALUES ('666');
+INSERT INTO deci VALUES ('777.777');
+INSERT INTO dbls VALUES ('888.888e100');
+INSERT INTO flts VALUES ('1e38');
+INSERT INTO ints VALUES ('  666  ');
+INSERT INTO deci VALUES ('  777.777  ');
+INSERT INTO dbls VALUES ('  888.888e100  ');
+INSERT INTO flts VALUES ('  1e38  ');
+INSERT INTO ints VALUES (@intval);
+INSERT INTO deci VALUES (@decval);
+INSERT INTO dbls VALUES (@dblval);
+INSERT INTO flts VALUES (@fltval);
+INSERT INTO ints VALUES (@intvalx);
+INSERT INTO deci VALUES (@decvalx);
+INSERT INTO dbls VALUES (@dblvalx);
+INSERT INTO flts VALUES (@fltvalx);
+PREPARE ps1 FROM 'INSERT INTO ints VALUES (?)';
+PREPARE ps2 FROM 'INSERT INTO deci VALUES (?)';
+PREPARE ps3 FROM 'INSERT INTO dbls VALUES (?)';
+PREPARE ps4 FROM 'INSERT INTO flts VALUES (?)';
+EXECUTE ps1 USING @empty;
+ERROR HY000: Incorrect integer value: '' for column 'i' at row 1
+EXECUTE ps2 USING @empty;
+ERROR HY000: Incorrect decimal value: '' for column 'd' at row 1
+EXECUTE ps3 USING @empty;
+ERROR 01000: Data truncated for column 'r' at row 1
+EXECUTE ps4 USING @empty;
+ERROR 01000: Data truncated for column 'f' at row 1
+EXECUTE ps1 USING @spaces;
+ERROR HY000: Incorrect integer value: '   ' for column 'i' at row 1
+EXECUTE ps2 USING @spaces;
+ERROR HY000: Incorrect decimal value: '   ' for column 'd' at row 1
+EXECUTE ps3 USING @spaces;
+ERROR 01000: Data truncated for column 'r' at row 1
+EXECUTE ps4 USING @spaces;
+ERROR 01000: Data truncated for column 'f' at row 1
+EXECUTE ps1 USING @intval;
+EXECUTE ps1 USING @intvalx;
+EXECUTE ps2 USING @decval;
+EXECUTE ps2 USING @decvalx;
+EXECUTE ps3 USING @dblval;
+EXECUTE ps3 USING @dblvalx;
+EXECUTE ps4 USING @fltval;
+EXECUTE ps4 USING @fltvalx;
+DEALLOCATE PREPARE ps1;
+DEALLOCATE PREPARE ps2;
+DEALLOCATE PREPARE ps3;
+DEALLOCATE PREPARE ps4;
+SELECT * FROM ints;
+i
+666
+666
+666
+666
+666
+666
+SELECT * FROM deci;
+d
+777.7770
+777.7770
+777.7770
+777.7770
+777.7770
+777.7770
+SELECT * FROM dbls;
+r
+8.88888e102
+8.88888e102
+8.88888e102
+8.88888e102
+8.88888e102
+8.88888e102
+SELECT * FROM flts;
+f
+1e38
+1e38
+1e38
+1e38
+1e38
+1e38
+DROP TABLE ints, deci, dbls, flts;

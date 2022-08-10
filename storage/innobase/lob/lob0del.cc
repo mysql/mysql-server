@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,11 +40,11 @@ void Deleter::x_latch_rec_page() {
   ut_ad(found);
 
   buf_page_get(page_id_t(rec_space_id, rec_page_no), rec_page_size, RW_X_LATCH,
-               &m_mtr);
+               UT_LOCATION_HERE, &m_mtr);
 }
 
 /** Returns the page number where the next BLOB part is stored.
-@param[in]	blob_header	the BLOB header.
+@param[in]      blob_header     the BLOB header.
 @return page number or FIL_NULL if no more pages */
 static inline page_no_t btr_blob_get_next_page_no(const byte *blob_header) {
   return (mach_read_from_4(blob_header + LOB_HDR_NEXT_PAGE_NO));
@@ -68,8 +68,9 @@ dberr_t Deleter::free_first_page() {
 
   x_latch_rec_page();
 
-  buf_block_t *blob_block = buf_page_get(page_id_t(space_id, page_no),
-                                         m_ctx.m_page_size, RW_X_LATCH, &m_mtr);
+  buf_block_t *blob_block =
+      buf_page_get(page_id_t(space_id, page_no), m_ctx.m_page_size, RW_X_LATCH,
+                   UT_LOCATION_HERE, &m_mtr);
 
   buf_block_dbg_add_level(blob_block, SYNC_EXTERN_STORAGE);
   page_t *page = buf_block_get_frame(blob_block);
@@ -95,7 +96,7 @@ dberr_t Deleter::free_first_page() {
   }
 
   /* Commit mtr and release the BLOB block to save memory. */
-  blob_free(m_ctx.m_index, blob_block, TRUE, &m_mtr);
+  blob_free(m_ctx.m_index, blob_block, true, &m_mtr);
 
   return (err);
 }

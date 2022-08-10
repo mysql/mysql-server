@@ -760,8 +760,6 @@ DROP TABLE t1;
 #
 # Bug#8283 - OPTIMIZE TABLE causes data loss
 #
-SET @@myisam_repair_threads=2;
-SHOW VARIABLES LIKE 'myisam_repair%';
 #
 # Test OPTIMIZE. This creates a new data file.
 CREATE TABLE t1 (
@@ -851,8 +849,6 @@ SHOW TABLE STATUS LIKE 't1';
 SELECT _id FROM t1;
 DROP TABLE t1;
 #
-SET @@myisam_repair_threads=1;
-SHOW VARIABLES LIKE 'myisam_repair%';
 
 #
 # BUG#21310 - Trees in SQL causing a "crashed" table with MyISAM storage
@@ -1186,10 +1182,8 @@ SHOW TABLE STATUS LIKE 't1';
 #--exec myisamchk -dvv var/master-data/test/t1.MYI
 #--exec myisamchk -iev var/master-data/test/t1.MYI
 --echo # Enable keys with parallel repair
-SET @@myisam_repair_threads=2;
 ALTER TABLE t1 DISABLE KEYS;
 ALTER TABLE t1 ENABLE KEYS;
-SET @@myisam_repair_threads=1;
 CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 
@@ -1608,12 +1602,10 @@ INSERT INTO t1 SELECT a+5120,b FROM t1;
 SET myisam_sort_buffer_size=4;
 REPAIR TABLE t1;
 
-SET myisam_repair_threads=2;
 # May report different values depending on threads activity.
 --disable_result_log
 REPAIR TABLE t1;
 --enable_result_log
-SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 CHECK TABLE t1;
 DROP TABLE t1;
@@ -1671,21 +1663,6 @@ SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 INSERT INTO t1 VALUES('1');
 SELECT * FROM t1, t1 AS a1 WHERE t1.a=1 AND a1.a=1;
 DROP TABLE t1;
-
---echo #
---echo # BUG#47444 - --myisam_repair_threads>1can result in all index
---echo #             cardinalities=1
---echo #
-SET myisam_repair_threads=2;
-SET myisam_sort_buffer_size=4096;
-CREATE TABLE t1(a CHAR(255), KEY(a), KEY(a), KEY(a)) charset latin1;
-INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(0),(1),(2),(3);
-REPAIR TABLE t1;
-ANALYZE TABLE t1;
-SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
-DROP TABLE t1;
-SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
-SET myisam_repair_threads=@@global.myisam_repair_threads;
 
 --echo #
 --echo # BUG#11757032 - 49030: OPTIMIZE TABLE BREAKS MYISAM TABLE WHEN

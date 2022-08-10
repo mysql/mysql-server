@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
+#include "util/require.h"
 #include <ndb_global.h>
 #include <NdbThread.h>
 #include <NdbLockCpuUtil.h>
 #include <NdbMutex.h>
+#include <memory>
 
 #define UNDEFINED_PROCESSOR_SET 0xFFFF
 
@@ -41,7 +42,7 @@ struct processor_set_handler
   Uint32 index;
   int is_exclusive;
 };
-static struct processor_set_handler *proc_set_array = NULL;
+static std::unique_ptr<processor_set_handler[]> proc_set_array;
 static NdbMutex *ndb_lock_cpu_mutex = 0;
  
 /* Used from Ndb_Lock* functions */
@@ -63,10 +64,10 @@ remove_use_processor_set(Uint32 proc_set_id)
     {
       NdbThread_LockDestroyCPUSet(handler->ndb_cpu_set);
     }
-    free((void*)handler->cpu_ids);
+    delete[] handler->cpu_ids;
     handler->num_cpu_ids = 0;
     handler->cpu_ids = NULL;
-    handler->is_exclusive = FALSE;
+    handler->is_exclusive = false;
   }
 }
 
@@ -89,7 +90,7 @@ init_handler(struct processor_set_handler *handler,
   handler->cpu_ids = NULL;
   handler->num_cpu_ids = 0;
   handler->index = i;
-  handler->is_exclusive = FALSE;
+  handler->is_exclusive = false;
 }
 
 static int
@@ -101,7 +102,6 @@ use_processor_set(const Uint32 *cpu_ids,
   int ret = 0;
   Uint32 i;
   struct processor_set_handler *handler;
-  struct processor_set_handler *new_proc_set_array;
 
   for (i = 0; i < num_processor_sets; i++)
   {
@@ -128,9 +128,11 @@ use_processor_set(const Uint32 *cpu_ids,
       handler = &proc_set_array[i];
       if (handler->ref_count == 0)
       {
-        handler->cpu_ids = (Uint32 *)malloc(sizeof(Uint32) * num_cpu_ids);
-        if (handler->cpu_ids == NULL)
+        std::unique_ptr<Uint32[]> new_cpu_ids(new (std::nothrow)
+                                                  Uint32[num_cpu_ids]);
+        if (!new_cpu_ids)
         {
+          require(errno != 0);
           return errno;
         }
         if (is_exclusive)
@@ -147,15 +149,15 @@ use_processor_set(const Uint32 *cpu_ids,
         }
         if (ret != 0)
         {
-          free((void*)handler->cpu_ids);
           handler->num_cpu_ids = 0;
           handler->cpu_ids = NULL;
           return ret;
         }
+        memcpy(new_cpu_ids.get(), cpu_ids, num_cpu_ids * sizeof(Uint32));
         handler->ref_count = 1;
+        handler->cpu_ids = new_cpu_ids.release();
         handler->num_cpu_ids = num_cpu_ids;
         handler->is_exclusive = is_exclusive;
-        memcpy((void*)handler->cpu_ids, cpu_ids, num_cpu_ids * sizeof(Uint32));
         *proc_set_id = i;
         return 0;
       }
@@ -164,15 +166,16 @@ use_processor_set(const Uint32 *cpu_ids,
      * The current array of processor set handlers is too small, double its
      * size and try again.
      */
-    new_proc_set_array = (processor_set_handler *)malloc(2 * num_processor_sets *
-                                sizeof(struct processor_set_handler));
+    std::unique_ptr<processor_set_handler[]> new_proc_set_array(
+        new (std::nothrow) processor_set_handler[2 * num_processor_sets]);
 
-    if (new_proc_set_array == NULL)
+    if (!new_proc_set_array)
     {
+      require(errno != 0);
       return errno;
     }
-    memcpy(new_proc_set_array,
-           proc_set_array,
+    memcpy(new_proc_set_array.get(),
+           proc_set_array.get(),
            sizeof(struct processor_set_handler) * num_processor_sets);
 
     for (i = num_processor_sets; i < 2 * num_processor_sets; i++)
@@ -180,12 +183,12 @@ use_processor_set(const Uint32 *cpu_ids,
       init_handler(&new_proc_set_array[i], i);
     }
 
-    free(proc_set_array);
-    proc_set_array = new_proc_set_array;
+    proc_set_array = std::move(new_proc_set_array);
     num_processor_sets *= 2;
   }
   /* Should never arrive here */
-  return ret;
+  require(false);
+  return -1;
 }
 
 int
@@ -269,10 +272,10 @@ int
 NdbLockCpu_Init()
 {
   Uint32 i;
-  proc_set_array = (processor_set_handler *)malloc(num_processor_sets *
-                          sizeof(struct processor_set_handler));
+  proc_set_array.reset(new (std::nothrow)
+                           processor_set_handler[num_processor_sets]);
 
-  if (proc_set_array == NULL)
+  if (!proc_set_array)
   {
     return 1;
   }
@@ -284,7 +287,7 @@ NdbLockCpu_Init()
   ndb_lock_cpu_mutex = NdbMutex_Create();
   if (ndb_lock_cpu_mutex == NULL)
   {
-    free(proc_set_array);
+    proc_set_array.reset();
     return 1;
   }
   return 0;
@@ -306,8 +309,7 @@ NdbLockCpu_End()
       abort();
     }
   }
-  free(proc_set_array);
-  proc_set_array = NULL;
+  proc_set_array.reset();
   NdbMutex_Unlock(ndb_lock_cpu_mutex);
   NdbMutex_Destroy(ndb_lock_cpu_mutex);
   ndb_lock_cpu_mutex = NULL;

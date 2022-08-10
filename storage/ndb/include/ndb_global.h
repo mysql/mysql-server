@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+/*
+ * !! DO NOT ADD ANYTHING TO THIS FILE !!
+ *
+ * Header files should be included in source files that needs them.
+ * That is, follow IWYU (include-what-you-use).
+ *
+ * New symbols should be added in other relevant header files.
+ */
+
 #ifndef NDB_GLOBAL_H
 #define NDB_GLOBAL_H
 
@@ -35,15 +44,6 @@
 #include <mysql/service_mysql_alloc.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-
-/* Legacy definitions. */
-#ifndef TRUE
-#define TRUE true
-#define FALSE false
 #endif
 
 /*
@@ -61,12 +61,6 @@
 #define my_offsetof(TYPE, MEMBER) \
         ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
 
-#if defined __GNUC__
-# define ATTRIBUTE_FORMAT(style, m, n) MY_ATTRIBUTE((format(style, m, n)))
-#else
-# define ATTRIBUTE_FORMAT(style, m, n)
-#endif
-
 #ifdef HAVE_NDB_CONFIG_H
 #include "ndb_config.h"
 #endif
@@ -81,7 +75,6 @@
 
 #ifdef _WIN32
 #define DIR_SEPARATOR "\\"
-#include <my_systime.h>
 #else
 #define DIR_SEPARATOR "/"
 #endif
@@ -114,30 +107,8 @@
 #endif
 #include "m_string.h"
 
-#ifndef NDB_REMOVE_BZERO
-/*
-  Make it possible to use bzero in NDB although
-  MySQL headers redefines it to an invalid symbol
-*/
-#ifdef bzero
-#undef bzero
-#endif
-
-#ifdef HAVE_STRINGS_H
-#include <strings.h>
-#endif
-
-#if !defined(bzero) && !defined(HAVE_BZERO)
-#define bzero(A,B) memset((A),0,(B))
-#endif
-#endif
-
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
-#endif
-
-#ifdef TIME_WITH_SYS_TIME
-#include <time.h>
 #endif
 
 #ifdef HAVE_FCNTL_H
@@ -163,12 +134,6 @@
 #endif
 
 static const char table_name_separator =  '/';
-
-#if defined(_AIX) || defined(WIN32) || defined(NDB_VC98)
-#define STATIC_CONST(x) enum { x }
-#else
-#define STATIC_CONST(x) static const Uint32 x
-#endif
 
 #ifdef  __cplusplus
 extern "C" {
@@ -214,41 +179,11 @@ extern "C" {
 #define NDB_O_DIRECT_WRITE_ALIGNMENT 512
 #define NDB_O_DIRECT_WRITE_BLOCKSIZE 4096
 
-#ifndef STATIC_ASSERT
-#if defined VM_TRACE
-/**
- * Compile-time assert for use from procedure body
- * Zero length array not allowed in C
- * Add use of array to avoid compiler warning
- */
-#define STATIC_ASSERT(expr) { char a_static_assert[(expr)? 1 : 0] = {'\0'}; if (a_static_assert[0]) {}; }
-#else
-#define STATIC_ASSERT(expr)
-#endif
-#endif
-
 #define NDB_ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
-
-
-/*
-  NDB_STATIC_ASSERT(expr)
-   - Check coding assumptions during compile time
-     by laying out code that will generate a compiler error
-     if the expression is false.
-*/
-
-#define NDB_STATIC_ASSERT(expr) static_assert(expr, #expr)
 
 #if defined(_WIN32) && (_MSC_VER > 1500)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define HAVE___IS_POD
-#endif
-
-#ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
-#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)     \
-  NDB_STATIC_ASSERT(!__has_trivial_constructor(x))
-#else
-#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)
 #endif
 
 /**
@@ -259,27 +194,9 @@ extern "C" {
  */
 #ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define NDB_ASSERT_POD(x) \
-  NDB_STATIC_ASSERT(__has_trivial_constructor(x))
+  static_assert(__has_trivial_constructor(x))
 #else
 #define NDB_ASSERT_POD(x)
-#endif
-
-/**
- *  MY_ATTRIBUTE((noinline)) was introduce in gcc 3.1
- */
-#ifdef __GNUC__
-#define ATTRIBUTE_NOINLINE MY_ATTRIBUTE((noinline))
-#else
-#define ATTRIBUTE_NOINLINE
-#endif
-
-/**
- *  Attribute used for unused function arguments
- */
-#if defined(__GNUC__) || defined(__clang__)
-#define ATTRIBUTE_UNUSED __attribute__((unused))
-#else
-#define ATTRIBUTE_UNUSED
 #endif
 
 /**
@@ -294,42 +211,10 @@ extern "C" {
  */
 #define NDB_CL_PADSZ(x) (NDB_CL - ((x) % NDB_CL))
 
-/*
- * require is like a normal assert, only it's always on (eg. in release)
- */
-typedef int(*RequirePrinter)(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-[[noreturn]] void require_failed(int exitcode,
-                                 RequirePrinter p,
-                                 const char* expr,
-                                 const char* file,
-                                 int line);
-int ndbout_printer(const char * fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-/*
- *  this allows for an exit() call if exitcode is not zero
- *  and takes a Printer to print the error
- */
-#define require_exit_or_core_with_printer(v, exitcode, printer) \
-  do { if (likely(!(!(v)))) break;                                    \
-       require_failed((exitcode), (printer), #v, __FILE__, __LINE__); \
-  } while (0)
-
-/*
- *  this allows for an exit() call if exitcode is not zero
-*/
-#define require_exit_or_core(v, exitcode) \
-       require_exit_or_core_with_printer((v), (exitcode), 0)
-
-/*
- * this require is like a normal assert.  (only it's always on)
-*/
-#define require(v) require_exit_or_core_with_printer((v), 0, 0)
-
 struct LinearSectionPtr
 {
   Uint32 sz;
-  Uint32 * p;
+  const Uint32* p;
 };
 
 struct SegmentedSectionPtrPOD

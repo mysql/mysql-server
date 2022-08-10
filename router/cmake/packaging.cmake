@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,10 +21,10 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-IF(NOT WIN32)
-  SET(CPACK_ROUTER_PACKAGE_NAME "mysql-router")
-ELSE()
+IF(WIN32)
   SET(CPACK_ROUTER_PACKAGE_NAME "MySQL Router")
+ELSE()
+  SET(CPACK_ROUTER_PACKAGE_NAME "mysql-router")
 ENDIF()
 
 SET(CPACK_ROUTER_PACKAGE_VERSION ${PROJECT_VERSION_TEXT})

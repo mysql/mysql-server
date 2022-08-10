@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,12 +50,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "lock0types.h"
 
+#include "ddl0ddl.h"
 #include "dict0sdi-decompress.h"
 #include "dict0sdi.h"
 #include "pars0pars.h"
 #include "rem0cmp.h"
 #include "row0ins.h"
-#include "row0merge.h"
 #include "row0sel.h"
 #include "row0upd.h"
 #include "row0vers.h"
@@ -63,13 +63,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0roll.h"
 
 /** configure variable for binlog option with InnoDB APIs */
-bool ib_binlog_enabled = FALSE;
+bool ib_binlog_enabled = false;
 
 /** configure variable for MDL option with InnoDB APIs */
-bool ib_mdl_enabled = FALSE;
+bool ib_mdl_enabled = false;
 
 /** configure variable for disable rowlock with InnoDB APIs */
-bool ib_disable_row_lock = FALSE;
+bool ib_disable_row_lock = false;
 
 /** configure variable for Transaction isolation levels */
 ulong ib_trx_level_setting = IB_TRX_READ_UNCOMMITTED;
@@ -157,7 +157,7 @@ struct ib_key_col_t {
 struct ib_table_def_t;
 
 /** InnoDB index schema used during index creation */
-struct ib_index_def_t {
+struct ib_Index_defn {
   mem_heap_t *heap; /*!< Heap used to build this and all
                     its columns in the list */
 
@@ -168,9 +168,9 @@ struct ib_index_def_t {
   ib_table_def_t *schema; /*!< Parent table schema that owns
                           this instance */
 
-  ibool clustered; /*!< True if clustered index */
+  bool clustered; /*!< True if clustered index */
 
-  ibool unique; /*!< True if unique index */
+  bool unique; /*!< True if unique index */
 
   ib_vector_t *cols; /*!< Vector of columns */
 
@@ -214,13 +214,11 @@ struct ib_tuple_t {
 about server activity: in case of normal DML ops it is not
 sensible to call srv_active_wake_master_thread after each
 operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
-
-#define INNOBASE_WAKE_INTERVAL 32
+constexpr uint32_t INNOBASE_WAKE_INTERVAL = 32;
 
 /** Check whether the InnoDB persistent cursor is positioned.
  @return IB_true if positioned */
-UNIV_INLINE
-ib_bool_t ib_btr_cursor_is_positioned(
+static inline bool ib_btr_cursor_is_positioned(
     btr_pcur_t *pcur) /*!< in: InnoDB persistent cursor */
 {
   return (pcur->is_positioned());
@@ -246,8 +244,7 @@ static dict_table_t *ib_lookup_table_by_name(
  time calls srv_active_wake_master_thread. This function should be used
  when a single database operation may introduce a small need for
  server utility activity, like checkpointing. */
-UNIV_INLINE
-void ib_wake_master_thread(void) {
+static inline void ib_wake_master_thread(void) {
   static ulint ib_signal_counter = 0;
 
   ++ib_signal_counter;
@@ -260,7 +257,7 @@ void ib_wake_master_thread(void) {
 /** Read the columns from a rec into a tuple. */
 static ib_err_t ib_read_tuple(
     const rec_t *rec,      /*!< in: Record to read */
-    ib_bool_t page_format, /*!< in: IB_TRUE if compressed format */
+    bool page_format,      /*!< in: true if compressed format */
     ib_tuple_t *tuple,     /*!< in: tuple to read into */
     ib_tuple_t *cmp_tuple, /*!< in: tuple to compare and stop
                            reading  */
@@ -274,7 +271,6 @@ static ib_err_t ib_read_tuple(
   void *ptr;
   rec_t *copy;
   ulint rec_meta_data;
-  ulint n_index_fields;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   dtuple_t *dtuple = tuple->ptr;
@@ -286,7 +282,8 @@ static ib_err_t ib_read_tuple(
 
   rec_offs_init(offsets_);
 
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &tuple->heap);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &tuple->heap);
 
   rec_meta_data = rec_get_info_bits(rec, page_format);
   dtuple_set_info_bits(dtuple, rec_meta_data);
@@ -339,8 +336,17 @@ static ib_err_t ib_read_tuple(
 
   copy = rec_copy(ptr, rec, offsets);
 
-  n_index_fields =
-      ut_min(rec_offs_n_fields(offsets), dtuple_get_n_fields(dtuple));
+  /* DB_ROW_ID is added in dict_table_t unconditionally but is used only if PK
+  isn't there. dtuple is made from the dict_table_t so it will also have it but
+  record might not if PK is there. */
+  size_t n_index_fields =
+      std::min(rec_offs_n_fields(offsets), dtuple_get_n_fields(dtuple));
+
+  /* If table has INSTANT DROP columns, then offsets would have count for these
+  columns as well, where as logical record won't have them. */
+  if (index->has_row_versions()) {
+    n_index_fields = std::min(n_index_fields, (size_t)index->n_fields);
+  }
 
   for (i = 0; i < n_index_fields; ++i) {
     ulint len;
@@ -364,10 +370,10 @@ static ib_err_t ib_read_tuple(
     data = rec_get_nth_field_instant(copy, offsets, i, index, &len);
 
     /* Fetch and copy any externally stored column. */
-    if (rec_offs_nth_extern(offsets, i)) {
+    if (rec_offs_nth_extern(index, offsets, i)) {
       const page_size_t page_size(dict_table_page_size(index->table));
 
-      /** Passing nullptr to the transaction object.  This
+      /* Passing nullptr to the transaction object.  This
       means that partial update of LOB is not supported
       via this interface.*/
       data = lob::btr_rec_copy_externally_stored_field(
@@ -438,7 +444,7 @@ static ib_tpl_t ib_key_tuple_new(
 {
   mem_heap_t *heap;
 
-  heap = mem_heap_create(64);
+  heap = mem_heap_create(64, UT_LOCATION_HERE);
 
   if (heap == nullptr) {
     return (nullptr);
@@ -483,7 +489,7 @@ static ib_tpl_t ib_row_tuple_new(
 {
   mem_heap_t *heap;
 
-  heap = mem_heap_create(64);
+  heap = mem_heap_create(64, UT_LOCATION_HERE);
 
   if (heap == nullptr) {
     return (nullptr);
@@ -497,10 +503,10 @@ static ib_tpl_t ib_row_tuple_new(
 ib_err_t ib_trx_start(
     ib_trx_t ib_trx,             /*!< in: transaction to restart */
     ib_trx_level_t ib_trx_level, /*!< in: trx isolation level */
-    ib_bool_t read_write,        /*!< in: true if read write
-                                 transaction */
-    ib_bool_t auto_commit,       /*!< in: auto commit after each
-                                 single DML */
+    bool read_write,             /*!< in: true if read write
+                                      transaction */
+    bool auto_commit,            /*!< in: auto commit after each
+                                      single DML */
     void *thd)                   /*!< in: THD */
 {
   ib_err_t err = DB_SUCCESS;
@@ -512,9 +518,9 @@ ib_err_t ib_trx_start(
   trx->api_auto_commit = auto_commit;
   trx->read_write = read_write;
 
-  trx_start_if_not_started(trx, read_write);
+  trx_start_if_not_started(trx, read_write, UT_LOCATION_HERE);
 
-  trx->isolation_level = ib_trx_level;
+  trx->isolation_level = static_cast<trx_t::isolation_level_t>(ib_trx_level);
 
   /* FIXME: This is a place holder, we should add an arg that comes
   from the client. */
@@ -528,19 +534,18 @@ ib_err_t ib_trx_start(
  @return innobase txn handle */
 ib_trx_t ib_trx_begin(
     ib_trx_level_t ib_trx_level, /*!< in: trx isolation level */
-    ib_bool_t read_write,        /*!< in: true if read write
-                                 transaction */
-    ib_bool_t auto_commit,       /*!< in: auto commit after each
-                                 single DML */
+    bool read_write,             /*!< in: true if read write
+                                      transaction */
+    bool auto_commit,            /*!< in: auto commit after each
+                                      single DML */
     void *thd)                   /*!< in,out: MySQL THD */
 {
   trx_t *trx;
-  ib_bool_t started;
 
   trx = trx_allocate_for_mysql();
 
-  started = ib_trx_start(static_cast<ib_trx_t>(trx), ib_trx_level, read_write,
-                         auto_commit, thd);
+  ib_err_t started = ib_trx_start(static_cast<ib_trx_t>(trx), ib_trx_level,
+                                  read_write, auto_commit, thd);
   ut_a(started);
 
   return (static_cast<ib_trx_t>(trx));
@@ -548,7 +553,7 @@ ib_trx_t ib_trx_begin(
 
 /** Check if transaction is read_only
  @return transaction read_only status */
-ib_u32_t ib_trx_read_only(ib_trx_t ib_trx) /*!< in: trx handle */
+uint32_t ib_trx_read_only(ib_trx_t ib_trx) /*!< in: trx handle */
 {
   trx_t *trx = (trx_t *)ib_trx;
 
@@ -556,10 +561,11 @@ ib_u32_t ib_trx_read_only(ib_trx_t ib_trx) /*!< in: trx handle */
 }
 /** Get a trx start time.
  @return trx start_time */
-ib_u64_t ib_trx_get_start_time(ib_trx_t ib_trx) /*!< in: transaction */
+uint64_t ib_trx_get_start_time(ib_trx_t ib_trx) /*!< in: transaction */
 {
   trx_t *trx = (trx_t *)ib_trx;
-  return (static_cast<ib_u64_t>(trx->start_time));
+  return static_cast<uint64_t>(std::chrono::system_clock::to_time_t(
+      trx->start_time.load(std::memory_order_relaxed)));
 }
 /** Release the resources of the transaction.
  @return DB_SUCCESS or err code */
@@ -704,7 +710,7 @@ static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
 
   // passing non-null might mean a memleak of old cursor
   ut_ad(*ib_crsr == nullptr);
-  heap = mem_heap_create(sizeof(*cursor) * 2);
+  heap = mem_heap_create(sizeof(*cursor) * 2, UT_LOCATION_HERE);
 
   if (heap != nullptr) {
     row_prebuilt_t *prebuilt;
@@ -713,7 +719,7 @@ static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
 
     cursor->heap = heap;
 
-    cursor->query_heap = mem_heap_create(64);
+    cursor->query_heap = mem_heap_create(64, UT_LOCATION_HERE);
 
     if (cursor->query_heap == nullptr) {
       mem_heap_free(heap);
@@ -727,11 +733,11 @@ static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
 
     prebuilt->trx = trx;
 
-    cursor->valid_trx = TRUE;
+    cursor->valid_trx = true;
 
     prebuilt->table = table;
     prebuilt->select_lock_type = LOCK_NONE;
-    prebuilt->innodb_api = TRUE;
+    prebuilt->innodb_api = true;
 
     prebuilt->index = index;
 
@@ -757,9 +763,9 @@ static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
 }
 
 /** Create an internal cursor instance on the clustered index.
-@param[out]	ib_crsr		InnoDB cursor
-@param[in,out]	table		table instance
-@param[in,out]	trx		transaction
+@param[out]     ib_crsr         InnoDB cursor
+@param[in,out]  table           table instance
+@param[in,out]  trx             transaction
 @return DB_SUCCESS or err code */
 static ib_err_t ib_create_cursor_with_clust_index(ib_crsr_t *ib_crsr,
                                                   dict_table_t *table,
@@ -791,9 +797,9 @@ ib_err_t ib_cursor_open_index_using_name(
   table = cursor->prebuilt->table;
   ut_a(table != nullptr);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   table->acquire();
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* The first index is always the cluster index. */
   index = table->first_index();
@@ -810,7 +816,7 @@ ib_err_t ib_cursor_open_index_using_name(
   }
 
   if (!index_id) {
-    dict_table_close(table, FALSE, FALSE);
+    dict_table_close(table, false, false);
     return (DB_ERROR);
   }
 
@@ -847,7 +853,8 @@ ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
   trx_t *trx = static_cast<trx_t *>(ib_trx);
   MDL_ticket *mdl = nullptr;
 
-  normalized_name = static_cast<char *>(ut_malloc_nokey(ut_strlen(name) + 1));
+  normalized_name = static_cast<char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, ut_strlen(name) + 1));
   ib_normalize_table_name(normalized_name, name);
 
   ut_ad(ib_trx != nullptr);
@@ -860,7 +867,7 @@ ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
     table = ib_lookup_table_by_name(normalized_name);
   }
 
-  ut_free(normalized_name);
+  ut::free(normalized_name);
   normalized_name = nullptr;
 
   /* It can happen that another thread has created the table but
@@ -883,9 +890,9 @@ ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
 }
 
 /** Check the table whether it contains virtual columns.
-@param[in]	crsr	InnoDB Cursor
+@param[in]      crsr    InnoDB Cursor
 @return true if the table contains virtual column else failure. */
-ib_bool_t ib_is_virtual_table(ib_crsr_t crsr) {
+bool ib_is_virtual_table(ib_crsr_t crsr) {
   return (crsr->prebuilt->table->n_v_cols > 0);
 }
 
@@ -934,7 +941,7 @@ ib_err_t ib_cursor_new_trx(ib_crsr_t ib_crsr, /*!< in/out: InnoDB cursor */
 
   row_update_prebuilt_trx(prebuilt, trx);
 
-  cursor->valid_trx = TRUE;
+  cursor->valid_trx = true;
 
   trx_assign_read_view(prebuilt->trx);
 
@@ -958,7 +965,7 @@ ib_err_t ib_cursor_commit_trx(ib_crsr_t ib_crsr, /*!< in/out: InnoDB cursor */
   ut_ad(prebuilt->trx == (trx_t *)ib_trx);
 #endif /* UNIV_DEBUG */
   ib_trx_commit(ib_trx);
-  cursor->valid_trx = FALSE;
+  cursor->valid_trx = false;
   return (err);
 }
 
@@ -984,7 +991,7 @@ ib_err_t ib_cursor_close(ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
     --trx->n_mysql_tables_in_use;
   }
 
-  row_prebuilt_free(prebuilt, FALSE);
+  row_prebuilt_free(prebuilt, false);
   cursor->prebuilt = nullptr;
 
   if (cursor->mdl != nullptr) {
@@ -1000,8 +1007,7 @@ ib_err_t ib_cursor_close(ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
 
 /** Run the insert query and do error handling.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-ib_err_t ib_insert_row_with_lock_retry(
+static inline ib_err_t ib_insert_row_with_lock_retry(
     que_thr_t *thr,       /*!< in: insert query graph */
     ins_node_t *node,     /*!< in: insert node for the query */
     trx_savept_t *savept) /*!< in: savepoint to rollback to
@@ -1009,7 +1015,7 @@ ib_err_t ib_insert_row_with_lock_retry(
 {
   trx_t *trx;
   ib_err_t err;
-  ib_bool_t lock_wait;
+  bool lock_wait;
 
   bool is_sdi = dict_table_is_sdi(node->table->id);
 
@@ -1027,11 +1033,10 @@ ib_err_t ib_insert_row_with_lock_retry(
       que_thr_stop_for_mysql(thr);
 
       thr->lock_state = QUE_THR_LOCK_ROW;
-      lock_wait = static_cast<ib_bool_t>(
-          ib_handle_errors(&err, trx, thr, savept, is_sdi));
+      lock_wait = ib_handle_errors(&err, trx, thr, savept, is_sdi);
       thr->lock_state = QUE_THR_LOCK_NOLOCK;
     } else {
-      lock_wait = FALSE;
+      lock_wait = false;
     }
   } while (lock_wait);
 
@@ -1120,7 +1125,6 @@ ib_err_t ib_cursor_insert_row(
     ib_crsr_t ib_crsr,     /*!< in/out: InnoDB cursor instance */
     const ib_tpl_t ib_tpl) /*!< in: tuple to insert */
 {
-  ib_ulint_t i;
   ib_qry_node_t *node;
   ib_qry_proc_t *q_proc;
   ulint n_fields;
@@ -1144,7 +1148,7 @@ ib_err_t ib_cursor_insert_row(
 
   /* Do a shallow copy of the data fields and check for NULL
   constraints on columns. */
-  for (i = 0; i < n_fields; i++) {
+  for (ulint i = 0; i < n_fields; i++) {
     ulint mtype;
     dfield_t *src_field;
     dfield_t *dst_field;
@@ -1188,8 +1192,8 @@ ib_err_t ib_cursor_insert_row(
 
 /** Gets pointer to a prebuilt update vector used in updates.
  @return update vector */
-UNIV_INLINE
-upd_t *ib_update_vector_create(ib_cursor_t *cursor) /*!< in: current cursor */
+static inline upd_t *ib_update_vector_create(
+    ib_cursor_t *cursor) /*!< in: current cursor */
 {
   trx_t *trx = cursor->prebuilt->trx;
   mem_heap_t *heap = cursor->query_heap;
@@ -1243,6 +1247,7 @@ static void ib_update_col(
   upd_field->orig_len = 0;
 
   upd_field->field_no = dict_col_get_clust_pos(&table->cols[col_no], index);
+  IF_DEBUG(upd_field->field_phy_pos = table->cols[col_no].get_col_phy_pos();)
 }
 
 /** Checks which fields have changed in a row and stores the new data
@@ -1307,8 +1312,7 @@ static ib_err_t ib_calc_diff(
 
 /** Run the update query and do error handling.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-ib_err_t ib_update_row_with_lock_retry(
+static inline ib_err_t ib_update_row_with_lock_retry(
     que_thr_t *thr,       /*!< in: Update query graph */
     upd_node_t *node,     /*!< in: Update node for the query */
     trx_savept_t *savept) /*!< in: savepoint to rollback to
@@ -1317,7 +1321,7 @@ ib_err_t ib_update_row_with_lock_retry(
 {
   trx_t *trx;
   ib_err_t err;
-  ib_bool_t lock_wait;
+  bool lock_wait;
 
   bool is_sdi = dict_table_is_sdi(node->table->id);
 
@@ -1337,15 +1341,14 @@ ib_err_t ib_update_row_with_lock_retry(
       if (err != DB_RECORD_NOT_FOUND) {
         thr->lock_state = QUE_THR_LOCK_ROW;
 
-        lock_wait = static_cast<ib_bool_t>(
-            ib_handle_errors(&err, trx, thr, savept, is_sdi));
+        lock_wait = ib_handle_errors(&err, trx, thr, savept, is_sdi);
 
         thr->lock_state = QUE_THR_LOCK_NOLOCK;
       } else {
-        lock_wait = FALSE;
+        lock_wait = false;
       }
     } else {
-      lock_wait = FALSE;
+      lock_wait = false;
     }
   } while (lock_wait);
 
@@ -1354,8 +1357,7 @@ ib_err_t ib_update_row_with_lock_retry(
 
 /** Does an update or delete of a row.
  @return DB_SUCCESS or err code */
-UNIV_INLINE
-ib_err_t ib_execute_update_query_graph(
+static inline ib_err_t ib_execute_update_query_graph(
     ib_cursor_t *cursor, /*!< in: Cursor instance */
     btr_pcur_t *pcur)    /*!< in: Btree persistent cursor */
 {
@@ -1373,7 +1375,7 @@ ib_err_t ib_execute_update_query_graph(
   node = q_proc->node.upd;
 
   ut_a(pcur->m_btr_cur.index->is_clustered());
-  btr_pcur_copy_stored_position(node->pcur, pcur);
+  btr_pcur_t::copy_stored_position(node->pcur, pcur);
 
   ut_a(node->pcur->m_rel_pos == BTR_PCUR_ON);
 
@@ -1447,7 +1449,7 @@ ib_err_t ib_cursor_update_row(
 
   if (err == DB_SUCCESS) {
     /* Note that this is not a delete. */
-    cursor->q_proc.node.upd->is_delete = FALSE;
+    cursor->q_proc.node.upd->is_delete = false;
 
     err = ib_execute_update_query_graph(cursor, pcur);
   }
@@ -1471,7 +1473,6 @@ static ib_err_t ib_delete_row(
   ib_tpl_t ib_tpl;
   ulint n_cols;
   upd_field_t *upd_field;
-  ib_bool_t page_format;
   dict_table_t *table = cursor->prebuilt->table;
   dict_index_t *index = table->first_index();
 
@@ -1486,7 +1487,7 @@ static ib_err_t ib_delete_row(
 
   upd = ib_update_vector_create(cursor);
 
-  page_format = static_cast<ib_bool_t>(dict_table_is_comp(index->table));
+  bool page_format = dict_table_is_comp(index->table);
 
   ib_read_tuple(rec, page_format, tuple, nullptr, 0, nullptr, nullptr, nullptr);
 
@@ -1510,7 +1511,7 @@ static ib_err_t ib_delete_row(
   }
 
   /* Note that this is a delete. */
-  cursor->q_proc.node.upd->is_delete = TRUE;
+  cursor->q_proc.node.upd->is_delete = true;
 
   err = ib_execute_update_query_graph(cursor, pcur);
 
@@ -1545,28 +1546,28 @@ ib_err_t ib_cursor_delete_row(
 
   if (ib_btr_cursor_is_positioned(pcur)) {
     const rec_t *rec;
-    ib_bool_t page_format;
     mtr_t mtr;
     rec_t *copy = nullptr;
     byte ptr[UNIV_PAGE_SIZE_MAX];
 
-    page_format = static_cast<ib_bool_t>(dict_table_is_comp(index->table));
+    bool page_format = dict_table_is_comp(index->table);
 
     mtr_start(&mtr);
 
-    if (btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, &mtr)) {
+    if (pcur->restore_position(BTR_SEARCH_LEAF, &mtr, UT_LOCATION_HERE)) {
       mem_heap_t *heap = nullptr;
       ulint offsets_[REC_OFFS_NORMAL_SIZE];
       ulint *offsets = offsets_;
 
       rec_offs_init(offsets_);
 
-      rec = btr_pcur_get_rec(pcur);
+      rec = pcur->get_rec();
 
-      /* Since mtr will be commited, the rec
+      /* Since mtr will be committed, the rec
       will not be protected. Make a copy of
       the rec. */
-      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
       ut_ad(rec_offs_size(offsets) < UNIV_PAGE_SIZE_MAX);
       copy = rec_copy(ptr, rec, offsets);
     }
@@ -1590,15 +1591,15 @@ ib_err_t ib_cursor_delete_row(
 /** Read current row.
  @return DB_SUCCESS or err code */
 ib_err_t ib_cursor_read_row(
-    ib_crsr_t ib_crsr,    /*!< in: InnoDB cursor instance */
-    ib_tpl_t ib_tpl,      /*!< out: read cols into this tuple */
-    ib_tpl_t cmp_tpl,     /*!< in: tuple to compare and stop
-                          reading */
-    int mode,             /*!< in: mode determine when to
-                          stop read */
-    void **row_buf,       /*!< in/out: row buffer */
-    ib_ulint_t *slot,     /*!< in/out: slot being used */
-    ib_ulint_t *used_len) /*!< in/out: buffer len used */
+    ib_crsr_t ib_crsr,  /*!< in: InnoDB cursor instance */
+    ib_tpl_t ib_tpl,    /*!< out: read cols into this tuple */
+    ib_tpl_t cmp_tpl,   /*!< in: tuple to compare and stop
+                        reading */
+    int mode,           /*!< in: mode determine when to
+                        stop read */
+    void **row_buf,     /*!< in/out: row buffer */
+    uint64_t *slot,     /*!< in/out: slot being used */
+    uint64_t *used_len) /*!< in/out: buffer len used */
 {
   ib_err_t err;
   ib_tuple_t *tuple = (ib_tuple_t *)ib_tpl;
@@ -1629,13 +1630,11 @@ ib_err_t ib_cursor_read_row(
 
     mtr_start(&mtr);
 
-    if (btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, &mtr)) {
+    if (pcur->restore_position(BTR_SEARCH_LEAF, &mtr, UT_LOCATION_HERE)) {
       const rec_t *rec;
-      ib_bool_t page_format;
 
-      page_format =
-          static_cast<ib_bool_t>(dict_table_is_comp(tuple->index->table));
-      rec = btr_pcur_get_rec(pcur);
+      bool page_format = dict_table_is_comp(tuple->index->table);
+      rec = pcur->get_rec();
 
       if (!rec_get_deleted_flag(rec, page_format)) {
         if (prebuilt->innodb_api && prebuilt->innodb_api_rec != nullptr) {
@@ -1662,8 +1661,7 @@ ib_err_t ib_cursor_read_row(
 
 /** Move cursor to the first record in the table.
  @return DB_SUCCESS or err code */
-UNIV_INLINE
-ib_err_t ib_cursor_position(
+static inline ib_err_t ib_cursor_position(
     ib_cursor_t *cursor, /*!< in: InnoDB cursor instance */
     ib_srch_mode_t mode) /*!< in: Search mode */
 {
@@ -1674,7 +1672,8 @@ ib_err_t ib_cursor_position(
   if (prebuilt->innodb_api) {
     prebuilt->cursor_heap = cursor->heap;
   }
-  buf = static_cast<unsigned char *>(ut_malloc_nokey(UNIV_PAGE_SIZE));
+  buf = static_cast<unsigned char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, UNIV_PAGE_SIZE));
   prebuilt->clear_search_tuples();
 
   /* We want to position at one of the ends, row_search_for_mysql()
@@ -1683,7 +1682,7 @@ ib_err_t ib_cursor_position(
   err = static_cast<ib_err_t>(row_search_for_mysql(
       buf, static_cast<page_cur_mode_t>(mode), prebuilt, 0, 0));
 
-  ut_free(buf);
+  ut::free(buf);
 
   return (err);
 }
@@ -1723,7 +1722,7 @@ ib_err_t ib_cursor_next(ib_crsr_t ib_crsr) /*!< in: InnoDB cursor instance */
 ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
                           ib_tpl_t ib_tpl,   /*!< in: Key to search for */
                           ib_srch_mode_t ib_srch_mode, /*!< in: search mode */
-                          ib_ulint_t direction) /*!< in: search direction */
+                          uint64_t direction) /*!< in: search direction */
 {
   ulint i;
   ulint n_fields;
@@ -1756,7 +1755,8 @@ ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
 
   prebuilt->innodb_api_rec = nullptr;
 
-  buf = static_cast<unsigned char *>(ut_malloc_nokey(UNIV_PAGE_SIZE));
+  buf = static_cast<unsigned char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, UNIV_PAGE_SIZE));
 
   if (prebuilt->innodb_api) {
     prebuilt->cursor_heap = cursor->heap;
@@ -1765,7 +1765,7 @@ ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
       row_search_for_mysql(buf, static_cast<page_cur_mode_t>(ib_srch_mode),
                            prebuilt, cursor->match_mode, direction));
 
-  ut_free(buf);
+  ut::free(buf);
 
   return (err);
 }
@@ -1782,9 +1782,9 @@ void ib_cursor_set_match_mode(
 
 /** Get the dfield instance for the column in the tuple.
  @return dfield instance in tuple */
-UNIV_INLINE
-dfield_t *ib_col_get_dfield(ib_tuple_t *tuple, /*!< in: tuple instance */
-                            ulint col_no)      /*!< in: col no. in tuple */
+static inline dfield_t *ib_col_get_dfield(
+    ib_tuple_t *tuple, /*!< in: tuple instance */
+    ulint col_no)      /*!< in: col no. in tuple */
 {
   dfield_t *dfield;
 
@@ -1795,8 +1795,8 @@ dfield_t *ib_col_get_dfield(ib_tuple_t *tuple, /*!< in: tuple instance */
 
 /** Predicate to check whether a column type contains variable length data.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-ib_err_t ib_col_is_capped(const dtype_t *dtype) /*!< in: column type */
+static inline ib_err_t ib_col_is_capped(
+    const dtype_t *dtype) /*!< in: column type */
 {
   return (static_cast<ib_err_t>((dtype_get_mtype(dtype) == DATA_VARCHAR ||
                                  dtype_get_mtype(dtype) == DATA_CHAR ||
@@ -1808,14 +1808,8 @@ ib_err_t ib_col_is_capped(const dtype_t *dtype) /*!< in: column type */
                                 dtype_get_len(dtype) > 0));
 }
 
-/** Set a column of the tuple. Make a copy using the tuple's heap.
- @return DB_SUCCESS or error code */
-ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
-                          ib_ulint_t col_no,  /*!< in: column index in tuple */
-                          const void *src,    /*!< in: data value */
-                          ib_ulint_t len,     /*!< in: data value len */
-                          ib_bool_t need_cpy) /*!< in: if need memcpy */
-{
+ib_err_t ib_col_set_value(ib_tpl_t ib_tpl, ib_ulint_t col_no, const void *src,
+                          uint64_t len, bool need_cpy) {
   const dtype_t *dtype;
   dfield_t *dfield;
   void *dst = nullptr;
@@ -1844,7 +1838,7 @@ ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
   exception. Perhaps we need to set the precise type and check
   for that. */
   if (ib_col_is_capped(dtype)) {
-    len = ut_min(len, static_cast<ib_ulint_t>(col_len));
+    len = std::min(len, static_cast<uint64_t>(col_len));
 
     if (dst == nullptr || len > dfield_get_len(dfield)) {
       dst = mem_heap_alloc(tuple->heap, col_len);
@@ -1861,9 +1855,7 @@ ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
   switch (dtype_get_mtype(dtype)) {
     case DATA_INT: {
       if (col_len == len) {
-        ibool usign;
-
-        usign = dtype_get_prtype(dtype) & DATA_UNSIGNED;
+        bool usign = (dtype_get_prtype(dtype) & DATA_UNSIGNED) != 0;
         mach_write_int_type(static_cast<byte *>(dst),
                             static_cast<const byte *>(src), len, usign);
 
@@ -1937,7 +1929,7 @@ ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
               cs, (const char *)src, (const char *)src + len, pos, &error);
 
           if (true_len < len) {
-            len = static_cast<ib_ulint_t>(true_len);
+            len = true_len;
           }
         }
       }
@@ -1973,7 +1965,7 @@ ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
           col_len--;
         }
 
-        len = static_cast<ib_ulint_t>(col_len);
+        len = col_len;
       }
       break;
     }
@@ -1991,11 +1983,7 @@ ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
   return (DB_SUCCESS);
 }
 
-/** Get the size of the data available in a column of the tuple.
- @return bytes avail or IB_SQL_NULL */
-ib_ulint_t ib_col_get_len(ib_tpl_t ib_tpl, /*!< in: tuple instance */
-                          ib_ulint_t i)    /*!< in: column index in tuple */
-{
+uint64_t ib_col_get_len(ib_tpl_t ib_tpl, ib_ulint_t i) {
   const dfield_t *dfield;
   ulint data_len;
   ib_tuple_t *tuple = (ib_tuple_t *)ib_tpl;
@@ -2004,62 +1992,48 @@ ib_ulint_t ib_col_get_len(ib_tpl_t ib_tpl, /*!< in: tuple instance */
 
   data_len = dfield_get_len(dfield);
 
-  return (static_cast<ib_ulint_t>(data_len == UNIV_SQL_NULL ? IB_SQL_NULL
-                                                            : data_len));
+  return data_len == UNIV_SQL_NULL ? IB_SQL_NULL : data_len;
 }
 
-/** Copy a column value from the tuple.
- @return bytes copied or IB_SQL_NULL */
-UNIV_INLINE
-ib_ulint_t ib_col_copy_value_low(
-    ib_tpl_t ib_tpl, /*!< in: tuple instance */
-    ib_ulint_t i,    /*!< in: column index in tuple */
-    void *dst,       /*!< out: copied data value */
-    ib_ulint_t len)  /*!< in: max data value len to copy */
-{
-  const void *data;
-  const dfield_t *dfield;
-  ulint data_len;
+uint64_t ib_col_copy_value(ib_tpl_t ib_tpl, ib_ulint_t i, void *dst,
+                           uint32_t len) {
   ib_tuple_t *tuple = (ib_tuple_t *)ib_tpl;
 
-  dfield = ib_col_get_dfield(tuple, i);
+  const auto dfield = ib_col_get_dfield(tuple, i);
 
-  data = dfield_get_data(dfield);
-  data_len = dfield_get_len(dfield);
+  const auto data = dfield_get_data(dfield);
+  auto data_len = dfield_get_len(dfield);
 
   if (data_len != UNIV_SQL_NULL) {
     const dtype_t *dtype = dfield_get_type(dfield);
 
     switch (dtype_get_mtype(dfield_get_type(dfield))) {
       case DATA_INT: {
-        ibool usign;
-        uintmax_t ret;
-
         ut_a(data_len == len);
 
-        usign = dtype_get_prtype(dtype) & DATA_UNSIGNED;
-        ret = mach_read_int_type(static_cast<const byte *>(data), data_len,
-                                 usign);
+        bool usign = (dtype_get_prtype(dtype) & DATA_UNSIGNED) != 0;
+        auto ret = mach_read_int_type(static_cast<const byte *>(data), data_len,
+                                      usign);
 
         if (usign) {
           if (len == 1) {
-            *(ib_i8_t *)dst = (ib_i8_t)ret;
+            *(int8_t *)dst = (int8_t)ret;
           } else if (len == 2) {
-            *(ib_i16_t *)dst = (ib_i16_t)ret;
+            *(int16_t *)dst = (int16_t)ret;
           } else if (len == 4) {
-            *(ib_i32_t *)dst = (ib_i32_t)ret;
+            *(int32_t *)dst = (int32_t)ret;
           } else {
-            *(ib_i64_t *)dst = (ib_i64_t)ret;
+            *(int64_t *)dst = (int64_t)ret;
           }
         } else {
           if (len == 1) {
-            *(ib_u8_t *)dst = (ib_i8_t)ret;
+            *(uint8_t *)dst = (int8_t)ret;
           } else if (len == 2) {
-            *(ib_u16_t *)dst = (ib_i16_t)ret;
+            *(uint16_t *)dst = (int16_t)ret;
           } else if (len == 4) {
-            *(ib_u32_t *)dst = (ib_i32_t)ret;
+            *(uint32_t *)dst = (int32_t)ret;
           } else {
-            *(ib_u64_t *)dst = (ib_i64_t)ret;
+            *(uint64_t *)dst = (int64_t)ret;
           }
         }
 
@@ -2088,31 +2062,20 @@ ib_ulint_t ib_col_copy_value_low(
         }
         break;
       default:
-        data_len = ut_min(data_len, len);
+        data_len = std::min(data_len, len);
         memcpy(dst, data, data_len);
     }
   } else {
     data_len = IB_SQL_NULL;
   }
 
-  return (static_cast<ib_ulint_t>(data_len));
-}
-
-/** Copy a column value from the tuple.
- @return bytes copied or IB_SQL_NULL */
-ib_ulint_t ib_col_copy_value(
-    ib_tpl_t ib_tpl, /*!< in: tuple instance */
-    ib_ulint_t i,    /*!< in: column index in tuple */
-    void *dst,       /*!< out: copied data value */
-    ib_ulint_t len)  /*!< in: max data value len to copy */
-{
-  return (ib_col_copy_value_low(ib_tpl, i, dst, len));
+  return data_len;
 }
 
 /** Get the InnoDB column attribute from the internal column precise type.
  @return precise type in api format */
-UNIV_INLINE
-ib_col_attr_t ib_col_get_attr(ulint prtype) /*!< in: column definition */
+static inline ib_col_attr_t ib_col_get_attr(
+    ulint prtype) /*!< in: column definition */
 {
   ib_col_attr_t attr = IB_COL_NONE;
 
@@ -2127,12 +2090,7 @@ ib_col_attr_t ib_col_get_attr(ulint prtype) /*!< in: column definition */
   return (attr);
 }
 
-/** Get a column name from the tuple.
- @return name of the column */
-const char *ib_col_get_name(
-    ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
-    ib_ulint_t i)      /*!< in: column index in tuple */
-{
+const char *ib_col_get_name(ib_crsr_t ib_crsr, ulint i) {
   const char *name;
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
   dict_table_t *table = cursor->prebuilt->table;
@@ -2144,12 +2102,7 @@ const char *ib_col_get_name(
   return (name);
 }
 
-/** Get an index field name from the cursor.
- @return name of the field */
-const char *ib_get_idx_field_name(
-    ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
-    ib_ulint_t i)      /*!< in: column index in tuple */
-{
+const char *ib_get_idx_field_name(ib_crsr_t ib_crsr, ulint i) {
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
   dict_index_t *index = cursor->prebuilt->index;
   dict_field_t *field;
@@ -2164,16 +2117,8 @@ const char *ib_get_idx_field_name(
 
   return (nullptr);
 }
-
-/** Get a column type, length and attributes from the tuple.
- @return len of column data */
-UNIV_INLINE
-ib_ulint_t ib_col_get_meta_low(
-    ib_tpl_t ib_tpl,            /*!< in: tuple instance */
-    ib_ulint_t i,               /*!< in: column index in tuple */
-    ib_col_meta_t *ib_col_meta) /*!< out: column meta data */
-{
-  ib_u16_t prtype;
+uint64_t ib_col_get_meta(ib_tpl_t ib_tpl, ulint i, ib_col_meta_t *ib_col_meta) {
+  uint16_t prtype;
   const dfield_t *dfield;
   ulint data_len;
   ib_tuple_t *tuple = (ib_tuple_t *)ib_tpl;
@@ -2187,26 +2132,26 @@ ib_ulint_t ib_col_get_meta_low(
       static_cast<ib_col_type_t>(dtype_get_mtype(dfield_get_type(dfield)));
 
   ib_col_meta->type_len =
-      static_cast<ib_u32_t>(dtype_get_len(dfield_get_type(dfield)));
+      static_cast<uint32_t>(dtype_get_len(dfield_get_type(dfield)));
 
-  prtype = (ib_u16_t)dtype_get_prtype(dfield_get_type(dfield));
+  prtype = (uint16_t)dtype_get_prtype(dfield_get_type(dfield));
 
   ib_col_meta->attr = ib_col_get_attr(prtype);
   ib_col_meta->client_type = prtype & DATA_MYSQL_TYPE_MASK;
 
-  return (static_cast<ib_ulint_t>(data_len));
+  return data_len;
 }
 
 /** Read a signed int 8 bit column from an InnoDB tuple. */
-UNIV_INLINE
-ib_err_t ib_tuple_check_int(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                            ib_ulint_t i,    /*!< in: column number */
-                            ib_bool_t usign, /*!< in: true if unsigned */
-                            ulint size)      /*!< in: size of integer */
+static inline ib_err_t ib_tuple_check_int(
+    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+    ulint i,         /*!< in: column number */
+    bool usign,      /*!< in: true if unsigned */
+    ulint size)      /*!< in: size of integer */
 {
   ib_col_meta_t ib_col_meta;
 
-  ib_col_get_meta_low(ib_tpl, i, &ib_col_meta);
+  ib_col_get_meta(ib_tpl, i, &ib_col_meta);
 
   if (ib_col_meta.type != IB_INT) {
     return (DB_DATA_MISMATCH);
@@ -2221,147 +2166,103 @@ ib_err_t ib_tuple_check_int(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
   return (DB_SUCCESS);
 }
 
-/** Read a signed int 8 bit column from an InnoDB tuple.
- @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i8(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                          ib_ulint_t i,    /*!< in: column number */
-                          ib_i8_t *ival)   /*!< out: integer value */
-{
+ib_err_t ib_tuple_read_i8(ib_tpl_t ib_tpl, ib_ulint_t i, int8_t *ival) {
   ib_err_t err;
 
-  err = ib_tuple_check_int(ib_tpl, i, IB_FALSE, sizeof(*ival));
+  err = ib_tuple_check_int(ib_tpl, i, false, sizeof(*ival));
 
   if (err == DB_SUCCESS) {
-    ib_col_copy_value_low(ib_tpl, i, ival, sizeof(*ival));
+    ib_col_copy_value(ib_tpl, i, ival, sizeof(*ival));
   }
 
   return (err);
 }
 
-/** Read an unsigned int 8 bit column from an InnoDB tuple.
- @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u8(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                          ib_ulint_t i,    /*!< in: column number */
-                          ib_u8_t *ival)   /*!< out: integer value */
-{
+ib_err_t ib_tuple_read_u8(ib_tpl_t ib_tpl, ib_ulint_t i, uint8_t *ival) {
   ib_err_t err;
 
-  err = ib_tuple_check_int(ib_tpl, i, IB_TRUE, sizeof(*ival));
+  err = ib_tuple_check_int(ib_tpl, i, true, sizeof(*ival));
 
   if (err == DB_SUCCESS) {
-    ib_col_copy_value_low(ib_tpl, i, ival, sizeof(*ival));
+    ib_col_copy_value(ib_tpl, i, ival, sizeof(*ival));
   }
 
   return (err);
 }
 
-/** Read a signed int 16 bit column from an InnoDB tuple.
- @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i16(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_i16_t *ival)  /*!< out: integer value */
-{
+ib_err_t ib_tuple_read_i16(ib_tpl_t ib_tpl, ib_ulint_t i, int16_t *ival) {
   ib_err_t err;
 
-  err = ib_tuple_check_int(ib_tpl, i, FALSE, sizeof(*ival));
+  err = ib_tuple_check_int(ib_tpl, i, false, sizeof(*ival));
 
   if (err == DB_SUCCESS) {
-    ib_col_copy_value_low(ib_tpl, i, ival, sizeof(*ival));
+    ib_col_copy_value(ib_tpl, i, ival, sizeof(*ival));
   }
 
   return (err);
 }
 
-/** Read an unsigned int 16 bit column from an InnoDB tuple.
- @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u16(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_u16_t *ival)  /*!< out: integer value */
-{
+ib_err_t ib_tuple_read_u16(ib_tpl_t ib_tpl, ib_ulint_t i, uint16_t *ival) {
   ib_err_t err;
 
-  err = ib_tuple_check_int(ib_tpl, i, IB_TRUE, sizeof(*ival));
+  err = ib_tuple_check_int(ib_tpl, i, true, sizeof(*ival));
 
   if (err == DB_SUCCESS) {
-    ib_col_copy_value_low(ib_tpl, i, ival, sizeof(*ival));
+    ib_col_copy_value(ib_tpl, i, ival, sizeof(*ival));
   }
 
   return (err);
 }
 
-/** Read a signed int 32 bit column from an InnoDB tuple.
- @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i32(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_i32_t *ival)  /*!< out: integer value */
-{
+ib_err_t ib_tuple_read_i32(ib_tpl_t ib_tpl, ib_ulint_t i, int32_t *ival) {
   ib_err_t err;
 
-  err = ib_tuple_check_int(ib_tpl, i, FALSE, sizeof(*ival));
+  err = ib_tuple_check_int(ib_tpl, i, false, sizeof(*ival));
 
   if (err == DB_SUCCESS) {
-    ib_col_copy_value_low(ib_tpl, i, ival, sizeof(*ival));
+    ib_col_copy_value(ib_tpl, i, ival, sizeof(*ival));
   }
 
   return (err);
 }
 
-/** Read an unsigned int 32 bit column from an InnoDB tuple.
- @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u32(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_u32_t *ival)  /*!< out: integer value */
-{
+ib_err_t ib_tuple_read_u32(ib_tpl_t ib_tpl, ib_ulint_t i, uint32_t *ival) {
   ib_err_t err;
 
-  err = ib_tuple_check_int(ib_tpl, i, IB_TRUE, sizeof(*ival));
+  err = ib_tuple_check_int(ib_tpl, i, true, sizeof(*ival));
 
   if (err == DB_SUCCESS) {
-    ib_col_copy_value_low(ib_tpl, i, ival, sizeof(*ival));
+    ib_col_copy_value(ib_tpl, i, ival, sizeof(*ival));
   }
 
   return (err);
 }
 
-/** Read a signed int 64 bit column from an InnoDB tuple.
- @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i64(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_i64_t *ival)  /*!< out: integer value */
-{
+ib_err_t ib_tuple_read_i64(ib_tpl_t ib_tpl, ib_ulint_t i, int64_t *ival) {
   ib_err_t err;
 
-  err = ib_tuple_check_int(ib_tpl, i, FALSE, sizeof(*ival));
+  err = ib_tuple_check_int(ib_tpl, i, false, sizeof(*ival));
 
   if (err == DB_SUCCESS) {
-    ib_col_copy_value_low(ib_tpl, i, ival, sizeof(*ival));
+    ib_col_copy_value(ib_tpl, i, ival, sizeof(*ival));
   }
 
   return (err);
 }
 
-/** Read an unsigned int 64 bit column from an InnoDB tuple.
- @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u64(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                           ib_ulint_t i,    /*!< in: column number */
-                           ib_u64_t *ival)  /*!< out: integer value */
-{
+ib_err_t ib_tuple_read_u64(ib_tpl_t ib_tpl, ib_ulint_t i, uint64_t *ival) {
   ib_err_t err;
 
-  err = ib_tuple_check_int(ib_tpl, i, IB_TRUE, sizeof(*ival));
+  err = ib_tuple_check_int(ib_tpl, i, true, sizeof(*ival));
 
   if (err == DB_SUCCESS) {
-    ib_col_copy_value_low(ib_tpl, i, ival, sizeof(*ival));
+    ib_col_copy_value(ib_tpl, i, ival, sizeof(*ival));
   }
 
   return (err);
 }
 
-/** Get a column value pointer from the tuple.
- @return NULL or pointer to buffer */
-const void *ib_col_get_value(ib_tpl_t ib_tpl, /*!< in: tuple instance */
-                             ib_ulint_t i)    /*!< in: column index in tuple */
-{
+const void *ib_col_get_value(ib_tpl_t ib_tpl, ib_ulint_t i) {
   const void *data;
   const dfield_t *dfield;
   ulint data_len;
@@ -2373,16 +2274,6 @@ const void *ib_col_get_value(ib_tpl_t ib_tpl, /*!< in: tuple instance */
   data_len = dfield_get_len(dfield);
 
   return (data_len != UNIV_SQL_NULL ? data : nullptr);
-}
-
-/** Get a column type, length and attributes from the tuple.
- @return len of column data */
-ib_ulint_t ib_col_get_meta(
-    ib_tpl_t ib_tpl,            /*!< in: tuple instance */
-    ib_ulint_t i,               /*!< in: column index in tuple */
-    ib_col_meta_t *ib_col_meta) /*!< out: column meta data */
-{
-  return (ib_col_get_meta_low(ib_tpl, i, ib_col_meta));
 }
 
 /** "Clear" or reset an InnoDB tuple. We free the heap and recreate the tuple.
@@ -2533,27 +2424,26 @@ ib_tpl_t ib_clust_read_tuple_create(
 
 /** Return the number of user columns in the tuple definition.
  @return number of user columns */
-ib_ulint_t ib_tuple_get_n_user_cols(
+uint64_t ib_tuple_get_n_user_cols(
     const ib_tpl_t ib_tpl) /*!< in: Tuple for current table */
 {
   const ib_tuple_t *tuple = (const ib_tuple_t *)ib_tpl;
 
   if (tuple->type == TPL_TYPE_ROW) {
-    return (static_cast<ib_ulint_t>((tuple->index->table->get_n_user_cols())));
+    return tuple->index->table->get_n_user_cols();
   }
 
-  return (static_cast<ib_ulint_t>(
-      dict_index_get_n_ordering_defined_by_user(tuple->index)));
+  return dict_index_get_n_ordering_defined_by_user(tuple->index);
 }
 
 /** Return the number of columns in the tuple definition.
  @return number of columns */
-ib_ulint_t ib_tuple_get_n_cols(
+uint64_t ib_tuple_get_n_cols(
     const ib_tpl_t ib_tpl) /*!< in: Tuple for table/index */
 {
   const ib_tuple_t *tuple = (const ib_tuple_t *)ib_tpl;
 
-  return (static_cast<ib_ulint_t>(dtuple_get_n_fields(tuple->ptr)));
+  return dtuple_get_n_fields(tuple->ptr);
 }
 
 /** Destroy an InnoDB tuple. */
@@ -2585,20 +2475,18 @@ ib_err_t ib_table_get_id(const char *table_name, /*!< in: table to find */
 }
 
 /** Check if cursor is positioned.
+ @param[in] ib_crsr InnoDB cursor instance
  @return IB_true if positioned */
-ib_bool_t ib_cursor_is_positioned(
-    const ib_crsr_t ib_crsr) /*!< in: InnoDB cursor instance */
-{
+bool ib_cursor_is_positioned(const ib_crsr_t ib_crsr) {
   const ib_cursor_t *cursor = (const ib_cursor_t *)ib_crsr;
   row_prebuilt_t *prebuilt = cursor->prebuilt;
 
-  return (ib_btr_cursor_is_positioned(prebuilt->pcur));
+  return ib_btr_cursor_is_positioned(prebuilt->pcur);
 }
 
 /** Checks if the data dictionary is latched in exclusive mode.
  @return true if exclusive latch */
-ib_bool_t ib_schema_lock_is_exclusive(
-    const ib_trx_t ib_trx) /*!< in: transaction */
+bool ib_schema_lock_is_exclusive(const ib_trx_t ib_trx) /*!< in: transaction */
 {
   const trx_t *trx = (const trx_t *)ib_trx;
 
@@ -2652,7 +2540,7 @@ void ib_cursor_set_cluster_access(
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
   row_prebuilt_t *prebuilt = cursor->prebuilt;
 
-  prebuilt->need_to_access_clustered = TRUE;
+  prebuilt->need_to_access_clustered = true;
 }
 
 /** Inform the cursor that it's the start of an SQL statement. */
@@ -2660,7 +2548,7 @@ void ib_cursor_stmt_begin(ib_crsr_t ib_crsr) /*!< in: cursor */
 {
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
 
-  cursor->prebuilt->sql_stat_start = TRUE;
+  cursor->prebuilt->sql_stat_start = true;
 }
 
 /** Write a double value to a column.
@@ -2684,9 +2572,9 @@ ib_err_t ib_tuple_write_double(
 
 /** Read a double column value from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_double(ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
-                              ib_ulint_t col_no, /*!< in: column number */
-                              double *dval)      /*!< out: double value */
+ib_err_t ib_tuple_read_double(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                              uint64_t col_no, /*!< in: column number */
+                              double *dval)    /*!< out: double value */
 {
   ib_err_t err;
   const dfield_t *dfield;
@@ -2695,7 +2583,7 @@ ib_err_t ib_tuple_read_double(ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
   dfield = ib_col_get_dfield(tuple, col_no);
 
   if (dtype_get_mtype(dfield_get_type(dfield)) == DATA_DOUBLE) {
-    ib_col_copy_value_low(ib_tpl, col_no, dval, sizeof(*dval));
+    ib_col_copy_value(ib_tpl, col_no, dval, sizeof(*dval));
     err = DB_SUCCESS;
   } else {
     err = DB_DATA_MISMATCH;
@@ -2704,12 +2592,7 @@ ib_err_t ib_tuple_read_double(ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
   return (err);
 }
 
-/** Write a float value to a column.
- @return DB_SUCCESS or error */
-ib_err_t ib_tuple_write_float(ib_tpl_t ib_tpl, /*!< in/out: tuple to write to */
-                              int col_no,      /*!< in: column number */
-                              float val)       /*!< in: value to write */
-{
+ib_err_t ib_tuple_write_float(ib_tpl_t ib_tpl, uint64_t col_no, float val) {
   const dfield_t *dfield;
   ib_tuple_t *tuple = (ib_tuple_t *)ib_tpl;
 
@@ -2724,9 +2607,9 @@ ib_err_t ib_tuple_write_float(ib_tpl_t ib_tpl, /*!< in/out: tuple to write to */
 
 /** Read a float value from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_float(ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
-                             ib_ulint_t col_no, /*!< in: column number */
-                             float *fval)       /*!< out: float value */
+ib_err_t ib_tuple_read_float(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                             ulint col_no,    /*!< in: column number */
+                             float *fval)     /*!< out: float value */
 {
   ib_err_t err;
   const dfield_t *dfield;
@@ -2735,7 +2618,7 @@ ib_err_t ib_tuple_read_float(ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
   dfield = ib_col_get_dfield(tuple, col_no);
 
   if (dtype_get_mtype(dfield_get_type(dfield)) == DATA_FLOAT) {
-    ib_col_copy_value_low(ib_tpl, col_no, fval, sizeof(*fval));
+    ib_col_copy_value(ib_tpl, col_no, fval, sizeof(*fval));
     err = DB_SUCCESS;
   } else {
     err = DB_DATA_MISMATCH;
@@ -2752,9 +2635,7 @@ ib_trx_level_t ib_cfg_trx_level() {
 
 /** Return configure value for background commit interval (in seconds)
  @return background commit interval (in seconds) */
-ib_ulint_t ib_cfg_bk_commit_interval() {
-  return (static_cast<ib_ulint_t>(ib_bk_commit_interval));
-}
+uint64_t ib_cfg_bk_commit_interval() { return ib_bk_commit_interval; }
 
 /** Get generic configure status
  @return configure status*/
@@ -2807,8 +2688,8 @@ static ib_err_t ib_cursor_open_table_using_id(
 }
 
 /** Create a tuple to search from SDI table
-@param[in,out]	ib_crsr		Memcached cursor
-@param[in,out]	sdi_key		SDI Key
+@param[in,out]  ib_crsr         Memcached cursor
+@param[in,out]  sdi_key         SDI Key
 @return search tuple */
 static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
                                            const sdi_key_t *sdi_key) {
@@ -2823,11 +2704,11 @@ static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
 }
 
 /** Create a tuple to insert into  SDI table
-@param[in,out]	ib_crsr		Memcached cursor
-@param[in]	sdi_key		SDI Key
-@param[in]	uncomp_len	uncompressed length of SDI
-@param[in]	comp_len	compressed length of SDI
-@param[in]	sdi		compressed SDI data
+@param[in,out]  ib_crsr         Memcached cursor
+@param[in]      sdi_key         SDI Key
+@param[in]      uncomp_len      uncompressed length of SDI
+@param[in]      comp_len        compressed length of SDI
+@param[in]      sdi             compressed SDI data
 @return insert tuple */
 static ib_tpl_t ib_sdi_create_insert_tuple(ib_crsr_t ib_crsr,
                                            const sdi_key_t *sdi_key,
@@ -2841,14 +2722,14 @@ static ib_tpl_t ib_sdi_create_insert_tuple(ib_crsr_t ib_crsr,
   ib_col_set_value(tuple, 1, &sdi_key->id, SDI_KEY_LEN, false);
   ib_col_set_value(tuple, 2, &uncomp_len, 4, false);
   ib_col_set_value(tuple, 3, &comp_len, 4, false);
-  ib_col_set_value(tuple, 4, sdi, static_cast<ib_ulint_t>(comp_len), false);
+  ib_col_set_value(tuple, 4, sdi, comp_len, false);
   return (tuple);
 }
 
 /** Open SDI table
-@param[in]	tablespace_id	tablespace id
-@param[in,out]	trx		innodb transaction
-@param[in,out]	ib_crsr		memcached cursor
+@param[in]      tablespace_id   tablespace id
+@param[in,out]  trx             innodb transaction
+@param[in,out]  ib_crsr         memcached cursor
 @return DB_SUCCESS if SDI table is opened, else error */
 static ib_err_t ib_sdi_open_table(uint32_t tablespace_id, trx_t *trx,
                                   ib_crsr_t *ib_crsr) {
@@ -2869,13 +2750,13 @@ static ib_err_t ib_sdi_open_table(uint32_t tablespace_id, trx_t *trx,
 }
 
 /** Insert/Update SDI in tablespace
-@param[in]	tablespace_id	tablespace id
-@param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
+@param[in]      tablespace_id   tablespace id
+@param[in]      ib_sdi_key      SDI key to uniquely identify the tablespace
                                 object
-@param[in]	uncomp_len	uncompressed length of SDI
-@param[in]	comp_len	compressed length of SDI
-@param[in]	sdi		compressed SDI to be stored in tablespace
-@param[in,out]	trx		innodb transaction
+@param[in]      uncomp_len      uncompressed length of SDI
+@param[in]      comp_len        compressed length of SDI
+@param[in]      sdi             compressed SDI to be stored in tablespace
+@param[in,out]  trx             innodb transaction
 @return DB_SUCCESS if SDI Insert/Update is successful, else error */
 dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                    uint32_t uncomp_len, uint32_t comp_len, const void *sdi,
@@ -2990,10 +2871,10 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 }
 
 /** Get the SDI keys in a tablespace into vector.
-@param[in]	tablespace_id	tablespace id
-@param[in,out]	ib_sdi_vector	vector to hold objects with tablespace types
+@param[in]      tablespace_id   tablespace id
+@param[in,out]  ib_sdi_vector   vector to hold objects with tablespace types
 and ids
-@param[in,out]	trx		data dictionary transaction
+@param[in,out]  trx             data dictionary transaction
 @return DB_SUCCESS if retrieval of SDI kyes is successful, else error */
 dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
                         trx_t *trx) {
@@ -3037,14 +2918,14 @@ dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
 }
 
 /** Retrieve SDI from tablespace.
-@param[in]	tablespace_id	tablespace id
-@param[in]	ib_sdi_key	SDI key
-@param[in,out]	comp_sdi	in: buffer to hold the SDI BLOB
+@param[in]      tablespace_id   tablespace id
+@param[in]      ib_sdi_key      SDI key
+@param[in,out]  comp_sdi        in: buffer to hold the SDI BLOB
                                 out: compressed SDI retrieved from tablespace
-@param[in,out]	comp_sdi_len	in:  Size of memory allocated
+@param[in,out]  comp_sdi_len    in:  Size of memory allocated
                                 out: compressed length of SDI
-@param[out]	uncomp_sdi_len	out: uncompressed length of SDI
-@param[in,out]	trx		innodb transaction
+@param[out]     uncomp_sdi_len  out: uncompressed length of SDI
+@param[in,out]  trx             innodb transaction
 @return DB_SUCCESS if SDI retrieval is successful, else error.
 @return DB_OUT_OF_MEMORY if the passed buffer is not sufficient to
 hold the compressed SDI retrieved from tablespace. */
@@ -3100,8 +2981,7 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
         return (DB_OUT_OF_MEMORY);
       }
 
-      ib_col_copy_value(tuple, 4, comp_sdi,
-                        static_cast<ib_ulint_t>(*comp_sdi_len));
+      ib_col_copy_value(tuple, 4, comp_sdi, *comp_sdi_len);
     }
 
     ib_tuple_delete(tuple);
@@ -3135,10 +3015,10 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 }
 
 /** Delete SDI from tablespace
-@param[in]	tablespace_id	tablespace id
-@param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
+@param[in]      tablespace_id   tablespace id
+@param[in]      ib_sdi_key      SDI key to uniquely identify the tablespace
                                 object
-@param[in,out]	trx		innodb transaction
+@param[in,out]  trx             innodb transaction
 @return DB_SUCCESS if SDI deletion is successful, else error */
 ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                        trx_t *trx) {
@@ -3194,7 +3074,7 @@ ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 }
 
 /** Create SDI in a tablespace
-@param[in]	tablespace_id	InnoDB tablespace id
+@param[in]      tablespace_id   InnoDB tablespace id
 @return DB_SUCCESS if SDI index creation is successful, else error */
 ib_err_t ib_sdi_create(space_id_t tablespace_id) {
   /* Check if the FSP_FLAG_SDI has already been set. If it
@@ -3231,7 +3111,7 @@ ib_err_t ib_sdi_create(space_id_t tablespace_id) {
 
 /** Drop SDI Index from tablespace. This should be used only when SDI
 is corrupted.
-@param[in]	tablespace_id	InnoDB tablespace id
+@param[in]      tablespace_id   InnoDB tablespace id
 @return DB_SUCCESS if dropping of SDI indexes is successful, else error */
 ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
   fil_space_t *space = fil_space_acquire(tablespace_id);
@@ -3239,7 +3119,7 @@ ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
     return (DB_ERROR);
   }
 
-  rw_lock_x_lock(&space->latch);
+  rw_lock_x_lock(&space->latch, UT_LOCATION_HERE);
 
   page_size_t page_size(space->flags);
 
@@ -3263,8 +3143,8 @@ ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
 
   uint32_t flags = space->flags & ~FSP_FLAGS_MASK_SDI;
 
-  buf_block_t *block =
-      buf_page_get(page_id_t(space->id, 0), page_size, RW_SX_LATCH, &mtr);
+  buf_block_t *block = buf_page_get(page_id_t(space->id, 0), page_size,
+                                    RW_SX_LATCH, UT_LOCATION_HERE, &mtr);
 
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
   page_t *page = buf_block_get_frame(block);
@@ -3285,15 +3165,17 @@ ib_err_t ib_sdi_drop(space_id_t tablespace_id) {
 
 /** Flush SDI in a tablespace. The pages of a SDI Index modified by the
 transaction will be flushed to disk.
-@param[in]	space_id	tablespace id
+@param[in]      space_id        tablespace id
 @return DB_SUCCESS always */
-ib_err_t ib_sdi_flush(space_id_t space_id) { return (DB_SUCCESS); }
+ib_err_t ib_sdi_flush(space_id_t space_id [[maybe_unused]]) {
+  return (DB_SUCCESS);
+}
 
 #ifdef UNIV_MEMCACHED_SDI
 /** Parse string a unsigned long number
-@param[in]	num_str		input string which has number
-@param[out]	dest_num	Number converted from input string
-@return DB_SUCCESS on successful converstion, else DB_ERROR */
+@param[in]      num_str         input string which has number
+@param[out]     dest_num        Number converted from input string
+@return DB_SUCCESS on successful conversion, else DB_ERROR */
 static ib_err_t parse_string_to_number(const char *num_str,
                                        uint64_t *dest_num) {
   char *endptr;
@@ -3314,8 +3196,8 @@ static ib_err_t parse_string_to_number(const char *num_str,
 
 /** Extracts SDI key from the memcached key. For example if the key is
 "sdi_3:4", it parses as type:3, id:4
-@param[in]	key_str		Memached key
-@param[in,out]	sk		SDI key
+@param[in]      key_str         Memcached key
+@param[in,out]  sk              SDI key
 @return DB_SUCCESS if SDI key extraction is successful, else error */
 static ib_err_t parse_mem_key_to_sdi_key(const char *key_str, sdi_key_t *sk) {
   /* 25 is sufficient here, the prefix will be
@@ -3350,10 +3232,10 @@ static ib_err_t parse_mem_key_to_sdi_key(const char *key_str, sdi_key_t *sk) {
 }
 
 /** Wrapper function to retrieve SDI from tablespace
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
-@param[in,out]	sdi		SDI data retrieved
-@param[in,out]	sdi_len		Length of SDI data
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key_str         Memcached key
+@param[in,out]  sdi             SDI data retrieved
+@param[in,out]  sdi_len         Length of SDI data
 @return DB_SUCCESS if SDI retrieval is successful, else error */
 ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
                          uint64_t *sdi_len) {
@@ -3373,8 +3255,8 @@ ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
   ut_ad(*sdi_len < UINT32_MAX);
   uint32_t uncompressed_sdi_len;
   uint32_t compressed_sdi_len = static_cast<uint32_t>(*sdi_len);
-  byte *compressed_sdi =
-      static_cast<byte *>(ut_malloc_nokey(compressed_sdi_len));
+  byte *compressed_sdi = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, compressed_sdi_len));
 
   err = ib_sdi_get(tablespace_id, &sk, compressed_sdi, &compressed_sdi_len,
                    &uncompressed_sdi_len, trx);
@@ -3396,8 +3278,8 @@ ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
 }
 
 /** Wrapper function to delete SDI from tablespace
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key_str         Memcached key
 @return DB_SUCCESS if SDI deletion is successful, else error */
 ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key_str) {
   uint32_t tablespace_id = crsr->prebuilt->table->space;
@@ -3422,10 +3304,10 @@ ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key_str) {
 }
 
 /** Wrapper function to insert SDI into tablespace
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
-@param[in]	sdi		SDI to be stored in tablespace
-@param[in]	sdi_len		SDI length
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key_str         Memcached key
+@param[in]      sdi             SDI to be stored in tablespace
+@param[in]      sdi_len         SDI length
 @return DB_SUCCESS if SDI insertion is successful, else error */
 ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key_str, const void *sdi,
                          uint64_t *sdi_len) {
@@ -3454,7 +3336,7 @@ ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key_str, const void *sdi,
 }
 
 /** Wrapper function to create SDI in a tablespace
-@param[in,out]	crsr		Memcached cursor
+@param[in,out]  crsr            Memcached cursor
 @return DB_SUCCESS if SDI creation is successful, else error */
 ib_err_t ib_memc_sdi_create(ib_crsr_t crsr) {
   uint32_t tablespace_id = crsr->prebuilt->table->space;
@@ -3462,7 +3344,7 @@ ib_err_t ib_memc_sdi_create(ib_crsr_t crsr) {
 }
 
 /** Wrapper function to drop SDI in a tablespace
-@param[in,out]	crsr		Memcached cursor
+@param[in,out]  crsr            Memcached cursor
 @return DB_SUCCESS if dropping of SDI is successful, else error */
 ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr) {
   uint32_t tablespace_id = crsr->prebuilt->table->space;
@@ -3471,9 +3353,9 @@ ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr) {
 
 /** Wrapper function to retreive list of SDI keys into the buffer
 The SDI keys are copied in the from x:y and separated by '|'
-@param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
-@param[in,out]	sdi		The keys are copies into this buffer
+@param[in,out]  crsr            Memcached cursor
+@param[in]      key_str         Memcached key
+@param[in,out]  sdi             The keys are copies into this buffer
 @return DB_SUCCESS if SDI keys retrieval is successful, else error */
 ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key_str, void *sdi,
                               uint64_t list_buf_len) {

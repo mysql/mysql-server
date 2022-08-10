@@ -8,9 +8,9 @@
 # indicate that you have read the license and understand and accept it
 # fully.
 
-prefix=/home/justin/warp/storage/warp
+prefix=/home/ubuntu/mysql-server/storage/warp
 includedir=${prefix}/include
-libdir=/home/justin/warp/storage/warp${exec_prefix}/lib
+libdir=/home/ubuntu/mysql-server/storage/warp${exec_prefix}/lib
 
 usage()
 {
@@ -76,7 +76,7 @@ if test "$echo_fb_version" = "yes" ; then
 fi
 
 if test "$echo_cflags" = "yes" ; then
-  cflags="-DHAVE_CONFIG_H  -I /home/justin/warp/storage/warp/src/fastbit-2.0.3/win -pthread"
+  cflags="-DHAVE_CONFIG_H  -I /home/ubuntu/mysql-server/storage/warp/src/fastbit-2.0.3/win -pthread"
   if test "$includedir" != "/usr/include" ; then
     echo $cflags -I$includedir
   else
@@ -85,7 +85,7 @@ if test "$echo_cflags" = "yes" ; then
 fi
 
 if test "$echo_cxxflags" = "yes" ; then
-  cxxflags="-DHAVE_CONFIG_H  -I /home/justin/warp/storage/warp/src/fastbit-2.0.3/win  -pthread"
+  cxxflags="-DHAVE_CONFIG_H  -I /home/ubuntu/mysql-server/storage/warp/src/fastbit-2.0.3/win  -pthread"
   if test "$includedir" != "/usr/include" ; then
     echo $cxxflags -I$includedir
   else

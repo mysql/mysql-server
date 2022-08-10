@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,20 +86,20 @@ SafeCounterManager::printNODE_FAILREP(){
 
   for(m_activeCounters.first(ptr); !ptr.isNull(); m_activeCounters.next(ptr)){
     ActiveCounter::SignalDesc desc = ptr.p->m_signalDesc;
-    ndbout_c("theData[desc.m_senderDataOffset=%u] = %u",
-	     desc.m_senderDataOffset, ptr.p->m_senderData);
-    ndbout_c("theData[desc.m_errorCodeOffset=%u] = %u",
-	     desc.m_errorCodeOffset, desc.m_nodeFailErrorCode);
+    g_eventLogger->info("theData[desc.m_senderDataOffset=%u] = %u",
+                        desc.m_senderDataOffset, ptr.p->m_senderData);
+    g_eventLogger->info("theData[desc.m_errorCodeOffset=%u] = %u",
+                        desc.m_errorCodeOffset, desc.m_nodeFailErrorCode);
     Uint32 len = MAX(MAX(desc.m_senderDataOffset, desc.m_errorCodeOffset),
 		     desc.m_senderRefOffset);
     
     NdbNodeBitmask overlapping = ptr.p->m_nodes;
     Uint32 i = 0;
     while((i = overlapping.find(i)) != NdbNodeBitmask::NotFound){
-      ndbout_c("  theData[desc.m_senderRefOffset=%u] = %x",
-	       desc.m_senderRefOffset, numberToRef(desc.m_block, i));
-      ndbout_c("  sendSignal(%x,%u,signal,%u,JBB",
-	       m_block.reference(), desc.m_gsn, len+1);
+      g_eventLogger->info("  theData[desc.m_senderRefOffset=%u] = %x",
+                          desc.m_senderRefOffset, numberToRef(desc.m_block, i));
+      g_eventLogger->info("  sendSignal(%x,%u,signal,%u,JBB",
+                          m_block.reference(), desc.m_gsn, len + 1);
       i++;
     }
   }
@@ -154,6 +154,11 @@ bool
 SafeCounterHandle::clearWaitingFor(SafeCounterManager& mgr, Uint32 nodeId)
 {
   SafeCounterManager::ActiveCounterPtr ptr;
+  if (nodeId > MAX_DATA_NODE_ID)
+  {
+    ErrorReporter::handleAssert("SafeCounterHandle::clearWaitingFor", __FILE__, __LINE__);
+    return false;
+  }
   mgr.getPtr(ptr, m_activeCounterPtrI);
   ptr.p->m_nodes.clear(nodeId);
   

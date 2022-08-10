@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef STATICSLOTPOOL_HPP
 #define STATICSLOTPOOL_HPP
 
+#include "util/require.h"
 #include "debugger/EventLogger.hpp"
 #include "portlib/ndb_prefetch.h"
 #include "vm/IntrusiveList.hpp"
@@ -33,7 +34,6 @@
 
 #define JAM_FILE_ID 508
 
-extern EventLogger * g_eventLogger;
 
 /**
  * StaticSlotPool
@@ -95,10 +95,10 @@ class StaticSlotPool::Page
   friend class StaticSlotPool;
 
  private:
-  STATIC_CONST(WORDS_PER_PAGE = 8192);
-  STATIC_CONST(HEADER_WORDS = 8);
-  STATIC_CONST(DATA_WORDS_PER_PAGE = (WORDS_PER_PAGE - HEADER_WORDS));
-  STATIC_CONST(DATA_BYTE_OFFSET = HEADER_WORDS * sizeof(Uint32));
+  static constexpr Uint32 WORDS_PER_PAGE = 8192;
+  static constexpr Uint32 HEADER_WORDS = 8;
+  static constexpr Uint32 DATA_WORDS_PER_PAGE = (WORDS_PER_PAGE - HEADER_WORDS);
+  static constexpr Uint32 DATA_BYTE_OFFSET = HEADER_WORDS * sizeof(Uint32);
   Uint32 m_magic;
   Uint32 m_page_id;
   Uint32 m_reserved[6];
@@ -106,7 +106,7 @@ class StaticSlotPool::Page
 
   static void static_asserts()
   {
-    NDB_STATIC_ASSERT(sizeof(Page) == WORDS_PER_PAGE * sizeof(Uint32));
+    static_assert(sizeof(Page) == WORDS_PER_PAGE * sizeof(Uint32));
   }
 };
 

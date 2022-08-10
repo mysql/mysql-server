@@ -793,7 +793,7 @@ columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_
 from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
 TABLE_NAME	COLUMN_NAME	TABLE_CATALOG	TABLE_SCHEMA	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLLATION	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	TABLE_CATALOG	TABLE_SCHEMA	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 user	Host	def	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		def	mysql		NO	char	255	255	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	
-user	User	def	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		def	mysql		NO	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references	
+user	User	def	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		def	mysql		NO	char	32	96	NULL	NULL	utf8mb3	utf8mb3_bin	char(32)	PRI		select,insert,update,references	
 drop table t1;
 drop table t2;
 drop table t3;
@@ -1796,7 +1796,7 @@ EXPLAIN
 -> Index scan on t1 using j  (cost=411.60 rows=4096)
 -> Select #2 (subquery in projection; dependent)
     -> Limit: 1 row(s)  (cost=410.97 rows=1)
-        -> Index lookup on t2 using j (j=t1.j; iterate backwards)  (cost=410.97 rows=4096)
+        -> Covering index lookup on t2 using j (j=t1.j; iterate backwards)  (cost=410.97 rows=4096)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.j' of SELECT #2 was resolved in SELECT #1
@@ -1822,7 +1822,7 @@ from t t1;
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)
+    -> Aggregate: count(0)  (cost=1.75 rows=1)
         -> Nested loop left join  (cost=1.35 rows=4)
             -> Table scan on t2  (cost=0.45 rows=2)
             -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1848,12 +1848,12 @@ EXPLAIN
 -> Table scan on <temporary>  (cost=1.26..2.52 rows=2)
     -> Temporary table with deduplication  (cost=1.91..3.17 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
--> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)
-        -> Nested loop left join  (cost=1.35 rows=4)
-            -> Table scan on t2  (cost=0.45 rows=2)
-            -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
-                -> Table scan on t3  (cost=0.35 rows=2)
+        -> Select #2 (subquery in projection; dependent)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
+                -> Nested loop left join  (cost=1.35 rows=4)
+                    -> Table scan on t2  (cost=0.45 rows=2)
+                    -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
+                        -> Table scan on t3  (cost=0.35 rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -1875,7 +1875,7 @@ from v1;
 EXPLAIN
 -> Table scan on t  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)
+    -> Aggregate: count(0)  (cost=1.75 rows=1)
         -> Nested loop left join  (cost=1.35 rows=4)
             -> Table scan on t2  (cost=0.45 rows=2)
             -> Filter: (t3.a > (t2.a - t.a))  (cost=0.35 rows=2)
@@ -1901,9 +1901,9 @@ from t t1;
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Table scan on dt  (cost=2.50..2.50 rows=0)
-        -> Materialize  (cost=2.50..2.50 rows=0)
-            -> Aggregate: count(0)
+    -> Table scan on dt  (cost=2.51..2.51 rows=1)
+        -> Materialize  (cost=4.36..4.36 rows=1)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1935,12 +1935,12 @@ lateral
 from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt;
 EXPLAIN
--> Nested loop inner join  (cost=7.05 rows=0)
+-> Nested loop inner join  (cost=7.25 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=2.50..2.50 rows=0)
-        -> Materialize (invalidate on row from t1)  (cost=2.50..2.50 rows=0)
-            -> Aggregate: count(0)
+    -> Table scan on dt  (cost=2.51..2.51 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=4.36..4.36 rows=1)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1964,12 +1964,12 @@ lateral
 from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt;
 EXPLAIN
--> Nested loop inner join  (cost=7.05 rows=0)
+-> Nested loop inner join  (cost=7.25 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=2.50..2.50 rows=0)
-        -> Materialize (invalidate on row from t1)  (cost=2.50..2.50 rows=0)
-            -> Aggregate: count(0)
+    -> Table scan on dt  (cost=2.51..2.51 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=4.36..4.36 rows=1)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1994,12 +1994,12 @@ from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt
 on true;
 EXPLAIN
--> Nested loop inner join  (cost=7.05 rows=0)
+-> Nested loop inner join  (cost=7.25 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=2.50..2.50 rows=0)
-        -> Materialize (invalidate on row from t1)  (cost=2.50..2.50 rows=0)
-            -> Aggregate: count(0)
+    -> Table scan on dt  (cost=2.51..2.51 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=4.36..4.36 rows=1)
+            -> Aggregate: count(0)  (cost=1.75 rows=1)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -2105,6 +2105,8 @@ d TINYBLOB,
 PRIMARY KEY (a),
 KEY i0001 (c,d(163))
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t VALUES (1,'',1,'1');
 INSERT INTO t VALUES (0x03ffffffffffff,'2',0,'2');
 SELECT t2.b FROM t AS t1
@@ -2112,3 +2114,675 @@ LEFT JOIN t AS t2 ON t2.c < 70
 WHERE t2.a - from_unixtime(0) > 0;
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(`test`.`t2`.`a` - <cache>(from_unixtime(0)))'
 DROP TABLE t;
+#
+# Bug #32424884: MRR OR BATCHED KEY ACCESS WITH JOINS AND TIMESTAMPS PRODUCE WRONG RESULTS
+#
+CREATE TABLE t1 (
+ts datetime,
+x integer,
+y integer
+);
+INSERT INTO t1 VALUES ('2020-11-20 10:38:31',1,2);
+CREATE TABLE t2 (
+x integer,
+ts datetime,
+KEY i1 (x)
+);
+INSERT INTO t2 VALUES (1,'2020-11-16 14:18:55');
+CREATE TABLE t3 (
+ts datetime,
+y integer,
+z INTEGER,
+KEY i2 (y,ts)
+);
+INSERT INTO t3 VALUES ('2020-12-29 18:23:02',2,100);
+CREATE TABLE t4 (
+z INTEGER
+);
+SET optimizer_switch='mrr=on,batched_key_access=on,mrr_cost_based=off';
+SELECT COUNT(*)
+FROM
+t1
+LEFT JOIN t2 ON t1.x = t2.x AND t2.ts <= t1.ts
+JOIN t3 ON t1.y = t3.y AND t3.ts <= t1.ts
+LEFT JOIN t4 ON t3.z = t4.z;
+COUNT(*)
+0
+SET optimizer_switch=DEFAULT;
+DROP TABLE t1, t2, t3, t4;
+#
+# Bug #32623894: RESULT MISMATCH SEEN WITH HYPERGRAPH OPTIMIZER
+#
+CREATE TABLE t1 ( a INTEGER );
+INSERT INTO t1 VALUES (0), (0), (0), (1), (1), (0), (1), (0);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM
+t1, t1 AS t2, t1 AS t3
+WHERE ((t1.a = 5 AND t3.a < t1.a) OR t1.a > 0) AND t3.a <= t2.a;
+a	a	a
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	0	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	0
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+DROP TABLE t1;
+#
+# Bug #32637680: RESULT MISMATCH SEEN WITH HYPERGRAPH OPTIMIZER IN QUERIES WITH LEFT JOIN
+#
+CREATE TABLE t1 ( a VARCHAR(10) );
+CREATE TABLE t2 ( a VARCHAR(10) );
+INSERT INTO t1 VALUES ('x');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT *
+FROM t1
+LEFT JOIN t2 ON TRUE
+LEFT JOIN ( t1 AS t1i JOIN t2 AS t2i ON t1i.a = t2i.a ) ON t2.a = t2i.a
+WHERE t1i.a = '' OR t2i.a = '';
+a	a	a	a
+DROP TABLE t1, t2;
+#
+# Bug #32599784: WL#14325: ASSERTION `FD_SET == IT_AND_INSERTED.FIRST->SECOND.ACTIVE_FUNCTIONAL_D
+#
+CREATE TABLE t1 (
+a INTEGER NOT NULL,
+KEY (a)
+);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT *
+FROM t1 LEFT JOIN t1 AS t2 ON TRUE
+WHERE t1.a IS NULL OR t1.a = t2.a
+ORDER BY t2.a;
+a	a
+1	1
+2	2
+SELECT t1.a
+FROM t1 LEFT JOIN t1 AS t2 ON t1.a = t2.a
+WHERE t1.a IS NULL OR t1.a = t2.a
+GROUP BY t1.a;
+a
+1
+2
+DROP TABLE t1;
+#
+# Bug #32663072: WL#14418: ASSERTION `PATH->TYPE == ACCESSPATH::FILTER' FAILED|JOIN_OPTIMIZER.CC
+#
+CREATE TABLE t1 (c1 INTEGER, c2 INTEGER, c3 INTEGER, c4 INTEGER, c5 INTEGER, c6 INTEGER, c7 INTEGER, c8 INTEGER, c9 INTEGER, c10 INTEGER, c11 INTEGER, c12 INTEGER, c13 INTEGER, c14 INTEGER, c15 INTEGER, c16 INTEGER, c17 INTEGER, c18 INTEGER, c19 INTEGER, c20 INTEGER, c21 INTEGER, c22 INTEGER, c23 INTEGER, c24 INTEGER, c25 INTEGER, c26 INTEGER, c27 INTEGER, c28 INTEGER, c29 INTEGER, c30 INTEGER, c31 INTEGER, c32 INTEGER, c33 INTEGER, c34 INTEGER, c35 INTEGER, c36 INTEGER, c37 INTEGER, c38 INTEGER, c39 INTEGER, c40 INTEGER, c41 INTEGER, c42 INTEGER, c43 INTEGER, c44 INTEGER, c45 INTEGER, c46 INTEGER, c47 INTEGER, c48 INTEGER, c49 INTEGER, c50 INTEGER, c51 INTEGER, c52 INTEGER, c53 INTEGER, c54 INTEGER, c55 INTEGER, c56 INTEGER, c57 INTEGER, c58 INTEGER, c59 INTEGER, c60 INTEGER, c61 INTEGER);
+SELECT *
+FROM t1
+NATURAL JOIN (
+SELECT t2.*
+FROM t1 AS t2 JOIN t1 AS t3 ON t3.c1 = t2.c1
+WHERE t2.c3 <> ANY (SELECT c3 FROM t1)
+) AS d1;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32	c33	c34	c35	c36	c37	c38	c39	c40	c41	c42	c43	c44	c45	c46	c47	c48	c49	c50	c51	c52	c53	c54	c55	c56	c57	c58	c59	c60	c61
+DROP TABLE t1;
+#
+# Bug #32672275: WL#14418: ASSERTION `ISSINGLEBITSET(PRED.TOTAL_ELIGIBILITY_SET)' FAILED.
+#
+CREATE TABLE t1 ( a INTEGER );
+SELECT *
+FROM t1 AS outer_t1
+WHERE EXISTS (
+SELECT t2.a
+FROM t1
+LEFT JOIN t1 AS t2 ON t2.a = outer_t1.a
+);
+a
+DROP TABLE t1;
+#
+# Bug #32643386: WL#14418: ASSERTION `FD_SET == IT_AND_INSERTED.FIRST->SECOND.ACTIVE_FUNCTIONAL_D
+#
+CREATE TABLE t1 ( a INTEGER );
+SELECT *
+FROM (t1 STRAIGHT_JOIN t1 AS t2) JOIN t1 AS t3 ON t1.a = t3.a
+WHERE t2.a = t3.a
+ORDER BY t1.a;
+a	a	a
+DROP TABLE t1;
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+SELECT *
+FROM (t1 STRAIGHT_JOIN t1 AS t2 ON t1.b = t2.b) JOIN t1 AS t3 ON t1.a = t3.b
+WHERE t1.a < t2.b AND t2.a < t3.b
+ORDER BY t1.b;
+a	b	a	b	a	b
+DROP TABLE t1;
+#
+# Bug #32642893: WL#14418: ASSERTION `!ISMULTIPLEEQUALS(ITEM)' FAILED|MAKE_JOIN_HYPERGRAPH.CC
+#
+CREATE TABLE t1 ( a INTEGER );
+SELECT *
+FROM t1
+LEFT JOIN t1 AS t2 ON t1.a = t2.a
+LEFT JOIN t1 AS t3 ON t2.a = t3.a
+WHERE t2.a = t3.a OR t2.a <> t2.a;
+a	a	a
+DROP TABLE t1;
+#
+# Bug #32707348: WL#14418: RESULT MISMATCHES SEEN WITH HYPERGRAPH
+#
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (1,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM t1, t1 AS t2, t1 AS t3 WHERE t1.a = t2.a AND t1.a = t3.b AND t1.a = t3.a;
+a	b	a	b	a	b
+DROP TABLE t1;
+#
+# Bug #32751315: WL#14418: ASSERTION `RIGHT != NULLPTR' FAILED|MAKE_JOIN_HYPERGRAPH.CC
+#
+CREATE TABLE t1 ( pk INTEGER );
+SELECT * FROM
+t1
+JOIN t1 AS t2 ON t1.pk = t2.pk
+JOIN t1 AS t3
+LEFT JOIN t1 AS t4 ON t2.pk = t3.pk AND t4.pk = 135;
+pk	pk	pk	pk
+DROP TABLE t1;
+#
+# Bug #32757178: WL#14418: ASSERTION `!EQ_ITEMS.IS_EMPTY()' FAILED|MAKE_JOIN_HYPERGRAPH.CC
+#
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+SELECT *
+FROM
+t1
+JOIN t1 AS t2 ON t1.a = t2.b
+LEFT JOIN t1 AS t3 ON t2.b = t3.b
+LEFT JOIN (
+t1 AS t4
+JOIN t1 AS t5 ON t4.b = t5.b
+) ON t2.b = t4.a
+WHERE t1.b >= 6 OR t3.b <> t4.b;
+a	b	a	b	a	b	a	b	a	b
+DROP TABLE t1;
+# Bug#32508878 - MYSQL SERVER CRASH - ASSERTION FAILURE IN
+# DEPS_OF_REMAINING_LATERAL_DERIVED_TABLES::RECALCULATE
+#
+CREATE TABLE t1(a INT NOT NULL, b INT, PRIMARY KEY(a));
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 AS x3 WHERE EXISTS
+(SELECT * FROM t1 AS x1 JOIN t1 AS x2 ON x1.b=x2.b
+JOIN LATERAL (SELECT COUNT(a) AS c FROM t1
+WHERE t1.b=x1.b) AS d3 ON x1.b=c);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	x3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	x1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Rematerialize (<derived3>)
+1	PRIMARY	x2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	8	test.x1.b	2	100.00	Using where; Using index; FirstMatch(x3)
+3	DEPENDENT DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1276	Field or reference 'test.x1.b' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select `test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b` from `test`.`t1` `x3` semi join (`test`.`t1` `x1` join `test`.`t1` `x2` join lateral (/* select#3 */ select count(`test`.`t1`.`a`) AS `c` from `test`.`t1` where (`test`.`t1`.`b` = `test`.`x1`.`b`)) `d3`) where ((`test`.`x2`.`b` = `test`.`x1`.`b`) and (`test`.`x1`.`b` = `d3`.`c`))
+DROP TABLE t1;
+#
+# Bug #32917482: SIG11 IN FLATTENINNERJOINS|MAKE_JOIN_HYPERGRAPH.CC
+#
+CREATE TABLE t1 (
+a VARCHAR(1),
+b INTEGER
+);
+SELECT *
+FROM
+t1
+JOIN t1 AS t2 ON t1.b = t2.b
+JOIN t1 AS t3
+JOIN (
+t1 AS t4 STRAIGHT_JOIN t1 AS t5 ON t4.a = t5.b
+) ON t1.b = t4.b
+WHERE t1.a = t5.b;
+a	b	a	b	a	b	a	b	a	b
+DROP TABLE t1;
+#
+# Bug #32939191: HYPERGRAPH: DIFFERENT RESULTS WHEN HYPERGRAPH_OPTIMIZER IS ON/OFF
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT *
+FROM
+t1
+LEFT JOIN (
+t1 AS t2
+LEFT JOIN t1 AS t3 ON FALSE
+) ON t1.a <=> t3.a
+WHERE t1.a <=> t3.a;
+a	a	a
+DROP TABLE t1;
+# Bug#32915307- RECENT REGRESSION: ASSERTION
+# `JOIN->DEPS_OF_REMAINING_LATERAL_DERIVED_TABLES
+# == CALCULATE_LATERAL_DEPS_OF_FINAL_PLAN(FIRST_TAB_NO)' FAILED.
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(x INT);
+INSERT INTO t2 VALUES(2),(3);
+EXPLAIN SELECT 6 FROM t1 WHERE EXISTS
+(SELECT 7 FROM (SELECT a) d1 WHERE EXISTS (SELECT 8 FROM t2));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	FirstMatch(t1)
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 6 AS `6` from `test`.`t1` semi join (lateral (/* select#3 */ select `test`.`t1`.`a` AS `a`) `d1` join `test`.`t2`) where true
+DROP TABLE t1,t2;
+# Bug#32065606: Inconsistent results when running the same query
+CREATE TABLE t1(
+k INTEGER PRIMARY KEY,
+t2ref INTEGER
+);
+INSERT INTO t1 VALUES(1,1), (2,NULL), (3,3);
+CREATE TABLE t2(
+k INTEGER PRIMARY KEY,
+d INTEGER,
+t3ref INTEGER NOT NULL
+);
+INSERT INTO t2 VALUES(1,11,1), (3,33,3);
+CREATE TABLE t3(
+k INTEGER UNIQUE,
+e INTEGER
+);
+INSERT INTO t3 VALUES(1,111), (3,333);
+SET optimizer_switch='block_nested_loop=off';
+SELECT t1.k, dt.d, t3.e
+FROM t1
+LEFT JOIN (SELECT t2.*
+FROM t2
+) AS dt
+ON t1.t2ref = dt.k
+LEFT JOIN t3
+ON dt.t3ref = t3.k
+;
+k	d	e
+1	11	111
+2	NULL	NULL
+3	33	333
+explain SELECT t1.k, dt.d, t3.e
+FROM t1
+LEFT JOIN (SELECT t2.*
+FROM t2
+) AS dt
+ON t1.t2ref = dt.k
+LEFT JOIN t3
+ON dt.t3ref = t3.k
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.t2ref	1	100.00	NULL
+1	SIMPLE	t3	NULL	eq_ref	k	k	5	test.t2.t3ref	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`k` AS `k`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`e` AS `e` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`k` = `test`.`t1`.`t2ref`)) left join `test`.`t3` on((`test`.`t3`.`k` = `test`.`t2`.`t3ref`)) where true
+DROP TABLE t1, t2, t3;
+#
+# Bug #32976194: HYPERGRAPH: ASSERTION `!OVERLAPS(EXPR->LEFT->TABLES_IN_SUBTREE, EXPR->RIGHT->TAB
+#
+CREATE TABLE t1 ( a INTEGER );
+SELECT *
+FROM t1, t1 AS t2, t1 AS t3
+WHERE rand() > 0.5 OR (t1.a = 1 AND t2.a = 1);
+a	a	a
+DROP TABLE t1;
+#
+# Bug #33003335: HYPERGRAPH: ASSERTION `FD_SET == IT_AND_INSERTED.FIRST->SECOND.ACTIVE_FUNCTIONAL
+#
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+SELECT * FROM
+t1
+STRAIGHT_JOIN t1 AS t2 ON t1.b = t2.b
+JOIN (t1 AS t3 JOIN t1 AS t4 ON t3.a = t4.a AND t3.b = t4.b) ON t2.b = t3.b AND t2.a < t3.a
+ORDER BY t2.b;
+a	b	a	b	a	b	a	b
+DROP TABLE t1;
+#
+# Bug #33003581: HYPERGRAPH: ASSERTION `FALSE' FAILED|SQL/ITEM_CMPFUNC.CC
+#
+CREATE TABLE t1 ( i INTEGER );
+INSERT INTO t1 VALUES (1), (2);
+SELECT * FROM
+t1 LEFT JOIN (SELECT i FROM t1 WHERE FALSE) AS d1 ON t1.i = d1.i
+WHERE NOT EXISTS (SELECT 1 FROM t1 AS inner_t1 WHERE i = d1.i);
+i	i
+1	NULL
+2	NULL
+DROP TABLE t1;
+CREATE TABLE t1 ( a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, f INTEGER, g INTEGER, h INTEGER, i INTEGER, j INTEGER, k INTEGER, l INTEGER, m INTEGER, n INTEGER, o INTEGER, p INTEGER, q INTEGER, r INTEGER, s INTEGER, t INTEGER, u INTEGER, v INTEGER, w INTEGER, KEY (a) );
+SELECT 1
+FROM t1 NATURAL JOIN t1 AS t2 NATURAL JOIN t1 AS t3
+WHERE
+t1.a <> ( SELECT SUM(a) FROM t1 );
+1
+DROP TABLE t1;
+#
+# Bug #32366946: USE-AFTER-FREE WITH HYPERGRAPH OPTIMIZER + SORT + REMATERIALIZATION
+#
+CREATE TABLE t1 (
+f1 INTEGER
+);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 (
+pk INTEGER,
+blobfield LONGTEXT
+);
+INSERT INTO t2 VALUES (4, '');
+SELECT *
+FROM t1, t2, LATERAL (
+SELECT pk, blobfield
+GROUP BY pk, blobfield WITH ROLLUP
+) AS d1
+ORDER BY t1.f1, t2.pk;
+f1	pk	blobfield	pk	blobfield
+1	4		4	
+1	4		4	NULL
+1	4		NULL	NULL
+2	4		4	
+2	4		4	NULL
+2	4		NULL	NULL
+3	4		4	
+3	4		4	NULL
+3	4		NULL	NULL
+DROP TABLE t1, t2;
+#
+# Bug #33148480: HG-OPTIMIZER: HIT ASSERT IN GETNODEMAPFROMTABLEMAP() WHILE MAKEJOINHYPERGRAPH
+#
+CREATE TABLE t ( a INTEGER, b INTEGER );
+SELECT *
+FROM
+t AS t1
+JOIN (
+t AS t2
+LEFT JOIN t AS t3 ON t2.a = t3.a AND t2.b = t3.b
+JOIN t AS t4 ON t2.b = t4.a AND t2.b = t4.b
+) ON t1.b = t2.b;
+a	b	a	b	a	b	a	b
+DROP TABLE t;
+#
+# Bug #33264928: Multi-equality is not fully applied by hypergraph optimizer with cycles
+#
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (3, 2);
+CREATE TABLE t2 ( a INTEGER, b INTEGER, KEY (a) );
+INSERT INTO t2 VALUES (3, 0);
+INSERT INTO t2 VALUES (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0), (4, 0);
+CREATE TABLE t3 ( a INTEGER, b INTEGER, c INTEGER );
+INSERT INTO t3 VALUES (1, 0, 2);
+ANALYZE TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SELECT
+t2.b, t3.a, t3.b
+FROM t1
+JOIN t2 ON t1.a = t2.a
+JOIN t3 ON t1.b = t3.c AND t2.b = t3.a
+WHERE t2.b = t3.b;
+b	a	b
+DROP TABLE t1, t2, t3;
+#
+# Bug #33330728: HYPERGRAPH: ASSERTION `RIGHT_PATH->TYPE == ACCESSPATH::ZERO_ROWS' FAILED
+#
+CREATE TABLE t1 ( a INTEGER );
+SELECT
+1
+FROM
+t1
+JOIN t1 AS t2
+LEFT JOIN (
+t1 AS t3
+JOIN ( SELECT * FROM t1 WHERE FALSE ) AS empty_subq
+) ON empty_subq.a = t3.a
+WHERE NOT EXISTS (SELECT 9) OR empty_subq.a = t2.a;
+1
+DROP TABLE t1;
+#
+# Bug #33383388: ASSERT: `!IsBitSet(it->second, left_path->applied_sargable_join_predicates())'
+#
+CREATE TABLE t1 ( a INTEGER, b INTEGER, KEY (b) );
+INSERT INTO t1 VALUES (1,1), (2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT 1
+FROM
+t1
+JOIN (t1 AS t2 LEFT JOIN t1 AS t3 ON t2.b = t3.b) ON (t2.b = t3.b OR t1.a = 125)
+WHERE
+t1.a = 143;
+1
+DROP TABLE t1;
+#
+# Bug #32950670: Potentially wrong results
+#
+CREATE TABLE t1 (i SMALLINT, INDEX a (i));
+CREATE TABLE t2 (i SMALLINT UNSIGNED);
+INSERT INTO t1 VALUES (-32768), (32767);
+INSERT INTO t2 VALUES (65535);
+SELECT * FROM t1 JOIN t2 ON t2.i > t1.i;
+i	i
+-32768	65535
+32767	65535
+DROP TABLE t1, t2;
+#
+# Bug #33506809: Duplicate edges in the hypergraph
+#
+CREATE TABLE t1 ( a INTEGER );
+CREATE TABLE t2 ( a INTEGER, b INTEGER, c INTEGER );
+CREATE TABLE t3 ( a INTEGER );
+CREATE TABLE t4 ( a INTEGER, b INTEGER, c INTEGER );
+SELECT
+1
+FROM
+t1
+JOIN t2 ON t1.a = t2.a
+JOIN t3 ON t2.a = t3.a
+JOIN t4 ON t3.a = t4.a AND t2.b = t4.b AND t2.c = t4.c;
+1
+DROP TABLE t1,t2,t3,t4;
+#
+# Bug #33544652: WL#14806 fd_set == it_and_inserted.first->second.active_functional_dependencies
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+a INTEGER,
+INDEX (pk)
+);
+SELECT
+1
+FROM
+t1
+LEFT JOIN t1 AS t2 ON t1.a = t2.a
+JOIN t1 AS t3 ON t2.a = t3.a
+WHERE
+t2.a < t2.a OR t2.pk IS NULL
+GROUP BY t2.a;
+1
+DROP TABLE t1;
+#
+# Bug #33603493: Multiple equalities get lost in hypergraph join optimizer pushdown
+#
+CREATE TABLE t1 ( a INTEGER );
+INSERT INTO t1 VALUES (5);
+CREATE TABLE t2 ( a INTEGER, b INTEGER );
+INSERT INTO t2 VALUES (6, 1);
+CREATE TABLE t3 ( a INTEGER, b INTEGER );
+INSERT INTO t3 VALUES (2, 1);
+SELECT t1.a AS field1, t2.a AS field2
+FROM
+t1
+JOIN t2 ON t1.a = t2.a
+WHERE t2.b IN (
+SELECT inner_a1.b
+FROM t3 AS inner_a1 JOIN t3 AS inner_a2 ON inner_a1.b = inner_a2.b
+WHERE inner_a1.a = t2.a
+);
+field1	field2
+DROP TABLE t1, t2, t3;
+#
+# Bug#33611740: Hypergraph optimizer loses conditions in pushdown
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INTEGER);
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 (a INTEGER);
+INSERT INTO t3 VALUES (1);
+CREATE TABLE t4 (a INTEGER);
+INSERT INTO t4 VALUES (2);
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN (t3 JOIN t4 ON t3.a = t4.a)
+ON t4.a = t2.a) ON t1.a = t2.a;
+a	a	a	a
+1	1	NULL	NULL
+DROP TABLE t1, t2, t3, t4;

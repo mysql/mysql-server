@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ extern "C" struct my_thread_scheduler_service {
    connection handler.
 
    Also sets the THD_event_functions functions which will
-   be called by the server when e.g. begining a wait.
+   be called by the server when e.g. beginning a wait.
 
    Remembers the existing connection handler so that it can be restored later.
 

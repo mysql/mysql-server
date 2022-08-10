@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ SET(VERSION "@VERSION@")
 SET(MAJOR_VERSION "@MAJOR_VERSION@")
 SET(MINOR_VERSION "@MINOR_VERSION@")
 SET(PATCH_VERSION "@PATCH_VERSION@")
+SET(EXTRA_VERSION "@EXTRA_VERSION@")
 SET(CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
 SET(CMAKE_BINARY_DIR "@CMAKE_BINARY_DIR@")
 SET(CMAKE_GENERATOR "@CMAKE_GENERATOR@")
@@ -90,15 +91,20 @@ MACRO(CREATE_INFO_SRC target_dir)
     # to debug, add: FILE(APPEND ${INFO_SRC} "\nResult ${RESULT}\n")
     # For better readability ...
     FILE(APPEND ${INFO_SRC}
-      "MySQL source ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}\n")
+      "MySQL source ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}")
+    IF(DEFINED EXTRA_VERSION)
+      FILE(APPEND ${INFO_SRC} "${EXTRA_VERSION}")
+    ENDIF()
+    FILE(APPEND ${INFO_SRC} "\n")
   ELSEIF(EXISTS ${INFO_SRC})
     # Outside a git tree, there is no need to change an existing "INFO_SRC",
     # it cannot be improved.
   ELSEIF(EXISTS ${CMAKE_SOURCE_DIR}/Docs/INFO_SRC)
     # If we are building from a source distribution, it also contains "INFO_SRC".
     # Similar, the export used for a release build already has the file.
-    FILE(READ ${CMAKE_SOURCE_DIR}/Docs/INFO_SRC SOURCE_INFO)
-    FILE(WRITE ${INFO_SRC} "${SOURCE_INFO}\n")
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      ${CMAKE_SOURCE_DIR}/Docs/INFO_SRC ${INFO_SRC}
+      )
   ELSEIF(EXISTS ${CMAKE_SOURCE_DIR}/INFO_SRC)
     # This is not the proper location, but who knows ...
     FILE(READ ${CMAKE_SOURCE_DIR}/INFO_SRC SOURCE_INFO)

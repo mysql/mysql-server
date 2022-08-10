@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 #include "base64.h"
 #include "my_byteorder.h"
 #include "my_inttypes.h"
-#include "sql/json_binary.h"
+#include "sql-common/json_binary.h"
+#include "sql-common/json_dom.h"
+#include "sql-common/json_path.h"
 #include "sql/json_diff.h"
-#include "sql/json_dom.h"
-#include "sql/json_path.h"
 #include "sql/my_decimal.h"
 #include "sql/sql_class.h"
 #include "sql/sql_time.h"
@@ -75,7 +75,8 @@ class JsonDomTest : public ::testing::Test {
 static std::string format(const Json_dom &d) {
   String buffer;
   Json_wrapper w(d.clone());
-  EXPECT_FALSE(w.to_string(&buffer, true, "format"));
+  EXPECT_FALSE(
+      w.to_string(&buffer, true, "format", [] { ASSERT_TRUE(false); }));
 
   return std::string(buffer.ptr(), buffer.length());
 }
@@ -90,8 +91,9 @@ static std::string format(const Json_dom_ptr &ptr) { return format(*ptr); }
   @return a DOM representing the JSON document
 */
 static Json_dom_ptr parse_json(const char *json_text) {
-  auto dom =
-      Json_dom::parse(json_text, std::strlen(json_text), nullptr, nullptr);
+  auto dom = Json_dom::parse(
+      json_text, std::strlen(json_text), [](const char *, size_t) {},
+      [] { ASSERT_TRUE(false); });
   EXPECT_FALSE(dom == nullptr);
   return dom;
 }
@@ -102,9 +104,10 @@ static Json_dom_ptr parse_json(const char *json_text) {
   @return the parsed path
 */
 static Json_path parse_path(const char *json_path) {
-  Json_path path;
+  Json_path path(key_memory_JSON);
   size_t bad_index;
-  EXPECT_FALSE(parse_path(std::strlen(json_path), json_path, &path, &bad_index))
+  EXPECT_FALSE(parse_path(std::strlen(json_path), json_path, &path, &bad_index,
+                          [] { ASSERT_TRUE(false); }))
       << "bad index: " << bad_index;
   return path;
 }
@@ -398,13 +401,15 @@ TEST_F(JsonDomTest, BasicTest) {
      Included so we test error recovery
   */
   const char *half_object_item = "{\"label\": ";
-  dom = Json_dom::parse(half_object_item, std::strlen(half_object_item),
-                        nullptr, nullptr);
+  dom = Json_dom::parse(
+      half_object_item, std::strlen(half_object_item),
+      [](const char *, size_t) {}, [] { ASSERT_TRUE(false); });
   EXPECT_EQ(nullptr, dom);
 
   const char *half_array_item = "[1,";
-  dom = Json_dom::parse(half_array_item, std::strlen(half_array_item), nullptr,
-                        nullptr);
+  dom = Json_dom::parse(
+      half_array_item, std::strlen(half_array_item),
+      [](const char *, size_t) {}, [] { ASSERT_TRUE(false); });
   EXPECT_EQ(nullptr, dom);
 }
 
@@ -439,7 +444,7 @@ void vet_wrapper_length(const THD *thd, const char *text,
 
   String serialized_form;
   EXPECT_FALSE(
-      json_binary::serialize(thd, dom_wrapper.to_dom(thd), &serialized_form));
+      json_binary::serialize(thd, dom_wrapper.to_dom(), &serialized_form));
   json_binary::Value binary = json_binary::parse_binary(
       serialized_form.ptr(), serialized_form.length());
   Json_wrapper binary_wrapper(binary);
@@ -460,30 +465,30 @@ TEST_F(JsonDomTest, WrapperTest) {
   Json_dom *d = new (std::nothrow) Json_null();
   Json_wrapper w(d);
   const THD *thd = this->thd();
-  EXPECT_EQ(w.to_dom(thd), d);
+  EXPECT_EQ(w.to_dom(), d);
   Json_wrapper w_2(w);
-  EXPECT_NE(w.to_dom(thd), w_2.to_dom(thd));  // deep copy
+  EXPECT_NE(w.to_dom(), w_2.to_dom());  // deep copy
 
   Json_wrapper w_2b;
   EXPECT_TRUE(w_2b.empty());
   w_2b = w;
-  EXPECT_NE(w.to_dom(thd), w_2b.to_dom(thd));  // deep copy
+  EXPECT_NE(w.to_dom(), w_2b.to_dom());  // deep copy
 
   w.set_alias();  // d is now "free" again
   Json_wrapper w_3(w);
-  EXPECT_EQ(w.to_dom(thd), w_3.to_dom(thd));  // alias copy
+  EXPECT_EQ(w.to_dom(), w_3.to_dom());  // alias copy
   w_3 = w;
-  EXPECT_EQ(w.to_dom(thd), w_3.to_dom(thd));  // alias copy
+  EXPECT_EQ(w.to_dom(), w_3.to_dom());  // alias copy
 
   Json_wrapper w_4(d);  // give d a new owner
   Json_wrapper w_5;
   w_5 = std::move(w_4);  // takes over d
-  EXPECT_EQ(w_4.to_dom(thd), w_5.to_dom(thd));
+  EXPECT_EQ(w_4.to_dom(), w_5.to_dom());
 
   Json_wrapper w_6;
   EXPECT_EQ(enum_json_type::J_ERROR, w_6.type());
-  EXPECT_EQ(nullptr, w_6.to_dom(thd));
-  EXPECT_EQ(nullptr, w_6.clone_dom(thd));
+  EXPECT_EQ(nullptr, w_6.to_dom());
+  EXPECT_EQ(nullptr, w_6.clone_dom());
   EXPECT_EQ(0U, w_6.length());
 
   Json_dom *i = new (std::nothrow) Json_int(1);
@@ -651,7 +656,7 @@ TEST_F(JsonDomTest, MergeTest) {
 
 /// Create a JSON path for accessing an array element at the given position.
 static Json_path array_accessor(size_t idx) {
-  Json_path path;
+  Json_path path(key_memory_JSON);
   path.append(Json_path_leg(idx));
   return path;
 }
@@ -765,7 +770,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate) {
 
     Json_array_ptr array(down_cast<Json_array *>(dom->clone().release()));
     array->remove(i);
-    array->insert_clone(i, jint.to_dom(thd()));
+    array->insert_clone(i, jint.to_dom());
     EXPECT_EQ(0, doc.compare(Json_wrapper(std::move(array))));
 
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
@@ -798,7 +803,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate) {
 
     Json_array_ptr array(down_cast<Json_array *>(dom->clone().release()));
     array->remove(i);
-    array->insert_clone(i, jint.to_dom(thd()));
+    array->insert_clone(i, jint.to_dom());
     EXPECT_EQ(0, doc.compare(Json_wrapper(std::move(array))));
 
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
@@ -844,8 +849,9 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate) {
       If we replace the top-level document (empty path), we do a full update.
       Expect the attempt to do partial update to fail.
     */
-    EXPECT_FALSE(doc.attempt_binary_update(&m_field, Json_path(), &jint, false,
-                                           &shadow, &success, &replaced));
+    EXPECT_FALSE(
+        doc.attempt_binary_update(&m_field, Json_path(PSI_NOT_INSTRUMENTED),
+                                  &jint, false, &shadow, &success, &replaced));
     EXPECT_FALSE(success);
     EXPECT_FALSE(replaced);
   }
@@ -870,7 +876,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate) {
       EXPECT_TRUE(success);
       EXPECT_TRUE(replaced);
       array->remove(i);
-      array->insert_clone(i, jstr.to_dom(thd()));
+      array->insert_clone(i, jstr.to_dom());
       EXPECT_EQ(0, doc.compare(array_wrapper));
 
       EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
@@ -991,7 +997,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate_AllTypes) {
     EXPECT_NE(0U, m_table->get_binary_diffs(&m_field)->size());
 
     String str;
-    new_value.to_string(&str, true, "test");
+    new_value.to_string(&str, true, "test", [] { ASSERT_TRUE(false); });
     // Verify the updated document.
     {
       Json_array_ptr a(new (std::nothrow) Json_array);
@@ -1301,6 +1307,61 @@ static void BM_JsonDomSearchKey(size_t num_iterations) {
 BENCHMARK(BM_JsonDomSearchKey)
 
 /**
+  Microbenchmark for Json_dom::parse(const json_binary::Value &v).
+
+  @param num_iterations the number of iterations to run
+  @param json_text      the string to be parsed(after being converted to binary)
+*/
+static void benchmark_dom_parse(size_t num_iterations, const char *json_text) {
+  StopBenchmarkTiming();
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  auto dom = parse_json(json_text);
+
+  String buffer;
+  EXPECT_FALSE(json_binary::serialize(initializer.thd(), dom.get(), &buffer));
+
+  json_binary::Value binary =
+      json_binary::parse_binary(buffer.ptr(), buffer.length());
+
+  StartBenchmarkTiming();
+  for (size_t i = 0; i < num_iterations; ++i) {
+    Json_dom_ptr ptr = Json_dom::parse(binary);
+    assert(ptr);
+  }
+
+  StopBenchmarkTiming();
+}
+
+/**
+  Microbenchmark that tests Json_dom::parse(const json_binary::Value &v)
+  with a deep JSON value
+
+  @param num_iterations the number of iterations to run
+*/
+static void BM_JsonDomParseDeep(size_t num_iterations) {
+  benchmark_dom_parse(num_iterations,
+                      "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[["
+                      "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[["
+                      R"({"key":123})"
+                      "]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"
+                      "]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]");
+}
+BENCHMARK(BM_JsonDomParseDeep)
+
+/**
+  Microbenchmark that tests Json_dom::parse(const json_binary::Value &v)
+  with a shallow JSON value
+
+  @param num_iterations the number of iterations to run
+*/
+static void BM_JsonDomParseShallow(size_t num_iterations) {
+  benchmark_dom_parse(num_iterations, R"([{"key":123}])");
+}
+BENCHMARK(BM_JsonDomParseShallow)
+
+/**
   Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
   a wrapper that wraps a binary JSON value.
 
@@ -1386,7 +1447,7 @@ static void BM_JsonStringToString_Plain(size_t num_iterations) {
 
   for (size_t i = 0; i < num_iterations; ++i) {
     String buf;
-    wr.to_string(&buf, true, "test");
+    wr.to_string(&buf, true, "test", [] { ASSERT_TRUE(false); });
     EXPECT_EQ(quoted_length, buf.length());
   }
 
@@ -1414,7 +1475,7 @@ static void BM_JsonStringToString_SpecialChars(size_t num_iterations) {
 
   for (size_t i = 0; i < num_iterations; ++i) {
     String buf;
-    wr.to_string(&buf, true, "test");
+    wr.to_string(&buf, true, "test", [] { ASSERT_TRUE(false); });
     EXPECT_LT(str.size(), buf.length());
   }
 
@@ -1444,7 +1505,7 @@ static void BM_JsonObjectToString(size_t num_iterations) {
 
   for (size_t i = 0; i < num_iterations; ++i) {
     String buf;
-    wr.to_string(&buf, true, "test");
+    wr.to_string(&buf, true, "test", [] { ASSERT_TRUE(false); });
     EXPECT_LT(0U, buf.length());
   }
 
@@ -1474,7 +1535,7 @@ static void BM_JsonBooleanArrayToString(size_t num_iterations) {
 
   for (size_t i = 0; i < num_iterations; ++i) {
     String buf;
-    wrapper.to_string(&buf, true, "test");
+    wrapper.to_string(&buf, true, "test", [] { ASSERT_TRUE(false); });
     EXPECT_LT(0U, buf.length());
   }
 
@@ -1504,7 +1565,7 @@ static void BM_JsonDoubleArrayToString(size_t num_iterations) {
 
   for (size_t i = 0; i < num_iterations; ++i) {
     String buf;
-    wrapper.to_string(&buf, true, "test");
+    wrapper.to_string(&buf, true, "test", [] { ASSERT_TRUE(false); });
     EXPECT_LT(0U, buf.length());
   }
 
@@ -1536,7 +1597,7 @@ static void BM_JsonDecimalArrayToString(size_t num_iterations) {
 
   for (size_t i = 0; i < num_iterations; ++i) {
     String buf;
-    wrapper.to_string(&buf, true, "test");
+    wrapper.to_string(&buf, true, "test", [] { ASSERT_TRUE(false); });
     EXPECT_LT(0U, buf.length());
   }
 
@@ -1567,7 +1628,7 @@ static void BM_JsonDateArrayToString(size_t num_iterations) {
 
   for (size_t i = 0; i < num_iterations; ++i) {
     String buf;
-    wrapper.to_string(&buf, true, "test");
+    wrapper.to_string(&buf, true, "test", [] { ASSERT_TRUE(false); });
     EXPECT_LT(0U, buf.length());
   }
 

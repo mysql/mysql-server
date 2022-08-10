@@ -26,14 +26,14 @@ SET original_server_version = 1;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or REPLICATION_APPLIER privilege(s) for this operation
 SET immediate_server_version = 1;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or REPLICATION_APPLIER privilege(s) for this operation
-SET pseudo_slave_mode = 1;
+SET pseudo_replica_mode = 1;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or REPLICATION_APPLIER privilege(s) for this operation
 GRANT REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 SET gtid_next = AUTOMATIC;
 SET original_commit_timestamp = 1;
 SET original_server_version = 1;
 SET immediate_server_version = 1;
-SET pseudo_slave_mode = 1;
+SET pseudo_replica_mode = 1;
 #
 # TC3. Check privileges are kept the same while setting sub-set of
 #      variables

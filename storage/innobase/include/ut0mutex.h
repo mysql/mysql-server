@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,9 +50,8 @@ extern ulong srv_force_recovery_crash;
 
 #ifdef UNIV_DEBUG
 #define mutex_validate(M) (M)
-/* Since mutexes are disabled under UNIV_LIBRARY, the following is OK
-and necessary to suppress compiler warnings. */
-#define mutex_own(M) ((M) || false)
+/* Since mutexes are disabled under UNIV_LIBRARY, the following is OK. */
+#define mutex_own(m) ((m) != nullptr)
 #endif /* UNIV_DEBUG */
 typedef OSMutex SysMutex;
 typedef OSMutex ib_mutex_t;
@@ -66,9 +65,9 @@ typedef OSMutex ib_bpmutex_t;
 #include "sync0policy.h"
 
 /** Create a typedef using the MutexType<PolicyType>
-@param[in]	M		Mutex type
-@param[in]	P		Policy type
-@param[in]	T		The resulting typedef alias */
+@param[in]      M               Mutex type
+@param[in]      P               Policy type
+@param[in]      T               The resulting typedef alias */
 #define UT_MUTEX_TYPE(M, P, T) typedef PolicyMutex<M<P>> T;
 
 typedef OSMutex EventMutex;
@@ -127,13 +126,16 @@ void mutex_enter_inline(Mutex *m, ut::Location loc) {
 /* RAII guard for ib mutex */
 struct IB_mutex_guard {
   /** Constructor to acquire mutex
-  @param[in]   in_mutex        input mutex */
-  explicit IB_mutex_guard(ib_mutex_t *in_mutex) : m_mutex(in_mutex) {
-    mutex_enter(in_mutex);
+  @param[in]   in_mutex        input mutex
+  @param[in]   location        defines source file and line in code where the
+                               constructor of IB_mutex_guard is called */
+  IB_mutex_guard(ib_mutex_t *in_mutex, const ut::Location &location)
+      : m_mutex(in_mutex) {
+    mutex_enter_inline(in_mutex, location);
   }
 
   /** Destructor to release mutex */
-  ~IB_mutex_guard() { mutex_exit(m_mutex); }
+  ~IB_mutex_guard() { clear(); }
 
   /** Disable copy construction */
   IB_mutex_guard(IB_mutex_guard const &) = delete;
@@ -144,6 +146,11 @@ struct IB_mutex_guard {
  private:
   /** Current mutex for RAII */
   ib_mutex_t *m_mutex;
+
+  void clear() {
+    mutex_exit(m_mutex);
+    m_mutex = nullptr;
+  }
 };
 
 #ifdef UNIV_DEBUG
@@ -169,10 +176,10 @@ typedef meb::Mutex ib_bpmutex_t;
 class MutexMonitor {
  public:
   /** Constructor */
-  MutexMonitor() {}
+  MutexMonitor() = default;
 
   /** Destructor */
-  ~MutexMonitor() {}
+  ~MutexMonitor() = default;
 
   /** Enable the mutex monitoring */
   void enable();
@@ -184,7 +191,7 @@ class MutexMonitor {
   void reset();
 
   /** Invoke the callback for each active mutex collection
-  @param[in,out]	callback	Functor to call
+  @param[in,out]        callback        Functor to call
   @return false if callback returned false */
   template <typename Callback>
   bool iterate(Callback &callback) const UNIV_NOTHROW {
@@ -220,10 +227,10 @@ location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed.
 Add the mutex instance to the global mutex list.
-@param[in,out]	mutex		mutex to initialise
-@param[in]	id		The mutex ID (Latch ID)
-@param[in]	file_name	Filename from where it was called
-@param[in]	line		Line number in filename from where called */
+@param[in,out]  mutex           mutex to initialise
+@param[in]      id              The mutex ID (Latch ID)
+@param[in]      file_name       Filename from where it was called
+@param[in]      line            Line number in filename from where called */
 template <typename Mutex>
 void mutex_init(Mutex *mutex, latch_id_t id, const char *file_name,
                 uint32_t line) {
@@ -235,12 +242,25 @@ void mutex_init(Mutex *mutex, latch_id_t id, const char *file_name,
 /**
 Removes a mutex instance from the mutex list. The mutex is checked to
 be in the reset state.
-@param[in,out]	 mutex		mutex instance to destroy */
+@param[in,out]   mutex          mutex instance to destroy */
 template <typename Mutex>
 void mutex_destroy(Mutex *mutex) {
   mutex->destroy();
 }
-#endif /* UNIV_LIBRARY */
+
+class IB_mutex : public ib_mutex_t {
+ public:
+  explicit IB_mutex(latch_id_t latch_id) {
+    mutex_create(latch_id, static_cast<ib_mutex_t *>(this));
+  }
+  ~IB_mutex() { mutex_free(static_cast<ib_mutex_t *>(this)); }
+  void lock(const ut::Location &loc) {
+    mutex_enter_inline(static_cast<ib_mutex_t *>(this), loc);
+  }
+  void unlock() { exit(); }
+};
+
 #endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_LIBRARY */
 
 #endif /* ut0mutex_h */

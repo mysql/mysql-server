@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,10 @@ const char *table_name = "rewrite_rules";
 
 int Cursor::read() {
   TABLE *table = m_table_list->table;
-  m_last_read_status = table->file->ha_rnd_next(table->record[0]);
+  // Read the next non-deleted record.
+  do {
+    m_last_read_status = table->file->ha_rnd_next(table->record[0]);
+  } while (m_last_read_status == HA_ERR_RECORD_DELETED);
   if (m_last_read_status != 0) m_is_finished = true;
   return m_last_read_status;
 }

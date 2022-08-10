@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -99,10 +99,6 @@ ADD_DEFINITIONS(-DDISABLE_MYSQL_THREAD_H)
 ADD_CONVENIENCE_LIBRARY(strings ${STRINGS_SOURCES}
   LINK_LIBRARIES mysys
   )
-
-IF(MY_COMPILER_IS_SUNPRO)
-  TARGET_COMPILE_OPTIONS(strings_objlib PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO4>)
-ENDIF()
 
 MYSQL_ADD_EXECUTABLE(conf_to_src conf_to_src.cc SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(conf_to_src strings)

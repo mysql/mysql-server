@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -52,7 +52,7 @@ dict_hdr_t *dict_hdr_get(mtr_t *mtr) /*!< in: mtr */
   dict_hdr_t *header;
 
   block = buf_page_get(page_id_t(DICT_HDR_SPACE, DICT_HDR_PAGE_NO),
-                       univ_page_size, RW_X_LATCH, mtr);
+                       univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
   header = DICT_HDR + buf_block_get_frame(block);
 
   buf_block_dbg_add_level(block, SYNC_DICT_HEADER);
@@ -117,8 +117,9 @@ void dict_hdr_get_new_id(table_id_t *table_id, space_index_t *index_id,
     entering into reserved range of table_ids for SDI
     tables */
     if (id >= dict_sdi_get_table_id(0)) {
-      ib::fatal(ER_IB_MSG_160) << "InnoDB is running out of table_ids"
-                               << " Please dump and reload the database";
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_160)
+          << "InnoDB is running out of table_ids"
+          << " Please dump and reload the database";
     }
 
     mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
@@ -151,7 +152,7 @@ void dict_hdr_flush_row_id(void) {
   row_id_t id;
   mtr_t mtr;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   id = dict_sys->row_id;
 
@@ -167,7 +168,7 @@ void dict_hdr_flush_row_id(void) {
 /** Creates the file page for the dictionary header. This function is
  called only at the database creation.
  @return true if succeed */
-static ibool dict_hdr_create(mtr_t *mtr) /*!< in: mtr */
+static bool dict_hdr_create(mtr_t *mtr) /*!< in: mtr */
 {
   buf_block_t *block;
   dict_hdr_t *dict_header;
@@ -194,7 +195,7 @@ static ibool dict_hdr_create(mtr_t *mtr) /*!< in: mtr */
   /* Obsolete, but we must initialize it anyway. */
   mlog_write_ulint(dict_header + DICT_HDR_MIX_ID_LOW, 0, MLOG_4BYTES, mtr);
 
-  return (TRUE);
+  return true;
 }
 
 /** Initializes the data dictionary memory structures when the database is
@@ -237,22 +238,22 @@ dberr_t dict_boot(void) {
 
     /* Be sure these constants do not ever change.  To avoid bloat,
     only check the *NUM_FIELDS* in each table */
-    ut_ad(DICT_NUM_COLS__SYS_TABLES == 8);
-    ut_ad(DICT_NUM_FIELDS__SYS_TABLES == 10);
-    ut_ad(DICT_NUM_FIELDS__SYS_TABLE_IDS == 2);
-    ut_ad(DICT_NUM_COLS__SYS_COLUMNS == 7);
-    ut_ad(DICT_NUM_FIELDS__SYS_COLUMNS == 9);
-    ut_ad(DICT_NUM_COLS__SYS_INDEXES == 8);
-    ut_ad(DICT_NUM_FIELDS__SYS_INDEXES == 10);
-    ut_ad(DICT_NUM_COLS__SYS_FIELDS == 3);
-    ut_ad(DICT_NUM_FIELDS__SYS_FIELDS == 5);
-    ut_ad(DICT_NUM_COLS__SYS_FOREIGN == 4);
-    ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN == 6);
-    ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN_FOR_NAME == 2);
-    ut_ad(DICT_NUM_COLS__SYS_FOREIGN_COLS == 4);
-    ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN_COLS == 6);
+    static_assert(DICT_NUM_COLS__SYS_TABLES == 8);
+    static_assert(DICT_NUM_FIELDS__SYS_TABLES == 10);
+    static_assert(DICT_NUM_FIELDS__SYS_TABLE_IDS == 2);
+    static_assert(DICT_NUM_COLS__SYS_COLUMNS == 7);
+    static_assert(DICT_NUM_FIELDS__SYS_COLUMNS == 9);
+    static_assert(DICT_NUM_COLS__SYS_INDEXES == 8);
+    static_assert(DICT_NUM_FIELDS__SYS_INDEXES == 10);
+    static_assert(DICT_NUM_COLS__SYS_FIELDS == 3);
+    static_assert(DICT_NUM_FIELDS__SYS_FIELDS == 5);
+    static_assert(DICT_NUM_COLS__SYS_FOREIGN == 4);
+    static_assert(DICT_NUM_FIELDS__SYS_FOREIGN == 6);
+    static_assert(DICT_NUM_FIELDS__SYS_FOREIGN_FOR_NAME == 2);
+    static_assert(DICT_NUM_COLS__SYS_FOREIGN_COLS == 4);
+    static_assert(DICT_NUM_FIELDS__SYS_FOREIGN_COLS == 6);
 
-    heap = mem_heap_create(450);
+    heap = mem_heap_create(450, UT_LOCATION_HERE);
 
     /* Insert into the dictionary cache the descriptions of the basic
     system tables */
@@ -278,9 +279,9 @@ dberr_t dict_boot(void) {
     table->id = DICT_TABLES_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
-    dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_enter();
+    dict_table_add_to_cache(table, false);
+    dict_sys_mutex_exit();
     dict_sys->sys_tables = table;
     mem_heap_empty(heap);
 
@@ -293,7 +294,7 @@ dberr_t dict_boot(void) {
 
     err = dict_index_add_to_cache(
         table, index,
-        mtr_read_ulint(dict_hdr + DICT_HDR_TABLES, MLOG_4BYTES, &mtr), FALSE);
+        mtr_read_ulint(dict_hdr + DICT_HDR_TABLES, MLOG_4BYTES, &mtr), false);
     ut_a(err == DB_SUCCESS);
 
     /*-------------------------*/
@@ -306,7 +307,7 @@ dberr_t dict_boot(void) {
     err = dict_index_add_to_cache(
         table, index,
         mtr_read_ulint(dict_hdr + DICT_HDR_TABLE_IDS, MLOG_4BYTES, &mtr),
-        FALSE);
+        false);
     ut_a(err == DB_SUCCESS);
 
     /*-------------------------*/
@@ -323,9 +324,9 @@ dberr_t dict_boot(void) {
     table->id = DICT_COLUMNS_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
-    dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_enter();
+    dict_table_add_to_cache(table, false);
+    dict_sys_mutex_exit();
     dict_sys->sys_columns = table;
     mem_heap_empty(heap);
 
@@ -339,7 +340,7 @@ dberr_t dict_boot(void) {
 
     err = dict_index_add_to_cache(
         table, index,
-        mtr_read_ulint(dict_hdr + DICT_HDR_COLUMNS, MLOG_4BYTES, &mtr), FALSE);
+        mtr_read_ulint(dict_hdr + DICT_HDR_COLUMNS, MLOG_4BYTES, &mtr), false);
     ut_a(err == DB_SUCCESS);
 
     /*-------------------------*/
@@ -359,9 +360,9 @@ dberr_t dict_boot(void) {
     table->id = DICT_INDEXES_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
-    dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_enter();
+    dict_table_add_to_cache(table, false);
+    dict_sys_mutex_exit();
     dict_sys->sys_indexes = table;
     mem_heap_empty(heap);
 
@@ -375,7 +376,7 @@ dberr_t dict_boot(void) {
 
     err = dict_index_add_to_cache(
         table, index,
-        mtr_read_ulint(dict_hdr + DICT_HDR_INDEXES, MLOG_4BYTES, &mtr), FALSE);
+        mtr_read_ulint(dict_hdr + DICT_HDR_INDEXES, MLOG_4BYTES, &mtr), false);
     ut_a(err == DB_SUCCESS);
 
     /*-------------------------*/
@@ -388,9 +389,9 @@ dberr_t dict_boot(void) {
     table->id = DICT_FIELDS_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
-    dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_enter();
+    dict_table_add_to_cache(table, false);
+    dict_sys_mutex_exit();
     dict_sys->sys_fields = table;
     mem_heap_free(heap);
 
@@ -404,15 +405,15 @@ dberr_t dict_boot(void) {
 
     err = dict_index_add_to_cache(
         table, index,
-        mtr_read_ulint(dict_hdr + DICT_HDR_FIELDS, MLOG_4BYTES, &mtr), FALSE);
+        mtr_read_ulint(dict_hdr + DICT_HDR_FIELDS, MLOG_4BYTES, &mtr), false);
     ut_a(err == DB_SUCCESS);
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_load_sys_table(dict_sys->sys_tables);
     dict_load_sys_table(dict_sys->sys_columns);
     dict_load_sys_table(dict_sys->sys_indexes);
     dict_load_sys_table(dict_sys->sys_fields);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   mtr_commit(&mtr);

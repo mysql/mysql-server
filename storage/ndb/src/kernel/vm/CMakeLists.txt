@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 
 ADD_LIBRARY(ndbkernel STATIC
   ArenaPool.cpp
@@ -33,7 +37,6 @@ ADD_LIBRARY(ndbkernel STATIC
   LockQueue.cpp
   Mutex.cpp
   Ndbinfo.cpp
-  NdbinfoTables.cpp
   Pool.cpp
   Rope.cpp
   SafeCounter.cpp
@@ -51,6 +54,12 @@ ADD_LIBRARY(ndbkernel STATIC
 )
 #    WOPool.cpp
 #    RWPool.cpp
+
+# 'sbrk' is deprecated [-Wdeprecated-declarations]
+IF(APPLE)
+  ADD_COMPILE_FLAGS(ndbd_malloc_impl.cpp COMPILE_FLAGS
+    " -Wno-error=deprecated-declarations")
+ENDIF()
 
 ADD_LIBRARY(ndbsched STATIC
   FastScheduler.cpp
@@ -79,7 +88,6 @@ ADD_LIBRARY(ndbtest STATIC
   ../blocks/dbtup/tuppage.cpp
 )
 
-NDB_ADD_TEST(mt_thr_config-t mt_thr_config.cpp LIBS ndbgeneral ndbportlib)
 NDB_ADD_TEST(RefConvert-t RefConvert.cpp LIBS ndbgeneral ndbportlib)
 
 # ${ALL_UNIT_TEST_LIBS} may be listed twice in the linker command due
@@ -103,6 +111,8 @@ FOREACH(testprog
     LHLevel
     Rope
     SegmentList
+    TransientPagePool
+    TransientSlotPool
     )
   NDB_ADD_TEST("${testprog}-t" "${testprog}.cpp"
     LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})

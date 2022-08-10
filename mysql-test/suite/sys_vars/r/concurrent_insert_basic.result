@@ -105,8 +105,10 @@ SET global.concurrent_insert = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.concurrent_insert = 1' at line 1
 SELECT global.concurrent_insert;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT concurrent_insert = @@session.concurrent_insert;
+SELECT concurrent_insert;
 ERROR 42S22: Unknown column 'concurrent_insert' in 'field list'
+SELECT @@session.concurrent_insert;
+ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable
 SET @@global.concurrent_insert = @start_value;
 SELECT @@global.concurrent_insert;
 @@global.concurrent_insert

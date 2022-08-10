@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 #include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 
-[[noreturn]] void *Autorejoin_thread::launch_thread(void *arg) {
+void *Autorejoin_thread::launch_thread(void *arg) {
   Autorejoin_thread *thd = static_cast<Autorejoin_thread *>(arg);
-  thd->autorejoin_thread_handle();
+  thd->autorejoin_thread_handle();  // Does not return.
 }
 
 Autorejoin_thread::Autorejoin_thread()
@@ -273,11 +273,10 @@ void Autorejoin_thread::execute_rejoin_process() {
   global_thd_manager_remove_thd(m_thd);
   delete m_thd;
   m_thd = nullptr;
+  my_thread_end();
   m_autorejoin_thd_state.set_terminated();
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
 
-  // And finally, terminate the thread.
-  my_thread_end();
   my_thread_exit(nullptr);
 }

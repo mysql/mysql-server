@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,8 @@
 
 #include "my_inttypes.h"
 #include "my_thread_local.h"  // my_thread_id
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "prealloced_array.h"
 
 class THD;
@@ -42,11 +42,15 @@ void thd_unlock_thread_count();
 /**
   Base class to perform actions on all thds in the thd list.
   Users of do_for_all_thd() need to subclass this and override operator().
+
+  @note THD can be in the disposal state. Accessing resources freed in disposal
+        state is not safe. Before accessing any such resources in operator()
+        please check THD state.
 */
 
 class Do_THD_Impl {
  public:
-  virtual ~Do_THD_Impl() {}
+  virtual ~Do_THD_Impl() = default;
   virtual void operator()(THD *) = 0;
 };
 
@@ -58,7 +62,7 @@ class Do_THD_Impl {
 
 class Find_THD_Impl {
  public:
-  virtual ~Find_THD_Impl() {}
+  virtual ~Find_THD_Impl() = default;
   /**
     Override this operator to provide implementation to find specific thd.
 
@@ -74,9 +78,6 @@ class Find_THD_Impl {
 /**
   Callback function used by kill_one_thread and timer_notify functions
   to find "thd" based on the thread id.
-
-  @note It acquires LOCK_thd_data mutex when it finds matching thd.
-  It is the responsibility of the caller to release this mutex.
 */
 class Find_thd_with_id : public Find_THD_Impl {
  public:
@@ -84,6 +85,103 @@ class Find_thd_with_id : public Find_THD_Impl {
   bool operator()(THD *thd) override;
 
   const my_thread_id m_thread_id;
+};
+
+/**
+  This class encapsulates THD instance, controls access to the actual THD.
+  It also ensures that THD::LOCK_thd_data mutex is acquired at instantiation and
+  released at destruction.
+*/
+class THD_ptr {
+ public:
+  /**
+    Default class constructor.
+  */
+  THD_ptr() = default;
+  /**
+    Constructor assigns THD instance to manage and acquires THD::LOCK_thd_data
+    mutex.
+    @param   thd   THD instance.
+  */
+  explicit THD_ptr(THD *thd);
+  /**
+    Delete copy constructor, THD_ptr copy is not allowed.
+  */
+  THD_ptr(THD_ptr const &) = delete;
+  /**
+    Move constructor.
+    @param  thd_ptr    THD_ptr instance to collect underlying THD instance.
+  */
+  THD_ptr(THD_ptr &&thd_ptr);
+
+  /**
+    Destructor to release underlying THD instance's control and release mutex
+    THD::LOCK_thd_data.
+  */
+  ~THD_ptr() { release(); }
+  /**
+    Release underlying THD instance's control and release THD::LOCK_thd_data.
+    @returns  underlying THD instance.
+  */
+  THD *release();
+
+  /**
+    Delete copy operator, THD_ptr copy is not allowed.
+  */
+  THD_ptr &operator=(THD_ptr const &) = delete;
+  /**
+    Move semantics assignment operator.
+    @param  thd_ptr    THD_ptr instance to collect underlying THD instance.
+  */
+  THD_ptr &operator=(THD_ptr &&thd_ptr);
+
+  /**
+    Access underlying THD instance.
+    returns pointer to underlying THD instance.
+  */
+  THD *get() { return m_underlying; }
+  /**
+    Access underlying THD instance.
+    returns pointer to underlying THD instance.
+  */
+  THD *operator->() { return m_underlying; }
+  /**
+    Access underlying THD instance.
+    returns reference to underlying THD instance.
+  */
+  THD &operator*() { return *m_underlying; }
+
+  /**
+    Check if there is an underlying THD instance.
+  */
+  operator bool() const { return m_underlying != nullptr; }
+
+  /**
+    Compare underlying THD pointer value with the "nullptr".
+    @returns true if underlying THD pointer value equals "nullptr".
+  */
+  bool operator==(std::nullptr_t) const { return m_underlying == nullptr; }
+  /**
+    Compare this instance with other THD_ptr instance.
+    @param  thd_ptr    Other THD_ptr instance for comparison.
+    @returns true if this instance equals other THD_ptr instance.
+  */
+  bool operator==(THD const *thd_ptr) const { return m_underlying == thd_ptr; }
+  /**
+    Compare underlying THD pointer value with the "nullptr".
+    @returns true if underlying THD pointer value *not* equals nullptr.
+  */
+  bool operator!=(std::nullptr_t) const { return m_underlying != nullptr; }
+  /**
+    Compare this instance with other THD_ptr instance.
+    @param  thd_ptr    Other THD_ptr instance for comparison.
+    @returns true if this instance differs from other THD_ptr instance.
+  */
+  bool operator!=(THD const *thd_ptr) const { return m_underlying != thd_ptr; }
+
+ private:
+  // Underlying THD instance to manage.
+  THD *m_underlying{nullptr};
 };
 
 /**
@@ -113,6 +211,11 @@ class Global_THD_manager {
     assert(thd_manager != nullptr);
     return thd_manager;
   }
+
+  /**
+    Checks if the singleton is not already deinitialized
+  */
+  static bool is_initialized() { return thd_manager != nullptr; }
 
   /**
     Initializes the thd manager.
@@ -227,15 +330,16 @@ class Global_THD_manager {
   void do_for_all_thd(Do_THD_Impl *func);
 
   /**
-    Returns a pointer to the first THD for which operator() returns true.
-    @param func Object of class which overrides operator()
-    @return THD
-      @retval THD* Matching THD
-      @retval NULL When THD is not found
-  */
-  THD *find_thd(Find_THD_Impl *func);
+    Returns a THD_ptr containing first THD for which operator() returns true.
 
-  THD *find_thd(Find_thd_with_id *func);
+    @param func Object of class which overrides operator()
+    @return THD_ptr
+      @retval THD_ptr{THD*}    When matching THD is found.
+      @retval THD_ptr{nullptr} When THD is *not* found.
+  */
+  THD_ptr find_thd(Find_THD_Impl *func);
+
+  THD_ptr find_thd(Find_thd_with_id *func);
 
   // Declared static as it is referenced in handle_fatal_signal()
   static std::atomic<uint> atomic_global_thd_count;

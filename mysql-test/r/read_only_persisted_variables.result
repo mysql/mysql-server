@@ -35,7 +35,7 @@ SET @@persist_only.autocommit=0, @@session.auto_increment_offset=10, @@persist.m
 SET @@persist.concurrent_insert=ALWAYS, @@session.autocommit=0, @@global.auto_increment_offset=10, @@persist_only.max_allowed_packet=8388608;
 SET @@global.autocommit=0, @@persist_only.auto_increment_offset=10, @@persist.autocommit=0, @@session.max_error_count= 128;
 # Restart server
-CALL mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
+CALL mtr.add_suppression("You need to use --log-bin to make --log-replica-updates work.");
 # default values
 SELECT @@global.binlog_gtid_simple_recovery;
 @@global.binlog_gtid_simple_recovery
@@ -93,15 +93,12 @@ SELECT @@global.innodb_api_enable_mdl;
 SELECT @@global.innodb_read_io_threads;
 @@global.innodb_read_io_threads
 4
-SELECT @@global.innodb_log_file_size;
-@@global.innodb_log_file_size
-5242880
-SELECT @@global.log_slave_updates;
-@@global.log_slave_updates
+SELECT @@global.log_replica_updates;
+@@global.log_replica_updates
 1
 # modify existing persisted variables and add new
 SET PERSIST_ONLY innodb_read_io_threads= 16;
-SET PERSIST_ONLY innodb_log_file_size= 4194304, log_slave_updates= 1;
+SET PERSIST_ONLY log_replica_updates= 1;
 # Restart server
 # after restart
 SELECT @@global.ft_query_expansion_limit;
@@ -113,11 +110,8 @@ SELECT @@global.innodb_api_enable_mdl;
 SELECT @@global.innodb_read_io_threads;
 @@global.innodb_read_io_threads
 16
-SELECT @@global.innodb_log_file_size;
-@@global.innodb_log_file_size
-4194304
-SELECT @@global.log_slave_updates;
-@@global.log_slave_updates
+SELECT @@global.log_replica_updates;
+@@global.log_replica_updates
 1
 # check contents of persistent config file
 
@@ -154,8 +148,8 @@ VARIABLE_NAME
 binlog_gtid_simple_recovery
 ft_query_expansion_limit
 innodb_api_enable_mdl
-innodb_log_file_size
 innodb_read_io_threads
+log_replica_updates
 log_slave_updates
 max_connections
 session_track_system_variables
@@ -174,7 +168,7 @@ REPEATABLE-READ
 SELECT VARIABLE_NAME FROM performance_schema.variables_info
 WHERE VARIABLE_SOURCE = 'PERSISTED';
 VARIABLE_NAME
-SET PERSIST_ONLY slave_type_conversions= ALL_UNSIGNED;
+SET PERSIST_ONLY replica_type_conversions= ALL_UNSIGNED;
 SET @@persist_only.relay_log_space_limit=4096;
 # Restart server with persisted_globals_load disabled.
 # should return 0 rows.
@@ -182,8 +176,8 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info
 WHERE VARIABLE_SOURCE = 'PERSISTED';
 VARIABLE_NAME
 # Restart server
-SELECT @@global.relay_log_space_limit, @@global.slave_type_conversions;
-@@global.relay_log_space_limit	@@global.slave_type_conversions
+SELECT @@global.relay_log_space_limit, @@global.replica_type_conversions;
+@@global.relay_log_space_limit	@@global.replica_type_conversions
 4096	ALL_UNSIGNED
 SELECT VARIABLE_NAME FROM performance_schema.variables_info
 WHERE VARIABLE_SOURCE = 'PERSISTED';
@@ -191,11 +185,12 @@ VARIABLE_NAME
 binlog_gtid_simple_recovery
 ft_query_expansion_limit
 innodb_api_enable_mdl
-innodb_log_file_size
 innodb_read_io_threads
+log_replica_updates
 log_slave_updates
 max_connections
 relay_log_space_limit
+replica_type_conversions
 session_track_system_variables
 slave_type_conversions
 table_open_cache_instances
@@ -230,33 +225,30 @@ ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIA
 # reset persisted variables
 RESET PERSIST;
 # test reset on readonly persisted variables
-SET @@persist_only.innodb_log_file_size= 4194304;
-SET @@persist_only.slave_type_conversions = ALL_UNSIGNED;
+SET @@persist_only.replica_type_conversions = ALL_UNSIGNED;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_log_file_size	4194304
+replica_type_conversions	ALL_UNSIGNED
 slave_type_conversions	ALL_UNSIGNED
 SET PERSIST auto_increment_increment=10;
 SET PERSIST innodb_checksum_algorithm=strict_crc32;
-SET @@persist_only.innodb_log_file_size= DEFAULT;
 SET PERSIST_ONLY ft_query_expansion_limit= DEFAULT;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 auto_increment_increment	10
 ft_query_expansion_limit	20
 innodb_checksum_algorithm	strict_crc32
-innodb_log_file_size	50331648
+replica_type_conversions	ALL_UNSIGNED
 slave_type_conversions	ALL_UNSIGNED
-# reset slave_type_conversions
-RESET PERSIST slave_type_conversions;
+# reset replica_type_conversions
+RESET PERSIST replica_type_conversions;
 # return 0 rows.
 SELECT * FROM performance_schema.persisted_variables
-WHERE VARIABLE_NAME = 'slave_type_conversions';
+WHERE VARIABLE_NAME = 'replica_type_conversions';
 VARIABLE_NAME	VARIABLE_VALUE
 RESET PERSIST auto_increment_increment;
-RESET PERSIST innodb_log_file_size;
 SELECT * FROM performance_schema.persisted_variables
-WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size')
+WHERE VARIABLE_NAME IN ('auto_increment_increment')
 ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 RESET PERSIST;
@@ -281,8 +273,8 @@ SET @@persist_only.plugin_dir= "/";
 ERROR HY000: Variable 'plugin_dir' is a non persistent read only variable
 SET @@persist_only.secure_file_priv= "/";
 ERROR HY000: Variable 'secure_file_priv' is a non persistent read only variable
-SET @@persist_only.slave_load_tmpdir= "/";
-ERROR HY000: Variable 'slave_load_tmpdir' is a non persistent read only variable
+SET @@persist_only.replica_load_tmpdir= "/";
+ERROR HY000: Variable 'replica_load_tmpdir' is a non persistent read only variable
 SET @@persist_only.tmpdir= "/";
 ERROR HY000: Variable 'tmpdir' is a non persistent read only variable
 SET @@persist_only.relay_log= "/";
@@ -371,11 +363,11 @@ ERROR HY000: Variable 'gtid_executed' is a non persistent read only variable
 #
 # Bug#30094645: SET PERSIST_ONLY TO 0/1 BOOLEAN GLOBAL VARIABLES HAVING SESSION, RESTART FAILS
 #
-SET PERSIST_ONLY log_slave_updates = 1,super_read_only=1, end_markers_in_json = 1;
+SET PERSIST_ONLY log_replica_updates = 1,super_read_only=1, end_markers_in_json = 1;
 # Restart server
 # restart
-select @@global.log_slave_updates, @@global.super_read_only, @@global.end_markers_in_json;
-@@global.log_slave_updates	@@global.super_read_only	@@global.end_markers_in_json
+select @@global.log_replica_updates, @@global.super_read_only, @@global.end_markers_in_json;
+@@global.log_replica_updates	@@global.super_read_only	@@global.end_markers_in_json
 1	1	1
 SET PERSIST_ONLY super_read_only="invalid value";
 ERROR 42000: Variable 'super_read_only' can't be set to the value of 'invalid value'

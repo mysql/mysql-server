@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GEOMETRIES_H_INCLUDED
 #define SQL_GIS_GEOMETRIES_H_INCLUDED
 
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +104,7 @@ class Geometry {
   Geometry &operator=(const Geometry &) = default;
 
   // Returns a copy of an instantiable subclass of Geometry.
+
   virtual Geometry *clone() const = 0;
 
   /// Gets the geometry type of the object.
@@ -113,7 +114,7 @@ class Geometry {
 
   /// Gets the coordinate system.
   ///
-  /// @return The coordiante system type.
+  /// @return The coordinate system type.
   virtual Coordinate_system coordinate_system() const = 0;
 
   /// Applies a hierarchical visitor to this geometry.
@@ -156,6 +157,7 @@ class Point : public Geometry {
   }
 
   // Returns a copy of a subclass of Point.
+
   Point *clone() const override = 0;
 
   /// Gets a coordinate value.
@@ -316,9 +318,6 @@ class Linestring : public Curve {
 /// enforced, by the implementation).
 class Linearring : public Linestring {
  public:
-#if defined(__SUNPRO_CC)
-  ~Linearring() override = default;
-#endif
   bool accept(Geometry_visitor *v) override = 0;
 
   /// Creates a subclass of Linearring from a Coordinate_system
@@ -517,7 +516,7 @@ class Multicurve : public Geometrycollection {
   bool accept(Geometry_visitor *v) override = 0;
 };
 
-/// A colletion of linestrings.
+/// A collection of linestrings.
 ///
 /// Multilinestring is an instantiable type in SQL.
 class Multilinestring : public Multicurve {

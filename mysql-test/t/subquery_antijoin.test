@@ -472,9 +472,11 @@ insert into t values(1,1),(2,2),(3,3),(4,4),(5,5);
 
 # Should not transform subquery to antijoin and should evaluate it at
 # optimization time
+--skip_if_hypergraph  # Different plan; does not evaluate at optimization time.
 explain format=tree select a from t where (not exists (select b from t));
 select a from t where (not exists (select b from t));
 
+--skip_if_hypergraph  # Different plan; does not evaluate at optimization time.
 explain format=tree select a from t where 1 not in (select 1 from t);
 select a from t where 1 not in (select 1 from t);
 

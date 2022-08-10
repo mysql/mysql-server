@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <string.h>
 #include <kernel_types.h>
 #include <Properties.hpp>
 #include <ndb_limits.h>
-#include <NdbOut.hpp>
 #include <ConfigSection.hpp>
 #include <ConfigObject.hpp>
 #include <stdlib.h>
@@ -37,16 +37,24 @@
 #include <algorithm>
 #include <bitset>
 
+#include <EventLogger.hpp>
+
 //#define DEBUG_MALLOC 1
 #ifdef DEBUG_MALLOC
-#define DEB_MALLOC(arglist) do { ndbout_c arglist ; } while (0)
+#define DEB_MALLOC(arglist)      \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
 #define DEB_MALLOC(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_UNPACK_V1 1
 #ifdef DEBUG_UNPACK_V1
-#define DEB_UNPACK_V1(arglist) do { ndbout_c arglist ; } while (0)
+#define DEB_UNPACK_V1(arglist)   \
+  do {                           \
+    g_eventLogger->info arglist; \
+  } while (0)
 #else
 #define DEB_UNPACK_V1(arglist) do { } while (0)
 #endif
@@ -105,7 +113,7 @@ void ConfigSection::free_entry(Entry *entry)
   if (entry->m_type == StringTypeId)
   {
     DEB_MALLOC(("this(%p)free(%u) => %p",this,__LINE__,entry->m_string));
-    free((void*)entry->m_string);
+    free(const_cast<char *>(entry->m_string));
   }
   delete entry;
 }
@@ -839,7 +847,7 @@ bool ConfigSection::set_string(Entry *update_entry,
     if (free_string)
     {
       DEB_MALLOC(("free(%u) => %p", __LINE__, free_str));
-      free((void*)free_str);
+      free(const_cast<char *>(free_str));
     }
   }
   return true;

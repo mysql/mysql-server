@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -45,12 +45,8 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
       MESSAGE(FATAL_ERROR "Clang 6.0 or newer is required!")
     ENDIF()
   ELSEIF(MY_COMPILER_IS_GNU)
-    EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-      OUTPUT_VARIABLE GCC_VERSION)
-    IF(GCC_VERSION VERSION_LESS 5.3)
-      MESSAGE(FATAL_ERROR
-        "GCC 5.3 or newer is required (-dumpversion says ${GCC_VERSION})")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.1)
+      MESSAGE(FATAL_ERROR "GCC 7.1 or newer is required")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

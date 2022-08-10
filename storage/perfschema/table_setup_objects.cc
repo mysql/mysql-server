@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ static int update_derived_flags() {
 
 bool PFS_index_setup_objects::match(PFS_setup_object *pfs) {
   if (m_fields >= 1) {
-    if (!m_key_1.match(pfs->get_object_type())) {
+    if (!m_key_1.match(pfs->m_key.m_object_type)) {
       return false;
     }
   }
@@ -105,28 +105,6 @@ bool PFS_index_setup_objects::match(PFS_setup_object *pfs) {
 
   if (m_fields >= 3) {
     if (!m_key_3.match(pfs)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-bool PFS_index_setup_objects::match(row_setup_objects *row) {
-  if (m_fields >= 1) {
-    if (!m_key_1.match(row->m_object_type)) {
-      return false;
-    }
-  }
-
-  if (m_fields >= 2) {
-    if (!m_key_2.match(row->m_schema_name, row->m_schema_name_length)) {
-      return false;
-    }
-  }
-
-  if (m_fields >= 3) {
-    if (!m_key_3.match(row->m_object_name, row->m_object_name_length)) {
       return false;
     }
   }
@@ -195,8 +173,22 @@ int table_setup_objects::write_row(PFS_engine_table *, TABLE *table,
   enabled = (enabled_value == ENUM_YES) ? true : false;
   timed = (timed_value == ENUM_YES) ? true : false;
 
-  result = insert_setup_object(object_type, object_schema, object_name, enabled,
-                               timed);
+  PFS_schema_name schema_value;
+  PFS_object_name object_value;
+  schema_value.set(object_schema->ptr(), object_schema->length());
+
+  /*
+    Collation rules for PFS_object_name depends on
+    what the object actually is.
+  */
+  if (object_type == OBJECT_TYPE_TABLE) {
+    object_value.set_as_table(object_name->ptr(), object_name->length());
+  } else {
+    object_value.set_as_routine(object_name->ptr(), object_name->length());
+  }
+
+  result = insert_setup_object(object_type, &schema_value, &object_value,
+                               enabled, timed);
   if (result == 0) {
     result = update_derived_flags();
   }
@@ -251,7 +243,7 @@ int table_setup_objects::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_setup_objects::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_setup_objects::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_setup_objects *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_setup_objects);
@@ -284,11 +276,9 @@ int table_setup_objects::make_row(PFS_setup_object *pfs) {
   pfs_optimistic_state lock;
   pfs->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_object_type = pfs->get_object_type();
-  memcpy(m_row.m_schema_name, pfs->m_schema_name, pfs->m_schema_name_length);
-  m_row.m_schema_name_length = pfs->m_schema_name_length;
-  memcpy(m_row.m_object_name, pfs->m_object_name, pfs->m_object_name_length);
-  m_row.m_object_name_length = pfs->m_object_name_length;
+  m_row.m_object_type = pfs->m_key.m_object_type;
+  m_row.m_schema_name = pfs->m_key.m_schema_name;
+  m_row.m_object_name = pfs->m_key.m_object_name;
   m_row.m_enabled_ptr = &pfs->m_enabled;
   m_row.m_timed_ptr = &pfs->m_timed;
 
@@ -314,17 +304,17 @@ int table_setup_objects::read_row_values(TABLE *table, unsigned char *buf,
           set_field_enum(f, m_row.m_object_type);
           break;
         case 1: /* OBJECT_SCHEMA */
-          if (m_row.m_schema_name_length)
-            set_field_varchar_utf8(f, m_row.m_schema_name,
-                                   m_row.m_schema_name_length);
+          if (m_row.m_schema_name.length())
+            set_field_varchar_utf8(f, m_row.m_schema_name.ptr(),
+                                   m_row.m_schema_name.length());
           else {
             f->set_null();
           }
           break;
         case 2: /* OBJECT_NAME */
-          if (m_row.m_object_name_length)
-            set_field_varchar_utf8(f, m_row.m_object_name,
-                                   m_row.m_object_name_length);
+          if (m_row.m_object_name.length())
+            set_field_varchar_utf8(f, m_row.m_object_name.ptr(),
+                                   m_row.m_object_name.length());
           else {
             f->set_null();
           }
@@ -353,10 +343,6 @@ int table_setup_objects::update_row_values(TABLE *table, const unsigned char *,
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
-        case 0: /* OBJECT_TYPE */
-        case 1: /* OBJECT_SCHEMA */
-        case 2: /* OBJECT_NAME */
-          return HA_ERR_WRONG_COMMAND;
         case 3: /* ENABLED */
           value = (enum_yes_no)get_field_enum(f);
           /* Reject illegal enum values in ENABLED */
@@ -374,7 +360,7 @@ int table_setup_objects::update_row_values(TABLE *table, const unsigned char *,
           *m_row.m_timed_ptr = (value == ENUM_YES) ? true : false;
           break;
         default:
-          assert(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }
@@ -385,12 +371,8 @@ int table_setup_objects::update_row_values(TABLE *table, const unsigned char *,
 
 int table_setup_objects::delete_row_values(TABLE *, const unsigned char *,
                                            Field **) {
-  CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
-  enum_object_type object_type = m_row.m_object_type;
-  String object_schema(m_row.m_schema_name, m_row.m_schema_name_length, cs);
-  String object_name(m_row.m_object_name, m_row.m_object_name_length, cs);
-
-  int result = delete_setup_object(object_type, &object_schema, &object_name);
+  int result = delete_setup_object(m_row.m_object_type, &m_row.m_schema_name,
+                                   &m_row.m_object_name);
 
   if (result == 0) {
     result = update_derived_flags();

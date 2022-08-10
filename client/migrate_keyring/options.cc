@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,9 @@
 #include "options.h"
 #include "utilities.h"
 
+/* TLS variables */
+#include "sslopt-vars.h"
+
 namespace options {
 
 /** MEM_ROOT for arguments */
@@ -66,6 +69,8 @@ enum migration_options {
   OPT_SSL_FIPS_MODE,
   OPT_TLS_CIPHERSUITES,
   OPT_SERVER_PUBLIC_KEY,
+  OPT_SSL_SESSION_DATA,
+  OPT_SSL_SESSION_DATA_CONTINUE_ON_FAILED_REUSE,
   /* Add new value above this */
   OPT_LAST
 };
@@ -85,8 +90,6 @@ char *Options::s_password = nullptr;
 char *Options::s_socket = nullptr;
 bool Options::s_tty_password = false;
 
-/* TLS variables */
-#include "sslopt-vars.h"
 /* Caching sha2 password variables */
 #include "caching_sha2_passwordopt-vars.h"
 
@@ -178,7 +181,7 @@ bool get_one_option(int optid, const struct my_option *opt, char *argument) {
       usage(true);
       break;
     case 'I':
-      // Fall through
+      [[fallthrough]];
     case '?':
       Options::s_help = true;
       usage(false);
@@ -220,6 +223,11 @@ static bool check_options_for_sanity() {
                  "source (--source-keyirng) and destination "
                  "(--destination-keyring) components is mandatory"
               << std::endl;
+    return false;
+  }
+
+  if (strcmp(Options::s_source_keyring, Options::s_destination_keyring) == 0) {
+    log_error << "Source and destination cannot be the same." << std::endl;
     return false;
   }
   return true;
@@ -324,10 +332,14 @@ Mysql_connection::Mysql_connection(bool connect) : ok_(false), mysql(nullptr) {
                           Options::s_password, NullS, Options::s_port,
                           Options::s_socket, CLIENT_REMEMBER_OPTIONS)) {
     mysql->reconnect = true;
-    log_error << "Failed to connect to server at " << Options::s_hostname
-              << ": " << mysql_error(mysql) << std::endl;
+    log_error << "Failed to connect to server. Received error: "
+              << mysql_error(mysql) << std::endl;
     return;
   }
+  if (ssl_client_check_post_connect_ssl_setup(
+          mysql, [](const char *err) { log_error << err << std::endl; }))
+    return;
+
   log_info << "Successfully connected to MySQL server" << std::endl;
 
   ok_ = true;
@@ -345,7 +357,7 @@ Mysql_connection::~Mysql_connection() {
 
 bool Mysql_connection::execute(std::string command) {
   if (!ok_) {
-    log_error << " Connection to MySQL server is not initialized." << std::endl;
+    log_error << "Connection to MySQL server is not initialized." << std::endl;
     return false;
   }
   if (mysql_real_query(mysql, command.c_str(), command.length())) {

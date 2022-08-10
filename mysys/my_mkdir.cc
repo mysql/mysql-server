@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@ int my_mkdir(const char *dir, int Flags, myf MyFlags) {
   DBUG_PRINT("enter", ("dir: %s", dir));
 
 #if defined(_WIN32)
+  (void)Flags;  // [[maybe_unused]]
   if (_mkdir(dir))
 #else
   if (mkdir(dir, Flags & my_umask_dir))

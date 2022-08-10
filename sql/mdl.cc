@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,10 +37,10 @@
 #include "my_systime.h"
 #include "my_thread.h"
 #include "mysql/components/services/bits/psi_bits.h"
-#include "mysql/components/services/psi_cond_bits.h"
-#include "mysql/components/services/psi_memory_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/components/services/psi_rwlock_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
+#include "mysql/components/services/bits/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mdl.h"
 #include "mysql/psi/mysql_memory.h"
@@ -135,7 +135,7 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
 void MDL_key::init_psi_keys() {
   int i;
   int count;
-  PSI_stage_info *info MY_ATTRIBUTE((unused));
+  PSI_stage_info *info [[maybe_unused]];
 
   count =
       static_cast<int>(array_elements(MDL_key::m_namespace_to_wait_state_name));
@@ -2118,7 +2118,7 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy = {
       different lock types.
 
       Scoped locks only use the first array which represents the "default"
-      priority matrix. The remaing 3 matrices are not relevant for them.
+      priority matrix. The remaining 3 matrices are not relevant for them.
 
                  |    Pending      |
          Request |  scoped lock    |
@@ -2579,9 +2579,9 @@ bool MDL_lock::has_pending_conflicting_lock(enum_mdl_type type) {
   return result;
 }
 
-MDL_wait_for_graph_visitor::~MDL_wait_for_graph_visitor() {}
+MDL_wait_for_graph_visitor::~MDL_wait_for_graph_visitor() = default;
 
-MDL_wait_for_subgraph::~MDL_wait_for_subgraph() {}
+MDL_wait_for_subgraph::~MDL_wait_for_subgraph() = default;
 
 /**
   Check if ticket represents metadata lock of "stronger" or equal type
@@ -2945,7 +2945,7 @@ retry:
     /*
       "Fast path".
 
-      Hurray! We are acquring "unobtrusive" type of lock and not forced
+      Hurray! We are acquiring "unobtrusive" type of lock and not forced
       to take "slow path" because of open HANDLERs.
 
       Let us do a few checks first to figure out if we really can acquire
@@ -2998,7 +2998,7 @@ retry:
         corresponds to type of our request (i.e. increment part this member
         which contains counter which corresponds to this type).
 
-        This needs to be done as atomical operation with the above checks,
+        This needs to be done as atomic operation with the above checks,
         which is achieved by using atomic compare-and-swap.
 
         @sa MDL_object_lock::m_unobtrusive_lock_increment for explanation
@@ -3163,7 +3163,7 @@ slow_path:
   vice versa -- when we COMMIT, we don't mistakenly
   release a ticket for an open HANDLER.
 
-  @retval true   An error occured.
+  @retval true   An error occurred.
   @retval false  Success.
 */
 
@@ -4090,6 +4090,11 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket) {
   assert(this == ticket->get_ctx());
   mysql_mutex_assert_not_owner(&LOCK_open);
 
+  // Remove ticket from the Ticket_store before actually releasing the lock,
+  // so this removal process can safely reference MDL_lock::m_key in cases
+  // when Ticket_store uses hash-based secondary index.
+  m_ticket_store.remove(duration, ticket);
+
   /*
     If lock we are about to release requires post-release notification
     of SEs, we need to save its MDL_key on stack. This is necessary to
@@ -4179,7 +4184,6 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket) {
     */
     lock->remove_ticket(this, m_pins, &MDL_lock::m_granted, ticket);
   }
-  m_ticket_store.remove(duration, ticket);
   if (ticket->m_hton_notified) {
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
     m_owner->notify_hton_post_release_exclusive(&key_for_hton);
@@ -4651,15 +4655,16 @@ MDL_ticket_store::MDL_ticket_handle MDL_ticket_store::find_in_hash(
   auto foundrng = m_map->equal_range(&req.key);
 
   const MDL_ticket_handle *found_handle = nullptr;
-  std::find_if(foundrng.first, foundrng.second,
-               [&](const Ticket_map::value_type &vt) {
-                 auto &th = vt.second;
-                 if (!th.m_ticket->has_stronger_or_equal_type(req.type)) {
-                   return false;
-                 }
-                 found_handle = &th;
-                 return (th.m_dur == req.duration);
-               });
+  // VS tags std::find_if with 'nodiscard'.
+  (void)std::find_if(foundrng.first, foundrng.second,
+                     [&](const Ticket_map::value_type &vt) {
+                       auto &th = vt.second;
+                       if (!th.m_ticket->has_stronger_or_equal_type(req.type)) {
+                         return false;
+                       }
+                       found_handle = &th;
+                       return (th.m_dur == req.duration);
+                     });
 
   if (found_handle != nullptr) {
     return *found_handle;

@@ -3151,5 +3151,74 @@ DROP DATABASE mysqltest;
 
 DROP USER mysqltest@localhost;
 
+--echo #
+--echo # Bug#33064461 - WRONGLY HANDLED DEFINER FOR TRIGGERS WHEN PS USED
+--echo #
+CREATE USER 'user01'@'localhost' IDENTIFIED BY '';
+CREATE USER 'user02'@'localhost' IDENTIFIED BY '';
+GRANT ALL PRIVILEGES ON *.* to 'user01'@'localhost';
+
+CREATE DATABASE test01;
+CREATE TABLE test01.c (id int primary key, a varchar(100));
+INSERT INTO test01.c SET id = 1, a = "xyz";
+
+CREATE DATABASE test02;
+CREATE TABLE test02.tbl01 (id int primary key, a varchar(100));
+INSERT INTO test02.tbl01 SET id = 1, a = "xyz";
+CREATE TABLE test02.tbl02 (id int primary key, a varchar(100));
+
+CREATE DEFINER='user01'@'localhost' TRIGGER test02.trg01
+  AFTER UPDATE ON test02.tbl01 FOR EACH ROW
+    UPDATE test02.tbl02 SET a = (SELECT a FROM test01.c WHERE id = 1) WHERE id = NEW.id;
+
+DELIMITER $;
+CREATE DEFINER='user01'@'localhost' FUNCTION test02.sf() RETURNS INT
+BEGIN
+   SELECT tbl02.id FROM test02.tbl02 as tbl02, test01.c as c
+                   WHERE tbl02.id  = c.id INTO @a;
+   RETURN 1;
+END$
+DELIMITER ;$
+
+GRANT SELECT, UPDATE, INSERT on test02.tbl01 TO 'user02'@'localhost';
+GRANT EXECUTE ON FUNCTION test02.sf to 'user02'@'localhost';
+
+connect (con1, localhost, user02,, test02);
+PREPARE stmt from 'update tbl01 set a = "xyz"';
+--echo # Without fix, execution of prepared statement fails as it incorrectly
+--echo # uses security context of INVOKER instead of DEFINER for the trigger.
+--echo # With fix, DEFINER security context is used for the trigger.
+EXECUTE stmt;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+PREPARE stmt from 'select sf()';
+--echo # Without fix, execution of prepared statement fails as it incorrectly
+--echo # uses security context of INVOKER instead of DEFINER for the stored function.
+--echo # With fix, DEFINER security context is used for the stored function.
+EXECUTE stmt;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+#CLEANUP
+connection default;
+disconnect con1;
+DROP DATABASE test01;
+DROP DATABASE test02;
+DROP USER 'user01'@'localhost';
+DROP USER 'user02'@'localhost';
+
+--echo #
+--echo # Bug#33578113: DROP privilege on performance_schema.* can't be revoked
+--echo #
+connection default;
+
+CREATE USER bug33578113;
+
+GRANT DROP ON performance_schema.* TO bug33578113;
+REVOKE DROP ON performance_schema.* FROM bug33578113;
+
+DROP USER bug33578113;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

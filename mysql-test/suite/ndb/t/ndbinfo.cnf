@@ -1,5 +1,5 @@
 !include suite/ndb/my.cnf
 [cluster_config]
-ThreadConfig=ldm={count=4}
+ThreadConfig=main,rep,recv,ldm={count=4}
 [mysqld]
 ndb-read-backup=0

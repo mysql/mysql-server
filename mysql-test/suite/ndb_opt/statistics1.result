@@ -82,7 +82,7 @@ SELECT * FROM t10000 AS x JOIN t10000 AS y
 ON y.i=x.i AND y.j = x.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0	ALL	I	NULL	NULL	NULL	10000	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`x`.`I` is not null)
-1	SIMPLE	y	p0	ref	J,I	J	5	test.x.I	1	5.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	p0	ref	J,I	I	10	test.x.I,test.x.I	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`K` AS `K`,`test`.`x`.`I` AS `I`,`test`.`x`.`J` AS `J`,`test`.`y`.`K` AS `K`,`test`.`y`.`I` AS `I`,`test`.`y`.`J` AS `J` from `test`.`t10000` `x` join `test`.`t10000` `y` where ((`test`.`y`.`I` = `test`.`x`.`I`) and (`test`.`y`.`J` = `test`.`x`.`I`))
 EXPLAIN

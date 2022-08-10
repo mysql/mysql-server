@@ -74,7 +74,17 @@ DROP TABLE t1, t2, t3, t4;
 
 SET SESSION innodb_strict_mode = ON;
 
-# Redundant table; 8011 bytes with 40 char fields
+# Redundant table; 8122 bytes with 40 char fields
+# Calculation :
+#    6 (extra bytes)
+#    2 * 43 = 86 (fields len) = 2 * n_fields (3 system fields + 40 user fields)
+#    6 + 6 + 7 = 19 (ROW_ID, TRX_ID, ROLL_PTR)
+#    200 * 39 = 7800 (each char(200) field)
+#    211 = (char(211))
+#    T0tal = 8122
+# NOTE : charset latin1 causes each char to have max 1 bytes. If we use default
+#        (utf8_mb4) then each char will need 4 bytes. So char(200) will need
+#        max 800 bytes.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
@@ -84,8 +94,9 @@ c21 char(200), c22 char(200), c23 char(200), c24 char(200), c25 char(200),
 c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(200), c40 char(211)
-) ROW_FORMAT=redundant;
+) charset latin1 ROW_FORMAT=redundant;
 DROP TABLE t1;
+# Redundant table; 8123 bytes with 40 char fields
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -98,7 +109,18 @@ c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(200), c40 char(212)
 ) charset latin1 ROW_FORMAT=redundant;
 
-# Compact table; 8096 bytes with 40 CHAR fields
+# Compact table; 8125 bytes with 40 CHAR fields
+# Calculation :
+#    5 (extra bytes)
+#    5 (null bitmap)
+#    6 + 6 + 7 = 19 (ROW_ID, TRX_ID, ROLL_PTR)
+#    200 * 38 = 7600 (each char(200) field)
+#    250 = (char(250))
+#    246 = (char(246))
+#    Total = 8125
+# NOTE : charset latin1 causes each char to have max 1 bytes. If we use default
+#        (utf8_mb4) then each char will need 4 bytes. So char(200) will need
+#        max 800 bytes.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
@@ -108,8 +130,9 @@ c21 char(200), c22 char(200), c23 char(200), c24 char(200), c25 char(200),
 c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(250), c40 char(246)
-) ROW_FORMAT=compact;
+) charset latin1 ROW_FORMAT=compact;
 DROP TABLE t1;
+# Compact table; 8126 bytes with 40 CHAR fields
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -329,9 +352,11 @@ LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1
 ORDER BY 1, 2, 3, 4, 5, 6;
 SET SESSION sort_buffer_size = DEFAULT;
 # in-place alter table should trigger ER_PRIMARY_CANT_HAVE_NULL
+--replace_regex /'\d\d'/'NN'/
 --error ER_DUP_ENTRY
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
 DELETE FROM t1 WHERE d='null';
+--replace_regex /'\d\d'/'NN'/
 --error ER_DUP_ENTRY
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
 DELETE FROM t1 WHERE a%2;

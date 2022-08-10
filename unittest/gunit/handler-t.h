@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,12 @@ class Mock_HANDLER : public Base_mock_HANDLER {
  public:
   // Declare the members we actually want to test.
   MOCK_METHOD2(print_error, void(int error, myf errflag));
+  MOCK_CONST_METHOD0(primary_key_is_clustered, bool());
 
   Mock_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
       : Base_mock_HANDLER(ht_arg, share_arg) {}
+
+  void set_ha_table_flags(Table_flags flags) { cached_table_flags = flags; }
 };
 
 /**

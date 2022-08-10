@@ -1,0 +1,175 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+# WL#15070 Configure replica specific batch_size
+
+--echo
+--echo Assert bounds of ndb_replica_batch_size
+--echo
+
+# Should be truncated to 0
+set @@GLOBAL.ndb_replica_batch_size = -1;
+show variables like 'ndb_replica_batch_size';
+
+# Should be truncated to 2147483648 (2^30)
+set @@GLOBAL.ndb_replica_batch_size = 2147483649;
+show variables like 'ndb_replica_batch_size';
+
+# Cannot be set as SESSION variable
+--error ER_GLOBAL_VARIABLE
+set @@SESSION.ndb_replica_batch_size = 32768;
+
+set @@GLOBAL.ndb_replica_batch_size = DEFAULT;
+show variables like 'ndb_replica_batch_size';
+
+--echo
+
+# This test asserts that replica specific batch_size, when applied to
+# replica's binlog injector's thread, improves (reduces) the amount of
+# round trips required.
+# It compares the default of ndb_batch_size, 32kB, with the
+# replica_ndb_batch_size default of 2MB producing improvements.
+
+--connection slave
+set @@GLOBAL.ndb_replica_batch_size = 32768;
+set global replica_allow_batching=ON;
+
+--connection master
+
+create table t1 (a int primary key, b varchar(7000))
+  engine=ndb;
+create table t2 (a int primary key, b varchar(7000))
+  engine=ndb;
+create table t3 (a int primary key, b varchar(7000))
+  engine=ndb;
+create table t4 (a int primary key, b varchar(7000))
+  engine=ndb;
+
+--echo
+--echo Record the replica's NDB API current wait count.
+--echo Insert some wide data into the tables, synchronize
+--echo and record how many more times NDB API waited for
+--echo and primary key operations.
+--echo
+
+--connection slave
+--source ndb_slave_exec_info_init.inc
+
+--connection master
+
+begin;
+  insert into t1 values (1, repeat("B", 7000));
+  insert into t2 values (2, repeat("A", 7000));
+  insert into t2 values (3, repeat("T", 7000));
+  insert into t3 values (4, repeat("C", 7000));
+  insert into t4 values (5, repeat("H", 7000));
+  insert into t1 values (6, repeat("B", 7000));
+  insert into t2 values (7, repeat("A", 7000));
+  insert into t2 values (8, repeat("T", 7000));
+  insert into t3 values (9, repeat("C", 7000));
+  insert into t4 values (0, repeat("H", 7000));
+  update t1 set b = repeat('S', 7000);
+  update t2 set b = repeat('I', 7000);
+  update t3 set b = repeat('Z', 7000);
+  update t4 set b = repeat('E', 7000);
+  delete from t1 where a = 1;
+  delete from t4 where a in (5,0);
+commit;
+
+--sync_slave_with_master
+
+--connection slave
+
+--echo
+--echo Record replica's API execute() calls and PK ops, and cleanup
+--echo
+
+--disable_query_log
+SET @start_exec_count = @init_wait_exec_complete_count_slave;
+SET @start_pk_op_count = @init_pk_op_count_slave;
+--enable_query_log
+
+--source ndb_slave_exec_info_init.inc
+
+--disable_query_log
+SET @low_batch_exec_count = @init_wait_exec_complete_count_slave - @start_exec_count;
+SET @low_batch_pk_op_count = @init_pk_op_count_slave - @start_pk_op_count;
+--enable_query_log
+
+--connection master
+delete from t1;
+delete from t2;
+delete from t3;
+delete from t4;
+--sync_slave_with_master
+
+--echo
+--echo Increase replica's batch size for the binlog injector by 4-fold
+--echo and perform the same operations.
+--echo
+
+--connection slave
+# Should be 2MB
+set @@GLOBAL.ndb_replica_batch_size = DEFAULT;
+--source ndb_slave_exec_info_init.inc
+
+--connection master
+
+begin;
+  insert into t1 values (1, repeat("B", 7000));
+  insert into t2 values (2, repeat("A", 7000));
+  insert into t2 values (3, repeat("T", 7000));
+  insert into t3 values (4, repeat("C", 7000));
+  insert into t4 values (5, repeat("H", 7000));
+  insert into t1 values (6, repeat("B", 7000));
+  insert into t2 values (7, repeat("A", 7000));
+  insert into t2 values (8, repeat("T", 7000));
+  insert into t3 values (9, repeat("C", 7000));
+  insert into t4 values (0, repeat("H", 7000));
+  update t1 set b = repeat('S', 7000);
+  update t2 set b = repeat('I', 7000);
+  update t3 set b = repeat('Z', 7000);
+  update t4 set b = repeat('E', 7000);
+  delete from t1 where a = 1;
+  delete from t4 where a in (5,0);
+commit;
+
+--sync_slave_with_master
+--connection slave
+
+--disable_query_log
+SET @large_batch_start_exec_count = @init_wait_exec_complete_count_slave;
+SET @large_batch_start_pk_op_count = @init_pk_op_count_slave;
+--enable_query_log
+
+--source ndb_slave_exec_info_init.inc
+
+--disable_query_log
+SET @large_batch_exec_count = @init_wait_exec_complete_count_slave - @large_batch_start_exec_count;
+SET @large_batch_pk_op_count = @init_pk_op_count_slave - @large_batch_start_pk_op_count;
+--enable_query_log
+
+--echo Observe that the number of execute() decrease significantly as well as the PK ops.
+--echo Execute() calls should have decreased by, at least, a factor of 4.
+--echo PK ops should have decreased by, at least, a factor of 2.
+SELECT @large_batch_exec_count < @low_batch_exec_count AS 'Large batch size execute calls are less';
+SELECT @large_batch_pk_op_count < @low_batch_pk_op_count AS 'Large batch size PK ops are less';
+SELECT @low_batch_exec_count / @large_batch_exec_count >= 4 AS 'Factor of >=4 for large batch execute calls';
+SELECT @low_batch_pk_op_count / @large_batch_pk_op_count > 1 AS 'Factor of > 1 for large batch PK op';
+
+--echo Cleanup
+--connection master
+set global ndb_replica_batch_size = DEFAULT;
+set global replica_allow_batching = DEFAULT;
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+--sync_slave_with_master
+
+--connection slave
+set global ndb_replica_batch_size = DEFAULT;
+set global replica_allow_batching = DEFAULT;
+
+--source include/rpl_end.inc

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,7 @@ const char *const native_mysql_functions[] = {
     "MAKEDATE",
     "MAKETIME",
     "MAKE_SET",
-    "MASTER_POS_WAIT",
+    "SOURCE_POS_WAIT",
     "MBRCONTAINS",
     "MBRCOVEREDBY",
     "MBRCOVERS",

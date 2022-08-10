@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class PT_window_list : public Parse_tree_node {
   List<Window> m_windows;
 
  public:
-  PT_window_list() {}
+  PT_window_list() = default;
 
   bool contextualize(Parse_context *pc) override;
 

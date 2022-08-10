@@ -17,11 +17,11 @@
 #
 # TC1. Test if GTID consistency state is rolled back after failure
 # ----------------------------------------------------------------
-# 1) Place an XA transaction in the prepare state.
-# 2) Try to create a temporary table.
+# 1) Start a transaction.
+# 2) Try to drop a non-existent temporary table.
 # 3) Test if the execution state prior to the failure is restored, using
 #    DEBUG_SYNC.
-# 4) Commit the transaction.
+# 4) Rollback the transaction.
 #
 # TC2. Test if GTID consistency state is persisted after success
 # --------------------------------------------------------------
@@ -42,30 +42,26 @@
 
 --echo # TC1. Test if GTID consistency state is rolled back after failure
 --echo # ----------------------------------------------------------------
-# 1) Place an XA transaction in the prepare state.
-XA START 'xa1';
-XA END 'xa1';
-XA PREPARE 'xa1';
 SET DEBUG_SYNC='restore_previous_state_after_statement_failed SIGNAL failure';
+# 1) Start a transaction.
+BEGIN;
 # 2) Try to create a temporary table.
---error ER_XAER_RMFAIL
-CREATE TEMPORARY TABLE t1 (c INT) ENGINE=InnoDB;
-# 3) Test if the `Rpl_state_guard` instance restored the execution state prior
-#    to the failure, using DEBUG_SYNC.
+--error ER_BAD_TABLE_ERROR
+DROP TEMPORARY TABLE t1;
+# 3) Test if the execution state prior to the failure is restored, using
+#    DEBUG_SYNC.
 SET DEBUG_SYNC='now WAIT_FOR failure';
-# 4) Commit the transaction.
-SET @@SESSION.GTID_NEXT='ANONYMOUS';
-XA COMMIT 'xa1';
+# 4) Rollback the transaction.
+ROLLBACK;
 
 --echo # TC2. Test if GTID consistency state is persisted after success
 --echo # --------------------------------------------------------------
 SET DEBUG_SYNC='persist_new_state_after_statement_succeeded SIGNAL success';
 # 1) Try to create a temporary table.
 CREATE TEMPORARY TABLE t1 (c INT) ENGINE=InnoDB;
-# 2) Test if the `Rpl_state_guard` instance persisted the execution state after
-#    the successful execution, using DEBUG_SYNC.
+# 2) Test if the execution state after the successful execution is persisted,
+#    using DEBUG_SYNC.
 SET DEBUG_SYNC='now WAIT_FOR success';
-#
 
 DROP TABLE t1;
 SET DEBUG_SYNC='RESET';

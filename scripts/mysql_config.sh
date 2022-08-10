@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ else
 fi
 
 # Create options 
-libs="@QUOTED_CMAKE_CXX_LINK_FLAGS@-L$pkglibdir@RPATH_OPTION@"
+libs="-L$pkglibdir@RPATH_OPTION@"
 libs="$libs -l@LIBMYSQL_OS_OUTPUT_NAME@ @CONFIG_CLIENT_LIBS@"
 
 cflags="-I$pkgincludedir @CFLAGS@"

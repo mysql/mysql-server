@@ -1,0 +1,35 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Create a table where a generated column has the type TIME
+[connection master]
+CREATE TABLE t1 (
+first DOUBLE,
+gen_col TIME(1) GENERATED ALWAYS AS (`first`) VIRTUAL,
+KEY (gen_col)
+) ENGINE=InnoDB;
+
+##############################################################
+# 2. Change the source SQL mode to 'TIME_TRUNCATE_FRACTIONAL'
+SET sql_mode='TIME_TRUNCATE_FRACTIONAL';
+
+##############################################################
+# 3. Insert data on the source being the value of the generated column dependent on the SQL mode
+INSERT INTO t1 (first) VALUES(1.55);
+
+##############################################################
+# 4. Delete the row on the source and verify it was deleted on the replica
+DELETE FROM t1 WHERE gen_col="00:00:01.5";
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [The data on the replica was deleted]
+
+##############################################################
+# 5. Cleanup
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

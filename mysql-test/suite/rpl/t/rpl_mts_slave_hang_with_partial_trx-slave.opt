@@ -1,1 +1,1 @@
---slave-parallel-workers=2 --slave-transaction-retries=0
+--replica-parallel-workers=2 --replica-transaction-retries=0

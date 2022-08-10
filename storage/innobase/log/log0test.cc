@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Portions of this file contain modifications contributed and copyrighted by
-Google, Inc. Those modifications are gratefully acknowledged and are described
-briefly in the InnoDB documentation. The contributions by Google are
-incorporated with their permission, and subject to the conditions contained in
-the file COPYING.Google.
-
-
 *****************************************************************************/
 
 /**************************************************/ /**
@@ -40,6 +33,7 @@ the file COPYING.Google.
 
 #ifndef UNIV_HOTBACKUP
 
+#include "log0test.h"
 #include "log0log.h"
 
 /** Maximum size of payload put inside each MLOG_TEST record. */
@@ -54,13 +48,13 @@ std::unique_ptr<Log_test> log_test;
 lsn_t Log_test::oldest_modification_approx() const {
   std::lock_guard<std::mutex> lock{m_mutex};
 
-  return (m_buf.empty() ? 0 : m_buf.begin()->first);
+  return m_buf.empty() ? 0 : m_buf.begin()->first;
 }
 
 void Log_test::add_dirty_page(const Page &page) {
 #ifndef UNIV_HOTBACKUP
-  ut_a(log_lsn_validate(page.oldest_modification));
-  ut_a(log_lsn_validate(page.newest_modification));
+  ut_a(log_is_data_lsn(page.oldest_modification));
+  ut_a(log_is_data_lsn(page.newest_modification));
 #endif /* !UNIV_HOTBACKUP */
 
   std::lock_guard<std::mutex> lock{m_mutex};
@@ -98,20 +92,20 @@ void Log_test::purge(lsn_t max_dirty_page_age) {
     /* Fragment below would make it more similar to real env.
     However there is some issue now. */
 #if 0
-		/* We need to avoid deadlock when resizing log
-		buffer in background ... (because of m_mutex). */
-		if (page.newest_modification > log_sys->write_lsn.load()) {
+                /* We need to avoid deadlock when resizing log
+                buffer in background ... (because of m_mutex). */
+                if (page.newest_modification > log_sys->write_lsn.load()) {
 
-			lock.unlock();
+                        lock.unlock();
 
-			log_write_up_to(
-				*log_sys,
-				page.newest_modification,
-				true);
+                        log_write_up_to(
+                                *log_sys,
+                                page.newest_modification,
+                                true);
 
-			lock.lock();
-			continue;
-		}
+                        lock.lock();
+                        continue;
+                }
 #endif
 
     m_written[page.key] = page;
@@ -121,8 +115,8 @@ void Log_test::purge(lsn_t max_dirty_page_age) {
 }
 
 byte *Log_test::create_mlog_rec(byte *rec, Key key, Value value) {
-  const size_t payload = ut_rnd_interval(0, MLOG_TEST_PAYLOAD_MAX_LEN);
-  return (create_mlog_rec(rec, key, value, payload));
+  const size_t payload = ut::random_from_interval(0, MLOG_TEST_PAYLOAD_MAX_LEN);
+  return create_mlog_rec(rec, key, value, payload);
 }
 
 byte *Log_test::create_mlog_rec(byte *rec, Key key, Value value,
@@ -161,13 +155,13 @@ byte *Log_test::create_mlog_rec(byte *rec, Key key, Value value,
   mach_write_to_8(ptr, 0);
   ptr += 8;
 
-  return (ptr);
+  return ptr;
 }
 
 byte *Log_test::parse_mlog_rec(byte *begin, byte *end, Key &key, Value &value,
                                lsn_t &start_lsn, lsn_t &end_lsn) {
   if (begin + 2 * 8 + 2 > end) {
-    return (nullptr);
+    return nullptr;
   }
 
   key = static_cast<Key>(mach_read_from_8(begin));
@@ -180,7 +174,7 @@ byte *Log_test::parse_mlog_rec(byte *begin, byte *end, Key &key, Value &value,
   begin += 2;
 
   if (begin + payload + 2 * 8 > end) {
-    return (nullptr);
+    return nullptr;
   }
 
   begin += payload;
@@ -191,7 +185,7 @@ byte *Log_test::parse_mlog_rec(byte *begin, byte *end, Key &key, Value &value,
   end_lsn = mach_read_from_8(begin);
   begin += 8;
 
-  return (begin);
+  return begin;
 }
 
 byte *Log_test::parse_mlog_rec(byte *begin, byte *end) {
@@ -202,7 +196,7 @@ byte *Log_test::parse_mlog_rec(byte *begin, byte *end) {
   byte *ptr = parse_mlog_rec(begin, end, key, value, start_lsn, end_lsn);
 
   if (ptr == nullptr) {
-    return (nullptr);
+    return nullptr;
   }
 
   if (value == MLOG_TEST_VALUE) {
@@ -217,7 +211,7 @@ byte *Log_test::parse_mlog_rec(byte *begin, byte *end) {
     recovered_add(key, value, start_lsn, end_lsn);
   }
 
-  return (ptr);
+  return ptr;
 }
 
 void Log_test::recovered_reset(Key key, lsn_t oldest_modification,
@@ -243,9 +237,9 @@ void Log_test::recovered_add(Key key, Value value, lsn_t oldest_modification,
   ut_a(it->second.value <= MLOG_TEST_VALUE);
 }
 
-const Log_test::Pages &Log_test::flushed() const { return (m_flushed); }
+const Log_test::Pages &Log_test::flushed() const { return m_flushed; }
 
-const Log_test::Pages &Log_test::recovered() const { return (m_recovered); }
+const Log_test::Pages &Log_test::recovered() const { return m_recovered; }
 
 void Log_test::sync_point(const std::string &sync_point_name) {
   auto it = m_sync_points.find(sync_point_name);
@@ -264,7 +258,7 @@ void Log_test::register_sync_point_handler(
 }
 
 bool Log_test::enabled(Options option) const {
-  return ((m_options_enabled & uint64_t(option)) != 0);
+  return (m_options_enabled & uint64_t(option)) != 0;
 }
 
 void Log_test::set_enabled(Options option, bool enabled) {
@@ -275,11 +269,11 @@ void Log_test::set_enabled(Options option, bool enabled) {
   }
 }
 
-int Log_test::flush_every() const { return (m_flush_every); }
+int Log_test::flush_every() const { return m_flush_every; }
 
 void Log_test::set_flush_every(int flush_every) { m_flush_every = flush_every; }
 
-int Log_test::verbosity() const { return (m_verbosity); }
+int Log_test::verbosity() const { return m_verbosity; }
 
 void Log_test::set_verbosity(int level) {
   ut_a(level >= 0);

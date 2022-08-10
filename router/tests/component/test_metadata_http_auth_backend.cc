@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
-#include "mysql_session.h"
 #include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/mysql_session.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
@@ -144,7 +144,7 @@ class MetadataHttpAuthTest : public RouterComponentTest {
   auto &launch_router(
       const std::string &metadata_cache_section,
       const int expected_errorcode = EXIT_SUCCESS,
-      const std::chrono::milliseconds wait_for_notify_ready = 5s) {
+      const std::chrono::milliseconds wait_for_notify_ready = 30s) {
     const std::string &temp_test_dir_str = temp_test_dir.name();
 
     const auto &routing_section =
@@ -186,7 +186,7 @@ class MetadataHttpAuthTest : public RouterComponentTest {
       const std::vector<Auth_data> &auth_data_collection,
       const uint16_t http_port, const std::string &gr_id,
       const uint16_t cluster_node_port, const bool error_on_md_query = false,
-      const unsigned primary_id = 0, const unsigned view_id = 0,
+      const unsigned primary_id = 0, const uint64_t view_id = 0,
       const mysqlrouter::MetadataSchemaVersion md_version = {2, 0, 3}) const {
     auto json_doc = mock_GR_metadata_as_json(
         gr_id, {cluster_node_port}, primary_id, view_id, error_on_md_query);
@@ -286,7 +286,7 @@ class MetadataHttpAuthTest : public RouterComponentTest {
   static const std::chrono::milliseconds kAuthCacheRefreshRate;
   static const std::string cluster_id;
   TempDirectory temp_test_dir;
-  unsigned view_id = 1;
+  uint64_t view_id = 1;
 
   ProcessWrapper *cluster_node;
   uint16_t cluster_node_port;
@@ -295,8 +295,6 @@ class MetadataHttpAuthTest : public RouterComponentTest {
   uint16_t router_port;
 
   std::string uri;
-
-  TcpPortPool port_pool_;
 };
 
 const std::chrono::milliseconds MetadataHttpAuthTest::kTTL = 200ms;
@@ -482,10 +480,18 @@ class FileAuthBackendWithMetadataAuthSettings : public MetadataHttpAuthTest {
 };
 
 TEST_F(FileAuthBackendWithMetadataAuthSettings, MixedBackendSettings) {
+  ProcessWrapper::OutputResponder responder{
+      [](const std::string &line) -> std::string {
+        if (line == "Please enter password: ")
+          return std::string(kRestApiPassword) + "\n";
+
+        return "";
+      }};
+
   auto &cmd = launch_command(
       ProcessManager::get_origin().join("mysqlrouter_passwd").str(),
-      {"set", passwd_file.str(), kRestApiUsername}, EXIT_SUCCESS, true);
-  cmd.register_response("Please enter password", "password\n");
+      {"set", passwd_file.str(), kRestApiUsername}, EXIT_SUCCESS, true, -1ms,
+      responder);
   EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
 
   set_mock_metadata({}, cluster_http_port, cluster_id, cluster_node_port, false,

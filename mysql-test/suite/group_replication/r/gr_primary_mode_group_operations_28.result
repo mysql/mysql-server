@@ -63,6 +63,9 @@ include/gr_wait_primary_member_uuid.inc
 
 # 13. Clean up
 DROP TABLE t1;
+[connection server2]
+DROP TABLE t1;
+[connection server1]
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: The appointed primary for election left the group, this operation will be aborted.*");
 set session sql_log_bin=1;

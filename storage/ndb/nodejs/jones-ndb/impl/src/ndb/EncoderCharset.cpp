@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2013, 2022, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
 
 /* C++ initializes this to zeros:
 */
-EncoderCharset * csinfo_table[MY_CS_CTYPE_TABLE_SIZE];
+EncoderCharset * csinfo_table[MY_ALL_CHARSETS_SIZE];
 
 
 inline bool colIsUtf16le(const NdbDictionary::Column *col) {
@@ -69,7 +69,7 @@ EncoderCharset * createEncoderCharset(const NdbDictionary::Column *col) {
   EncoderCharset * csinfo = new EncoderCharset;
   
   csinfo->name = col->getCharset()->csname;
-  csinfo->collationName = col->getCharset()->name;
+  csinfo->collationName = col->getCharset()->m_coll_name;
   csinfo->minlen = (short) col->getCharset()->mbminlen;
   csinfo->maxlen = (short) col->getCharset()->mbmaxlen;
   csinfo->isMultibyte = colIsMultibyte(col);

@@ -63,9 +63,7 @@ INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
 select Fld1, max(Fld2) as q from t1 group by Fld1 having q is not null;
 select Fld1, max(Fld2) from t1 group by Fld1 having max(Fld2) is not null;
 select Fld1, max(Fld2) from t1 group by Fld1 having avg(Fld2) is not null;
---skip_if_hypergraph  # Hits bug #31848191 (ITEM_SUM_STD AND _VARIANCE HAS INCORRECT IS_NULL()).
 select Fld1, max(Fld2) from t1 group by Fld1 having std(Fld2) is not null;
---skip_if_hypergraph  # Hits bug #31848191 (ITEM_SUM_STD AND _VARIANCE HAS INCORRECT IS_NULL()).
 select Fld1, max(Fld2) from t1 group by Fld1 having variance(Fld2) is not null;
 drop table t1;
 
@@ -757,6 +755,7 @@ SELECT * FROM series, seq_calls;
 # and send() both evaluate next_seq_value() instead
 # of sharing the result between them. See the comment in
 # JOIN::create_access_path_for_join() for more details.
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
        GROUP BY t HAVING r = 1  ORDER BY t1.u;
 
@@ -940,3 +939,39 @@ DELETE FROM v LIMIT 1;
 DROP VIEW v;
 DROP TABLE t;
 
+--echo # Bug#32239484: Item_sum_json::val_json: assertion `!m_wrapper->empty()'
+
+SELECT 1 HAVING COUNT(*) = 1;
+SELECT 1 WHERE TRUE HAVING COUNT(*) = 1;
+SELECT 1 WHERE FALSE HAVING COUNT(*) = 0;
+SELECT 1 HAVING json_objectagg(utc_date(), 1416) <> 0;
+
+--echo #
+--echo # Bug #33152269: No result set returned when using HAVING COUNT(DISTINCT ...)
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+
+SELECT DISTINCT
+  COUNT(DISTINCT t1.a) AS da
+FROM
+  t1
+  JOIN t1 AS t2 ON t1.a = t2.a
+GROUP BY t1.a
+HAVING COUNT(DISTINCT t1.a) = 1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #30617496: BAD ITEM REF FROM CORRELATED SUBQUERY TO OUTER DISTINCT TABLE
+--echo #
+
+CREATE TABLE t1 (f1 INT, f2 TEXT, f3 INT, PRIMARY KEY(f1));
+CREATE TABLE t2 LIKE t1;
+
+--error ER_BAD_FIELD_ERROR
+SELECT DISTINCT f3 FROM t1 HAVING (SELECT 1 FROM t2 HAVING f2 LIMIT 1) ORDER BY f3;
+
+DROP TABLE t1;
+DROP TABLE t2;

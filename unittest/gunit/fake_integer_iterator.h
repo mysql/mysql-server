@@ -1,7 +1,7 @@
 #ifndef UNITTEST_GUNIT_FAKE_INTEGER_ITERATOR_H_
 #define UNITTEST_GUNIT_FAKE_INTEGER_ITERATOR_H_
 
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include <vector>
 
 #include "sql/field.h"
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/sql_class.h"
 
 // An implementation of a RowIterator that contains a user-defined set of
@@ -52,6 +52,7 @@ class FakeIntegerIterator final : public TableRowIterator {
   }
 
   int Read() override {
+    ++m_num_read_calls;
     if (m_current_index == m_dataset.size()) {
       return -1;
     }
@@ -60,8 +61,11 @@ class FakeIntegerIterator final : public TableRowIterator {
     return 0;
   }
 
+  int num_read_calls() const { return m_num_read_calls; }
+
  private:
   size_t m_current_index{0};
+  int m_num_read_calls{0};
   Field_long *m_field;
   std::vector<int> m_dataset;
 };

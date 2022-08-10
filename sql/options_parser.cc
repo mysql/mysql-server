@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ struct result {
 
   @param str unparsed options string
   @param delimiter character to split the options string into several substrings
-  @param key_value_separator value which seperates string into key and value
+  @param key_value_separator value which separates string into key and value
   @param options pointer to an std::map
 
   @return result

@@ -34,7 +34,10 @@ Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'b' at row 2
 Warning	1264	Out of range value for column 'c' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 3 is superfluous and is deprecated. Please remove.
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+Warnings:
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 1 is superfluous and is deprecated. Please remove.
 include/sync_slave_sql_with_master.inc
 select * from rewrite.t1;
 a	b	c	d
@@ -50,6 +53,7 @@ Warning	1265	Data truncated for column 'd' at row 1
 Warning	1264	Out of range value for column 'b' at row 2
 Warning	1264	Out of range value for column 'c' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 3 is superfluous and is deprecated. Please remove.
 include/sync_slave_sql_with_master.inc
 select * from rewrite.t1;
 a	b	c	d

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,9 +47,9 @@ TAPTEST(Properties)
   outer_p.put("testNested", &nested_p);
   outer_p.put("random2", 2323);
   outer_p.remove("random1");
-  OK(outer_p.contains("random1") == false)
+  OK(outer_p.contains("random1") == false);
 
-  OK (outer_p.get("testNested", &p))
+  OK(outer_p.get("testNested", &p));
 
   // check if the iterator has the elements inserted
   Uint32 count = 0;
@@ -67,27 +67,27 @@ TAPTEST(Properties)
   // check if all values inserted can be fetched
   Uint32 ret = -1;
 
-  OK(p->get("1", &ret))
-  OK(ret == 1)
+  OK(p->get("1", &ret));
+  OK(ret == 1);
 
-  OK(p->get("2", &ret))
-  OK(ret == 2)
+  OK(p->get("2", &ret));
+  OK(ret == 2);
 
-  OK(p->get("3_1", &ret))
-  OK(ret == 3)
+  OK(p->get("3_1", &ret));
+  OK(ret == 3);
   PropertiesType type = PropertiesType_Undefined;
-  OK(p->getTypeOf("3", 1, &type))
-  OK(type == PropertiesType_Uint64)
+  OK(p->getTypeOf("3", 1, &type));
+  OK(type == PropertiesType_Uint64);
 
   const char* sret;
   p->get("four", &sret);
-  OK(!strcmp(sret, "fourValue"))
+  OK(!strcmp(sret, "fourValue"));
 
-  OK(p->get("5", &ret))
-  OK(ret == 5)
+  OK(p->get("5", &ret));
+  OK(ret == 5);
 
   outer_p.clear();
-  OK(outer_p.contains("testNested") == false)
+  OK(outer_p.contains("testNested") == false);
   ndb_end(0);
   return 1;
 }

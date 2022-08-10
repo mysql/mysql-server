@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ mysql_service_status_t unregister_udfs() {
 // variables are introduced, so that we can keep track of the
 // register/unregister status for each variable.
 static SHOW_VAR mysqlbackup_status_variables[] = {
-    {Backup_comp_constants::backup_component_version.c_str(),
+    {Backup_comp_constants::backup_component_version,
      (char *)&mysqlbackup_component_version, SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
@@ -193,7 +193,7 @@ static bool unregister_status_variables() {
   @retval 0 on success, errorno on failure
 */
 static int mysqlbackup_backup_id_check(MYSQL_THD thd,
-                                       SYS_VAR *self MY_ATTRIBUTE((unused)),
+                                       SYS_VAR *self [[maybe_unused]],
                                        void *save,
                                        struct st_mysql_value *value) {
   if (!have_backup_admin_privilege(thd))
@@ -231,14 +231,13 @@ static bool register_system_variables() {
   str_arg.def_val = nullptr;
 
   if (mysql_service_component_sys_variable_register->register_variable(
-          Backup_comp_constants::mysqlbackup.c_str(),
-          Backup_comp_constants::backupid.c_str(),
+          Backup_comp_constants::mysqlbackup, Backup_comp_constants::backupid,
           PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_RQCMDARG |
               PLUGIN_VAR_NOPERSIST,
           "Backup id of an ongoing backup.", mysqlbackup_backup_id_check,
           mysqlbackup_backup_id_update, (void *)&str_arg,
           (void *)&mysqlbackup_backup_id)) {
-    std::string msg{Backup_comp_constants::mysqlbackup + "." +
+    std::string msg{std::string(Backup_comp_constants::mysqlbackup) + "." +
                     Backup_comp_constants::backupid + " register failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
@@ -263,14 +262,14 @@ static bool register_system_variables() {
 */
 static bool unregister_system_variables() {
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
-          Backup_comp_constants::mysqlbackup.c_str(),
-          Backup_comp_constants::backupid.c_str())) {
+          Backup_comp_constants::mysqlbackup,
+          Backup_comp_constants::backupid)) {
     if (!mysqlbackup_component_sys_var_registered) {
       // System variable is already un-registered.
       return (false);
     }
 
-    std::string msg{Backup_comp_constants::mysqlbackup + "." +
+    std::string msg{std::string(Backup_comp_constants::mysqlbackup) + "." +
                     Backup_comp_constants::backupid + " unregister failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
@@ -335,11 +334,14 @@ mysql_service_status_t mysqlbackup_init() {
   /* If failed before the last initialization succeeded, deinitialize. */
   switch (failpoint) {
     case 3:
-      unregister_status_variables(); /*FALLTHROUGH*/
+      unregister_status_variables();
+      [[fallthrough]];
     case 2:
-      unregister_system_variables(); /*FALLTHROUGH*/
+      unregister_system_variables();
+      [[fallthrough]];
     case 1:
-      deinitialize_log_service(); /*FALLTHROUGH*/
+      deinitialize_log_service();
+      [[fallthrough]];
     case 0:
       return (1);
   }
@@ -355,6 +357,7 @@ mysql_service_status_t mysqlbackup_init() {
 */
 mysql_service_status_t mysqlbackup_deinit() {
   mysql_service_status_t failed = 0;
+  Backup_page_tracker::deinit();
   if (unregister_udfs()) failed = 1;
   if (unregister_status_variables()) failed = 1;
   if (unregister_system_variables()) failed = 1;
@@ -380,6 +383,7 @@ REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_runtime_error);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_page_track);
 REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
@@ -399,6 +403,7 @@ REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
     REQUIRES_SERVICE(status_variable_registration),
     REQUIRES_SERVICE(udf_registration),
     REQUIRES_SERVICE(mysql_thd_security_context),
+    REQUIRES_SERVICE(mysql_runtime_error),
     REQUIRES_SERVICE(mysql_security_context_options),
     REQUIRES_SERVICE(mysql_page_track), REQUIRES_SERVICE(global_grants_check),
     REQUIRES_SERVICE(mysql_current_thread_reader),

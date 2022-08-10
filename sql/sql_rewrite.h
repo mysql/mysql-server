@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,14 +41,16 @@ enum class Consumer_type {
 };
 
 /**
-  An interface to wrap the paramters required by specific Rewriter.
+  An interface to wrap the parameters required by specific Rewriter.
   Parameters required by specific Rewriter must be added in the concrete
   implementation.
   Clients need to wrap the parameters in specific concrete object.
+  The Rewrite_params objects are not expected to change and are passed around as
+  const objects.
 */
 class Rewrite_params {
  protected:
-  virtual ~Rewrite_params() {}
+  virtual ~Rewrite_params() = default;
 };
 
 /**
@@ -98,14 +100,14 @@ class Grant_params : public Rewrite_params {
   or clears it if no rewriting took place.
 */
 void mysql_rewrite_query(THD *thd, Consumer_type type = Consumer_type::TEXTLOG,
-                         Rewrite_params *params = nullptr);
+                         const Rewrite_params *params = nullptr);
 /**
   Provides the default interface to rewrite the ACL query.
   If do_ps_instrument, it sets the thd->rewritten_query with
   a rewritten query.
 */
 void mysql_rewrite_acl_query(THD *thd, String &rlb, Consumer_type type,
-                             Rewrite_params *params = nullptr,
+                             const Rewrite_params *params = nullptr,
                              bool do_ps_instrument = true);
 
 /**
@@ -157,6 +159,10 @@ class Rewriter_user : public I_rewriter {
   virtual void append_auth_str(LEX_USER *lex, String *str) const;
   /* Append the authentication plugin name for the user */
   void append_plugin_name(const LEX_USER *user, String *str) const;
+  /* Append authentication plugin name from LEX_MFA for the user */
+  void append_mfa_plugin_name(const LEX_MFA *user, String *str) const;
+  /* Append the authentication string from LEX_MFA for the user */
+  void append_mfa_auth_str(const LEX_MFA *user, String *str) const;
 
   /*
     Rewrites some of the user specific properties which are common to
@@ -165,7 +171,7 @@ class Rewriter_user : public I_rewriter {
   bool rewrite(String &rlb) const override;
   /*
     Abstract method to be implemented by the concrete classes.
-    The implementation methos should add the user authID, plugin info and
+    The implementation methods should add the user authID, plugin info and
     auth str
   */
   virtual void append_user_auth_info(LEX_USER *user, bool comma,
@@ -235,7 +241,7 @@ class Rewriter_show_create_user final : public Rewriter_user {
 
  public:
   Rewriter_show_create_user(THD *thd, Consumer_type type,
-                            Rewrite_params *params);
+                            const Rewrite_params *params);
   bool rewrite(String &rlb) const override;
   void rewrite_user_application_user_metadata(const LEX *lex,
                                               String *str) const override;
@@ -249,7 +255,7 @@ class Rewriter_show_create_user final : public Rewriter_user {
                              String *str) const override;
   void rewrite_password_history(const LEX *lex, String *str) const override;
   void rewrite_password_reuse(const LEX *lex, String *str) const override;
-  Show_user_params *show_params_;
+  const Show_user_params *show_params_;
 };
 
 /** Rewrites the SET statement. */
@@ -265,7 +271,8 @@ class Rewriter_set_password final : public Rewriter_set {
   using parent = Rewriter_set;
 
  public:
-  Rewriter_set_password(THD *thd, Consumer_type type, Rewrite_params *params);
+  Rewriter_set_password(THD *thd, Consumer_type type,
+                        const Rewrite_params *params);
   bool rewrite(String &rlb) const override;
 
  private:
@@ -276,12 +283,12 @@ class Rewriter_set_password final : public Rewriter_set {
 /** Rewrites the GRANT statement. */
 class Rewriter_grant final : public I_rewriter {
  public:
-  Rewriter_grant(THD *thd, Consumer_type type, Rewrite_params *params);
+  Rewriter_grant(THD *thd, Consumer_type type, const Rewrite_params *params);
   bool rewrite(String &rlb) const override;
 
  private:
   /* GRANT AS information */
-  Grant_params *grant_params = nullptr;
+  const Grant_params *grant_params = nullptr;
 };
 
 /** Rewrites the CHANGE REPLICATION SOURCE statement. */

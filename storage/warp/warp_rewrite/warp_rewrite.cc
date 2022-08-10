@@ -992,7 +992,7 @@ std::string execute_remote_query(std::vector<std::string> tokens ) {
       result = NULL;
       //mysql_close(conn);
       MYSQL *remote = NULL;
-      remote = mysql_init(remote);
+      remote = mysql_init(NULL);
       if (remote == NULL) {
         mysql_close(local);
         sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not initialize remote database connection'";

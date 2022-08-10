@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <ndb_limits.h>
 #include "TransporterFacade.hpp"
@@ -54,7 +55,6 @@
 #include <signaldata/CloseComReqConf.hpp>
 #include <EventLogger.hpp>
 
-extern EventLogger *g_eventLogger;
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE
@@ -93,15 +93,15 @@ TransporterFacade::reportError(NodeId nodeId,
                                TransporterError errorCode, const char *info)
 {
 #ifdef REPORT_TRANSPORTER
-  ndbout_c("REPORT_TRANSP: reportError (nodeId=%d, errorCode=%d) %s", 
-	   (int)nodeId, (int)errorCode, info ? info : "");
+  g_eventLogger->info("REPORT_TRANSP: reportError (nodeId=%d, errorCode=%d) %s",
+                      (int)nodeId, (int)errorCode, info ? info : "");
 #endif
   if(errorCode & TE_DO_DISCONNECT) {
-    ndbout_c("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
-	     info ? info : "");
+    g_eventLogger->info("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
+                        info ? info : "");
     if (nodeId == ownId())
     {
-      ndbout_c("Fatal error on Loopback transporter, aborting.");
+      g_eventLogger->info("Fatal error on Loopback transporter, aborting.");
       abort();
     }
     DEBUG_FPRINTF((stderr, "(%u)FAC:reportError(%u, %d, %s)\n",
@@ -117,8 +117,9 @@ void
 TransporterFacade::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
 {
 #ifdef REPORT_TRANSPORTER
-  ndbout_c("REPORT_TRANSP: reportSendLen (nodeId=%d, bytes/count=%d)", 
-	   (int)nodeId, (Uint32)(bytes/count));
+  g_eventLogger->info(
+      "REPORT_TRANSP: reportSendLen (nodeId=%d, bytes/count=%d)", (int)nodeId,
+      (Uint32)(bytes / count));
 #endif
   (void)nodeId;
   (void)count;
@@ -132,8 +133,9 @@ void
 TransporterFacade::reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes)
 {
 #ifdef REPORT_TRANSPORTER
-  ndbout_c("REPORT_TRANSP: reportReceiveLen (nodeId=%d, bytes/count=%d)", 
-	   (int)nodeId, (Uint32)(bytes/count));
+  g_eventLogger->info(
+      "REPORT_TRANSP: reportReceiveLen (nodeId=%d, bytes/count=%d)",
+      (int)nodeId, (Uint32)(bytes / count));
 #endif
   (void)nodeId;
   (void)count;
@@ -147,7 +149,8 @@ void
 TransporterFacade::reportConnect(NodeId nodeId)
 {
 #ifdef REPORT_TRANSPORTER
-  ndbout_c("REPORT_TRANSP: API reportConnect (nodeId=%d)", (int)nodeId);
+  g_eventLogger->info("REPORT_TRANSP: API reportConnect (nodeId=%d)",
+                      (int)nodeId);
 #endif
   DEBUG_FPRINTF((stderr, "(%u)FAC:reportConnect(%u)\n", ownId(), nodeId));
   reportConnected(nodeId);
@@ -156,12 +159,14 @@ TransporterFacade::reportConnect(NodeId nodeId)
 /**
  * Report connection broken
  */
-void
-TransporterFacade::reportDisconnect(NodeId nodeId, Uint32 error){
+void TransporterFacade::reportDisconnect(NodeId nodeId,
+                                         Uint32 error [[maybe_unused]])
+{
   DEBUG_FPRINTF((stderr, "(%u)FAC:reportDisconnect(%u, %u)\n",
                          ownId(), nodeId, error));
 #ifdef REPORT_TRANSPORTER
-  ndbout_c("REPORT_TRANSP: API reportDisconnect (nodeId=%d)", (int)nodeId);
+  g_eventLogger->info("REPORT_TRANSP: API reportDisconnect (nodeId=%d)",
+                      (int)nodeId);
 #endif
   reportDisconnected(nodeId);
 }
@@ -242,12 +247,11 @@ TRACE_GSN(Uint32 gsn)
 /**
  * The execute function : Handle received signal
  */
-bool
-TransporterFacade::deliver_signal(SignalHeader * const header,
-                                  Uint8 prio,
-                                  TransporterError &error_code,
-                                  Uint32 * const theData,
-                                  LinearSectionPtr ptr[3])
+bool TransporterFacade::deliver_signal(SignalHeader* const header,
+                                       Uint8 prio [[maybe_unused]],
+                                       TransporterError& /*error_code*/,
+                                       Uint32* const theData,
+                                       LinearSectionPtr ptr[3])
 {
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
 
@@ -388,8 +392,8 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
     else if(header->theVerId_signalNumber != GSN_API_REGREQ)
     {
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
-      ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
-             << header->theVerId_signalNumber  << endl;
+      g_eventLogger->info("BLOCK NO: %u sig %u", tRecBlockNo,
+                          header->theVerId_signalNumber);
       ndbout << *header << "-- Signal Data --" << endl;
       ndbout.hexdump(theData, MAX(header->theLength, 25)) << flush;
       abort();
@@ -451,8 +455,9 @@ TransporterFacade::handleMissingClnt(const SignalHeader * header,
     return;
   }
 
-  // ndbout_c("KESO KESO KESO: sending commit ack marker 0x%.8x 0x%.8x (gsn: %u)",
-  //         transId[0], transId[1], gsn);
+  // g_eventLogger->info(
+  //     "KESO KESO KESO: sending commit ack marker 0x%.8x 0x%.8x (gsn: %u)",
+  //     transId[0], transId[1], gsn);
 
   Uint32 ownBlockNo = header->theReceiversBlockNumber;
   Uint32 aTCRef = header->theSendersBlockRef;
@@ -470,16 +475,16 @@ TransporterFacade::handleMissingClnt(const SignalHeader * header,
 }
 
 // These symbols are needed, but not used in the API
-void 
-SignalLoggerManager::printSegmentedSection(FILE *, const SignalHeader &,
-					   const SegmentedSectionPtr ptr[3],
-					   unsigned i){
+void SignalLoggerManager::printSegmentedSection(
+    FILE*, const SignalHeader&, const SegmentedSectionPtr /*ptr*/[3],
+    unsigned /*i*/)
+{
   abort();
 }
 
-void 
-copy(Uint32 * & insertPtr, 
-     class SectionSegmentPool & thePool, const SegmentedSectionPtr & _ptr){
+void copy(Uint32*& /*insertPtr*/, class SectionSegmentPool& /*thePool*/,
+          const SegmentedSectionPtr& /*_ptr*/)
+{
   abort();
 }
 
@@ -542,7 +547,9 @@ TransporterFacade::start_instance(NodeId nodeId,
                                       NDB_THREAD_PRIO_LOW);
   if (theReceiveThread == NULL)
   {
-    ndbout_c("TransporterFacade::start_instance: Failed to create thread for receive.");
+    g_eventLogger->info(
+        "TransporterFacade::start_instance:"
+        " Failed to create thread for receive.");
     assert(theReceiveThread != NULL);
     DBUG_RETURN(-1);
   }
@@ -553,7 +560,9 @@ TransporterFacade::start_instance(NodeId nodeId,
                                    NDB_THREAD_PRIO_LOW);
   if (theSendThread == NULL)
   {
-    ndbout_c("TransporterFacade::start_instance: Failed to create thread for send.");
+    g_eventLogger->info(
+        "TransporterFacade::start_instance:"
+        " Failed to create thread for send.");
     assert(theSendThread != NULL);
     DBUG_RETURN(-1);
   }
@@ -1126,12 +1135,13 @@ void TransporterFacade::threadMainSend(void)
   }
   theTransporterRegistry->startSending();
   if (theTransporterRegistry->start_clients() == 0){
-    ndbout_c("Unable to start theTransporterRegistry->start_clients");
+    g_eventLogger->info(
+        "Unable to start theTransporterRegistry->start_clients");
     exit(0);
   }
 
   m_socket_server.startServer();
-  raise_thread_prio();
+  raise_thread_prio(theSendThread);
 
   NDB_TICKS lastActivityCheck = NdbTick_getCurrentTicks();
   while(!theStopSend)
@@ -1225,16 +1235,22 @@ class ReceiveThreadClient : public trp_client
   ~ReceiveThreadClient() override;
   void trp_deliver_signal(const NdbApiSignal *,
                           const LinearSectionPtr ptr[3]) override;
+  enum {
+    ACTIVE,      // Is the preferred receiver
+    DEACTIVATE,  // Intermediate state going from ACTIVE -> SNOOZE
+    SNOOZE       // Prefer any other trp_client as receiver
+  } m_state;
 };
 
 ReceiveThreadClient::ReceiveThreadClient(TransporterFacade * facade)
+  : m_state(SNOOZE)
 {
   DBUG_ENTER("ReceiveThreadClient::ReceiveThreadClient");
   m_is_receiver_thread = true;
   Uint32 ret = this->open(facade, -1);
   if (unlikely(ret == 0))
   {
-    ndbout_c("Failed to register receive thread, ret = %d", ret);
+    g_eventLogger->info("Failed to register receive thread, ret = %d", ret);
     abort();
   }
   DBUG_VOID_RETURN;
@@ -1247,9 +1263,8 @@ ReceiveThreadClient::~ReceiveThreadClient()
   DBUG_VOID_RETURN;
 }
 
-void
-ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal *signal,
-                                        const LinearSectionPtr ptr[3])
+void ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal* signal,
+                                             const LinearSectionPtr /*ptr*/[3])
 {
   DBUG_ENTER("ReceiveThreadClient::trp_deliver_signal");
   switch (signal->theVerId_signalNumber)
@@ -1269,8 +1284,9 @@ ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal *signal,
     }
     default:
     {
-      ndbout_c("Receive thread block should not receive signals, gsn: %d",
-               signal->theVerId_signalNumber);
+      g_eventLogger->info(
+          "Receive thread block should not receive signals, gsn: %d",
+          signal->theVerId_signalNumber);
       abort();
     }
   }
@@ -1338,9 +1354,8 @@ TransporterFacade::unlock_recv_thread_cpu()
     int ret_code = Ndb_UnlockCPU(theReceiveThread);
     if (ret_code)
     {
-      fprintf(stderr, "Failed to unlock thread %d, ret_code: %d",
-              NdbThread_GetTid(theReceiveThread),
-              ret_code);
+      g_eventLogger->info("Failed to unlock thread %d, ret_code: %d",
+                          NdbThread_GetTid(theReceiveThread), ret_code);
       return ret_code;
     }
   }
@@ -1356,10 +1371,8 @@ TransporterFacade::lock_recv_thread_cpu()
     int ret_code = Ndb_LockCPU(theReceiveThread, cpu_id);
     if (ret_code)
     {
-      fprintf(stderr, "Failed to lock thread %d to CPU %u, ret_code: %d",
-              NdbThread_GetTid(theReceiveThread),
-              cpu_id,
-              ret_code);
+      g_eventLogger->info("Failed to lock thread %d to CPU %u, ret_code: %d",
+                          NdbThread_GetTid(theReceiveThread), cpu_id, ret_code);
       return ret_code;
     }
   }
@@ -1412,9 +1425,9 @@ TransporterFacade::get_recv_thread_activation_threshold() const
  * On Windows it sets the thread priority to THREAD_PRIORITY_HIGHEST.
  */
 bool
-TransporterFacade::raise_thread_prio()
+TransporterFacade::raise_thread_prio(NdbThread *thread)
 {
-  int ret_code = NdbThread_SetThreadPrio(theReceiveThread, 9);
+  int ret_code = NdbThread_SetThreadPrio(thread, 9);
   return (ret_code == 0) ? true : false;
 }
 
@@ -1439,7 +1452,6 @@ static const int DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD = 8;
 */
 void TransporterFacade::threadMainReceive(void)
 {
-  bool stay_active = false;
   NDB_TICKS lastCheck = NdbTick_getCurrentTicks();
   NDB_TICKS receive_activation_time;
   init_cpu_usage(lastCheck);
@@ -1452,7 +1464,7 @@ void TransporterFacade::threadMainReceive(void)
   theTransporterRegistry->startReceiving();
   recv_client = new ReceiveThreadClient(this);
   lock_recv_thread_cpu();
-  const bool raised_thread_prio = raise_thread_prio();
+  const bool raised_thread_prio = raise_thread_prio(theReceiveThread);
   while(!theStopReceive)
   {
     const NDB_TICKS currTime = NdbTick_getCurrentTicks();
@@ -1467,16 +1479,14 @@ void TransporterFacade::threadMainReceive(void)
      * NOTE: We set this flag without mutex, which could result in
      * a 'check' to be missed now and then. 
      */
-    Uint64 expired_time_in_micros =
-      NdbTick_Elapsed(lastCheck,currTime).microSec();
-    if (expired_time_in_micros >= Uint64(100000))
+    if (unlikely(NdbTick_Elapsed(lastCheck,currTime).milliSec() >= 100))
     {
       m_check_connections = true;
       lastCheck = currTime;
       check_cpu_usage(currTime);
     }
    
-    if (!stay_active)
+    if (recv_client->m_state != ReceiveThreadClient::ACTIVE)
     {
       /*
          We only activate as receiver thread if
@@ -1486,20 +1496,14 @@ void TransporterFacade::threadMainReceive(void)
       */
       if (m_num_active_clients > min_active_clients_recv_thread)
       {
-        stay_active = true;            //Activate as receiver thread
+        recv_client->m_state = ReceiveThreadClient::ACTIVE;
         m_num_active_clients = 0;
         receive_activation_time = currTime;
       }
       else
       {
-        if (m_check_connections)
-        {
-          recv_client->prepare_poll();
-          do_poll(recv_client,0);
-          recv_client->complete_poll();
-        }
-        NdbSleep_MilliSleep(100);
-        continue;
+        // The recv_client will 'SNOOZE' in the poll queue.
+        recv_client->m_state = ReceiveThreadClient::SNOOZE;
       }
     }
     else
@@ -1517,7 +1521,7 @@ void TransporterFacade::threadMainReceive(void)
         if (m_num_active_clients < (min_active_clients_recv_thread / 2))
         {
           /* Go back to not have an active receive thread */
-          stay_active = false;
+          recv_client->m_state = ReceiveThreadClient::DEACTIVATE;
         }
         m_num_active_clients = 0; /* Reset active clients for next timeslot */
         unlock_poll_mutex();
@@ -1539,12 +1543,13 @@ void TransporterFacade::threadMainReceive(void)
      * as this means that we have a better chance of handling the
      * offered load than any other thread has.
      */
-    const bool stay_poll_owner = stay_active &&
-                                 ((min_active_clients_recv_thread == 0) ||
-                                  raised_thread_prio);
+    const bool stay_poll_owner =
+        recv_client->m_state == ReceiveThreadClient::ACTIVE &&
+        raised_thread_prio;
 
     /* Don't poll for 10ms if receive thread is deactivating */
-    const Uint32 max_wait = (stay_active) ? 10 : 0;
+    const Uint32 max_wait =
+        (recv_client->m_state == ReceiveThreadClient::DEACTIVATE) ? 0 : 10;
 
     recv_client->prepare_poll();
     do_poll(recv_client, max_wait, stay_poll_owner);
@@ -1832,9 +1837,9 @@ TransporterFacade::configure(NodeId nodeId,
     if (!m_send_buffer.init(total_send_buffer_size_t,
                             reserved_send_buffer_size_t))
     {
-      ndbout << "Unable to allocate "
-             << total_send_buffer_size_t
-             << " bytes of memory for send buffers!!" << endl;
+      g_eventLogger->info(
+          "Unable to allocate %lu bytes of memory for send buffers!!",
+          total_send_buffer_size_t);
       DBUG_RETURN(false);
     }
   }
@@ -1866,7 +1871,7 @@ TransporterFacade::configure(NodeId nodeId,
   iter.get(CFG_MIXOLOGY_LEVEL, &mixologyLevel);
   if (mixologyLevel)
   {
-    ndbout_c("Mixology level set to 0x%x", mixologyLevel);
+    g_eventLogger->info("Mixology level set to 0x%x", mixologyLevel);
     theTransporterRegistry->setMixologyLevel(mixologyLevel);
   }
 #endif
@@ -2321,8 +2326,8 @@ TransporterFacade::sendSignal(trp_client* clnt,
   }
   else
   {
-    ndbout << "ERR: SigLen = " << Tlen << " BlockRec = " << TBno;
-    ndbout << " SignalNo = " << aSignal->theVerId_signalNumber << endl;
+    g_eventLogger->info("ERR: SigLen = %u BlockRec = %u SignalNo = %d", Tlen,
+                        TBno, aSignal->theVerId_signalNumber);
     assert(0);
   }//if
   return -1; // Node Dead
@@ -3128,8 +3133,8 @@ TransporterFacade::mapRefToIdx(Uint32 reference) const
  * Propose a client to become new poll owner if
  * no one is currently assigned.
  *
- * Prefer the receiver thread if it is waiting in the
- * poll_queue, else pick the 'last' in the poll_queue.
+ * Prefer the receiver thread if it is waiting in the poll_queue and is
+ * in ACTIVE state, else pick the 'last' in the poll_queue.
  *
  * The suggested poll owner will race with any other clients
  * not yet 'WAITING' to become poll owner. (If any such arrives.)
@@ -3154,13 +3159,20 @@ TransporterFacade::propose_poll_owner()
     }
 
     /**
-     * Prefer receiver thread as new poll owner *candidate*,
-     * else pick the last client in the poll queue,
+     * Prefer an ACTIVE receiver thread as the new poll owner *candidate*.
+     * Else pick the last client in the poll queue, not being the recv_client
      */
-    trp_client* const new_owner = 
-        (recv_client && recv_client->m_poll.m_poll_queue)
-           ? recv_client 
-           : m_poll_queue_tail;
+    trp_client* const new_owner =
+      // Prefer recv_client if in ACTIVE state
+      (recv_client && recv_client->m_poll.m_poll_queue &&
+       recv_client->m_state == ReceiveThreadClient::ACTIVE)
+         ? recv_client
+         // Avoid the recv_client as it is not ACTIVE
+         : (m_poll_queue_tail == recv_client &&
+            m_poll_queue_tail->m_poll.m_prev != nullptr)
+             // 'tail' is the recv_client, prefer another
+             ? m_poll_queue_tail->m_poll.m_prev
+             : m_poll_queue_tail;
 
     /**
      * Note: we can only try lock here, to prevent potential deadlock
@@ -3299,7 +3311,7 @@ TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
         break;
       case trp_client::PollQueue::PQ_IDLE:
         dbg("%p - PQ_IDLE", clnt);
-        // fall-through
+        [[fallthrough]];
       default:
         require(false); // should not happen!!
         break;
@@ -3980,7 +3992,7 @@ TransporterFacade::get_bytes_to_send_iovec(NodeId node,
   {
     dst[count].iov_base = page->m_data+page->m_start;
     dst[count].iov_len = page->m_bytes;
-    assert(page->m_start + page->m_bytes <= page->max_data_bytes());
+    assert(Uint32{page->m_start} + page->m_bytes <= page->max_data_bytes());
     page = page->m_next;
     count++;
   }
@@ -4033,7 +4045,7 @@ TransporterFacade::bytes_sent(NodeId node,
 
     page->m_start += bytes;
     page->m_bytes -= bytes;
-    assert(page->m_start + page->m_bytes <= page->max_data_bytes());
+    assert(Uint32{page->m_start} + page->m_bytes <= page->max_data_bytes());
     b->m_head = page;
   }
 
@@ -4590,7 +4602,7 @@ TransporterFacade::consume_sendbuffer(Uint32 bytes_remain)
 {
   if (consumed_sendbuff)
   {
-    ndbout_c("SendBuff already consumed, release first");
+    g_eventLogger->info("SendBuff already consumed, release first");
     return;
   }
 
@@ -4615,11 +4627,10 @@ TransporterFacade::consume_sendbuffer(Uint32 bytes_remain)
     }
     used = m_send_buffer.get_total_used_send_buffer_size();
   }
-    
-  ndbout_c("Consumed %u pages, remaining bytes : %llu",
-           page_count,
-           m_send_buffer.get_total_send_buffer_size() - 
-           m_send_buffer.get_total_used_send_buffer_size());
+
+  g_eventLogger->info("Consumed %u pages, remaining bytes : %llu", page_count,
+                      m_send_buffer.get_total_send_buffer_size() -
+                          m_send_buffer.get_total_used_send_buffer_size());
 }
 
 void
@@ -4627,7 +4638,7 @@ TransporterFacade::release_consumed_sendbuffer()
 {
   if (!consumed_sendbuff)
   {
-    ndbout_c("No sendbuffer consumed");
+    g_eventLogger->info("No sendbuffer consumed");
     return;
   }
   
@@ -4635,9 +4646,9 @@ TransporterFacade::release_consumed_sendbuffer()
   
   consumed_sendbuff = NULL;
 
-  ndbout_c("Remaining bytes : %llu",
-           m_send_buffer.get_total_send_buffer_size() - 
-           m_send_buffer.get_total_used_send_buffer_size());
+  g_eventLogger->info("Remaining bytes : %llu",
+                      m_send_buffer.get_total_send_buffer_size() -
+                          m_send_buffer.get_total_used_send_buffer_size());
 }
 
 #endif

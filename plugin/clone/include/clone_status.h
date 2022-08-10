@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ class Table_pfs {
   Table_pfs(uint32_t num_rows);
 
   /** Destructor. */
-  virtual ~Table_pfs() {}
+  virtual ~Table_pfs() = default;
 
   /** Read column at index of current row. Implementation
   is specific to table.

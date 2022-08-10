@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,16 +35,18 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/string_utils.h"  // split_string
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/tls_server_context.h"
 #include "mysql_server_mock.h"
-#include "mysqlrouter/plugin_config.h"
+#include "mysqlrouter/io_component.h"
 
 IMPORT_LOG_FUNCTIONS()
 
-static constexpr std::array<std::pair<const char *, mysql_ssl_mode>, 3>
+namespace {
+constexpr const std::array<std::pair<const char *, mysql_ssl_mode>, 3>
     allowed_ssl_modes = {{
         {"DISABLED", SSL_MODE_DISABLED},
         {"PREFERRED", SSL_MODE_PREFERRED},
@@ -53,44 +55,53 @@ static constexpr std::array<std::pair<const char *, mysql_ssl_mode>, 3>
 
 static constexpr const char kSectionName[]{"mock_server"};
 
-static mysql_ssl_mode get_option_ssl_mode(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    throw std::invalid_argument(res.error().message());
-  }
+class SslModeOption {
+ public:
+  mysql_ssl_mode operator()(const std::string &value,
+                            const std::string &option_desc) {
+    std::string name = value;
+    // convert name to upper-case to get case-insenstive comparison.
+    std::transform(value.begin(), value.end(), name.begin(), ::toupper);
 
-  // convert name to upper-case to get case-insenstive comparison.
-  auto name = res.value();
-  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-
-  // check if the mode is known
-  const auto it =
-      std::find_if(allowed_ssl_modes.begin(), allowed_ssl_modes.end(),
-                   [name](auto const &allowed_ssl_mode) {
-                     return name == allowed_ssl_mode.first;
-                   });
-  if (it != allowed_ssl_modes.end()) {
-    return it->second;
-  }
-
-  // build list of allowed modes, but don't mention the default case.
-  std::string allowed_names;
-  for (const auto &allowed_ssl_mode : allowed_ssl_modes) {
-    if (!allowed_names.empty()) {
-      allowed_names.append(",");
+    // check if the mode is known
+    const auto it =
+        std::find_if(allowed_ssl_modes.begin(), allowed_ssl_modes.end(),
+                     [name](auto const &allowed_ssl_mode) {
+                       return name == allowed_ssl_mode.first;
+                     });
+    if (it != allowed_ssl_modes.end()) {
+      return it->second;
     }
 
-    allowed_names += allowed_ssl_mode.first;
+    // build list of allowed modes, but don't mention the default case.
+    std::string allowed_names;
+    for (const auto &allowed_ssl_mode : allowed_ssl_modes) {
+      if (!allowed_names.empty()) {
+        allowed_names.append(",");
+      }
+
+      allowed_names += allowed_ssl_mode.first;
+    }
+
+    throw std::invalid_argument("invalid value '" + value + "' in option " +
+                                option_desc +
+                                ". Allowed values: " + allowed_names);
   }
+};
 
-  throw std::invalid_argument("invalid value '" + res.value() + "' for " +
-                              option.name() +
-                              ". Allowed are: " + allowed_names + ".");
-}
+class StringsOption {
+ public:
+  std::vector<std::string> operator()(const std::string &value,
+                                      const std::string & /* option_desc */) {
+    return mysql_harness::split_string(value, ',');
+  }
+};
+}  // namespace
 
-class PluginConfig : public mysqlrouter::BasePluginConfig {
+using mysql_harness::IntOption;
+using mysql_harness::StringOption;
+
+class PluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string trace_filename;
   std::vector<std::string> module_prefixes;
@@ -107,31 +118,22 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
   mysql_ssl_mode ssl_mode;
   std::string tls_version;
 
-  std::vector<std::string> get_option_strings(
-      const mysql_harness::ConfigSection *section,
-      const std::string &option_name) {
-    auto val = get_option_string(section, option_name);
-
-    return mysql_harness::split_string(val, ',');
-  }
-
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        trace_filename(get_option_string(section, "filename")),
-        module_prefixes(get_option_strings(section, "module_prefix")),
-        srv_address(get_option_string(section, "bind_address")),
-        srv_port(get_uint_option<uint16_t>(section, "port")),
-        srv_protocol(get_option_string(section, "protocol")),
-        ssl_ca(get_option_string(section, "ssl_ca")),
-        ssl_capath(get_option_string(section, "ssl_capath")),
-        ssl_cert(get_option_string(section, "ssl_cert")),
-        ssl_key(get_option_string(section, "ssl_key")),
-        ssl_cipher(get_option_string(section, "ssl_cipher")),
-        ssl_crl(get_option_string(section, "ssl_crl")),
-        ssl_crlpath(get_option_string(section, "ssl_crlpath")),
-        ssl_mode(get_option_ssl_mode(
-            section, mysql_harness::ConfigOption("ssl_mode", "disabled"))),
-        tls_version(get_option_string(section, "tls_version")) {}
+      : mysql_harness::BasePluginConfig(section),
+        trace_filename(get_option(section, "filename", StringOption{})),
+        module_prefixes(get_option(section, "module_prefix", StringsOption{})),
+        srv_address(get_option(section, "bind_address", StringOption{})),
+        srv_port(get_option(section, "port", IntOption<uint16_t>{})),
+        srv_protocol(get_option(section, "protocol", StringOption{})),
+        ssl_ca(get_option(section, "ssl_ca", StringOption{})),
+        ssl_capath(get_option(section, "ssl_capath", StringOption{})),
+        ssl_cert(get_option(section, "ssl_cert", StringOption{})),
+        ssl_key(get_option(section, "ssl_key", StringOption{})),
+        ssl_cipher(get_option(section, "ssl_cipher", StringOption{})),
+        ssl_crl(get_option(section, "ssl_crl", StringOption{})),
+        ssl_crlpath(get_option(section, "ssl_crlpath", StringOption{})),
+        ssl_mode(get_option(section, "ssl_mode", SslModeOption{})),
+        tls_version(get_option(section, "tls_version", StringOption{})) {}
 
   std::string get_default(const std::string &option) const override {
     std::error_code ec;
@@ -161,8 +163,13 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
   }
 };
 
-static std::map<std::string, std::shared_ptr<server_mock::MySQLServerMock>>
-    mock_servers;
+// work-guards to keep the io-context alive
+//
+// - one per mock-server instance
+// - it MUST be taken before the io-context 'starts'
+// - it MUST be released after routing is finished using it (before routing
+// 'start' ends)
+Monitor<std::list<IoComponent::Workguard>> io_context_work_guards{{}};
 
 static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
@@ -175,93 +182,9 @@ static void init(mysql_harness::PluginFuncEnv *env) {
           continue;
         }
 
-        PluginConfig config{section};
-        const std::string key = section->name + ":" + section->key;
-
-        TlsServerContext tls_server_ctx;
-
-        if (config.ssl_mode != SSL_MODE_DISABLED) {
-          if (!config.tls_version.empty()) {
-            const std::map<std::string, TlsVersion> known_tls_versions{
-                {"TLSv1", TlsVersion::TLS_1_0},
-                {"TLSv1.1", TlsVersion::TLS_1_1},
-                {"TLSv1.2", TlsVersion::TLS_1_2},
-                {"TLSv1.3", TlsVersion::TLS_1_3},
-            };
-
-            auto const it = known_tls_versions.find(config.tls_version);
-            if (it == known_tls_versions.end()) {
-              throw std::runtime_error(
-                  "setting 'tls_version=" + config.tls_version +
-                  "' failed. Unknown TLS version.");
-            }
-
-            TlsVersion min_version = it->second;
-            TlsVersion max_version = min_version;
-            tls_server_ctx.version_range(min_version, max_version);
-          }
-
-          if (!config.ssl_ca.empty() || !config.ssl_capath.empty()) {
-            auto res = tls_server_ctx.ssl_ca(config.ssl_ca, config.ssl_capath);
-            if (!res) {
-              throw std::system_error(
-                  res.error(), "setting ssl_ca='" + config.ssl_ca +
-                                   "' or ssl_capath='" + config.ssl_capath +
-                                   "' failed");
-            }
-          }
-
-          if (config.ssl_key.empty() || config.ssl_cert.empty()) {
-            throw std::invalid_argument(
-                "if ssl_mode is not DISABLED, ssl_key and "
-                "ssl_cert MUST be set. ssl_key is " +
-                (config.ssl_key.empty() ? "empty"
-                                        : "'" + config.ssl_key + "'") +
-                ", ssl_cert is " +
-                (config.ssl_cert.empty() ? "empty"
-                                         : "'" + config.ssl_cert + "'"));
-          } else {
-            auto res = tls_server_ctx.load_key_and_cert(config.ssl_key,
-                                                        config.ssl_cert);
-            if (!res) {
-              throw std::system_error(res.error(),
-                                      "setting ssl_key='" + config.ssl_key +
-                                          "' or ssl_cert='" + config.ssl_cert +
-                                          "' failed");
-            }
-          }
-
-          if (!config.ssl_cipher.empty()) {
-            auto res = tls_server_ctx.cipher_list(config.ssl_cipher);
-            if (!res) {
-              throw std::system_error(
-                  res.error(),
-                  "setting ssl_cipher='" + config.ssl_cipher + "' failed");
-            }
-          }
-
-          if (!config.ssl_crl.empty() || !config.ssl_crlpath.empty()) {
-            auto res = tls_server_ctx.crl(config.ssl_crl, config.ssl_crlpath);
-            if (!res) {
-              throw std::system_error(
-                  res.error(), "setting ssl_crl='" + config.ssl_crl +
-                                   "' or ssl_crlpath='" + config.ssl_crlpath +
-                                   "' failed");
-            }
-          }
-
-          // if the client presents a cert, verify it.
-          tls_server_ctx.verify(TlsVerify::PEER);
-        }
-
-        mock_servers.emplace(std::make_pair(
-            key, std::make_shared<server_mock::MySQLServerMock>(
-                     config.trace_filename, config.module_prefixes,
-                     config.srv_address, config.srv_port, config.srv_protocol,
-                     0, std::move(tls_server_ctx), config.ssl_mode)));
-
-        MockServerComponent::get_instance().register_server(
-            mock_servers.at(key));
+        io_context_work_guards([](auto &work_guards) {
+          work_guards.emplace_back(IoComponent::get_instance());
+        });
       }
     }
   } catch (const std::invalid_argument &exc) {
@@ -284,7 +207,91 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 
   try {
-    auto srv = mock_servers.at(name);
+    PluginConfig config{section};
+    const std::string key = section->name + ":" + section->key;
+
+    TlsServerContext tls_server_ctx;
+
+    if (config.ssl_mode != SSL_MODE_DISABLED) {
+      if (!config.tls_version.empty()) {
+        const std::map<std::string, TlsVersion> known_tls_versions{
+            {"TLSv1", TlsVersion::TLS_1_0},
+            {"TLSv1.1", TlsVersion::TLS_1_1},
+            {"TLSv1.2", TlsVersion::TLS_1_2},
+            {"TLSv1.3", TlsVersion::TLS_1_3},
+        };
+
+        auto const it = known_tls_versions.find(config.tls_version);
+        if (it == known_tls_versions.end()) {
+          throw std::runtime_error(
+              "setting 'tls_version=" + config.tls_version +
+              "' failed. Unknown TLS version.");
+        }
+
+        TlsVersion min_version = it->second;
+        TlsVersion max_version = min_version;
+        tls_server_ctx.version_range(min_version, max_version);
+      }
+
+      if (!config.ssl_ca.empty() || !config.ssl_capath.empty()) {
+        auto res = tls_server_ctx.ssl_ca(config.ssl_ca, config.ssl_capath);
+        if (!res) {
+          throw std::system_error(res.error(),
+                                  "setting ssl_ca='" + config.ssl_ca +
+                                      "' or ssl_capath='" + config.ssl_capath +
+                                      "' failed");
+        }
+      }
+
+      if (config.ssl_key.empty() || config.ssl_cert.empty()) {
+        throw std::invalid_argument(
+            "if ssl_mode is not DISABLED, ssl_key and "
+            "ssl_cert MUST be set. ssl_key is " +
+            (config.ssl_key.empty() ? "empty" : "'" + config.ssl_key + "'") +
+            ", ssl_cert is " +
+            (config.ssl_cert.empty() ? "empty" : "'" + config.ssl_cert + "'"));
+      } else {
+        auto res =
+            tls_server_ctx.load_key_and_cert(config.ssl_key, config.ssl_cert);
+        if (!res) {
+          throw std::system_error(res.error(),
+                                  "setting ssl_key='" + config.ssl_key +
+                                      "' or ssl_cert='" + config.ssl_cert +
+                                      "' failed");
+        }
+      }
+
+      if (!config.ssl_cipher.empty()) {
+        auto res = tls_server_ctx.cipher_list(config.ssl_cipher);
+        if (!res) {
+          throw std::system_error(
+              res.error(),
+              "setting ssl_cipher='" + config.ssl_cipher + "' failed");
+        }
+      }
+
+      if (!config.ssl_crl.empty() || !config.ssl_crlpath.empty()) {
+        auto res = tls_server_ctx.crl(config.ssl_crl, config.ssl_crlpath);
+        if (!res) {
+          throw std::system_error(
+              res.error(), "setting ssl_crl='" + config.ssl_crl +
+                               "' or ssl_crlpath='" + config.ssl_crlpath +
+                               "' failed");
+        }
+      }
+
+      // if the client presents a cert, verify it.
+      tls_server_ctx.verify(TlsVerify::PEER);
+    }
+
+    net::io_context &io_ctx = IoComponent::get_instance().io_context();
+
+    auto srv = std::make_shared<server_mock::MySQLServerMock>(
+        io_ctx, config.trace_filename, config.module_prefixes,
+        config.srv_address, config.srv_port, config.srv_protocol, 0,
+        std::move(tls_server_ctx), config.ssl_mode);
+
+    MockServerComponent::get_instance().register_server(key, srv);
 
     srv->run(env);
   } catch (const std::invalid_argument &exc) {
@@ -298,29 +305,46 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   } catch (...) {
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
+
+  // remove _one_ work-guard.
+  io_context_work_guards(
+      [](auto &work_guards) { work_guards.erase(work_guards.begin()); });
 }
 
-static const std::array<const char *, 3> required = {{
+static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
+  io_context_work_guards([](auto &work_guards) { work_guards.clear(); });
+}
+
+static const std::array<const char *, 4> required = {{
     "logger",
     "router_openssl",
     "router_protobuf",
+    "io",
 }};
+
+static const std::array<const char *, 14> supported_options{
+    "filename", "module_prefix", "bind_address", "port",       "protocol",
+    "ssl_ca",   "ssl_capath",    "ssl_cert",     "ssl_key",    "ssl_cipher",
+    "ssl_crl",  "ssl_crlpath",   "ssl_mode",     "tls_version"};
 
 extern "C" {
 mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
     mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
-    "Routing MySQL connections between MySQL clients/connectors and "
-    "servers",  // name
+    "Mock MySQL Server for testing",         // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
-    nullptr,  // deinit
+    deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

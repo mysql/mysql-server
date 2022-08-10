@@ -1,12 +1,15 @@
+# One of the tests requires Perl Expect module, not present on Windows
+--source include/not_windows.inc
+
 --echo #
 --echo # Bug#23102944: MYSQLPUMP LEAKS MEMORY IN CASE OF ERRORS.
 --echo #
 
 --echo # testing a failed connection: must not crash
---replace_regex /\([0-9]*\) while connecting/(errno) while connecting/
+--replace_regex /\([-0-9]*\) while connecting/(errno) while connecting/
 --exec $MYSQL_PUMP --host=non_existent_ghost --add-locks 2>&1
 --echo # testing an invalid option: must not crash
---replace_regex /\([0-9]*\) while connecting/(errno) while connecting/
+--replace_regex /\([-0-9]*\) while connecting/(errno) while connecting/
 --exec $MYSQL_PUMP --host=non_existent_ghost --parallelism=3 2>&1
 
 --echo #
@@ -131,5 +134,47 @@ CREATE TABLE B32340208.test (
 DROP DATABASE B32340208;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug32340208.dump
 SET sql_mode = DEFAULT;
+
+-- echo #
+-- echo # Bug #33688141 mysqlpump exits in regards to 'std::logic_error'
+-- echo #
+
+# Write configuration with password not specified
+--write_file $MYSQLTEST_VARDIR/tmp/bug33688141.cnf
+[mysqlpump]
+exclude_databases=db1,mysql,mtr
+EOF
+
+# No $ sign before the name to make it visible in Perl code below
+--let MYSQLPUMP_ARGS = --defaults-file=$MYSQLTEST_VARDIR/tmp/bug33688141.cnf -uroot -p
+--let MYSQLPUMP_LOG = $MYSQL_TMP_DIR/bug33688141.txt
+
+# Start a mysqlpump and interactively fill up the dummy password.
+# Mysqlpump should exit cleanly with "Dump process encountered error and will not continue."
+--perl
+use strict;
+require Expect;
+
+# Start the mysqlpump client
+# The client should enter password prompt, we'll type a password 'a'.
+# Use "log_stdout(0)" to avoid leaking output to record file because it may contain timestamps and custom paths.
+my $texp = new Expect();
+$texp->raw_pty(1);
+$texp->log_stdout(0);
+$texp->log_file("$ENV{MYSQLPUMP_LOG}", "w");
+$texp->spawn("$ENV{MYSQLPUMP} $ENV{MYSQLPUMP_ARGS}");
+$texp->expect(15,' -re ',[ 'Enter password:' => sub {
+    $texp->send("a\n");}]) or die "Error sending the password";
+$texp->soft_close();
+EOF
+
+--echo # Expect log that proves the client clean exit
+--let SEARCH_FILE = $MYSQLPUMP_LOG
+--let SEARCH_PATTERN=Dump process encountered error and will not continue.
+--source include/search_pattern.inc
+
+# cleanup for Bug #33688141
+--remove_file $MYSQLPUMP_LOG
+--remove_file $MYSQLTEST_VARDIR/tmp/bug33688141.cnf
 
 --echo # End of 8.0 tests

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg, const uchar *key,
           (void)fprintf(stream, "%d", (uint)*key++);
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       case HA_KEYTYPE_TEXT:
       case HA_KEYTYPE_NUM:
         if (keyseg->flag & HA_SPACE_PACK) {

@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_COORDINATE_RANGE_VISITOR_H_INCLUDED
 #define SQL_GIS_COORDINATE_RANGE_VISITOR_H_INCLUDED
 
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ namespace gis {
 /// reference system.
 ///
 /// If a coordinate value is found to be out of range, the visitor returns
-/// true. Otherwise, it retruns false.
+/// true. Otherwise, it returns false.
 ///
 /// Checking stops on the first value found to be out of range. Cartesian
 /// coordinates are always within range.

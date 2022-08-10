@@ -8652,7 +8652,7 @@ BEGIN;
 SET DEBUG_SYNC='
     semi_consistent_read_would_wait
     SIGNAL con2_would_wait
-    WAIT_FOR con2_can_unlock';
+    WAIT_FOR con2_can_peek';
 SET DEBUG_SYNC='
     row_search_for_mysql_before_return
     SIGNAL con2_returns_row
@@ -8687,8 +8687,7 @@ PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	3
 PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
 PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	5
 PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	6
-PRIMARY	RECORD	X,REC_NOT_GAP	WAITING	6
-SET DEBUG_SYNC='now SIGNAL con2_can_unlock';
+SET DEBUG_SYNC='now SIGNAL con2_can_peek';
 SET DEBUG_SYNC='now WAIT_FOR con2_returns_row';
 SELECT index_name, lock_type, lock_mode, lock_status, lock_data
 FROM performance_schema.data_locks

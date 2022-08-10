@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_TRANSFORM_FUNCTOR_H_INCLUDED
 #define SQL_GIS_TRANSFORM_FUNCTOR_H_INCLUDED
 
-// Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,13 @@
 #include <memory>  // std::unique_ptr
 #include <string>
 
+#include "my_compiler.h"
+
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized")
 #include <boost/geometry.hpp>
 #include <boost/geometry/srs/transformation.hpp>
+MY_COMPILER_DIAGNOSTIC_POP()
 
 #include "sql/gis/functor.h"
 #include "sql/gis/geometries.h"
@@ -73,12 +78,19 @@ class Transform : public Unary_functor<std::unique_ptr<Geometry>> {
 
   std::unique_ptr<Geometry> operator()(const Geometry &g) const override;
   std::unique_ptr<Geometry> eval(const Geometry &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_point &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_point &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_linestring &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_linestring &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_polygon &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_polygon &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_geometrycollection &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_geometrycollection &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_multipoint &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_multipoint &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_multilinestring &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_multilinestring &g) const;
+  std::unique_ptr<Geometry> eval(const Cartesian_multipolygon &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_multipolygon &g) const;
 };
 

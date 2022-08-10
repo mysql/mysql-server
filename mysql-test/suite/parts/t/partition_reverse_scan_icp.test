@@ -38,6 +38,7 @@ delete from t1 where date_col>='2015-01-01' and date_col<='2016-01-06' limit 500
 
 #Range condition spans multiple partitions  
 set @cnt=1;
+--skip_if_hypergraph  # Depends on the non-deterministic DELETE statement above.
 select * from t1 force index(date_col) where
    col1 + 10000000 > (@cnt:=@cnt+1) and date_col >= date('2014-04-06') AND date_col < date('2015-02-10' + interval 1 day)
 ORDER BY date_col DESC;

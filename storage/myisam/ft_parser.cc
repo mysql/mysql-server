@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,7 +119,7 @@ uchar ft_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
                   FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param) {
   uchar *doc = *start;
   int ctype;
-  uint mwc, length;
+  uint length;
   int mbl;
 
   param->yesno = (FTB_YES == ' ') ? 1 : (param->quot != nullptr);
@@ -171,19 +171,14 @@ uchar ft_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
       param->weight_adjust = param->wasign = 0;
     }
 
-    mwc = length = 0;
+    length = 0;
     for (word->pos = doc; doc < end;
          length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, (uchar *)doc, (uchar *)end);
-      if (true_word_char(ctype, *doc))
-        mwc = 0;
-      else if (!misc_word_char(*doc) || mwc)
-        break;
-      else
-        mwc++;
+      if (!true_word_char(ctype, *doc)) break;
     }
     param->prev = 'A'; /* be sure *prev is true_word_char */
-    word->len = (uint)(doc - word->pos) - mwc;
+    word->len = (uint)(doc - word->pos);
     if ((param->trunc = (doc < end && *doc == FTB_TRUNC))) doc++;
 
     if (((length >= ft_min_word_len &&
@@ -213,7 +208,7 @@ ret:
 uchar ft_simple_get_word(const CHARSET_INFO *cs, uchar **start,
                          const uchar *end, FT_WORD *word, bool skip_stopwords) {
   uchar *doc = *start;
-  uint mwc, length;
+  uint length;
   int mbl;
   int ctype;
   DBUG_TRACE;
@@ -225,19 +220,14 @@ uchar ft_simple_get_word(const CHARSET_INFO *cs, uchar **start,
       if (true_word_char(ctype, *doc)) break;
     }
 
-    mwc = length = 0;
+    length = 0;
     for (word->pos = doc; doc < end;
          length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, doc, end);
-      if (true_word_char(ctype, *doc))
-        mwc = 0;
-      else if (!misc_word_char(*doc) || mwc)
-        break;
-      else
-        mwc++;
+      if (!true_word_char(ctype, *doc)) break;
     }
 
-    word->len = (uint)(doc - word->pos) - mwc;
+    word->len = (uint)(doc - word->pos);
 
     if (skip_stopwords == false ||
         (length >= ft_min_word_len && length < ft_max_word_len &&
@@ -257,7 +247,7 @@ void ft_parse_init(TREE *wtree, const CHARSET_INFO *cs) {
 
 static int ft_add_word(MYSQL_FTPARSER_PARAM *param, char *word, int word_len,
                        MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info
-                           MY_ATTRIBUTE((unused))) {
+                       [[maybe_unused]]) {
   TREE *wtree;
   FT_WORD w;
   MY_FT_PARSER_PARAM *ft_param = (MY_FT_PARSER_PARAM *)param->mysql_ftparam;
@@ -333,8 +323,8 @@ MYSQL_FTPARSER_PARAM *ftparser_alloc_param(MI_INFO *info) {
         mi_key_memory_FTPARSER_PARAM,
         MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) * info->s->ftkeys,
         MYF(MY_WME | MY_ZEROFILL));
-    init_alloc_root(mi_key_memory_ft_memroot, &info->ft_memroot,
-                    FTPARSER_MEMROOT_ALLOC_SIZE, 0);
+    ::new ((void *)&info->ft_memroot)
+        MEM_ROOT(mi_key_memory_ft_memroot, FTPARSER_MEMROOT_ALLOC_SIZE);
   }
   return info->ftparser_param;
 }
@@ -370,7 +360,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr,
 
 void ftparser_call_deinitializer(MI_INFO *info) {
   uint i, j, keys = info->s->state.header.keys;
-  free_root(&info->ft_memroot, MYF(0));
+  info->ft_memroot.Clear();
   if (!info->ftparser_param) return;
   for (i = 0; i < keys; i++) {
     MI_KEYDEF *keyinfo = &info->s->keyinfo[i];

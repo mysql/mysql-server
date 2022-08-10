@@ -15,10 +15,10 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 [connection slave]
-include/assert.inc [MASTER_POS_WAIT returns -1 if the timeout has been exceeded.]
+include/assert.inc [SOURCE_POS_WAIT returns -1 if the timeout has been exceeded.]
 include/assert.inc [Table t2 on the slave has no records]
 UNLOCK TABLE;
-include/assert.inc [MASTER_POS_WAIT succeeds.]
+include/assert.inc [SOURCE_POS_WAIT succeeds.]
 include/diff_tables.inc [master:test.t1,slave:test.t1]
 include/diff_tables.inc [master:test.t2,slave:test.t2]
 [connection master]

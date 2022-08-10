@@ -11,6 +11,11 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
+# Needs --xa_detach_on_prepare to hit debug sync points
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 1
+--source include/only_with_option.inc
+
 --echo # FTWRL takes two global metadata locks -- a global shared
 --echo # metadata lock and the commit blocker lock.
 --echo # The first lock prevents DDL from taking place.
@@ -1839,7 +1844,7 @@ insert into t3_trans values (1);
 xa end 'test1';
 xa prepare 'test1';
 set debug_sync='RESET';
-set debug_sync='trans_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+set debug_sync='detached_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
 --send xa commit 'test1'
 --echo # Switching to connection '$con_aux1'.
 connection $con_aux1;
@@ -1867,7 +1872,6 @@ unlock tables;
 connection default;
 delete from t3_trans;
 set debug_sync= "RESET";
-
 
 --echo #
 --echo # 38) Test effect of auto-commit mode for DML on transactional

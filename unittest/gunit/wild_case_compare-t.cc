@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@ namespace wild_case_compare_unittest {
 
 class WildCaseCompareTest : public ::testing::Test {
  protected:
-  WildCaseCompareTest() {}
+  WildCaseCompareTest() = default;
   static void TearDownTestCase() {}
 };
 

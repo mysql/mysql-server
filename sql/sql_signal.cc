@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_error_bits.h"
+#include "mysql/components/services/bits/psi_error_bits.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysqld_error.h"     // ER_*
 #include "sql/derror.h"       // ER_THD
@@ -95,7 +95,7 @@ bool Set_signal_information::set_item(enum_condition_item_name name,
 }
 
 void Sql_cmd_common_signal::assign_defaults(
-    THD *thd MY_ATTRIBUTE((unused)), Sql_condition *cond, bool set_level_code,
+    THD *thd [[maybe_unused]], Sql_condition *cond, bool set_level_code,
     Sql_condition::enum_severity_level level, int sqlcode) {
   if (set_level_code) {
     cond->m_severity_level = level;

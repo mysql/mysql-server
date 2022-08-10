@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,361 +26,322 @@
 
 #include <algorithm>  // transform
 #include <array>
+#include <cinttypes>
 #include <initializer_list>
 #include <stdexcept>  // invalid_argument
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "context.h"
 #include "hostname_validator.h"
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"  // trim
 #include "mysql_router_thread.h"         // kDefaultStackSizeInKiloByte
 #include "mysqlrouter/routing.h"         // AccessMode
+#include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // is_valid_socket_name
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
-using namespace stdx::string_view_literals;
+using namespace std::string_view_literals;
+IMPORT_LOG_FUNCTIONS()
 
-static std::string get_log_prefix(const mysql_harness::ConfigSection *section,
-                                  const mysql_harness::ConfigOption &option) {
-  // get_section_name() knows about the options from the DEFAULT section
-  // and returns "" in case the option isn't set
-  std::string section_name = section->get_section_name(option.name());
-  if (section_name.empty()) {
-    section_name = section->key.empty() ? section->name
-                                        : section->name + ":" + section->key;
+const std::array<const char *, 29> routing_supported_options{
+    "protocol",
+    "destinations",
+    "bind_port",
+    "bind_address",
+    "socket",
+    "connect_timeout",
+    "mode",
+    "routing_strategy",
+    "max_connect_errors",
+    "max_connections",
+    "client_connect_timeout",
+    "net_buffer_length",
+    "thread_stack_size",
+    "client_ssl_mode",
+    "client_ssl_cert",
+    "client_ssl_key",
+    "client_ssl_cipher",
+    "client_ssl_curves",
+    "client_ssl_dh_params",
+    "server_ssl_mode",
+    "server_ssl_verify",
+    "disabled",
+    "server_ssl_cipher",
+    "server_ssl_ca",
+    "server_ssl_capath",
+    "server_ssl_crl",
+    "server_ssl_crlpath",
+    "server_ssl_curves",
+    "unreachable_destination_refresh_interval"};
+
+using StringOption = mysql_harness::StringOption;
+
+template <class T>
+using IntOption = mysql_harness::IntOption<T>;
+
+class ProtocolOption {
+ public:
+  Protocol::Type operator()(const std::optional<std::string> &value,
+                            const std::string & /* option_desc */) {
+    if (!value) return Protocol::get_default();
+
+    // all other cases are treated as "empty string"
+    auto lc_value = value.value();
+
+    std::transform(lc_value.begin(), lc_value.end(), lc_value.begin(),
+                   ::tolower);
+
+    return Protocol::get_by_name(lc_value);
   }
+};
 
-  return "option " + option.name() + " in [" + section_name + "]";
-}
+class ModeOption {
+ public:
+  routing::AccessMode operator()(const std::optional<std::string> &value,
+                                 const std::string &option_desc) {
+    if (!value) return routing::AccessMode::kUndefined;
 
-static int get_option_tcp_port(const mysql_harness::ConfigSection *section,
-                               const mysql_harness::ConfigOption &option) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    throw std::invalid_argument(res.error().message());
-  }
-
-  auto value = std::move(res.value());
-
-  if (!value.empty()) {
-    char *rest;
-    errno = 0;
-    auto result = std::strtol(value.c_str(), &rest, 10);
-
-    if (errno > 0 || *rest != '\0' || result > UINT16_MAX || result < 1) {
-      std::ostringstream os;
-      os << get_log_prefix(section, option)
-         << " needs value between 1 and 65535 inclusive";
-      if (!value.empty()) {
-        os << ", was '" << value << "'";
-      }
-      throw std::invalid_argument(os.str());
+    if (value->empty()) {
+      throw std::invalid_argument(option_desc + " needs a value");
     }
 
-    return static_cast<int>(result);
-  }
+    std::string lc_value{value.value()};
 
-  return -1;
-}
+    std::transform(lc_value.begin(), lc_value.end(), lc_value.begin(),
+                   ::tolower);
 
-static Protocol::Type get_protocol(const mysql_harness::ConfigSection *section,
-                                   const mysql_harness::ConfigOption &option) {
-  auto res = option.get_option_string(section);
-
-  if (res == stdx::make_unexpected(
-                 make_error_code(mysql_harness::option_errc::not_found))) {
-    return Protocol::get_default();
-  }
-
-  // all other cases are treated as "empty string"
-  auto name = res.value_or("");
-
-  std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-
-  return Protocol::get_by_name(name);
-}
-
-static routing::AccessMode get_option_mode(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    if (res.error() == mysql_harness::option_errc::not_found) {
-      return routing::AccessMode::kUndefined;
-    } else if (res.error() == mysql_harness::option_errc::empty) {
-      throw std::invalid_argument(get_log_prefix(section, option) + " " +
-                                  res.error().message());
-    } else {
-      throw std::invalid_argument(option.name() + " ... " +
-                                  res.error().message());
+    // if the mode is given it still needs to be valid
+    routing::AccessMode result = routing::get_access_mode(lc_value);
+    if (result == routing::AccessMode::kUndefined) {
+      const std::string valid = routing::get_access_mode_names();
+      throw std::invalid_argument(option_desc + " is invalid; valid are " +
+                                  valid + " (was '" + value.value() + "')");
     }
+    return result;
   }
+};
 
-  std::string value = std::move(res.value());
+class RoutingStrategyOption {
+ public:
+  RoutingStrategyOption(routing::AccessMode mode, bool is_metadata_cache)
+      : mode_{mode}, is_metadata_cache_{is_metadata_cache} {}
 
-  std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-
-  // if the mode is given it still needs to be valid
-  routing::AccessMode result = routing::get_access_mode(value);
-  if (result == routing::AccessMode::kUndefined) {
-    const std::string valid = routing::get_access_mode_names();
-    throw std::invalid_argument(get_log_prefix(section, option) +
-                                " is invalid; valid are " + valid + " (was '" +
-                                value + "')");
-  }
-  return result;
-}
-
-static routing::RoutingStrategy get_option_routing_strategy(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option, routing::AccessMode mode,
-    bool is_metadata_cache) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    if (res.error() == mysql_harness::option_errc::not_found) {
+  routing::RoutingStrategy operator()(const std::optional<std::string> &value,
+                                      const std::string &option_desc) {
+    if (!value) {
       // routing_strategy option is not given
       // this is fine as long as mode is set which means that we deal with an
       // old configuration which we still want to support
 
-      if (mode == routing::AccessMode::kUndefined) {
-        throw std::invalid_argument(get_log_prefix(section, option) +
-                                    " is required");
+      if (mode_ == routing::AccessMode::kUndefined) {
+        throw std::invalid_argument(option_desc + " is required");
       }
 
       /** @brief `mode` option read from configuration section */
       return routing::RoutingStrategy::kUndefined;
-    } else {
-      throw std::invalid_argument(get_log_prefix(section, option) + " " +
-                                  res.error().message());
+    } else if (value->empty()) {
+      throw std::invalid_argument(option_desc + " needs a value");
     }
+
+    std::string lc_value{value.value()};
+    std::transform(lc_value.begin(), lc_value.end(), lc_value.begin(),
+                   ::tolower);
+
+    auto result = routing::get_routing_strategy(lc_value);
+    if (result == routing::RoutingStrategy::kUndefined ||
+        ((result == routing::RoutingStrategy::kRoundRobinWithFallback) &&
+         !is_metadata_cache_)) {
+      const std::string valid =
+          routing::get_routing_strategy_names(is_metadata_cache_);
+      throw std::invalid_argument(option_desc + " is invalid; valid are " +
+                                  valid + " (was '" + value.value() + "')");
+    }
+    return result;
   }
 
-  std::string value = std::move(res.value());
-  std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+ private:
+  routing::AccessMode mode_;
+  bool is_metadata_cache_;
+};
 
-  auto result = routing::get_routing_strategy(value);
-  if (result == routing::RoutingStrategy::kUndefined ||
-      ((result == routing::RoutingStrategy::kRoundRobinWithFallback) &&
-       !is_metadata_cache)) {
-    const std::string valid =
-        routing::get_routing_strategy_names(is_metadata_cache);
-    throw std::invalid_argument(get_log_prefix(section, option) +
-                                " is invalid; valid are " + valid + " (was '" +
-                                value + "')");
-  }
-  return result;
-}
+class DestinationsOption {
+ public:
+  DestinationsOption(bool &metadata_cache) : metadata_cache_{metadata_cache} {}
 
-static std::string get_option_destinations(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option, const Protocol::Type &,
-    bool &metadata_cache) {
-  auto res = option.get_option_string(section);
+  std::string operator()(const std::string &value,
+                         const std::string &option_desc) {
+    try {
+      // disable root-less paths like mailto:foo@example.org to stay
+      // backward compatible with
+      //
+      //   localhost:1234,localhost:1235
+      //
+      // which parse into:
+      //
+      //   scheme: localhost
+      //   path: 1234,localhost:1235
+      auto uri = mysqlrouter::URI(value,  // raises URIError when URI is invalid
+                                  false   // allow_path_rootless
+      );
+      if (uri.scheme == "metadata-cache") {
+        metadata_cache_ = true;
+      } else {
+        throw std::invalid_argument(option_desc +
+                                    " has an invalid URI scheme '" +
+                                    uri.scheme + "' for URI " + value);
+      }
+      return value;
+    } catch (const mysqlrouter::URIError &) {
+      for (auto part : mysql_harness::split_string(value, ',')) {
+        mysql_harness::trim(part);
+        if (part.empty()) {
+          throw std::invalid_argument(
+              option_desc + ": empty address found in destination list (was '" +
+              value + "')");
+        }
 
-  if (!res) {
-    if (res.error() == mysql_harness::option_errc::not_found) {
-      throw std::invalid_argument(get_log_prefix(section, option) + " " +
-                                  "is required");
-    } else {
-      throw std::invalid_argument(get_log_prefix(section, option) + " " +
-                                  res.error().message());
+        auto make_res = mysql_harness::make_tcp_address(part);
+
+        if (!make_res) {
+          throw std::invalid_argument(option_desc +
+                                      ": address in destination list '" + part +
+                                      "' is invalid");
+        }
+
+        auto address = make_res->address();
+
+        if (!mysql_harness::is_valid_ip_address(address) &&
+            !mysql_harness::is_valid_hostname(address)) {
+          throw std::invalid_argument(option_desc +
+                                      " has an invalid destination address '" +
+                                      address + "'");
+        }
+      }
     }
-  }
 
-  std::string value = std::move(res.value());
-  try {
-    // disable root-less paths like mailto:foo@example.org to stay
-    // backward compatible with
-    //
-    //   localhost:1234,localhost:1235
-    //
-    // which parse into:
-    //
-    //   scheme: localhost
-    //   path: 1234,localhost:1235
-    auto uri = mysqlrouter::URI(value,  // raises URIError when URI is invalid
-                                false   // allow_path_rootless
-    );
-    if (uri.scheme == "metadata-cache") {
-      metadata_cache = true;
-    } else {
-      throw std::invalid_argument(get_log_prefix(section, option) +
-                                  " has an invalid URI scheme '" + uri.scheme +
-                                  "' for URI " + value);
-    }
     return value;
-  } catch (const mysqlrouter::URIError &) {
-    for (auto part : mysql_harness::split_string(value, ',')) {
-      mysql_harness::trim(part);
-      if (part.empty()) {
-        throw std::invalid_argument(
-            get_log_prefix(section, option) +
-            ": empty address found in destination list (was '" + value + "')");
+  }
+
+ private:
+  bool &metadata_cache_;
+};
+
+class NamedSocketOption {
+ public:
+  mysql_harness::Path operator()(const std::string &value,
+                                 const std::string &option_desc) {
+    std::string error;
+    if (!mysqlrouter::is_valid_socket_name(value, error)) {
+      throw std::invalid_argument(option_desc + ": " + error);
+    }
+
+    if (value.empty()) {
+      return mysql_harness::Path();
+    }
+    return mysql_harness::Path(value);
+  }
+};
+
+/**
+ * empty or 1..65335
+ */
+class BindPortOption {
+ public:
+  uint16_t operator()(const std::string &value,
+                      const std::string &option_desc) {
+    if (value.empty()) return 0;
+
+    return IntOption<uint16_t>{1}(value, option_desc);
+  }
+};
+
+class TCPAddressOption {
+ public:
+  TCPAddressOption(bool require_port, int default_port)
+      : require_port_{require_port}, default_port_{default_port} {}
+  mysql_harness::TCPAddress operator()(const std::string &value,
+                                       const std::string &option_desc) {
+    if (value.empty()) return {};
+
+    const auto make_res = mysql_harness::make_tcp_address(value);
+    if (!make_res) {
+      throw std::invalid_argument(option_desc + ": '" + value +
+                                  "' is not a valid endpoint");
+    }
+
+    const auto address = make_res->address();
+    uint16_t port = make_res->port();
+
+    if (port <= 0) {
+      if (default_port_ > 0) {
+        port = static_cast<uint16_t>(default_port_);
+      } else if (require_port_) {
+        throw std::invalid_argument(option_desc + " requires a TCP port");
+      }
+    }
+
+    if (!(mysql_harness::is_valid_hostname(address) ||
+          mysql_harness::is_valid_ip_address(address))) {
+      throw std::invalid_argument(option_desc + ": '" + address + "' in '" +
+                                  value +
+                                  "' is not a valid IP-address or hostname");
+    }
+
+    return {address, port};
+  }
+
+ private:
+  const bool require_port_;
+  const int default_port_;
+};
+
+class SslModeOption {
+ public:
+  SslModeOption(std::initializer_list<SslMode> allowed_ssl_modes)
+      : allowed_ssl_modes_{allowed_ssl_modes} {}
+
+  SslMode operator()(const std::string &value, const std::string &option_desc) {
+    // convert name to upper-case to get case-insenstive comparision.
+    auto uc_value = value;
+    std::transform(value.begin(), value.end(), uc_value.begin(), ::toupper);
+
+    // check if the mode is allowed
+    const auto it =
+        std::find_if(allowed_ssl_modes_.begin(), allowed_ssl_modes_.end(),
+                     [uc_value](auto const &allowed_ssl_mode) {
+                       return uc_value == ssl_mode_to_string(allowed_ssl_mode);
+                     });
+    if (it != allowed_ssl_modes_.end()) {
+      return *it;
+    }
+
+    // build list of allowed modes, but don't mention the default case.
+    std::string allowed_names;
+    for (const auto &allowed_ssl_mode : allowed_ssl_modes_) {
+      if (allowed_ssl_mode == SslMode::kDefault) continue;
+
+      if (!allowed_names.empty()) {
+        allowed_names.append(",");
       }
 
-      auto make_res = mysql_harness::make_tcp_address(part);
-
-      if (!make_res) {
-        throw std::invalid_argument(get_log_prefix(section, option) +
-                                    ": address in destination list '" + part +
-                                    "' is invalid");
-      }
-
-      auto address = make_res->address();
-
-      if (!mysql_harness::is_valid_ip_address(address) &&
-          !mysql_harness::is_valid_hostname(address)) {
-        throw std::invalid_argument(get_log_prefix(section, option) +
-                                    " has an invalid destination address '" +
-                                    address + "'");
-      }
-    }
-  }
-
-  return value;
-}
-
-static mysql_harness::Path get_option_named_socket(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    throw std::invalid_argument(res.error().message());
-  }
-
-  std::string value = std::move(res.value());
-  std::string error;
-  if (!mysqlrouter::is_valid_socket_name(value, error)) {
-    throw std::invalid_argument(error);
-  }
-
-  if (value.empty()) {
-    return mysql_harness::Path();
-  }
-  return mysql_harness::Path(value);
-}
-
-static mysql_harness::TCPAddress get_option_tcp_address(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option, bool require_port,
-    int default_port) {
-  auto res = option.get_option_string(section);
-
-  if (!res) {
-    throw std::invalid_argument(res.error().message());
-  }
-
-  std::string value = std::move(res.value());
-  if (value.empty()) {
-    return mysql_harness::TCPAddress{};
-  }
-
-  auto make_res = mysql_harness::make_tcp_address(value);
-  if (!make_res) {
-    throw std::invalid_argument(get_log_prefix(section, option) + ": '" +
-                                value + "' is not a valid endpoint");
-  }
-
-  auto address = make_res->address();
-  uint16_t port = make_res->port();
-
-  if (port <= 0) {
-    if (default_port > 0) {
-      port = static_cast<uint16_t>(default_port);
-    } else if (require_port) {
-      throw std::runtime_error("TCP port missing");
-    }
-  }
-
-  if (!(mysql_harness::is_valid_hostname(address) ||
-        mysql_harness::is_valid_ip_address(address))) {
-    throw std::invalid_argument(get_log_prefix(section, option) + ": '" +
-                                address + "' in '" + value +
-                                "' is not a valid IP-address or hostname");
-  }
-
-  return {address, port};
-}
-
-template <typename T>
-static T get_uint_option(const mysql_harness::ConfigSection *section,
-                         const mysql_harness::ConfigOption &option,
-                         T min_value = 0,
-                         T max_value = std::numeric_limits<T>::max()) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    throw std::invalid_argument(res.error().message());
-  }
-
-  std::string value = std::move(res.value());
-  static_assert(
-      std::numeric_limits<T>::max() <= std::numeric_limits<long long>::max(),
-      "");
-
-  char *rest;
-  errno = 0;
-  long long tol = std::strtoll(value.c_str(), &rest, 10);
-  T result = static_cast<T>(tol);
-
-  if (tol < 0 || errno > 0 || *rest != '\0' || result > max_value ||
-      result < min_value ||
-      result != tol ||  // if casting lost high-order bytes
-      (max_value > 0 && result > max_value)) {
-    std::ostringstream os;
-    os << get_log_prefix(section, option) << " needs value between "
-       << min_value << " and " << std::to_string(max_value) << " inclusive";
-    if (!value.empty()) {
-      os << ", was '" << value << "'";
-    }
-    throw std::invalid_argument(os.str());
-  }
-  return result;
-}
-
-static SslMode get_option_ssl_mode(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option,
-    std::initializer_list<SslMode> allowed_ssl_modes) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    throw std::invalid_argument(res.error().message());
-  }
-
-  // convert name to upper-case to get case-insenstive comparision.
-  auto name = res.value();
-  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-
-  // check if the mode is allowed
-  const auto it =
-      std::find_if(allowed_ssl_modes.begin(), allowed_ssl_modes.end(),
-                   [name](auto const &allowed_ssl_mode) {
-                     return name == ssl_mode_to_string(allowed_ssl_mode);
-                   });
-  if (it != allowed_ssl_modes.end()) {
-    return *it;
-  }
-
-  // build list of allowed modes, but don't mention the default case.
-  std::string allowed_names;
-  for (const auto &allowed_ssl_mode : allowed_ssl_modes) {
-    if (allowed_ssl_mode == SslMode::kDefault) continue;
-
-    if (!allowed_names.empty()) {
-      allowed_names.append(",");
+      allowed_names += ssl_mode_to_string(allowed_ssl_mode);
     }
 
-    allowed_names += ssl_mode_to_string(allowed_ssl_mode);
+    throw std::invalid_argument("invalid value '" + value + "' for " +
+                                option_desc +
+                                ". Allowed are: " + allowed_names + ".");
   }
 
-  throw std::invalid_argument("invalid value '" + res.value() + "' for " +
-                              option.name() +
-                              ". Allowed are: " + allowed_names + ".");
-}
+ private:
+  std::vector<SslMode> allowed_ssl_modes_;
+};
 
 /**
  * get the name for a SslVerify.
@@ -403,52 +364,63 @@ static const char *ssl_verify_to_string(SslVerify verify) {
   return nullptr;
 }
 
-static SslVerify get_option_ssl_verify(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option,
-    std::initializer_list<SslVerify> allowed_ssl_verifies) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    throw std::invalid_argument(res.error().message());
-  }
+class SslVerifyOption {
+ public:
+  SslVerifyOption(std::initializer_list<SslVerify> allowed_)
+      : allowed_{allowed_} {}
 
-  // convert name to upper-case to get case-insenstive comparision.
-  auto name = res.value();
-  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
+  SslVerify operator()(const std::string &value,
+                       const std::string &option_desc) {
+    // convert name to upper-case to get case-insenstive comparision.
+    auto uc_value = value;
+    std::transform(value.begin(), value.end(), uc_value.begin(), ::toupper);
 
-  const auto it =
-      std::find_if(allowed_ssl_verifies.begin(), allowed_ssl_verifies.end(),
-                   [name](auto const &allowed_ssl_verify) {
-                     return name == ssl_verify_to_string(allowed_ssl_verify);
-                   });
-  if (it != allowed_ssl_verifies.end()) {
-    return *it;
-  }
-
-  std::string allowed_names;
-  for (const auto &allowed_ssl_verify : allowed_ssl_verifies) {
-    if (!allowed_names.empty()) {
-      allowed_names.append(",");
+    // check if the mode is allowed
+    const auto it = std::find_if(
+        allowed_.begin(), allowed_.end(), [uc_value](auto const &allowed) {
+          return uc_value == ssl_verify_to_string(allowed);
+        });
+    if (it != allowed_.end()) {
+      return *it;
     }
 
-    allowed_names += ssl_verify_to_string(allowed_ssl_verify);
+    std::string allowed_names;
+    for (const auto &allowed : allowed_) {
+      if (!allowed_names.empty()) {
+        allowed_names.append(",");
+      }
+
+      allowed_names += ssl_verify_to_string(allowed);
+    }
+
+    throw std::invalid_argument("invalid value '" + value + "' for " +
+                                option_desc +
+                                ". Allowed are: " + allowed_names + ".");
   }
 
-  throw std::invalid_argument("invalid value '" + res.value() + "' for " +
-                              option.name() +
-                              ". Allowed are: " + allowed_names + ".");
-}
+ private:
+  std::vector<SslVerify> allowed_;
+};
 
-static std::string get_option_string(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    throw std::invalid_argument(res.error().message());
+class MaxConnectionsOption {
+ public:
+  uint16_t operator()(const std::string &value,
+                      const std::string &option_desc) {
+    const auto result = IntOption<uint16_t>{}(value, option_desc);
+
+    auto &routing_component = MySQLRoutingComponent::get_instance();
+
+    if (result != routing::kDefaultMaxConnections &&
+        result > routing_component.max_total_connections()) {
+      log_warning(
+          "Value configured for max_connections > max_total_connections (%u "
+          "> %" PRIu64 "). Will have no effect.",
+          result, routing_component.max_total_connections());
+    }
+
+    return result;
   }
-
-  return res.value();
-}
+};
 
 /** @brief Constructor
  *
@@ -456,104 +428,62 @@ static std::string get_option_string(
  */
 RoutingPluginConfig::RoutingPluginConfig(
     const mysql_harness::ConfigSection *section)
-    : metadata_cache_(false),
-      protocol(
-          get_protocol(section, mysql_harness::ConfigOption("protocol"_sv))),
-      destinations(get_option_destinations(
-          section, mysql_harness::ConfigOption("destinations"_sv), protocol,
-          metadata_cache_)),
-      bind_port(get_option_tcp_port(
-          section, mysql_harness::ConfigOption("bind_port"_sv, ""_sv))),
-      bind_address(get_option_tcp_address(
-          section,
-          mysql_harness::ConfigOption("bind_address"_sv,
-                                      routing::kDefaultBindAddress),
-          false, bind_port)),
-      named_socket(get_option_named_socket(
-          section, mysql_harness::ConfigOption("socket"_sv, ""_sv))),
-      connect_timeout(get_uint_option<uint16_t>(
-          section,
-          mysql_harness::ConfigOption(
-              "connect_timeout"_sv,
-              std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
-                                 routing::kDefaultDestinationConnectionTimeout)
-                                 .count())),
-          1)),
-      mode(get_option_mode(section, mysql_harness::ConfigOption("mode"_sv))),
-      routing_strategy(get_option_routing_strategy(
-          section, mysql_harness::ConfigOption("routing_strategy"_sv), mode,
-          metadata_cache_)),
-      max_connections(get_uint_option<uint16_t>(
-          section,
-          mysql_harness::ConfigOption(
-              "max_connections"_sv,
-              std::to_string(routing::kDefaultMaxConnections)),
-          1)),
-      max_connect_errors(get_uint_option<uint32_t>(
-          section,
-          mysql_harness::ConfigOption(
-              "max_connect_errors"_sv,
-              std::to_string(routing::kDefaultMaxConnectErrors)),
-          1, UINT32_MAX)),
-      client_connect_timeout(get_uint_option<uint32_t>(
-          section,
-          mysql_harness::ConfigOption(
-              "client_connect_timeout"_sv,
-              std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
-                                 routing::kDefaultClientConnectTimeout)
-                                 .count())),
-          2, 31536000)),
-      net_buffer_length(get_uint_option<uint32_t>(
-          section,
-          mysql_harness::ConfigOption(
-              "net_buffer_length"_sv,
-              std::to_string(routing::kDefaultNetBufferLength)),
-          1024, 1048576)),
-      thread_stack_size(get_uint_option<uint32_t>(
-          section,
-          mysql_harness::ConfigOption(
-              "thread_stack_size"_sv,
-              std::to_string(mysql_harness::kDefaultStackSizeInKiloBytes)),
-          1, 65535)),
-      source_ssl_mode{get_option_ssl_mode(
-          section, mysql_harness::ConfigOption("client_ssl_mode"_sv, ""_sv),
-          {SslMode::kDisabled, SslMode::kPreferred, SslMode::kRequired,
-           SslMode::kPassthrough, SslMode::kDefault})},
-      source_ssl_cert{get_option_string(
-          section, mysql_harness::ConfigOption("client_ssl_cert"_sv, ""_sv))},
-      source_ssl_key{get_option_string(
-          section, mysql_harness::ConfigOption("client_ssl_key"_sv, ""_sv))},
-      source_ssl_cipher{get_option_string(
-          section, mysql_harness::ConfigOption("client_ssl_cipher"_sv, ""_sv))},
-      source_ssl_curves{get_option_string(
-          section, mysql_harness::ConfigOption("client_ssl_curves"_sv, ""_sv))},
-      source_ssl_dh_params{get_option_string(
-          section,
-          mysql_harness::ConfigOption("client_ssl_dh_params"_sv, ""_sv))},
-      dest_ssl_mode{get_option_ssl_mode(
-          section,
-          mysql_harness::ConfigOption("server_ssl_mode"_sv, "as_client"_sv),
-          {SslMode::kDisabled, SslMode::kPreferred, SslMode::kRequired,
-           SslMode::kAsClient})},
-      dest_ssl_verify{get_option_ssl_verify(
-          section,
-          mysql_harness::ConfigOption("server_ssl_verify"_sv, "disabled"_sv),
-          {SslVerify::kDisabled, SslVerify::kVerifyCa,
-           SslVerify::kVerifyIdentity})},
-      dest_ssl_cipher{get_option_string(
-          section, mysql_harness::ConfigOption("server_ssl_cipher"_sv, ""_sv))},
-      dest_ssl_ca_file{get_option_string(
-          section, mysql_harness::ConfigOption("server_ssl_ca"_sv, ""_sv))},
-      dest_ssl_ca_dir{get_option_string(
-          section, mysql_harness::ConfigOption("server_ssl_capath"_sv, ""_sv))},
-      dest_ssl_crl_file{get_option_string(
-          section, mysql_harness::ConfigOption("server_ssl_crl"_sv, ""_sv))},
-      dest_ssl_crl_dir{get_option_string(
-          section,
-          mysql_harness::ConfigOption("server_ssl_crlpath"_sv, ""_sv))},
-      dest_ssl_curves{get_option_string(
-          section,
-          mysql_harness::ConfigOption("server_ssl_curves"_sv, ""_sv))} {
+    : BasePluginConfig{section},
+      metadata_cache_(false),
+      protocol(get_option_no_default(section, "protocol", ProtocolOption{})),
+      destinations(get_option(section, "destinations",
+                              DestinationsOption{metadata_cache_})),
+      bind_port(get_option(section, "bind_port", BindPortOption{})),
+      bind_address(get_option(section, "bind_address",
+                              TCPAddressOption{false, bind_port})),
+      named_socket(get_option(section, "socket", NamedSocketOption{})),
+      connect_timeout(
+          get_option(section, "connect_timeout", IntOption<uint16_t>{1})),
+      mode(get_option_no_default(section, "mode", ModeOption{})),
+      routing_strategy(
+          get_option_no_default(section, "routing_strategy",
+                                RoutingStrategyOption{mode, metadata_cache_})),
+      max_connections(
+          get_option(section, "max_connections", MaxConnectionsOption{})),
+      max_connect_errors(get_option(section, "max_connect_errors",
+                                    IntOption<uint32_t>{1, UINT32_MAX})),
+      client_connect_timeout(get_option(section, "client_connect_timeout",
+                                        IntOption<uint32_t>{2, 31536000})),
+      net_buffer_length(get_option(section, "net_buffer_length",
+                                   IntOption<uint32_t>{1024, 1048576})),
+      thread_stack_size(get_option(section, "thread_stack_size",
+                                   IntOption<uint32_t>{1, 65535})),
+      source_ssl_mode{
+          get_option(section, "client_ssl_mode",
+                     SslModeOption{SslMode::kDisabled, SslMode::kPreferred,
+                                   SslMode::kRequired, SslMode::kPassthrough,
+                                   SslMode::kDefault})},
+      source_ssl_cert{get_option(section, "client_ssl_cert", StringOption{})},
+      source_ssl_key{get_option(section, "client_ssl_key", StringOption{})},
+      source_ssl_cipher{
+          get_option(section, "client_ssl_cipher", StringOption{})},
+      source_ssl_curves{
+          get_option(section, "client_ssl_curves", StringOption{})},
+      source_ssl_dh_params{
+          get_option(section, "client_ssl_dh_params", StringOption{})},
+      dest_ssl_mode{
+          get_option(section, "server_ssl_mode",
+                     SslModeOption{SslMode::kDisabled, SslMode::kPreferred,
+                                   SslMode::kRequired, SslMode::kAsClient})},
+      dest_ssl_verify{
+          get_option(section, "server_ssl_verify",
+                     SslVerifyOption{SslVerify::kDisabled, SslVerify::kVerifyCa,
+                                     SslVerify::kVerifyIdentity})},
+      dest_ssl_cipher{get_option(section, "server_ssl_cipher", StringOption{})},
+      dest_ssl_ca_file{get_option(section, "server_ssl_ca", StringOption{})},
+      dest_ssl_ca_dir{get_option(section, "server_ssl_capath", StringOption{})},
+      dest_ssl_crl_file{get_option(section, "server_ssl_crl", StringOption{})},
+      dest_ssl_crl_dir{
+          get_option(section, "server_ssl_crlpath", StringOption{})},
+      dest_ssl_curves{get_option(section, "server_ssl_curves", StringOption{})},
+      unreachable_destination_refresh_interval{
+          get_option(section, "unreachable_destination_refresh_interval",
+                     IntOption<uint32_t>{1, 65535})} {
   using namespace std::string_literals;
 
   // either bind_address or socket needs to be set, or both
@@ -600,4 +530,37 @@ RoutingPluginConfig::RoutingPluginConfig(
           ssl_verify_to_string(dest_ssl_verify) + "'.");
     }
   }
+}
+
+std::string RoutingPluginConfig::get_default(const std::string &option) const {
+  static const std::map<std::string, std::string> defaults{
+      {"bind_address", std::string{routing::kDefaultBindAddress}},
+      {"max_connections", std::to_string(routing::kDefaultMaxConnections)},
+      {"connect_timeout",
+       std::to_string(routing::kDefaultDestinationConnectionTimeout.count())},
+      {"max_connect_errors", std::to_string(routing::kDefaultMaxConnectErrors)},
+      {"client_connect_timeout",
+       std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
+                          routing::kDefaultClientConnectTimeout)
+                          .count())},
+      {"net_buffer_length", std::to_string(routing::kDefaultNetBufferLength)},
+      {"thread_stack_size",
+       std::to_string(mysql_harness::kDefaultStackSizeInKiloBytes)},
+      {"unreachable_destination_refresh_interval",
+       std::to_string(
+           routing::kDefaultUnreachableDestinationRefreshInterval.count())},
+      {"client_ssl_mode", ""},
+      {"server_ssl_mode", "as_client"},
+      {"server_ssl_verify", "disabled"},
+
+  };
+
+  const auto it = defaults.find(option);
+  if (it == defaults.end()) return {};
+
+  return it->second;
+}
+
+bool RoutingPluginConfig::is_required(const std::string &option) const {
+  return (option == "destinations"sv);
 }

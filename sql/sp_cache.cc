@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class sp_cache {
  public:
   sp_cache() : m_hashtable(system_charset_info, key_memory_sp_cache) {}
 
-  ~sp_cache() {}
+  ~sp_cache() = default;
 
   /**
    Inserts a sp_head object into a hash table.

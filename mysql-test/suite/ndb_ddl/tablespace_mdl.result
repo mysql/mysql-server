@@ -50,15 +50,21 @@ ENGINE NDB;
 CREATE TABLE procedure_control(
 stop_flag INT
 ) ENGINE NDB;
+CREATE TABLE dummy (
+a INT PRIMARY KEY
+) ENGINE NDB;
+INSERT INTO dummy VALUES (1), (2), (3), (4), (5);
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE done INT DEFAULT 0;
+DECLARE dummy_var INT DEFAULT 5;
 REPEAT
 ALTER TABLESPACE ts1
 ADD DATAFILE 'ts1_datafile2.dat';
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile2.dat';
 SELECT stop_flag INTO done FROM procedure_control;
+SELECT a INTO dummy_var FROM dummy WHERE a > 4;
 UNTIL done END REPEAT;
 END//
 INSERT INTO procedure_control VALUE(0);
@@ -105,7 +111,7 @@ Start ALTER TABLESPACE ts1 ADD/DROP DATAFILE
 UPDATE procedure_control SET stop_flag=1;
 Wait for background load to complete
 DROP PROCEDURE p1;
-DROP TABLE procedure_control;
+DROP TABLE procedure_control,dummy;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile.dat';
 DROP TABLESPACE ts1;

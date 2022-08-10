@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,15 +29,10 @@
 #include <set>
 #include <utility>
 
-// enable support for move-only support in googlemock with gmock 1.8.0 on msvc
-//
-// works around https://github.com/google/googletest/issues/799
-#ifndef GTEST_LANG_CXX11
-#define GTEST_LANG_CXX11 1
-#endif
-
 // include before header with FRIEND_TEST is used.
 #include <gtest/gtest_prod.h>
+
+#include <gmock/gmock.h>
 
 #include "cluster_metadata_gr.h"
 #include "dim.h"
@@ -45,21 +40,6 @@
 #include "metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 #include "test/helpers.h"
-
-// ignore GMock warnings
-#ifdef __clang__
-#ifndef __has_warning
-#define __has_warning(x) 0
-#endif
-#pragma clang diagnostic push
-#if __has_warning("-Winconsistent-missing-override")
-#pragma clang diagnostic ignored "-Winconsistent-missing-override"
-#endif
-#if __has_warning("-Wsign-conversion")
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#endif
-#endif
-#include <gmock/gmock.h>
 
 using ::testing::_;
 using ::testing::Assign;
@@ -71,14 +51,13 @@ using ::testing::Return;
 using ::testing::StartsWith;
 using ::testing::Throw;
 
+using metadata_cache::ManagedCluster;
 using metadata_cache::ManagedInstance;
-using metadata_cache::ManagedReplicaSet;
 using metadata_cache::ServerMode;
 using mysqlrouter::MySQLSession;
 
 using State = GroupReplicationMember::State;
 using Role = GroupReplicationMember::Role;
-using RS = metadata_cache::ReplicasetStatus;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -97,10 +76,6 @@ using RS = metadata_cache::ReplicasetStatus;
 // should
 //   help diagnose problems faster, as the stuff tested later depends on the
 //   stuff tested earlier.
-//
-// TODO: At the time of writing, tests don't test multiple replicaset scenarios.
-//       The code will probably work as is, but "it doesn't work until it's
-//       proven by a unit test".
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -132,17 +107,28 @@ const std::string execute_commit = "COMMIT";
 
 // query #2 (occurs second) - fetches primary member as seen by a particular
 // node
-std::string query_primary_member =
+const std::string query_primary_member =
     "show status like 'group_replication_primary_member'";
 
 // query #3 (occurs last) - fetches current topology as seen by a particular
 // node
-std::string query_status =
+const std::string query_status =
     "SELECT "
     "member_id, member_host, member_port, member_state, "
     "@@group_replication_single_primary_mode "
     "FROM performance_schema.replication_group_members "
     "WHERE channel_name = 'group_replication_applier'";
+
+const std::string setup_session1 =
+    "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+    "@@SESSION.character_set_results=utf8, "
+    "@@SESSION.character_set_connection=utf8, "
+    "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
+    "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', "
+    "@@SESSION.optimizer_switch='derived_merge=on'";
+
+const std::string setup_session2 =
+    "SET @@SESSION.group_replication_consistency='EVENTUAL'";
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -224,7 +210,7 @@ class MockMySQLSessionFactory {
   MockMySQLSessionFactory() {
     // we pre-allocate instances and then return those in create() and get()
     for (int i = 0; i < kInstances; i++) {
-      sessions_.emplace_back(new MockMySQLSession);
+      sessions_.emplace_back(new ::testing::StrictMock<MockMySQLSession>);
     }
   }
 
@@ -241,7 +227,8 @@ class MockMySQLSessionFactory {
  private:
   // can't use vector<MockMySQLSession>, because MockMySQLSession is not
   // copyable due to GMock (produces weird linker errors)
-  std::vector<std::shared_ptr<MockMySQLSession>> sessions_;
+  std::vector<std::shared_ptr<::testing::StrictMock<MockMySQLSession>>>
+      sessions_;
 
   mutable unsigned next_ = 0;
 };
@@ -253,15 +240,13 @@ static bool cmp_mi_FIFMS(const ManagedInstance &lhs,
   // not being set at the time of writing):
   //   ServerMode mode;
 
-  return lhs.replicaset_name == rhs.replicaset_name &&
-         lhs.mysql_server_uuid == rhs.mysql_server_uuid &&
+  return lhs.mysql_server_uuid == rhs.mysql_server_uuid &&
          lhs.host == rhs.host && lhs.port == rhs.port && lhs.xport == rhs.xport;
 }
 
 static bool cmp_mi_FI(const ManagedInstance &lhs, const ManagedInstance &rhs) {
   // This function compares fields set by Metadata::fetch_instances().
-  return lhs.replicaset_name == rhs.replicaset_name &&
-         lhs.mysql_server_uuid == rhs.mysql_server_uuid &&
+  return lhs.mysql_server_uuid == rhs.mysql_server_uuid &&
          lhs.mode == rhs.mode && lhs.host == rhs.host && lhs.port == rhs.port &&
          lhs.xport == rhs.xport;
 }
@@ -300,19 +285,20 @@ class MetadataTest : public ::testing::Test {
 
   void connect_to_first_metadata_server() {
     std::vector<ManagedInstance> metadata_servers{
-        {"replicaset-1", "instance-1", ServerMode::ReadWrite, "localhost", 3310,
-         33100},
+        {"instance-1", ServerMode::ReadWrite, "localhost", 3310, 33100},
     };
     session_factory.get(0).set_good_conns(
-        {"127.0.0.1:3310", "127.0.0.1:3320", "127.0.0.1:3330"});
+        {"localhost:3310", "localhost:3320", "localhost:3330"});
 
+    EXPECT_CALL(session_factory.get(0), execute(StartsWith(setup_session1)));
+    EXPECT_CALL(session_factory.get(0), execute(StartsWith(setup_session2)));
     EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
     EXPECT_TRUE(metadata.connect_and_setup_session(metadata_servers[0]));
   }
 
   void enable_connection(unsigned session, unsigned port) {
     session_factory.get(session).set_good_conns(
-        {std::string("127.0.0.1:") +
+        {std::string("localhost:") +
          std::to_string(port)});  // \_ new connection
     EXPECT_CALL(session_factory.get(session), flag_succeed(_, port))
         .Times(1);  // /  should succeed
@@ -397,24 +383,22 @@ class MetadataTest : public ::testing::Test {
   MockMySQLSessionFactory &session_factory =
       *up_session_factory_;  // hack: we can do this because unique_ptr will
                              // outlive our tests
-  GRClusterMetadata metadata{"user", "pass", 0,
-                             0,      0,      mysqlrouter::SSLOptions()};
+  GRClusterMetadata metadata{{{"user", "pass"}, 0, 0, 0},
+                             mysqlrouter::SSLOptions()};
 
   // set instances that would be returned by successful
   // metadata.fetch_instances_from_metadata_server() for a healthy 3-node setup.
   // Only some tests need this variable.
 
-  const ManagedReplicaSet typical_replicaset{
-      "replicaset-1",
+  const ManagedCluster typical_cluster{
+      "cluster-id",
+      "cluster-name",
       {
           // will be set ----------------------vvvvvvvvvvvvvvvvvvvvvvv
           // v--v--vv--- ignored at the time of writing
-          {"replicaset-1", "instance-1", ServerMode::Unavailable, "localhost",
-           3310, 33100},
-          {"replicaset-1", "instance-2", ServerMode::Unavailable, "localhost",
-           3320, 33200},
-          {"replicaset-1", "instance-3", ServerMode::Unavailable, "localhost",
-           3330, 33300},
+          {"instance-1", ServerMode::Unavailable, "localhost", 3310, 33100},
+          {"instance-2", ServerMode::Unavailable, "localhost", 3320, 33200},
+          {"instance-3", ServerMode::Unavailable, "localhost", 3330, 33300},
           // ignored at time of writing
           // -^^^^--------------------------------------------------------^^^^^
           // TODO: ok to ignore xport?
@@ -429,20 +413,20 @@ class MetadataTest : public ::testing::Test {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(MetadataTest, ConnectToMetadataServer_Succeed) {
-  ManagedInstance metadata_server{
-      "replicaset-1", "instance-1", ServerMode::ReadWrite,
-      "localhost",    3310,         33100};
-  session_factory.get(0).set_good_conns({"127.0.0.1:3310"});
+  ManagedInstance metadata_server{"instance-1", ServerMode::ReadWrite,
+                                  "localhost", 3310, 33100};
+  session_factory.get(0).set_good_conns({"localhost:3310"});
 
   // should connect successfully
+  EXPECT_CALL(session_factory.get(0), execute(StartsWith(setup_session1)));
+  EXPECT_CALL(session_factory.get(0), execute(StartsWith(setup_session2)));
   EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
   EXPECT_TRUE(metadata.connect_and_setup_session(metadata_server));
 }
 
 TEST_F(MetadataTest, ConnectToMetadataServer_Failed) {
-  ManagedInstance metadata_server{
-      "replicaset-1", "instance-1", ServerMode::ReadWrite,
-      "localhost",    3310,         33100};
+  ManagedInstance metadata_server{"instance-1", ServerMode::ReadWrite,
+                                  "localhost", 3310, 33100};
 
   // connetion attempt should fail
   EXPECT_CALL(session_factory.get(0), flag_fail(_, 3310)).Times(1);
@@ -463,8 +447,7 @@ TEST_F(MetadataTest, ConnectToMetadataServer_Failed) {
  * result sets:
  *
  *   1. empty
- *   2. many nodes in many replicasets
- *   3. SQL query fails
+ *   2. SQL query fails
  */
 TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
   connect_to_first_metadata_server();
@@ -477,11 +460,10 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
           session_factory.get(0).query_impl(
               processor,
               {
-                  {"replicaset-1", "instance-1", "localhost:3310",
-                   "localhost:33100"},
-                  {"replicaset-1", "instance-2", "localhost:3320", nullptr},
-                  {"replicaset-1", "instance-3", "localhost", nullptr},
-                  {"replicaset-1", "instance-4", nullptr, nullptr},
+                  {"", "instance-1", "localhost:3310", "localhost:33100"},
+                  {"", "instance-2", "localhost:3320", nullptr},
+                  {"", "instance-3", "localhost", nullptr},
+                  {"", "instance-4", nullptr, nullptr},
               });
         };
     EXPECT_CALL(session_factory.get(0), query(StartsWith(query_metadata), _, _))
@@ -490,28 +472,28 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
     ASSERT_NO_THROW({
       metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-      ClusterMetadata::ReplicaSetsByName rs =
-          metadata.fetch_instances_from_metadata_server("replicaset-1", "0001");
+      auto cluster = metadata.fetch_instances_from_metadata_server(
+          {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+          "0001");
 
-      EXPECT_EQ(1u, rs.size());
-      EXPECT_EQ(4u, rs.at("replicaset-1").members.size());  // not set/checked
+      EXPECT_EQ(4u, cluster.members.size());  // not set/checked
       // -------------------vvvvvvvvvvvvvvvvvvvvvvv
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-1", "instance-1", ServerMode::Unavailable,
-                          "localhost", 3310, 33100},
-          rs.at("replicaset-1").members.at(0)));
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-1", "instance-2", ServerMode::Unavailable,
-                          "localhost", 3320, 33200},
-          rs.at("replicaset-1").members.at(1)));
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-1", "instance-3", ServerMode::Unavailable,
-                          "localhost", 3306, 33060},
-          rs.at("replicaset-1").members.at(2)));
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-1", "instance-4", ServerMode::Unavailable,
-                          "", 3306, 33060},
-          rs.at("replicaset-1").members.at(3)));
+      EXPECT_TRUE(
+          cmp_mi_FIFMS(ManagedInstance{"instance-1", ServerMode::Unavailable,
+                                       "localhost", 3310, 33100},
+                       cluster.members.at(0)));
+      EXPECT_TRUE(
+          cmp_mi_FIFMS(ManagedInstance{"instance-2", ServerMode::Unavailable,
+                                       "localhost", 3320, 33200},
+                       cluster.members.at(1)));
+      EXPECT_TRUE(
+          cmp_mi_FIFMS(ManagedInstance{"instance-3", ServerMode::Unavailable,
+                                       "localhost", 3306, 33060},
+                       cluster.members.at(2)));
+      EXPECT_TRUE(
+          cmp_mi_FIFMS(ManagedInstance{"instance-4", ServerMode::Unavailable,
+                                       "", 3306, 33060},
+                       cluster.members.at(3)));
       // TODO is this really right behavior?
       // ---------------------------------------------------------------------------------------------------^^
     });
@@ -530,66 +512,11 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
     ASSERT_NO_THROW({
       metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-      GRClusterMetadata::ReplicaSetsByName rs =
-          metadata.fetch_instances_from_metadata_server("replicaset-1", "0001");
+      auto cluster = metadata.fetch_instances_from_metadata_server(
+          {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+          "0001");
 
-      EXPECT_EQ(0u, rs.size());
-    });
-  }
-
-  // multiple replicasets
-  {
-    auto resultset_metadata =
-        [this](const std::string &, const MySQLSession::RowProcessor &processor,
-               const MySQLSession::FieldValidator &) {
-          session_factory.get(0).query_impl(
-              processor,
-              {
-                  {"replicaset-2", "instance-4", "localhost2:3333", nullptr},
-                  {"replicaset-1", "instance-1", "localhost1:1111", nullptr},
-                  {"replicaset-1", "instance-2", "localhost1:2222", nullptr},
-                  {"replicaset-1", "instance-3", "localhost1:3333", nullptr},
-                  {"replicaset-3", "instance-5", "localhost3:3333", nullptr},
-                  {"replicaset-3", "instance-6", "localhost3:3333", nullptr},
-              });
-        };
-    EXPECT_CALL(session_factory.get(0), query(StartsWith(query_metadata), _, _))
-        .Times(1)
-        .WillOnce(Invoke(resultset_metadata));
-
-    ASSERT_NO_THROW({
-      metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-      GRClusterMetadata::ReplicaSetsByName rs =
-          metadata.fetch_instances_from_metadata_server("replicaset-1", "0001");
-
-      EXPECT_EQ(3u, rs.size());
-      EXPECT_EQ(3u, rs.at("replicaset-1").members.size());
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-1", "instance-1", ServerMode::Unavailable,
-                          "localhost1", 1111, 11110},
-          rs.at("replicaset-1").members.at(0)));
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-1", "instance-2", ServerMode::Unavailable,
-                          "localhost1", 2222, 22220},
-          rs.at("replicaset-1").members.at(1)));
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-1", "instance-3", ServerMode::Unavailable,
-                          "localhost1", 3333, 33330},
-          rs.at("replicaset-1").members.at(2)));
-      EXPECT_EQ(1u, rs.at("replicaset-2").members.size());
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-2", "instance-4", ServerMode::Unavailable,
-                          "localhost2", 3333, 33330},
-          rs.at("replicaset-2").members.at(0)));
-      EXPECT_EQ(2u, rs.at("replicaset-3").members.size());
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-3", "instance-5", ServerMode::Unavailable,
-                          "localhost3", 3333, 33330},
-          rs.at("replicaset-3").members.at(0)));
-      EXPECT_TRUE(cmp_mi_FIFMS(
-          ManagedInstance{"replicaset-3", "instance-6", ServerMode::Unavailable,
-                          "localhost3", 3333, 33330},
-          rs.at("replicaset-3").members.at(1)));
+      EXPECT_EQ(0u, cluster.members.size());
     });
   }
 
@@ -606,15 +533,16 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
     // exception thrown by MySQLSession::query() should get repackaged in
     // metadata_cache::metadata_error
-    ClusterMetadata::ReplicaSetsByName rs;
+    metadata_cache::ManagedCluster cluster;
     try {
       metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-      rs =
-          metadata.fetch_instances_from_metadata_server("replicaset-1", "0001");
+      auto cluster = metadata.fetch_instances_from_metadata_server(
+          {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+          "gr-id");
       FAIL() << "Expected metadata_cache::metadata_error to be thrown";
     } catch (const metadata_cache::metadata_error &e) {
       EXPECT_STREQ("Error executing MySQL query: some error(42)", e.what());
-      EXPECT_EQ(0u, rs.size());
+      EXPECT_EQ(0u, cluster.members.size());
     } catch (...) {
       FAIL() << "Expected metadata_cache::metadata_error to be thrown";
     }
@@ -623,7 +551,7 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// test ClusterMetadata::check_replicaset_status()
+// test ClusterMetadata::check_cluster_status()
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -637,7 +565,7 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 TEST_F(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata) {
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ---vvvvv
-      {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+      {"instance-1", ServerMode::Unavailable, "", 0, 0},
   };
   bool metadata_gr_discrepancy{false};
 
@@ -646,29 +574,29 @@ TEST_F(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata) {
       {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
   };
 
-  EXPECT_EQ(RS::AvailableWritable,
-            metadata.check_replicaset_status(servers_in_metadata, server_status,
-                                             metadata_gr_discrepancy));
+  EXPECT_EQ(GRClusterStatus::AvailableWritable,
+            metadata.check_cluster_status(servers_in_metadata, server_status,
+                                          metadata_gr_discrepancy));
   EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
   EXPECT_TRUE(metadata_gr_discrepancy);
 }
 
 /**
  * @test
- * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * Verify that `ClusterMetadata::check_cluster_status()` returns proper
  * status for each node (instance) that it received from MD server, and
- * calculates proper replicaset availability.
+ * calculates proper cluster availability.
  *
  * The tested function has two inputs: MD (cluster topology from MD server) and
  * GR (health status from GR tables). All tested scenarios in this test keep the
  * MD constant (3 nodes) and while varying the GR.
  */
-TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
+TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
-      {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
-      {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
+      {"instance-1", ServerMode::Unavailable, "", 0, 0},
+      {"instance-2", ServerMode::Unavailable, "", 0, 0},
+      {"instance-3", ServerMode::Unavailable, "", 0, 0},
   };
   bool metadata_gr_discrepancy{false};
 
@@ -682,9 +610,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
@@ -698,9 +626,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Primary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
 
     auto r = {ServerMode::ReadOnly, ServerMode::ReadWrite,
               ServerMode::ReadOnly};
@@ -717,9 +645,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Online, Role::Primary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
 
     auto r = {ServerMode::ReadOnly, ServerMode::ReadOnly,
               ServerMode::ReadWrite};
@@ -736,9 +664,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
 
     auto r = {ServerMode::ReadOnly, ServerMode::ReadOnly, ServerMode::ReadOnly};
     EXPECT_TRUE(std::equal(
@@ -757,9 +685,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
 #ifdef NDEBUG  // guardian assert() should fail in Debug
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
 
     auto r = {ServerMode::ReadWrite, ServerMode::ReadWrite,
               ServerMode::ReadOnly};
@@ -776,14 +704,14 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-1", {"", "", 0, State::Online, Role::Primary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-2) defined in metadata
-    // not found in actual replicaset"
+    // not found in actual Group Replication"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
@@ -793,14 +721,14 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-1) defined in metadata
-    // not found in actual replicaset"
+    // not found in actual Group Replication"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
@@ -809,15 +737,16 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     std::map<std::string, GroupReplicationMember> server_status{
         {"instance-1", {"", "", 0, State::Online, Role::Primary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-2) defined in metadata
-    // not found in actual replicaset" should log warning "Member <host>:<port>
-    // (instance-3) defined in metadata not found in actual replicaset"
+    // not found in actual Group Replication", should log warning "Member
+    // <host>:<port> (instance-3) defined in metadata not found in actual Group
+    // Replication"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
@@ -826,32 +755,33 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     std::map<std::string, GroupReplicationMember> server_status{
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-1) defined in metadata
-    // not found in actual replicaset" should log warning "Member <host>:<port>
-    // (instance-2) defined in metadata not found in actual replicaset"
+    // not found in actual Group Replication" should log warning "Member
+    // <host>:<port> (instance-2) defined in metadata not found in actual Group
+    // Replication"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
   // all nodes missing
   {
     std::map<std::string, GroupReplicationMember> server_status{};
-    EXPECT_EQ(RS::Unavailable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::Unavailable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-1) defined in metadata
     // not found in actual replicaset" should log warning "Member <host>:<port>
-    // (instance-2) defined in metadata not found in actual replicaset" should
-    // log warning "Member <host>:<port> (instance-3) defined in metadata not
-    // found in actual replicaset"
+    // (instance-2) defined in metadata not found in actual Group Replication"
+    // should log warning "Member <host>:<port> (instance-3) defined in metadata
+    // not found in actual Group Replication"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
@@ -863,15 +793,16 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Primary}},
         {"instance-3", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-1) defined in metadata
-    // not found in actual replicaset" should log error "Member <host>:<port>
-    // (instance-4) found in replicaset, yet is not defined in metadata!"
+    // not found in actual Group Replication" should log error "Member
+    // <host>:<port> (instance-4) found in Group Replication, yet is not defined
+    // in metadata!"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
@@ -882,18 +813,19 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-2", {"", "", 0, State::Online, Role::Primary}},
         {"instance-5", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::Unavailable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-1) defined in metadata
-    // not found in actual replicaset" should log warning "Member <host>:<port>
-    // (instance-3) defined in metadata not found in actual replicaset" should
-    // log error "Member <host>:<port> (instance-4) found in replicaset, yet is
-    // not defined in metadata!" should log error "Member <host>:<port>
-    // (instance-5) found in replicaset, yet is not defined in metadata!"
+    // not found in actual Group Replication" should log warning "Member
+    // <host>:<port> (instance-3) defined in metadata not found in actual Group
+    // Replication" should log error "Member <host>:<port> (instance-4) found in
+    // Group Replication, yet is not defined in metadata!" should log error
+    // "Member <host>:<port> (instance-5) found in Group Replication, yet is not
+    // defined in metadata!"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
@@ -906,29 +838,29 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
         {"instance-4", {"", "", 0, State::Online, Role::Primary}},
         {"instance-5", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
     // should log error "Member <host>:<port> (instance-4) found in replicaset,
     // yet is not defined in metadata!" should log error "Member <host>:<port>
-    // (instance-5) found in replicaset, yet is not defined in metadata!"
+    // (instance-5) found in Group Replication, yet is not defined in metadata!"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 }
 
 /**
  * @test
- * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * Verify that `ClusterMetadata::check_cluster_status()` returns proper
  * status for each node (instance) that it received from MD server, and
- * calculates proper replicaset availability.
+ * calculates proper cluster availability.
  *
- * This test is similar to `CheckReplicasetStatus_3NodeSetup`, but here we the
+ * This test is similar to `CheckClusterStatus_3NodeSetup`, but here we the
  * inputs flip: MD is variable, GR is always 3 nodes.
  */
-TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
+TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
   ConnectCallback clb;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
   bool metadata_gr_discrepancy{false};
@@ -942,48 +874,48 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
   // Next 2 scenarios test situation in which the status report (view) contains
   // only a subset of servers provided by metadata server. At the time of
   // writing, this longer list of servers is essentially irrelevant, and the
-  // "view" is king. See notes in ClusterMetadata::check_replicaset_status() for
+  // "view" is king. See notes in ClusterMetadata::check_cluster_status() for
   // more info.
 
   // 7-node setup according to metadata
   {
     std::vector<ManagedInstance> servers_in_metadata{
         // ServerMode doesn't matter ------vvvvvvvvvvv
-        {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-4", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-5", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-6", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-7", ServerMode::Unavailable, "", 0, 0},
+        {"instance-1", ServerMode::Unavailable, "", 0, 0},
+        {"instance-2", ServerMode::Unavailable, "", 0, 0},
+        {"instance-3", ServerMode::Unavailable, "", 0, 0},
+        {"instance-4", ServerMode::Unavailable, "", 0, 0},
+        {"instance-5", ServerMode::Unavailable, "", 0, 0},
+        {"instance-6", ServerMode::Unavailable, "", 0, 0},
+        {"instance-7", ServerMode::Unavailable, "", 0, 0},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-*) defined in metadata
-    // not found in actual replicaset" for instanes 4-7
+    // not found in actual Group Replication" for instanes 4-7
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
   // 4-node setup according to metadata
   {
     std::vector<ManagedInstance> servers_in_metadata{
-        {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-4", ServerMode::Unavailable, "", 0, 0},
+        {"instance-1", ServerMode::Unavailable, "", 0, 0},
+        {"instance-2", ServerMode::Unavailable, "", 0, 0},
+        {"instance-3", ServerMode::Unavailable, "", 0, 0},
+        {"instance-4", ServerMode::Unavailable, "", 0, 0},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(2).mode);
     // should log warning "Member <host>:<port> (instance-4) defined in metadata
-    // not found in actual replicaset"
+    // not found in actual Group Replication"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
@@ -1001,16 +933,16 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
   // count
   {
     std::vector<ManagedInstance> servers_in_metadata{
-        {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
-        {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
+        {"instance-1", ServerMode::Unavailable, "", 0, 0},
+        {"instance-2", ServerMode::Unavailable, "", 0, 0},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
-    // should log error "Member <host>:<port> (instance-3) found in replicaset,
-    // yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (instance-3) found in Group
+    // Replication, yet is not defined in metadata!"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
@@ -1018,52 +950,53 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
   // counts
   {
     std::vector<ManagedInstance> servers_in_metadata{
-        {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+        {"instance-1", ServerMode::Unavailable, "", 0, 0},
     };
-    EXPECT_EQ(RS::Unavailable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::Unavailable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
-    // should log error "Member <host>:<port> (instance-2) found in replicaset,
-    // yet is not defined in metadata!" should log error "Member <host>:<port>
-    // (instance-3) found in replicaset, yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (instance-2) found in Group
+    // Replication, yet is not defined in metadata!" should log error "Member
+    // <host>:<port> (instance-3) found in Group Replication, yet is not defined
+    // in metadata!"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 
   // 0-node setup according to metadata -> quorum requires 3 nodes, 0 node count
   {
     std::vector<ManagedInstance> servers_in_metadata{};
-    EXPECT_EQ(RS::Unavailable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
-    // should log error "Member <host>:<port> (instance-1) found in replicaset,
-    // yet is not defined in metadata!" should log error "Member <host>:<port>
-    // (instance-2) found in replicaset, yet is not defined in metadata!" should
-    // log error "Member <host>:<port> (instance-3) found in replicaset, yet is
-    // not defined in metadata!"
+    EXPECT_EQ(GRClusterStatus::Unavailable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
+    // should log error "Member <host>:<port> (instance-1) found in Group
+    // Replication, yet is not defined in metadata!" should log error "Member
+    // <host>:<port> (instance-2) found in Group Replication, yet is not defined
+    // in metadata!" should log error "Member <host>:<port> (instance-3) found
+    // in Group Replication, yet is not defined in metadata!"
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
 }
 
 /**
  * @test
- * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * Verify that `ClusterMetadata::check_cluster_status()` returns proper
  * status for each node (instance) that it received from MD server, and
  * calculates proper replicaset availability.
  *
  * This test focuses on scenarios where 1 and 2 nodes (out of 3-node setup) are
  * in one of unavailable states (offline, error, unreachable, other).
  */
-TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
+TEST_F(MetadataTest, CheckClusterStatus_VariousStatuses) {
   ConnectCallback clb;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
   bool metadata_gr_discrepancy{false};
 
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
-      {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
-      {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
+      {"instance-1", ServerMode::Unavailable, "", 0, 0},
+      {"instance-2", ServerMode::Unavailable, "", 0, 0},
+      {"instance-3", ServerMode::Unavailable, "", 0, 0},
   };
 
   for (State state :
@@ -1075,9 +1008,10 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
           {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
           {"instance-3", {"", "", 0, state, Role::Secondary}},
       };
-      EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(
-                                           servers_in_metadata, server_status,
-                                           metadata_gr_discrepancy));
+      EXPECT_EQ(
+          GRClusterStatus::AvailableWritable,
+          metadata.check_cluster_status(servers_in_metadata, server_status,
+                                        metadata_gr_discrepancy));
       EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
       EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
       EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1091,9 +1025,10 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
           {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
           {"instance-3", {"", "", 0, state, Role::Secondary}},
       };
-      EXPECT_EQ(RS::AvailableReadOnly, metadata.check_replicaset_status(
-                                           servers_in_metadata, server_status,
-                                           metadata_gr_discrepancy));
+      EXPECT_EQ(
+          GRClusterStatus::AvailableReadOnly,
+          metadata.check_cluster_status(servers_in_metadata, server_status,
+                                        metadata_gr_discrepancy));
       EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(0).mode);
       EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
       EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1107,9 +1042,10 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
           {"instance-2", {"", "", 0, state, Role::Secondary}},
           {"instance-3", {"", "", 0, state, Role::Secondary}},
       };
-      EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(
-                                     servers_in_metadata, server_status,
-                                     metadata_gr_discrepancy));
+      EXPECT_EQ(
+          GRClusterStatus::Unavailable,
+          metadata.check_cluster_status(servers_in_metadata, server_status,
+                                        metadata_gr_discrepancy));
       EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
       EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
       EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1120,25 +1056,25 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
 
 /**
  * @test
- * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * Verify that `ClusterMetadata::check_cluster_status()` returns proper
  * status for each node (instance) that it received from MD server, and
  * calculates proper replicaset availability.
  *
  * Here we test various scenarios with RECOVERING nodes. RECOVERING nodes
  * should be treated as valid quorum members just like ONLINE nodes, but they
- * cannot be routed to. RS::Recovering should be returned in a (corner) case
- * when all nodes in quorum are recovering.
+ * cannot be routed to. GRClusterStatus::Recovering should be returned in a
+ * (corner) case when all nodes in quorum are recovering.
  */
-TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
+TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
   ConnectCallback clb;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
   bool metadata_gr_discrepancy{false};
 
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
-      {"", "instance-2", ServerMode::Unavailable, "", 0, 0},
-      {"", "instance-3", ServerMode::Unavailable, "", 0, 0},
+      {"instance-1", ServerMode::Unavailable, "", 0, 0},
+      {"instance-2", ServerMode::Unavailable, "", 0, 0},
+      {"instance-3", ServerMode::Unavailable, "", 0, 0},
   };
 
   // 1 node recovering, 1 RW, 1 RO
@@ -1148,9 +1084,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Online, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1164,9 +1100,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Error, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1180,9 +1116,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Error, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1196,9 +1132,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Error, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::Unavailable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1211,9 +1147,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Error, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::Unavailable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_TRUE(metadata_gr_discrepancy);
@@ -1224,9 +1160,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
     std::map<std::string, GroupReplicationMember> server_status{
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::UnavailableRecovering,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::UnavailableRecovering,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_TRUE(metadata_gr_discrepancy);
   }
@@ -1238,9 +1174,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableWritable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableWritable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1254,9 +1190,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::AvailableReadOnly,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::AvailableReadOnly,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::ReadOnly, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1270,9 +1206,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::UnavailableRecovering,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::UnavailableRecovering,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1285,9 +1221,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::UnavailableRecovering,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::UnavailableRecovering,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_TRUE(metadata_gr_discrepancy);
@@ -1300,9 +1236,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
         {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
         {"instance-3", {"", "", 0, State::Recovering, Role::Secondary}},
     };
-    EXPECT_EQ(RS::UnavailableRecovering,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::UnavailableRecovering,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1312,7 +1248,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
 
 /**
  * @test
- * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * Verify that `ClusterMetadata::check_cluster_status()` returns proper
  * status for each node (instance) that it received from MD server, and
  * calculates proper replicaset availability.
  *
@@ -1327,16 +1263,16 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
  * point-of-view, 2 of its 3 nodes are still alive, thus could be considered a
  * quorum.
  */
-TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive) {
+TEST_F(MetadataTest, CheckClusterStatus_Cornercase2of5Alive) {
   ConnectCallback clb;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
   bool metadata_gr_discrepancy{false};
 
   // MD defines 3 nodes
   std::vector<ManagedInstance> servers_in_metadata{
-      {"", "node-A", ServerMode::Unavailable, "", 0, 0},
-      {"", "node-B", ServerMode::Unavailable, "", 0, 0},
-      {"", "node-C", ServerMode::Unavailable, "", 0, 0},
+      {"node-A", ServerMode::Unavailable, "", 0, 0},
+      {"node-B", ServerMode::Unavailable, "", 0, 0},
+      {"node-C", ServerMode::Unavailable, "", 0, 0},
   };
 
   // GR reports 5 nodes, of which only 2 are alive (no qourum), BUT from
@@ -1351,12 +1287,12 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive) {
         {"node-D", {"", "", 0, dead_state, Role::Secondary}},
         {"node-E", {"", "", 0, dead_state, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::Unavailable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     // should log error "Member <host>:<port> (node-D) found in replicaset, yet
     // is not defined in metadata!" should log error "Member <host>:<port>
-    // (node-E) found in replicaset, yet is not defined in metadata!"
+    // (node-E) found in Group Replication, yet is not defined in metadata!"
 
     // meeting these is not strictly required, because when the cluster is
     // unavailable, ATTOW these results will be ignored. But OTOH, there's no
@@ -1375,7 +1311,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive) {
 
 /**
  * @test
- * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * Verify that `ClusterMetadata::check_cluster_status()` returns proper
  * status for each node (instance) that it received from MD server, and
  * calculates proper replicaset availability.
  *
@@ -1390,18 +1326,18 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive) {
  * quorum.
  *
  * However, our availability calculation in
- * `ClusterMetadata::check_replicaset_status()` always assumes that MD is in
+ * `ClusterMetadata::check_cluster_status()` always assumes that MD is in
  * sync with GR (which it always should be), but just in case it violates this
  * assumption, it prefers to err on the side of caution. This erring on the side
  * of caution is demonstrated in this test, where the availability is judged as
  * not available, even though it could be. But that's the price we pay in
  * exchange for the safety the algorithm provides which is demonstrated in the
- * CheckReplicasetStatus_Cornercase2of5Alive testcase.
+ * CheckClusterStatus_Cornercase2of5Alive testcase.
  */
-TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive) {
-  // NOTE: If this test starts failing one day because check_replicaset_status()
+TEST_F(MetadataTest, CheckClusterStatus_Cornercase3of5Alive) {
+  // NOTE: If this test starts failing one day because check_cluster_status()
   //       starts returning that the replicaset is available, it might be a good
-  //       thing, BUT ONLY AS LONG as CheckReplicasetStatus_Cornercase2of5Alive
+  //       thing, BUT ONLY AS LONG as CheckClusterStatus_Cornercase2of5Alive
   //       is also passing. Please read the description of that test, and this
   //       one, before drawing conclusions.
 
@@ -1411,9 +1347,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive) {
 
   // MD defines 3 nodes
   std::vector<ManagedInstance> servers_in_metadata{
-      {"", "node-A", ServerMode::Unavailable, "", 0, 0},
-      {"", "node-B", ServerMode::Unavailable, "", 0, 0},
-      {"", "node-C", ServerMode::Unavailable, "", 0, 0},
+      {"node-A", ServerMode::Unavailable, "", 0, 0},
+      {"node-B", ServerMode::Unavailable, "", 0, 0},
+      {"node-C", ServerMode::Unavailable, "", 0, 0},
   };
 
   // GR reports 5 nodes, of which 3 are alive (have qourum), BUT from
@@ -1428,12 +1364,12 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive) {
         {"node-D", {"", "", 0, State::Online, Role::Secondary}},
         {"node-E", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::Unavailable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     // should log error "Member <host>:<port> (node-D) found in replicaset, yet
     // is not defined in metadata!" should log error "Member <host>:<port>
-    // (node-E) found in replicaset, yet is not defined in metadata!"
+    // (node-E) found in Group Replication, yet is not defined in metadata!"
 
     // meeting these is not strictly required, because when the cluster is
     // unavailable, ATTOW these results will be ignored. But OTOH, there's no
@@ -1452,7 +1388,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive) {
 
 /**
  * @test
- * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * Verify that `ClusterMetadata::check_cluster_status()` returns proper
  * status for each node (instance) that it received from MD server, and
  * calculates proper replicaset availability.
  *
@@ -1465,19 +1401,19 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive) {
  * According to GR, there's a quorum between nodes C, D and E. However, from MD
  * point-of-view, A, B went missing and only C is known to be alive.
  *
- * Our availability calculation in `ClusterMetadata::check_replicaset_status()`
+ * Our availability calculation in `ClusterMetadata::check_cluster_status()`
  * always assumes that MD is in sync with GR (which it always should be), but
  * just in case it violates this assumption, it prefers to err on the side of
  * caution. This erring on the side of caution is demonstrated in this test,
  * where the availability is judged as not available, even though it could be.
  * But that's the price we pay in exchange for the safety the algorithm provides
- * which is demonstrated in the CheckReplicasetStatus_Cornercase2of5Alive
+ * which is demonstrated in the CheckClusterStatus_Cornercase2of5Alive
  * testcase.
  */
-TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase1Common) {
-  // NOTE: If this test starts failing one day because check_replicaset_status()
+TEST_F(MetadataTest, CheckClusterStatus_Cornercase1Common) {
+  // NOTE: If this test starts failing one day because check_cluster_status()
   //       starts returning that the replicaset is available, it might be a good
-  //       thing, BUT ONLY AS LONG as CheckReplicasetStatus_Cornercase2of5Alive
+  //       thing, BUT ONLY AS LONG as CheckClusterStatus_Cornercase2of5Alive
   //       is also passing. Please read the description of that test, and this
   //       one, before drawing conclusions.
 
@@ -1487,9 +1423,9 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase1Common) {
 
   // MD defines 3 nodes
   std::vector<ManagedInstance> servers_in_metadata{
-      {"", "node-A", ServerMode::Unavailable, "", 0, 0},
-      {"", "node-B", ServerMode::Unavailable, "", 0, 0},
-      {"", "node-C", ServerMode::Unavailable, "", 0, 0},
+      {"node-A", ServerMode::Unavailable, "", 0, 0},
+      {"node-B", ServerMode::Unavailable, "", 0, 0},
+      {"node-C", ServerMode::Unavailable, "", 0, 0},
   };
 
   // GR reports 3 nodes, of which 3 are alive (have qourum), BUT from
@@ -1501,15 +1437,15 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase1Common) {
         {"node-D", {"", "", 0, State::Online, Role::Secondary}},
         {"node-E", {"", "", 0, State::Online, Role::Secondary}},
     };
-    EXPECT_EQ(RS::Unavailable,
-              metadata.check_replicaset_status(
-                  servers_in_metadata, server_status, metadata_gr_discrepancy));
+    EXPECT_EQ(GRClusterStatus::Unavailable,
+              metadata.check_cluster_status(servers_in_metadata, server_status,
+                                            metadata_gr_discrepancy));
     // should log warning "Member <host>:<port> (node-A) defined in metadata not
     // found in actual replicaset" should log warning "Member <host>:<port>
-    // (node-B) defined in metadata not found in actual replicaset" should log
-    // error "Member <host>:<port> (node-D) found in replicaset, yet is not
-    // defined in metadata!" should log error "Member <host>:<port> (node-E)
-    // found in replicaset, yet is not defined in metadata!"
+    // (node-B) defined in metadata not found in actual Group Replication"
+    // should log error "Member <host>:<port> (node-D) found in replicaset, yet
+    // is not defined in metadata!" should log error "Member <host>:<port>
+    // (node-E) found in Group Replication, yet is not defined in metadata!"
 
     // meeting these is not strictly required, because when the cluster is
     // unavailable, ATTOW these results will be ignored. But OTOH, there's no
@@ -1529,13 +1465,13 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase1Common) {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// test ClusterMetadata::update_replicaset_status() - connection failures
+// test ClusterMetadata::update_cluster_status() - connection failures
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @test
- * Verify `ClusterMetadata::update_replicaset_status()` will correctly update
+ * Verify `ClusterMetadata::update_cluster_status()` will correctly update
  * routing table, even despite having to failover on connection errors.
  *
  *     Scenario details:
@@ -1543,10 +1479,10 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase1Common) {
  *     iteration 2 (instance-2): CAN'T CONNECT
  *     iteration 3 (instance-3): query_primary_member OK, query_status OK
  */
-TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
+TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailConnectOnNode2) {
   connect_to_first_metadata_server();
 
-  // update_replicaset_status() first iteration: requests start with existing
+  // update_cluster_status() first iteration: requests start with existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
@@ -1557,7 +1493,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
       .Times(1)
       .WillOnce(Invoke(query_primary_member_fail(session)));
 
-  // since 1st query_primary_member failed, update_replicaset_status() should
+  // since 1st query_primary_member failed, update_cluster_status() should
   // try to connect to instance-2. Let's make that new connections fail by NOT
   // using enable_connection(session)
   // enable_connection(++session, 3320); // we don't call this on purpose
@@ -1568,7 +1504,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
   // enable_connection(session)
   // enable_connection(++session, 3320); // we don't call this on purpose
 
-  // since 2nd connection failed, update_replicaset_status() should try to
+  // since 2nd connection failed, update_cluster_status() should try to
   // connect to instance-3. Let's allow this.
   enable_connection(++session, 3330);
 
@@ -1588,23 +1524,22 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
             session_factory
                 .create_cnt());  // caused by connect_to_first_metadata_server()
 
-  ManagedReplicaSet replicaset = typical_replicaset;
+  ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_replicaset_status("replicaset-1", replicaset);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster_name"},
+      cluster);
 
-  EXPECT_EQ(3u, replicaset.members.size());
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
-                      "localhost", 3310, 33100},
-      replicaset.members.at(0)));
-  EXPECT_TRUE(
-      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-2",
-                                ServerMode::ReadOnly, "localhost", 3320, 33200},
-                replicaset.members.at(1)));
-  EXPECT_TRUE(
-      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3",
-                                ServerMode::ReadOnly, "localhost", 3330, 33300},
-                replicaset.members.at(2)));
+  EXPECT_EQ(3u, cluster.members.size());
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
+                                        "localhost", 3310, 33100},
+                        cluster.members.at(0)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
+                                        "localhost", 3320, 33200},
+                        cluster.members.at(1)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
+                                        "localhost", 3330, 33300},
+                        cluster.members.at(2)));
 
   EXPECT_EQ(3, session_factory.create_cnt());  // +2 from new connections to
                                                // localhost:3320 and :3330
@@ -1612,7 +1547,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
 
 /**
  * @test
- * Verify `ClusterMetadata::update_replicaset_status()` will handle correctly
+ * Verify `ClusterMetadata::update_cluster_status()` will handle correctly
  * when all connect attempts fail. Finally, it should clear the routing table
  * since it's unable to connect to any server.
  *
@@ -1621,11 +1556,10 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
  *     iteration 2 (instance-2): CAN'T CONNECT
  *     iteration 3 (instance-3): CAN'T CONNECT
  */
-TEST_F(MetadataTest,
-       UpdateReplicasetStatus_PrimaryMember_FailConnectOnAllNodes) {
+TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailConnectOnAllNodes) {
   connect_to_first_metadata_server();
 
-  // update_replicaset_status() first iteration: requests start with existing
+  // update_cluster_status() first iteration: requests start with existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
@@ -1636,7 +1570,7 @@ TEST_F(MetadataTest,
       .Times(1)
       .WillOnce(Invoke(query_primary_member_fail(session)));
 
-  // since 1st query_primary_member failed, update_replicaset_status() should
+  // since 1st query_primary_member failed, update_cluster_status() should
   // try to connect to instance-2, then instance-3. Let's make those new
   // connections fail by NOT using enable_connection(session)
   EXPECT_CALL(session_factory.get(++session), flag_fail(_, 3320)).Times(1);
@@ -1646,13 +1580,15 @@ TEST_F(MetadataTest,
             session_factory
                 .create_cnt());  // caused by connect_to_first_metadata_server()
 
-  // if update_replicaset_status() can't connect to a quorum, it should clear
+  // if update_cluster_status() can't connect to a quorum, it should clear
   // replicaset.members
-  ManagedReplicaSet replicaset = typical_replicaset;
+  ManagedCluster cluster = typical_cluster;
   ConnectCallback clb;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_replicaset_status("replicaset-1", replicaset);
-  EXPECT_TRUE(replicaset.members.empty());
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
+  EXPECT_TRUE(cluster.members.empty());
 
   EXPECT_EQ(3, session_factory.create_cnt());  // +2 from new connections to
                                                // localhost:3320 and :3330
@@ -1660,14 +1596,14 @@ TEST_F(MetadataTest,
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// test ClusterMetadata::update_replicaset_status() - query_primary_member
+// test ClusterMetadata::update_cluster_status() - query_primary_member
 // failures [QUERY #2: query_primary_member]
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @test
- * Verify `ClusterMetadata::update_replicaset_status()` will correctly update
+ * Verify `ClusterMetadata::update_cluster_status()` will correctly update
  * routing table, even despite having to failover on fetching primary member
  * failing.
  *
@@ -1675,10 +1611,10 @@ TEST_F(MetadataTest,
  *     iteration 1 (instance-1): query_primary_member FAILS
  *     iteration 2 (instance-2): query_primary_member OK, query_status OK
  */
-TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1) {
+TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailQueryOnNode1) {
   connect_to_first_metadata_server();
 
-  // update_replicaset_status() first iteration: requests start with existing
+  // update_cluster_status() first iteration: requests start with existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
@@ -1709,33 +1645,33 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1) {
             session_factory
                 .create_cnt());  // caused by connect_to_first_metadata_server()
 
-  ManagedReplicaSet replicaset = typical_replicaset;
+  // replicaset.members
+  ManagedCluster cluster = typical_cluster;
   ConnectCallback clb;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_replicaset_status("replicaset-1", replicaset);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
 
   EXPECT_EQ(2, session_factory.create_cnt());  // +1 from new connection to
                                                // localhost:3320 (instance-2)
 
   // query_status reported back from instance-2
-  EXPECT_EQ(3u, replicaset.members.size());
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
-                      "localhost", 3310, 33100},
-      replicaset.members.at(0)));
-  EXPECT_TRUE(
-      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-2",
-                                ServerMode::ReadOnly, "localhost", 3320, 33200},
-                replicaset.members.at(1)));
-  EXPECT_TRUE(
-      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3",
-                                ServerMode::ReadOnly, "localhost", 3330, 33300},
-                replicaset.members.at(2)));
+  EXPECT_EQ(3u, cluster.members.size());
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
+                                        "localhost", 3310, 33100},
+                        cluster.members.at(0)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
+                                        "localhost", 3320, 33200},
+                        cluster.members.at(1)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
+                                        "localhost", 3330, 33300},
+                        cluster.members.at(2)));
 }
 
 /**
  * @test
- * Verify `ClusterMetadata::update_replicaset_status()` will handle correctly
+ * Verify `ClusterMetadata::update_cluster_status()` will handle correctly
  * when all primary member query attempts fail. Finally, it should clear the
  * routing table since it was unable to complete its operation successfully.
  *
@@ -1744,10 +1680,10 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1) {
  *     iteration 2 (instance-2): query_primary_member FAILS
  *     iteration 3 (instance-3): query_primary_member FAILS
  */
-TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes) {
+TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailQueryOnAllNodes) {
   connect_to_first_metadata_server();
 
-  // update_replicaset_status() first iteration: requests start with existing
+  // update_cluster_status() first iteration: requests start with existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
@@ -1784,12 +1720,14 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes) {
             session_factory
                 .create_cnt());  // caused by connect_to_first_metadata_server()
 
-  // if update_replicaset_status() can't connect to a quorum, it should clear
+  // if update_cluster_status() can't connect to a quorum, it should clear
   // replicaset.members
-  ManagedReplicaSet replicaset = typical_replicaset;
+  ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_replicaset_status("replicaset-1", replicaset);
-  EXPECT_TRUE(replicaset.members.empty());
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
+  EXPECT_TRUE(cluster.members.empty());
 
   EXPECT_EQ(3, session_factory.create_cnt());  // +2 from new connections to
                                                // localhost:3320 and :3330
@@ -1797,14 +1735,14 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes) {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// test ClusterMetadata::update_replicaset_status() - query_status failures
+// test ClusterMetadata::update_cluster_status() - query_status failures
 // [QUERY #3: query_status]
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @test
- * Verify `ClusterMetadata::update_replicaset_status()` will correctly update
+ * Verify `ClusterMetadata::update_cluster_status()` will correctly update
  * routing table, even despite having to failover on fetching healh status
  * failing.
  *
@@ -1812,10 +1750,10 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes) {
  *     iteration 1 (instance-1): query_primary_member OK, query_status FAILS
  *     iteration 2 (instance-2): query_primary_member OK, query_status OK
  */
-TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1) {
+TEST_F(MetadataTest, UpdateClusterStatus_Status_FailQueryOnNode1) {
   connect_to_first_metadata_server();
 
-  // update_replicaset_status() first iteration: requests start with existing
+  // update_cluster_status() first iteration: requests start with existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
@@ -1831,7 +1769,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1) {
       .Times(1)
       .WillOnce(Invoke(query_status_fail(session)));
 
-  // since 1st query_status failed, update_replicaset_status() should start
+  // since 1st query_status failed, update_cluster_status() should start
   // another iteration, but on instance-2 this time. Note that the connection to
   // instance-2 has to be created first
   enable_connection(++session, 3320);
@@ -1852,32 +1790,31 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1) {
             session_factory
                 .create_cnt());  // caused by connect_to_first_metadata_server()
 
-  ManagedReplicaSet replicaset = typical_replicaset;
+  ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_replicaset_status("replicaset-1", replicaset);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
 
   EXPECT_EQ(2, session_factory.create_cnt());  // +1 from new connection to
                                                // localhost:3320 (instance-2)
 
   // query_status reported back from instance-1
-  EXPECT_EQ(3u, replicaset.members.size());
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
-                      "localhost", 3310, 33100},
-      replicaset.members.at(0)));
-  EXPECT_TRUE(
-      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-2",
-                                ServerMode::ReadOnly, "localhost", 3320, 33200},
-                replicaset.members.at(1)));
-  EXPECT_TRUE(
-      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3",
-                                ServerMode::ReadOnly, "localhost", 3330, 33300},
-                replicaset.members.at(2)));
+  EXPECT_EQ(3u, cluster.members.size());
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
+                                        "localhost", 3310, 33100},
+                        cluster.members.at(0)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
+                                        "localhost", 3320, 33200},
+                        cluster.members.at(1)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
+                                        "localhost", 3330, 33300},
+                        cluster.members.at(2)));
 }
 
 /**
  * @test
- * Verify `ClusterMetadata::update_replicaset_status()` will handle correctly
+ * Verify `ClusterMetadata::update_cluster_status()` will handle correctly
  * when all health status query attempts fail. Finally, it should clear the
  * routing table since it was unable to complete its operation successfully.
  *
@@ -1886,10 +1823,10 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1) {
  *     iteration 2 (instance-2): query_primary_member OK, query_status FAILS
  *     iteration 3 (instance-2): query_primary_member OK, query_status FAILS
  */
-TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes) {
+TEST_F(MetadataTest, UpdateClusterStatus_Status_FailQueryOnAllNodes) {
   connect_to_first_metadata_server();
 
-  // update_replicaset_status() first iteration: requests start with existing
+  // update_cluster_status() first iteration: requests start with existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
@@ -1905,7 +1842,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes) {
       .Times(1)
       .WillOnce(Invoke(query_status_fail(session)));
 
-  // since 1st query_status failed, update_replicaset_status() should start
+  // since 1st query_status failed, update_cluster_status() should start
   // another iteration, but on instance-2 this time. Note that the connection to
   // instance-2 has to be created first
   enable_connection(++session, 3320);
@@ -1922,7 +1859,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes) {
       .Times(1)
       .WillOnce(Invoke(query_status_fail(session)));
 
-  // since 2st query_status failed, update_replicaset_status() should start
+  // since 2st query_status failed, update_cluster_status() should start
   // another iteration, but on instance-3 this time. Note that the connection to
   // instance-3 has to be created first
   enable_connection(++session, 3330);
@@ -1943,12 +1880,14 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes) {
             session_factory
                 .create_cnt());  // caused by connect_to_first_metadata_server()
 
-  // if update_replicaset_status() can't connect to a quorum, it should clear
+  // if update_cluster_status() can't connect to a quorum, it should clear
   // replicaset.members
-  ManagedReplicaSet replicaset = typical_replicaset;
+  ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_replicaset_status("replicaset-1", replicaset);
-  EXPECT_TRUE(replicaset.members.empty());
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster_name"},
+      cluster);
+  EXPECT_TRUE(cluster.members.empty());
 
   EXPECT_EQ(3, session_factory.create_cnt());  // +2 from new connections to
                                                // localhost:3320 and :3330
@@ -1956,23 +1895,23 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes) {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// test ClusterMetadata::update_replicaset_status() - success scenarios
+// test ClusterMetadata::update_cluster_status() - success scenarios
 // [QUERY #2 + #3]
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @test
- * Verify `ClusterMetadata::update_replicaset_status()` will return correct
+ * Verify `ClusterMetadata::update_cluster_status()` will return correct
  * results in a sunny-day scenario.
  *
  *     Scenario details:
  *     iteration 1 (instance-1): query_primary_member OK, query_status OK
  */
-TEST_F(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario) {
+TEST_F(MetadataTest, UpdateClusterStatus_SimpleSunnyDayScenario) {
   connect_to_first_metadata_server();
 
-  // update_replicaset_status() first iteration: all requests go to existing
+  // update_cluster_status() first iteration: all requests go to existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
@@ -1992,52 +1931,55 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario) {
             session_factory
                 .create_cnt());  // caused by connect_to_first_metadata_server()
 
-  ManagedReplicaSet replicaset = typical_replicaset;
+  ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_replicaset_status("replicaset-1", replicaset);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
 
   EXPECT_EQ(1,
             session_factory
                 .create_cnt());  // should resuse localhost:3310 connection,
 
   // query_status reported back from instance-1
-  EXPECT_EQ(3u, replicaset.members.size());
-  EXPECT_TRUE(cmp_mi_FI(
-      ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
-                      "localhost", 3310, 33100},
-      replicaset.members.at(0)));
-  EXPECT_TRUE(
-      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-2",
-                                ServerMode::ReadOnly, "localhost", 3320, 33200},
-                replicaset.members.at(1)));
-  EXPECT_TRUE(
-      cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3",
-                                ServerMode::ReadOnly, "localhost", 3330, 33300},
-                replicaset.members.at(2)));
+  EXPECT_EQ(3u, cluster.members.size());
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
+                                        "localhost", 3310, 33100},
+                        cluster.members.at(0)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
+                                        "localhost", 3320, 33200},
+                        cluster.members.at(1)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
+                                        "localhost", 3330, 33300},
+                        cluster.members.at(2)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// test ClusterMetadata::fetch_instances()
-// (this is the highest-level function, it calls everything tested above
-// except connect() (which is a separate step))
-//
-// TODO add tests for multiple replicasets here, when we begin supporting them
+// test ClusterMetadata::fetch_cluster_topology()
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @test
- * Verify `ClusterMetadata::fetch_instances()` will return correct results in a
- * sunny-day scenario.
+ * Verify `ClusterMetadata::fetch_cluster_topology()` will return correct
+ * results in a sunny-day scenario.
  */
-TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
-  connect_to_first_metadata_server();
+TEST_F(MetadataTest, FetchInstances_ok) {
+  metadata_cache::metadata_servers_list_t metadata_servers{
+      {"localhost", 3310},
+  };
+  session_factory.get(0).set_good_conns(
+      {"localhost:3310", "localhost:3320", "localhost:3330"});
 
-  // update_replicaset_status() first iteration: all requests go to existing
+  // update_cluster_status() first iteration: all requests go to existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
+  EXPECT_CALL(session_factory.get(session), execute(StartsWith(setup_session1)))
+      .Times(1);
+  EXPECT_CALL(session_factory.get(session), execute(StartsWith(setup_session2)))
+      .Times(1);
   EXPECT_CALL(session_factory.get(session),
               execute(StartsWith(execute_start_trasaction)))
       .Times(1);
@@ -2051,12 +1993,11 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
                                    const MySQLSession::RowProcessor &processor,
                                    const MySQLSession::FieldValidator &) {
     session_factory.get(0).query_impl(
-        processor,
-        {
-            {"replicaset-1", "instance-1", "localhost:3310", nullptr},
-            {"replicaset-1", "instance-2", "localhost:3320", nullptr},
-            {"replicaset-1", "instance-3", "localhost:3330", nullptr},
-        });
+        processor, {
+                       {"", "instance-1", "localhost:3310", nullptr},
+                       {"", "instance-2", "localhost:3320", nullptr},
+                       {"", "instance-3", "localhost:3330", nullptr},
+                   });
   };
   EXPECT_CALL(session_factory.get(session),
               query(StartsWith(query_metadata), _, _))
@@ -2074,35 +2015,46 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
       .WillOnce(Invoke(query_status_ok(session)));
 
   ASSERT_NO_THROW({
-    ClusterMetadata::ReplicaSetsByName rs =
-        metadata.fetch_instances("replicaset-1", "0001");
+    size_t instance_id;
+    std::atomic<bool> terminated{false};
+    auto target_cluster = mysqlrouter::TargetCluster(
+        mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name");
+    EXPECT_CALL(session_factory.get(session), flag_succeed(_, 3310));
+    const auto res = metadata.fetch_cluster_topology(terminated, target_cluster,
+                                                     0, metadata_servers, true,
+                                                     "gr-id", "", instance_id);
 
-    EXPECT_EQ(1u, rs.size());
-    EXPECT_EQ(3u, rs.at("replicaset-1").members.size());
-    EXPECT_TRUE(cmp_mi_FI(
-        ManagedInstance{"replicaset-1", "instance-1", ServerMode::ReadWrite,
-                        "localhost", 3310, 33100},
-        rs.at("replicaset-1").members.at(0)));
-    EXPECT_TRUE(cmp_mi_FI(
-        ManagedInstance{"replicaset-1", "instance-2", ServerMode::ReadOnly,
-                        "localhost", 3320, 33200},
-        rs.at("replicaset-1").members.at(1)));
-    EXPECT_TRUE(cmp_mi_FI(
-        ManagedInstance{"replicaset-1", "instance-3", ServerMode::ReadOnly,
-                        "localhost", 3330, 33300},
-        rs.at("replicaset-1").members.at(2)));
+    EXPECT_TRUE(res);
+    EXPECT_EQ(0u, instance_id);
+    const auto topology = res.value();
+
+    EXPECT_EQ(3u, topology.cluster_data.members.size());
+    EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
+                                          "localhost", 3310, 33100},
+                          topology.cluster_data.members.at(0)));
+    EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
+                                          "localhost", 3320, 33200},
+                          topology.cluster_data.members.at(1)));
+    EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
+                                          "localhost", 3330, 33300},
+                          topology.cluster_data.members.at(2)));
   });
 }
 
 /**
  * @test
- * Verify `ClusterMetadata::fetch_instances()` will handle correctly when
+ * Verify `ClusterMetadata::fetch_cluster_topology()` will handle correctly when
  * retreiving information from all servers fail. It should return an empty
  * routing table since it's unable to complete its operation successfully.
  */
-TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
-  connect_to_first_metadata_server();
-  // update_replicaset_status() first iteration: requests start with existing
+TEST_F(MetadataTest, FetchInstances_fail) {
+  metadata_cache::metadata_servers_list_t metadata_servers{
+      {"localhost", 3310},
+  };
+  session_factory.get(0).set_good_conns(
+      {"localhost:3310", "localhost:3320", "localhost:3330"});
+
+  // update_cluster_status() first iteration: requests start with existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
@@ -2116,12 +2068,11 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
                                    const MySQLSession::RowProcessor &processor,
                                    const MySQLSession::FieldValidator &) {
     session_factory.get(0).query_impl(
-        processor,
-        {
-            {"replicaset-1", "instance-1", "localhost:3310", nullptr},
-            {"replicaset-1", "instance-2", "localhost:3320", nullptr},
-            {"replicaset-1", "instance-3", "localhost:3330", nullptr},
-        });
+        processor, {
+                       {"", "instance-1", "localhost:3310", nullptr},
+                       {"", "instance-2", "localhost:3320", nullptr},
+                       {"", "instance-3", "localhost:3330", nullptr},
+                   });
   };
   EXPECT_CALL(session_factory.get(session),
               query(StartsWith(query_metadata), _, _))
@@ -2133,16 +2084,33 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
               query(StartsWith(query_primary_member), _, _))
       .Times(1)
       .WillOnce(Invoke(query_primary_member_fail(session)));
+  EXPECT_CALL(session_factory.get(session), flag_succeed(_, 3310));
+  EXPECT_CALL(session_factory.get(session),
+              execute(StartsWith(setup_session1)));
+  EXPECT_CALL(session_factory.get(session),
+              execute(StartsWith(setup_session2)));
+  EXPECT_CALL(session_factory.get(session),
+              execute(StartsWith("START TRANSACTION")));
+  EXPECT_CALL(session_factory.get(session), execute(StartsWith("COMMIT")));
   EXPECT_CALL(session_factory.get(++session), flag_fail(_, 3320)).Times(1);
   EXPECT_CALL(session_factory.get(++session), flag_fail(_, 3330)).Times(1);
 
   // if fetch_instances() can't connect to a quorum for a particular replicaset,
   // it should clear its replicaset.members
   ASSERT_NO_THROW({
-    ClusterMetadata::ReplicaSetsByName rs =
-        metadata.fetch_instances("replicaset-1", "0001");
-    EXPECT_EQ(1u, rs.size());
-    EXPECT_EQ(0u, rs.at("replicaset-1").members.size());
+    size_t instance_id;
+    std::atomic<bool> terminated{false};
+    auto target_cluster = mysqlrouter::TargetCluster(
+        mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name");
+    const auto res = metadata.fetch_cluster_topology(terminated, target_cluster,
+                                                     0, metadata_servers, true,
+                                                     "gr-id", "", instance_id);
+
+    EXPECT_TRUE(res);
+    EXPECT_EQ(0u, instance_id);
+    const auto topology = res.value();
+
+    EXPECT_EQ(0u, topology.cluster_data.members.size());
   });
 }
 

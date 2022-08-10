@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@ Recovery_message::Recovery_message(Recovery_message_type type,
   member_uuid.assign(uuid);
 }
 
-Recovery_message::~Recovery_message() {}
+Recovery_message::~Recovery_message() = default;
 
 Recovery_message::Recovery_message(const uchar *buf, size_t len)
     : Plugin_gcs_message(CT_RECOVERY_MESSAGE) {

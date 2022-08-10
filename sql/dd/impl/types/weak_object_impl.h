@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,9 +46,9 @@ class Raw_record;
 template <bool use_pfs>
 class Weak_object_impl_ : virtual public Weak_object {
  public:
-  Weak_object_impl_() {}
+  Weak_object_impl_() = default;
 
-  ~Weak_object_impl_() override {}
+  ~Weak_object_impl_() override = default;
 
   void *operator new(size_t size, const std::nothrow_t &nt) noexcept {
     /*
@@ -101,7 +101,7 @@ class Weak_object_impl_ : virtual public Weak_object {
 
  public:
   // Restore's all the related collections.
-  // There are 2 scenarions when collection is filled.
+  // There are 2 scenarios when a collection is filled.
   // 1) Parent object is retrieved using restore()
   //    and then restore collections.
   //    Eg: Tablespace (Parent object) invoked restore()

@@ -68,7 +68,7 @@ SELECT COUNT(@@GLOBAL.innodb_adaptive_hash_index_parts);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_adaptive_hash_index_parts = @@SESSION.innodb_adaptive_hash_index_parts;
---echo Expected error 'Readonly variable'
+SELECT innodb_adaptive_hash_index_parts;
+--echo Expected error 'Unknown column'
 
 

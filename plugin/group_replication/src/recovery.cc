@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,7 +309,35 @@ single_member_online:
   */
   if (!recovery_aborted) applier_module->awake_applier_module();
 
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF(
+      "recovery_thread_wait_before_wait_for_applier_module_recovery", {
+        const char act[] =
+            "now signal "
+            "signal.recovery_thread_wait_before_wait_for_applier_module_"
+            "recovery "
+            "wait_for "
+            "signal.recovery_thread_resume_before_wait_for_applier_module_"
+            "recovery";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+#endif  // NDEBUG
+
   error = wait_for_applier_module_recovery();
+
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF(
+      "recovery_thread_wait_after_wait_for_applier_module_recovery", {
+        const char act[] =
+            "now signal "
+            "signal.recovery_thread_wait_after_wait_for_applier_module_"
+            "recovery "
+            "wait_for "
+            "signal.recovery_thread_resume_after_wait_for_applier_module_"
+            "recovery";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+#endif  // NDEBUG
 
 cleanup:
 
@@ -347,14 +375,14 @@ cleanup:
 
   recovery_aborted = true;  // to avoid the start missing signals
   delete recovery_thd;
-  recovery_thd_state.set_terminated();
-  mysql_cond_broadcast(&run_cond);
-  mysql_mutex_unlock(&run_lock);
 
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
 
   my_thread_end();
+  recovery_thd_state.set_terminated();
+  mysql_cond_broadcast(&run_cond);
+  mysql_mutex_unlock(&run_lock);
   my_thread_exit(nullptr);
 
   return error; /* purecov: inspected */

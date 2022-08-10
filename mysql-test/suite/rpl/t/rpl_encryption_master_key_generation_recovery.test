@@ -116,7 +116,7 @@ INSERT INTO t1 (c1) VALUES (4),(5),(6);
 --source include/assert.inc
 --echo Restart the slave with keyring installed
 --let $rpl_server_number= 2
---let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_slave --skip-slave-start
+--let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_slave --skip-replica-start
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_restart_server.inc
@@ -177,16 +177,38 @@ SET GLOBAL binlog_encryption = ON;
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "Yes"
 --source include/assert.inc
 
-# Cleanup
+--echo ==== Cleanup ====
+
+--echo * Disable encryption, cleanup database, and consume all encrypted logs.
+--source include/rpl_connection_slave.inc
 --source include/start_slave.inc
+SET GLOBAL binlog_encryption = OFF;
+
 --source include/rpl_connection_master.inc
 SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
-SET GLOBAL binlog_encryption = OFF;
-UNINSTALL PLUGIN keyring_file;
---remove_file $keyring_slave
+
+--echo * Remove all encrypted logs.
+--source include/rpl_reset.inc
+
+--echo * Uninstall the plugins and delete the keyrings.
 --source include/rpl_connection_master.inc
 UNINSTALL PLUGIN keyring_file;
 --remove_file $keyring_master
+--source include/rpl_connection_slave.inc
+UNINSTALL PLUGIN keyring_file;
+--remove_file $keyring_slave
+
+--echo * Restart the servers with the same command lines as before the test.
+--let $rpl_server_number = 1
+--let $rpl_server_parameters =
+--let $rpl_omit_print_server_parameters = 1
+--source include/rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+
+--echo * Clean up replication test framework
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
 --source include/rpl_end.inc

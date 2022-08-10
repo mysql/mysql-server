@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,19 +34,6 @@ Clone Plugin: Server implementation
 /* Namespace for all clone data types */
 namespace myclone {
 
-/** All configuration parameters to be validated. */
-Key_Values Server::s_configs = {{"version", ""},
-                                {"version_compile_machine", ""},
-                                {"version_compile_os", ""},
-                                {"character_set_server", ""},
-                                {"character_set_filesystem", ""},
-                                {"collation_server", ""},
-                                {"innodb_page_size", ""}};
-
-/** All other configuration required by recipient. */
-Key_Values Server::s_other_configs = {
-    {"clone_donor_timeout_after_network_failure", ""}};
-
 Server::Server(THD *thd, MYSQL_SOCKET socket)
     : m_server_thd(thd),
       m_is_master(false),
@@ -54,7 +41,8 @@ Server::Server(THD *thd, MYSQL_SOCKET socket)
       m_pfs_initialized(false),
       m_acquired_backup_lock(false),
       m_protocol_version(CLONE_PROTOCOL_VERSION),
-      m_client_ddl_timeout() {
+      m_client_ddl_timeout(),
+      m_backup_lock(true) {
   m_ext_link.set_socket(socket);
   m_storage_vec.reserve(MAX_CLONE_STORAGE_ENGINE);
 
@@ -163,7 +151,7 @@ int Server::init_storage(Ha_clone_mode mode, uchar *com_buf, size_t com_len) {
         thd, PSI_NOT_INSTRUMENTED, clone_stmt_server_key);
 
     /* Acquire backup lock */
-    if (m_client_ddl_timeout != 0) {
+    if (block_ddl()) {
       auto failed = mysql_service_mysql_backup_lock->acquire(
           thd, BACKUP_LOCK_SERVICE_DEFAULT, m_client_ddl_timeout);
 
@@ -176,13 +164,20 @@ int Server::init_storage(Ha_clone_mode mode, uchar *com_buf, size_t com_len) {
   }
   m_pfs_initialized = true;
 
+  /* Work around to use client DDL timeout while waiting for backup
+  lock in clone_init_tablespaces if required. */
+  auto saved_donor_timeout = clone_ddl_timeout;
+  clone_ddl_timeout = m_client_ddl_timeout;
+
   /* Get server locators */
   err = hton_clone_begin(get_thd(), get_storage_vector(), m_tasks,
                          HA_CLONE_HYBRID, mode);
   if (err != 0) {
+    clone_ddl_timeout = saved_donor_timeout;
     return (err);
   }
   m_storage_initialized = true;
+  clone_ddl_timeout = saved_donor_timeout;
 
   if (m_is_master && mode == HA_CLONE_MODE_START) {
     /* Validate local configurations. */
@@ -280,7 +275,7 @@ int Server::parse_command_buffer(uchar command, uchar *com_buf, size_t com_len,
       break;
 
     case COM_MAX:
-      /* Fall through */
+      [[fallthrough]];
     default:
       /* purecov: begin deadcode */
       err = ER_CLONE_PROTOCOL;
@@ -360,9 +355,13 @@ int Server::deserialize_init_buffer(const uchar *init_buf, size_t init_len) {
   init_len -= 4;
 
   /* Extract DDL timeout */
-  m_client_ddl_timeout = uint4korr(init_buf);
-  init_buf += 4;
-  init_len -= 4;
+  {
+    uint32_t client_ddl_timeout = uint4korr(init_buf);
+    init_buf += 4;
+    init_len -= 4;
+
+    set_client_timeout(client_ddl_timeout);
+  }
 
   /* Initialize locators */
   while (init_len > 0) {
@@ -514,7 +513,20 @@ int Server::send_params() {
 }
 
 int Server::send_configs(Command_Response rcmd) {
-  auto &configs = (rcmd == COM_RES_CONFIG_V3) ? s_other_configs : s_configs;
+  /** All configuration parameters to be validated. */
+  Key_Values all_configs = {{"version", ""},
+                            {"version_compile_machine", ""},
+                            {"version_compile_os", ""},
+                            {"character_set_server", ""},
+                            {"character_set_filesystem", ""},
+                            {"collation_server", ""},
+                            {"innodb_page_size", ""}};
+
+  /** All other configuration required by recipient. */
+  Key_Values other_configs = {
+      {"clone_donor_timeout_after_network_failure", ""}};
+
+  auto &configs = (rcmd == COM_RES_CONFIG_V3) ? other_configs : all_configs;
 
   auto err =
       mysql_service_clone_protocol->mysql_clone_get_configs(get_thd(), configs);
@@ -711,14 +723,14 @@ int Server_Cbk::buffer_cbk(uchar *from_buffer, uint buf_len) {
 }
 
 /* purecov: begin deadcode */
-int Server_Cbk::apply_file_cbk(Ha_clone_file to_file MY_ATTRIBUTE((unused))) {
+int Server_Cbk::apply_file_cbk(Ha_clone_file to_file [[maybe_unused]]) {
   assert(false);
   my_error(ER_INTERNAL_ERROR, MYF(0), "Apply callback from Clone Server");
   return (ER_INTERNAL_ERROR);
 }
 
-int Server_Cbk::apply_buffer_cbk(uchar *&to_buffer MY_ATTRIBUTE((unused)),
-                                 uint &len MY_ATTRIBUTE((unused))) {
+int Server_Cbk::apply_buffer_cbk(uchar *&to_buffer [[maybe_unused]],
+                                 uint &len [[maybe_unused]]) {
   assert(false);
   my_error(ER_INTERNAL_ERROR, MYF(0), "Apply callback from Clone Server");
   return (ER_INTERNAL_ERROR);

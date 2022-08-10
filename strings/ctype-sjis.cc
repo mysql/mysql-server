@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,14 +242,13 @@ static const uchar sort_order_sjis[] = {
   ((0x40 <= (c) && (c) <= 0x7e) || (0x80 <= (c) && (c) <= 0xfc))
 
 extern "C" {
-static uint ismbchar_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static uint ismbchar_sjis(const CHARSET_INFO *cs [[maybe_unused]],
                           const char *p, const char *e) {
   return (issjishead((uchar)*p) && (e - p) > 1 && issjistail((uchar)p[1]) ? 2
                                                                           : 0);
 }
 
-static uint mbcharlen_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           uint c) {
+static uint mbcharlen_sjis(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
   return (issjishead((uchar)c) ? 2 : 1);
 }
 }  // extern "C"
@@ -17844,8 +17843,8 @@ static const uint16 unicode_to_sjis[65536] = {
   @retval   MY_CS_ILSEQ    If a wrong byte sequence was found
 */
 extern "C" {
-static int my_mb_wc_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         my_wc_t *pwc, const uchar *s, const uchar *e) {
+static int my_mb_wc_sjis(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
+                         const uchar *s, const uchar *e) {
   int hi;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -17884,8 +17883,8 @@ static int my_mb_wc_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   @retval   2              If a 2-byte character was put
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in SJIS
 */
-static int my_wc_mb_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         my_wc_t wc, uchar *s, uchar *e) {
+static int my_wc_mb_sjis(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                         uchar *s, uchar *e) {
   int code;
 
   if ((int)wc < 0x80) /* ASCII: [U+0000..U+007F] -> [00-7F] */
@@ -17924,7 +17923,7 @@ mb:
   return 2;
 }
 
-static size_t my_numcells_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static size_t my_numcells_sjis(const CHARSET_INFO *cs [[maybe_unused]],
                                const char *str, const char *str_end) {
   size_t clen;
   const uchar *b = (const uchar *)str;
@@ -17949,9 +17948,9 @@ static size_t my_numcells_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   Returns a well formed length of a SJIS string.
   CP932 additional characters are also accepted.
 */
-static size_t my_well_formed_len_sjis(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *b, const char *e,
-    size_t pos, int *error) {
+static size_t my_well_formed_len_sjis(const CHARSET_INFO *cs [[maybe_unused]],
+                                      const char *b, const char *e, size_t pos,
+                                      int *error) {
   const char *b0 = b;
   *error = 0;
   while (pos-- && b < e) {
@@ -17993,7 +17992,7 @@ static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_sjis,
                                                 mbcharlen_sjis,
                                                 my_numchars_mb,
-                                                my_charpos_mb,
+                                                my_charpos_mb3,
                                                 my_well_formed_len_sjis,
                                                 my_lengthsp_8bit,
                                                 my_numcells_sjis,
@@ -18024,7 +18023,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM |
         MY_CS_NONASCII,   /* state */
     "sjis",               /* cs name    */
-    "sjis_japanese_ci",   /* name */
+    "sjis_japanese_ci",   /* m_coll_name */
     "Shift-JIS Japanese", /* comment    */
     nullptr,              /* tailoring */
     nullptr,              /* coll_param */
@@ -18059,7 +18058,7 @@ CHARSET_INFO my_charset_sjis_bin = {
     0,                                               /* number */
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_NONASCII, /* state  */
     "sjis",                                          /* cs name    */
-    "sjis_bin",                                      /* name */
+    "sjis_bin",                                      /* m_coll_name */
     "Shift-JIS Japanese",                            /* comment    */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */

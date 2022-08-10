@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -161,8 +161,8 @@ int table_esgs_by_user_by_event_name::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esgs_by_user_by_event_name::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_esgs_by_user_by_event_name::index_init(uint idx [[maybe_unused]],
+                                                 bool) {
   PFS_index_esgs_by_user_by_event_name *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_esgs_by_user_by_event_name);
@@ -240,7 +240,7 @@ int table_esgs_by_user_by_event_name::read_row_values(TABLE *table,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* USER */
-          m_row.m_user.set_field(f);
+          m_row.m_user.set_nullable_field(f);
           break;
         case 1: /* EVENT_NAME */
           m_row.m_event_name.set_field(f);

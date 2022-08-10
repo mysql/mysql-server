@@ -14,13 +14,13 @@ call mtr.add_suppression("Cannot execute the current event group in the parallel
 
 --source include/stop_slave.inc
 
-SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
-SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
-SET @save_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 
-SET GLOBAL slave_parallel_type = LOGICAL_CLOCK;
-SET GLOBAL slave_parallel_workers = 3;
-SET GLOBAL slave_transaction_retries = 0;
+SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+SET GLOBAL replica_parallel_workers = 3;
+SET GLOBAL replica_transaction_retries = 0;
 
 #
 # Part I. "Rotated" transactions apply correctly.
@@ -154,9 +154,11 @@ DROP TABLE t1;
 
 #--connection slave
 --source include/stop_slave.inc
-SET @@GLOBAL.slave_parallel_type= @save_slave_parallel_type;
-SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
-SET @@GLOBAL.slave_transaction_retries= @save_slave_transaction_retries;
+SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
+--disable_warnings
+SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
+SET @@GLOBAL.replica_transaction_retries= @save_replica_transaction_retries;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

@@ -1,0 +1,193 @@
+################################################################################
+# This test validates UDF group_replication_set_as_primary and confirms
+# that connection running a transactions that did not reach commit stage is
+# disconnected when UDF group_replication_set_as_primary is executed.
+# UDF group_replication_set_as_primary runs successfully and primary is changed.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+# 2. Block all commits on server1 and initiate a transaction.
+#    Begin change of primary from server2(secondary).
+# 3. Unblock transactions on server1.
+#    Transaction should fail it was not committing so it was killed
+#    and client connection dropped.
+# 4. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+# 5. Block all commits on server2 and initiate a transaction.
+#    Begin change of primary from server2(primary).
+# 6. Unblock transactions on server2.
+#    Transaction should fail it was not committing so it was killed
+#    and client connection dropped.
+# 7. Assert primary changed.
+#    Assert data is not present on M1 and M2.
+# 8. Cleanup.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Setup group of 2 servers, M1(primary) and M2(secondary).
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1(c1 int primary key);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Block all commits on server1 and initiate a transaction.
+--echo #    Begin change of primary from server2(secondary).
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,trans_delegate_before_commit_before_before_call_observers';
+
+--send INSERT INTO t1 values(1)
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.trans_delegate_before_commit_before_before_call_observers_reached";
+SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observers';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# There is an ongoing transaction INSERT going on.
+# So UDF group_replication_set_as_primary will start but to
+# finish successfully all ongoing transactions must finish.
+# UDF group_replication_set_as_primary finishes successfully
+# after setting the killed flag in THD running INSERT operation post expiry of
+# timeout and killed transactions are not counted by service
+# `mysql_ongoing_transactions_query`
+--replace_result $server2_uuid SERVER2_UUID
+--eval SELECT group_replication_set_as_primary("$server2_uuid", 0);
+
+--echo
+--echo # 3. Unblock transactions on server1.
+--echo #    Transaction should fail it was not committing so it was killed
+--echo #    and client connection dropped.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.trans_delegate_before_commit_before_before_call_observers_waiting";
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--error CR_SERVER_LOST
+--reap
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET DEBUG_SYNC= 'RESET';
+
+--echo
+--echo # 4. Assert primary changed.
+--echo #    Assert data is not present on M1 and M2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is no value 1 in table t1.'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 5. Block all commits on server2 and initiate a transaction.
+--echo #    Begin change of primary from server2(primary).
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,trans_delegate_before_commit_before_before_call_observers';
+
+--send INSERT INTO t1 values(1)
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.trans_delegate_before_commit_before_before_call_observers_reached";
+SET @@GLOBAL.DEBUG= '-d,trans_delegate_before_commit_before_before_call_observers';
+
+--replace_result $server1_uuid SERVER1_UUID
+--eval SELECT group_replication_set_as_primary("$server1_uuid", 2);
+
+--echo
+--echo # 6. Unblock transactions on server2.
+--echo #    Transaction should fail it was not committing so it was killed
+--echo #    and client connection dropped.
+
+SET DEBUG_SYNC= "now SIGNAL signal.trans_delegate_before_commit_before_before_call_observers_waiting";
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--error CR_SERVER_LOST
+--reap
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET DEBUG_SYNC= 'RESET';
+
+--echo
+--echo # 7. Assert primary changed.
+--echo #    Assert data is not present on M1 and M2.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--let $assert_text= 'There is no value 1 in table t1.'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 8. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--source include/group_replication_end.inc

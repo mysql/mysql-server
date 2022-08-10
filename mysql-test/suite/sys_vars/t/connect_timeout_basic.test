@@ -142,7 +142,9 @@ SET global.connect_timeout = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.connect_timeout;
 --Error ER_BAD_FIELD_ERROR
-SELECT connect_timeout = @@session.connect_timeout;
+SELECT connect_timeout;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.connect_timeout;
 
 ##############################
 #   Restore initial value    #

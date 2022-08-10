@@ -84,3 +84,17 @@ DROP TABLE t1;
 
 SET @@global.innodb_interpreter = @start_global_value;
 SELECT @@global.innodb_interpreter;
+
+--echo #
+--echo # Bug #33316661: setting innodb_interpreter=null terminate called after
+--echo # throwing an instance of 'std::logic_error'
+--echo #
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION innodb_interpreter = null;
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION innodb_interpreter = 0;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_interpreter = null;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_interpreter = 0;

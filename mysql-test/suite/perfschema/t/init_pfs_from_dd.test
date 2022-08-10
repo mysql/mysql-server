@@ -32,15 +32,17 @@ SELECT COUNT(*) FROM performance_schema.cond_instances;
 
 --disable_warnings
 --let $MYSQLD_DATADIR=`SELECT @@datadir`
---let $INNODB_LOG_FILE_SIZE=`SELECT @@innodb_log_file_size`
+--let $INNODB_LOG_CAPACITY=`SELECT @@innodb_redo_log_capacity`
 --source include/shutdown_mysqld.inc
 
 --let LOG_FILE = $MYSQLTEST_VARDIR/tmp/bootstrap.err
---let CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb-log-file-size=$INNODB_LOG_FILE_SIZE --debug=+d,test_p_s_metadata_version --innodb-read-only --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --log-error=$LOG_FILE --secure-file-priv="" 2>&1
+--let CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb-redo-log-capacity=$INNODB_LOG_CAPACITY --debug=+d,test_p_s_metadata_version --innodb-read-only --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --log-error=$LOG_FILE --secure-file-priv="" 2>&1
 --replace_regex /.*component_reference_cache.*/Can't open shared library component_reference_cache/g
 --error 1
 --exec $CMD
 --enable_warnings
 
+# Clean up
+--let $restart_parameters=restart:--debug=-d,test_p_s_metadata_version
 --source include/start_mysqld.inc
-
+--remove_file $LOG_FILE

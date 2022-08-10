@@ -1,0 +1,20 @@
+###############################################################################
+# This test verifies that if the missing transactions on a joining members are
+# above threshold the server will use clone as its recovery strategy with SSL
+#
+# 0. The test requires two servers: M1 and M2.
+# 1. Install the clone plugin on server 1
+# 2. Create a user that requires SSL
+# 3. Bootstrap server1 and add some data
+# 4. Restart server 2 with a monitoring process (mysqld_safe) if needed
+# 5. Install the clone plugingr_clone_integration_basics_with_ssl
+#    Setup the server so group replication starts on boot
+# 6. Configure the plugin to use SSL while Cloning
+#    Start group replication on server 2
+#    Wait for it to restart and come back
+#    Check clone was completed
+# 7. Cleanup
+#
+
+--source include/big_test.inc
+--source ../include/gr_clone_integration_basics_with_ssl.inc

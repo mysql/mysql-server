@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,11 @@
 #ifndef PASSWORD_OPTION_INCLUDED
 #define PASSWORD_OPTION_INCLUDED
 
+#include <optional>
 #include <string>
 
 #include "client/base/abstract_string_option.h"
 #include "my_getopt.h"
-#include "nullable.h"
 
 namespace Mysql {
 namespace Tools {
@@ -49,8 +49,9 @@ class Password_option : public Abstract_string_option<Password_option> {
       --name.
     @param description Description of option to be printed in --help.
    */
-  Password_option(Nullable<std::string> *value, std::string name,
+  Password_option(std::optional<std::string> *value, std::string name,
                   std::string description);
+  ~Password_option();
 
  private:
   void password_callback(char *);

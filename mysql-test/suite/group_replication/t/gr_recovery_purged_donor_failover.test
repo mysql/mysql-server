@@ -36,6 +36,13 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
 --connection server2
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 --source include/start_group_replication.inc
 
 --echo #
@@ -78,6 +85,7 @@ SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("Cannot replicate to server with server_uuid*");
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
@@ -90,6 +98,10 @@ SET SESSION sql_log_bin= 1;
 --connection server3
 
 SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Got fatal error 1236*");
@@ -127,7 +139,6 @@ SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 
 --connection server2
 SET SESSION sql_log_bin= 0;
---eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
@@ -148,6 +159,10 @@ SET SESSION sql_log_bin= 1;
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= @debug_save_rec_int;
 
 DROP TABLE t1;
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
 
 --connection server2
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,22 +30,32 @@
 #include "http_auth_realm.h"
 #include "mysqlrouter/http_auth_realm_component.h"
 
-void HttpAuthRealmComponent::init(std::shared_ptr<value_type> auth_realms) {
-  auth_realms_ = auth_realms;
+void HttpAuthRealmComponent::add_realm(const std::string &name,
+                                       std::shared_ptr<HttpAuthRealm> realm) {
+  std::lock_guard<std::mutex> lk(realms_m_);
+
+  auth_realms_[name] = std::move(realm);
+}
+
+void HttpAuthRealmComponent::remove_realm(const std::string &name) {
+  std::lock_guard<std::mutex> lk(realms_m_);
+
+  const auto it = auth_realms_.find(name);
+  if (it != auth_realms_.end()) {
+    auth_realms_.erase(it);
+  }
 }
 
 std::shared_ptr<HttpAuthRealm> HttpAuthRealmComponent::get(
     const std::string &inst) {
-  if (auto realms = auth_realms_.lock()) {
-    auto it = realms->find(inst);
-    if (it == realms->end()) {
-      return nullptr;
-    }
+  std::lock_guard<std::mutex> lk(realms_m_);
 
-    return it->second;
-  } else {
+  auto it = auth_realms_.find(inst);
+  if (it == auth_realms_.end()) {
     return nullptr;
   }
+
+  return it->second;
 }
 
 std::error_code HttpAuthRealmComponent::authenticate(

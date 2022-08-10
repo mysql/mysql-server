@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -223,7 +223,7 @@ class context : public Explain_context {
           context *parent_arg)
       : Explain_context(type_arg), name(name_arg), parent(parent_arg) {}
 
-  virtual ~context() {}
+  virtual ~context() = default;
 
   /**
     Pass the node with its child nodes to a JSON formatter
@@ -300,9 +300,8 @@ class context : public Explain_context {
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_subquery(subquery_list_enum subquery_type
-                                MY_ATTRIBUTE((unused)),
-                            subquery_ctx *ctx MY_ATTRIBUTE((unused))) {
+  virtual bool add_subquery(subquery_list_enum subquery_type [[maybe_unused]],
+                            subquery_ctx *ctx [[maybe_unused]]) {
     assert(0);
     return true;
   }
@@ -314,8 +313,7 @@ class context : public Explain_context {
     @retval false               Ok
     @retval true                Error
   */
-  virtual bool format_nested_loop(
-      Opt_trace_context *json MY_ATTRIBUTE((unused))) {
+  virtual bool format_nested_loop(Opt_trace_context *json [[maybe_unused]]) {
     assert(0);
     return true;
   }
@@ -328,26 +326,20 @@ class context : public Explain_context {
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_join_tab(joinable_ctx *ctx MY_ATTRIBUTE((unused))) {
+  virtual bool add_join_tab(joinable_ctx *ctx [[maybe_unused]]) {
     assert(0);
     return true;
   }
 
   /**
     Set nested ORDER BY/GROUP BY/DISTINCT node to @c ctx
-
-    @retval false               Ok
-    @retval true                Error
   */
-  virtual void set_sort(sort_ctx *ctx MY_ATTRIBUTE((unused))) { assert(0); }
+  virtual void set_sort(sort_ctx *ctx [[maybe_unused]]) { assert(0); }
 
   /**
     Set nested WINDOW node to @c ctx
-
-    @retval false               Ok
-    @retval true                Error
   */
-  virtual void set_window(window_ctx *ctx MY_ATTRIBUTE((unused))) { assert(0); }
+  virtual void set_window(window_ctx *ctx [[maybe_unused]]) { assert(0); }
 
   /**
     Add a query specification node to the CTX_UNION node
@@ -357,7 +349,7 @@ class context : public Explain_context {
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_query_spec(context *ctx MY_ATTRIBUTE((unused))) {
+  virtual bool add_query_spec(context *ctx [[maybe_unused]]) {
     assert(0);
     return true;
   }
@@ -371,7 +363,7 @@ class context : public Explain_context {
     @retval false       Can't associate: this node or its child nodes are not
                         derived from the subquery
   */
-  virtual bool find_and_set_derived(context *subquery MY_ATTRIBUTE((unused))) {
+  virtual bool find_and_set_derived(context *subquery [[maybe_unused]]) {
     assert(0);
     return false;
   }
@@ -387,9 +379,8 @@ class context : public Explain_context {
        0   subqusery were added
        1   error occurred
   */
-  virtual int add_where_subquery(subquery_ctx *ctx MY_ATTRIBUTE((unused)),
-                                 Query_expression *subquery
-                                     MY_ATTRIBUTE((unused))) {
+  virtual int add_where_subquery(subquery_ctx *ctx [[maybe_unused]],
+                                 Query_expression *subquery [[maybe_unused]]) {
     assert(0);
     return false;
   }
@@ -780,19 +771,15 @@ class table_with_where_and_derived : public table_base_ctx {
   }
 
   bool format_derived(Opt_trace_context *json) override {
-    if (derived_from.elements == 0)
-      return false;
-    else if (derived_from.elements == 1)
-      return derived_from.head()->format(json);
-    else {
-      Opt_trace_array loops(json, K_NESTED_LOOP);
+    if (derived_from.elements == 0) return false;
+    if (derived_from.elements == 1) return derived_from.head()->format(json);
+    Opt_trace_array loops(json, K_NESTED_LOOP);
 
-      List_iterator<context> it(derived_from);
-      context *c;
-      while ((c = it++)) {
-        Opt_trace_object anonymous_wrapper(json);
-        if (c->format(json)) return true;
-      }
+    List_iterator<context> it(derived_from);
+    context *c;
+    while ((c = it++)) {
+      Opt_trace_object anonymous_wrapper(json);
+      if (c->format(json)) return true;
     }
     return false;
   }
@@ -1011,8 +998,7 @@ class simple_sort_with_subqueries_ctx : public simple_sort_ctx {
                     subquery_ctx *ctx) override {
     if (subquery_type != subquery_type_arg)
       return simple_sort_ctx::add_subquery(subquery_type_arg, ctx);
-    else
-      return subqueries.push_back(ctx);
+    return subqueries.push_back(ctx);
   }
 
  private:
@@ -1163,9 +1149,7 @@ class sort_with_subqueries_ctx : public sort_ctx {
                     subquery_ctx *ctx) override {
     if (subquery_type_arg != subquery_type)
       return sort_ctx::add_subquery(subquery_type_arg, ctx);
-    else
-      return subqueries.push_back(ctx);
-    return false;
+    return subqueries.push_back(ctx);
   }
 
  private:
@@ -1216,8 +1200,7 @@ class window_ctx : public join_ctx {
         // Make him notice the top-to-bottom order of execution of windows:
         if (w->is_last()) to.add(K_WINDOW_LAST_EXECUTED, true);
       }
-      if (!w->outtable_param()->m_window_short_circuit)
-        to.add(K_USING_TMP_TABLE, true);
+      if (!w->short_circuit()) to.add(K_USING_TMP_TABLE, true);
       if (w->needs_sorting()) {
         obj->add(K_USING_FILESORT, true);
         Opt_trace_array sort_order(json, K_FILESORT_KEY);
@@ -1257,10 +1240,8 @@ class window_ctx : public join_ctx {
 bool join_ctx::find_and_set_derived(context *subquery) {
   assert(subquery->id() != 0);
 
-  if (sort)
-    return sort->find_and_set_derived(subquery);
-  else if (window)
-    return window->find_and_set_derived(subquery);
+  if (sort) return sort->find_and_set_derived(subquery);
+  if (window) return window->find_and_set_derived(subquery);
 
   List_iterator<joinable_ctx> it(join_tabs);
   joinable_ctx *t;
@@ -1272,10 +1253,8 @@ bool join_ctx::find_and_set_derived(context *subquery) {
 
 bool join_ctx::add_subquery(subquery_list_enum subquery_type,
                             subquery_ctx *ctx) {
-  if (sort)
-    return sort->add_subquery(subquery_type, ctx);
-  else if (window)
-    return window->add_subquery(subquery_type, ctx);
+  if (sort) return sort->add_subquery(subquery_type, ctx);
+  if (window) return window->add_subquery(subquery_type, ctx);
 
   if (subquery_type > SQ_toplevel) {
     List_iterator<joinable_ctx> it(join_tabs);
@@ -1380,7 +1359,7 @@ bool union_result_ctx::format_body(Opt_trace_context *json,
     return true; /* purecov: inspected */
 
   if (message) {
-    message_ctx *msg = (message_ctx *)message;
+    auto *msg = (message_ctx *)message;
     obj->add_alnum(K_MESSAGE, msg->entry()->col_message.str);
   }
 
@@ -1434,10 +1413,8 @@ bool join_ctx::dependent() {
 
 int join_ctx::add_where_subquery(subquery_ctx *ctx,
                                  Query_expression *subquery) {
-  if (sort)
-    return sort->join_ctx::add_where_subquery(ctx, subquery);
-  else if (window)
-    return window->join_ctx::add_where_subquery(ctx, subquery);
+  if (sort) return sort->join_ctx::add_where_subquery(ctx, subquery);
+  if (window) return window->join_ctx::add_where_subquery(ctx, subquery);
 
   List_iterator<joinable_ctx> it(join_tabs);
   joinable_ctx *j;
@@ -1525,7 +1502,7 @@ class materialize_ctx : public joinable_ctx,
 
     /*
       Currently K-REF/col_ref is not shown; it would always be "func", since
-      {subquery,semijoin} materialization use store_key_item; using
+      {subquery,semijoin} materialization use store_key; using
       get_store_key() instead would allow "const" and outer column's name,
       if applicable.
       The looked up expression can anyway be inferred from the condition:

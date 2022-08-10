@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,22 +22,27 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
-#include "router_component_test.h"
-
-#include "mysqlrouter/utils.h"
-#include "process_wrapper.h"
-#include "tcp_port_pool.h"
-
 #include <chrono>
+#include <cstdlib>  // setenv
+#include <fstream>
+#include <memory>  // unique_ptr
+#include <string>
 #include <thread>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "mysql/harness/filesystem.h"
+#include "process_wrapper.h"
+#include "router_component_test.h"
+#include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
 
 #define MY_WAIT_US_NOASSERT(cond, usec) \
   {                                     \
     int n = 0;                          \
-    int max = usec / 1000;              \
+    int max = (usec) / 1000;            \
     do {                                \
       std::this_thread::sleep_for(1ms); \
       n++;                              \
@@ -201,7 +206,7 @@ TEST_F(RouterPidfileTest, PidFileRemovedAtExit) {
   ASSERT_TRUE(mysql_harness::Path(fullpath).exists());
 
   // verify clean shutdown exitcode
-  stop_router();
+  EXPECT_NO_FATAL_FAILURE(stop_router());
 
   // check pidfile removed
   ASSERT_FALSE(mysql_harness::Path(fullpath).exists());
@@ -225,17 +230,18 @@ class RouterPidfileOptionTest : public RouterPidfileTest {};
  *      TS_FR04_01
  */
 TEST_F(RouterPidfileOptionTest, PidFileNone) {
-  start_router();
+  SCOPED_TRACE("// start router");
+  EXPECT_NO_FATAL_FAILURE(start_router());
 
-  // check default pidfile does NOT exist
+  SCOPED_TRACE("// check default pidfile does NOT exist");
   mysql_harness::Path fullpath =
       mysql_harness::Path(runtime_folder.name()).join(pidfile.c_str());
   ASSERT_FALSE(fullpath.exists());
 
-  // verify clean shutdown exitcode
-  stop_router();
+  SCOPED_TRACE("// verify clean shutdown exitcode");
+  EXPECT_NO_FATAL_FAILURE(stop_router());
 
-  // expect NO PID output
+  SCOPED_TRACE("// expect NO PID output");
   EXPECT_FALSE(router->expect_output("PID .* written to '.*'", true));
 }
 
@@ -251,7 +257,7 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionTwiceWithoutValue) {
   auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
                                                true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 1s);
+  EXPECT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE, 1s));
 
   // expect error
   EXPECT_TRUE(router.expect_output(
@@ -270,8 +276,7 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionTwice) {
 
   auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
                                                true, false, -1s);
-
-  check_exit_code(router, EXIT_FAILURE, 1s);
+  EXPECT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE, 1s));
 
   // expect error
   EXPECT_TRUE(router.expect_output(
@@ -296,8 +301,7 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionCfgTwice) {
 
   auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
                                                true, false, -1s);
-
-  check_exit_code(router, EXIT_FAILURE, 1s);
+  EXPECT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE, 1s));
 
   // expect error
   EXPECT_TRUE(router.expect_output(
@@ -329,7 +333,7 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionEnvWhitespace) {
   ASSERT_TRUE(mysql_harness::Path(fullpath).exists());
 
   // verify clean shutdown exitcode
-  stop_router();
+  EXPECT_NO_FATAL_FAILURE(stop_router());
 
   // unset ROUTER_PID env
   UnsetEnvRouterPid();
@@ -346,8 +350,8 @@ struct PidFileOptionParams {
   std::string filename;
   bool tmpdir_prefix;
 
-  PidFileOptionParams(const std::string &filename_, bool tmpdir_prefix_)
-      : filename(filename_), tmpdir_prefix(tmpdir_prefix_) {}
+  PidFileOptionParams(std::string filename_, bool tmpdir_prefix_)
+      : filename(std::move(filename_)), tmpdir_prefix(tmpdir_prefix_) {}
 };
 
 class RouterPidfileOptionValueTest
@@ -387,7 +391,7 @@ TEST_P(RouterPidfileOptionValueTest, PidFileOptionValueTest) {
   ASSERT_TRUE(mysql_harness::Path(fullpath).exists());
 
   // verify clean shutdown exitcode
-  stop_router();
+  EXPECT_NO_FATAL_FAILURE(stop_router());
 
   // expect PID output
   EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true));
@@ -445,9 +449,8 @@ struct PidFileOptionErrorParams {
   std::string filename;
   std::string pattern;
 
-  PidFileOptionErrorParams(const std::string &filename_,
-                           const std::string &pattern_)
-      : filename(filename_), pattern(pattern_) {}
+  PidFileOptionErrorParams(std::string filename_, std::string pattern_)
+      : filename(std::move(filename_)), pattern(std::move(pattern_)) {}
 };
 
 class RouterPidfileOptionValueTestError
@@ -462,8 +465,7 @@ TEST_P(RouterPidfileOptionValueTestError, PidFileOptionValueTestError) {
 
   auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
                                                true, false, -1s);
-
-  check_exit_code(router, EXIT_FAILURE, 1s);
+  EXPECT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE, 1s));
 
   // expect error
   EXPECT_TRUE(router.expect_output(test_params.pattern, true));
@@ -481,16 +483,16 @@ INSTANTIATE_TEST_SUITE_P(
         // readonly dir : TS_FR11_01 (M)
         PidFileOptionErrorParams(
             mysql_harness::Path(FOO).join(READONLY_FOLDER).c_str(),
-            "^Error: Failed writing PID to .*/foo/readonly:.*"),
+            "^Error: Failed writing PID to .*/foo/readonly':.*"),
         // readonly file : TS_FR11_02 (M)
         PidFileOptionErrorParams(
             mysql_harness::Path(FOO).join(READONLY_FILE).c_str(),
-            "^Error: Failed writing PID to .*/foo/readonly.pid:.*"),
+            "^Error: Failed writing PID to .*/foo/readonly.pid':.*"),
         // nonexisting dir : TS_FR11_03 (M)
         PidFileOptionErrorParams(
             mysql_harness::Path(FOO).join(NONEXISTING).join(PIDFILE).c_str(),
             "^Error: Failed writing PID to "
-            ".*/foo/nonexisting/mysqlrouter.pid:.*")));
+            ".*/foo/nonexisting/mysqlrouter.pid':.*")));
 
 /**
  * @test
@@ -499,7 +501,8 @@ INSTANTIATE_TEST_SUITE_P(
 struct PidFileOptionCfgParams {
   std::string filename;
 
-  PidFileOptionCfgParams(const std::string &filename_) : filename(filename_) {}
+  PidFileOptionCfgParams(std::string filename_)
+      : filename(std::move(filename_)) {}
 };
 
 class RouterPidfileOptionCfgValueTest
@@ -535,7 +538,7 @@ TEST_P(RouterPidfileOptionCfgValueTest, PidFileOptionCfgValueTest) {
   ASSERT_TRUE(mysql_harness::Path(fullpath).exists());
 
   // verify clean shutdown exitcode
-  stop_router();
+  EXPECT_NO_FATAL_FAILURE(stop_router());
 
   // expect PID output
   EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true));
@@ -559,8 +562,8 @@ INSTANTIATE_TEST_SUITE_P(
 struct PidFileOptionCfgErrorParams {
   std::string filename;
 
-  PidFileOptionCfgErrorParams(const std::string &filename_)
-      : filename(filename_) {}
+  PidFileOptionCfgErrorParams(std::string filename_)
+      : filename(std::move(filename_)) {}
 };
 
 class RouterPidfileOptionCfgValueTestError
@@ -580,8 +583,7 @@ TEST_P(RouterPidfileOptionCfgValueTestError, PidFileOptionCfgValueTestError) {
   // start router with config file, and expect error
   auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
                                                true, false, -1s);
-
-  check_exit_code(router, EXIT_FAILURE, 1s);
+  EXPECT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE, 1s));
 
   // expect error
   EXPECT_TRUE(
@@ -605,8 +607,8 @@ INSTANTIATE_TEST_SUITE_P(PidFileOptionCfgValueTestError,
 struct PidFileOptionEnvErrorParams {
   std::string filename;
 
-  PidFileOptionEnvErrorParams(const std::string &filename_)
-      : filename(filename_) {}
+  PidFileOptionEnvErrorParams(std::string filename_)
+      : filename(std::move(filename_)) {}
 };
 
 class RouterPidfileOptionEnvValueTestError
@@ -622,8 +624,7 @@ TEST_P(RouterPidfileOptionEnvValueTestError, PidFileOptionEnvValueTestError) {
   // start router with default config file, and expect error
   auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
                                                true, false, -1s);
-
-  check_exit_code(router, EXIT_FAILURE, 1s);
+  EXPECT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE, 1s));
 
   // unset ROUTER_PID env
   UnsetEnvRouterPid();
@@ -673,23 +674,29 @@ TEST_P(RouterPidfileOptionSupremacyTest, PidFileOptionSupremacyTest) {
   auto test_params = GetParam();
 
   // setup the 3 possible pidfile names and resulting full path
-  std::string pidfile[3] = {"opt.pid", "cfg.pid", "env.pid"};
-  mysql_harness::Path rtpf[3];
-  for (int i = 0; i < 3; i++) {
-    rtpf[i] = mysql_harness::Path(runtime_folder.name()).join(pidfile[i]);
+  const std::array<std::string, 3> pidfile_names = {"opt.pid", "cfg.pid",
+                                                    "env.pid"};
+
+  std::array<mysql_harness::Path, pidfile_names.size()> rtpf;
+  {
+    const auto runtime_folder_name = runtime_folder.name();
+    auto it = rtpf.begin();
+    for (const auto &pidfile_name : pidfile_names) {
+      *it++ = mysql_harness::Path(runtime_folder_name).join(pidfile_name);
+    }
   }
 
   // setup according to test parameters
   if (test_params.used & OPT) {
-    router_cmdline.emplace_back("--pid-file=" + pidfile[0]);
+    router_cmdline.emplace_back("--pid-file=" + pidfile_names[0]);
   }
   if (test_params.used & CFG) {
-    params["pid_file"] = pidfile[1];
+    params["pid_file"] = pidfile_names[1];
     // load keepalive with 10sec duration
     conf_file = create_config_file(conf_folder.name(), keepalive, &params);
   }
   if (test_params.used & ENV) {
-    SetEnvRouterPid(pidfile[2].c_str());
+    SetEnvRouterPid(pidfile_names[2].c_str());
   }
 
   // start router with given parameters
@@ -709,7 +716,7 @@ TEST_P(RouterPidfileOptionSupremacyTest, PidFileOptionSupremacyTest) {
   }
 
   // verify clean shutdown exitcode
-  stop_router();
+  EXPECT_NO_FATAL_FAILURE(stop_router());
 
   if (test_params.used & ENV) {
     // unset ROUTER_PID env
@@ -740,9 +747,9 @@ struct PidFileOptionSupremacyCornerCaseParams {
   std::string extra_params;
   std::string pattern;
 
-  PidFileOptionSupremacyCornerCaseParams(const std::string &extra_params_,
-                                         const std::string &pattern_)
-      : extra_params(extra_params_), pattern(pattern_) {}
+  PidFileOptionSupremacyCornerCaseParams(std::string extra_params_,
+                                         std::string pattern_)
+      : extra_params(std::move(extra_params_)), pattern(std::move(pattern_)) {}
 };
 
 class RouterPidfileOptionSupremacyCornerCaseTest
@@ -765,8 +772,7 @@ TEST_P(RouterPidfileOptionSupremacyCornerCaseTest,
 
   auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
                                                true, false, -1s);
-
-  check_exit_code(router, EXIT_FAILURE, 1s);
+  EXPECT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE, 1s));
 
   // expect error
   EXPECT_TRUE(router.expect_output(test_params.pattern, true));
@@ -801,9 +807,12 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
   // Create an already existing pidfile
   mysql_harness::Path fullpath =
       mysql_harness::Path(runtime_folder.name()).join(pidfile.c_str());
-  std::ofstream alreadyexists(fullpath.c_str());
+  std::ofstream alreadyexists(fullpath.str());
   alreadyexists << "PidFileOptionExistsTest already existing file" << std::endl;
   alreadyexists.close();
+
+  // pid-file still exists
+  ASSERT_TRUE(fullpath.exists()) << fullpath.str();
 
   if (test_params.used & ENV) {
     // set ROUTER_PID and and expect error
@@ -823,11 +832,7 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
 
   auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
                                                true, false, -1s);
-
-  check_exit_code(router, EXIT_FAILURE, 1s);
-
-  // Remove the already existing pidfile
-  remove(fullpath.c_str());
+  EXPECT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE, 1s));
 
   if (test_params.used & ENV) {
     // unset ROUTER_PID env
@@ -837,6 +842,9 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
   // expect error
   EXPECT_TRUE(router.expect_output(
       "^Error: PID file .* found. Already running?", true));
+
+  // pid-file still exists
+  EXPECT_TRUE(fullpath.exists()) << fullpath.str();
 }
 
 INSTANTIATE_TEST_SUITE_P(PidFileOptionExistsTest, RouterPidfileOptionExistsTest,

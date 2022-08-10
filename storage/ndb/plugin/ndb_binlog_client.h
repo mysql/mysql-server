@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@
 #include "my_inttypes.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
+class Ndb_event_data;
+class NdbEventOperation;
 struct NDB_SHARE;
 struct st_conflict_fn_def;
 struct st_conflict_fn_arg;
@@ -103,7 +105,7 @@ class Ndb_binlog_client {
    * is the ndb_schema table who subscribes to events for schema distribution.
    * @return  true if table should have a NdbEventOperation
    */
-  bool table_should_have_event_op(const NDB_SHARE *share);
+  bool table_should_have_event_op(const NDB_SHARE *share) const;
 
   /**
    * @brief event_exists_for_table, check if event already exists for this
@@ -118,10 +120,17 @@ class Ndb_binlog_client {
 
   int create_event(Ndb *ndb, const NdbDictionary::Table *ndbtab,
                    const NDB_SHARE *share);
-  bool create_event_data(NDB_SHARE *share, const dd::Table *table_def,
-                         class Ndb_event_data **event_data) const;
-  int create_event_op(NDB_SHARE *share, const NdbDictionary::Table *ndbtab,
-                      const Ndb_event_data *event_data);
+
+ private:
+  NdbEventOperation *create_event_op_in_NDB(Ndb *ndb,
+                                            const NdbDictionary::Table *ndbtab,
+                                            const std::string &event_name,
+                                            const Ndb_event_data *event_data);
+
+ public:
+  int create_event_op(NDB_SHARE *share, const dd::Table *table_def,
+                      const NdbDictionary::Table *ndbtab,
+                      bool replace_op = false);
 
   /**
    * @brief drop_events_for_table, drop all binlog events for the table
@@ -134,10 +143,10 @@ class Ndb_binlog_client {
    * @param thd            thread context
    * @param ndb            Ndb pointer
    * @param dbname         database of table
-   * @param tabname        name of table
+   * @param table_name     name of table
    */
   static void drop_events_for_table(THD *thd, Ndb *ndb, const char *dbname,
-                                    const char *tabname);
+                                    const char *table_name);
 };
 
 #endif

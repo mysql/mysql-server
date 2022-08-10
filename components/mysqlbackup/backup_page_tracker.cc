@@ -1,6 +1,6 @@
 /************************************************************************
                       Mysql Enterprise Backup
- Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -39,10 +39,10 @@
 // defined in mysqlbackup component definition
 extern char *mysqlbackup_backup_id;
 
-// page track system variables
-uchar *Backup_page_tracker::m_changed_pages_buf = nullptr;
-static std::string changed_pages_file;
+// Page track system variables
 bool Backup_page_tracker::m_receive_changed_page_data = false;
+char *Backup_page_tracker::m_changed_pages_file = nullptr;
+uchar *Backup_page_tracker::m_changed_pages_buf = nullptr;
 std::list<udf_data_t *> Backup_page_tracker::m_udf_list;
 
 bool Backup_page_tracker::backup_id_update() {
@@ -50,9 +50,21 @@ bool Backup_page_tracker::backup_id_update() {
   if (Backup_page_tracker::m_receive_changed_page_data)
     Backup_page_tracker::m_receive_changed_page_data = false;
 
-  // delete the existing page tracker file
-  remove(changed_pages_file.c_str());
+  // Delete the existing page tracker file
+  if (m_changed_pages_file != nullptr) {
+    remove(m_changed_pages_file);
+    free(m_changed_pages_file);
+    m_changed_pages_file = nullptr;
+  }
+
   return true;
+}
+
+void Backup_page_tracker::deinit() {
+  if (m_changed_pages_file != nullptr) {
+    free(m_changed_pages_file);
+    m_changed_pages_file = nullptr;
+  }
 }
 
 /**
@@ -83,6 +95,12 @@ void Backup_page_tracker::initialize_udf_list() {
       reinterpret_cast<Udf_func_any>(page_track_get_changed_pages),
       reinterpret_cast<Udf_func_init>(page_track_get_changed_pages_init),
       reinterpret_cast<Udf_func_deinit>(page_track_get_changed_pages_deinit)));
+
+  m_udf_list.push_back(new udf_data_t(
+      Backup_comp_constants::udf_page_track_purge_up_to, INT_RESULT,
+      reinterpret_cast<Udf_func_any>(page_track_purge_up_to),
+      reinterpret_cast<Udf_func_init>(page_track_purge_up_to_init),
+      reinterpret_cast<Udf_func_deinit>(page_track_purge_up_to_deinit)));
 }
 
 /**
@@ -180,8 +198,8 @@ bool Backup_page_tracker::set_page_tracking_init(UDF_INIT *, UDF_ARGS *,
 /**
    Callback method for initialization of UDF "mysqlbackup_page_track_set".
 */
-void Backup_page_tracker::set_page_tracking_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
+void Backup_page_tracker::set_page_tracking_deinit(UDF_INIT *initid
+                                                   [[maybe_unused]]) {}
 
 /**
   UDF for "mysqlbackup_page_track_set"
@@ -233,8 +251,8 @@ bool Backup_page_tracker::page_track_get_start_lsn_init(UDF_INIT *, UDF_ARGS *,
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_start_lsn"
 */
-void Backup_page_tracker::page_track_get_start_lsn_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
+void Backup_page_tracker::page_track_get_start_lsn_deinit(UDF_INIT *initid
+                                                          [[maybe_unused]]) {}
 
 /**
   UDF for "mysqlbackup_page_track_get_start_lsn"
@@ -278,7 +296,7 @@ bool Backup_page_tracker::page_track_get_changed_page_count_init(UDF_INIT *,
    "mysqlbackup_page_track_get_changed_page_count".
 */
 void Backup_page_tracker::page_track_get_changed_page_count_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
+    UDF_INIT *initid [[maybe_unused]]) {}
 
 /**
   UDF for "mysqlbackup_page_track_get_changed_page_count"
@@ -328,9 +346,10 @@ bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_changed_pages".
 */
-void Backup_page_tracker::page_track_get_changed_pages_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {
+void Backup_page_tracker::page_track_get_changed_pages_deinit(UDF_INIT *initid [
+    [maybe_unused]]) {
   free(m_changed_pages_buf);
+  m_changed_pages_buf = nullptr;
 }
 
 /**
@@ -356,6 +375,7 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   if (!mysqlbackup_backup_id) {
     return (-1);
   }
+
   // Not expecting anything other than digits in the backupid.
   // Make sure no elements of a relative path are there if the
   // above rule is relaxed
@@ -371,7 +391,8 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   if (var_len == 0) return 2;
 
   std::string changed_pages_file_dir =
-      mysqlbackup_backupdir + Backup_comp_constants::backup_scratch_dir;
+      mysqlbackup_backupdir +
+      std::string(Backup_comp_constants::backup_scratch_dir);
 
 #if defined _MSC_VER
   _mkdir(changed_pages_file_dir.c_str());
@@ -381,10 +402,14 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   }
 #endif
 
-  changed_pages_file = changed_pages_file_dir + FN_LIBCHAR + backupid +
-                       Backup_comp_constants::change_file_extension;
-  // if file already exists return error
-  FILE *fd = fopen(changed_pages_file.c_str(), "r");
+  free(m_changed_pages_file);
+  m_changed_pages_file =
+      strdup((changed_pages_file_dir + FN_LIBCHAR + backupid +
+              Backup_comp_constants::change_file_extension)
+                 .c_str());
+
+  // If file already exists return error
+  FILE *fd = fopen(m_changed_pages_file, "r");
   if (fd) {
     fclose(fd);
     return (-1);
@@ -405,6 +430,67 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
 }
 
 /**
+  Callback function for initialization of UDF
+  "mysqlbackup_page_track_purge_up_to".
+
+  @return Status of initialization
+  @retval false on success
+  @retval true on failure
+*/
+bool Backup_page_tracker::page_track_purge_up_to_init(UDF_INIT *,
+                                                      UDF_ARGS *args,
+                                                      char *message) {
+  if (args->arg_count != 1) {
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
+    return true;
+  }
+  if (args->arg_type[0] != INT_RESULT) {
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid argument type.");
+    return true;
+  }
+  return false;
+}
+
+/**
+  Callback method for deinitialization of UDF
+  "mysqlbackup_page_track_purge_up_to".
+*/
+void Backup_page_tracker::page_track_purge_up_to_deinit(UDF_INIT *) {}
+
+/**
+  UDF for "mysqlbackup_page_track_purge_up_to"
+  See include/mysql/udf_registration_types.h
+
+  The function takes the following parameter:
+  lsn           the lsn up to which the page-track data shall be purged.
+
+  The lsn is fixed down to the last start-lsn.
+
+  @return Status
+  @retval lsn up to which page-track data was purged on success
+  @retval -1 on failure
+*/
+long long Backup_page_tracker::page_track_purge_up_to(UDF_INIT *,
+                                                      UDF_ARGS *args,
+                                                      unsigned char *,
+                                                      unsigned char *) {
+  MYSQL_THD thd;
+  if (mysql_service_mysql_current_thread_reader->get(&thd)) {
+    mysql_error_service_printf(ER_MYSQLBACKUP_CLIENT_MSG, MYF(0),
+                               "Cannot get current thread handle");
+    return -1;
+  }
+
+  uint64_t lsn = *((long long *)args->args[0]);
+  int retval =
+      mysql_service_mysql_page_track->purge(thd, PAGE_TRACK_SE_INNODB, &lsn);
+  if (retval != 0) {
+    return -1;
+  }
+  return lsn;
+}
+
+/**
    Callback method from InnoDB page-tracking to return the changed pages.
 
    @param[in]  opaque_thd     Current thread context.
@@ -417,17 +503,20 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
    @retval 0 success
    @retval non-zero failure
 */
-int page_track_callback(MYSQL_THD opaque_thd MY_ATTRIBUTE((unused)),
+int page_track_callback(MYSQL_THD opaque_thd [[maybe_unused]],
                         const uchar *buffer,
-                        size_t buffer_length MY_ATTRIBUTE((unused)),
-                        int page_count, void *context MY_ATTRIBUTE((unused))) {
-  // append to the disk file in binary mode
-  FILE *fd = fopen(changed_pages_file.c_str(), "ab");
+                        size_t buffer_length [[maybe_unused]], int page_count,
+                        void *context [[maybe_unused]]) {
+  // Append to the disk file in binary mode
+  FILE *fd = fopen(Backup_page_tracker::m_changed_pages_file, "ab");
   if (!fd) {
+    std::string msg{std::string("[page-track] Cannot open '") +
+                    Backup_page_tracker::m_changed_pages_file +
+                    "': " + strerror(errno) + "\n"};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .lookup(ER_MYSQLBACKUP_MSG, "[page-track] File open failed.");
+        .lookup(ER_MYSQLBACKUP_MSG, msg.c_str());
     return (1);
   }
 
@@ -437,16 +526,19 @@ int page_track_callback(MYSQL_THD opaque_thd MY_ATTRIBUTE((unused)),
 
   // write failed
   if (write_count != data_size) {
+    std::string msg{std::string("[page-track] Cannot write '") +
+                    Backup_page_tracker::m_changed_pages_file +
+                    "': " + strerror(errno) + "\n"};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .lookup(ER_MYSQLBACKUP_MSG, "[page-track] Writing to file failed.");
+        .lookup(ER_MYSQLBACKUP_MSG, msg.c_str());
     return (1);
   }
 
   // on-going backup interrupted, stop receiving the changed page data
   if (!Backup_page_tracker::m_receive_changed_page_data)
-    return (2);  // interupt an on going transfer
+    return (2);  // interrupt an ongoing transfer
   else
     return (0);
 }

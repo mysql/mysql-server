@@ -73,3 +73,12 @@ CREATE VIEW v1 (a) AS SELECT f1 IN (SELECT f1 FROM t1) FROM t1;
 SELECT * FROM v1;
 drop view v1;
 drop table t1;
+
+--echo #
+--echo # Bug#33773799: recent regression: TABLE::set_keyread(bool):
+--echo #               Assertion `file' failed.
+--echo #
+
+# Used to hit an assertion when run with --ps-protocol.
+--error ER_GIS_INVALID_DATA
+SELECT * FROM (SELECT ST_EXTERIORRING(1)) AS t1, (SELECT 1) AS t2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/join_optimizer/hypergraph.h"
+
+#include <assert.h>
+#include <memory>
+
 #include "sql/join_optimizer/bit_utils.h"
 
 namespace hypergraph {
@@ -38,7 +42,82 @@ void Hypergraph::AddEdge(NodeMap left, NodeMap right) {
 
   size_t left_first_idx = edges.size() - 2;
   size_t right_first_idx = edges.size() - 1;
+  AttachEdgeToNodes(left_first_idx, right_first_idx, left, right);
+}
 
+// Roughly the same as std::erase_if, but assumes there's exactly one element
+// matching, and doesn't care about the relative order after deletion.
+template <class T>
+static void RemoveElement(const T &element, std::vector<T> *vec) {
+  auto it = find(vec->begin(), vec->end(), element);
+  assert(it != vec->end());
+  *it = vec->back();
+  vec->pop_back();
+}
+
+void Hypergraph::ModifyEdge(unsigned edge_idx, NodeMap new_left,
+                            NodeMap new_right) {
+  NodeMap left = edges[edge_idx].left;
+  NodeMap right = edges[edge_idx].right;
+
+  const bool old_is_simple = IsSingleBitSet(left) && IsSingleBitSet(right);
+  const bool new_is_simple =
+      IsSingleBitSet(new_left) && IsSingleBitSet(new_right);
+
+  if (!old_is_simple && !new_is_simple) {
+    // An optimized fast-path for changing a complex edge into
+    // another complex edge (this is nearly always an extension).
+    // Compared to the remove-then-add path below, we don't touch
+    // the unchanged nodes (of which there may be many).
+    for (size_t left_node : BitsSetIn(left & ~new_left)) {
+      RemoveElement(edge_idx, &nodes[left_node].complex_edges);
+    }
+    for (size_t right_node : BitsSetIn(right & ~new_right)) {
+      RemoveElement(edge_idx ^ 1, &nodes[right_node].complex_edges);
+    }
+    for (size_t left_node : BitsSetIn(new_left & ~left)) {
+      nodes[left_node].complex_edges.push_back(edge_idx);
+    }
+    for (size_t right_node : BitsSetIn(new_right & ~right)) {
+      nodes[right_node].complex_edges.push_back(edge_idx ^ 1);
+    }
+    edges[edge_idx].left = new_left;
+    edges[edge_idx].right = new_right;
+    edges[edge_idx ^ 1].left = new_right;
+    edges[edge_idx ^ 1].right = new_left;
+    return;
+  }
+
+  // Take out the old edge. Pretty much exactly the opposite of
+  // AttachEdgeToNodes().
+  if (old_is_simple) {
+    Node &left_node = nodes[*BitsSetIn(left).begin()];
+    left_node.simple_neighborhood &= ~right;
+    RemoveElement(edge_idx, &left_node.simple_edges);
+
+    Node &right_node = nodes[*BitsSetIn(right).begin()];
+    right_node.simple_neighborhood &= ~left;
+    RemoveElement(edge_idx ^ 1, &right_node.simple_edges);
+  } else {
+    for (size_t left_node : BitsSetIn(left)) {
+      RemoveElement(edge_idx, &nodes[left_node].complex_edges);
+    }
+    for (size_t right_node : BitsSetIn(right)) {
+      RemoveElement(edge_idx ^ 1, &nodes[right_node].complex_edges);
+    }
+  }
+
+  edges[edge_idx].left = new_left;
+  edges[edge_idx].right = new_right;
+  edges[edge_idx ^ 1].left = new_right;
+  edges[edge_idx ^ 1].right = new_left;
+
+  AttachEdgeToNodes(edge_idx, edge_idx ^ 1, new_left, new_right);
+}
+
+void Hypergraph::AttachEdgeToNodes(size_t left_first_idx,
+                                   size_t right_first_idx, NodeMap left,
+                                   NodeMap right) {
   if (IsSingleBitSet(left) && IsSingleBitSet(right)) {
     size_t left_node = *BitsSetIn(left).begin();
     size_t right_node = *BitsSetIn(right).begin();

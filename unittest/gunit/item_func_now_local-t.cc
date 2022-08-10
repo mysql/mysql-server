@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,9 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gtest/gtest.h>
 #include <sys/types.h>
@@ -75,10 +72,10 @@ TEST_F(ItemFuncNowLocalTest, saveInField) {
   f.make_writable();
   item->save_in_field(&f, true);
 
-  EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).tv_sec,
-            f.to_timeval().tv_sec);
+  EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).m_tv_sec,
+            f.to_timeval().m_tv_sec);
   // CURRENT_TIMESTAMP should truncate.
-  EXPECT_EQ(0, f.to_timeval().tv_usec);
+  EXPECT_EQ(0, f.to_timeval().m_tv_usec);
 }
 
 /*
@@ -89,10 +86,10 @@ TEST_F(ItemFuncNowLocalTest, storeInTimestamp) {
   Mock_field_timestamp f;
   Item_func_now_local::store_in(&f);
 
-  EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).tv_sec,
-            f.to_timeval().tv_sec);
+  EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).m_tv_sec,
+            f.to_timeval().m_tv_sec);
   // CURRENT_TIMESTAMP should truncate.
-  EXPECT_EQ(0, f.to_timeval().tv_usec);
+  EXPECT_EQ(0, f.to_timeval().m_tv_usec);
   EXPECT_TRUE(f.store_timestamp_called);
 }
 
@@ -122,11 +119,11 @@ TEST_F(ItemFuncNowLocalTest, storeInTimestampf) {
     f.make_writable();
     Item_func_now_local::store_in(&f);
 
-    EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).tv_sec,
-              f.to_timeval().tv_sec);
+    EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).m_tv_sec,
+              f.to_timeval().m_tv_sec);
     // CURRENT_TIMESTAMP should truncate.
     EXPECT_EQ(truncate(CURRENT_TIMESTAMP_FRACTIONAL_SECONDS, scale),
-              f.to_timeval().tv_usec);
+              f.to_timeval().m_tv_usec);
     EXPECT_TRUE(f.store_timestamp_internal_called);
   }
 }
@@ -144,7 +141,8 @@ TEST_F(ItemFuncNowLocalTest, storeInDatetime) {
   thd->set_time(&now);
 
   Item_func_now_local::store_in(&f);
-  thd->variables.time_zone->gmt_sec_to_TIME(&now_time, thd->start_time);
+  thd->variables.time_zone->gmt_sec_to_TIME(
+      &now_time, {thd->start_time.tv_sec, thd->start_time.tv_usec});
   MYSQL_TIME stored_time;
   f.get_time(&stored_time);
 

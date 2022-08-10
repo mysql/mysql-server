@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 #ifdef HAVE_EPOLL
 #include <mutex>
+#include <optional>
 #include <system_error>
 #include <unordered_map>
 
@@ -328,7 +329,7 @@ class linux_epoll_io_service : public IoServiceBase {
       // check the interest we remove is actually part of the requested set
       auto const ev_mask = EPOLLIN | EPOLLOUT | EPOLLERR;
       if (((it->second & ev_mask) & (revent & ev_mask)) == 0) {
-        std::cerr << "after_event_fired(" << fd << ",  "
+        std::cerr << "after_event_fired(" << fd << ", "
                   << std::bitset<32>(revent) << ") not in "
                   << std::bitset<32>(it->second) << std::endl;
         return stdx::make_unexpected(
@@ -362,7 +363,7 @@ class linux_epoll_io_service : public IoServiceBase {
       return {};
     }
 
-    stdx::expected<int32_t, void> interest(native_handle_type fd) const {
+    std::optional<int32_t> interest(native_handle_type fd) const {
       auto &b = bucket(fd);
 
       std::lock_guard<std::mutex> lk(b.mtx_);
@@ -371,7 +372,7 @@ class linux_epoll_io_service : public IoServiceBase {
       if (it != b.interest_.end()) {
         return it->second;
       } else {
-        return stdx::make_unexpected();
+        return std::nullopt;
       }
     }
 
@@ -426,7 +427,7 @@ class linux_epoll_io_service : public IoServiceBase {
    *
    * @returns fd-interest as bitmask of raw EPOLL* flags
    */
-  stdx::expected<int32_t, void> interest(native_handle_type fd) const {
+  std::optional<int32_t> interest(native_handle_type fd) const {
     return registered_events_.interest(fd);
   }
 
@@ -479,7 +480,27 @@ class linux_epoll_io_service : public IoServiceBase {
 
     ::epoll_event ev = fd_events_[ndx];
 
-    fd_events_processed_++;
+    // if there are multiple events: get OUT before IN.
+    short revent{};
+    if (ev.events & EPOLLOUT) {
+      fd_events_[ndx].events &= ~EPOLLOUT;
+      revent = EPOLLOUT;
+    } else if (ev.events & EPOLLIN) {
+      fd_events_[ndx].events &= ~EPOLLIN;
+      revent = EPOLLIN;
+    }
+
+    // all interesting events processed, go the next one.
+    //
+    // there may be other events set like:
+    //
+    // EPOLLHUP
+    // EPOLLERR
+    //
+    // ... ignore them.
+    if ((fd_events_[ndx].events & (EPOLLIN | EPOLLOUT)) == 0) {
+      fd_events_processed_++;
+    }
 
     if ((notify_fd_ != impl::file::kInvalidHandle)
             ? (ev.data.fd == notify_fd_)
@@ -494,7 +515,7 @@ class linux_epoll_io_service : public IoServiceBase {
       return stdx::make_unexpected(make_error_code(std::errc::interrupted));
     }
 
-    return fd_event{ev.data.fd, static_cast<short>(ev.events)};
+    return fd_event{ev.data.fd, revent};
   }
 
  private:

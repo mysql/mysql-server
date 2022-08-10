@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -205,8 +205,9 @@ class ConnectionContainer {
    *
    * @param nodes Allowed servers. Connections to servers that are not in nodes
    *        are closed.
+   * @returns number of connections marked to be disconnected
    */
-  void disconnect(const AllowedNodes &nodes);
+  unsigned disconnect(const AllowedNodes &nodes);
 
   /**
    * @brief Disconnects all connection in the ConnectionContainer.

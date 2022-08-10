@@ -1,7 +1,7 @@
 #ifndef SQL_PACK_ROWS_H_
 #define SQL_PACK_ROWS_H_
 
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ class TableCollection {
  public:
   TableCollection() = default;
 
-  TableCollection(const JOIN *join, table_map tables, bool store_rowids,
+  TableCollection(const Prealloced_array<TABLE *, 4> &tables, bool store_rowids,
                   table_map tables_to_get_rowid_for);
 
   // A single table (typically one for which there is no map bit).

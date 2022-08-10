@@ -135,13 +135,13 @@ DROP TABLE gtable;
 #
 
 # Save defaults and setup mts
-SET @slave_parallel_type_saved= @@GLOBAL.SLAVE_PARALLEL_TYPE;
-SET @slave_parallel_workers_saved= @@GLOBAL.SLAVE_PARALLEL_WORKERS;
-SET @slave_preserver_commit_order_saved= @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER;
+SET @replica_parallel_type_saved= @@GLOBAL.REPLICA_PARALLEL_TYPE;
+SET @replica_parallel_workers_saved= @@GLOBAL.REPLICA_PARALLEL_WORKERS;
+SET @slave_preserver_commit_order_saved= @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER;
 --source include/stop_slave.inc
-SET GLOBAL slave_parallel_type= 'LOGICAL_CLOCK';
-SET GLOBAL slave_parallel_workers= 4;
-SET GLOBAL slave_preserve_commit_order= ON;
+SET GLOBAL replica_parallel_type= 'LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_workers= 4;
+SET GLOBAL replica_preserve_commit_order= ON;
 --source include/start_slave.inc
 CALL mtr.add_suppression("This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'");
 
@@ -182,8 +182,10 @@ DROP TABLE gtable;
 --source include/sync_slave_sql_with_master.inc
 SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 --source include/stop_slave.inc
-SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
-SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;
-SET @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
+SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
+--disable_warnings
+SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
+--enable_warnings
+SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
 --source include/start_slave.inc
 --source include/rpl_end.inc

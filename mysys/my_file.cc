@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ uint SetOsLimitMaxOpenFiles(uint max_file_limit) {
     return max_file_limit;
   }
   assert(readback.rlim_cur == request.rlim_cur &&
-         readback.rlim_max == readback.rlim_max);
+         readback.rlim_max == request.rlim_max);
 #endif /* NDEBUG */
   return request.rlim_cur;
 #else  /* not defined(_WIN32) */

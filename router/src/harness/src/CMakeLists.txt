@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -62,12 +62,16 @@ ADD_DYNAMIC_STATE_SCHEMA_COMMAND(SHARED)
 ADD_DYNAMIC_STATE_SCHEMA_COMMAND(STATIC)
 
 SET(harness_source
+  access_rights.cc
   loader.cc
   dynamic_loader.cc
   utilities.cc
+  config_option.cc
   config_parser.cc
+  plugin_config.cc
   designator.cc
   dynamic_state.cc
+  event_state_tracker.cc
   loader_config.cc
   common.cc
   filesystem.cc
@@ -83,7 +87,7 @@ SET(harness_source
   logging/handler.cc
   logging/logger.cc
   logging/logger_plugin.cc
-  logging/logging.cc
+# logging/logging.cc       empty file
   logging/registry.cc
   random_generator.cc
   sd_notify.cc
@@ -174,14 +178,14 @@ IF(SOLARIS)
   TARGET_LINK_LIBRARIES(harness-archive -lnsl -lsocket)
 ENDIF()
 
-IF(NOT WIN32)
-  SET_TARGET_PROPERTIES(harness-archive harness-library PROPERTIES
-    OUTPUT_NAME "mysqlharness"
+IF(WIN32)
+  SET_TARGET_PROPERTIES(harness-archive PROPERTIES
+    OUTPUT_NAME "mysqlharness_a"
     PREFIX "lib"
     SOVERSION 1)
 ELSE()
-  SET_TARGET_PROPERTIES(harness-archive PROPERTIES
-    OUTPUT_NAME "mysqlharness_a"
+  SET_TARGET_PROPERTIES(harness-archive harness-library PROPERTIES
+    OUTPUT_NAME "mysqlharness"
     PREFIX "lib"
     SOVERSION 1)
 ENDIF()
@@ -201,16 +205,16 @@ ENDIF()
 ADD_INSTALL_RPATH_FOR_OPENSSL(harness-library)
 SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(harness-library)
 
-IF(NOT WIN32)
+IF(WIN32)
+  INSTALL(TARGETS harness-library
+    RUNTIME DESTINATION "${ROUTER_INSTALL_BINDIR}"
+    COMPONENT Router)
+ELSE()
   INSTALL(TARGETS harness-library
     LIBRARY
     DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
     NAMELINK_SKIP
     )
-ELSE()
-  INSTALL(TARGETS harness-library
-    RUNTIME DESTINATION "${ROUTER_INSTALL_BINDIR}"
-    COMPONENT Router)
 ENDIF()
 
 ADD_LIBRARY(harness_stdx SHARED

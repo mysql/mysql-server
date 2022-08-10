@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class Replication_thread_api {
 
   Replication_thread_api();
 
-  ~Replication_thread_api() {}
+  ~Replication_thread_api() = default;
 
   /**
     Set the channel name to be used on the interface method invocation.
@@ -354,6 +354,19 @@ class Replication_thread_api {
   */
   bool get_channel_credentials(std::string &username, std::string &password,
                                const char *channel_name = nullptr);
+
+  /**
+      Method to get the network namespace configured for a channel
+
+      @param[out] net_ns      The network namespace to extract
+      @param[in]  channel_name  The name of the channel to get the information.
+
+      @return the operation status
+        @retval false   OK
+        @retval true    Error, channel not found
+    */
+  bool get_channel_network_namespace(std::string &net_ns,
+                                     const char *channel_name = nullptr);
 
   /**
     Checks if any channel uses the same UUID for

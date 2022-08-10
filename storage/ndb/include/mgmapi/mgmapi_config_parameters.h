@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -263,6 +263,10 @@
 
 #define CFG_DB_NUM_CPUS               676
 #define CFG_DB_AUTO_THREAD_CONFIG     677
+#define CFG_DB_TRP_KEEP_ALIVE_SEND_INTERVAL 678
+
+#define CFG_DB_TRANS_ERROR_LOGLEVEL 679
+#define CFG_DB_ENCRYPTED_FILE_SYSTEM  680
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
@@ -308,6 +312,7 @@
 #define CFG_CONNECTION_OVERLOAD       411
 #define CFG_CONNECTION_PRESEND_CHECKSUM 412
 #define CFG_CONNECTION_UNRES_HOSTS    413
+#define CFG_CONNECTION_PREFER_IP_VER  414
 
 #define CFG_TCP_SERVER                452
 #define CFG_TCP_SEND_BUFFER_SIZE      454

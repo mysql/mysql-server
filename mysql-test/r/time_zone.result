@@ -41,12 +41,6 @@ INSERT IGNORE INTO t1 (ts) VALUES ('2003-03-30 01:59:59'),
 Warnings:
 Warning	1299	Invalid TIMESTAMP value in column 'ts' at row 2
 DROP TABLE t1;
-select unix_timestamp('1970-01-01 01:00:00'), 
-unix_timestamp('1970-01-01 01:00:01'),
-unix_timestamp('2038-01-19 04:14:07'),
-unix_timestamp('2038-01-19 04:14:08');
-unix_timestamp('1970-01-01 01:00:00')	unix_timestamp('1970-01-01 01:00:01')	unix_timestamp('2038-01-19 04:14:07')	unix_timestamp('2038-01-19 04:14:08')
-0	1	2147483647	0
 CREATE TABLE t1 (c1 TIMESTAMP);
 SET TIME_ZONE = '+00:00';
 SET explicit_defaults_for_timestamp=OFF;
@@ -58,11 +52,16 @@ SET TIME_ZONE = 'SYSTEM';
 SELECT DISTINCT c1 FROM t1;
 c1
 2019-10-27 02:47:42
+2019-10-27 02:47:42
 SELECT COUNT(*) FROM t1 GROUP BY c1;
-ERROR HY000: Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query.
+COUNT(*)
+2
+2
 SET sql_mode='';
 SELECT COUNT(*) FROM t1 GROUP BY c1;
-ERROR HY000: Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query.
+COUNT(*)
+2
+2
 SET sql_mode=DEFAULT;
 SET explicit_defaults_for_timestamp=ON;
 DROP TABLE t1;
@@ -382,11 +381,16 @@ TO_DAYS( '2001-01-01 00:00:00-07:00' )
 SELECT DATEDIFF( '2007-12-31 23:59:59+02:00', '2007-12-30  00:00:00' );
 DATEDIFF( '2007-12-31 23:59:59+02:00', '2007-12-30  00:00:00' )
 2
+Warnings:
+Warning	4096	Delimiter ' ' in position 11 in datetime value '2007-12-30  00:00:00' at row 1 is superfluous and is deprecated. Please remove.
 SELECT TIMEDIFF( '2000:01:01 00:00:00+02:00',
 '2000:01:01 00:00:00.000001+01:00' );
 TIMEDIFF( '2000:01:01 00:00:00+02:00',
 '2000:01:01 00:00:00.000001+01:00' )
 -01:00:00.000001
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00+02:00' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00.000001+01:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT DATE_ADD( '2000-12-31 23:59:59+02:00', INTERVAL 1 SECOND );
 DATE_ADD( '2000-12-31 23:59:59+02:00', INTERVAL 1 SECOND )
 2001-01-01 03:30:00
@@ -443,11 +447,16 @@ TO_DAYS( '2001-01-01 00:00:00-07:00' )
 SELECT DATEDIFF( '2007-12-31 23:59:59+02:00', '2007-12-30  00:00:00' );
 DATEDIFF( '2007-12-31 23:59:59+02:00', '2007-12-30  00:00:00' )
 1
+Warnings:
+Warning	4096	Delimiter ' ' in position 11 in datetime value '2007-12-30  00:00:00' at row 1 is superfluous and is deprecated. Please remove.
 SELECT TIMEDIFF( '2000:01:01 00:00:00+02:00',
 '2000:01:01 00:00:00.000001+01:00' );
 TIMEDIFF( '2000:01:01 00:00:00+02:00',
 '2000:01:01 00:00:00.000001+01:00' )
 -01:00:00.000001
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00+02:00' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00.000001+01:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT DATE_ADD( '2000-12-31 23:59:59+02:00', INTERVAL 1 SECOND);
 DATE_ADD( '2000-12-31 23:59:59+02:00', INTERVAL 1 SECOND)
 2000-12-31 22:00:00

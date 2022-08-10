@@ -1,5 +1,5 @@
 /****************************************************************************
- Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify it under
  the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,15 +55,16 @@
 #warning "Testing enabled!"
 #endif
 
-#define ROOT(t) (t->root->left)
-#define SIZEOF_NODE(t) ((sizeof(ib_rbt_node_t) + t->sizeof_value) - 1)
+inline static ib_rbt_node_t *ROOT(const ib_rbt_t *t) { return t->root->left; }
+inline static size_t SIZEOF_NODE(const ib_rbt_t *t) {
+  return sizeof(ib_rbt_node_t) + t->sizeof_value - 1;
+}
 
 #if defined UNIV_DEBUG || defined IB_RBT_TESTING
 /** Verify that the keys are in order.
+ @param[in] tree tree to verify
  @return true of OK. false if not ordered */
-static ibool rbt_check_ordering(
-    const ib_rbt_t *tree) /*!< in: tree to verfify */
-{
+static bool rbt_check_ordering(const ib_rbt_t *tree) {
   const ib_rbt_node_t *node;
   const ib_rbt_node_t *prev = nullptr;
 
@@ -80,20 +81,20 @@ static ibool rbt_check_ordering(
       }
 
       if (result >= 0) {
-        return (FALSE);
+        return false;
       }
     }
 
     prev = node;
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Check that every path from the root to the leaves has the same count.
  Count is expressed in the number of black nodes.
  @return 0 on failure else black height of the subtree */
-static ibool rbt_count_black_nodes(
+static ulint rbt_count_black_nodes(
     const ib_rbt_t *tree,      /*!< in: tree to verify */
     const ib_rbt_node_t *node) /*!< in: start of sub-tree */
 {
@@ -410,7 +411,7 @@ static void rbt_eject_node(ib_rbt_node_t *eject, /*!< in: node to eject */
   } else if (eject->parent->right == eject) {
     eject->parent->right = node;
   } else {
-    ut_a(0);
+    ut_error;
   }
   /* eject is now an orphan but otherwise its pointers
   and color are left intact. */
@@ -638,7 +639,7 @@ static void rbt_free_node(ib_rbt_node_t *node, /*!< in: node to free */
     rbt_free_node(node->left, nil);
     rbt_free_node(node->right, nil);
 
-    ut_free(node);
+    ut::free(node);
   }
 }
 
@@ -646,8 +647,8 @@ static void rbt_free_node(ib_rbt_node_t *node, /*!< in: node to free */
 void rbt_free(ib_rbt_t *tree) /*!< in: rb tree to free */
 {
   rbt_free_node(tree->root, tree->nil);
-  ut_free(tree->nil);
-  ut_free(tree);
+  ut::free(tree->nil);
+  ut::free(tree);
 }
 
 /** Create an instance of a red black tree, whose comparison function takes
@@ -677,19 +678,22 @@ ib_rbt_t *rbt_create(size_t sizeof_value,    /*!< in: sizeof data item */
   ib_rbt_t *tree;
   ib_rbt_node_t *node;
 
-  tree = (ib_rbt_t *)ut_zalloc_nokey(sizeof(*tree));
+  tree =
+      (ib_rbt_t *)ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*tree));
 
   tree->sizeof_value = sizeof_value;
 
   /* Create the sentinel (NIL) node. */
-  node = tree->nil = (ib_rbt_node_t *)ut_zalloc_nokey(sizeof(*node));
+  node = tree->nil = (ib_rbt_node_t *)ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(*node));
 
   node->color = IB_RBT_BLACK;
   node->parent = node->left = node->right = node;
 
   /* Create the "fake" root, the real root node will be the
   left child of this node. */
-  node = tree->root = (ib_rbt_node_t *)ut_zalloc_nokey(sizeof(*node));
+  node = tree->root = (ib_rbt_node_t *)ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(*node));
 
   node->color = IB_RBT_BLACK;
   node->parent = node->left = node->right = tree->nil;
@@ -710,7 +714,8 @@ const ib_rbt_node_t *rbt_insert(
   ib_rbt_node_t *node;
 
   /* Create the node that will hold the value data. */
-  node = (ib_rbt_node_t *)ut_malloc_nokey(SIZEOF_NODE(tree));
+  node = (ib_rbt_node_t *)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                             SIZEOF_NODE(tree));
 
   memcpy(node->value, value, tree->sizeof_value);
   node->parent = node->left = node->right = tree->nil;
@@ -734,7 +739,8 @@ const ib_rbt_node_t *rbt_add_node(ib_rbt_t *tree,         /*!< in: rb tree */
   ib_rbt_node_t *node;
 
   /* Create the node that will hold the value data */
-  node = (ib_rbt_node_t *)ut_malloc_nokey(SIZEOF_NODE(tree));
+  node = (ib_rbt_node_t *)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                             SIZEOF_NODE(tree));
 
   memcpy(node->value, value, tree->sizeof_value);
   node->parent = node->left = node->right = tree->nil;
@@ -789,20 +795,20 @@ static const ib_rbt_node_t *rbt_lookup(
 
 /** Delete a node indentified by key.
  @return true if success false if not found */
-ibool rbt_delete(ib_rbt_t *tree,  /*!< in: rb tree */
-                 const void *key) /*!< in: key to delete */
+bool rbt_delete(ib_rbt_t *tree,  /*!< in: rb tree */
+                const void *key) /*!< in: key to delete */
 {
-  ibool deleted = FALSE;
+  bool deleted = false;
   ib_rbt_node_t *node = (ib_rbt_node_t *)rbt_lookup(tree, key);
 
   if (node) {
     rbt_remove_node_and_rebalance(tree, node);
 
-    ut_free(node);
-    deleted = TRUE;
+    ut::free(node);
+    deleted = true;
   }
 
-  return (deleted);
+  return deleted;
 }
 
 /** Remove a node from the rb tree, the node is not free'd, that is the
@@ -819,7 +825,7 @@ ib_rbt_node_t *rbt_remove_node(
   rbt_remove_node_and_rebalance(tree, (ib_rbt_node_t *)const_node);
 
   /* This is to make it easier to do something like this:
-          ut_free(rbt_remove_node(node));
+          ut::free(rbt_remove_node(node));
   */
 
   return ((ib_rbt_node_t *)const_node);
@@ -973,12 +979,12 @@ ulint rbt_merge_uniq(ib_rbt_t *dst,       /*!< in: dst rb tree */
 /** Check that every path from the root to the leaves has the same count and
  the tree nodes are in order.
  @return true if OK false otherwise */
-ibool rbt_validate(const ib_rbt_t *tree) /*!< in: RB tree to validate */
+bool rbt_validate(const ib_rbt_t *tree) /*!< in: RB tree to validate */
 {
   if (rbt_count_black_nodes(tree, ROOT(tree)) > 0) {
     return (rbt_check_ordering(tree));
   }
 
-  return (FALSE);
+  return false;
 }
 #endif /* UNIV_DEBUG || IB_RBT_TESTING */

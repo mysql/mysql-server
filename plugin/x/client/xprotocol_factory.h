@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ namespace xcl {
 
 class Protocol_factory {
  public:
-  virtual ~Protocol_factory() {}
+  virtual ~Protocol_factory() = default;
 
   virtual std::shared_ptr<XProtocol> create_protocol(
       std::shared_ptr<Context> context) = 0;

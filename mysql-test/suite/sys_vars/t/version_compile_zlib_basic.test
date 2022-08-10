@@ -45,6 +45,6 @@ SELECT COUNT(@@SESSION.version_compile_zlib);
 SELECT COUNT(@@GLOBAL.version_compile_zlib);
 
 --Error ER_BAD_FIELD_ERROR
-SELECT version_compile_zlib = @@SESSION.version_compile_zlib;
+SELECT version_compile_zlib;
 
 

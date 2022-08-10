@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# We want boost 1.73.0 in order to build our boost/geometry code.
+# We want boost 1.77.0 in order to build our boost/geometry code.
 # The boost tarball is fairly big, and takes several minutes
 # to download. So we recommend downloading/unpacking it
 # only once, in a place visible from any git sandbox.
@@ -38,10 +38,10 @@
 # we assume that the correct version (see below)
 # is installed on the compile host in the standard location.
 
-SET(BOOST_PACKAGE_NAME "boost_1_73_0")
-SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
+SET(BOOST_PACKAGE_NAME "boost_1_77_0")
+SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.bz2")
 SET(BOOST_DOWNLOAD_URL
-  "https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.7z"
+  "https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/${BOOST_TARBALL}"
   )
 
 SET(OLD_PACKAGE_NAMES
@@ -63,6 +63,7 @@ SET(OLD_PACKAGE_NAMES
   "boost_1_70_0"
   "boost_1_71_0"
   "boost_1_72_0"
+  "boost_1_73_0"
 )
 
 MACRO(RESET_BOOST_VARIABLES)
@@ -146,7 +147,7 @@ SET(OLD_WITH_BOOST ${WITH_BOOST} CACHE INTERNAL
 
 IF (WITH_BOOST)
   ## Did we get a full path name, including file name?
-  IF (${WITH_BOOST} MATCHES ".*\\.tar.gz" OR ${WITH_BOOST} MATCHES ".*\\.zip")
+  IF (${WITH_BOOST} MATCHES ".*\\.tar.bz2" OR ${WITH_BOOST} MATCHES ".*\\.zip")
     GET_FILENAME_COMPONENT(BOOST_DIR ${WITH_BOOST} PATH)
     GET_FILENAME_COMPONENT(BOOST_ZIP ${WITH_BOOST} NAME)
     FIND_FILE(LOCAL_BOOST_ZIP
@@ -155,9 +156,9 @@ IF (WITH_BOOST)
               NO_DEFAULT_PATH
              )
   ENDIF()
-  ## Did we get a path name to the directory of the .tar.gz or .zip file?
+  ## Did we get a path name to the directory of the .tar.bz2 or .zip file?
   FIND_FILE(LOCAL_BOOST_ZIP
-            NAMES "${BOOST_PACKAGE_NAME}.tar.gz" "${BOOST_PACKAGE_NAME}.zip"
+            NAMES "${BOOST_PACKAGE_NAME}.tar.bz2" "${BOOST_PACKAGE_NAME}.zip"
             PATHS ${WITH_BOOST}
             NO_DEFAULT_PATH
            )
@@ -239,9 +240,9 @@ ENDIF()
 IF(LOCAL_BOOST_ZIP AND NOT LOCAL_BOOST_DIR)
   GET_FILENAME_COMPONENT(LOCAL_BOOST_DIR ${LOCAL_BOOST_ZIP} PATH)
   IF(NOT EXISTS "${LOCAL_BOOST_DIR}/${BOOST_PACKAGE_NAME}")
-    MESSAGE(STATUS "cd ${LOCAL_BOOST_DIR}; tar xfz ${LOCAL_BOOST_ZIP}")
+    MESSAGE(STATUS "cd ${LOCAL_BOOST_DIR}; tar xfj ${LOCAL_BOOST_ZIP}")
     EXECUTE_PROCESS(
-      COMMAND ${CMAKE_COMMAND} -E tar xfz "${LOCAL_BOOST_ZIP}"
+      COMMAND ${CMAKE_COMMAND} -E tar xfj "${LOCAL_BOOST_ZIP}"
       WORKING_DIRECTORY "${LOCAL_BOOST_DIR}"
       RESULT_VARIABLE tar_result
       )
@@ -282,7 +283,7 @@ ENDIF()
 # //  BOOST_VERSION % 100 is the patch level
 # //  BOOST_VERSION / 100 % 1000 is the minor version
 # //  BOOST_VERSION / 100000 is the major version
-# #define BOOST_VERSION 107300
+# #define BOOST_VERSION 107700
 FILE(STRINGS "${BOOST_INCLUDE_DIR}/boost/version.hpp"
   BOOST_VERSION_NUMBER
   REGEX "^#define[\t ]+BOOST_VERSION[\t ][0-9]+.*"
@@ -300,9 +301,9 @@ IF(NOT BOOST_MAJOR_VERSION EQUAL 10)
   COULD_NOT_FIND_BOOST()
 ENDIF()
 
-IF(NOT BOOST_MINOR_VERSION EQUAL 73)
+IF(NOT BOOST_MINOR_VERSION EQUAL 77)
   MESSAGE(WARNING "Boost minor version found is ${BOOST_MINOR_VERSION} "
-    "we need 73"
+    "we need 77"
     )
   COULD_NOT_FIND_BOOST()
 ENDIF()
@@ -310,7 +311,7 @@ ENDIF()
 MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
 
 # We have a limited set of patches/bugfixes here:
-SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_73_0/patches")
+SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_77_0/patches")
 
 # Bug in sqrt(NaN) on 32bit platforms
 IF(SIZEOF_VOIDP EQUAL 4)

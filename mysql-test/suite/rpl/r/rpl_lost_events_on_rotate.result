@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 SET @debug_saved= @@GLOBAL.DEBUG;
 CREATE TABLE t (i INT);
-SET GLOBAL DEBUG= "d,wait_after_binlog_EOF";
+SET GLOBAL DEBUG= "+d,wait_after_binlog_EOF";
 INSERT INTO t VALUES (1);
 INSERT INTO t VALUES (2);
 FLUSH LOGS;

@@ -5,6 +5,8 @@ CREATE TABLE t1 (
 comment CHAR(32) ASCII NOT NULL,
 koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL default ''
 ) CHARSET=latin5;
+Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1309,6 +1311,8 @@ CYR SMALL YA	CYR CAPIT YA
 CYR SMALL YA	CYR SMALL YA
 SET CHARACTER SET utf8;
 ALTER TABLE t1 ADD ucs2_f CHAR(32) CHARACTER SET ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t1 CHANGE ucs2_f ucs2_f CHAR(32) UNICODE NOT NULL;
 INSERT INTO t1 (ucs2_f,comment) VALUES (0x0391,'GREEK CAPIT ALPHA');
 INSERT INTO t1 (ucs2_f,comment) VALUES (0x0392,'GREEK CAPIT BETA');
@@ -1341,6 +1345,9 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f=_ucs2'';
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT comment, koi8_ru_f, utf8_f, hex(bin_f), ucs2_f, armscii8_f, greek_f FROM t1;
 comment	koi8_ru_f	utf8_f	hex(bin_f)	ucs2_f	armscii8_f	greek_f
 LAT SMALL A	a	a	61	a		
@@ -1726,14 +1733,15 @@ utf32 CHAR CHARACTER SET utf32
 );
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('','','','','');
 SELECT CHARSET(CONCAT(utf8, utf8mb4)) FROM t1;
 CHARSET(CONCAT(utf8, utf8mb4))
 utf8mb4
 SELECT CHARSET(CONCAT(utf8, ucs2)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
+ERROR HY000: Illegal mix of collations (utf8mb3_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf8, utf16)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
+ERROR HY000: Illegal mix of collations (utf8mb3_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf8, utf32)) FROM t1;
 CHARSET(CONCAT(utf8, utf32))
 utf32
@@ -1750,7 +1758,7 @@ SELECT CHARSET(CONCAT(utf8mb4, utf32)) FROM t1;
 CHARSET(CONCAT(utf8mb4, utf32))
 utf8mb4
 SELECT CHARSET(CONCAT(ucs2, utf8)) FROM t1;
-ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation 'concat'
+ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf8mb3_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(ucs2, utf8mb4)) FROM t1;
 CHARSET(CONCAT(ucs2, utf8mb4))
 utf8mb4
@@ -1760,7 +1768,7 @@ SELECT CHARSET(CONCAT(ucs2, utf32)) FROM t1;
 CHARSET(CONCAT(ucs2, utf32))
 utf32
 SELECT CHARSET(CONCAT(utf16, utf8)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation 'concat'
+ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (utf8mb3_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf16, ucs2)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf16, utf8mb4)) FROM t1;
@@ -1787,6 +1795,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf32);
 CREATE TABLE t2 (a VARCHAR(10) CHARACTER SET ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (0x10082), (0x12345);
 INSERT INTO t2 SELECT * FROM t1;
 Warnings:
@@ -1810,7 +1820,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a'), ('b');
 CREATE TABLE t2 (a BINARY(1));
-INSERT INTO t2 VALUES ('z');
+INSERT INTO t2 VALUES ('x'),('z');
 SELECT * FROM t2 WHERE a=(SELECT a FROM t1) AND a=_LATIN1'x';
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t2;

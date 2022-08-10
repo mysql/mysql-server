@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,21 +40,21 @@ struct lob_diff_t;
 namespace lob {
 
 /** Insert a large object (LOB) into the system.
-@param[in]	ctx	the B-tree context for this LOB operation.
-@param[in]	trx	transaction doing the insertion.
-@param[in,out]	ref	the LOB reference.
-@param[in]	field	the LOB field.
-@param[in]	field_j	the LOB field index in big rec vector.
+@param[in]      ctx     the B-tree context for this LOB operation.
+@param[in]      trx     transaction doing the insertion.
+@param[in,out]  ref     the LOB reference.
+@param[in]      field   the LOB field.
+@param[in]      field_j the LOB field index in big rec vector.
 @return DB_SUCCESS on success, error code on failure.*/
 dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
                big_rec_field_t *field, ulint field_j);
 
 /** Insert a compressed large object (LOB) into the system.
-@param[in]	ctx	the B-tree context for this LOB operation.
-@param[in]	trx	transaction doing the insertion.
-@param[in,out]	ref	the LOB reference.
-@param[in]	field	the LOB field.
-@param[in]	field_j	the LOB field index in big rec vector.
+@param[in]      ctx     the B-tree context for this LOB operation.
+@param[in]      trx     transaction doing the insertion.
+@param[in,out]  ref     the LOB reference.
+@param[in]      field   the LOB field.
+@param[in]      field_j the LOB field index in big rec vector.
 @return DB_SUCCESS on success, error code on failure.*/
 dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
                  big_rec_field_t *field, ulint field_j);
@@ -111,11 +111,11 @@ dberr_t z_update(trx_t *trx, dict_index_t *index, const upd_t *upd,
 
 /** Get the list of index entries affected by the given partial update
 vector.
-@param[in]	ref     LOB reference object.
-@param[in]	index   Clustered index to which LOB belongs.
-@param[in]	bdiff   Single partial update vector
-@param[out]	entries	Affected LOB index entries.
-@param[in]	mtr	    Mini-transaction
+@param[in]      ref     LOB reference object.
+@param[in]      index   Clustered index to which LOB belongs.
+@param[in]      bdiff   Single partial update vector
+@param[out]     entries Affected LOB index entries.
+@param[in]      mtr         Mini-transaction
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t get_affected_index_entries(const ref_t &ref, dict_index_t *index,
                                    const Binary_diff &bdiff,
@@ -123,22 +123,21 @@ dberr_t get_affected_index_entries(const ref_t &ref, dict_index_t *index,
 
 /** Apply the undo log on the LOB
 @param[in]  mtr   Mini-transaction context.
-@param[in]  trx   Transaction that is being rolled back.
 @param[in]  index Clustered index to which LOB belongs.
 @param[in]  ref   LOB reference object.
 @param[in]  uf    Update vector for LOB field.
 @return DB_SUCCESS on success, error code on failure. */
-dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
+dberr_t apply_undolog(mtr_t *mtr, dict_index_t *index, ref_t ref,
                       const upd_field_t *uf);
 
 /** Get information about the given LOB.
-@param[in]	ref	          LOB reference.
-@param[in]	index	        Clustered index to which LOB belongs.
-@param[out]	lob_version	  LOB version number.
-@param[out]	last_trx_id   trx_id that modified the lob last.
-@param[out]	last_undo_no  Trx undo no that modified the lob last.
-@param[out]	page_type	the Page type of first lob page.
-@param[in]	mtr		        Mini-transaction context.
+@param[in]      ref               LOB reference.
+@param[in]      index           Clustered index to which LOB belongs.
+@param[out]     lob_version       LOB version number.
+@param[out]     last_trx_id   trx_id that modified the lob last.
+@param[out]     last_undo_no  Trx undo no that modified the lob last.
+@param[out]     page_type       the Page type of first lob page.
+@param[in]      mtr                     Mini-transaction context.
 @return always returns DB_SUCCESS. */
 dberr_t get_info(ref_t &ref, dict_index_t *index, ulint &lob_version,
                  trx_id_t &last_trx_id, undo_no_t &last_undo_no,

@@ -1,0 +1,618 @@
+# ==== Purpose ====
+#
+# Verify that system variable aliases work with SET PERSIST and with
+# command-line options.
+#
+# ==== Requirements ====
+#
+# R1. When using SET PERSIST or RESET PERSIST, with either the old
+#     name or the new name, all the following shall be updated for both
+#     the old and the new name:
+#
+#     R1.1. The global value.
+#     R1.2. The value in the persisted variables file.
+#     R1.3. The value in performance_schema.persisted_variables.
+#     R1.4. The source in performance_schema.variables_info.
+#
+# R2. When loading the persisted variables file, both old and new
+#     value shall be loaded, in each of the following cases:
+#
+#     R2.1. The file contains both old name and the new name.
+#     R2.2. The file contains only new name.
+#     R2.3. The file contains only old name.
+#
+# R3. When using command-line arguments, both old and new name shall
+#     be set, in each of the following cases:
+#
+#     R3.1. The command line contains both old name and the new name.
+#     R3.2. The command line contains only new name.
+#     R3.3. The command line contains only old name.
+#
+# R4. Deprecation warnings shall be generated in the following cases:
+#
+#     R4.1. When using SET PERSIST with the old name.
+#     R4.2. When loading a file that the old name and not the new name.
+#     R4.3. When using an old name on the command line.
+#
+# R5. Deprecation warnings shall not be generated in the following cases:
+#
+#     R5.1. When using SET PERSIST with the new name.
+#     R5.2. When using RESET PERSIST, with old or new name.
+#     R5.3. When loading a file that contains the new name (with or
+#           without the old name).
+#
+# ==== Implementation ====
+#
+# We rely on the framework to iterate over JSON objects, and use the
+# specifications of system variable behaviors
+# inc/json_sysvar_spec.inc.
+#
+# The test executes in several phases.  Each new phase begins by
+# restarting the server.  Each phase tests some set of requirements
+# for all server variables together.  This strategy, contrary to
+# testing all requirements for a variable at a time, minimizes server
+# restarts.  The following phases are executed:
+#
+# - Verify the dynamic behavior when altering persisted variables with
+#   the server online.  This verifies that SET PERSIST, RESET PERSIST,
+#   and SET PERSIST_ONLY have the expected side effects on
+#   @@global.variables and performance_schema tables.  It also verifies
+#   that there are deprecation warnings as expected.
+#
+# - Verify behavior of persisted options, when both old and new names
+#   are persisted. This restarts the server and verifies that the
+#   variables have the expected values.
+#
+# - Verify behavior of persisted options, when just the new name is
+#   persisted. This simulates the situation after downgrade from a
+#   future version where the old variables have been removed.  It
+#   works by modifying the persisted variables file, restarting the
+#   server, and checking that the values are as expected.
+#
+# - Verify behavior of persisted options, when just the old name is
+#   persisted. This simulates the situation after upgrade from a
+#   version before the variables existed.  It works analogously to the
+#   previous case. It also verifies that there are deprecation
+#   warnings as expected, and that the previous two phases did not
+#   generate deprecation warnings.
+#
+# - Verify behavior of command-line options, when both old and new
+#   names are specified.
+#
+# - Verify behavior of command-line options, when just new names are
+#   specified.
+#
+# - Verify behavior of command-line options, when just old names are
+#   specified.
+#
+# ==== References ====
+#
+# WL#14194: Replace old terms in replication system variables,
+# options, and strings
+
+
+# This test checks the behavior of configuration variables.  If the
+# test is invoked with some of those variables set to specific values,
+# that interferes with the test.  So we disable runs that set the
+# tested variables.
+
+# Binlog-less runs use --skip-log-replica-updates.
+--source include/have_log_bin.inc
+
+
+--echo #### Initialize ####
+
+--source include/save_error_log_position.inc
+
+# Don't suppress these warnings from the log. This allows us to assert
+# that they exist in the log.
+let $messages =
+The variable .* has been renamed to .*, and the old name deprecated.
+.* is deprecated and will be removed in a future release. Please use .* instead.
+;
+--let $suppress_mode = IGNORE_GLOBAL_SUPPRESSIONS
+--source include/suppress_messages.inc
+
+# Tell restart_mysqld.inc to not echo parameters.  This is important
+# since one of the parameters is --slave_load_tmpdir with a local
+# path.
+--let $do_not_echo_parameters = 1
+
+--let $assert_escape = 1
+
+--let $json_verbose = name, alias, invalid, global, session, cmdline, persist, persist_as_readonly, dynamic
+--source ../inc/json_sysvar_spec.inc
+
+--let $json_label = value
+--source include/create_json_iterator.inc
+
+# Tell assertions_for_sysvar_value.inc to check the global variable.
+--let $scope = global
+
+--echo #### Test ####
+
+--echo ==== R1. Checks without server restart ====
+--echo * Also checking R4.1: deprecation warning for SET PERSIST <old>
+--echo * Also checking R5.1: no deprecation warning for SET PERSIST <new>
+--echo * Also checking R5.2: no deprecation warning for RESET PERSIST
+
+--let $persisted_variables_file = `SELECT CONCAT(@@global.datadir, 'mysqld-auto.cnf')`
+--let $escape_persisted_json = 1
+--let $persisted_json = LOAD
+
+--let $all_names =
+--let $all_aliases =
+--let $persist_deprecation_warnings =
+--let $command_line_deprecation_warnings =
+
+--let $expect_truncation_warning = 0
+
+--let $json_array = $sysvar_specs
+--source $json_sysvar_start
+while (!$json_sysvar_done) {
+  --echo ---- $name ----
+
+  # Sanity-check the specification
+  if (!$dynamic) {
+    if ($persist) {
+      if (!$persist_as_readonly) {
+        --die !!! ERROR IN TEST: if readonly variable is persistable, it must be persist_as_readonly
+      }
+    }
+  }
+  if ($persist_as_readonly) {
+    if (!$persist) {
+      --die !!! ERROR IN TEST: persist_as_readonly is only allowed for variables having persist set.
+    }
+  }
+
+  # Collect command-line options
+  if ($cmdline) {
+    --let $json_array = $values
+    --let $json_start = 2
+    --source $json_value_start
+    --let $json_key = $json_value_value
+    --let $json_object = $value_map
+    --source include/json_lookup.inc
+    --let $command_line_names = $command_line_names --$name=$json_value
+    --let $command_line_aliases = $command_line_aliases --$alias=$json_value
+    let $command_line_deprecation_warnings = $command_line_deprecation_warnings
+.*The syntax .$alias. is deprecated and will be removed in a future release. Please use $name instead.;
+  }
+
+  if ($persist) {
+    # Collect comma-separated lists of all names, and of all aliases
+    if ($all_names) {
+      --let $all_names = $all_names,
+      --let $all_aliases = $all_aliases,
+    }
+    # Variables tagged as "PERSIST_AS_READONLY" are stored in a
+    # sub-document.
+    if ($persist_as_readonly) {
+      --let $subsection = mysql_static_variables
+    }
+    if (!$persist_as_readonly) {
+      --let $subsection = mysql_dynamic_variables
+    }
+    --let $all_names = $all_names '$.$subsection.$name'
+    --let $all_aliases = $all_aliases '$.$subsection.$alias'
+    # Collect expected list of deprecation warnings that will be given on
+    # a later server restart.
+    let $persist_deprecation_warnings = $persist_deprecation_warnings
+.*The variable $alias has been renamed to $name, and the old name deprecated.*;
+    if ($dynamic) {
+      --let $readonly_counter = 2
+      --let $expect_source = DYNAMIC
+    }
+    if (!$dynamic) {
+      --let $readonly_counter = 1
+      --let $expect_source = COMPILED
+    }
+    while ($readonly_counter) {
+      if ($readonly_counter == 2) {
+        --let $persist_scope = PERSIST
+        --let $expect_persisted_value = SAME_AS_VALUE
+      }
+      if ($readonly_counter == 1) {
+        --let $persist_scope = PERSIST_ONLY
+        --let $expect_value = $default
+      }
+
+      --let $json_array = $values
+      --let $json_start = 0
+      --source $json_value_start
+
+      --echo # R1. SET <new> when variable was previously unset
+      if ($mask_value) {
+        --replace_result $json_value_value VALUE
+      }
+      eval SET @@$persist_scope.$name = $json_value_value;
+      --let $expect_deprecation_warning = 0
+      --source ../inc/assertions_for_sysvar_warnings.inc
+      if ($persist_scope == PERSIST) {
+        --let $expect_value = $json_value_value
+      }
+      if ($persist_scope == PERSIST_ONLY) {
+        --let $expect_persisted_value = $json_value_value
+      }
+      --let $expect_persisted_ps = exists
+      --let $expect_persisted_json = exists
+      --source ../inc/assertions_for_sysvar_and_alias_value.inc
+
+      --echo # R1. SET <old> when variable was previously set through <new>
+      --source $json_value_next
+      if ($mask_value) {
+        --replace_result $json_value_value VALUE
+      }
+      eval SET @@$persist_scope.$alias = $json_value_value;
+      --let $expect_deprecation_warning = 1
+      --source ../inc/assertions_for_sysvar_warnings.inc
+      if ($persist_scope == PERSIST) {
+        --let $expect_value = $json_value_value
+      }
+      if ($persist_scope == PERSIST_ONLY) {
+        --let $expect_persisted_value = $json_value_value
+      }
+      --let $expect_persisted_ps = exists
+      --let $expect_persisted_json = exists
+      --source ../inc/assertions_for_sysvar_and_alias_value.inc
+
+      --echo # R1. SET <old>  = DEFAULT
+      --let $skip_set_default = 0
+      if ($persist_scope == PERSIST_ONLY) {
+        if ($skip_set_persist_only_default) {
+          --let $skip_set_default = 1
+        }
+      }
+      if (!$skip_set_default) {
+        eval SET @@$persist_scope.$alias = DEFAULT;
+        --let $expect_deprecation_warning = 1
+        --source ../inc/assertions_for_sysvar_warnings.inc
+        if ($persist_scope == PERSIST) {
+          --let $expect_value = $default
+        }
+        if ($persist_scope == PERSIST_ONLY) {
+          --let $expect_persisted_value = $default
+        }
+        --let $expect_persisted_ps = exists
+        --let $expect_persisted_json = exists
+        --source ../inc/assertions_for_sysvar_and_alias_value.inc
+      }
+
+      --echo # R1. RESET <old>
+      eval RESET PERSIST $alias;
+      --let $expect_deprecation_warning = 0
+      --source ../inc/assertions_for_sysvar_warnings.inc
+      --let $expect_persisted_ps = noexists
+      --let $expect_persisted_json = noexists
+      --source ../inc/assertions_for_sysvar_and_alias_value.inc
+
+      --echo # R1. SET <old> when variable was previously unset
+      if ($mask_value) {
+        --replace_result $json_value_value VALUE
+      }
+      eval SET $persist_scope $alias = $json_value_value;
+      --let $expect_deprecation_warning = 1
+      --source ../inc/assertions_for_sysvar_warnings.inc
+      if ($persist_scope == PERSIST) {
+        --let $expect_value = $json_value_value
+      }
+      if ($persist_scope == PERSIST_ONLY) {
+        --let $expect_persisted_value = $json_value_value
+      }
+      --let $expect_persisted_ps = exists
+      --let $expect_persisted_json = exists
+      --source ../inc/assertions_for_sysvar_and_alias_value.inc
+
+      --echo # R1. SET <new> when variable was previously set through <old>
+      --source $json_value_next
+      if ($mask_value) {
+        --replace_result $json_value_value VALUE
+      }
+      eval SET $persist_scope $name = $json_value_value;
+      --let $expect_deprecation_warning = 0
+      --source ../inc/assertions_for_sysvar_warnings.inc
+      if ($persist_scope == PERSIST) {
+        --let $expect_value = $json_value_value
+      }
+      if ($persist_scope == PERSIST_ONLY) {
+        --let $expect_persisted_value = $json_value_value
+      }
+      --let $expect_persisted_ps = exists
+      --let $expect_persisted_json = exists
+      --source ../inc/assertions_for_sysvar_and_alias_value.inc
+
+      --echo # R1. RESET <new>
+      eval RESET PERSIST $name;
+      --let $expect_deprecation_warning = 0
+      --source ../inc/assertions_for_sysvar_warnings.inc
+      --let $expect_persisted_ps = noexists
+      --let $expect_persisted_json = noexists
+      --source ../inc/assertions_for_sysvar_and_alias_value.inc
+
+      # Restore default global value. This makes the second iteration
+      # for a dynamic variable have the same initial state as the first
+      # and only iteation for a readonly variable.
+      if ($dynamic) {
+        eval SET GLOBAL $name = DEFAULT;
+        --let $expect_deprecation_warning = 0
+        --source ../inc/assertions_for_sysvar_warnings.inc
+      }
+
+      --dec $readonly_counter
+    }
+
+    # Persist a value for the next restart
+   if ($mask_value) {
+     --replace_result $json_value_value VALUE
+   }
+    eval SET PERSIST_ONLY $name = $json_value_value;
+    --let $expect_deprecation_warning = 0
+    --source ../inc/assertions_for_sysvar_warnings.inc
+  }
+
+  --source $json_sysvar_next
+}
+
+--let $expect_source = PERSISTED
+
+--echo
+--echo ==== R2.1. Server restart with both old and new name in file ====
+--echo
+
+# Restart server.
+--source include/restart_mysqld.inc
+--let $error_pattern = NONE
+--source include/assert_error_log.inc
+# Load file contents.
+--source ../inc/load_persisted_json.inc
+# Iterate over variables and check them.
+--let $json_array = $sysvar_specs
+--source $json_sysvar_start
+while (!$json_sysvar_done) {
+  if ($persist) {
+    --let $json_array = $values
+    --let $json_start = 2
+    --source $json_value_start
+    --let $expect_value = $json_value_value
+
+    --let $expect_persisted_json = exists
+    --let $expect_persisted_ps = exists
+    --let $expect_persisted_value = SAME_AS_VALUE
+    --source ../inc/assertions_for_sysvar_and_alias_value.inc
+  }
+
+  --source $json_sysvar_next
+}
+
+--echo
+--echo ==== R2.2. Server restart with only new name in file ====
+--echo
+
+# Remove 'old' names from persisted file
+--let $filtered_json = `SELECT JSON_REMOVE('$persisted_json', $all_aliases)`
+--let $write_var = escape(\',$filtered_json)
+--let $write_to_file = $persisted_variables_file
+--source include/write_var_to_file.inc
+# Restart server.
+--source include/restart_mysqld.inc
+--let $error_pattern = NONE
+--source include/assert_error_log.inc
+# Load file contents.
+--source ../inc/load_persisted_json.inc
+# Iterate over variables and check them.
+--let $json_array = $sysvar_specs
+--source $json_sysvar_start
+while (!$json_sysvar_done) {
+  if ($persist) {
+    --let $json_array = $values
+    --let $json_start = 2
+    --source $json_value_start
+    --let $expect_value = $json_value_value
+
+    --let $variable = $name
+    --let $expect_persisted_json = exists
+    --let $expect_persisted_ps = exists
+    --source ../inc/assertions_for_sysvar_value.inc
+
+    --let $variable = $alias
+    --let $expect_persisted_json = noexists
+    --let $expect_persisted_ps = exists
+    --source ../inc/assertions_for_sysvar_value.inc
+  }
+  --source $json_sysvar_next
+}
+
+# Force rewriting the file. This will write both old and new names, so
+# below we expect both to exist in the file.
+SET PERSIST binlog_format = 'row';
+RESET PERSIST binlog_format;
+--let $expect_persisted_json = exists
+# Load file contents.
+--source ../inc/load_persisted_json.inc
+# Iterate over variables and check them.
+--let $json_array = $sysvar_specs
+--source $json_sysvar_start
+while (!$json_sysvar_done) {
+  if ($persist) {
+    --let $json_array = $values
+    --let $json_start = 2
+    --source $json_value_start
+    --let $expect_value = $json_value_value
+
+    --let $expect_persisted_json = exists
+    --let $expect_persisted_ps = exists
+    --source ../inc/assertions_for_sysvar_and_alias_value.inc
+  }
+  --source $json_sysvar_next
+}
+
+--echo
+--echo ==== R2.3. Server restart with only old name in file ====
+--echo
+
+# Remove 'new' names from persisted file
+--let $filtered_json = `SELECT JSON_REMOVE('$persisted_json', $all_names)`
+--let $write_var = escape(\',$filtered_json)
+--let $write_to_file = $persisted_variables_file
+--source include/write_var_to_file.inc
+# Restart server and check deprecation warnings.
+--echo * R5.3: no deprecation warnings up till now
+--source include/restart_mysqld.inc
+--echo * R4.2: deprecation warnings when loading file containing only old names
+--let $error_pattern = $persist_deprecation_warnings
+--source include/assert_error_log.inc
+# Load file contents.
+--source ../inc/load_persisted_json.inc
+# Iterate over variables and check them.
+--let $json_array = $sysvar_specs
+--source $json_sysvar_start
+while (!$json_sysvar_done) {
+  if ($persist) {
+    --let $json_array = $values
+    --let $json_start = 2
+    --source $json_value_start
+    --let $expect_value = $json_value_value
+
+    --let $variable = $name
+    --let $expect_persisted_json = noexists
+    --let $expect_persisted_ps = exists
+    --source ../inc/assertions_for_sysvar_value.inc
+
+    --let $variable = $alias
+    --let $expect_persisted_json = exists
+    --let $expect_persisted_ps = exists
+    --source ../inc/assertions_for_sysvar_value.inc
+  }
+  --source $json_sysvar_next
+}
+
+# Force rewriting the file. This will write both old and new names, so
+# below we expect both to exist in the file.
+SET PERSIST binlog_format = 'row';
+RESET PERSIST binlog_format;
+--let $expect_persisted_json = exists
+# Load file contents.
+--source ../inc/load_persisted_json.inc
+# Iterate over variables and check them.
+--let $json_array = $sysvar_specs
+--source $json_sysvar_start
+while (!$json_sysvar_done) {
+  if ($persist) {
+    --let $json_array = $values
+    --let $json_start = 2
+    --source $json_value_start
+    --let $expect_value = $json_value_value
+
+    --let $expect_persisted_json = exists
+    --let $expect_persisted_ps = exists
+    --source ../inc/assertions_for_sysvar_and_alias_value.inc
+  }
+  --source $json_sysvar_next
+}
+
+--echo
+--echo ==== R3.1. Server restart with both old and new names on command line ====
+--echo * Also checking R4.3 (deprecation warning for old name on command line)
+--echo
+
+--let $expect_source = COMMAND_LINE
+--let $expect_persisted_json = noexists
+--let $expect_persisted_ps = noexists
+
+RESET PERSIST;
+--source ../inc/load_persisted_json.inc
+
+# Restart server.
+--let $restart_parameters = restart:$command_line_names $command_line_aliases
+--source include/restart_mysqld.inc
+--echo * R4.3: deprecation warnings when using old names on command line
+--let $error_pattern = $command_line_deprecation_warnings
+--source include/assert_error_log.inc
+# Iterate over variables and check them.
+--let $json_array = $sysvar_specs
+--source $json_sysvar_start
+while (!$json_sysvar_done) {
+  if ($cmdline) {
+    --let $json_array = $values
+    --let $json_start = 2
+    --source $json_value_start
+    --let $expect_value = $json_value_value
+
+    --source ../inc/assertions_for_sysvar_and_alias_value.inc
+  }
+
+  --source $json_sysvar_next
+}
+
+--echo
+--echo ==== R3.2. Server restart with only new names on command line ====
+--echo
+
+--let $expect_source = COMMAND_LINE
+--let $expect_persisted_json = noexists
+--let $expect_persisted_ps = noexists
+
+RESET PERSIST;
+--source ../inc/load_persisted_json.inc
+
+# Restart server.
+--let $restart_parameters = restart:$command_line_names
+--source include/restart_mysqld.inc
+--let $error_pattern = NONE
+--source include/assert_error_log.inc
+# Iterate over variables and check them.
+--let $json_array = $sysvar_specs
+--source $json_sysvar_start
+while (!$json_sysvar_done) {
+  if ($cmdline) {
+    --let $json_array = $values
+    --let $json_start = 2
+    --source $json_value_start
+    --let $expect_value = $json_value_value
+
+    --source ../inc/assertions_for_sysvar_and_alias_value.inc
+  }
+
+  --source $json_sysvar_next
+}
+
+--echo
+--echo ==== R3.3. Server restart with only old names on command line ====
+--echo * Also checking R4.3 (deprecation warning for old name on command line)
+--echo
+
+--let $expect_source = COMMAND_LINE
+--let $expect_persisted_json = noexists
+--let $expect_persisted_ps = noexists
+
+RESET PERSIST;
+--source ../inc/load_persisted_json.inc
+
+# Restart server.
+--let $restart_parameters = restart:$command_line_aliases
+--source include/restart_mysqld.inc
+--echo * R4.3: deprecation warnings when using old names on command line
+--let $error_pattern = $command_line_deprecation_warnings
+--source include/assert_error_log.inc
+# Iterate over variables and check them.
+--let $json_array = $sysvar_specs
+--source $json_sysvar_start
+while (!$json_sysvar_done) {
+  if ($cmdline) {
+    --let $json_array = $values
+    --let $json_start = 2
+    --source $json_value_start
+    --let $expect_value = $json_value_value
+
+    --source ../inc/assertions_for_sysvar_and_alias_value.inc
+  }
+
+  --source $json_sysvar_next
+}
+
+--echo #### Clean up ####
+
+--source include/destroy_json_functions.inc
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

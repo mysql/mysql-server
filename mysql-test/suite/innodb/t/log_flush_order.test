@@ -77,7 +77,7 @@ DELIMITER ;|
 --echo #              (BUF_POOL->FLUSH_LIST).START == __NULL
 --echo #
 
-# We need to test two main scenarios in which mini transaction with
+# We need to test two main scenarios in which mini-transaction with
 # MTR_LOG_NO_REDO can be involved:
 
 # 1. Pages dirtied without redo pretend to be inserted too quickly,
@@ -184,9 +184,8 @@ let $noredo_remodify = 1;
 --source ../include/log_flush_order_test_end.inc
 
 --echo #
---echo # Scenario 3 - Execute in parallel many redo and no-redo mini
---echo #              transactions. Freeze and unfreeze recent_closed
---echo #              every 1s.
+--echo # Scenario 3 - Execute in parallel many redo and no-redo mini-transactions.
+--echo #              Freeze and unfreeze recent_closed every 1s.
 --echo #
 
 let $freeze_background_mtr = 0;

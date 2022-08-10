@@ -51,13 +51,26 @@ include/assert.inc [Binary log did not rotated]
 SET GLOBAL binlog_encryption = ON;
 include/assert.inc [Binary log rotated]
 include/assert.inc [5th binary log is encrypted on slave]
+==== Cleanup ====
+* Disable encryption, cleanup database, and consume all encrypted logs.
+[connection slave]
 include/start_slave.inc
+SET GLOBAL binlog_encryption = OFF;
 [connection master]
 SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-SET GLOBAL binlog_encryption = OFF;
-UNINSTALL PLUGIN keyring_file;
+* Remove all encrypted logs.
+include/rpl_reset.inc
+* Uninstall the plugins and delete the keyrings.
 [connection master]
 UNINSTALL PLUGIN keyring_file;
+[connection slave]
+UNINSTALL PLUGIN keyring_file;
+* Restart the servers with the same command lines as before the test.
+include/rpl_restart_server.inc [server_number=1]
+include/rpl_restart_server.inc [server_number=2]
+* Clean up replication test framework
+[connection slave]
+include/start_slave.inc
 include/rpl_end.inc

@@ -1,5 +1,6 @@
 #
 --source include/have_udf.inc
+--source include/not_valgrind.inc
 --source include/force_restart.inc
 
 --echo #

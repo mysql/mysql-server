@@ -8,18 +8,18 @@ ROW_FORMAT=REDUNDANT
 TABLESPACE innodb_file_per_table;
 # ###########################################################
 # Inject error during bulk insert
-SET debug = '+d,ib_btr_bulk_insert_inject_error';
+SET debug = '+d,ddl_btree_build_too_big_record';
 ALTER TABLE t1 TABLESPACE ts1;
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is #value#. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
-SET debug = '-d,ib_btr_bulk_insert_inject_error';
+SET debug = '-d,ddl_btree_build_too_big_record';
 FLUSH TABLES;
 # ###########################################################
 # Inject error during bulk reserve space
-SET debug = '+d,ib_btr_bulk_prepare_space_error';
+SET debug = '+d,ddl_btree_build_oom';
 ALTER TABLE t1 TABLESPACE ts1;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
 FLUSH TABLES;
-SET debug = '-d,ib_btr_bulk_prepare_space_error';
+SET debug = '-d,ddl_btree_build_oom';
 # ###########################################################
 # No error - check for final success
 ALTER TABLE t1 TABLESPACE ts1;
@@ -38,18 +38,18 @@ ROW_FORMAT=COMPACT
 TABLESPACE innodb_file_per_table;
 # ###########################################################
 # Inject error during bulk insert
-SET debug = '+d,ib_btr_bulk_insert_inject_error';
+SET debug = '+d,ddl_btree_build_too_big_record';
 ALTER TABLE t1 TABLESPACE ts1;
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is #value#. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
-SET debug = '-d,ib_btr_bulk_insert_inject_error';
+SET debug = '-d,ddl_btree_build_too_big_record';
 FLUSH TABLES;
 # ###########################################################
 # Inject error during bulk reserve space
-SET debug = '+d,ib_btr_bulk_prepare_space_error';
+SET debug = '+d,ddl_btree_build_oom';
 ALTER TABLE t1 TABLESPACE ts1;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
 FLUSH TABLES;
-SET debug = '-d,ib_btr_bulk_prepare_space_error';
+SET debug = '-d,ddl_btree_build_oom';
 # ###########################################################
 # No error - check for final success
 ALTER TABLE t1 TABLESPACE ts1;
@@ -68,18 +68,18 @@ ROW_FORMAT=DYNAMIC
 TABLESPACE innodb_file_per_table;
 # ###########################################################
 # Inject error during bulk insert
-SET debug = '+d,ib_btr_bulk_insert_inject_error';
+SET debug = '+d,ddl_btree_build_too_big_record';
 ALTER TABLE t1 TABLESPACE ts1;
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is #value#. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
-SET debug = '-d,ib_btr_bulk_insert_inject_error';
+SET debug = '-d,ddl_btree_build_too_big_record';
 FLUSH TABLES;
 # ###########################################################
 # Inject error during bulk reserve space
-SET debug = '+d,ib_btr_bulk_prepare_space_error';
+SET debug = '+d,ddl_btree_build_oom';
 ALTER TABLE t1 TABLESPACE ts1;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
 FLUSH TABLES;
-SET debug = '-d,ib_btr_bulk_prepare_space_error';
+SET debug = '-d,ddl_btree_build_oom';
 # ###########################################################
 # No error - check for final success
 ALTER TABLE t1 TABLESPACE ts1;
@@ -99,18 +99,18 @@ KEY_BLOCK_SIZE=4
 TABLESPACE innodb_file_per_table;
 # ###########################################################
 # Inject error during bulk insert
-SET debug = '+d,ib_btr_bulk_insert_inject_error';
+SET debug = '+d,ddl_btree_build_too_big_record';
 ALTER TABLE t1 TABLESPACE ts1;
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is #value#. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
-SET debug = '-d,ib_btr_bulk_insert_inject_error';
+SET debug = '-d,ddl_btree_build_too_big_record';
 FLUSH TABLES;
 # ###########################################################
 # Inject error during bulk reserve space
-SET debug = '+d,ib_btr_bulk_prepare_space_error';
+SET debug = '+d,ddl_btree_build_oom';
 ALTER TABLE t1 TABLESPACE ts1;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
 FLUSH TABLES;
-SET debug = '-d,ib_btr_bulk_prepare_space_error';
+SET debug = '-d,ddl_btree_build_oom';
 # ###########################################################
 # No error - check for final success
 ALTER TABLE t1 TABLESPACE ts1;

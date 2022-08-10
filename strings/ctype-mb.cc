@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,8 +85,8 @@ static inline const MY_UNICASE_CHARACTER *get_case_info_for_ch(
   For character sets which don't change octet length in case conversion.
 */
 size_t my_caseup_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
-                    char *dst MY_ATTRIBUTE((unused)),
-                    size_t dstlen MY_ATTRIBUTE((unused))) {
+                    char *dst [[maybe_unused]],
+                    size_t dstlen [[maybe_unused]]) {
   uint32 l;
   char *srcend = src + srclen;
   const uchar *map = cs->to_upper;
@@ -112,8 +112,8 @@ size_t my_caseup_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 size_t my_casedn_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
-                    char *dst MY_ATTRIBUTE((unused)),
-                    size_t dstlen MY_ATTRIBUTE((unused))) {
+                    char *dst [[maybe_unused]],
+                    size_t dstlen [[maybe_unused]]) {
   uint32 l;
   char *srcend = src + srclen;
   const uchar *map = cs->to_lower;
@@ -149,7 +149,7 @@ size_t my_casedn_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
 */
 static size_t my_casefold_mb_varlen(const CHARSET_INFO *cs, char *src,
                                     size_t srclen, char *dst,
-                                    size_t dstlen MY_ATTRIBUTE((unused)),
+                                    size_t dstlen [[maybe_unused]],
                                     const uchar *map, size_t is_upper) {
   char *srcend = src + srclen, *dst0 = dst;
 
@@ -279,7 +279,7 @@ static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
 
       mb = wildstr;
       mb_len = my_ismbchar(cs, wildstr, wildend);
-      INC_PTR(cs, wildstr, wildend); /* This is compared trough cmp */
+      INC_PTR(cs, wildstr, wildend); /* This is compared through cmp */
       cmp = likeconv(cs, cmp);
       do {
         for (;;) {
@@ -327,8 +327,8 @@ size_t my_numchars_mb(const CHARSET_INFO *cs, const char *pos,
   return count;
 }
 
-size_t my_charpos_mb(const CHARSET_INFO *cs, const char *pos, const char *end,
-                     size_t length) {
+size_t my_charpos_mb3(const CHARSET_INFO *cs, const char *pos, const char *end,
+                      size_t length) {
   const char *start = pos;
 
   while (length && pos < end) {
@@ -406,9 +406,9 @@ uint my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
 
 /* BINARY collations handlers for MB charsets */
 
-int my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        const uchar *s, size_t slen, const uchar *t,
-                        size_t tlen, bool t_is_prefix) {
+int my_strnncoll_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], const uchar *s,
+                        size_t slen, const uchar *t, size_t tlen,
+                        bool t_is_prefix) {
   size_t len = std::min(slen, tlen);
   int cmp = len == 0 ? 0 : memcmp(s, t, len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
@@ -419,7 +419,7 @@ int my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
   SYNOPSIS
     my_strnncollsp_mb_bin()
-    cs			Chararacter set
+    cs			Character set
     s			String to compare
     slen		Length of 's'
     t			String to compare
@@ -436,7 +436,7 @@ int my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     0 if strings are equal
 */
 
-int my_strnncollsp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+int my_strnncollsp_mb_bin(const CHARSET_INFO *cs [[maybe_unused]],
                           const uchar *a, size_t a_length, const uchar *b,
                           size_t b_length) {
   const uchar *end;
@@ -481,13 +481,13 @@ int my_strnncollsp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     switch (cs->cset->ismbchar(cs, (const char *)src, (const char *)se)) {   \
       case 4:                                                                \
         *dst++ = *src++;                                                     \
-        /* fall through */                                                   \
+        [[fallthrough]];                                                     \
       case 3:                                                                \
         *dst++ = *src++;                                                     \
-        /* fall through */                                                   \
+        [[fallthrough]];                                                     \
       case 2:                                                                \
         *dst++ = *src++;                                                     \
-        /* fall through */                                                   \
+        [[fallthrough]];                                                     \
       case 0:                                                                \
         *dst++ = *src++; /* byte in range 0x80..0xFF which is not MB head */ \
     }                                                                        \
@@ -535,7 +535,7 @@ size_t my_strnxfrm_mb(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   }
 
   /*
-    A thourough loop, checking all possible limits:
+    A thorough loop, checking all possible limits:
     "se", "nweights" and "de".
   */
   for (; src < se && nweights && dst < de; nweights--) {
@@ -557,12 +557,12 @@ pad:
   return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
-int my_strcasecmp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const char *s, const char *t) {
+int my_strcasecmp_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], const char *s,
+                         const char *t) {
   return strcmp(s, t);
 }
 
-void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+void my_hash_sort_mb_bin(const CHARSET_INFO *cs [[maybe_unused]],
                          const uchar *key, size_t len, uint64 *nr1,
                          uint64 *nr2) {
   const uchar *pos = key;
@@ -627,7 +627,7 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end) {
   assert(buflen > 0);
   do {
     if ((str + buflen) <= end) {
-      /* Enough space for the characer */
+      /* Enough space for the character */
       memcpy(str, buf, buflen);
       str += buflen;
     } else {
@@ -834,11 +834,11 @@ bool my_like_range_generic(const CHARSET_INFO *cs, const char *ptr,
                                  pointer_cast<const uchar *>(end))) <= 0) {
         if (res == MY_CS_ILSEQ)
           return true; /* min_length and max_length are not important */
-        /*
-           End of the string: Escape is the last character.
-           Put escape as a normal character.
-           We'll will leave the loop on the next iteration.
-        */
+                       /*
+                          End of the string: Escape is the last character.
+                          Put escape as a normal character.
+                          We'll will leave the loop on the next iteration.
+                       */
       } else
         ptr += res;
 
@@ -1009,7 +1009,7 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
 
       mb = wildstr;
       mb_len = my_ismbchar(cs, wildstr, wildend);
-      INC_PTR(cs, wildstr, wildend); /* This is compared trough cmp */
+      INC_PTR(cs, wildstr, wildend); /* This is compared through cmp */
       do {
         for (;;) {
           if (str >= str_end) return -1;

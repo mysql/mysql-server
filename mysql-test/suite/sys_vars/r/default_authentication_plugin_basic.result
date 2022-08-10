@@ -1,9 +1,13 @@
 SELECT  @@GLOBAL.default_authentication_plugin;
 @@GLOBAL.default_authentication_plugin
 caching_sha2_password
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 SELECT COUNT(@@GLOBAL.default_authentication_plugin);
 COUNT(@@GLOBAL.default_authentication_plugin)
 1
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 1 Expected
 SET @@GLOBAL.default_authentication_plugin=1;
 ERROR HY000: Variable 'default_authentication_plugin' is a read only variable
@@ -11,6 +15,8 @@ Expected error 'Read only variable'
 SELECT COUNT(@@GLOBAL.default_authentication_plugin);
 COUNT(@@GLOBAL.default_authentication_plugin)
 1
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 1 Expected
 SELECT @@GLOBAL.default_authentication_plugin = VARIABLE_VALUE
 FROM performance_schema.global_variables
@@ -21,6 +27,8 @@ WHERE VARIABLE_NAME='default_authentication_plugin';
 SELECT COUNT(@@GLOBAL.default_authentication_plugin);
 COUNT(@@GLOBAL.default_authentication_plugin)
 1
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
 FROM performance_schema.global_variables
@@ -31,10 +39,15 @@ COUNT(VARIABLE_VALUE)
 SELECT @@default_authentication_plugin = @@GLOBAL.default_authentication_plugin;
 @@default_authentication_plugin = @@GLOBAL.default_authentication_plugin
 1
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 1 Expected
 SELECT COUNT(@@default_authentication_plugin);
 COUNT(@@default_authentication_plugin)
 1
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 1 Expected
 SELECT COUNT(@@local.default_authentication_plugin);
 ERROR HY000: Variable 'default_authentication_plugin' is a GLOBAL variable
@@ -45,7 +58,9 @@ Expected error 'Variable is a GLOBAL variable'
 SELECT COUNT(@@GLOBAL.default_authentication_plugin);
 COUNT(@@GLOBAL.default_authentication_plugin)
 1
+Warnings:
+Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 1 Expected
-SELECT default_authentication_plugin = @@SESSION.default_authentication_plugin;
+SELECT default_authentication_plugin;
 ERROR 42S22: Unknown column 'default_authentication_plugin' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

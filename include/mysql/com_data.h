@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,7 @@ struct PS_PARAM {
 
 struct COM_STMT_EXECUTE_DATA {
   unsigned long stmt_id;
+  /** This holds the flags, as defined in @ref enum_cursor_type */
   unsigned long open_cursor;
   PS_PARAM *parameters;
   unsigned long parameter_count;

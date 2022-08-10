@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ class cache_imp : public Cache_malloced {
   channel_imp *m_channel;
   /*
     This is a opaque pointer handle used to store the acquired service
-    implementaions handles.
+    implementation handles.
   */
   my_h_service **m_cache;
   SERVICE_TYPE(registry) * m_registry;

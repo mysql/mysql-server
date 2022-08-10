@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ enum enum_return_id { FOUND_ID = 1, NOT_FOUND_ID, ERROR_ID };
 class Rpl_info_table_access : public System_table_access {
  public:
   Rpl_info_table_access() : thd_created(false) {}
-  ~Rpl_info_table_access() override {}
+  ~Rpl_info_table_access() override = default;
 
   /**
     Prepares before opening table.
@@ -52,7 +52,8 @@ class Rpl_info_table_access : public System_table_access {
                    bool error);
   enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table);
   enum enum_return_id scan_info(TABLE *table, uint instance);
-  bool count_info(TABLE *table, uint *counter);
+  std::pair<bool, bool> is_table_in_use(TABLE *table);
+  bool count_info(TABLE *table, ulonglong *counter);
   bool load_info_values(uint max_num_field, Field **fields,
                         Rpl_info_values *field_values);
   bool store_info_values(uint max_num_field, Field **fields,

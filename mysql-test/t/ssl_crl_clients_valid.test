@@ -7,7 +7,7 @@ if (!$crllen)
 
 --echo # Test clients with and without CRL lists
 
-let $ssl_base = --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-server-cert.pem;
+let $ssl_base = --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem --ssl-mode=verify_ca;
 let $ssl_crl = $ssl_base --ssl-crl=$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl;
 let $ssl_crlpath = $ssl_base --ssl-crlpath=$MYSQL_TEST_DIR/std_data/crldir;
 
@@ -16,7 +16,7 @@ let $ssl_crlpath = $ssl_base --ssl-crlpath=$MYSQL_TEST_DIR/std_data/crldir;
 
 --echo # Test mysql connecting to a server with an empty crl
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL $ssl_crl test -e "SHOW VARIABLES WHERE variable_name LIKE '%ssl%' AND variable_name NOT LIKE '%processlist%';" 2>&1
+--exec $MYSQL $ssl_crl test -e "SELECT LENGTH(VARIABLE_VALUE) > 0 FROM performance_schema.session_status WHERE variable_name = 'ssl_version';" 2>&1
 
 --echo ############ Test mysqladmin ##############
 let $admin_prefix = --no-defaults;

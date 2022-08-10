@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "portlib/ndb_file.h"
 
 #include "Windows.h"
@@ -37,8 +38,8 @@ static inline void require_fn(bool cond)
 {
   if (cond)
     return;
-  std::fprintf(stderr,"YYY: FATAL ERROR: %s: %s: %d: REQUIRE FAILED: %s\n",
-    file,func,line,cond_str);
+  g_eventLogger->info("YYY: FATAL ERROR: %s: %s: %d: REQUIRE FAILED: %s", file,
+                      func, line, cond_str);
   std::abort();
 }
 #define require(cc) require_fn<#cc,__FILE__,__func__,__LINE__>((cc))
@@ -64,10 +65,7 @@ int ndb_file::write_forward(const void* buf, ndb_file::size_t count)
     return -1;
   }
   assert(ndb_file::size_t(dwWritten) == count);
-  if (!m_synced_on_write)
-  {
-    m_write_byte_count.fetch_add(dwWritten);
-  }
+  if (do_sync_after_write(dwWritten) == -1) return -1;
   return dwWritten;
 }
 
@@ -91,10 +89,7 @@ int ndb_file::write_pos(const void* buf, ndb_file::size_t count, ndb_file::off_t
     return -1;
   }
   assert(ndb_file::size_t(dwWritten) == count);
-  if (!m_synced_on_write)
-  {
-    m_write_byte_count.fetch_add(dwWritten);
-  }
+  if (do_sync_after_write(dwWritten) == -1) return -1;
   return dwWritten;
 }
 
@@ -239,6 +234,11 @@ ndb_file::off_t ndb_file::get_size() const
 int ndb_file::extend(off_t end, extend_flags flags) const
 {
   require(check_block_size_and_alignment(nullptr, end, end));
+  const off_t saved_file_pos = get_pos();
+  if (saved_file_pos == -1)
+  {
+    return -1;
+  }
   const off_t size = get_size();
   if (size == -1)
   {
@@ -274,9 +274,15 @@ int ndb_file::extend(off_t end, extend_flags flags) const
      * write, but since files typically are initialized by appending or
      * writing in forward direction there should typically be no harm.
      */
-    SetFileValidData(m_handle, size);
+    if (!SetFileValidData(m_handle, size))
+    {
+      SetLastError(0);
+    }
   }
-  set_pos(0);
+  if (set_pos(saved_file_pos) == -1)
+  {
+    return -1;
+  }
   return 0;
 }
 
@@ -333,7 +339,10 @@ int ndb_file::create(const char name[])
   {
     return -1;
   }
-  (void) CloseHandle(hFile);
+  if (!CloseHandle(hFile))
+  {
+    SetLastError(0);
+  }
   return 0;
 }
 
@@ -348,26 +357,20 @@ int ndb_file::open(const char name[], unsigned flags)
 
   init();
 
-#if 0
-  const unsigned bad_flags = flags & ~(FsOpenReq::OM_APPEND |
-      FsOpenReq::OM_SYNC | FsOpenReq::OM_READ_WRITE_MASK |
-      FsOpenReq::OM_TRUNCATE);
-#else
   const unsigned bad_flags = flags & ~(FsOpenReq::OM_APPEND |
       FsOpenReq::OM_READ_WRITE_MASK );
-#endif
 
   if (bad_flags != 0) abort();
 
   m_open_flags = 0;
-  m_sync_on_write = false;
-  m_synced_on_write = false;
+  m_write_need_sync = false;
+  m_os_syncs_each_write = false;
 
   // for open.flags, see signal FSOPENREQ
   DWORD dwCreationDisposition;
   DWORD dwDesiredAccess = 0;
   DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE;
-  DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
+  DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
 
   if (flags & FsOpenReq::OM_TRUNCATE)
   {
@@ -379,12 +382,6 @@ int ndb_file::open(const char name[], unsigned flags)
   }
 
   // OM_APPEND not used.
-
-  if (flags & FsOpenReq::OM_SYNC)
-  {
-    m_sync_on_write = true;
-    m_synced_on_write = true;
-  }
 
   switch (flags & FsOpenReq::OM_READ_WRITE_MASK)
   {
@@ -443,7 +440,7 @@ int ndb_file::set_direct_io(bool /* assume_implicit_datasync */)
 
 int ndb_file::reopen_with_sync(const char /* name */ [])
 {
-  if (m_synced_on_write)
+  if (m_os_syncs_each_write)
   {
     /*
      * If already synced on write by for example implicit by direct I/O mode no
@@ -452,7 +449,7 @@ int ndb_file::reopen_with_sync(const char /* name */ [])
     return 0;
   }
 
-  m_sync_on_write = true;
+  m_write_need_sync = true;
 
   return 0;
 }

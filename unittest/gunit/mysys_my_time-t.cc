@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -521,7 +521,7 @@ static void BM_my_time(size_t num_iterations) {
   StartBenchmarkTiming();
 
   for (size_t i = 0; i < num_iterations; ++i) {
-    my_time(0);
+    time(nullptr);
   }
 
   StopBenchmarkTiming();

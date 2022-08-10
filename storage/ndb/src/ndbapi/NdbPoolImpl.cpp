@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -251,7 +251,7 @@ NdbPool::get_ndb_object(Uint32 &hint_id,
       break;
     }
     /*
-    Not even after waiting were we able to get hold of an Ndb object. We 
+    Not even after waiting were we able to get hold of an Ndb object. We
     return NULL to indicate this problem.
     */
     ret_ndb = NULL;
@@ -269,8 +269,7 @@ NdbPool::get_ndb_object(Uint32 &hint_id,
   return ret_ndb;
 }
 
-void
-NdbPool::return_ndb_object(Ndb* returned_ndb, Uint32 id)
+void NdbPool::return_ndb_object(Ndb* returned_ndb [[maybe_unused]], Uint32 id)
 {
   NdbMutex_Lock(pool_mutex);
   assert(id <= m_max_ndb_objects);
@@ -286,8 +285,8 @@ NdbPool::return_ndb_object(Ndb* returned_ndb, Uint32 id)
       pool_cond = input_pool_cond;
     }
     add_wait_list(id);
-    NdbMutex_Unlock(pool_mutex);
     NdbCondition_Signal(pool_cond);
+    NdbMutex_Unlock(pool_mutex);
   } else {
     add_free_list(id);
     add_db_hash(id);

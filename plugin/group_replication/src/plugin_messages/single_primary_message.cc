@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ Single_primary_message::Single_primary_message(std::string &uuid,
       primary_uuid(uuid),
       election_mode(mode) {}
 
-Single_primary_message::~Single_primary_message() {}
+Single_primary_message::~Single_primary_message() = default;
 
 Single_primary_message::Single_primary_message(const uchar *buf, size_t len)
     : Plugin_gcs_message(CT_SINGLE_PRIMARY_MESSAGE),

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,11 +36,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 
-#ifdef UNIV_LINUX
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#endif
-
 typedef void *os_process_t;
 typedef unsigned long int os_process_id_t;
 
@@ -57,15 +52,5 @@ extern uint os_large_page_size;
 /** Converts the current process id to a number.
 @return process id as a number */
 ulint os_proc_get_number(void);
-
-/** Allocates large pages memory.
-@param[in,out]	n	Number of bytes to allocate
-@return allocated memory */
-void *os_mem_alloc_large(ulint *n);
-
-/** Frees large pages memory.
-@param[in]	ptr	pointer returned by os_mem_alloc_large()
-@param[in]	size	size returned by os_mem_alloc_large() */
-void os_mem_free_large(void *ptr, ulint size);
 
 #endif

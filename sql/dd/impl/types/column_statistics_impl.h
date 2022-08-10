@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ class Column_statistics_impl final : public Entity_object_impl,
  public:
   Column_statistics_impl()
       : m_schema_name(), m_table_name(), m_column_name(), m_histogram(nullptr) {
-    init_alloc_root(key_memory_DD_column_statistics, &m_mem_root, 256, 0);
+    ::new ((void *)&m_mem_root) MEM_ROOT(key_memory_DD_column_statistics, 256);
   }
 
  private:
@@ -69,7 +69,7 @@ class Column_statistics_impl final : public Entity_object_impl,
         m_table_name(column_statistics.m_table_name),
         m_column_name(column_statistics.m_column_name),
         m_histogram(nullptr) {
-    init_alloc_root(key_memory_DD_column_statistics, &m_mem_root, 256, 0);
+    ::new ((void *)&m_mem_root) MEM_ROOT(key_memory_DD_column_statistics, 256);
 
     if (column_statistics.m_histogram != nullptr)
       m_histogram = column_statistics.m_histogram->clone(&m_mem_root);
@@ -114,7 +114,7 @@ class Column_statistics_impl final : public Entity_object_impl,
 
   void set_histogram(const histograms::Histogram *histogram) override {
     // Free any existing histogram data
-    free_root(&m_mem_root, MYF(0));
+    m_mem_root.Clear();
 
     // Take responsibility for the MEM_ROOT of the histogram provided
     m_mem_root = std::move(*histogram->get_mem_root());
@@ -159,6 +159,21 @@ class Column_statistics_impl final : public Entity_object_impl,
 
   Column_statistics *clone() const override {
     return new Column_statistics_impl(*this);
+  }
+
+  Column_statistics *clone_dropped_object_placeholder() const override {
+    Column_statistics_impl *placeholder = new Column_statistics_impl();
+    placeholder->set_id(id());
+    placeholder->set_name(name());
+    /*
+      Even though schema, table and column name members are not used in keys
+      directly, they are still used to check that correct metadata locks are
+      held, so for safety we copy them as well.
+    */
+    placeholder->set_schema_name(schema_name());
+    placeholder->set_table_name(table_name());
+    placeholder->set_column_name(column_name());
+    return placeholder;
   }
 };
 

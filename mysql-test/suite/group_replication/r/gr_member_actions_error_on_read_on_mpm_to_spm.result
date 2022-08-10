@@ -1,0 +1,32 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("There was an issue on the primary election process: Unable to read the member actions configuration during group change from multi to single-primary mode. Please check the tables*");
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. A critical error occurred during the local execution of this action. The member will now leave the group.");
+SET SESSION sql_log_bin = 1;
+
+############################################################
+# 1. Switch to single-primary mode, with server1 as the primary.
+#    Inject a failure that will simulate a read configuration
+#    error on server1, causing it to leave the group.
+[connection server1]
+SET @@GLOBAL.DEBUG='+d,force_error_on_configuration_table_close';
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. A critical error occurred during the local execution of this action. The member will now leave the group.
+include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
+include/stop_group_replication.inc
+include/assert_grep.inc [There was an issue on the primary election process: Unable to read the member actions configuration during group change from multi to single-primary mode.]
+[connection server2]
+include/gr_assert_primary_member.inc
+
+############################################################
+# 2. Clean up.
+include/group_replication_end.inc

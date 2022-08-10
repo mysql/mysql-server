@@ -9,7 +9,7 @@
 --echo #########
 let $MYSQLD_BASEDIR= `select @@basedir`;
 let $START_PAGE_SIZE= `select @@innodb_page_size`;
-let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+let $LOG_CAPACITY= `select @@innodb_redo_log_capacity`;
 
 --echo # Create path for ibdata* & undo* files
 --mkdir $MYSQL_TMP_DIR/innodb_undo_data_dir
@@ -37,7 +37,7 @@ EOF
 --echo #########################################################################
 --echo # INITIALIZE NEW SERVER
 --echo #########################################################################
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="";
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="";
 
 --echo # Server should be initialized successfully.
 --exec $NEW_CMD
@@ -53,7 +53,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 # - UNDO tablespace would have been encrypted with default master key
 # - Header page for UNDO tablespace wouldn't have been flushed
 # - So encryption information is still in REDO Log.
-let $NEW_CMD = $MYSQLD --innodb_dedicated_server=OFF --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_log_encrypt=ON --debug=d,crash_before_purge_thread;
+let $NEW_CMD = $MYSQLD --innodb_dedicated_server=OFF --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_log_encrypt=ON --debug=d,crash_before_purge_thread;
 --error 1,2,42,137
 --exec $NEW_CMD
 
@@ -68,7 +68,7 @@ let $NEW_CMD = $MYSQLD --innodb_dedicated_server=OFF --innodb_log_file_size=$LOG
 # - the encryption information wouldn't be applied on page 0.
 # - And as we don't allow master thread to rotate default master key, UNDO
 #   tablespace encryption information will be lost at next restart.
-let $restart_parameters = restart: --innodb_dedicated_server=OFF --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_log_encrypt=ON --debug=d,skip_rotating_default_master_key;
+let $restart_parameters = restart: --innodb_dedicated_server=OFF --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_log_encrypt=ON --debug=d,skip_rotating_default_master_key;
 --source include/start_mysqld_no_echo.inc
 
 --echo #########################################################################
@@ -78,7 +78,7 @@ let $restart_parameters = restart: --innodb_dedicated_server=OFF --innodb_log_fi
 # During this restart, without the fix:
 # - Encryption information will be looked for on page 0. But as it wasn't
 #   applied in previous start, it wouldn't be found thus ASSERT will be hit.
-let $restart_parameters = restart: --innodb_dedicated_server=OFF --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_log_encrypt=OFF;
+let $restart_parameters = restart: --innodb_dedicated_server=OFF --innodb_redo_log_capacity=$LOG_CAPACITY --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_log_encrypt=OFF;
 --source include/restart_mysqld_no_echo.inc
 
 --echo # Shutdown the running server

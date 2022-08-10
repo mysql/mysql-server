@@ -8,8 +8,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Verify that 100kb string is not truncated when replicated to LONGTEXT
 #
 [connection slave]
-SET @saved_global_slave_type_conversions = @@global.SLAVE_TYPE_CONVERSIONS;
-SET @@global.SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SET @saved_global_replica_type_conversions = @@global.REPLICA_TYPE_CONVERSIONS;
+SET @@global.REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 [connection master]
 CREATE TABLE t1 (col MEDIUMTEXT);
 include/sync_slave_sql_with_master.inc
@@ -22,7 +22,7 @@ INSERT INTO t1(col) VALUES (REPEAT('a',65534)), (REPEAT('b',65535)), (REPEAT('c'
 include/sync_slave_sql_with_master.inc
 [connection slave]
 include/assert.inc [Verify that the column has the same lengths on the slave as on the master]
-SET @@global.SLAVE_TYPE_CONVERSIONS = @saved_global_slave_type_conversions;
+SET @@global.REPLICA_TYPE_CONVERSIONS = @saved_global_replica_type_conversions;
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

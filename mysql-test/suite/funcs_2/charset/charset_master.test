@@ -40,10 +40,10 @@ if (`SELECT COUNT(*) <> 37 FROM information_schema.character_sets
     'hp8'     , 'keybcs2', 'koi8r'  , 'koi8u'  , 'latin1',
     'latin2'  , 'latin5' , 'latin7' , 'macce'  , 'macroman',
     'sjis'    , 'swe7'   , 'tis620' , 'ucs2'   , 'ujis',
-    'utf8'    , 'gb18030'
+    'utf8mb3' , 'gb18030'
     )`)
 {
-   --skip Not all character sets required for this test are present
+   --die Not all character sets required for this test are present
 }
 # Check that all collations needed are available
 # Hint: 4 collation_names per source line if possible
@@ -74,16 +74,16 @@ WHERE collation_name IN (
 'ucs2_latvian_ci', 'ucs2_lithuanian_ci', 'ucs2_persian_ci', 'ucs2_polish_ci',
 'ucs2_roman_ci', 'ucs2_romanian_ci', 'ucs2_slovak_ci', 'ucs2_slovenian_ci',
 'ucs2_spanish2_ci', 'ucs2_spanish_ci', 'ucs2_swedish_ci', 'ucs2_turkish_ci',
-'ucs2_unicode_ci', 'ujis_bin', 'ujis_japanese_ci', 'utf8_bin',
-'utf8_czech_ci', 'utf8_danish_ci', 'utf8_estonian_ci', 'utf8_general_ci',
-'utf8_hungarian_ci', 'utf8_icelandic_ci', 'utf8_latvian_ci', 'utf8_lithuanian_ci',
-'utf8_persian_ci', 'utf8_polish_ci', 'utf8_roman_ci', 'utf8_romanian_ci',
-'utf8_slovak_ci', 'utf8_slovenian_ci', 'utf8_spanish2_ci', 'utf8_spanish_ci',
-'utf8_swedish_ci', 'utf8_turkish_ci', 'utf8_unicode_ci', 'gb18030_bin',
+'ucs2_unicode_ci', 'ujis_bin', 'ujis_japanese_ci', 'utf8mb3_bin',
+'utf8mb3_czech_ci', 'utf8mb3_danish_ci', 'utf8mb3_estonian_ci', 'utf8mb3_general_ci',
+'utf8mb3_hungarian_ci', 'utf8mb3_icelandic_ci', 'utf8mb3_latvian_ci', 'utf8mb3_lithuanian_ci',
+'utf8mb3_persian_ci', 'utf8mb3_polish_ci', 'utf8mb3_roman_ci', 'utf8mb3_romanian_ci',
+'utf8mb3_slovak_ci', 'utf8mb3_slovenian_ci', 'utf8mb3_spanish2_ci', 'utf8mb3_spanish_ci',
+'utf8mb3_swedish_ci', 'utf8mb3_turkish_ci', 'utf8mb3_unicode_ci', 'gb18030_bin',
 'gb18030_chinese_ci'
 )`)
 {
-   --skip Not all collations required for this test are present
+   --die Not all collations required for this test are present
 }
 
 ################################

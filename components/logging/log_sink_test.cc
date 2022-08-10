@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -440,7 +440,7 @@ static int test_builtins() {
   li = log_bi->line_item_iter_first(it);
   assert(li != nullptr);
 
-  // break item, then detect brokeness
+  // break item, then detect that it is broken
   li->item_class = LOG_FLOAT;
   assert(log_bi->item_inconsistent(li) < 0);
 
@@ -785,7 +785,7 @@ static void banner() {
   @returns         <0                   failure
 */
 DEFINE_METHOD(int, log_service_imp::run,
-              (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
+              (void *instance [[maybe_unused]], log_line *ll)) {
   char out_buff[LOG_BUFF_MAX];
   char *out_writepos = out_buff;
   size_t out_left = LOG_BUFF_MAX - 1,  // bytes left in output buffer
@@ -1077,7 +1077,7 @@ mysql_service_status_t log_service_init() {
 
 /* flush logs */
 DEFINE_METHOD(log_service_error, log_service_imp::flush,
-              (void **instance MY_ATTRIBUTE((unused)))) {
+              (void **instance [[maybe_unused]])) {
   int res;
 
   if (inited) log_service_exit();
@@ -1091,11 +1091,11 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush,
 /**
   Open a new instance.
 
-  @retval  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @retval  LOG_SERVICE_SUCCESS        success, returned handle is valid
   @retval  otherwise                  a new instance could not be created
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,
-              (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
+              (log_line * ll [[maybe_unused]], void **instance)) {
   if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *instance = nullptr;
@@ -1110,7 +1110,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::open,
   @retval  otherwise                  an error occurred
 */
 DEFINE_METHOD(log_service_error, log_service_imp::close,
-              (void **instance MY_ATTRIBUTE((unused)))) {
+              (void **instance [[maybe_unused]])) {
   return LOG_SERVICE_SUCCESS;
 }
 

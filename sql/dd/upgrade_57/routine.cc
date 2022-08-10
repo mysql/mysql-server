@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/dd/impl/upgrade/server.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/upgrade_57/global.h"
 #include "sql/dd_sp.h"  // prepare_sp_chistics_from_dd_routine
@@ -61,8 +62,6 @@
 #include "sql_string.h"
 #include "thr_lock.h"
 
-#include "sql/dd/impl/upgrade/server.h"
-
 namespace dd {
 
 namespace upgrade_57 {
@@ -75,16 +74,16 @@ static Check_table_intact table_intact;
 static const TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] = {
     {{STRING_WITH_LEN("db")},
      {STRING_WITH_LEN("char(64)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("name")},
      {STRING_WITH_LEN("char(64)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("type")},
      {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
      {nullptr, 0}},
     {{STRING_WITH_LEN("specific_name")},
      {STRING_WITH_LEN("char(64)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("language")},
      {STRING_WITH_LEN("enum('SQL')")},
      {nullptr, 0}},
@@ -104,7 +103,7 @@ static const TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] = {
     {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {nullptr, 0}},
     {{STRING_WITH_LEN("definer")},
      {STRING_WITH_LEN("char(93)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("created")},
      {STRING_WITH_LEN("timestamp")},
      {nullptr, 0}},
@@ -128,16 +127,16 @@ static const TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] = {
      {nullptr, 0}},
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("text")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("character_set_client")},
      {STRING_WITH_LEN("char(32)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("collation_connection")},
      {STRING_WITH_LEN("char(32)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("db_collation")},
      {STRING_WITH_LEN("char(32)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("body_utf8")},
      {STRING_WITH_LEN("longblob")},
      {nullptr, 0}}};
@@ -152,16 +151,16 @@ static const TABLE_FIELD_DEF proc_table_def = {MYSQL_PROC_FIELD_COUNT,
 static const TABLE_FIELD_TYPE proc_table_fields_old[MYSQL_PROC_FIELD_COUNT] = {
     {{STRING_WITH_LEN("db")},
      {STRING_WITH_LEN("char(64)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("name")},
      {STRING_WITH_LEN("char(64)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("type")},
      {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
      {nullptr, 0}},
     {{STRING_WITH_LEN("specific_name")},
      {STRING_WITH_LEN("char(64)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("language")},
      {STRING_WITH_LEN("enum('SQL')")},
      {nullptr, 0}},
@@ -181,7 +180,7 @@ static const TABLE_FIELD_TYPE proc_table_fields_old[MYSQL_PROC_FIELD_COUNT] = {
     {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {nullptr, 0}},
     {{STRING_WITH_LEN("definer")},
      {STRING_WITH_LEN("char(77)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("created")},
      {STRING_WITH_LEN("timestamp")},
      {nullptr, 0}},
@@ -205,16 +204,16 @@ static const TABLE_FIELD_TYPE proc_table_fields_old[MYSQL_PROC_FIELD_COUNT] = {
      {nullptr, 0}},
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("text")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("character_set_client")},
      {STRING_WITH_LEN("char(32)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("collation_connection")},
      {STRING_WITH_LEN("char(32)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("db_collation")},
      {STRING_WITH_LEN("char(32)")},
-     {STRING_WITH_LEN("utf8")}},
+     {STRING_WITH_LEN("utf8mb3")}},
     {{STRING_WITH_LEN("body_utf8")},
      {STRING_WITH_LEN("longblob")},
      {nullptr, 0}}};
@@ -296,8 +295,9 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   sp_head *sp = nullptr;
   enum_sp_type routine_type;
   LEX_USER user_info;
+  bool dummy_is_sp_created = false;
 
-  // Fetch SP/SF name, datbase name, definer and type.
+  // Fetch SP/SF name, database name, definer and type.
   if ((sp_db = get_field(thd->mem_root,
                          proc_table->field[MYSQL_PROC_FIELD_DB])) == nullptr)
     return true;
@@ -372,7 +372,6 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   // Holders for user name and host name used in parse user.
   char definer_user_name_holder[USERNAME_LENGTH + 1];
   char definer_host_name_holder[HOSTNAME_LENGTH + 1];
-  memset(&user_info, 0, sizeof(LEX_USER));
   user_info.user = {definer_user_name_holder, USERNAME_LENGTH};
   user_info.host = {definer_host_name_holder, HOSTNAME_LENGTH};
 
@@ -435,7 +434,8 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   }
 
   // Create entry for SP/SF in DD table.
-  if (sp_create_routine(thd, sp, &user_info)) goto err;
+  if (sp_create_routine(thd, sp, &user_info, false, dummy_is_sp_created))
+    goto err;
 
   if (sp != nullptr)  // To be safe
     sp_head::destroy(sp);

@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.have_openssl);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT have_openssl = @@SESSION.have_openssl;
---echo Expected error 'Readonly variable'
+SELECT have_openssl;
+--echo Expected error 'Unknown column'
 
 

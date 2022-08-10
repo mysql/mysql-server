@@ -1,3 +1,5 @@
+--source include/count_sessions.inc
+
 CREATE TABLE t1 ( a INT, b INT );
 INSERT INTO t1 VALUES (1, 1);
 
@@ -263,6 +265,8 @@ connection default;
 disconnect con1;
 disconnect con2;
 
+--source include/wait_until_count_sessions.inc
+
 DROP TABLE t1;
 DROP USER test@localhost;
 DROP USER test2@localhost;
@@ -297,6 +301,8 @@ connection default;
 disconnect con1;
 disconnect con2;
 
+--source include/wait_until_count_sessions.inc
+
 DROP TABLE t1;
 DROP USER user_1@localhost;
 DROP USER user_2@localhost;
@@ -315,3 +321,31 @@ SELECT 1 FROM DUAL LIMIT 1 INTO @var FOR UPDATE INTO @var;
 
 SELECT 1 UNION SELECT 1 FOR UPDATE INTO @var;
 SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE;
+
+--echo #
+--echo # Bug #32705614 ERROR LOG REPORTS
+--echo #     `GOT ERROR 203 WHEN READING TABLE` FREQUENTLY
+--echo #
+
+CREATE TABLE tt (id INT PRIMARY KEY, age INT);
+INSERT INTO tt VALUES (1,1),(2,2);
+
+BEGIN;
+SELECT * FROM tt WHERE id = 2 FOR UPDATE;
+
+connect (con1, localhost, root);
+connection con1;
+
+--error ER_LOCK_NOWAIT
+SELECT * FROM tt WHERE id = 2 FOR UPDATE NOWAIT;
+--error ER_LOCK_NOWAIT
+SELECT * FROM tt WHERE id = 2 FOR UPDATE NOWAIT;
+--error ER_LOCK_NOWAIT
+SELECT * FROM tt WHERE id = 2 FOR UPDATE NOWAIT;
+
+--echo # connection default
+connection default;
+disconnect con1;
+--source include/wait_until_count_sessions.inc
+
+DROP TABLE tt;

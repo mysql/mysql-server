@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,10 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iterator>
 
 Gcs_xcom_group_management::Gcs_xcom_group_management(
@@ -89,6 +91,23 @@ void Gcs_xcom_group_management::get_xcom_nodes(
   m_nodes_mutex.unlock();
 }
 
+/*
+  Returns the nodes in a string formatted as:
+
+    "host1:port1,host2:port2,...,hostN:portN"
+*/
+static std::string nodes_to_str(
+    std::vector<Gcs_xcom_node_information> const &nodes) {
+  std::stringstream ss;
+  for (size_t i = 0; i < nodes.size(); i++) {
+    ss << nodes.at(i).get_member_id().get_member_id();
+    if (i < nodes.size() - 1) {
+      ss << ',';
+    }
+  }
+  return ss.str();
+}
+
 enum_gcs_error Gcs_xcom_group_management::modify_configuration(
     const Gcs_interface_parameters &reconfigured_group) {
   // Retrieve peers_nodes parameter
@@ -144,6 +163,25 @@ enum_gcs_error Gcs_xcom_group_management::modify_configuration(
     /* purecov: end */
   }
 
+  /* Copy from m_xcom_nodes. We can release the lock and use the copy safely
+   * afterwards. */
+  m_nodes_mutex.lock();
+  std::vector<Gcs_xcom_node_information> const current_nodes =
+      m_xcom_nodes.get_nodes();
+  m_nodes_mutex.unlock();
+
+  if (new_xcom_nodes.get_size() == current_nodes.size()) {
+    std::vector<Gcs_xcom_node_information> const &forced_nodes =
+        new_xcom_nodes.get_nodes();
+
+    MYSQL_GCS_LOG_ERROR("The requested membership to forcefully set ("
+                        << nodes_to_str(forced_nodes)
+                        << ") is the same as the "
+                           "current membership ("
+                        << nodes_to_str(current_nodes) << ").")
+    return GCS_NOK;
+  }
+
   bool const sent_to_xcom =
       m_xcom_proxy->xcom_force_nodes(new_xcom_nodes, m_gid_hash);
   if (!sent_to_xcom) {
@@ -180,4 +218,73 @@ enum_gcs_error Gcs_xcom_group_management::set_write_concurrency(
   bool const success =
       m_xcom_proxy->xcom_set_event_horizon(m_gid_hash, event_horizon);
   return success ? GCS_OK : GCS_NOK;
+}
+
+enum_gcs_error Gcs_xcom_group_management::set_single_leader(
+    Gcs_member_identifier const &leader) {
+  u_int constexpr one_preferred_leader = 1;
+  char const *preferred_leader[one_preferred_leader] = {
+      leader.get_member_id().c_str()};
+  node_no constexpr one_active_leader = 1;
+
+  MYSQL_GCS_LOG_DEBUG(
+      "The member is attempting to reconfigure XCom to use %s as the single "
+      "leader.",
+      leader.get_member_id().c_str());
+
+  bool success = m_xcom_proxy->xcom_set_leaders(
+      m_gid_hash, one_preferred_leader, preferred_leader, one_active_leader);
+  return success ? GCS_OK : GCS_NOK;
+}
+
+enum_gcs_error Gcs_xcom_group_management::set_everyone_leader() {
+  u_int constexpr zero_preferred_leaders = 0;
+  char const **empty_preferred_leaders{nullptr};
+  node_no constexpr everyone_active_leader = active_leaders_all;
+
+  MYSQL_GCS_LOG_DEBUG(
+      "The member is attempting to reconfigure XCom to use everyone as "
+      "leader.");
+
+  bool success = m_xcom_proxy->xcom_set_leaders(
+      m_gid_hash, zero_preferred_leaders, empty_preferred_leaders,
+      everyone_active_leader);
+  return success ? GCS_OK : GCS_NOK;
+}
+
+enum_gcs_error Gcs_xcom_group_management::get_leaders(
+    std::vector<Gcs_member_identifier> &preferred_leaders,
+    std::vector<Gcs_member_identifier> &actual_leaders) {
+  MYSQL_GCS_LOG_DEBUG(
+      "The member is attempting to retrieve the leader information.");
+  leader_info_data leaders;
+
+  bool const success = m_xcom_proxy->xcom_get_leaders(m_gid_hash, leaders);
+  if (!success) return GCS_NOK;
+
+  /* Translate the preferred leaders representation. */
+  if (leaders.max_nr_leaders == active_leaders_all) {
+    // Everyone as leader, so the preferred leaders match the actual leaders.
+    for (u_int i = 0; i < leaders.actual_leaders.leader_array_len; i++) {
+      preferred_leaders.emplace_back(
+          std::string{leaders.actual_leaders.leader_array_val[i].address});
+    }
+  } else {
+    // Translate the reply data into the std::vector<Gcs_member_identifier>.
+    for (u_int i = 0; i < leaders.preferred_leaders.leader_array_len; i++) {
+      preferred_leaders.emplace_back(
+          std::string{leaders.preferred_leaders.leader_array_val[i].address});
+    }
+  }
+
+  /* Translate the actual leaders representation. */
+  for (u_int i = 0; i < leaders.actual_leaders.leader_array_len; i++) {
+    actual_leaders.emplace_back(
+        std::string{leaders.actual_leaders.leader_array_val[i].address});
+  }
+
+  ::xdr_free(reinterpret_cast<xdrproc_t>(xdr_leader_info_data),
+             reinterpret_cast<char *>(&leaders));
+
+  return GCS_OK;
 }

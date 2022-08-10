@@ -4,7 +4,7 @@
 # The test checks START and STOP, graceful, killing or
 # due to an error of a Worker.
 # START is considered to be with UNTIL that forces the sequential execution mode
-# and with non-zero @@global.sql_slave_skip_counter that is compatible to
+# and with non-zero @@global.sql_replica_skip_counter that is compatible to
 # the parallel mode.
 # The test is MTS scheduler agnostic.
 #
@@ -14,7 +14,7 @@
 --source include/have_myisam.inc
 --source include/master-slave.inc
 
-# sql_slave_skip_counter is not supported with compression
+# sql_replica_skip_counter is not supported with compression
 --source include/not_binlog_transaction_compression_on.inc
 
 --connection slave
@@ -25,16 +25,16 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 
 create view worker_proc_list as SELECT id  from Information_Schema.processlist
        where state like 'Waiting for an event from Coordinator';
-create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Slave has read all relay log%';
+create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Replica has read all relay log%';
 
 source include/stop_slave.inc;
 
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-set @@global.slave_parallel_workers= 4;
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+set @@global.replica_parallel_workers= 4;
 
 source include/start_slave.inc;
 
-let $count= `select @@global.slave_parallel_workers`;
+let $count= `select @@global.replica_parallel_workers`;
 let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
@@ -58,7 +58,7 @@ source include/start_slave.inc;
 
 # testing of the poll is up
 
-let $count= `select @@global.slave_parallel_workers`;
+let $count= `select @@global.replica_parallel_workers`;
 let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
@@ -119,8 +119,8 @@ source include/wait_until_rows_count.inc;
 source include/wait_for_slave_sql_to_stop.inc;
 delete from t1 where a=3;
 
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-set @@global.slave_transaction_retries= 10;
+set @save.replica_transaction_retries= @@global.replica_transaction_retries;
+set @@global.replica_transaction_retries= 10;
 source include/start_slave.inc;
 
 --connection master
@@ -192,7 +192,7 @@ rollback;
 
 --connection slave
 stop slave sql_thread;
-set @@global.sql_slave_skip_counter=7;
+set @@global.sql_replica_skip_counter=7;
 
 --connection master
 
@@ -289,7 +289,7 @@ drop view coord_proc_list;
 # Retry is supported now, but the following block of the test is written
 # in assumption that it's not yet.
 #
-set @@global.slave_transaction_retries= 0;
+set @@global.replica_transaction_retries= 0;
 source include/stop_slave.inc;
 
 # Show SQL_AFTER_MTS_GAPS is meaningless in combination with coordinates
@@ -409,13 +409,15 @@ if (`select $exec_pos_1 - $exec_pos_0 <= 0`)
 }
 
 # UNTIL SQL_AFTER_MTS_GAPS cleanup
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+--disable_warnings
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 source include/start_slave.inc;
 --connection master
 drop database d1;
 drop database d2;
 
 --source include/sync_slave_sql_with_master.inc
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+set @@global.replica_transaction_retries= @save.replica_transaction_retries;
 
 --source include/rpl_end.inc

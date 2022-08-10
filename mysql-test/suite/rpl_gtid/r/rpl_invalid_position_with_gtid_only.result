@@ -1,0 +1,56 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. Setup:
+#     Start the replica channel with GTID_ONLY=1
+#     Add some data in the source and replicate it
+#     Restart the replica but don't start replication
+[connection slave]
+SET @@GLOBAL.replica_checkpoint_period= 1;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+include/start_slave.inc
+include/assert.inc ['GTID_ONLY is enabled']
+[connection master]
+CREATE TABLE t(s INT);
+INSERT INTO t VALUES(1);
+include/sync_slave_sql_with_master.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start]
+#
+# 2 Assert all invalid positions in SHOW REPLICA STATUS are shown as such
+include/assert.inc [The source log file name is invalid]
+include/assert.inc [The source log file position is 0]
+include/assert.inc [The source log file name in the applier is invalid]
+include/assert.inc [The source log file position in the applier is 0]
+#
+# 3 Start the replica IO thread.
+#   Check receiver positions are now valid
+include/start_slave_io.inc
+include/assert.inc [The source log file name is back to the previous value]
+include/assert.inc [The source log file is back to the previous position]
+#
+# 4 Start the replica SQL thread and replicate a transaction
+#   Check applier positions in relation to the source are now valid
+SET @@GLOBAL.replica_checkpoint_period= 1;
+include/start_slave_sql.inc
+[connection master]
+INSERT INTO t VALUES(2);
+include/sync_slave_sql_with_master.inc
+[connection master]
+[connection slave]
+include/assert.inc [The source log file name for the applier is the one used on the source]
+include/assert.inc [The source log file position in the applier is last applied on the source]
+#
+# 5 Check the starting SQL thread message reports invalid positions
+include/assert_grep.inc [The SQL thread start will report the information in relation to the source as invalid]
+#
+# 6 Cleanup
+SET @@GLOBAL.replica_checkpoint_period= REPLICA_CHECKPOINT_PERIOD;
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
+include/start_slave.inc
+[connection master]
+DROP TABLE t;
+include/rpl_end.inc

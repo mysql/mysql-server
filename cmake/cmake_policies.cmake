@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,17 +28,22 @@
 CMAKE_POLICY(SET CMP0018 NEW)
 CMAKE_POLICY(SET CMP0022 NEW)
 
+# Disallow use of the LOCATION property for build targets.
+CMAKE_POLICY(SET CMP0026 NEW)
+
 # Include TARGET_OBJECTS expressions.
 CMAKE_POLICY(SET CMP0051 NEW)
-
-# Disallow use of the LOCATION property for build targets.
-IF(POLICY CMP0026)
-  CMAKE_POLICY(SET CMP0026 NEW)
-ENDIF()
 
 # INTERPROCEDURAL_OPTIMIZATION is enforced when enabled (CMake 3.9+)
 IF(POLICY CMP0069)
   CMAKE_POLICY(SET CMP0069 NEW)
+ENDIF()
+
+# Do not produce ``<tgt>_LIB_DEPENDS`` cache entries to propagate library
+# link dependencies. In cmake code, use this instead:
+#   GET_TARGET_PROPERTY(TARGET_LIB_DEPENDS ${target} LINK_LIBRARIES)
+IF(POLICY CMP0073)
+  CMAKE_POLICY(SET CMP0073 NEW)
 ENDIF()
 
 # In CMake 3.12 and above, the
@@ -51,13 +56,5 @@ ENDIF()
 # now prefer to link the check executable to the libraries listed in the
 # ``CMAKE_REQUIRED_LIBRARIES`` variable.
 IF(POLICY CMP0075)
-  CMAKE_POLICY(SET CMP0075 OLD)
-ENDIF()
-
-# Produce ``<tgt>_LIB_DEPENDS`` cache entries to propagate library
-# link dependencies. We use them in MERGE_CONVENIENCE_LIBRARIES.
-# TODO(tdidriks): manage our own dependencies for "convenience" libraries.
-IF(POLICY CMP0073)
-  MESSAGE(STATUS "CMP0073 OLD")
-  CMAKE_POLICY(SET CMP0073 OLD)
+  CMAKE_POLICY(SET CMP0075 NEW)
 ENDIF()

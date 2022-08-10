@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,9 @@ public:
   class Page;
   class PageMap;
 
+  // Allow unit tests to access private data members by using class Test.
+  friend class Test;
+
   TransientPagePool();
   TransientPagePool(Uint32 type_id,
                     Ndbd_mem_manager* mem_manager);
@@ -72,7 +75,10 @@ public:
   static Uint64 getMemoryNeed(Uint32 pages);
 private:
   /* Page map methods */
-  Uint32 get_next_index(Uint32 index) const;
+  static bool is_valid_index(Uint32 index);
+  static Uint32 get_next_index(Uint32 index);
+  static Uint32 get_prev_index(Uint32 index);
+  static bool on_same_map_page(Uint32 index1, Uint32 index2);
   //Uint32 get_next_indexes(Uint32 index, Uint32 indexes[], Uint32 n) const;
   bool set(Uint32 index, Uint32 value);
   bool clear(Uint32 index);
@@ -90,10 +96,21 @@ private:
 class TransientPagePool::MapPage
 {
 public:
-  STATIC_CONST( PAGE_WORDS = 8192 - 8 );
-  STATIC_CONST( VALUE_INDEX_BITS = 13 );
-  STATIC_CONST( VALUE_INDEX_MASK = (1U << VALUE_INDEX_BITS) - 1 );
-  STATIC_CONST( NO_VALUE = 0 );
+  static constexpr Uint32 PAGE_ID_GAP = 8;
+  static constexpr Uint32 PAGE_WORDS = 8192 - PAGE_ID_GAP;
+  static constexpr Uint32 VALUE_INDEX_BITS = 13;
+  static constexpr Uint32 VALUE_INDEX_MASK = (1U << VALUE_INDEX_BITS) - 1;
+  static constexpr Uint32 NO_VALUE = 0;
+
+  /*
+   * Biggest page id supported by one MapPage.
+   */
+  static constexpr Uint32 MAX_PAGE_ID_1L = PAGE_WORDS - 1;
+  /*
+   * Biggest page id supported by two levels of MapPage.
+   */
+  static constexpr Uint32 MAX_PAGE_ID_2L =
+      (MAX_PAGE_ID_1L) + (MAX_PAGE_ID_1L) * 8192;
 
   MapPage(Uint32 magic);
   Uint32 get(Uint32 i) const;
@@ -127,6 +144,11 @@ inline bool TransientPagePool::canRelease(Uint32 i) const
 inline bool TransientPagePool::release(Ptr<Page> p)
 {
   return release(p.i);
+}
+
+inline bool TransientPagePool::on_same_map_page(Uint32 index1, Uint32 index2)
+{
+  return (((index1 ^ index2) >> MapPage::VALUE_INDEX_BITS) == 0);
 }
 
 #undef JAM_FILE_ID

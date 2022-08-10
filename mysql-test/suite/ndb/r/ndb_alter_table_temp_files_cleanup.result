@@ -1,0 +1,39 @@
+call mtr.add_suppression("NDB: Found temporary table test.#sql-[a-z0-9_]+.+");
+# create table t1
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b INT UNIQUE KEY
+)ENGINE = NDB;
+# create table t2 with fks referring columns from t1
+CREATE TABLE t2(
+a INT,
+b INT,
+c INT UNIQUE KEY,
+CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES t1(a),
+CONSTRAINT fk2 FOREIGN KEY (b) REFERENCES t1(b)
+)ENGINE = NDB;
+INSERT INTO t1 VALUES (1,10), (2,20), (3,30), (4,40);
+INSERT INTO t2 VALUES (1,10,100), (2,20,200);
+# mysqld will crash during alter table and leave temporary named table behind
+SET debug='+d,ndb_simulate_crash_during_alter_table_rename1';
+ALTER TABLE t1 ALGORITHM=COPY;
+Got one of the listed errors
+# mysqld will restart after crash and remove the temporary named table during connecting to the cluster
+include/assert_grep.inc [require temporary table warning message]
+# verify that no temporary table left
+SELECT count(*) FROM ndbinfo.dict_obj_info WHERE REGEXP_LIKE(fq_name, '#sql');
+count(*)
+0
+# verify that original data has not been affected by temporary table cleanup
+SELECT a, b FROM t1 ORDER BY a;
+a	b
+1	10
+2	20
+3	30
+4	40
+SELECT a, b, c FROM t2 ORDER BY a;
+a	b	c
+1	10	100
+2	20	200
+# cleanup
+DROP TABLE t2, t1;

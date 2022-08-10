@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,9 @@
 
 #include <chrono>
 #include <thread>
-#include "gmock/gmock.h"
+
+#include <gmock/gmock.h>
+
 #include "router_component_test.h"
 
 /** @file
@@ -123,12 +125,19 @@ TEST_F(ComponentTestFrameworkTest, autoresponder_simple_tester) {
 
   // launch the DISABLED_autoresponder_simple_testee testcase as a separate
   // executable
-  ProcessWrapper &testee = launch_command(
-      g_this_exec_path, {"--gtest_also_run_disabled_tests",
-                         arglist_prefix_ + "autoresponder_simple_testee"});
-  // register autoresponses
-  testee.register_response("Syn", "Syn+Ack\n");
-  testee.register_response("Fin", "Ack\n");
+  const ProcessWrapper::OutputResponder responder{
+      [](const std::string &line) -> std::string {
+        if (line == "Syn") return "Syn+Ack\n";
+        if (line == "Fin") return "Ack\n";
+
+        return "";
+      }};
+
+  auto &testee =
+      launch_command(g_this_exec_path,
+                     {"--gtest_also_run_disabled_tests",
+                      arglist_prefix_ + "autoresponder_simple_testee"},
+                     EXIT_SUCCESS, true, -1ms, responder);
 
   // test for what should come out
   // NOTE: expect_output() will keep reading and autoresponding to output,
@@ -155,28 +164,26 @@ TEST_F(ComponentTestFrameworkTest, DISABLED_autoresponder_simple_testee) {
 #if 0
 TEST_F(ComponentTestFrameworkTest, autoresponder_segmented_triggers_tester) {
   /**
-   * @test This test tests is just like autoresponder_simple_tester, but the testee
-   *       will send back "Syn\n" (first autorespond trigger) one byte at a time.
-   *       It verifies that autoresponder can properly deal with segmented lines
+   * @test This test tests is just like autoresponder_simple_tester, but the
+   * testee will send back "Syn\n" (first autorespond trigger) one byte at a
+   * time. It verifies that autoresponder can properly deal with segmented lines
    *       (which may also be a result of short read() due to full buffer)
    */
 
-  CommandHandle testee = launch_command(g_this_exec_path,
-                                        arglist_prefix_ + "autoresponder_segmented_triggers_testee");
+  auto &testee = launch_command(
+      g_this_exec_path,
+      {"--gtest_also_run_disabled_tests",
+       arglist_prefix_ + "autoresponder_simple_testee"},
+      EXIT_SUCCESS, true, -1ms, {{"Syn", "Syn+Ack\n"}, {"Fin", "Ack\n"}});
 
-  testee.register_response("Syn", "Syn+Ack\n");
-  testee.register_response("Fin", "Ack\n");
-
-// TODO: this line needs to be removed, but removing this line causes the test to fail
-std::this_thread::sleep_for(std::chrono::milliseconds(100));  // [THIS_LINE]
-
-  EXPECT_TRUE(testee.expect_output("Syn\nAck\nFin\nOK", false, 2 * kSleepDurationMs)) << show_output(testee, "ROUTER OUTPUT");
+  EXPECT_TRUE(testee.expect_output("Syn\nAck\nFin\nOK", false))
+      << show_output(testee, "ROUTER OUTPUT");
 
   check_exit_code(testee, EXIT_SUCCESS);
-
 }
-TEST_F(ComponentTestFrameworkTest, DISABLED_autoresponder_segmented_triggers_testee) {
-  autoresponder_testee(100);
+
+TEST_F(ComponentTestFrameworkTest, autoresponder_segmented_triggers_testee) {
+  autoresponder_testee(100ms);
 }
 #endif
 
@@ -235,13 +242,17 @@ TEST_F(ComponentTestFrameworkTest, sleepy_blind_autoresponder_tester) {
    * it", resulting in a deadlock and eventually timing out with error: "Timed
    * out waiting for the process to exit: No child processes"
    */
+  const ProcessWrapper::OutputResponder responder{
+      [](const std::string &line) -> std::string {
+        if (line == "Syn") return "Syn+Ack\n";
+        if (line == "Fin") return "Ack\n";
 
-  ProcessWrapper &testee =
-      launch_command(g_this_exec_path,
-                     {arglist_prefix_ + "sleepy_blind_autoresponder_testee"});
+        return "";
+      }};
 
-  testee.register_response("Syn", "Syn+Ack\n");
-  testee.register_response("Fin", "Ack\n");
+  auto &testee = launch_command(
+      g_this_exec_path, {arglist_prefix_ + "sleepy_blind_autoresponder_testee"},
+      EXIT_SUCCESS, true, -1ms, responder);
 
   // wait for child (while reading and issuing autoresponses)
   EXPECT_EQ(testee.wait_for_exit(kSleepDuration + kSleepDuration / 2), 0);
@@ -265,7 +276,7 @@ TEST_F(ComponentTestFrameworkTest, wait_for_exit_with_low_timeout_tester) {
   // wait with very short timeout
   EXPECT_THROW_LIKE(testee.wait_for_exit(std::chrono::seconds(0)),
                     std::system_error,
-                    "Timed out waiting 0 ms for the process");
+                    make_error_code(std::errc::timed_out).message());
 
   // now let's just wait for the process to shut down naturally (test cleanup)
   EXPECT_EQ(testee.wait_for_exit(kSleepDuration + kSleepDuration / 2), 0);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,9 @@
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/terminology_use_previous_enum.h"
 
 struct TABLE_SHARE;
 
@@ -53,6 +55,14 @@ struct TABLE_SHARE;
   For example, 'wait/sync/mutex/sql/LOCK_open' is an instrument name.
 */
 #define PFS_MAX_INFO_NAME_LENGTH 128
+
+/**
+  Maximum length of the thread os name.
+  Must include a terminating NUL character.
+  Length is 16 because of linux pthread_setname_np(3)
+  @see my_thread_self_setname()
+*/
+#define PFS_MAX_OS_NAME_LENGTH 16
 
 /**
   Maximum length of the 'full' prefix of an instrument name.
@@ -73,7 +83,6 @@ class PFS_opaque_container_page;
 */
 
 extern bool pfs_enabled;
-extern bool pfs_processlist_enabled;
 
 /** Global ref count for plugin and component events. */
 extern std::atomic<uint32> pfs_unload_plugin_ref_count;
@@ -141,6 +150,56 @@ extern uint file_class_start;
 extern uint socket_class_start;
 extern uint wait_class_max;
 
+/**
+  Encapsulates the name of an instrumented entity.
+*/
+class PFS_instr_name {
+ public:
+  static constexpr uint max_length = PFS_MAX_INFO_NAME_LENGTH - 1;
+  /*
+    DO NOT ACCESS THE DATA MEMBERS DIRECTLY.  USE THE GETTERS AND
+    SETTERS INSTEAD.
+
+    The data members should really have been private, but having both
+    private and public members would make the class a non-POD.  We
+    need to call memset on PFS_instr_class (in init_instr_class), and
+    the behavior of memset is undefined on non-POD objects.  Therefore
+    we keep the data members public, with an underscore prefix, and
+    this warning text.
+  */
+ public /*private*/:
+  /** Instrument name. */
+  char m_private_name[max_length + 1];
+  /** Length in bytes of @c m_name. */
+  uint m_private_name_length;
+  /** Old instrument name, if any. */
+  const char *m_private_old_name;
+  /** Length in bytes of old instrument name len, if any. */
+  uint m_private_old_name_length;
+  /** The oldest version that uses the new name. */
+  terminology_use_previous::enum_compatibility_version m_private_version;
+
+ public:
+  /** Return the name as a string. */
+  const char *str() const;
+  /** Return the length of the string. */
+  uint length() const;
+  /**
+    Copy the specified name to this name.
+
+    @param class_type The class type of this name, i.e., whether it is
+    the name of a mutex, thread, etc.
+
+    @param name The buffer to read from.
+
+    @param max_length_arg If is given, at most that many chars are
+    copied, plus the terminating '\0'. Otherwise, up to buffer_size-1
+    characters are copied, plus the terminating '\0'.
+  */
+  void set(PFS_class_type class_type, const char *name,
+           uint max_length_arg = max_length);
+};
+
 /** Information for all instrumentation. */
 struct PFS_instr_class {
   /** Class type */
@@ -163,9 +222,7 @@ struct PFS_instr_class {
   */
   uint m_event_name_index;
   /** Instrument name. */
-  char m_name[PFS_MAX_INFO_NAME_LENGTH];
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
+  PFS_instr_name m_name;
   /** Documentation. */
   char *m_documentation;
 
@@ -186,6 +243,14 @@ struct PFS_instr_class {
   bool is_system_thread() const { return m_flags & PSI_FLAG_THREAD_SYSTEM; }
 
   bool is_global() const { return m_flags & PSI_FLAG_ONLY_GLOBAL_STAT; }
+
+  bool has_seqnum() const {
+    return (m_flags & (PSI_FLAG_SINGLETON | PSI_FLAG_NO_SEQNUM)) == 0;
+  }
+
+  bool has_auto_seqnum() const { return m_flags & PSI_FLAG_AUTO_SEQNUM; }
+
+  bool has_memory_cnt() const { return m_flags & PSI_FLAG_MEM_COLLECT; }
 
   void enforce_valid_flags(uint allowed_flags) {
     /* Reserved for future use. */
@@ -268,19 +333,22 @@ struct PFS_ALIGNED PFS_thread_class : public PFS_instr_class {
   PFS_thread *m_singleton;
   /** Thread history instrumentation flag. */
   bool m_history{false};
+  /** Thread os name. */
+  char m_os_name[PFS_MAX_OS_NAME_LENGTH];
+  /** Thread instance sequence number counter. */
+  std::atomic<unsigned int> m_seqnum;
 };
 
 /** Key identifying a table share. */
 struct PFS_table_share_key {
-  /**
-    Hash search key.
-    This has to be a string for @c LF_HASH,
-    the format is @c "<enum_object_type><schema_name><0x00><object_name><0x00>"
-    @see create_table_def_key
-  */
-  char m_hash_key[1 + NAME_LEN + 1 + NAME_LEN + 1];
-  /** Length in bytes of @c m_hash_key. */
-  uint m_key_length;
+  /** Object type. */
+  enum_object_type m_type;
+
+  /** Table schema. */
+  PFS_schema_name m_schema_name;
+
+  /** Table name. */
+  PFS_table_name m_table_name;
 };
 
 /** Table index or 'key' */
@@ -320,9 +388,7 @@ struct PFS_ALIGNED PFS_table_share {
  public:
   uint32 get_version() { return m_lock.get_version(); }
 
-  enum_object_type get_object_type() {
-    return (enum_object_type)m_key.m_hash_key[0];
-  }
+  enum_object_type get_object_type() { return m_key.m_type; }
 
   void aggregate_io(void);
   void aggregate_lock(void);
@@ -361,14 +427,7 @@ struct PFS_ALIGNED PFS_table_share {
 
   /** Search key. */
   PFS_table_share_key m_key;
-  /** Schema name. */
-  const char *m_schema_name;
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
-  /** Table name. */
-  const char *m_table_name;
-  /** Length in bytes of @c m_table_name. */
-  uint m_table_name_length;
+
   /** Number of indexes. */
   uint m_key_count;
   /** Container page. */

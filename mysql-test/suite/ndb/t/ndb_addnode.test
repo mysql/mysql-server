@@ -13,15 +13,10 @@
 --exec $NDB_MGM -e "create nodegroup 48,3"
 --error 255
 --exec $NDB_MGM -e "create nodegroup 4,48"
+--error 255
+--exec $NDB_MGM -e "create nodegroup 3,3"
 
 --source ndb_mgm_show_table.inc
-
-let $non_windows = 0;
-if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
-{
-  let $non_windows = 1;
-}
-
 
 CREATE LOGFILE GROUP lg_1
     ADD UNDOFILE 'undo_1.dat'
@@ -43,11 +38,11 @@ TABLESPACE ts_1 STORAGE DISK engine=ndb;
 create table t5(id int NOT NULL PRIMARY KEY, data char(8)) max_rows=50000000 engine=ndb;
 create table t6(id int not null primary key, dat blob, txt text) engine=ndb;
 
-# Get blob tables table test.t6
-let ndb_database= test;
-let ndb_table= t6;
---source suite/ndb/include/ndb_get_blob_tables.inc
-
+# Get blob tables
+let $bt_test_t6_dat=`SELECT blob_table_name FROM ndbinfo.blobs
+                     WHERE table_name="t6" AND column_name="dat"`;
+let $bt_test_t6_txt=`SELECT blob_table_name FROM ndbinfo.blobs
+                     WHERE table_name="t6" AND column_name="txt"`;
 
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n' (id, @data) set data = @data, id2 = repeat(@data,10);
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n';
@@ -57,39 +52,31 @@ load data local infile 'suite/ndb/data/table_data10000.dat' into table t6 fields
 ## Check details of t1 partitioning
 --echo "Table t1 Partition info"
 let ndb_table= t1;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Check details of t2 partitioning
 --echo "Table t2 Partition info"
 let ndb_table= t2;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Check details of t5 partitioning
 --echo "Table t5 Partition info"
 let ndb_table= t5;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Check details of t6 partitioning
 --echo "Table t6 Partition info"
 let ndb_table= t6;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Check details of t6 blob table partitioning
 --echo "Table t6 blob dat Partition info"
-let ndb_table= $bt_test_t6_dat;
-if($non_windows)
-{
-  let ndb_table= '$bt_test_t6_dat';
-}
---source ndb_desc_show_partition_info.inc
+let $ndb_table= $bt_test_t6_dat;
+--source show_partition_info.inc
 
 --echo "Table t6 blob txt Partition info"
-let ndb_table= $bt_test_t6_txt;
-if($non_windows)
-{
-  let ndb_table= '$bt_test_t6_txt';
-}
---source ndb_desc_show_partition_info.inc
+let $ndb_table= $bt_test_t6_txt;
+--source show_partition_info.inc
 
 ## Create nodegroup for "new" nodes
 --exec $NDB_MGM -e "create nodegroup 3,4"
@@ -138,27 +125,27 @@ if (!$DISABLE_BLOB_REORG)
 ## Check details of t1 partitioning
 --echo "Table t1 Partition info"
 let ndb_table= t1;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Check details of t2 partitioning
 --echo "Table t2 Partition info"
 let ndb_table= t2;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Check details of t3 partitioning
 --echo "Table t3 Partition info"
 let ndb_table= t3;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Check details of t4 partitioning
 --echo "Table t4 Partition info"
 let ndb_table= t4;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Check details of t5 partitioning
 --echo "Table t5 Partition info"
 let ndb_table= t5;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Simple blob usage of t6
 select count(0) as row_count from t6;
@@ -166,24 +153,16 @@ select count(0) as row_count from t6;
 ## Check details of t6 partitioning
 --echo "Table t6 Partition info"
 let ndb_table= t6;
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 ## Check details of t6 blob table partitioning
 --echo "Table t6 blob dat Partition info"
 let ndb_table= $bt_test_t6_dat;
-if($non_windows)
-{
-  let ndb_table= '$bt_test_t6_dat';
-}
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 --echo "Table t6 blob txt Partition info"
 let ndb_table= $bt_test_t6_txt;
-if($non_windows)
-{
-  let ndb_table= '$bt_test_t6_txt';
-}
---source ndb_desc_show_partition_info.inc
+--source show_partition_info.inc
 
 # Check that main table and blob tables have same hashmap.
 let ndb_database= test;

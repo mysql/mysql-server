@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,6 +101,12 @@ public:
   bool waitConnected(int timeout = 120);
 
   unsigned long long selectCountTable(const char * table);
+
+  /*
+     Usage of DbUtil initializes the MySQL library and allocates resources in
+     the thread that need to be released.
+     */
+  static void thread_end();
 
 protected:
 

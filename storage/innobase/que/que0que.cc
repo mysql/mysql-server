@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,7 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "eval0proc.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
-#include "log0log.h"
+#include "log0chkp.h"
 #include "pars0types.h"
 #include "que0que.h"
 #include "row0ins.h"
@@ -144,15 +144,15 @@ que_fork_t *que_fork_create(
 
   fork->graph = (graph != nullptr) ? graph : fork;
 
-  UT_LIST_INIT(fork->thrs, &que_thr_t::thrs);
+  UT_LIST_INIT(fork->thrs);
 
   return (fork);
 }
 
 /** Creates a query graph thread node.
-@param[in]	parent		parent node, i.e., a fork node
-@param[in]	heap		memory heap where created
-@param[in]	prebuilt	row prebuilt structure
+@param[in]      parent          parent node, i.e., a fork node
+@param[in]      heap            memory heap where created
+@param[in]      prebuilt        row prebuilt structure
 @return own: query thread node */
 que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
                           row_prebuilt_t *prebuilt) {
@@ -217,8 +217,7 @@ que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
 }
 
 /** Inits a query thread for a command. */
-UNIV_INLINE
-void que_thr_init_command(que_thr_t *thr) /*!< in: query thread */
+static inline void que_thr_init_command(que_thr_t *thr) /*!< in: query thread */
 {
   thr->run_node = thr;
   thr->prev_node = thr->common.parent;
@@ -276,7 +275,6 @@ que_thr_t *que_fork_scheduler_round_robin(
  caller */
 que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
 {
-  que_thr_t *thr;
   que_thr_t *suspended_thr = nullptr;
   que_thr_t *completed_thr = nullptr;
 
@@ -298,8 +296,7 @@ que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
 
   /* We make a single pass over the thr list within which we note which
   threads are ready to run. */
-  for (thr = UT_LIST_GET_FIRST(fork->thrs); thr != nullptr;
-       thr = UT_LIST_GET_NEXT(thrs, thr)) {
+  for (auto thr : fork->thrs) {
     switch (thr->state) {
       case QUE_THR_COMMAND_WAIT:
 
@@ -333,7 +330,7 @@ que_thr_t *que_fork_start_command(que_fork_t *fork) /*!< in: a query fork */
         ut_error;
     }
   }
-
+  que_thr_t *thr;
   if (suspended_thr) {
     thr = suspended_thr;
     que_thr_move_to_run_state(thr);
@@ -442,9 +439,13 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
     case QUE_NODE_UPDATE:
       upd = static_cast<upd_node_t *>(node);
 
+      if (upd->update) {
+        upd->update->free_per_stmt_heap();
+      }
+
       if (upd->in_mysql_interface) {
-        btr_pcur_free_for_mysql(upd->pcur);
-        upd->in_mysql_interface = FALSE;
+        btr_pcur_t::free_for_mysql(upd->pcur);
+        upd->in_mysql_interface = false;
       }
 
       que_graph_free_recursive(upd->cascade_node);
@@ -511,7 +512,7 @@ void que_graph_free(que_t *graph) /*!< in: query graph; we assume that the
                                   afterwards! */
 {
   ut_ad(graph);
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   if (graph->sym_tab) {
     /* The following call frees dynamic memory allocated
@@ -583,7 +584,7 @@ static void que_thr_move_to_run_state(
 
     trx->lock.n_active_thrs++;
 
-    thr->is_active = TRUE;
+    thr->is_active = true;
   }
 
   thr->state = QUE_THR_RUNNING;
@@ -675,7 +676,7 @@ static void que_thr_dec_refer_count(
 
   --fork->n_active_thrs;
 
-  thr->is_active = FALSE;
+  thr->is_active = false;
 }
 
 /** A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
@@ -705,11 +706,11 @@ void que_thr_stop_for_mysql(que_thr_t *thr) /*!< in: query thread */
     }
   }
 
-  ut_ad(thr->is_active == TRUE);
+  ut_ad(thr->is_active == true);
   ut_ad(trx->lock.n_active_thrs == 1);
   ut_ad(thr->graph->n_active_thrs == 1);
 
-  thr->is_active = FALSE;
+  thr->is_active = false;
   thr->graph->n_active_thrs--;
 
   trx->lock.n_active_thrs--;
@@ -731,7 +732,7 @@ void que_thr_move_to_run_state_for_mysql(
 
     trx->lock.n_active_thrs++;
 
-    thr->is_active = TRUE;
+    thr->is_active = true;
   }
 
   thr->state = QUE_THR_RUNNING;
@@ -743,14 +744,14 @@ void que_thr_move_to_run_state_for_mysql(
 @param[in] trx Transaction */
 void que_thr_stop_for_mysql_no_error(que_thr_t *thr, trx_t *trx) {
   ut_ad(thr->state == QUE_THR_RUNNING);
-  ut_ad(thr->is_active == TRUE);
+  ut_ad(thr->is_active == true);
   ut_ad(trx->lock.n_active_thrs == 1);
   ut_ad(thr->graph->n_active_thrs == 1);
   ut_a(thr->magic_n == QUE_THR_MAGIC_N);
 
   thr->state = QUE_THR_COMPLETED;
 
-  thr->is_active = FALSE;
+  thr->is_active = false;
   thr->graph->n_active_thrs--;
 
   trx->lock.n_active_thrs--;
@@ -785,7 +786,7 @@ que_node_t *que_node_get_containing_loop_node(que_node_t *node) /*!< in: node */
 #ifdef UNIV_DEBUG
 /** Gets information of an SQL query graph node.
 @return type description */
-static MY_ATTRIBUTE((warn_unused_result)) const char *que_node_type_string(
+[[nodiscard]] static const char *que_node_type_string(
     const que_node_t *node) /*!< in: query graph node */
 {
   switch (que_node_get_type(node)) {
@@ -828,8 +829,8 @@ static MY_ATTRIBUTE((warn_unused_result)) const char *que_node_type_string(
     case QUE_NODE_EXIT:
       return ("EXIT");
     default:
-      ut_ad(0);
-      return ("UNKNOWN NODE TYPE");
+      ut_d(ut_error);
+      ut_o(return ("UNKNOWN NODE TYPE"));
   }
 }
 #endif /* UNIV_DEBUG */
@@ -837,8 +838,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const char *que_node_type_string(
 /** Performs an execution step on a query thread.
  @return query thread to run next: it may differ from the input
  parameter if, e.g., a subprocedure call is made */
-UNIV_INLINE
-que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
+static inline que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
 {
   que_node_t *node;
   que_thr_t *old_thr;
@@ -1036,16 +1036,7 @@ loop:
   }
 }
 
-/** Evaluate the given SQL.
- @return error code or DB_SUCCESS */
-dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
-                     const char *sql,   /*!< in: SQL string */
-                     ibool reserve_dict_mutex,
-                     /*!< in: if TRUE, acquire/release
-                     dict_sys->mutex around call to pars_sql. */
-                     trx_t *trx) /*!< in: trx */
-{
-  que_thr_t *thr;
+dberr_t que_eval_sql(pars_info_t *info, const char *sql, trx_t *trx) {
   que_t *graph;
 
   DBUG_TRACE;
@@ -1064,7 +1055,8 @@ dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
 
   graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-  ut_a(thr = que_fork_start_command(graph));
+  auto thr = que_fork_start_command(graph);
+  ut_a(thr);
 
   que_run_threads(thr);
 

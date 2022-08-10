@@ -51,7 +51,7 @@ sleep(@long_query_time + 1)
 0
 select * from mysql.slow_log where sql_text NOT LIKE '%slow_log%';
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text	thread_id
-TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00.000000	1	1	test	0	0	1	QUERY	THREAD_ID
+TIMESTAMP	USER_HOST	QUERY_TIME	LOCK_TIME	1	1	test	0	0	1	QUERY	THREAD_ID
 # Switch to connection default
 show global variables
 where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
@@ -270,3 +270,5 @@ SET global general_log = @old_general_log;
 SET global general_log_file = @old_general_log_file;
 SET global slow_query_log = @old_slow_query_log;
 SET global slow_query_log_file = @old_slow_query_log_file;
+TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;

@@ -6,3 +6,117 @@ unix_timestamp()	sleep(2)
 10	0
 [ PASS ] timestamp found
 SET @@global.slow_query_log_file=@save_sqlf;
+
+#
+# Bug#30789032: INCONSISTENT BEHAVIOR WHILE LOGGING A KILLED QUERY IN THE SLOW QUERY LOG
+#
+
+SET @old_slow_query_log_file= @@global.slow_query_log_file;
+SET @old_log_output         = @@global.log_output;
+SET GLOBAL slow_query_log_file= '.../my_slow.log';
+SET @main_thd_id=CONNECTION_ID();
+SET GLOBAL log_output=        'TABLE,FILE';
+SET GLOBAL slow_query_log=    1;
+SET SESSION long_query_time=  0;
+#
+# LOG OUTPUT TO TABLE WITH KILL THREAD
+# Should not write to the slow log.
+#
+# "long query" connection (killee)
+TRUNCATE mysql.slow_log;
+# Check variables:
+SET SESSION long_query_time= 0;
+SELECT @@log_output,@@slow_query_log,@@long_query_time;
+@@log_output	@@slow_query_log	@@long_query_time
+FILE,TABLE	1	0.000000
+/* KILL CONNECTION: should not be logged */ SELECT SLEEP(1001);
+# default connection (from whence we use KILL CONNECTION)
+KILL CONNECTION <CONNECTION_ID>;
+# show rows in slow_log:
+SELECT "1>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
+FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
+1>	IF(thread_id=@main_thd_id,"KILLER","killee")	sql_text
+# error indicates that the connection's gone (as expected):
+Got one of the listed errors
+#
+# LOG OUTPUT TO TABLE WITH KILL QUERY
+# Should write to the slow log.
+#
+TRUNCATE mysql.slow_log;
+# Check variables:
+SET SESSION long_query_time= 0;
+SELECT @@log_output,@@slow_query_log,@@long_query_time;
+@@log_output	@@slow_query_log	@@long_query_time
+FILE,TABLE	1	0.000000
+/* KILL QUERY: should be logged */ SELECT SLEEP(1002);
+KILL QUERY <CONNECTION_ID>;
+# show rows in slow_log:
+SELECT "2>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
+FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
+2>	IF(thread_id=@main_thd_id,"KILLER","killee")	sql_text
+2>	killee	/* KILL QUERY: should be logged */ SELECT SLEEP(1002)
+SLEEP(1002)
+1
+SELECT "con1 is still here.";
+con1 is still here.
+con1 is still here.
+F>/* KILL QUERY: should be logged */ SELECT SLEEP(1002);
+SET @@global.slow_query_log_file= @old_slow_query_log_file;
+SET @@global.log_output         = @old_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
+
+#
+# Bug#33732907: Slow query log logs password in plain text on syntax error
+#
+
+SET @save_sqlf=@@global.slow_query_log_file;
+SET @save_sql=@@global.slow_query_log;
+SET @save_lo=@@global.log_output;
+SET @save_lqt=@@session.long_query_time;
+SET GLOBAL slow_query_log_file= '.../slow33732907.log';
+SET @@global.slow_query_log=1;
+SET @@global.log_output='file,table';
+SET @@session.long_query_time=0;
+SET @my_start=CURRENT_TIMESTAMP(6);
+
+# This succeeds, and the password is correctly obfuscated.
+CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
+# This fails, but the password is still correctly obfuscated.
+CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
+ERROR HY000: Operation CREATE USER failed for 'duplicate_user'@'%'
+
+# Since we throw an error during the parse stage, we don't know which
+# part of the statement is the password (or whether there even is one),
+# so we cannot obfuscate it. In that case, the statement should not be
+# logged, either. The general log also behaves like this by default.
+CREATE USER ‘bad_characters’@’%’ IDENTIFIED BY 'mypassword';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '%’ IDENTIFIED BY 'mypassword'' at line 1
+# Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "general table>",argument
+FROM mysql.general_log
+WHERE INSTR(argument,"CREATE USER")=1 AND event_time>=@my_start
+ORDER BY event_time;
+general table>	argument
+general table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
+general table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
+# Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "slow table>",sql_text
+FROM mysql.slow_log
+WHERE INSTR(sql_text,"CREATE USER")=1 AND start_time>=@my_start
+ORDER BY start_time;
+slow table>	sql_text
+slow table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
+slow table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>
+SET @@global.slow_query_log_file=@save_sqlf;
+SET @@global.slow_query_log=@save_sql;
+SET @@global.log_output=@save_lo;
+SET @@session.long_query_time=@save_lqt;
+DROP USER 'duplicate_user'@'%';
+# Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+slow file>CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>;
+slow file>CREATE USER 'duplicate_user'@'%' IDENTIFIED BY <secret>;
+TRUNCATE mysql.slow_log;
+TRUNCATE mysql.general_log;
+#
+# Done.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <NdbTick.h>
 #include <NdbCondition.h>
 #include <NdbSleep.h>
+#include <EventLogger.hpp>
 
 static NdbTableImpl * f_invalid_table = 0;
 static NdbTableImpl * f_altered_table = 0;
@@ -54,7 +55,6 @@ static int ndb_dict_cache_count = 0;
 Ndb_local_table_info *
 Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
 {
-  assert(! is_ndb_blob_table(table_impl));
   Uint32 tot_size= sizeof(Ndb_local_table_info) - sizeof(Uint64)
     + ((sz+7) & ~7); // round to Uint64
   void *data= malloc(tot_size);
@@ -72,7 +72,6 @@ void Ndb_local_table_info::destroy(Ndb_local_table_info *info)
 
 Ndb_local_table_info::Ndb_local_table_info(NdbTableImpl *table_impl)
 {
-  assert(! is_ndb_blob_table(table_impl));
   m_table_impl= table_impl;
   m_tuple_id_range.reset();
 }
@@ -92,14 +91,12 @@ LocalDictCache::~LocalDictCache(){
 Ndb_local_table_info * 
 LocalDictCache::get(const BaseString& name){
   ASSERT_NOT_MYSQLD;
-  assert(!is_ndb_blob_table(name.c_str()));
   return m_tableHash.getData(name.c_str(), name.length());
 }
 
 void 
 LocalDictCache::put(const BaseString& name, Ndb_local_table_info * tab_info){
   ASSERT_NOT_MYSQLD;
-  assert(!is_ndb_blob_table(name.c_str()));
   const Uint32 id = tab_info->m_table_impl->m_id;
   m_tableHash.insertKey(name.c_str(), name.length(), id, tab_info);
 }
@@ -107,7 +104,6 @@ LocalDictCache::put(const BaseString& name, Ndb_local_table_info * tab_info){
 void
 LocalDictCache::drop(const BaseString& name){
   ASSERT_NOT_MYSQLD;
-  assert(!is_ndb_blob_table(name.c_str()));
   Ndb_local_table_info *info=
       m_tableHash.deleteKey(name.c_str(), name.length());
   assert(info != 0);
@@ -215,7 +211,6 @@ GlobalDictCache::get(const BaseString& name, int *error)
 {
   DBUG_ENTER("GlobalDictCache::get");
   DBUG_PRINT("enter", ("name: %s", name.c_str()));
-  assert(!is_ndb_blob_table(name.c_str()));
 
   const Uint32 len = name.length();
   Vector<TableVersion> * versions = 0;
@@ -291,7 +286,6 @@ GlobalDictCache::put(const BaseString& name, NdbTableImpl * tab)
                        tab ? tab->m_internalName.c_str() : "tab NULL",
                        tab ? tab->m_version & 0xFFFFFF : 0,
                        tab ? tab->m_version >> 24 : 0));
-  assert(!is_ndb_blob_table(name.c_str()));
 
   Vector<TableVersion> * vers =
       m_tableHash.getData(name.c_str(), name.length());
@@ -430,7 +424,6 @@ GlobalDictCache::release(const NdbTableImpl * tab, int invalidate)
   DBUG_ENTER("GlobalDictCache::release");
   DBUG_PRINT("enter", ("tab: %p  internal_name: %s",
                        tab, tab->m_internalName.c_str()));
-  assert(! is_ndb_blob_table(tab));
 
   unsigned i;
   Vector<TableVersion> * vers = 
@@ -477,9 +470,9 @@ GlobalDictCache::release(const NdbTableImpl * tab, int invalidate)
   
   for(i = 0; i<sz; i++){
     TableVersion & ver = (* vers)[i];
-    ndbout_c("%d: version: %d refCount: %d status: %d impl: %p",
-	     i, ver.m_version, ver.m_refCount,
-	     ver.m_status, ver.m_impl);
+    g_eventLogger->info("%d: version: %d refCount: %d status: %d impl: %p", i,
+                        ver.m_version, ver.m_refCount, ver.m_status,
+                        ver.m_impl);
   }
   
   abort();
@@ -500,7 +493,6 @@ GlobalDictCache::alter_table_rep(const BaseString& name,
     DBUG_VOID_RETURN;
   }
 
-  assert(!is_ndb_blob_table(name.c_str()));
   const Uint32 sz = vers->size();
   if(sz == 0)
   {
@@ -537,7 +529,6 @@ int
 GlobalDictCache::chg_ref_count(const NdbTableImpl * impl, int value)
 {
   DBUG_ENTER("GlobalDictCache::chg_ref_count");
-  assert(! is_ndb_blob_table(impl));
 
   Vector<TableVersion> * vers = 
     m_tableHash.getData(impl->m_internalName.c_str(),

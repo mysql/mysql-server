@@ -1,4 +1,6 @@
---source include/have_ndb.inc
+# This test has not yet been adapted to wl#11968, pending fix to bug#33739957
+
+--source include/have_multi_ndb.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2;
@@ -452,6 +454,69 @@ let $ndb_desc_opts= -b -i -d test t5;
 source suite/ndb/include/ndb_desc_print.inc;
 
 drop table t1,t2,t3,t5;
+
+--echo Bug 33523991 Ndb online reorg : Scan count verification
+--echo Scan count issue on complete phase of reorg
+
+create table t1 (a int primary key, b int, c int, d int, unique(b), unique(c)) engine=ndb;
+
+--echo Populate some data
+insert into t1 values (1,1,1,1);
+insert into t1 select a+1, b+1, c+1, d+1 from t1;
+insert into t1 select a+2, b+2, c+2, d+2 from t1;
+insert into t1 select a+4, b+4, c+4, d+4 from t1;
+insert into t1 select a+8, b+8, c+8, d+8 from t1;
+insert into t1 select a+16, b+16, c+16, d+16 from t1;
+insert into t1 select a+32, b+32, c+32, d+32 from t1;
+insert into t1 select a+64, b+64, c+64, d+64 from t1;
+insert into t1 select a+128, b+128, c+128, d+128 from t1;
+insert into t1 select a+256, b+256, c+256, d+256 from t1;
+insert into t1 select a+512, b+512, c+512, d+512 from t1;
+insert into t1 select a+1024, b+1024, c+1024, d+1024 from t1;
+insert into t1 select a+2048, b+2048, c+2048, d+2048 from t1;
+
+--connection server2
+
+delimiter %;
+create procedure scans (max_iterations int)
+sp: begin
+  DECLARE sum_d int;
+  set @x=0;
+  repeat
+    select sum(d) into sum_d from t1;
+    set @x = @x + 1;
+    if sum_d = 0
+    then
+      leave sp;
+    end if;
+  until @x=max_iterations
+  end repeat;
+end%
+
+delimiter ;%
+
+--send call scans(20000);
+
+--connection server1
+
+alter table t1 algorithm=inplace, add partition partitions 1;
+
+--echo Alter ok, run again
+
+alter table t1 algorithm=inplace, add partition partitions 1;
+
+--echo Second alter ok, finish scans
+select sum(d) into @sum_d from t1;
+insert into t1 values (20000,20000,20000, 0 - @sum_d);
+
+--connection server2
+--reap
+
+drop procedure scans;
+
+--connection server1
+drop table t1;
+
 alter tablespace ts1 drop datafile 'datafile.dat';
 drop tablespace ts1;
 drop logfile group lg1 engine = ndb;

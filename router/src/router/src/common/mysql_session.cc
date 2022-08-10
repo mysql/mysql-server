@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -304,12 +304,7 @@ MySQLSession::real_query(const std::string &q) {
     return stdx::make_unexpected(make_mysql_error_code(connection_));
   }
 
-#if defined(__SUNPRO_CC)
-  // ensure sun-cc doesn't try to the copy-constructor on a move-only type
-  return std::move(res);
-#else
   return res;
-#endif
 }
 
 stdx::expected<MySQLSession::mysql_result_type, MysqlError>
@@ -461,7 +456,7 @@ unsigned MySQLSession::warning_count() noexcept {
   return mysql_warning_count(connection_);
 }
 
-std::string MySQLSession::quote(const std::string &s, char qchar) noexcept {
+std::string MySQLSession::quote(const std::string &s, char qchar) const {
   std::string r;
   r.resize(s.length() * 2 + 3);
   r[0] = qchar;

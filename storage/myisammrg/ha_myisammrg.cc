@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@
   The version check is done in myisammrg_attach_children_callback(),
   which is called for every child. ha_myisammrg::attach_children()
   initializes 'need_compat_check' to false and
-  myisammrg_attach_children_callback() sets it ot true if a table
+  myisammrg_attach_children_callback() sets it to true if a table
   def version mismatches the remembered child def version.
 
   The children chain remains in the statement query list until the table
@@ -130,15 +130,7 @@ static handler *myisammrg_create_handler(handlerton *hton, TABLE_SHARE *table,
 */
 
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
-    : handler(hton, table_arg), file(nullptr), is_cloned(false) {
-  init_sql_alloc(rg_key_memory_children, &children_mem_root, FN_REFLEN, 0);
-}
-
-/**
-  @brief Destructor
-*/
-
-ha_myisammrg::~ha_myisammrg(void) { free_root(&children_mem_root, MYF(0)); }
+    : handler(hton, table_arg), file(nullptr), is_cloned(false) {}
 
 static const char *ha_myisammrg_exts[] = {".MRG", NullS};
 static void split_file_name(const char *file_name, LEX_CSTRING *db,
@@ -307,9 +299,9 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   and adds a child list of TABLE_LIST to the parent handler.
 */
 
-int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
+int ha_myisammrg::open(const char *name, int mode [[maybe_unused]],
                        uint test_if_locked_arg,
-                       const dd::Table *table_def MY_ATTRIBUTE((unused))) {
+                       const dd::Table *table_def [[maybe_unused]]) {
   DBUG_TRACE;
   DBUG_PRINT("myrg", ("name: '%s'  table: %p", name, table));
   DBUG_PRINT("myrg", ("test_if_locked_arg: %u", test_if_locked_arg));
@@ -321,7 +313,7 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
   test_if_locked = test_if_locked_arg;
 
   /* In case this handler was open and closed before, free old data. */
-  free_root(&this->children_mem_root, MYF(MY_MARK_BLOCKS_FREE));
+  this->children_mem_root.ClearForReuse();
 
   /*
     Initialize variables that are used, modified, and/or set by
@@ -474,7 +466,7 @@ int ha_myisammrg::add_children_list(void) {
       issue is solved thanks to notification mechanism in MDL subsystem.
 
       SRO locks don't require similar handling since they are never upgraded and
-      underlying tables are always propertly protected by thr_lock.c locks.
+      underlying tables are always properly protected by thr_lock.c locks.
     */
     if (!thd->locked_tables_mode &&
         parent_l->mdl_request.type == MDL_SHARED_UPGRADABLE)
@@ -860,7 +852,7 @@ err:
 
   @note
     Detach must not touch the child TABLE objects in any way.
-    They may have been closed at ths point already.
+    They may have been closed at this point already.
     All references to the children should be removed.
 */
 
@@ -1065,9 +1057,8 @@ int ha_myisammrg::index_last(uchar *buf) {
   return error;
 }
 
-int ha_myisammrg::index_next_same(uchar *buf,
-                                  const uchar *key MY_ATTRIBUTE((unused)),
-                                  uint length MY_ATTRIBUTE((unused))) {
+int ha_myisammrg::index_next_same(uchar *buf, const uchar *key [[maybe_unused]],
+                                  uint length [[maybe_unused]]) {
   int error;
   assert(this->file->children_attached);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
@@ -1193,7 +1184,7 @@ int ha_myisammrg::extra(enum ha_extra_function operation) {
   } else if (operation == HA_EXTRA_DETACH_CHILDREN) {
     /*
       Note that detach must not touch the children in any way.
-      They may have been closed at ths point already.
+      They may have been closed at this point already.
     */
     int rc = detach_children();
     return (rc);
@@ -1377,7 +1368,7 @@ void ha_myisammrg::append_create_info(String *packet) {
         get_type(&merge_insert_method, file->merge_insert_method - 1));
   }
   /*
-    There is no sence adding UNION clause in case there is no underlying
+    There is no sense adding UNION clause in case there are no underlying
     tables specified.
   */
   if (file->open_tables == file->end_table) return;

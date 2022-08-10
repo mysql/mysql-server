@@ -1,0 +1,24 @@
+############################################################
+# Bug#101658: Rollback segment can be initialized parallel #
+############################################################
+
+# Test that the rollback segments can be initialized both
+# using a single threads as well as multiple threads
+# default being multiple threads with the number of threads
+# capped to 4
+
+--source include/have_debug.inc
+
+--source include/stop_mysqld.inc
+
+let $restart_parameters = restart: --debug=+d,rseg_init_single_thread;
+--source include/start_mysqld.inc
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+let SEARCH_PATTERN=Time taken to initialize rseg using 1 thread;
+--source include/search_pattern.inc
+
+--source include/stop_mysqld.inc
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc

@@ -1,0 +1,38 @@
+--source include/big_test.inc
+
+let ZIP_FILE = 8_0_19_clean.zip;
+let MYSQLD_DATADIR = $MYSQLTEST_VARDIR/tmp/log_deprecated_params_upg;
+let SEARCH_FILE = $MYSQLD_DATADIR/my_restart_attempt.err;
+let MYSQLD_ARGS = --no-defaults --pid-file=$MYSQLD_DATADIR/mysqld-in-test.pid --secure_file_priv=$MYSQLTEST_VARDIR --datadir=$MYSQLD_DATADIR --lower_case_table_names=1 --log-error-verbosity=3 --innodb-unknown-param=v --skip-log-bin --skip-networking --socket=$MYSQLD_DATADIR/test.sock --log-error=$SEARCH_FILE;
+
+--echo # Create an empty data directory...
+--mkdir $MYSQLD_DATADIR
+--echo # Unzip $ZIP_FILE to the created directory...
+--exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/$ZIP_FILE -d $MYSQLD_DATADIR > $SEARCH_FILE
+--remove_file $SEARCH_FILE
+
+--echo # Test upgrade with --innodb-log-file-size provided...
+--error 1,42
+--exec $MYSQLD $MYSQLD_ARGS --innodb-log-file-size=8388608
+let SEARCH_PATTERN = Deprecated configuration parameters innodb_log_file_size and/or innodb_log_files_in_group have been used to compute innodb_redo_log_capacity;
+--source include/search_pattern.inc
+let SEARCH_PATTERN = innodb-unknown-param=v;
+--source include/search_pattern.inc
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_deprecated_params_upg-1.err
+--force-rmdir $MYSQLD_DATADIR
+
+--echo # Create an empty data directory...
+--mkdir $MYSQLD_DATADIR
+--echo # Unzip $ZIP_FILE to the created directory...
+--exec unzip $MYSQL_TEST_DIR/std_data/log_corruption/$ZIP_FILE -d $MYSQLD_DATADIR > $SEARCH_FILE
+--remove_file $SEARCH_FILE
+
+--echo # Test upgrade with --innodb-log-files-in-group provided...
+--error 1,42
+--exec $MYSQLD $MYSQLD_ARGS --innodb-log-files-in-group=8
+let SEARCH_PATTERN = Deprecated configuration parameters innodb_log_file_size and/or innodb_log_files_in_group have been used to compute innodb_redo_log_capacity;
+--source include/search_pattern.inc
+let SEARCH_PATTERN = innodb-unknown-param=v;
+--source include/search_pattern.inc
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/log_deprecated_params_upg-2.err
+--force-rmdir $MYSQLD_DATADIR

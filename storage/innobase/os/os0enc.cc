@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #ifdef UNIV_HOTBACKUP
 #include "fsp0file.h"
 #endif /* UNIV_HOTBACKUP */
-#include "log0log.h"
+#include "log0files_io.h"
 #include "mach0data.h"
 #include "os0file.h"
 #include "page0page.h"
@@ -157,18 +157,15 @@ void deinit_keyring_services(SERVICE_TYPE(registry) * reg_srv) {
 
   @returns status of key generation
     @retval true  Success
-    @retval fales Error. No error is raised.
+    @retval false Error. No error is raised.
 */
 bool generate_key(const char *key_id, const char *key_type, size_t key_length) {
   if (key_id == nullptr || key_type == nullptr || key_length == 0) {
     return false;
   }
 
-  if (keyring_generator_service->generate(key_id, nullptr, key_type,
-                                          key_length) == true) {
-    return false;
-  }
-  return true;
+  return keyring_generator_service->generate(key_id, nullptr, key_type,
+                                             key_length) == 0;
 }
 
 /**
@@ -212,6 +209,9 @@ uint32_t Encryption::s_master_key_id = Encryption::DEFAULT_MASTER_KEY_ID;
 /** Current uuid of server instance */
 char Encryption::s_uuid[Encryption::SERVER_UUID_LEN + 1] = {0};
 
+/** Tablespaces whose key needs to be reencrypted */
+std::vector<space_id_t> Encryption::s_tablespaces_to_reencrypt;
+
 const char *Encryption::to_string(Type type) noexcept {
   switch (type) {
     case NONE:
@@ -220,9 +220,9 @@ const char *Encryption::to_string(Type type) noexcept {
       return ("Y");
   }
 
-  ut_ad(0);
+  ut_d(ut_error);
 
-  return ("<UNKNOWN>");
+  ut_o(return ("<UNKNOWN>"));
 }
 
 void Encryption::random_value(byte *value) noexcept {
@@ -445,43 +445,42 @@ void Encryption::get_master_key(uint32_t *master_key_id,
 #endif /* !UNIV_HOTBACKUP */
 }
 
-bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
-                                      bool is_boot, bool encrypt_key) noexcept {
+bool Encryption::fill_encryption_info(
+    const Encryption_metadata &encryption_metadata, bool encrypt_key,
+    byte *encrypt_info) noexcept {
   byte *master_key = nullptr;
   uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
-  bool is_default_master_key = false;
 
-  /* Get master key from keyring. For bootstrap, we use a default
-  master key which master_key_id is 0. */
-  if (encrypt_key) {
-    if (is_boot
 #ifndef UNIV_HOTBACKUP
-        || (strlen(server_uuid) == 0)
+  /* Server uuid must have already been generated */
+  ut_ad(strlen(server_uuid) > 0);
 #endif
-    ) {
-      master_key = static_cast<byte *>(ut_zalloc_nokey(KEY_LEN));
 
-      ut_ad(KEY_LEN >= sizeof(DEFAULT_MASTER_KEY));
+  /* Get master key from keyring. */
+  if (encrypt_key) {
+    get_master_key(&master_key_id, &master_key);
 
-      strcpy(reinterpret_cast<char *>(master_key), DEFAULT_MASTER_KEY);
-      is_default_master_key = true;
-    } else {
-      get_master_key(&master_key_id, &master_key);
-
-      if (master_key == nullptr) {
-        return (false);
-      }
+    if (master_key == nullptr) {
+      return (false);
     }
+
+    ut_ad(master_key_id != DEFAULT_MASTER_KEY_ID);
+    ut_ad(memcmp(master_key, DEFAULT_MASTER_KEY, sizeof(DEFAULT_MASTER_KEY)) !=
+          0);
   }
 
+  /* Encryption info to be filled in following format
+    --------------------------------------------------------------------------
+   | Magic bytes | master key id | server uuid | tablespace key|iv | checksum |
+    --------------------------------------------------------------------------
+  */
+  ut_ad(encrypt_info != nullptr);
   memset(encrypt_info, 0, INFO_SIZE);
 
-  /* Use the new master key to encrypt the key. */
-  ut_ad(encrypt_info != nullptr);
   auto ptr = encrypt_info;
 
+  /* Write Magic bytes */
   memcpy(ptr, KEY_MAGIC_V3, MAGIC_SIZE);
-
   ptr += MAGIC_SIZE;
 
   /* Write master key id. */
@@ -492,13 +491,13 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
   memcpy(reinterpret_cast<char *>(ptr), s_uuid, sizeof(s_uuid));
   ptr += sizeof(s_uuid) - 1;
 
+  /* Write (and encrypt if needed) key and iv */
   byte key_info[KEY_LEN * 2];
-
   memset(key_info, 0x0, sizeof(key_info));
 
-  memcpy(key_info, key, KEY_LEN);
+  memcpy(key_info, encryption_metadata.m_key, KEY_LEN);
 
-  memcpy(key_info + KEY_LEN, iv, KEY_LEN);
+  memcpy(key_info + KEY_LEN, encryption_metadata.m_iv, KEY_LEN);
 
   if (encrypt_key) {
     /* Encrypt key and iv. */
@@ -513,48 +512,41 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
     /* Keep tablespace key unencrypted. Used by clone. */
     memcpy(ptr, key_info, sizeof(key_info));
   }
-
   ptr += sizeof(key_info);
 
   /* Write checksum bytes. */
   auto crc = ut_crc32(key_info, sizeof(key_info));
-
   mach_write_to_4(ptr, crc);
 
   if (encrypt_key) {
     ut_ad(master_key != nullptr);
-    if (is_default_master_key) {
-      ut_free(master_key);
-    } else {
-      my_free(master_key);
-    }
+    my_free(master_key);
   }
 
   return (true);
 }
 
-byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
-                                           uint32_t *m_key_id, char *srv_uuid,
-                                           byte **master_key) noexcept {
-  byte *ptr;
-  uint32 key_id;
-
-  ptr = encrypt_info;
+const byte *Encryption::get_master_key_from_info(const byte *encrypt_info,
+                                                 Version version,
+                                                 uint32_t *m_key_id,
+                                                 char *srv_uuid,
+                                                 byte **master_key) noexcept {
+  const byte *ptr = encrypt_info;
   *m_key_id = 0;
 
   /* Get master key id. */
-  key_id = mach_read_from_4(ptr);
-  ptr += sizeof(uint32);
+  uint32_t key_id = mach_read_from_4(ptr);
+  ptr += sizeof(uint32_t);
 
   /* Handle different version encryption information. */
   switch (version) {
     case VERSION_1:
-      /* For version 1, it's possible master key id
-      occupied 8 bytes. */
+      /* For version 1, it's possible master key id occupied 8 bytes. */
       if (mach_read_from_4(ptr) == 0) {
         ptr += sizeof(uint32);
       }
 
+      /* Get master key. */
       get_master_key(key_id, nullptr, master_key);
       if (*master_key == nullptr) {
         return (encrypt_info);
@@ -564,13 +556,12 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
       return (ptr);
 
     case VERSION_2:
-      /* For version 2, it's also possible master key id
-      occupied 8 bytes. */
+      /* For version 2, it's also possible master key id occupied 8 bytes. */
       if (mach_read_from_4(ptr) == 0) {
         ptr += sizeof(uint32);
       }
 
-      /* Get server uuid. */
+      /* Read server uuid. */
       memset(srv_uuid, 0, SERVER_UUID_LEN + 1);
       memcpy(srv_uuid, ptr, SERVER_UUID_LEN);
 
@@ -587,18 +578,16 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
       break;
 
     case VERSION_3:
-      /* Get server uuid. */
+      /* Read server uuid. */
       memset(srv_uuid, 0, SERVER_UUID_LEN + 1);
       memcpy(srv_uuid, ptr, SERVER_UUID_LEN);
 
       ptr += SERVER_UUID_LEN;
 
-      if (key_id == 0) {
-        /* When key_id is 0, which means it's the
-        default master key for bootstrap. */
-        *master_key = static_cast<byte *>(ut_zalloc_nokey(KEY_LEN));
+      if (key_id == DEFAULT_MASTER_KEY_ID) {
+        *master_key = static_cast<byte *>(
+            ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, KEY_LEN));
         memcpy(*master_key, DEFAULT_MASTER_KEY, strlen(DEFAULT_MASTER_KEY));
-        *m_key_id = 0;
       } else {
         ut_ad(strlen(srv_uuid) != 0);
 
@@ -607,9 +596,9 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
         if (*master_key == nullptr) {
           return (encrypt_info);
         }
-
-        *m_key_id = key_id;
       }
+
+      *m_key_id = key_id;
       break;
   }
 
@@ -618,22 +607,47 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
   return (ptr);
 }
 
-bool Encryption::decode_encryption_info(byte *key, byte *iv,
-                                        byte *encryption_info,
-                                        bool decrypt_key) noexcept {
-  byte *ptr;
-  byte *master_key = nullptr;
-  uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
-  byte key_info[KEY_LEN * 2];
-  ulint crc1;
-  ulint crc2;
-  char srv_uuid[SERVER_UUID_LEN + 1];
-  Version version;
+bool Encryption::is_encrypted_with_version(
+    const byte *encryption_info, const char *version_magic_bytes) noexcept {
+  return std::memcmp(encryption_info, version_magic_bytes,
+                     Encryption::MAGIC_SIZE) == 0;
+}
 
-  ptr = encryption_info;
+bool Encryption::is_encrypted_with_v3(const byte *encryption_info) noexcept {
+  return is_encrypted_with_version(encryption_info, Encryption::KEY_MAGIC_V3);
+}
+
+bool Encryption::is_encrypted(const byte *encryption_info) noexcept {
+  return is_encrypted_with_v3(encryption_info) ||
+         is_encrypted_with_version(encryption_info, Encryption::KEY_MAGIC_V2) ||
+         is_encrypted_with_version(encryption_info, Encryption::KEY_MAGIC_V1);
+}
+
+bool Encryption::decode_encryption_info(Encryption_metadata &e_metadata,
+                                        const byte *encryption_info,
+                                        bool decrypt_key) noexcept {
+  Encryption_key e_key{e_metadata.m_key, e_metadata.m_iv};
+  if (decode_encryption_info(dict_sys_t::s_invalid_space_id, e_key,
+                             encryption_info, decrypt_key)) {
+    e_metadata.m_key_len = Encryption::KEY_LEN;
+    e_metadata.m_type = Encryption::AES;
+    return true;
+  }
+  return false;
+}
+
+bool Encryption::decode_encryption_info(space_id_t space_id,
+                                        Encryption_key &e_key,
+                                        const byte *encryption_info,
+                                        bool decrypt_key) noexcept {
+  const byte *ptr = encryption_info;
+  byte *key = e_key.m_key;
+  byte *iv = e_key.m_iv;
+  uint32_t &master_key_id = e_key.m_master_key_id;
 
   /* For compatibility with 5.7.11, we need to handle the
   encryption information which created in this old version. */
+  Version version;
   if (memcmp(ptr, KEY_MAGIC_V1, MAGIC_SIZE) == 0) {
     version = VERSION_1;
   } else if (memcmp(ptr, KEY_MAGIC_V2, MAGIC_SIZE) == 0) {
@@ -642,9 +656,10 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
     version = VERSION_3;
   } else {
     /* We don't report an error during recovery, since the
-    encryption info maybe hasn't writen into datafile when
-    the table is newly created. */
-    if (recv_recovery_is_on()) {
+    encryption info maybe hasn't written into datafile when
+    the table is newly created. For clone encryption information
+    should have been already correct. */
+    if (recv_recovery_is_on() && !recv_sys->is_cloned_db) {
       return (true);
     }
 
@@ -652,9 +667,12 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
                              << " found unexpected version of it!";
     return (false);
   }
-
   ptr += MAGIC_SIZE;
 
+  /* Read master key id and read (decrypt if needed) tablespace key and iv. */
+  byte *master_key = nullptr;
+  char srv_uuid[SERVER_UUID_LEN + 1];
+  byte key_info[KEY_LEN * 2];
   if (decrypt_key) {
     /* Get master key by key id. */
     ptr = get_master_key_from_info(ptr, version, &master_key_id, srv_uuid,
@@ -665,25 +683,13 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
       return (false);
     }
 
-#ifdef UNIV_ENCRYPT_DEBUG
-    {
-      std::ostringstream msg;
-
-      msg << "Master Key ID: " << master_key_id;
-      msg << " hex: {";
-      ut_print_buf_hex(msg, master_key, KEY_LEN);
-      msg << "}";
-
-      ib::info(ER_IB_MSG_838) << msg.str();
-    }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
     /* Decrypt tablespace key and iv. */
     auto len = my_aes_decrypt(ptr, sizeof(key_info), key_info, master_key,
                               KEY_LEN, my_aes_256_ecb, nullptr, false);
 
     if (master_key_id == DEFAULT_MASTER_KEY_ID) {
-      ut_free(master_key);
+      ut::free(master_key);
+      /* Re-encrypt tablespace key with current master key */
     } else {
       my_free(master_key);
     }
@@ -695,19 +701,17 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   } else {
     ut_ad(version == VERSION_3);
     /* Skip master Key and server UUID*/
-    ptr += sizeof(uint32);
+    ptr += sizeof(uint32_t);
     ptr += SERVER_UUID_LEN;
 
     /* Get tablespace key information. */
     memcpy(key_info, ptr, sizeof(key_info));
   }
-
-  /* Check checksum bytes. */
   ptr += sizeof(key_info);
 
-  crc1 = mach_read_from_4(ptr);
-  crc2 = ut_crc32(key_info, sizeof(key_info));
-
+  /* Check checksum bytes. */
+  uint32_t crc1 = mach_read_from_4(ptr);
+  uint32_t crc2 = ut_crc32(key_info, sizeof(key_info));
   if (crc1 != crc2) {
     /* This check could fail only while decrypting key. */
     ut_ad(decrypt_key);
@@ -725,25 +729,27 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   /* Get tablespace iv */
   memcpy(iv, key_info + KEY_LEN, KEY_LEN);
 
-#ifdef UNIV_ENCRYPT_DEBUG
-  {
-    std::ostringstream msg;
+  if (decrypt_key) {
+    /* Update server uuid and master key id in encryption metadata */
+    if (master_key_id > s_master_key_id) {
+      s_master_key_id = master_key_id;
+      memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
+    }
 
-    ut_print_buf_hex(msg, key, KEY_LEN);
+#ifndef UNIV_HOTBACKUP
+    if (master_key_id == DEFAULT_MASTER_KEY_ID &&
+        space_id != dict_sys_t::s_invalid_space_id) {
+      /* Tablespace key needs to be reencrypted with master key */
 
-    ib::info(ER_IB_MSG_840) << "Key: {" << msg.str() << "}";
-  }
-  {
-    std::ostringstream msg;
-
-    ut_print_buf_hex(msg, iv, KEY_LEN);
-    ib::info(ER_IB_MSG_841) << "IV: {" << msg.str() << "}";
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-  if (decrypt_key && (s_master_key_id < master_key_id)) {
-    s_master_key_id = master_key_id;
-    memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
+      if (!srv_master_thread_is_active()) {
+        /* Note down this space and rotate key at the end of recovery */
+        s_tablespaces_to_reencrypt.push_back(space_id);
+      } else {
+        /* This tablespace might not be loaded yet. It's tablepace key will be
+        reencrypted with new master key once it is loaded in fil_ibd_open() */
+      }
+    }
+#endif
   }
 
   return (true);
@@ -761,7 +767,7 @@ bool Encryption::is_encrypted_log(const byte *block) noexcept {
   return (log_block_get_encrypt_bit(block));
 }
 
-bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
+bool Encryption::encrypt_log_block(const IORequest &, byte *src_ptr,
                                    byte *dst_ptr) noexcept {
   ulint len = 0;
   ulint data_len;
@@ -801,9 +807,8 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
 
       auto elen = my_aes_encrypt(
           src_ptr + LOG_BLOCK_HDR_SIZE, static_cast<uint32>(main_len),
-          dst_ptr + LOG_BLOCK_HDR_SIZE,
-          reinterpret_cast<unsigned char *>(m_key), static_cast<uint32>(m_klen),
-          my_aes_256_cbc, reinterpret_cast<unsigned char *>(m_iv), false);
+          dst_ptr + LOG_BLOCK_HDR_SIZE, m_key, static_cast<uint32>(m_klen),
+          my_aes_256_cbc, m_iv, false);
 
       if (elen == MY_AES_BAD_DATA) {
         return (false);
@@ -825,12 +830,10 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
       if (remain_len != 0) {
         remain_len = MY_AES_BLOCK_SIZE * 2;
 
-        elen =
-            my_aes_encrypt(dst_ptr + LOG_BLOCK_HDR_SIZE + data_len - remain_len,
-                           static_cast<uint32>(remain_len), remain_buf,
-                           reinterpret_cast<unsigned char *>(m_key),
-                           static_cast<uint32>(m_klen), my_aes_256_cbc,
-                           reinterpret_cast<unsigned char *>(m_iv), false);
+        elen = my_aes_encrypt(
+            dst_ptr + LOG_BLOCK_HDR_SIZE + data_len - remain_len,
+            static_cast<uint32>(remain_len), remain_buf, m_key,
+            static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv, false);
 
         if (elen == MY_AES_BAD_DATA) {
           return (false);
@@ -856,9 +859,10 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
     os << std::endl;
     ib::info() << os.str();
 
-    byte *check_buf =
-        static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
+    byte *check_buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, OS_FILE_LOG_BLOCK_SIZE));
+    byte *buf2 = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, OS_FILE_LOG_BLOCK_SIZE));
 
     memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
     log_block_set_encrypt_bit(check_buf, true);
@@ -874,8 +878,8 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
       ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
       ib::fatal() << msg.str();
     }
-    ut_free(buf2);
-    ut_free(check_buf);
+    ut::free(buf2);
+    ut::free(check_buf);
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -909,8 +913,10 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
 
 #ifdef UNIV_ENCRYPT_DEBUG
   {
-    byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
+    byte *check_buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
+    byte *buf2 = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
 
     memcpy(check_buf, dst, src_len);
 
@@ -924,8 +930,8 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
       ut_print_buf_hex(msg, check_buf, src_len);
       ib::fatal() << msg.str();
     }
-    ut_free(buf2);
-    ut_free(check_buf);
+    ut::free(buf2);
+    ut::free(check_buf);
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -976,11 +982,10 @@ bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
       const auto chunk_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
       const auto remain_len = data_len - chunk_len;
 
-      auto elen =
-          my_aes_encrypt(src + FIL_PAGE_DATA, static_cast<uint32>(chunk_len),
-                         dst + FIL_PAGE_DATA, reinterpret_cast<byte *>(m_key),
-                         static_cast<uint32>(m_klen), my_aes_256_cbc,
-                         reinterpret_cast<byte *>(m_iv), false);
+      auto elen = my_aes_encrypt(
+          src + FIL_PAGE_DATA, static_cast<uint32>(chunk_len),
+          dst + FIL_PAGE_DATA, m_key, static_cast<uint32>(m_klen),
+          my_aes_256_cbc, m_iv, false);
 
       if (elen == MY_AES_BAD_DATA) {
         const auto page_id = page_get_page_id(src);
@@ -1003,10 +1008,9 @@ bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
         byte buf[trailer_len];
 
         elen = my_aes_encrypt(dst + FIL_PAGE_DATA + data_len - trailer_len,
-                              static_cast<uint32>(trailer_len), buf,
-                              reinterpret_cast<byte *>(m_key),
-                              static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<byte *>(m_iv), false);
+                              static_cast<uint32>(trailer_len), buf, m_key,
+                              static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                              false);
 
         if (elen == MY_AES_BAD_DATA) {
           const auto page_id = page_get_page_id(src);
@@ -1082,8 +1086,10 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
 #ifdef UNIV_ENCRYPT_DEBUG
   {
-    byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
+    byte *check_buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
+    byte *buf2 = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
 
     memcpy(check_buf, dst, src_len);
 
@@ -1093,10 +1099,10 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
                src_len - FIL_PAGE_DATA) != 0) {
       ut_print_buf(stderr, src, src_len);
       ut_print_buf(stderr, check_buf, src_len);
-      ut_ad(0);
+      ut_d(ut_error);
     }
-    ut_free(buf2);
-    ut_free(check_buf);
+    ut::free(buf2);
+    ut::free(check_buf);
 
     fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
   }
@@ -1104,7 +1110,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   return dst;
 }
 
-dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
+dberr_t Encryption::decrypt_log_block(const IORequest &, byte *src,
                                       byte *dst) noexcept {
   ulint data_len;
   ulint main_len;
@@ -1133,10 +1139,9 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
         memcpy(remain_buf, ptr + data_len - remain_len, remain_len);
 
         elen = my_aes_decrypt(remain_buf, static_cast<uint32>(remain_len),
-                              dst + data_len - remain_len,
-                              reinterpret_cast<unsigned char *>(m_key),
-                              static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<unsigned char *>(m_iv), false);
+                              dst + data_len - remain_len, m_key,
+                              static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                              false);
         if (elen == MY_AES_BAD_DATA) {
           return (DB_IO_DECRYPT_FAIL);
         }
@@ -1151,10 +1156,9 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
       }
 
       /* Then decrypt the main data */
-      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
+      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr, m_key,
+                            static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                            false);
       if (elen == MY_AES_BAD_DATA) {
         return (DB_IO_DECRYPT_FAIL);
       }
@@ -1192,7 +1196,7 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
 }
 
 dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
-                                byte *dst, ulint dst_len) noexcept {
+                                byte *dst) noexcept {
   file::Block *block;
   byte *ptr = src;
   dberr_t ret;
@@ -1250,7 +1254,7 @@ dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
 }
 
 dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
-                            byte *dst, ulint dst_len) noexcept {
+                            byte *dst, ulint) noexcept {
   ulint data_len;
   ulint main_len;
   ulint remain_len;
@@ -1342,10 +1346,9 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
         memcpy(remain_buf, ptr + data_len - remain_len, remain_len);
 
         elen = my_aes_decrypt(remain_buf, static_cast<uint32>(remain_len),
-                              dst + data_len - remain_len,
-                              reinterpret_cast<unsigned char *>(m_key),
-                              static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<unsigned char *>(m_iv), false);
+                              dst + data_len - remain_len, m_key,
+                              static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                              false);
 
         if (elen == MY_AES_BAD_DATA) {
           if (block != nullptr) {
@@ -1367,10 +1370,9 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
       }
 
       /* Then decrypt the main data */
-      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
+      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr, m_key,
+                            static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                            false);
       if (elen == MY_AES_BAD_DATA) {
         if (block != nullptr) {
           os_free_block(block);
@@ -1445,8 +1447,9 @@ bool Encryption::check_keyring() noexcept {
   bool ret = false;
   byte *master_key = nullptr;
 
-  /* During bootstrap, default master key is used */
   if (s_master_key_id == DEFAULT_MASTER_KEY_ID) {
+    /* This is the first time encryption is being used or till now no encrypted
+    tablespace is loaded. */
     static bool checked = false;
     if (checked) {
       return true;
@@ -1510,16 +1513,28 @@ Encryption::Type Encryption::get_type() const { return m_type; }
 
 void Encryption::set_type(Encryption::Type type) { m_type = type; }
 
-byte *Encryption::get_key() const { return m_key; }
-
-void Encryption::set_key(byte *key) { m_key = key; }
+void Encryption::set_key(const byte *key) { m_key = key; }
 
 ulint Encryption::get_key_length() const { return m_klen; }
 
 void Encryption::set_key_length(ulint klen) { m_klen = klen; }
 
-byte *Encryption::get_initial_vector() const { return m_iv; }
-
-void Encryption::set_initial_vector(byte *iv) { m_iv = iv; }
+void Encryption::set_initial_vector(const byte *iv) { m_iv = iv; }
 
 uint32_t Encryption::get_master_key_id() { return s_master_key_id; }
+
+void Encryption::set_or_generate(Type type, byte *key, byte *iv,
+                                 Encryption_metadata &metadata) {
+  ut_ad(type != Encryption::NONE);
+  metadata.m_type = type;
+  metadata.m_key_len = Encryption::KEY_LEN;
+  if (key == nullptr && iv == nullptr) {
+    Encryption::random_value(metadata.m_key);
+    Encryption::random_value(metadata.m_iv);
+  } else if (key != nullptr && iv != nullptr) {
+    memcpy(metadata.m_key, key, Encryption::KEY_LEN);
+    memcpy(metadata.m_iv, iv, Encryption::KEY_LEN);
+  } else {
+    ut_error;
+  }
+}

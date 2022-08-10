@@ -3,14 +3,71 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
-INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_SLAVE_PLUGIN';
+==== Step 0: Using source/replica terminology ====
+[connection master]
+# Case 1: Uninstallation of semi sync plugins should be allowed when it is
+# not in use i.e., when asynchronous replication is active.
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'SEMISYNC_SOURCE_PLUGIN';
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'SEMISYNC_REPLICA_PLUGIN';
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+UNINSTALL PLUGIN rpl_semi_sync_source;
+CREATE TABLE t1(i int);
+INSERT INTO t1 values (1);
+DROP TABLE t1;
+# Case 2: Uninstallation of semi sync plugins should be disallowed
+# when it is in use i.e., when semi sync replication is active
+include/install_semisync.inc
+call mtr.add_suppression("Plugin 'rpl_semi_sync_replica' cannot be uninstalled now");
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+ERROR HY000: Plugin 'rpl_semi_sync_replica' cannot be uninstalled now. Stop any active semisynchronous I/O threads on this slave first.
+call mtr.add_suppression("Plugin 'rpl_semi_sync_source' cannot be uninstalled now");
+UNINSTALL PLUGIN rpl_semi_sync_source;
+ERROR HY000: Plugin 'rpl_semi_sync_source' cannot be uninstalled now. Stop any active semisynchronous slaves of this master first.
+CREATE TABLE t1(i int);
+INSERT INTO t1 values (2);
+DROP TABLE t1;
+include/assert.inc [semi sync slave status should be ON.]
+include/assert.inc [semi sync master status should be ON.]
+include/assert.inc [semi sync master clients should be 1.]
+# Case 3: Uninstallation of semi sync plugin should be disallowed when there
+# are semi sync slaves even though rpl_semi_sync_source_enabled= OFF;.
+SET GLOBAL rpl_semi_sync_source_enabled = OFF;
+include/assert.inc [semi sync master clients should be 1.]
+UNINSTALL PLUGIN rpl_semi_sync_source;
+ERROR HY000: Plugin 'rpl_semi_sync_source' cannot be uninstalled now. Stop any active semisynchronous slaves of this master first.
+# Case 4: Uninstallation of semi sync plugin should be allowed when it is not
+# in use. Same as Case 1 but this case is to check the case after enabling and
+# disabling semi sync replication.
+include/stop_slave.inc
+SET GLOBAL rpl_semi_sync_replica_enabled = OFF;
+include/start_slave.inc
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+UNINSTALL PLUGIN rpl_semi_sync_source;
+CREATE TABLE t1(i int);
+INSERT INTO t1 values (3);
+DROP TABLE t1;
+==== Step 1: Using master/slave terminology ====
+[connection master]
+# Case 1: Uninstallation of semi sync plugins should be allowed when it is
+# not in use i.e., when asynchronous replication is active.
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_SOURCE_PLUGIN';
+Warnings:
+Note	1287	'rpl_semi_sync_master' is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_REPLICA_PLUGIN';
+Warnings:
+Note	1287	'rpl_semi_sync_slave' is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead
 UNINSTALL PLUGIN rpl_semi_sync_slave;
 UNINSTALL PLUGIN rpl_semi_sync_master;
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (1);
 DROP TABLE t1;
+# Case 2: Uninstallation of semi sync plugins should be disallowed
+# when it is in use i.e., when semi sync replication is active
 include/install_semisync.inc
+Warnings:
+Note	1287	'rpl_semi_sync_master' is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead
+Warnings:
+Note	1287	'rpl_semi_sync_slave' is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead
 call mtr.add_suppression("Plugin 'rpl_semi_sync_slave' cannot be uninstalled now");
 UNINSTALL PLUGIN rpl_semi_sync_slave;
 ERROR HY000: Plugin 'rpl_semi_sync_slave' cannot be uninstalled now. Stop any active semisynchronous I/O threads on this slave first.
@@ -23,10 +80,15 @@ DROP TABLE t1;
 include/assert.inc [semi sync slave status should be ON.]
 include/assert.inc [semi sync master status should be ON.]
 include/assert.inc [semi sync master clients should be 1.]
+# Case 3: Uninstallation of semi sync plugin should be disallowed when there
+# are semi sync slaves even though rpl_semi_sync_source_enabled= OFF;.
 SET GLOBAL rpl_semi_sync_master_enabled = OFF;
 include/assert.inc [semi sync master clients should be 1.]
 UNINSTALL PLUGIN rpl_semi_sync_master;
 ERROR HY000: Plugin 'rpl_semi_sync_master' cannot be uninstalled now. Stop any active semisynchronous slaves of this master first.
+# Case 4: Uninstallation of semi sync plugin should be allowed when it is not
+# in use. Same as Case 1 but this case is to check the case after enabling and
+# disabling semi sync replication.
 include/stop_slave.inc
 SET GLOBAL rpl_semi_sync_slave_enabled = OFF;
 include/start_slave.inc

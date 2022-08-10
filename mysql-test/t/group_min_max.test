@@ -1909,3 +1909,73 @@ eval EXPLAIN FORMAT=TREE $query;
 DROP TABLE t1, t2;
 
 --echo # End of test for Bug#30242457
+
+--echo #
+--echo # Bug #32769369: SIG11 IN ITEM_FIELD::ITEM_FIELD|SQL/ITEM.CC WITH HYPERGRAPH
+--echo #
+
+CREATE TABLE t1 (a INTEGER, KEY (a));
+INSERT INTO t1 VALUES (1);
+SELECT SQL_BUFFER_RESULT MIN(t1.a) FROM t1, t1 AS t2;
+DROP TABLE t1;
+
+--echo # Bug#32266286 : ADDING GROUP BY SLOWS DOWN A QUERY.
+--echo #
+
+CREATE TABLE t0 (i0 INTEGER);
+INSERT INTO t0 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t0 VALUES (6), (7), (8), (9);
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, KEY (f1,f2));
+INSERT INTO t1 SELECT 1, i0 from t0;
+INSERT INTO t1 SELECT i0+1, i0*rand()*10 from t0;
+INSERT INTO t1 VALUES (1,0);
+ANALYZE TABLE t1;
+
+--skip_if_hypergraph  # Different plan.
+# Should pick loose index scan to do the aggregation. Rows
+# looked at should be 1 as the group by attribute is a constant.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
+SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+--skip_if_hypergraph  # Different plan.
+--replace_regex /  \(cost=.*//
+EXPLAIN FORMAT=tree SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
+SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
+
+DROP TABLE t0,t1;
+
+--echo #
+--echo # Bug#33139598: REGRESSION: CRASH IN GET_BEST_GROUP_MIN_MAX
+--echo #
+
+CREATE TABLE t1 (f1 ENUM(''), KEY(f1));
+INSERT INTO t1 VALUES(''),('');
+# Should not crash.
+SELECT 1 FROM t1 WHERE f1=UUID() GROUP BY f1 LIMIT 1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33139598: Assertion `table_independent_conds == nullptr' failed.
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, KEY(f1));
+INSERT INTO t1 VALUES (1), (2);
+
+DELIMITER $;
+CREATE FUNCTION f()
+RETURNS INT DETERMINISTIC
+BEGIN
+  SET @f:=1;
+  RETURN @f;
+END$
+DELIMITER ;$
+
+# Should not assert
+SELECT MAX(f1) FROM t1 WHERE f() = 1;
+# Should return NULL
+SELECT MAX(f1) FROM t1 WHERE f() = 0;
+
+DROP TABLE t1;
+DROP FUNCTION f;

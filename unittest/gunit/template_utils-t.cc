@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,10 +34,10 @@ class Base {
   int id() const { return 1; }
 
   // Needed to make compiler understand that it's a polymorphic class.
-  virtual ~Base() {}
+  virtual ~Base() = default;
 
   // To silence -Wdeprecated-copy.
-  Base() {}
+  Base() = default;
   Base(const Base &) = default;
 };
 

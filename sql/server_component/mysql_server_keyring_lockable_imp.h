@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -73,5 +73,6 @@ void keyring_lockable_init();
 void keyring_lockable_deinit();
 void set_srv_keyring_implementation_as_default();
 void release_keyring_handles();
+bool keyring_status_no_error();
 
 #endif /* MYSQL_SERVER_KEYRING_LOCKABLE_IMP_INCLUDED */

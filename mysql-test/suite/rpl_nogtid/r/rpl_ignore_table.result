@@ -121,7 +121,7 @@ GRANT INSERT, INSERT (`a`), UPDATE (`a`), REFERENCES (`a`) ON `test`.`t4` TO `my
 show grants for mysqltest4@localhost;
 Grants for mysqltest4@localhost
 GRANT USAGE ON *.* TO `mysqltest4`@`localhost`
-set global slave_exec_mode='IDEMPOTENT';
+set global replica_exec_mode='IDEMPOTENT';
 call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table mysql.* Error_code: 1032");
 drop table t1, mysqltest2.t2;
 drop table t4;
@@ -136,19 +136,19 @@ CREATE TABLE t5 (
 word varchar(50) collate utf8_unicode_ci NOT NULL default ''
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 Warnings:
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SET @@session.character_set_client=33,@@session.collation_connection=192;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE TEMPORARY TABLE tmptbl504451f4258$1 (id INT NOT NULL) ENGINE=MEMORY;
 INSERT INTO t5 (word)  VALUES ('TEST’');
 SELECT HEX(word) FROM t5;
 HEX(word)
 54455354E28099
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 SELECT HEX(word) FROM t5;
 HEX(word)
 54455354E28099

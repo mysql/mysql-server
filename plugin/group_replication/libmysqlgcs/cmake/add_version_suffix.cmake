@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ FOREACH(line ${xcom_vp_def})
 	ENDIF()
   ELSE()
 	# Output saved lines when we see "return TRUE"
-	STRING(REGEX MATCH "return TRUE" xxx "${line}")
+	STRING(REGEX MATCH "return \\(*TRUE" xxx "${line}")
 	IF(xxx)
 	  IF(code)
 		FILE(APPEND ${x_gen_c} "/* BEGIN protocol conversion code */${code}\n/* END protocol conversion code */\n")

@@ -2207,6 +2207,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             "rowid_ordered": false,
                             "using_mrr": false,
                             "index_only": true,
+                            "in_memory": -1,
                             "rows": 4,
                             "cost": 0.677442,
                             "chosen": false,
@@ -2564,12 +2565,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                             {
                                               "index": "a",
                                               "ranges": [
-                                                "1 <= a <= 1"
+                                                "a = 1"
                                               ] /* ranges */,
                                               "index_dives_for_eq_ranges": true,
                                               "rowid_ordered": true,
                                               "using_mrr": true,
                                               "index_only": false,
+                                              "in_memory": 1,
                                               "rows": 1,
                                               "cost": 0.6,
                                               "chosen": false,
@@ -2578,12 +2580,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                             {
                                               "index": "a_2",
                                               "ranges": [
-                                                "1 <= a <= 1"
+                                                "a = 1"
                                               ] /* ranges */,
                                               "index_dives_for_eq_ranges": true,
                                               "rowid_ordered": false,
                                               "using_mrr": false,
                                               "index_only": true,
+                                              "in_memory": 1,
                                               "rows": 1,
                                               "cost": 0.36,
                                               "chosen": false,

@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,8 @@ MACRO (FIND_ZSTD_VERSION)
     "${ZSTD_VERSION_MAJOR}.${ZSTD_VERSION_MINOR}.${ZSTD_VERSION_RELEASE}")
   SET(ZSTD_VERSION "${ZSTD_VERSION}" CACHE INTERNAL "ZSTD major.minor.step")
   MESSAGE(STATUS "ZSTD_VERSION (${WITH_ZSTD}) is ${ZSTD_VERSION}")
+  MESSAGE(STATUS "ZSTD_INCLUDE_DIR ${ZSTD_INCLUDE_DIR}")
+  MESSAGE(STATUS "ZSTD_LIBRARY ${ZSTD_LIBRARY}")
 ENDMACRO()
 
 MACRO (FIND_SYSTEM_ZSTD)
@@ -62,10 +64,13 @@ MACRO (FIND_SYSTEM_ZSTD)
   ENDIF()
 ENDMACRO()
 
+SET(ZSTD_VERSION_DIR "zstd-1.5.0")
+SET(BUNDLED_ZSTD_PATH ${CMAKE_SOURCE_DIR}/extra/zstd/${ZSTD_VERSION_DIR}/lib)
+
 MACRO (MYSQL_USE_BUNDLED_ZSTD)
   SET(ZSTD_LIBRARY zstd CACHE INTERNAL "Bundled zlib library")
   SET(WITH_ZSTD "bundled" CACHE STRING "Use bundled zstd")
-  SET(ZSTD_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/zstd/lib)
+  SET(ZSTD_INCLUDE_DIR ${BUNDLED_ZSTD_PATH})
   INCLUDE_DIRECTORIES(BEFORE SYSTEM ${ZSTD_INCLUDE_DIR})
   ADD_SUBDIRECTORY(extra/zstd)
 ENDMACRO()

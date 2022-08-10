@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include <cerrno>
 #include <climits>
 #include <cstring>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
@@ -47,12 +48,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "mysql/harness/access_rights.h"
+#include "mysql/harness/stdx/expected.h"
+
 namespace {
 const std::string dirsep("/");
 const std::string extsep(".");
 }  // namespace
 
 namespace mysql_harness {
+
+const perm_mode kStrictDirectoryPerm = S_IRWXU;
 
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
@@ -99,6 +105,17 @@ Path::FileType Path::type(bool refresh) const {
     }
   }
   return type_;
+}
+
+bool Path::is_absolute() const {
+  validate_non_empty_path();  // throws std::invalid_argument
+  if (path_[0] == '/') return true;
+  return false;
+}
+
+bool Path::is_readable() const {
+  validate_non_empty_path();
+  return exists() && std::ifstream(real_path().str()).good();
 }
 
 ////////////////////////////////////////////////////////////////
@@ -310,7 +327,7 @@ stdx::expected<void, std::error_code> delete_file(
 
 std::string get_tmp_dir(const std::string &name) {
   const size_t MAX_LEN = 256;
-  const std::string pattern_str = std::string(name + "-XXXXXX");
+  const std::string pattern_str = std::string("/tmp/" + name + "-XXXXXX");
   const char *pattern = pattern_str.c_str();
   if (strlen(pattern) >= MAX_LEN) {
     throw std::runtime_error(
@@ -320,7 +337,8 @@ std::string get_tmp_dir(const std::string &name) {
   strncpy(buf, pattern, sizeof(buf) - 1);
   const char *res = mkdtemp(buf);
   if (res == nullptr) {
-    throw std::runtime_error("Could not create temporary directory");
+    throw std::system_error(errno, std::generic_category(),
+                            "mkdtemp(" + pattern_str + ") failed");
   }
 
   return std::string(res);
@@ -330,6 +348,36 @@ int mkdir_wrapper(const std::string &dir, perm_mode mode) {
   auto res = ::mkdir(dir.c_str(), mode);
   if (res != 0) return errno;
   return 0;
+}
+
+void make_file_public(const std::string &file_name) {
+  const auto set_res =
+      access_rights_set(file_name, S_IRWXU | S_IRWXG | S_IRWXO);
+  if (!set_res) {
+    const auto ec = set_res.error();
+    throw std::system_error(ec, "chmod() failed: " + file_name);
+  }
+}
+
+void make_file_private(const std::string &file_name,
+                       const bool read_only_for_local_service
+                       [[maybe_unused]]) {
+  const auto set_res = access_rights_set(file_name, S_IRUSR | S_IWUSR);
+  if (!set_res) {
+    const auto ec = set_res.error();
+    throw std::system_error(
+        ec, "Could not set permissions for file '" + file_name + "'");
+  }
+}
+
+void make_file_readonly(const std::string &file_name) {
+  const auto set_res =
+      access_rights_set(file_name, (S_IRUSR | S_IXUSR) | (S_IRGRP | S_IXGRP) |
+                                       (S_IROTH | S_IXOTH));
+  if (!set_res) {
+    const auto ec = set_res.error();
+    throw std::system_error(ec, "chmod() failed: " + file_name);
+  }
 }
 
 }  // namespace mysql_harness

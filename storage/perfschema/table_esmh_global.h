@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class PFS_index_esmh_global : public PFS_engine_index {
   PFS_index_esmh_global()
       : PFS_engine_index(&m_key_1), m_key_1("BUCKET_NUMBER") {}
 
-  ~PFS_index_esmh_global() override {}
+  ~PFS_index_esmh_global() override = default;
 
   bool match_bucket(ulong bucket_index);
 
@@ -107,7 +107,7 @@ class table_esmh_global : public PFS_engine_table {
   table_esmh_global();
 
  public:
-  ~table_esmh_global() override {}
+  ~table_esmh_global() override = default;
 
  protected:
   void materialize();

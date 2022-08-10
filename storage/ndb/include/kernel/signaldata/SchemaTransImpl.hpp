@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,9 +47,9 @@ struct SchemaTransImplReq
     RT_END           = 0xa // release...
   };
 
-  STATIC_CONST( SignalLength = 8 );
-  STATIC_CONST( SignalLengthStart = 9 );
-  STATIC_CONST( GSN = GSN_SCHEMA_TRANS_IMPL_REQ );
+  static constexpr Uint32 SignalLength = 8;
+  static constexpr Uint32 SignalLengthStart = 9;
+  static constexpr Uint32 GSN = GSN_SCHEMA_TRANS_IMPL_REQ;
   Uint32 senderRef;
   Uint32 transId;
   Uint32 transKey;
@@ -68,8 +68,8 @@ struct SchemaTransImplReq
 
 struct SchemaTransImplConf
 {
-  STATIC_CONST( SignalLength = 4 );
-  STATIC_CONST( GSN = GSN_SCHEMA_TRANS_IMPL_CONF );
+  static constexpr Uint32 SignalLength = 4;
+  static constexpr Uint32 GSN = GSN_SCHEMA_TRANS_IMPL_CONF;
   Uint32 senderRef;
   Uint32 transKey;
   Uint32 opKey;
@@ -78,8 +78,8 @@ struct SchemaTransImplConf
 
 struct SchemaTransImplRef
 {
-  STATIC_CONST( SignalLength = 8 );
-  STATIC_CONST( GSN = GSN_SCHEMA_TRANS_IMPL_REF );
+  static constexpr Uint32 SignalLength = 8;
+  static constexpr Uint32 GSN = GSN_SCHEMA_TRANS_IMPL_REF;
   enum ErrorCode {
     NoError = 0,
     Busy = 701,

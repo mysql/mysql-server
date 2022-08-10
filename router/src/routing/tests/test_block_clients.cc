@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,55 +22,23 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <cstdio>
-#include <fstream>
-#include <future>
-#include <memory>
-#include <string>
-#include <thread>
-#ifndef _WIN32
-#include <netinet/in.h>
-#else
-#include <WinSock2.h>
-#endif
+#include <gmock/gmock-matchers.h>
+#include <gtest/gtest.h>
 
-#include <gmock/gmock.h>
+#include "blocked_endpoints.h"
+#include "mysql/harness/filesystem.h"  // Path
 
-#include "../../router/src/router_app.h"
-#include "../../routing/src/mysql_routing.h"
-#include "gtest_consoleoutput.h"
-#include "mysql/harness/config_parser.h"
-#include "mysql/harness/net_ts/internet.h"
-#include "mysql/harness/net_ts/io_context.h"
-#include "mysql/harness/plugin.h"
-#include "mysqlrouter/routing.h"
-#include "router_test_helpers.h"
-#include "test/helpers.h"
-
-using namespace std::chrono_literals;
-
-using mysql_harness::Path;
-using std::string;
 using ::testing::ContainerEq;
 using ::testing::HasSubstr;
 using ::testing::StrEq;
 
-string g_cwd;
-Path g_origin;
+std::string g_cwd;
+mysql_harness::Path g_origin;
 
-class TestBlockClients : public ConsoleOutputTest {
- protected:
-  void SetUp() override {
-    set_origin(g_origin);
-    ConsoleOutputTest::SetUp();
-  }
-
-  net::io_context io_ctx_;
-};
+class TestBlockClients : public ::testing::Test {};
 
 TEST_F(TestBlockClients, BlockClientHost) {
-  unsigned long long max_connect_errors = 2;
-  auto client_connect_timeout = 2s;
+  uint64_t max_connect_errors = 2;
 
   auto ipv6_1_res = net::ip::make_address("::1");
   ASSERT_TRUE(ipv6_1_res);
@@ -80,37 +48,46 @@ TEST_F(TestBlockClients, BlockClientHost) {
   auto ipv6_1 = net::ip::tcp::endpoint(ipv6_1_res.value(), 0);
   auto ipv6_2 = net::ip::tcp::endpoint(ipv6_2_res.value(), 0);
 
-  MySQLRouting r(
-      io_ctx_, routing::RoutingStrategy::kNextAvailable, 7001,
-      Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-      "127.0.0.1", mysql_harness::Path(), "routing:connect_erros", 1,
-      std::chrono::seconds(1), max_connect_errors, client_connect_timeout);
+  BlockedEndpoints blocked_endpoints{max_connect_errors};
 
-  ASSERT_FALSE(r.get_context().block_client_host<net::ip::tcp>(ipv6_1));
-  ASSERT_THAT(get_log_stream().str(),
-              HasSubstr("1 connection errors for ::1 (max 2)"));
-  reset_ssout();
-  ASSERT_TRUE(r.get_context().block_client_host<net::ip::tcp>(ipv6_1));
-  ASSERT_THAT(get_log_stream().str(), HasSubstr("blocking client host ::1"));
+  blocked_endpoints.increment_error_count(ipv6_1);
+  ASSERT_FALSE(blocked_endpoints.is_blocked(ipv6_1));
 
-  auto blocked_hosts = r.get_context().get_blocked_client_hosts();
-  ASSERT_GE(blocked_hosts.size(), 1u);
-  //  ASSERT_THAT(blocked_hosts[0], ContainerEq(client_ip_array1));
+  blocked_endpoints.increment_error_count(ipv6_1);
+  ASSERT_TRUE(blocked_endpoints.is_blocked(ipv6_1));
 
-  ASSERT_FALSE(r.get_context().block_client_host<net::ip::tcp>(ipv6_2));
-  ASSERT_TRUE(r.get_context().block_client_host<net::ip::tcp>(ipv6_2));
+  {
+    auto blocked_hosts = blocked_endpoints.get_blocked_client_hosts();
+    EXPECT_THAT(blocked_hosts,
+                ::testing::UnorderedElementsAre(ipv6_1.address().to_string()));
+  }
 
-  blocked_hosts = r.get_context().get_blocked_client_hosts();
-  //  ASSERT_THAT(blocked_hosts[0], ContainerEq(client_ip_array1));
-  //  ASSERT_THAT(blocked_hosts[1], ContainerEq(client_ip_array2));
+  // block a 2nd endpoint
+  blocked_endpoints.increment_error_count(ipv6_2);
+  ASSERT_FALSE(blocked_endpoints.is_blocked(ipv6_2));
+
+  blocked_endpoints.increment_error_count(ipv6_2);
+  ASSERT_TRUE(blocked_endpoints.is_blocked(ipv6_2));
+
+  {
+    auto blocked_hosts = blocked_endpoints.get_blocked_client_hosts();
+    EXPECT_THAT(blocked_hosts,
+                ::testing::UnorderedElementsAre(ipv6_1.address().to_string(),
+                                                ipv6_2.address().to_string()));
+  }
+
+  // clearing counter for ipv6_1
+  EXPECT_TRUE(blocked_endpoints.reset_error_count(ipv6_1));
+  EXPECT_FALSE(blocked_endpoints.is_blocked(ipv6_1));
+  EXPECT_TRUE(blocked_endpoints.is_blocked(ipv6_2));
+
+  EXPECT_FALSE(blocked_endpoints.reset_error_count(ipv6_1));
 }
 
 int main(int argc, char *argv[]) {
-  init_windows_sockets();
-  g_origin = Path(argv[0]).dirname();
-  g_cwd = Path(argv[0]).dirname().str();
+  g_origin = mysql_harness::Path(argv[0]).dirname();
+  g_cwd = mysql_harness::Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);
 
-  init_test_logger();
   return RUN_ALL_TESTS();
 }

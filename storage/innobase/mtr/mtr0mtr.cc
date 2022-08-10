@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,8 +39,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0meb.h"
 #ifndef UNIV_HOTBACKUP
 #include "clone0clone.h"
-#include "log0log.h"
+#include "log0buf.h"
+#include "log0chkp.h"
 #include "log0recv.h"
+#include "log0test.h"
+#include "log0write.h"
 #include "mtr0log.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "my_dbug.h"
@@ -120,8 +123,8 @@ struct Find {
 /** Find a page frame */
 struct Find_page {
   /** Constructor
-  @param[in]	ptr	pointer to within a page frame
-  @param[in]	flags	MTR_MEMO flags to look for */
+  @param[in]    ptr     pointer to within a page frame
+  @param[in]    flags   MTR_MEMO flags to look for */
   Find_page(const void *ptr, ulint flags)
       : m_ptr(ptr), m_flags(flags), m_slot(nullptr) {
     /* We can only look for page-related flags. */
@@ -131,9 +134,9 @@ struct Find_page {
   }
 
   /** Visit a memo entry.
-  @param[in]	slot	memo entry to visit
-  @retval	false	if a page was found
-  @retval	true	if the iteration should continue */
+  @param[in]    slot    memo entry to visit
+  @retval       false   if a page was found
+  @retval       true    if the iteration should continue */
   bool operator()(mtr_memo_slot_t *slot) {
     ut_ad(m_slot == nullptr);
 
@@ -171,6 +174,27 @@ struct Find_page {
   mtr_memo_slot_t *m_slot;
 };
 
+struct Mtr_memo_print {
+  Mtr_memo_print(std::ostream &out) : m_out(out) {}
+
+  bool operator()(mtr_memo_slot_t *slot) {
+    slot->print(m_out);
+    return true;
+  }
+
+ private:
+  std::ostream &m_out;
+};
+
+std::ostream &mtr_t::print_memos(std::ostream &out) const {
+  Mtr_memo_print printer(out);
+  Iterate<Mtr_memo_print> iterator(printer);
+  out << "[mtr_t: this=" << (void *)this << ", ";
+  m_impl.m_memo.for_each_block_in_reverse(iterator);
+  out << "]" << std::endl;
+  return out;
+}
+
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 struct Mtr_memo_contains {
@@ -199,13 +223,18 @@ bool mtr_t::conflicts_with(const mtr_t *mtr2) const {
   Mtr_memo_contains check(mtr2, MTR_MEMO_MODIFY);
   Iterate<Mtr_memo_contains> iterator(check);
 
-  return !m_impl.m_memo.for_each_block_in_reverse(iterator);
+  bool conflict = !m_impl.m_memo.for_each_block_in_reverse(iterator);
+  if (conflict) {
+    print_memos(std::cout);
+    mtr2->print_memos(std::cout);
+  }
+  return conflict;
 }
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Release latches and decrement the buffer fix count.
-@param[in]	slot	memo slot */
+@param[in]      slot    memo slot */
 static void memo_slot_release(mtr_memo_slot_t *slot) {
   switch (slot->type) {
 #ifndef UNIV_HOTBACKUP
@@ -270,7 +299,7 @@ struct Debug_check {
 
 #ifdef UNIV_DEBUG
 /** Assure that there are no slots that are latching any resources. Only buffer
- * fixing a page is allowed. */
+ fixing a page is allowed. */
 struct Debug_check_no_latching {
   /** @return true always. */
   bool operator()(const mtr_memo_slot_t *slot) const {
@@ -278,24 +307,23 @@ struct Debug_check_no_latching {
       case MTR_MEMO_BUF_FIX:
         break;
       default:
-        ib::fatal() << "Debug_check_no_latching failed, slot->type="
-                    << slot->type;
+        ib::fatal(UT_LOCATION_HERE, ER_MTR_MSG_1, (int)slot->type);
     }
     return true;
   }
 };
-#endif
+#endif /* UNIV_DEBUG */
 
 /** Add blocks modified by the mini-transaction to the flush list. */
 struct Add_dirty_blocks_to_flush_list {
   /** Constructor.
-  @param[in]	start_lsn	LSN of the first entry that was
+  @param[in]    start_lsn       LSN of the first entry that was
                                   added to REDO by the MTR
-  @param[in]	end_lsn		LSN after the last entry was
+  @param[in]    end_lsn         LSN after the last entry was
                                   added to REDO by the MTR
-  @param[in,out]	observer	flush observer */
+  @param[in,out]        observer        flush observer */
   Add_dirty_blocks_to_flush_list(lsn_t start_lsn, lsn_t end_lsn,
-                                 FlushObserver *observer);
+                                 Flush_observer *observer);
 
   /** Add the modified page to the buffer flush list. */
   void add_dirty_page_to_flush_list(mtr_memo_slot_t *slot) const {
@@ -338,17 +366,17 @@ struct Add_dirty_blocks_to_flush_list {
   const lsn_t m_start_lsn;
 
   /** Flush observer */
-  FlushObserver *const m_flush_observer;
+  Flush_observer *const m_flush_observer;
 };
 
 /** Constructor.
-@param[in]	start_lsn	LSN of the first entry that was added
+@param[in]      start_lsn       LSN of the first entry that was added
                                 to REDO by the MTR
-@param[in]	end_lsn		LSN after the last entry was added
+@param[in]      end_lsn         LSN after the last entry was added
                                 to REDO by the MTR
-@param[in,out]	observer	flush observer */
+@param[in,out]  observer        flush observer */
 Add_dirty_blocks_to_flush_list::Add_dirty_blocks_to_flush_list(
-    lsn_t start_lsn, lsn_t end_lsn, FlushObserver *observer)
+    lsn_t start_lsn, lsn_t end_lsn, Flush_observer *observer)
     : m_end_lsn(end_lsn), m_start_lsn(start_lsn), m_flush_observer(observer) {
   /* Do nothing */
 }
@@ -357,7 +385,7 @@ class mtr_t::Command {
  public:
   /** Constructor.
   Takes ownership of the mtr->m_impl, is responsible for deleting it.
-  @param[in,out]	mtr	Mini-transaction */
+  @param[in,out]        mtr     Mini-transaction */
   explicit Command(mtr_t *mtr) : m_locks_released() { init(mtr); }
 
   void init(mtr_t *mtr) {
@@ -497,8 +525,8 @@ struct mtr_write_log_t {
 
     start_lsn = m_lsn;
 
-    end_lsn = log_buffer_write(*log_sys, m_handle, block->begin(),
-                               block->used(), start_lsn);
+    end_lsn =
+        log_buffer_write(*log_sys, block->begin(), block->used(), start_lsn);
 
     ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE <
          OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
@@ -525,10 +553,10 @@ struct mtr_write_log_t {
         of log records in block containing m_lsn. */
         && m_handle.start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
                end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
-      log_buffer_set_first_record_group(*log_sys, m_handle, end_lsn);
+      log_buffer_set_first_record_group(*log_sys, end_lsn);
     }
 
-    log_buffer_write_completed(*log_sys, m_handle, start_lsn, end_lsn);
+    log_buffer_write_completed(*log_sys, start_lsn, end_lsn);
 
     m_lsn = end_lsn;
 
@@ -545,10 +573,7 @@ struct mtr_write_log_t {
 thread_local ut::unordered_set<const mtr_t *> mtr_t::s_my_thread_active_mtrs;
 #endif
 
-/** Start a mini-transaction.
-@param sync		true if it is a synchronous mini-transaction
-@param read_only	true if read only mini-transaction */
-void mtr_t::start(bool sync, bool read_only) {
+void mtr_t::start(bool sync) {
   ut_ad(m_impl.m_state == MTR_STATE_INIT ||
         m_impl.m_state == MTR_STATE_COMMITTED);
 
@@ -583,6 +608,8 @@ void mtr_t::start(bool sync, bool read_only) {
   /* Assert there are no collisions in thread local context - it would mean
   reusing MTR without committing or destructing it. */
   ut_a(res.second);
+
+  m_restart_count++;
 #endif /* UNIV_DEBUG */
 }
 
@@ -691,14 +718,13 @@ void mtr_t::check_is_not_latching() const {
 
 /** Acquire a tablespace X-latch.
 NOTE: use mtr_x_lock_space().
-@param[in]	space		tablespace instance
-@param[in]	file		file name from where called
-@param[in]	line		line number in file */
-void mtr_t::x_lock_space(fil_space_t *space, const char *file, ulint line) {
+@param[in]      space           tablespace instance
+@param[in]      location        location from where called */
+void mtr_t::x_lock_space(fil_space_t *space, ut::Location location) {
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
   ut_ad(is_active());
 
-  x_lock(&space->latch, file, line);
+  x_lock(&space->latch, location);
 }
 
 /** Release an object in the memo stack. */
@@ -719,8 +745,8 @@ void mtr_t::memo_release(const void *object, ulint type) {
 }
 
 /** Release a page latch.
-@param[in]	ptr	pointer to within a page frame
-@param[in]	type	object type: MTR_MEMO_PAGE_X_FIX, ... */
+@param[in]      ptr     pointer to within a page frame
+@param[in]      type    object type: MTR_MEMO_PAGE_X_FIX, ... */
 void mtr_t::release_page(const void *ptr, mtr_memo_type_t type) {
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
   ut_ad(is_active());
@@ -738,7 +764,7 @@ void mtr_t::release_page(const void *ptr, mtr_memo_type_t type) {
   }
 
   /* The page was not found! */
-  ut_ad(0);
+  ut_d(ut_error);
 }
 
 /** Prepare to write the mini-transaction log to the redo log buffer.
@@ -746,8 +772,9 @@ void mtr_t::release_page(const void *ptr, mtr_memo_type_t type) {
 ulint mtr_t::Command::prepare_write() {
   switch (m_impl->m_log_mode) {
     case MTR_LOG_SHORT_INSERTS:
-      ut_ad(0);
+      ut_d(ut_error);
       /* fall through (write no redo log) */
+      [[fallthrough]];
     case MTR_LOG_NO_REDO:
     case MTR_LOG_NONE:
       ut_ad(m_impl->m_log.size() == 0);
@@ -755,8 +782,8 @@ ulint mtr_t::Command::prepare_write() {
     case MTR_LOG_ALL:
       break;
     default:
-      ut_ad(false);
-      return 0;
+      ut_d(ut_error);
+      ut_o(return 0);
   }
 
   /* An ibuf merge could happen when loading page to apply log
@@ -870,6 +897,19 @@ void mtr_t::Command::execute() {
   release_resources();
 }
 
+std::ostream &mtr_memo_slot_t::print(std::ostream &out) const {
+  buf_block_t *block = nullptr;
+  if (!is_lock()) {
+    block = reinterpret_cast<buf_block_t *>(object);
+  }
+  out << "[mtr_memo_slot_t: object=" << object << ", type=" << type << " ("
+      << mtr_memo_type(type) << "), page_id="
+      << ((block == nullptr) ? page_id_t(FIL_NULL, FIL_NULL)
+                             : block->get_page_id())
+      << "]" << std::endl;
+  return out;
+}
+
 #ifndef UNIV_HOTBACKUP
 int mtr_t::Logging::enable(THD *thd) {
   if (is_enabled()) {
@@ -894,7 +934,7 @@ int mtr_t::Logging::enable(THD *thd) {
   the max transaction ID which is generally done at TRX_SYS_TRX_ID_WRITE_MARGIN
   interval but safe to do any time. */
   trx_sys_mutex_enter();
-  trx_sys_flush_max_trx_id();
+  trx_sys_write_max_trx_id();
   trx_sys_mutex_exit();
 
   /* It would ensure that the modified page in previous mtr and all other
@@ -933,24 +973,38 @@ int mtr_t::Logging::disable(THD *) {
     return ER_INNODB_REDO_ARCHIVING_ENABLED;
   }
 
-  /* Concurrent clone is blocked by BACKUP MDL lock except when
-  clone_ddl_timeout = 0. Force any existing clone to abort. */
-  clone_mark_abort(true);
-  ut_ad(!clone_check_active());
+  /* Concurrent clone operation is not supported. */
+  Clone_notify notifier(Clone_notify::Type::SYSTEM_REDO_DISABLE,
+                        dict_sys_t::s_invalid_space_id, false);
+  if (notifier.failed()) {
+    m_state.store(ENABLED);
+    return notifier.get_error();
+  }
 
   /* Mark that it is unsafe to crash going forward. */
-  log_persist_disable(*log_sys);
+  if (!srv_read_only_mode) {
+    /* We need to check for read-only mode, because InnoDB might be
+    restarted in read-only mode on log files for which redo logging
+    has been disabled just before the crash. During runtime, InnoDB
+    refuses to disable redo logging in read-only mode, but in such
+    case, we must pretend redo logging is still disabled. It should
+    not matter because in read-only, redo logging isn't used anyway.
+    However to preserve old behaviour we call s_logging.disable in
+    such case and we only prevent from calling log_persist_disable,
+    which in the old code was no-op anyway in such case (read-only).*/
+    log_persist_disable(*log_sys);
+  } else {
+    ut_ad(srv_is_being_started);
+  }
 
   ib::warn(ER_IB_WRN_REDO_DISABLED);
   m_state.store(DISABLED);
-
-  clone_mark_active();
 
   return 0;
 }
 
 int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
-  auto wait_cond = [&](bool alert, bool &result) {
+  auto wait_cond = [&](bool, bool &result) {
     if (Counter::total(m_count_nologging_mtr) == 0) {
       result = false;
       return 0;
@@ -976,10 +1030,10 @@ int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
                              nullptr, is_timeout);
 
   if (err == 0 && is_timeout) {
-    ut_ad(false);
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Innodb wait for no-log mtr timed out.");
     err = ER_INTERNAL_ERROR;
+    ut_d(ut_error);
   }
 
   return err;
@@ -987,7 +1041,7 @@ int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
 
 #ifdef UNIV_DEBUG
 /** Check if memo contains the given item.
-@return	true if contains */
+@return true if contains */
 bool mtr_t::memo_contains(const mtr_buf_t *memo, const void *object,
                           ulint type) {
   Find find(object, type);
@@ -1015,8 +1069,8 @@ struct FlaggedCheck {
 };
 
 /** Check if memo contains the given item.
-@param ptr		object to search
-@param flags		specify types of object (can be ORred) of
+@param ptr              object to search
+@param flags            specify types of object (can be ORred) of
                         MTR_MEMO_PAGE_S_FIX ... values
 @return true if contains */
 bool mtr_t::memo_contains_flagged(const void *ptr, ulint flags) const {
@@ -1030,11 +1084,11 @@ bool mtr_t::memo_contains_flagged(const void *ptr, ulint flags) const {
 }
 
 /** Check if memo contains the given page.
-@param[in]	ptr	pointer to within buffer frame
-@param[in]	flags	specify types of object with OR of
+@param[in]      ptr     pointer to within buffer frame
+@param[in]      flags   specify types of object with OR of
                         MTR_MEMO_PAGE_S_FIX... values
-@return	the block
-@retval	NULL	if not found */
+@return the block
+@retval NULL    if not found */
 buf_block_t *mtr_t::memo_contains_page_flagged(const byte *ptr,
                                                ulint flags) const {
   Find_page check(ptr, flags);
@@ -1045,7 +1099,7 @@ buf_block_t *mtr_t::memo_contains_page_flagged(const byte *ptr,
 }
 
 /** Mark the given latched page as modified.
-@param[in]	ptr	pointer to within buffer frame */
+@param[in]      ptr     pointer to within buffer frame */
 void mtr_t::memo_modify_page(const byte *ptr) {
   buf_block_t *block = memo_contains_page_flagged(
       ptr, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX);
@@ -1063,7 +1117,7 @@ void mtr_t::print() const {
                            << get_log()->size() << " bytes";
 }
 
-lsn_t mtr_commit_mlog_test(log_t &log, size_t payload) {
+lsn_t mtr_commit_mlog_test(size_t payload) {
   constexpr size_t MAX_PAYLOAD_SIZE = 1024;
   ut_a(payload <= MAX_PAYLOAD_SIZE);
 
@@ -1127,18 +1181,18 @@ static void mtr_commit_mlog_test_filling_block_low(log_t &log,
   is defined by the dyn_buf_t used in mtr_t (mtr_buf_t). */
 
   if (MLOG_TEST_REC_OVERHEAD + payload <= mtr_buf_t::MAX_DATA_SIZE) {
-    mtr_commit_mlog_test(*log_sys, payload);
+    mtr_commit_mlog_test(payload);
   } else {
     /* It does not fit, so we need to write as much as possible here,
     but keep in mind that next record will need to take at least
     MLOG_TEST_REC_OVERHEAD bytes. Fortunately the MAX_DATA_SIZE is
     always at least twice larger than the MLOG_TEST_REC_OVERHEAD,
     so the payload has to be larger than MLOG_TEST_REC_OVERHEAD. */
-    ut_ad(mtr_buf_t::MAX_DATA_SIZE >= MLOG_TEST_REC_OVERHEAD * 2);
+    static_assert(mtr_buf_t::MAX_DATA_SIZE >= MLOG_TEST_REC_OVERHEAD * 2);
     ut_a(payload > MLOG_TEST_REC_OVERHEAD);
 
-    /* Subtract space which we will consume by usage of next record.
-    The remaining space is maximum we are allowed to consume within
+    /* Subtract space which we will occupy by usage of next record.
+    The remaining space is maximum we are allowed to occupy within
     this record. */
     payload -= MLOG_TEST_REC_OVERHEAD;
 
@@ -1149,7 +1203,7 @@ static void mtr_commit_mlog_test_filling_block_low(log_t &log,
     }
 
     /* Write this MLOG_TEST record. */
-    mtr_commit_mlog_test(*log_sys, payload);
+    mtr_commit_mlog_test(payload);
 
     /* Compute upper bound for maximum level of recursion that is ever possible.
     This is to verify the guarantee that we don't go to deep.

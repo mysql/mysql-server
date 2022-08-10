@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,7 +197,7 @@ class Cache_element {
 
   // Debug dump of the element to stderr.
   /* purecov: begin inspected */
-  void dump(const String_type &prefix MY_ATTRIBUTE((unused)) = "      ") const {
+  void dump(const String_type &prefix [[maybe_unused]] = "      ") const {
 #ifndef NDEBUG
     fprintf(stderr, "%sobj: %p, id: %llu, cnt: %u", prefix.c_str(), m_object,
             m_object ? m_object->id() : 0, m_ref_counter);

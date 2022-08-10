@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ namespace Dump {
 
 class Database_end_dump_task : public Abstract_database_dump_task {
  public:
-  Database_end_dump_task(Database *related_database);
+  explicit Database_end_dump_task(Database *related_database);
 
   ~Database_end_dump_task() override;
 };

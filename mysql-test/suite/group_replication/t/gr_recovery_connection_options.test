@@ -25,6 +25,7 @@
 
 --source include/big_test.inc
 --source include/have_debug.inc
+--source include/have_group_replication_xcom_communication_stack.inc
 --let $group_replication_group_name= b5eb4110-a3a2-11e3-a5e2-0800200c9a66
 --source include/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1

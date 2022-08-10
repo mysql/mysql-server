@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,8 @@ namespace thread {
 */
 class Thread {
  public:
-  Thread() {}
-  virtual ~Thread() {}
+  Thread() = default;
+  virtual ~Thread() = default;
 
   /*
     Will create a new pthread, and invoke run();

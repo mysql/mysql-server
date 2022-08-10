@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.system_time_zone);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT system_time_zone = @@SESSION.system_time_zone;
---echo Expected error 'Readonly variable'
+SELECT system_time_zone;
+--echo Expected error 'Unknown column'
 
 

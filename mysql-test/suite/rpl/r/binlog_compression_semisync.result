@@ -5,10 +5,10 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection master]
 CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
-include/install_semisync_master.inc
+include/install_semisync_source.inc
 [connection slave]
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-include/install_semisync_slave.inc
+include/install_semisync_replica.inc
 [connection slave]
 include/stop_slave.inc
 include/start_slave.inc
@@ -45,10 +45,10 @@ include/assert.inc [Assert that the slave is still there]
 include/assert.inc [Assert that the expected number of commits were acknowledged]
 [connection slave]
 include/stop_slave.inc
-include/uninstall_semisync_slave.inc
+include/uninstall_semisync_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 include/start_slave.inc
 [connection master]
-include/uninstall_semisync_master.inc
+include/uninstall_semisync_source.inc
 include/rpl_end.inc

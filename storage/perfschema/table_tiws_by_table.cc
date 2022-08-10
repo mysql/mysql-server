@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -188,7 +188,7 @@ int table_tiws_by_table::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_tiws_by_table::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_tiws_by_table::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_tiws_by_table *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_tiws_by_table);
@@ -252,7 +252,7 @@ int table_tiws_by_table::read_row_values(TABLE *table, unsigned char *buf,
         case 0: /* OBJECT_TYPE */
         case 1: /* SCHEMA_NAME */
         case 2: /* OBJECT_NAME */
-          m_row.m_object.set_field(f->field_index(), f);
+          m_row.m_object.set_nullable_field(f->field_index(), f);
           break;
         case 3: /* COUNT_STAR */
           set_field_ulonglong(f, m_row.m_stat.m_all.m_count);

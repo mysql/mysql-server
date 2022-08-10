@@ -1,0 +1,692 @@
+# ==== Purpose ====
+#
+# Execute all known scenarios/corner cases where a GTID is generated
+# despite super_read_only=1. It is normally expected that
+# super_read_only=1 prevents the execution of all statements, but
+# there are some exceptions.
+#
+# Also execute some scenarios where no GTID is generated, but which
+# are considered 'suspicious', either because they are similar to
+# scenarios where a GTID is generated, or because the server code
+# writes the binary log in a special way, or takes other unusual code
+# paths related to GTID generation.
+#
+# === Implementation ====
+#
+# Configure replication.
+#
+#  1. Run START REPLICA and replicate from some server.
+#  2. Restart a replica while there is any MEMORY table defined.
+#  3. Restart a replica server while slave_open_temp_tables > 0
+#     (requires statement-based replication on the source).
+#(3b).When replica has open temp tables and we restart the
+#     source server and reconnect replica. Replica generate extra
+#     DROP TEMPORARY TABLE statements in this case
+#  4. Using statement-based replication, create a temporary table
+#     while not in super_read_only mode, and then disconnect while in
+#     super_read_only mode.
+#  5. ALTER INSTANCE (check all syntax variants, since there is
+#     variation in their implementation).
+#  6. FLUSH statements (check all syntax variants, since there is
+#     variation in their implementation).
+#(6b).FLUSH STATEMENTS UNDER NO_WRITE_TO_BINLOG AND CHECK GTID EXCECUTED
+#  7. SET gtid_purged.
+#  8. SET gtid_next to a GTID, and then execute any of:
+#     #CREATE TABLE
+#     #COMMIT
+#     #XA START
+#     #SET autocommit = 1
+#     #SET autocommit = 0
+#     #START TRANSACTION READ_ONLY; COMMIT;
+#  9. The unusual DDL statements
+# 10. [UN]INSTALL [PLUGIN | COMPONENT]
+# 11. [OPTIMIZE | ANALYZE | REPAIR] TABLE
+# 12. ALTER TABLE ... [OPTIMIZE | ANALYZE | REPAIR] PARTITION.
+# 13. Run GRANT, REVOKE, CREATE USER, DROP USER in a way that it fails, e.g., create two users where the second already exists.
+# 14. Run DML on the tables gtid_executed, slave_master_info,
+#     slave_relay_log_info, and slave_worker_info.
+# 15. Cleanup
+#
+# === References ===
+#
+# Bug #33001701 : VERIFY STATEMENTS THAT GENERATE GTID IF THE SERVER IS IN SUPER_READ_ONLY MODE
+#
+
+--let $rpl_gtid_utils = 1
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+# Supression is needed as we alter InnoDB relaylog in the test.
+let $messages =
+.*InnoDB redo logging is disabled.* All data could be lost in case of a server crash.*
+;
+--source include/suppress_messages.inc
+#call mtr.add_suppression("InnoDB redo logging is disabled. All data could be lost in case of a server crash.");
+
+########################################################################
+--echo #### 1. Run START REPLICA and replicate from some server.
+########################################################################
+--source include/rpl_connection_slave.inc
+SET GLOBAL SUPER_READ_ONLY = ON;
+--source include/start_slave.inc
+--let server_2_uuid = `SELECT @@GLOBAL.SERVER_UUID`
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--source include/sync_slave_sql_with_master.inc
+
+--let $gtid_step_uuid = $server_2_uuid
+--let $gtid_step_only_count = 1
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+--let $gtid_step_count = 0
+--let $gtid_step_only_count = 0
+
+########################################################################
+--echo #### 2. Restart a replica while there is any MEMORY table defined.
+########################################################################
+--source include/rpl_connection_slave.inc
+--source include/gtid_step_reset.inc
+
+--source include/rpl_connection_master.inc
+--source include/gtid_step_reset.inc
+
+CREATE TABLE m1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=Memory;
+--source include/sync_slave_sql_with_master.inc
+
+#Assert that data is replicated correctly
+--let $assert_text = Table m1 must exists
+--let $assert_cond = [ SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = "test" AND TABLE_NAME = "m1"] = 1
+--source include/assert.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+# Checking gtid count after create statement
+--source include/rpl_connection_slave.inc
+--let $gtid_step_count = 1
+--let $gtid_step_only_count = 1
+--source include/gtid_step_assert.inc
+
+--source include/rpl_restart_server.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+
+# Verifies that read-only queries on m1 do not generate a TRUNCATE statement.
+SELECT COUNT(*) FROM m1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+INSERT INTO m1 values(1);
+--source include/sync_slave_sql_with_master.inc
+
+# After operation on memory table replica generats a TRUNCATE TABLE statement when replicating into the memory table.
+--let $gtid_step_count = 2
+--let $gtid_step_only_count = 1
+--source include/gtid_step_assert.inc
+--let $gtid_step_count = 0
+--let $gtid_step_only_count = 0
+
+########################################################################
+--echo #### 3. Restart a replica server while replica_open_temp_tables > 0
+########################################################################
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+SET @@global.binlog_format = STATEMENT;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+SET SESSION BINLOG_FORMAT = STATEMENT;
+CREATE TEMPORARY TABLE t2(i INT);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--source include/gtid_step_reset.inc
+
+--let $var_value = query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text = Replica_open_temp_tables shall be 1
+--let $assert_cond = $var_value = 1
+--source include/assert.inc
+
+--source include/stop_slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+# Checking GTID of source and replica. No change in GTID
+--source include/rpl_connection_slave.inc
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+# Restart replica and checking GTID has not changed
+--let $rpl_server_number = 2
+--let $rpl_start_with_gtids = 1
+-- source include/rpl_restart_server.inc
+--source include/gtid_step_reset.inc
+--source include/start_slave.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $var_value = query_get_value(SHOW STATUS LIKE 'Replica_open_temp_tables', Value, 1)
+--let $assert_text = Replica_open_temp_tables shall be 0
+--let $assert_cond = $var_value = 0
+--source include/assert.inc
+
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+# ########################################################################
+--echo #### 3 (b). when replica has open temp tables and we restart the
+--echo #### source server and reconnect replica. Replica generate extra
+--echo #### DROP TEMPORARY TABLE statements in this case
+# ########################################################################
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+SET @@global.binlog_format = STATEMENT;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TEMPORARY TABLE t3(i INT);
+--source include/sync_slave_sql_with_master.inc
+--source include/save_binlog_position.inc
+
+# Stop receiver thread before restarting source server.  The GTID
+# generation does not depend on doing this, but it makes the replica
+# more deterministic; we are sure that there will be no errors in the
+# receiver thread, which makes it easier to code the test in a
+# deterministic way. We start the thread again once the replica server
+# has started.
+--source include/rpl_connection_slave.inc
+--source include/stop_slave_io.inc
+
+--let $rpl_server_number = 1
+--let $rpl_force_stop = 1
+--source include/rpl_restart_server.inc
+
+--source include/rpl_connection_slave.inc
+
+--source include/gtid_step_reset.inc
+--source include/start_slave.inc
+
+# Usually, when using gtid_mode=on, sync_slave_sql_with_master.inc
+# will just wait for the replica's gtid_executed to become equal to
+# the source's gtid_executed.  But here, we need replica to apply the
+# Format_description_log_event, since the replica executes the DROP
+# while applying that. Format_description_log_event doesn't have a
+# GTID, and the replica's gtid_executed is already equal to the
+# source's gtid_executed, so if we would merely invoke
+# sync_slave_sql_with_master.inc, it may return before the replica has
+# applied the Format_description_log_event.  To be sure that the
+# replica has executed the Format_description_log_event, we create a
+# new transaction, which will appear in the binary log after the
+# Format_description_log_event, and wait for the replica to apply that
+# too.  Actually we create two transactions; one CREATE and one DROP,
+# in order to clean up after ourselves.
+--source include/rpl_connection_master.inc
+CREATE TABLE aux_table_to_sync (a INT);
+DROP TABLE aux_table_to_sync;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--let event_sequence = Gtid # Query/.*DROP.*t3.* # Gtid # Query/.*CREATE.*aux.* # Gtid # Query/.*DROP.*aux.*
+--source include/assert_binlog_events.inc
+
+# We expect 3 GTIDs: one for the DROP, one for CREATE TABLE, and one
+# for DROP TABLE.
+--let $gtid_step_only_count = 1
+--let $gtid_step_count = 3
+--source include/gtid_step_assert.inc
+
+--source include/rpl_connection_master.inc
+
+--let $gtid_step_only_count = 0
+
+# ########################################################################
+--echo #### 4. Using statement-based replication, create a temporary table
+--echo ####    while not in super_read_only mode, and then disconnect while
+--echo ####    in super_read_only mode.
+# ########################################################################
+# Create temporary table on a new connection.
+--connect (con1, 127.0.0.1, root, , , $SLAVE_MYPORT,)
+--connection con1
+SET @@global.super_read_only = 0;
+SET @@session.binlog_format = STATEMENT;
+CREATE TEMPORARY TABLE t1 (a INT);
+
+# Remember gtid_executed and binlog position.
+--source include/gtid_step_reset.inc
+--source include/save_binlog_position.inc
+
+# Enable super_read_only and disconnect
+SET @@global.super_read_only = 1;
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+# Wait for the disconnected session to log DROP
+--source include/rpl_connection_slave.inc
+--let $wait_for_binlog_events = 1
+--let $event_sequence = Gtid # Query(.*DROP.*)
+--source include/assert_binlog_events.inc
+--let $wait_for_binlog_events = 0
+
+# Assert that one GTID was generated.
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+--let $gtid_step_count = 0
+
+########################################################################
+--echo #### 5. ALTER INSTANCE AND CHECK GTID_EXCECUTED
+########################################################################
+--source include/rpl_connection_slave.inc
+SET GLOBAL SUPER_READ_ONLY = ON;
+--source include/gtid_step_reset.inc
+
+--disable_query_log
+SET @@global.binlog_encryption = ON;
+--enable_query_log
+
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+
+--disable_warnings
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+--enable_warnings
+ALTER INSTANCE RELOAD TLS;
+
+# Assert that no GTID was executed.
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+########################################################################
+--echo #### 6(a) FLUSH STATEMENTS AND CHECK GTID EXCECUTED
+########################################################################
+--source include/rpl_connection_slave.inc
+FLUSH LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH BINARY LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH TABLES;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH TABLES t1;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH ENGINE LOGS;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH ERROR LOGS;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH GENERAL LOGS;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH HOSTS;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH PRIVILEGES;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH OPTIMIZER_COSTS;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH RELAY LOGS;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH SLOW LOGS;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH STATUS;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+FLUSH USER_RESOURCES;
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+--let $gtid_step_count = 0
+########################################################################
+--echo #### 6(b) FLUSH STATEMENTS UNDER NO_WRITE_TO_BINLOG AND CHECK GTID EXCECUTED
+########################################################################
+
+--source include/rpl_connection_slave.inc
+--source include/gtid_step_reset.inc
+
+FLUSH LOCAL ENGINE LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG ERROR LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG GENERAL LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG HOSTS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG PRIVILEGES;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG OPTIMIZER_COSTS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG RELAY LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG SLOW LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG STATUS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG USER_RESOURCES;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG TABLES;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG TABLES t1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG ENGINE LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+FLUSH NO_WRITE_TO_BINLOG BINARY LOGS;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+########################################################################
+--echo #### 7. SET gtid_purged.
+########################################################################
+--source include/rpl_connection_slave.inc
+
+SET @@GLOBAL.GTID_PURGED = '00000000-0000-0000-0000-000000000000:1-1000000000000000000';
+
+--let $assert_text = Assert the GTID_PURGED value
+--let $assert_cond = "[SELECT @@GLOBAL.GTID_PURGED]" = "00000000-0000-0000-0000-000000000000:1-1000000000000000000"
+--source include/assert.inc
+
+########################################################################
+--echo #### 8. SET gtid_next to a GTID, and then execute any of:
+--echo ####  COMMIT
+--echo ####  XA START
+--echo ####  SET autocommit = 1
+--echo ####  SET autocommit = 0
+--echo ####  START TRANSACTION READ_ONLY; COMMIT;
+########################################################################
+# Due to BUG#33599946, the connection is in an inconsistent state after this transaction.
+# We cannot continue executing tests on it. Hence, using a different connection just
+# for this transaction.
+
+--connect (conn, localhost, root,)
+--source include/gtid_step_reset.inc
+
+eval SET GTID_NEXT = '$uuida:1';
+XA START 'xa1';
+XA END 'xa1';
+XA PREPARE 'xa1';
+SET GTID_NEXT = 'AUTOMATIC';
+
+--let $gtid_step_only_count = 1
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+SET @@SESSION.AUTOCOMMIT = ON;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+SET @@SESSION.AUTOCOMMIT = OFF;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--disconnect conn
+
+--source include/wait_until_disconnected.inc
+sleep 15;
+
+--source include/rpl_connection_slave.inc
+SET GLOBAL SUPER_READ_ONLY = ON;
+--source include/gtid_step_reset.inc
+
+eval SET GTID_NEXT = '$uuida:2';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+--let $gtid_step_only_count = 1
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+eval SET GTID_NEXT = '$uuida:3';
+--error ER_OPTION_PREVENTS_STATEMENT
+START TRANSACTION READ WRITE;
+
+eval SET GTID_NEXT = '$uuida:4';
+START TRANSACTION READ ONLY;
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+--let $gtid_step_only_count = 1
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+--let $gtid_step_count = 0
+--let $gtid_step_only_count = 0
+
+########################################################################
+--echo #### 9. The unusual DDL statements:
+--echo #### [CREATE | ALTER] [SPATIAL REFERENCE SYTEM | SERVER | LOGFILE GROUP].
+########################################################################
+--source include/rpl_connection_slave.inc
+
+SET GLOBAL SUPER_READ_ONLY = OFF;
+CREATE TABLE t_part(c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
+PARTITION BY RANGE(c1)
+       (PARTITION p0 VALUES LESS THAN (2),
+       PARTITION p1 VALUES LESS THAN (5),
+       PARTITION p3 VALUES LESS THAN (10),
+       PARTITION sp00 VALUES LESS THAN (15));
+CREATE TABLE t_hash(c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_nopart1(c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_part1(c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
+PARTITION BY RANGE(c1)
+       (PARTITION p1 VALUES LESS THAN (5),
+       PARTITION p2 VALUES LESS THAN (10));
+SET GLOBAL SUPER_READ_ONLY = ON;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+CREATE TABLE t_test(c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+CREATE SPATIAL REFERENCE SYSTEM 13001000 NAME 'TEST13001000 Long-Lat WGS 84' DEFINITION 'GEOGCS["Long-Lat WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lon",EAST],AXIS["Lat",NORTH],AUTHORITY["EPSG","4326"]]';
+
+--error ER_OPTION_PREVENTS_STATEMENT
+CREATE SERVER s1 FOREIGN DATA WRAPPER mysql
+OPTIONS (USER 'Remote', HOST '198.51.100.106', DATABASE 'test');
+
+--error ER_OPTION_PREVENTS_STATEMENT
+CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo.dat' INITIAL_SIZE = 10M;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_part TRUNCATE PARTITION p0, p1;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_hash DISCARD TABLESPACE;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_hash IMPORT TABLESPACE;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_hash COALESCE PARTITION 1;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_nopart1 REMOVE PARTITIONING;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_part EXCHANGE PARTITION sp00 WITH TABLE t_nopart1;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_part REBUILD PARTITION p0;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_part1 REORGANIZE PARTITION p1,p2 INTO (PARTITION p3 VALUES LESS THAN (300));
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_part ADD PARTITION (PARTITION p3 VALUES LESS THAN (300));
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_part DROP PARTITION p3;
+
+########################################################################
+--echo #### 10. [UN]INSTALL [PLUGIN | COMPONENT]
+########################################################################
+--source include/gtid_step_reset.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+
+--error ER_OPTION_PREVENTS_STATEMENT
+UNINSTALL PLUGIN keyring_file;
+
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+########################################################################
+--echo #### 11. [OPTIMIZE | ANALYZE | REPAIR] TABLE
+########################################################################
+
+REPAIR TABLE t1;
+
+--let $gtid_step_count = 1
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ANALYZE TABLE t1;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+OPTIMIZE TABLE t1;
+
+--let $gtid_step_count = 0
+########################################################################
+--echo #### 12. ALTER TABLE ... [OPTIMIZE | ANALYZE | REPAIR] PARTITION.
+########################################################################
+--source include/gtid_step_reset.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_part OPTIMIZE PARTITION p0, p1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_part ANALYZE PARTITION p0;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER TABLE t_part REPAIR PARTITION p0, p1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+########################################################################
+--echo #### 13. Run GRANT, REVOKE, CREATE USER, DROP USER in a way that it
+--echo ####     fails, e.g., create two users where the second already exists.
+########################################################################
+SET @@global.super_read_only = 0;
+CREATE USER 'u1'@localhost IDENTIFIED BY '';
+SET @@global.super_read_only = 1;
+--source include/gtid_step_reset.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+CREATE USER u1,u2;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+GRANT ALL ON *.* To u1,u2;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+REVOKE ALL ON *.* from u1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+DROP USER u1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+DROP USER u1,u2;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+########################################################################
+--echo #### 14. Run DML on mysql.gtid_executed, slave_master_info,
+--echo ####     slave_relay_log_info, and slave_worker_info tables.
+########################################################################
+
+--error ER_OPTION_PREVENTS_STATEMENT
+UPDATE mysql.slave_master_info SET Retry_count = Retry_count + 1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+UPDATE mysql.slave_relay_log_info SET Sql_delay = Sql_delay + 1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+UPDATE mysql.slave_worker_info SET Relay_log_pos = Relay_log_pos + 1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--error ER_OPTION_PREVENTS_STATEMENT
+UPDATE mysql.gtid_executed SET interval_end = interval_end + 1;
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+########################################################################
+--echo #### 15. Cleanup
+########################################################################
+SET GLOBAL READ_ONLY = OFF;
+SET GTID_NEXT = 'AUTOMATIC';
+--source include/rpl_connection_master.inc
+SET GLOBAL SUPER_READ_ONLY = OFF;
+SET GLOBAL READ_ONLY = OFF;
+DROP TABLE t1, m1;
+--source include/rpl_end.inc

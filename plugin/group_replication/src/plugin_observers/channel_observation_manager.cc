@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include "plugin/group_replication/include/observer_server_channels.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
-Channel_state_observer::~Channel_state_observer() {}
+Channel_state_observer::~Channel_state_observer() = default;
 
 Channel_observation_manager_list::Channel_observation_manager_list(
     MYSQL_PLUGIN plugin_info, uint num_managers)

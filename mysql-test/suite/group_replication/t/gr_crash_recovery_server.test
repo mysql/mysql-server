@@ -126,8 +126,9 @@ sleep 2;
 --echo # killing
 --let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
---let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
---replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--let $group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_communication_stack=$group_replication_comm_stack
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $group_replication_comm_stack GROUP_REPLICATION_COMMUNICATION_STACK
 
 --source include/kill_and_restart_mysqld.inc
 --echo # restarting
@@ -189,8 +190,9 @@ sleep 1;
 # Kill the recovery server
 # kill server M3
 --echo # killing
---let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
---replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_communication_stack=$group_replication_comm_stack
+--let $group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $group_replication_comm_stack GROUP_REPLICATION_COMMUNICATION_STACK
 --source include/kill_and_restart_mysqld.inc
 --echo # restarting
 

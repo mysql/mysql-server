@@ -1,4 +1,5 @@
 --source include/have_debug_sync.inc
+--source include/count_sessions.inc
 
 # Scenario:
 # C1 obtains implicit lock
@@ -350,3 +351,73 @@ INSERT INTO t1 (id,val) VALUES (1,1),(3,3);
 --disconnect C3
 
 DROP TABLE t1;
+
+# Scenario:
+# C1 obtains implicit lock
+# C2 notices the implicit lock and decides to do impl-to-expl conversion
+# C1 starts commit and pauses after trx_erase_lists
+# C3 ignores C1 (as it is no longer in rw-list) and adds own exclusive lock on
+#    the record
+# C2 finishes impl-to-explicit conversion
+# (at this point we have two X locks on the same row)
+
+CREATE TABLE t1(id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 (id) VALUES (1),(3);
+
+--connect(C1,localhost,root,,test)
+--connect(C2,localhost,root,,test)
+--connect(C3,localhost,root,,test)
+
+--connection C1
+    BEGIN;
+    INSERT INTO t1 (id) VALUES (2);
+
+--connection C3
+    #ensure that C3 has assigned trx->id before we start hogging the trx_sys->mutex
+    BEGIN;
+    INSERT INTO t1 (id) VALUES (4);
+
+--connection C2
+    BEGIN;
+    SET DEBUG_SYNC = "before_lock_rec_convert_impl_to_expl_for_trx
+        SIGNAL c2_decided
+        WAIT_FOR c2_can_convert";
+    SET DEBUG_SYNC = "after_lock_clust_rec_read_check_and_lock SIGNAL c2_will_wait";
+    --send SELECT * FROM t1 WHERE id=2 FOR UPDATE
+
+--connection C1
+    SET DEBUG_SYNC = "now WAIT_FOR c2_decided";
+    SET DEBUG_SYNC = "after_trx_erase_lists
+        SIGNAL c1_will_commit
+        WAIT_FOR c1_can_commit";
+    --send COMMIT
+
+--connection C3
+    SET DEBUG_SYNC = "now WAIT_FOR c1_will_commit";
+    SET DEBUG_SYNC = "after_lock_clust_rec_read_check_and_lock SIGNAL c2_can_convert WAIT_FOR c3_can_verify";
+    --send SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+
+--connection default
+    SET DEBUG_SYNC = "now WAIT_FOR c2_will_wait";
+    SET DEBUG_SYNC = "now SIGNAL c1_can_commit";
+    SET DEBUG_SYNC = "now SIGNAL c3_can_verify";
+
+--connection C3
+    --reap
+    COMMIT;
+
+--connection C1
+    --reap
+
+--connection C2
+    --reap
+    COMMIT;
+
+--connection default
+--disconnect C1
+--disconnect C2
+--disconnect C3
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

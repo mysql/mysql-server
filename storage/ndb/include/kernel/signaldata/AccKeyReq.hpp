@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,8 @@
 
 struct AccKeyReq
 {
-  STATIC_CONST( SignalLength_localKey = 10 );
-  STATIC_CONST( SignalLength_keyInfo  =  8 /* + keyLen */ );
+  static constexpr Uint32 SignalLength_localKey = 10;
+  static constexpr Uint32 SignalLength_keyInfo = 8 /* + keyLen */;
 
   Uint32 connectPtr;
   Uint32 fragmentPtr;

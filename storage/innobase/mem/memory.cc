@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,8 +44,8 @@ external tools. */
 #include <stdarg.h>
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.
-@param[in]	heap	memory heap where string is allocated
-@param[in]	str	string to be copied
+@param[in]      heap    memory heap where string is allocated
+@param[in]      str     string to be copied
 @return own: a copy of the string */
 char *mem_heap_strdup(mem_heap_t *heap, const char *str) {
   return (static_cast<char *>(mem_heap_dup(heap, str, strlen(str) + 1)));
@@ -94,7 +94,7 @@ static ulint mem_heap_printf_low(
 
   while (*format) {
     /* Does this format specifier have the 'l' length modifier. */
-    ibool is_long = FALSE;
+    bool is_long = false;
 
     /* Length of one parameter. */
     size_t plen;
@@ -112,7 +112,7 @@ static ulint mem_heap_printf_low(
     }
 
     if (*format == 'l') {
-      is_long = TRUE;
+      is_long = true;
       format++;
     }
 
@@ -218,7 +218,7 @@ char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
 /** Validates the contents of a memory heap.
 Checks a memory heap for consistency, prints the contents if any error
 is detected. A fatal error is logged if an error is detected.
-@param[in]	heap	Memory heap to validate. */
+@param[in]      heap    Memory heap to validate. */
 void mem_heap_validate(const mem_heap_t *heap) {
   ulint size = 0;
 
@@ -244,20 +244,9 @@ void mem_heap_validate(const mem_heap_t *heap) {
 }
 #endif /* UNIV_DEBUG */
 
-/** Creates a memory heap block where data can be allocated.
- @return own: memory heap block, NULL if did not succeed (only possible
- for MEM_HEAP_BTR_SEARCH type heaps) */
-mem_block_t *mem_heap_create_block_func(
-    mem_heap_t *heap, /*!< in: memory heap or NULL if first block
-                      should be created */
-    ulint n,          /*!< in: number of bytes needed for user data */
-#ifdef UNIV_DEBUG
-    const char *file_name, /*!< in: file name where created */
-    ulint line,            /*!< in: line where created */
-#endif                     /* UNIV_DEBUG */
-    ulint type)            /*!< in: type of heap: MEM_HEAP_DYNAMIC or
-                           MEM_HEAP_BUFFER */
-{
+mem_block_t *mem_heap_create_block(mem_heap_t *heap, ulint n,
+                                   IF_DEBUG(const char *file_name, ulint line, )
+                                       ulint type) {
 #ifndef UNIV_LIBRARY
   buf_block_t *buf_block = nullptr;
 #endif /* !UNIV_LIBRARY */
@@ -279,21 +268,28 @@ mem_block_t *mem_heap_create_block_func(
   if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
     ut_ad(type == MEM_HEAP_DYNAMIC || n <= MEM_MAX_ALLOC_IN_BUF);
 
-    block = static_cast<mem_block_t *>(ut_malloc_nokey(len));
+    block = static_cast<mem_block_t *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len));
   } else {
     len = UNIV_PAGE_SIZE;
 
     if ((type & MEM_HEAP_BTR_SEARCH) && heap) {
-      /* We cannot allocate the block from the
-      buffer pool, but must get the free block from
-      the heap header free block field */
-
-      buf_block = static_cast<buf_block_t *>(heap->free_block);
-      heap->free_block = nullptr;
+      /* We cannot allocate the block from the buffer pool, but must get the
+      free block from the heap header free block field. This is because we hold
+      the X latch on AHI, and getting a block by eviction from LRU might require
+      it too. See btr_search_check_free_space_in_heap.
+      It is safe to do load()->if(!=null)->store(null) as the methods that do
+      such store of nullptr value are synchronized. The if statement is
+      important, because we can suffer from ABA problem if the value read is
+      nullptr, as it could be replaced with non-null by any concurrent
+      btr_search_check_free_space_in_heap, which is the only not synchronized
+      modify access to heap. */
+      buf_block = static_cast<buf_block_t *>(heap->free_block.load());
 
       if (UNIV_UNLIKELY(!buf_block)) {
         return (nullptr);
       }
+      heap->free_block.store(nullptr);
     } else {
       buf_block = buf_block_alloc(nullptr);
     }
@@ -303,9 +299,9 @@ mem_block_t *mem_heap_create_block_func(
 
   if (block == nullptr) {
 #ifdef UNIV_NO_ERR_MSGS
-    ib::fatal()
+    ib::fatal(UT_LOCATION_HERE)
 #else
-    ib::fatal(ER_IB_MSG_1274)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1274)
 #endif /* !UNIV_NO_ERR_MSGS */
         << "Unable to allocate memory of size " << len << ".";
   }
@@ -320,7 +316,8 @@ mem_block_t *mem_heap_create_block_func(
 
 #else  /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
   len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
-  block = static_cast<mem_block_t *>(ut_malloc_nokey(len));
+  block = static_cast<mem_block_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len));
   ut_a(block);
   block->free_block = nullptr;
 #endif /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
@@ -388,8 +385,8 @@ mem_block_t *mem_heap_add_block(mem_heap_t *heap, /*!< in: memory heap */
     new_size = n;
   }
 
-  new_block = mem_heap_create_block(heap, new_size, heap->type, heap->file_name,
-                                    heap->line);
+  new_block = mem_heap_create_block(
+      heap, new_size, IF_DEBUG(heap->file_name, heap->line, ) heap->type);
   if (new_block == nullptr) {
     return (nullptr);
   }
@@ -438,7 +435,7 @@ void mem_heap_block_free(mem_heap_t *heap,   /*!< in: heap */
 #if !defined(UNIV_LIBRARY) && !defined(UNIV_HOTBACKUP)
   if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
     ut_ad(!buf_block);
-    ut_free(block);
+    ut::free(block);
   } else {
     ut_ad(type & MEM_HEAP_BUFFER);
 
@@ -448,7 +445,7 @@ void mem_heap_block_free(mem_heap_t *heap,   /*!< in: heap */
     buf_block_free(buf_block);
   }
 #else  /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
-  ut_free(block);
+  ut::free(block);
 #endif /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
 }
 
@@ -457,18 +454,24 @@ void mem_heap_block_free(mem_heap_t *heap,   /*!< in: heap */
 /** Frees the free_block field from a memory heap. */
 void mem_heap_free_block_free(mem_heap_t *heap) /*!< in: heap */
 {
-  if (UNIV_LIKELY_NULL(heap->free_block)) {
+  /* It is safe to do load()->if(!=null)->store(null) as the methods that do
+  such store of nullptr value are synchronized. The if statement is important,
+  because we can suffer from ABA problem if the value read is nullptr, as it
+  could be replaced with non-null by any concurrent
+  btr_search_check_free_space_in_heap, which is the only not synchronized
+  modify access to heap. */
+  const auto block = static_cast<buf_block_t *>(heap->free_block.load());
+  if (UNIV_LIKELY_NULL(block)) {
 #ifdef UNIV_DEBUG_VALGRIND
-    void *block = static_cast<buf_block_t *>(heap->free_block)->frame;
+    const auto frame = block->frame;
     /* Make memory available again for the buffer pool, since
     we previously set parts of the block to "free" state in
     heap allocator. */
-    UNIV_MEM_ALLOC(block, UNIV_PAGE_SIZE);
+    UNIV_MEM_ALLOC(frame, UNIV_PAGE_SIZE);
 #endif
 
-    buf_block_free(static_cast<buf_block_t *>(heap->free_block));
-
-    heap->free_block = nullptr;
+    heap->free_block.store(nullptr);
+    buf_block_free(block);
   }
 }
 #endif /* !UNIV_LIBRARY */

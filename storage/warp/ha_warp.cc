@@ -80,6 +80,7 @@
 using namespace SIMDCompressionLib;
 #endif
 
+int warp_push_to_engine(THD *, AccessPath *, JOIN *);
 // Stuff for shares */
 mysql_mutex_t warp_mutex;
 static std::unique_ptr<collation_unordered_multimap<std::string, WARP_SHARE *>>
@@ -177,6 +178,7 @@ static int warp_init_func(void *p) {
   warp_hton->rm_tmp_tables = default_rm_tmp_tables;
   warp_hton->commit = warp_commit;
   warp_hton->rollback = warp_rollback;
+  warp_hton->push_to_engine = warp_push_to_engine;
   
   // starts the database and reads in the database state, upgrades
   // tables and does crash recovery
@@ -822,7 +824,6 @@ void ha_warp::write_buffered_rows_to_disk() {
   std::string part_dir = get_writer_partition();
   auto part_dir_copy = strdup(part_dir.c_str());
   auto part_name = basename(part_dir_copy);
-  //std::cerr << "Writing " << writer->mRows() << " to disk\n";  
   writer->write(part_dir.c_str(), part_name);
   writer->clearData();
   //maintain_indexes(part_dir.c_str());
@@ -2516,40 +2517,65 @@ int ha_warp::index_read_idx_map(uchar *buf, uint idxno, const uchar *key,
  * @param table_aqp The specific table in the join plan to examine.
  * @return Possible error code, '0' if no errors.
  */
-int ha_warp::engine_push(AQP::Table_access *table_aqp) {
+int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
+  AQP::Join_plan query_plan(thd, root_path, join);
+  const uint count = query_plan.get_access_count();
   
-  push_where_clause="";
-  const Item *remainder = NULL;
-  //push_where_clause = "";
-  
-  // even if not using ECP, the pushdown_info structure must be created for 
-  // reading from tables to work
-  auto pushdown_info = get_or_create_pushdown_info(table->in_use, table->alias, share->data_dir_name);
-  assert(pushdown_info != NULL);
-  
-  THD const *thd = table->in_use;
-  if(thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
-    const Item *cond = table_aqp->get_condition();
-    if(cond == nullptr) return 0;
-   //AQP::enum_access_type type = table_aqp->get_access_type();
-    
-    auto cond2 = table_aqp->get_condition();
-    String str;
-    str.reserve(1024*1024);
-    cond2->print(current_thd, &str, QT_ORDINARY);
-    // the pushdown information should already have been created in ::info
-    remainder = cond_push(cond, true);
-    
-    //if(remainder == nullptr) {
-    //  pushed_cond = cond;
-    //}
-    
-    table_aqp->set_condition(const_cast<Item *>(remainder));
-  
-    // used later to select rows from a table for bitmap index join optimzation
-    pushdown_info->filter = push_where_clause;
+  String str;
+  str.reserve(1024*1024);
+  if(join->where_cond) { 
+    join->where_cond->print(thd, &str, QT_ORDINARY);
   }
+  for (uint i = 0; i < count; i++) {
+    AQP::Table_access *table_access = query_plan.get_table_access(i);
+
+    const Item *cond = table_access->get_condition();
+    const TABLE *table = table_access->get_table();
+    QEP_TAB *qep_tab = table->reginfo.qep_tab;
+    ha_warp *const ha = (ha_warp*)(table->file);
+    
+    if (cond == nullptr && join->where_cond == nullptr) { 
+	    continue; 
+    }
+    
+    if(cond) {
+      cond->print(thd, &str, QT_ORDINARY);
+    }
+    auto share = ha->get_warp_share();
+    auto pushdown_info = get_or_create_pushdown_info(table->in_use, table->alias, share->data_dir_name);
+    assert(pushdown_info != NULL);
+    ha->push_where_clause = "";
+    const Item* remainder=nullptr;
+    const Item* remainder1=nullptr;
+    if(cond) {
+      remainder = ha->cond_push(cond,true);
+    }
+    auto save_where = ha->push_where_clause;
+    if(join->where_cond) {
+      ha->push_where_clause = "";
+      remainder1 = ha->cond_push(join->where_cond, true);
+    }
+    ha->push_where_clause = save_where;
+    
+    assert(root_path->filter().condition != nullptr);
+    if(remainder) 
+	    root_path->filter().condition = const_cast<Item *>(remainder);
+    // To get correct explain output: (Does NOT affect what is executed)
+    // Need to set the QEP_TAB condition as well. Note that QEP_TABs
+    //are not 'executed' any longer -> affects only explain output.
+    // Can be removed when/if the 'traditional' explain is rewritten
+    // to not use the QEP_TAB's
+    if (qep_tab != nullptr) {
+      // The Hypergraph-optimizer do not construct QEP_TAB's
+      qep_tab->set_condition(const_cast<Item *>(remainder));
+      qep_tab->set_condition_optim();
+    }
+
+    pushdown_info->filter = ha->push_where_clause;
+  }
+  
   return 0;
+  
 }
 
 /* This is the ECP (engine condition pushdown) handler code.  This is where the
@@ -2565,8 +2591,6 @@ const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
   static int unpushed_condition_count = 0;
   static int condition_count = 0;
   static std::string where_clause = "";
-  /* FIXME: only pushdown for SELECT */
-  //if(lock.type != TL_READ) return cond;
 
   // reset the variables when called at depth 0
   if(depth == 0) {
@@ -2757,7 +2781,6 @@ int ha_warp::append_column_filter(const Item *cond,
         return 0;
       }      
       
-      
       Item_field* f0 = (Item_field *)(arg[0]);
       Item_field* f1 = (Item_field *)(arg[1]);
 
@@ -2810,8 +2833,11 @@ int ha_warp::append_column_filter(const Item *cond,
 
       // find the field in the fact table
       for(fact_field = fact_table->fields; *fact_field; fact_field++) {
-        if((*fact_field)->field_name == fact_field_mysql_name) {
-          break;
+        //if((*fact_field)->field_name == fact_field_mysql_name) {
+        //  break;
+        //}
+        if(strcasecmp((*fact_field)->field_name, fact_field_mysql_name) == 0) {
+	  break;
         }
       }
       // have to find the field in the fact table or there was a serious error
@@ -2819,9 +2845,12 @@ int ha_warp::append_column_filter(const Item *cond,
 
       // find the field in the dimension table
       for(dim_field = dim_table->fields; *dim_field; dim_field++) {
-        if((*dim_field)->field_name == dim_field_mysql_name) {    
+        //if((*dim_field)->field_name == dim_field_mysql_name) {    
+        //   break;
+        //}
+        if(strcasecmp((*dim_field)->field_name, dim_field_mysql_name) == 0) {    
           break;
-        }
+	}
       } 
       assert(*dim_field != NULL);
 
@@ -3062,7 +3091,7 @@ int ha_warp::bitmap_merge_join() {
     bool dim_is_nullable = dim_field->is_nullable();
 
     if(dim_pushdown_info->filter == "") {
-      continue;
+	    dim_pushdown_info->filter="1=1";
     } 
     
     dim_pushdown_clause = dim_pushdown_info->filter;
@@ -3212,7 +3241,6 @@ int ha_warp::bitmap_merge_join() {
         return -1;
       }
     } // end of fetch loop
-    
     if( matches->size() > 0 ) {
       auto filter_info = new warp_filter_info(fact_colname, dim_alias, dim_colname);
       fact_table_filters.insert(std::make_pair(filter_info, matches));

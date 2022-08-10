@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2166,7 +2166,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
       }
       Uint32 zero = 0;
       Vector<Uint32> values;
-      values.fill(hm.getMapLen() - 1, zero);
+      values.fill(hm.getMapLen(), zero);
       hm.getMapValues(values.getBase(), values.size());
       for (Uint32 i = 0; i<hm.getMapLen(); i++)
       {
@@ -3283,6 +3283,11 @@ NdbDictionary::Dictionary::getEvent(const char * eventName)
   return 0;
 }
 
+void NdbDictionary::Dictionary::releaseEvent(
+    const NdbDictionary::Event *event) {
+  delete event;
+}
+
 int
 NdbDictionary::Dictionary::listEvents(List& list)
 {
@@ -3545,7 +3550,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       break;
     }
     case NdbDictionary::Column::Int:
-      out << *((Int32*)val);
+      out << *((const Int32*)val);
       break;
     case NdbDictionary::Column::Mediumint:
       out << sint3korr(val_p);
@@ -3554,7 +3559,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       out << *((const short*) val);
       break;
     case NdbDictionary::Column::Tinyint:
-      out << *((Int8*) val);
+      out << *((const Int8*)val);
       break;
     case NdbDictionary::Column::Binary:
       if (!format.hex_format)
@@ -3796,13 +3801,13 @@ NdbDictionary::NdbDataPrintFormat::NdbDataPrintFormat()
 }
 NdbDictionary::NdbDataPrintFormat::~NdbDataPrintFormat() {}
 
-
 NdbOut&
-operator<<(NdbOut& out, const NdbDictionary::Column& col)
+NdbDictionary::printColumnTypeDescription(NdbOut& out,
+                                          const NdbDictionary::Column& col)
 {
   const CHARSET_INFO *cs = col.getCharset();
-  const char *csname = cs ? cs->name : "?";
-  out << col.getName() << " ";
+  const char *csname = cs ? cs->m_coll_name : "?";
+
   switch (col.getType()) {
   case NdbDictionary::Column::Tinyint:
     out << "Tinyint";
@@ -3930,6 +3935,15 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
       break;
     }
   }
+  return out;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const NdbDictionary::Column& col)
+{
+  out << col.getName() << " ";
+
+  NdbDictionary::printColumnTypeDescription(out, col);
 
   if (col.getPrimaryKey())
     out << " PRIMARY KEY";

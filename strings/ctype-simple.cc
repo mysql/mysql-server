@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,15 @@
 #include "stdarg.h"
 #include "template_utils.h"
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4146 unary minus operator applied to unsigned type,
+// result still unsigned
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
+static inline longlong ulonglong_with_sign(bool negative, ulonglong ll) {
+  return negative ? -ll : ll;
+}
+MY_COMPILER_DIAGNOSTIC_POP()
+
 /*
   Returns the number of bytes required for strnxfrm().
 */
@@ -71,7 +80,7 @@ size_t my_strnxfrmlen_simple(const CHARSET_INFO *cs, size_t len) {
      is equal to comparing two original strings with my_strnncollsp_xxx().
 
      Not more than 'dstlen' bytes are written into 'dst'.
-     To garantee that the whole string is transformed, 'dstlen' must be
+     To guarantee that the whole string is transformed, 'dstlen' must be
      at least srclen*cs->strnxfrm_multiply bytes long. Otherwise,
      consequent memcmp() may return a non-accurate result.
 
@@ -213,8 +222,8 @@ size_t my_casedn_str_8bit(const CHARSET_INFO *cs, char *str) {
 }
 
 size_t my_caseup_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
-                      char *dst MY_ATTRIBUTE((unused)),
-                      size_t dstlen MY_ATTRIBUTE((unused))) {
+                      char *dst [[maybe_unused]],
+                      size_t dstlen [[maybe_unused]]) {
   char *end = src + srclen;
   const uchar *map = cs->to_upper;
   assert(src == dst && srclen == dstlen);
@@ -223,8 +232,8 @@ size_t my_caseup_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 size_t my_casedn_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
-                      char *dst MY_ATTRIBUTE((unused)),
-                      size_t dstlen MY_ATTRIBUTE((unused))) {
+                      char *dst [[maybe_unused]],
+                      size_t dstlen [[maybe_unused]]) {
   char *end = src + srclen;
   const uchar *map = cs->to_lower;
   assert(src == dst && srclen == dstlen);
@@ -268,7 +277,7 @@ int my_wc_mb_8bit(const CHARSET_INFO *cs, my_wc_t wc, uchar *str, uchar *end) {
    end buffer must be checked.
 */
 
-size_t my_snprintf_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), char *to,
+size_t my_snprintf_8bit(const CHARSET_INFO *cs [[maybe_unused]], char *to,
                         size_t n, const char *fmt, ...) {
   va_list args;
   size_t result;
@@ -528,12 +537,12 @@ longlong my_strntoll_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
     return negative ? LLONG_MIN : LLONG_MAX;
   }
 
-  return negative ? -i : i;
+  return ulonglong_with_sign(negative, i);
 
 noconv:
   err[0] = EDOM;
   if (endptr != nullptr) *endptr = nptr;
-  return 0L;
+  return 0LL;
 }
 
 ulonglong my_strntoull_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
@@ -603,7 +612,7 @@ ulonglong my_strntoull_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
     return (~(ulonglong)0);
   }
 
-  return negative ? -i : i;
+  return ulonglong_with_sign(negative, i);
 
 noconv:
   err[0] = EDOM;
@@ -633,9 +642,8 @@ noconv:
     Value of number in string
 */
 
-double my_strntod_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                       const char *str, size_t length, const char **end,
-                       int *err) {
+double my_strntod_8bit(const CHARSET_INFO *cs [[maybe_unused]], const char *str,
+                       size_t length, const char **end, int *err) {
   if (length == INT_MAX32) length = 65535; /* Should be big enough */
   *end = str + length;
   return my_strtod(str, end, err);
@@ -647,8 +655,8 @@ double my_strntod_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   Assume len >= 1
 */
 
-size_t my_long10_to_str_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                             char *dst, size_t len, int radix, long int val) {
+size_t my_long10_to_str_8bit(const CHARSET_INFO *cs [[maybe_unused]], char *dst,
+                             size_t len, int radix, long int val) {
   char buffer[66];
   char *p, *e;
   long int new_val;
@@ -683,7 +691,7 @@ size_t my_long10_to_str_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return len + sign;
 }
 
-size_t my_longlong10_to_str_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+size_t my_longlong10_to_str_8bit(const CHARSET_INFO *cs [[maybe_unused]],
                                  char *dst, size_t len, int radix,
                                  longlong val) {
   char buffer[65];
@@ -788,7 +796,7 @@ static int my_wildcmp_8bit_impl(const CHARSET_INFO *cs, const char *str,
       if ((cmp = *wildstr) == escape && wildstr + 1 != wildend)
         cmp = *++wildstr;
 
-      INC_PTR(cs, wildstr, wildend); /* This is compared trough cmp */
+      INC_PTR(cs, wildstr, wildend); /* This is compared through cmp */
       cmp = likeconv(cs, cmp);
       do {
         while (str != str_end && (uchar)likeconv(cs, *str) != cmp) str++;
@@ -895,28 +903,28 @@ size_t my_scan_8bit(const CHARSET_INFO *cs, const char *str, const char *end,
   }
 }
 
-void my_fill_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), char *s,
-                  size_t l, int fill) {
+void my_fill_8bit(const CHARSET_INFO *cs [[maybe_unused]], char *s, size_t l,
+                  int fill) {
   memset(s, fill, l);
 }
 
-size_t my_numchars_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        const char *b, const char *e) {
+size_t my_numchars_8bit(const CHARSET_INFO *cs [[maybe_unused]], const char *b,
+                        const char *e) {
   return (size_t)(e - b);
 }
 
-size_t my_numcells_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                        const char *b, const char *e) {
+size_t my_numcells_8bit(const CHARSET_INFO *cs [[maybe_unused]], const char *b,
+                        const char *e) {
   return (size_t)(e - b);
 }
 
-size_t my_charpos_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                       const char *b MY_ATTRIBUTE((unused)),
-                       const char *e MY_ATTRIBUTE((unused)), size_t pos) {
+size_t my_charpos_8bit(const CHARSET_INFO *cs [[maybe_unused]],
+                       const char *b [[maybe_unused]],
+                       const char *e [[maybe_unused]], size_t pos) {
   return pos;
 }
 
-size_t my_well_formed_len_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+size_t my_well_formed_len_8bit(const CHARSET_INFO *cs [[maybe_unused]],
                                const char *start, const char *end,
                                size_t nchars, int *error) {
   size_t nbytes = (size_t)(end - start);
@@ -924,7 +932,7 @@ size_t my_well_formed_len_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return std::min(nbytes, nchars);
 }
 
-size_t my_lengthsp_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+size_t my_lengthsp_8bit(const CHARSET_INFO *cs [[maybe_unused]],
                         const char *ptr, size_t length) {
   const char *end;
   end = (const char *)skip_trailing_space((const uchar *)ptr, length);
@@ -981,9 +989,10 @@ uint my_instr_simple(const CHARSET_INFO *cs, const char *b, size_t b_length,
 }
 
 extern "C" {
-static size_t my_well_formed_len_ascii(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *start,
-    const char *end, size_t nchars MY_ATTRIBUTE((unused)), int *error) {
+static size_t my_well_formed_len_ascii(const CHARSET_INFO *cs [[maybe_unused]],
+                                       const char *start, const char *end,
+                                       size_t nchars [[maybe_unused]],
+                                       int *error) {
   const char *oldstart = start;
   *error = 0;
   while (start < end) {
@@ -1119,14 +1128,14 @@ static void set_max_sort_char(CHARSET_INFO *cs) {
 }
 
 extern "C" {
-static bool my_coll_init_simple(
-    CHARSET_INFO *cs, MY_CHARSET_LOADER *loader MY_ATTRIBUTE((unused))) {
+static bool my_coll_init_simple(CHARSET_INFO *cs,
+                                MY_CHARSET_LOADER *loader [[maybe_unused]]) {
   set_max_sort_char(cs);
   return false;
 }
 }  // extern "C"
 
-longlong my_strtoll10_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+longlong my_strtoll10_8bit(const CHARSET_INFO *cs [[maybe_unused]],
                            const char *nptr, const char **endptr, int *error) {
   return my_strtoll10(nptr, endptr, error);
 }
@@ -1171,7 +1180,7 @@ static ulonglong d10[DIGITS_IN_ULONGLONG] = {1,
   Convert a string to unsigned long long integer value
   with rounding.
 
-  SYNOPSYS
+  SYNOPSIS
     my_strntoull10_8bit()
       cs              in      pointer to character set
       str             in      pointer to the string to be converted
@@ -1222,7 +1231,7 @@ static ulonglong d10[DIGITS_IN_ULONGLONG] = {1,
     In this case the return value is 0.
 */
 
-ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs [[maybe_unused]],
                                  const char *str, size_t length,
                                  int unsigned_flag, const char **endptr,
                                  int *error) {
@@ -1471,15 +1480,15 @@ ret_too_big:
     0 if it is not safe to propagate the constant
 */
 
-bool my_propagate_simple(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const uchar *str MY_ATTRIBUTE((unused)),
-                         size_t length MY_ATTRIBUTE((unused))) {
+bool my_propagate_simple(const CHARSET_INFO *cs [[maybe_unused]],
+                         const uchar *str [[maybe_unused]],
+                         size_t length [[maybe_unused]]) {
   return true;
 }
 
-bool my_propagate_complex(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                          const uchar *str MY_ATTRIBUTE((unused)),
-                          size_t length MY_ATTRIBUTE((unused))) {
+bool my_propagate_complex(const CHARSET_INFO *cs [[maybe_unused]],
+                          const uchar *str [[maybe_unused]],
+                          size_t length [[maybe_unused]]) {
   return false;
 }
 

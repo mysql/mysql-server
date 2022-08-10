@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,7 @@
     #  Error code
 */
 
-int mi_assign_to_key_cache(MI_INFO *info,
-                           ulonglong key_map MY_ATTRIBUTE((unused)),
+int mi_assign_to_key_cache(MI_INFO *info, ulonglong key_map [[maybe_unused]],
                            KEY_CACHE *key_cache) {
   int error = 0;
   MYISAM_SHARE *share = info->s;
@@ -103,12 +102,12 @@ int mi_assign_to_key_cache(MI_INFO *info,
 
   /*
     ensure that setting the key cache and changing the multi_key_cache
-    is done atomicly
+    is done atomically
   */
   mysql_mutex_lock(&share->intern_lock);
   /*
     Tell all threads to use the new key cache
-    This should be seen at the lastes for the next call to an myisam function.
+    This should be seen at the latest for the next call to an myisam function.
   */
   share->key_cache = key_cache;
 

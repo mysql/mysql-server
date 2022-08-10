@@ -16,10 +16,10 @@
 # 2. generate a large DML and verifies that it is replicated properly.
 # 3. drop the table
 # 4. Validates that the following stats are as expected:
-#    Rpl_semi_sync_master_yes_tx
-#    Rpl_semi_sync_master_clients
-#    Rpl_semi_sync_master_status
-#    Rpl_semi_sync_slave_status
+#    Rpl_semi_sync_source_yes_tx
+#    Rpl_semi_sync_source_clients
+#    Rpl_semi_sync_source_status
+#    Rpl_semi_sync_replica_status
 # 5. Clean up
 #
 # ==== References ====
@@ -34,11 +34,11 @@
 #
 --source include/rpl_connection_master.inc
 CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
---source include/install_semisync_master.inc
+--source include/install_semisync_source.inc
 
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
---source include/install_semisync_slave.inc
+--source include/install_semisync_replica.inc
 
 #
 # 1. Run a sanity test
@@ -86,7 +86,7 @@ while ($i > 0)
   if ($i == 1)
   {
     --source include/rpl_connection_master.inc
-    --let $actual=`SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_master_yes_tx'`
+    --let $actual=`SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_source_yes_tx'`
     # The 1 DML and 2 DDL transactions
     --let $expected=3
     --let $assert_text= Assert that the expected number of commits were acknowledged
@@ -95,7 +95,7 @@ while ($i > 0)
   if ($i == 2)
   {
     --source include/rpl_connection_master.inc
-    --let $actual=`SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_master_clients'`
+    --let $actual=`SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_source_clients'`
     --let $expected=1
     --let $assert_text= Assert that the slave is still there
   }
@@ -103,7 +103,7 @@ while ($i > 0)
   if ($i == 3)
   {
     --source include/rpl_connection_master.inc
-    --let $actual=`SELECT variable_value = "ON" FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_master_status'`
+    --let $actual=`SELECT variable_value = "ON" FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_source_status'`
     --let $expected=1
     --let $assert_text= Assert that semisync is still up and running on the master
   }
@@ -111,7 +111,7 @@ while ($i > 0)
   if ($i == 4)
   {
     --source include/rpl_connection_slave.inc
-    --let $actual=`SELECT variable_value = "ON" FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_slave_status'`
+    --let $actual=`SELECT variable_value = "ON" FROM performance_schema.global_status WHERE variable_name = 'Rpl_semi_sync_replica_status'`
     --let $expected=1
     --let $assert_text= Assert that semisync is still up and running on the slave
   }
@@ -126,10 +126,10 @@ while ($i > 0)
 #
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
---source include/uninstall_semisync_slave.inc
+--source include/uninstall_semisync_replica.inc
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
---source include/uninstall_semisync_master.inc
+--source include/uninstall_semisync_source.inc
 
 --source include/rpl_end.inc

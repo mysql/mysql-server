@@ -1,0 +1,200 @@
+################################################################################
+# This test fits two purposes:
+# - Make sure that P_S tables will report values of the communication stack
+#   that are coherent with the specified design;
+# - Make sure that we can use mixed values for running variables and connection
+#   protocol in the same group if we follow the upgrade/downgrade design rules.
+#
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Start the group normally.
+# 2. Assert that the value in group_replication_communication_stack is the
+#    same as the one the in P_S table for incoming connections
+# 3. Stop both servers and backup the communication stack value, local_address
+#     and seeds
+# 4. In server 1, change to MySQL stack and adjust the local_address and seeds
+#    accordingly
+# 5. Start and bootstrap the group with server 1
+# 6. In server 2, change to MySQL stack and adjust the local_address and seeds
+#    accordingly
+# 7. Start server 2.
+# 8. Assert that the value in group_replication_communication_stack is the
+#    same as the one the in P_S table for incoming connections
+# 9. In server 1, change the protocol to XCom and check that it differs
+#     group_replication_communication_stack
+# 10. Stop server 1
+# 11. In server 2, change the protocol to XCom and check that it differs
+#     group_replication_communication_stack
+# 12. Stop server 2
+# 13. Bootstrap the group with server 1.
+# 14. Join Server 2.
+# 15. Clean up.
+#
+################################################################################
+
+--echo # 1. Start the group normally.
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo # 2. Assert that the value in group_replication_communication_stack is the
+--echo #    same as the one the in P_S table for incoming connections
+
+--let $_rpl_server= 2
+while ($_rpl_server)
+{
+  --let $_rpl_connection_name= server$_rpl_server
+  --connection $_rpl_connection_name
+
+  --let $server_uuid= `SELECT @@server_uuid`
+
+  --let $comm_stack_value= `SELECT @@group_replication_communication_stack`
+  --let $incoming_ps_value= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
+
+  --let $assert_cond= "$comm_stack_value" = "$incoming_ps_value"
+  --let $assert_text= Assert that the configured communication stack is the same as reported in P_S tables
+  --source include/assert.inc
+
+  --dec $_rpl_server
+}
+
+--echo # 3. Stop both servers and backup the communication stack value, local_address
+--echo #    and seeds
+--connection server2
+--let $communication_stack_save_2= `SELECT @@GLOBAL.group_replication_communication_stack`
+--let $local_addr_save_2= `SELECT @@GLOBAL.group_replication_local_address`
+--let $seeds_save_2= `SELECT @@GLOBAL.group_replication_group_seeds`
+--source include/stop_group_replication.inc
+
+--let $server_2_uuid= `SELECT @@server_uuid`
+--let $incoming_ps_value_server2_stopped= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_2_uuid"`
+--let $assert_cond= "$communication_stack_save_2" = "$incoming_ps_value_server2_stopped"
+--let $assert_text= Assert that the configured communication stack remains valid with a stopped server
+--source include/assert.inc
+
+--connection server1
+--let $communication_stack_save_1= `SELECT @@GLOBAL.group_replication_communication_stack`
+--let $local_addr_save_1= `SELECT @@GLOBAL.group_replication_local_address`
+--let $seeds_save_1= `SELECT @@GLOBAL.group_replication_group_seeds`
+--source include/stop_group_replication.inc
+
+--echo # 4. In server 1, change to MySQL stack and adjust the local_address and seeds
+--echo #    accordingly
+--echo # 5. Start and bootstrap the group with server 1
+
+SET GLOBAL group_replication_communication_stack= MySQL;
+--let $server_address_1= localhost:$SERVER_MYPORT_1
+--disable_query_log
+--eval SET GLOBAL group_replication_local_address= "$server_address_1"
+--eval SET GLOBAL group_replication_group_seeds= "$server_address_1"
+--enable_query_log
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo # 6. In server 2, change to MySQL stack and adjust the local_address and seeds
+--echo #    accordingly
+--echo # 7. Start server 2.
+--connection server2
+SET GLOBAL group_replication_communication_stack= MySQL;
+--let $server_address_2= localhost:$SERVER_MYPORT_2
+--disable_query_log
+--eval SET GLOBAL group_replication_local_address= "$server_address_2"
+--eval SET GLOBAL group_replication_group_seeds= "$server_address_1"
+--enable_query_log
+--source include/start_group_replication.inc
+
+
+--echo # 8. Assert that the value in group_replication_communication_stack is the
+--echo #    same as the one the in P_S table for incoming connections
+
+--let $_rpl_server= 2
+while ($_rpl_server)
+{
+  --let $_rpl_connection_name= server$_rpl_server
+  --connection $_rpl_connection_name
+
+  --let $server_uuid= `SELECT @@server_uuid`
+
+  --let $comm_stack_value= `SELECT @@group_replication_communication_stack`
+  --let $incoming_ps_value= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
+
+  --let $assert_cond= "$comm_stack_value" = "$incoming_ps_value"
+  --let $assert_text= Assert that the configured communication stack is the same as reported in P_S tables
+  --source include/assert.inc
+
+  --dec $_rpl_server
+}
+
+--echo # 9. In server 1, change the protocol to XCom and check that it differs
+--echo #     group_replication_communication_stack
+--echo # 10. Stop server 1
+--connection server1
+SET GLOBAL group_replication_communication_stack= XCOM;
+
+--let $server_uuid= `SELECT @@server_uuid`
+
+--let $comm_stack_value= `SELECT @@group_replication_communication_stack`
+--let $incoming_ps_value= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
+
+--let $assert_cond= "$comm_stack_value" != "$incoming_ps_value"
+--let $assert_text= Assert that the configured communication stack is different then the one reported in P_S tables
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+
+--echo # 11. In server 2, change the protocol to XCom and check that it differs
+--echo #     group_replication_communication_stack
+--echo # 12. Stop server 2
+--connection server2
+SET GLOBAL group_replication_communication_stack= XCOM;
+
+--let $server_uuid= `SELECT @@server_uuid`
+
+--let $comm_stack_value= `SELECT @@group_replication_communication_stack`
+--let $incoming_ps_value= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
+
+--let $assert_cond= "$comm_stack_value" != "$incoming_ps_value"
+--let $assert_text= Assert that the configured communication stack is different then the one reported in P_S tables
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+--echo # 13. Bootstrap the group with server 1.
+--connection server1
+SET GLOBAL group_replication_communication_stack= XCOM;
+--let $server_address_1= localhost:$SERVER_GR_PORT_1
+--disable_query_log
+--eval SET GLOBAL group_replication_local_address= "$server_address_1"
+--eval SET GLOBAL group_replication_group_seeds= "$server_address_1"
+--enable_query_log
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo # 14. Join Server 2.
+--connection server2
+SET GLOBAL group_replication_communication_stack= XCOM;
+--let $server_address_2= localhost:$SERVER_GR_PORT_2
+--disable_query_log
+--eval SET GLOBAL group_replication_local_address= "$server_address_2"
+--eval SET GLOBAL group_replication_group_seeds= "$server_address_1"
+--enable_query_log
+--source include/start_group_replication.inc
+
+--echo # 15. Clean up.
+
+--connection server2
+--disable_query_log
+--eval SET GLOBAL group_replication_communication_stack= "$communication_stack_save_2"
+--eval SET GLOBAL group_replication_local_address= "$local_addr_save_2"
+--eval SET GLOBAL group_replication_group_seeds= "$seeds_save_2"
+--enable_query_log
+
+--connection server1
+--disable_query_log
+--eval SET GLOBAL group_replication_communication_stack= "$communication_stack_save_1"
+--eval SET GLOBAL group_replication_local_address= "$local_addr_save_1"
+--eval SET GLOBAL group_replication_group_seeds= "$seeds_save_1"
+--enable_query_log
+
+## This is the end... My only friend the end!
+--source include/group_replication_end.inc

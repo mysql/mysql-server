@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql_com.h"   // SCRAMBLE_LENGTH
 #include "mysql_time.h"  // MYSQL_TIME
@@ -103,7 +103,6 @@ class ACL_HOST_AND_IP {
     @param[in]  ip_arg Buffer containing CIDR mask value.
     @param[out] val    Numeric IP mask value on success.
 
-    @return
     @retval false Parsing succeeded.
     @retval true  Parsing failed.
   */
@@ -115,7 +114,6 @@ class ACL_HOST_AND_IP {
     @param[in]  ip_arg Buffer containing subnet mask value.
     @param[out] val    Numeric IP mask value on success.
 
-    @return
     @retval false Parsing succeeded.
     @retval true  Parsing failed.
   */
@@ -127,7 +125,6 @@ class ACL_HOST_AND_IP {
     @param[in]  ip_arg Buffer containing IP value.
     @param[out] val    Numeric IP value on success.
 
-    @return
     @retval !nullptr Parsing succeeded. Returned value is the pointer following
     the buffer holding the IP.
     @retval nullptr  Parsing failed. The buffer does not contain valid IP value.
@@ -169,7 +166,7 @@ class ACL_ACCESS {
 /**
   @class ACL_compare
 
-  Class that compares ACL_ACCESS objects. Used in std::sort funciton.
+  Class that compares ACL_ACCESS objects. Used in std::sort functions.
 */
 class ACL_compare {
  public:
@@ -304,6 +301,7 @@ class ACL_USER : public ACL_ACCESS {
 
   void set_user(MEM_ROOT *mem, const char *user_arg);
   void set_host(MEM_ROOT *mem, const char *host_arg);
+  void set_mfa(MEM_ROOT *mem, I_multi_factor_auth *m);
   size_t get_username_length() const { return user ? strlen(user) : 0; }
   class Password_locked_state {
    public:
@@ -325,22 +323,23 @@ class ACL_USER : public ACL_ACCESS {
 
    protected:
     /**
-      read from the user config. The number of days to keep the accont locked
+      read from the user config. The number of days to keep the account locked
     */
     int m_password_lock_time_days;
     /**
-      read from the user config. The number of failed login attemps before the
+      read from the user config. The number of failed login attempts before the
       account is locked
     */
     uint m_failed_login_attempts;
     /**
-      The remaining login tries, valid ony if @ref m_failed_login_attempts and
+      The remaining login tries, valid only if @ref m_failed_login_attempts and
       @ref m_password_lock_time_days are non-zero
     */
     uint m_remaining_login_attempts;
     /** The day the account is locked, 0 if not locked */
     long m_daynr_locked;
   } password_locked_state;
+  I_multi_factor_auth *m_mfa;
 };
 
 class ACL_DB : public ACL_ACCESS {
@@ -368,7 +367,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
   } old_acl_proxy_users;
 
  public:
-  ACL_PROXY_USER() {}
+  ACL_PROXY_USER() = default;
 
   void init(const char *host_arg, const char *user_arg,
             const char *proxied_host_arg, const char *proxied_user_arg,
@@ -406,7 +405,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
          (host.get_host() && host_arg && !strcmp(host.get_host(), host_arg))));
   }
 
-  void print_grant(String *str);
+  void print_grant(THD *thd, String *str);
 
   void set_data(ACL_PROXY_USER *grant) { with_grant = grant->with_grant; }
 
@@ -421,6 +420,12 @@ class ACL_PROXY_USER : public ACL_ACCESS {
                                const LEX_CSTRING &proxied_host,
                                const LEX_CSTRING &proxied_user, bool with_grant,
                                const char *grantor);
+
+  size_t get_user_length() const { return user ? strlen(user) : 0; }
+
+  size_t get_proxied_user_length() const {
+    return proxied_user ? strlen(proxied_user) : 0;
+  }
 };
 
 class acl_entry {
@@ -449,7 +454,7 @@ class GRANT_NAME {
   GRANT_NAME(const char *h, const char *d, const char *u, const char *t,
              ulong p, bool is_routine);
   GRANT_NAME(TABLE *form, bool is_routine);
-  virtual ~GRANT_NAME() {}
+  virtual ~GRANT_NAME() = default;
   virtual bool ok() { return privs != 0; }
   void set_user_details(const char *h, const char *d, const char *u,
                         const char *t, bool is_routine);
@@ -487,13 +492,12 @@ class Acl_cache_allocator : public Malloc_allocator<T> {
   };
 
   template <class U>
-  Acl_cache_allocator(
-      const Acl_cache_allocator<U> &other MY_ATTRIBUTE((unused)))
+  Acl_cache_allocator(const Acl_cache_allocator<U> &other [[maybe_unused]])
       : Malloc_allocator<T>(key_memory_acl_cache) {}
 
   template <class U>
-  Acl_cache_allocator &operator=(
-      const Acl_cache_allocator<U> &other MY_ATTRIBUTE((unused))) {}
+  Acl_cache_allocator &operator=(const Acl_cache_allocator<U> &other
+                                 [[maybe_unused]]) {}
 };
 typedef Acl_cache_allocator<ACL_USER *> Acl_user_ptr_allocator;
 typedef std::list<ACL_USER *, Acl_user_ptr_allocator> Acl_user_ptr_list;

@@ -11,7 +11,7 @@ a	b	c	d
 3	3	3	10
 6	6	6	10
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
-ALTER TABLE t1 DROP COLUMN c;;
+ALTER TABLE t1 DROP COLUMN c, algorithm=inplace;
 SET DEBUG_SYNC = 'now WAIT_FOR altered';
 INSERT INTO t1(a, b, c) VALUES(7, 7, 7);
 UPDATE t1 SET a = 10 WHERE a = 1;
@@ -52,7 +52,7 @@ a	b	c	d
 3	3	3	10
 6	6	6	10
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
-ALTER TABLE t1 DROP COLUMN c;;
+ALTER TABLE t1 DROP COLUMN c, algorithm=inplace;
 SET DEBUG_SYNC = 'now WAIT_FOR altered';
 INSERT INTO t1(a, b, c) VALUES(7, 7, 7);
 UPDATE t1 SET a = 10 WHERE a = 1;
@@ -93,7 +93,7 @@ a	b	c	d
 3	3	3	10
 6	6	6	10
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
-ALTER TABLE t1 DROP COLUMN c;;
+ALTER TABLE t1 DROP COLUMN c, algorithm=inplace;
 SET DEBUG_SYNC = 'now WAIT_FOR altered';
 INSERT INTO t1(a, b, c) VALUES(7, 7, 7);
 UPDATE t1 SET a = 10 WHERE a = 1;

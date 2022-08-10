@@ -1932,7 +1932,9 @@ FROM_DAYS(4294967660)	FROM_DAYS(4294967661)	FROM_DAYS(4294967663)
 0000-00-00	0000-00-00	0000-00-00
 INSERT t1 VALUES(ADDTIME(0,0)), (FROM_DAYS(3652499));
 Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 Warning	1441	Datetime function: from_days field overflow
+Warning	4095	Delimiter ':' in position 2 in datetime value '00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 Warning	1441	Datetime function: from_days field overflow
 DROP TABLE t1;
 SET sql_mode=default;

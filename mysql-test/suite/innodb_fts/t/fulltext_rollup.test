@@ -1,0 +1,54 @@
+--echo #
+--echo # Bug#32996762: WRONG RESULT FOR FULL-TEXT MATCH FUNCTION ON ROLLUP COLUMN
+--echo #
+
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+INSERT INTO t VALUES ('abc'), ('abc abc');
+ANALYZE TABLE t;
+# Used to return wrong results. Now raises an error.
+--error ER_FULLTEXT_WITH_ROLLUP
+SELECT a, MATCH (a) AGAINST ('abc') FROM t GROUP BY a WITH ROLLUP;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32565923: WRONG RESULT WITH ROLLUP ON FULL-TEXT FUNCTION
+--echo #
+
+CREATE TABLE t (a varchar(10), FULLTEXT (a));
+INSERT INTO t VALUES ('abc'), ('xyz');
+ANALYZE TABLE t;
+# Used to return wrong results with the old optimizer. Now raises an error.
+--error ER_FULLTEXT_WITH_ROLLUP
+SELECT MATCH (a) AGAINST ('abc') AS score, a FROM t
+GROUP BY score, a WITH ROLLUP;
+DROP TABLE t;
+
+--echo #
+--echo # WL#14697: Reject calls to MATCH with rollup column as argument
+--echo #
+
+CREATE TABLE t (id INTEGER PRIMARY KEY, a VARCHAR(10), FULLTEXT (a));
+
+# Disallow use of rollup columns in the SELECT list.
+--error ER_FULLTEXT_WITH_ROLLUP
+SELECT MATCH (a) AGAINST ('abc') FROM t GROUP BY a WITH ROLLUP;
+--error ER_FULLTEXT_WITH_ROLLUP
+SELECT MATCH (a) AGAINST ('abc') FROM t GROUP BY id, a WITH ROLLUP;
+--error ER_FULLTEXT_WITH_ROLLUP
+SELECT MATCH (a) AGAINST ('abc') FROM t GROUP BY a, id WITH ROLLUP;
+
+# Disallow use of rollup columns in GROUP BY, HAVING and ORDER BY.
+--error ER_FULLTEXT_WITH_ROLLUP
+SELECT 1 FROM t GROUP BY a, MATCH (a) AGAINST ('abc') WITH ROLLUP;
+--error ER_FULLTEXT_WITH_ROLLUP
+SELECT 1 FROM t GROUP BY MATCH (a) AGAINST ('abc'), a WITH ROLLUP;
+--error ER_FULLTEXT_WITH_ROLLUP
+SELECT 1 FROM t GROUP BY a WITH ROLLUP HAVING MATCH (a) AGAINST ('abc');
+--error ER_FULLTEXT_WITH_ROLLUP
+SELECT 1 FROM t GROUP BY a WITH ROLLUP ORDER BY MATCH (a) AGAINST ('abc');
+
+# Allow use of rollup columns in WHERE (since they are only accessed
+# before aggregation/rollup).
+SELECT 1 FROM t WHERE MATCH (a) AGAINST ('abc') GROUP BY a WITH ROLLUP;
+
+DROP TABLE t;

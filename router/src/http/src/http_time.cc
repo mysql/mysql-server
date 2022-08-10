@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,7 @@
 #include <iostream>  // cerr
 #include <stdexcept>
 
-#include <event2/util.h>
-
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_request.h"
 
 int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len) {
   struct tm t_m;
@@ -56,10 +54,10 @@ int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len) {
       {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
        "Nov", "Dec"}};
 
-  return evutil_snprintf(
-      date_buf, date_buf_len, "%s, %02d %s %4d %02d:%02d:%02d GMT",
-      kDayNames.at(t_m.tm_wday), t_m.tm_mday, kMonthNames.at(t_m.tm_mon),
-      1900 + t_m.tm_year, t_m.tm_hour, t_m.tm_min, t_m.tm_sec);
+  return snprintf(date_buf, date_buf_len, "%s, %02d %s %4d %02d:%02d:%02d GMT",
+                  kDayNames.at(t_m.tm_wday), t_m.tm_mday,
+                  kMonthNames.at(t_m.tm_mon), 1900 + t_m.tm_year, t_m.tm_hour,
+                  t_m.tm_min, t_m.tm_sec);
 }
 
 static time_t time_from_struct_tm_utc(struct tm *t_m) {

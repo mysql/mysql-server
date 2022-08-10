@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,100 +25,168 @@
 #ifndef MYSQL_HARNESS_CONFIG_OPTION_INCLUDED
 #define MYSQL_HARNESS_CONFIG_OPTION_INCLUDED
 
+#include <charconv>  // from_chars
+#include <chrono>
+#include <limits>
+#include <stdexcept>
 #include <string>
-#include <system_error>
+#include <string_view>
+#include <type_traits>
 
-#include "mysql/harness/config_parser.h"
-#include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/string_view.h"
-
-namespace mysql_harness {
-enum class option_errc {
-  empty = 1,
-  not_found,
-};
-}  // namespace mysql_harness
-
-namespace std {
-template <>
-struct is_error_code_enum<mysql_harness::option_errc> : public std::true_type {
-};
-}  // namespace std
+#include "harness_export.h"
 
 namespace mysql_harness {
-inline const std::error_category &option_category() noexcept {
-  class option_category_impl : public std::error_category {
-   public:
-    const char *name() const noexcept override { return "option"; }
-    std::string message(int ev) const override {
-      switch (static_cast<option_errc>(ev)) {
-        case option_errc::empty:
-          return "needs a value";
-        case option_errc::not_found:
-          return "not found";
-        default:
-          return "unknown";
-      }
+
+double HARNESS_EXPORT
+option_as_double(const std::string &value, const std::string &option_desc,
+                 double min_value = 0,
+                 double max_value = std::numeric_limits<double>::max());
+
+/**
+ * Gets an integer using the given option value.
+ *
+ * Gets an integer using the given option value. The type can be
+ * any integer type such as uint16_t, int8_t and bool.
+ *
+ * The min_value argument can be used to set a minimum value for
+ * the option. For example, when 0 (zero) is not allowed, min_value
+ * can be set to 1. The maximum value is whatever the maximum of the
+ * use type is.
+ *
+ * Throws std::invalid_argument on errors.
+ *
+ * @param value Option value
+ * @param option_desc Option name
+ * @param min_value Minimum value
+ * @param max_value Maximum value
+ * @return value read from the configuration
+ */
+template <typename T>
+T option_as_int(const std::string_view &value, const std::string &option_desc,
+                T min_value = std::numeric_limits<T>::min(),
+                T max_value = std::numeric_limits<T>::max()) {
+  const char *start = value.data();
+  const char *end = start + value.size();
+
+  // from_chars has no support for <bool>, map it to uint8_t
+  using integral_type = std::conditional_t<std::is_same_v<T, bool>, uint8_t, T>;
+
+  integral_type int_result;
+  const auto [ptr, ec]{std::from_chars(start, end, int_result)};
+
+  if (ptr == end && ec == std::errc{}) {
+    // before comparing, cast back to the target_type
+    //
+    // without the cast, MSVC warns: warning C4804: '<=': unsafe use of type
+    // 'bool' in operation
+    if (int_result <= static_cast<integral_type>(max_value) &&
+        int_result >= static_cast<integral_type>(min_value)) {
+      return int_result;
     }
-  };
+  }
 
-  static option_category_impl instance;
-  return instance;
+  throw std::invalid_argument(option_desc + " needs value between " +
+                              std::to_string(min_value) + " and " +
+                              std::to_string(max_value) + " inclusive, was '" +
+                              std::string(value) + "'");
 }
 
-inline std::error_code make_error_code(option_errc e) noexcept {
-  return std::error_code(static_cast<int>(e), option_category());
+/**
+ * Get a unsigned integer.
+ *
+ * use option_as_int<T> instead.
+ */
+template <typename T>
+T option_as_uint(const std::string_view &value, const std::string &option_desc,
+                 T min_value = std::numeric_limits<T>::min(),
+                 T max_value = std::numeric_limits<T>::max()) {
+  return option_as_int<T>(value, option_desc, min_value, max_value);
 }
 
-class ConfigOption {
+template <typename T>
+class IntOption {
  public:
-  ConfigOption(stdx::string_view name, stdx::string_view default_value)
-      : name_{std::move(name)},
-        is_required_{false},
-        default_value_{std::move(default_value)} {
-    if (name_.empty()) {
-      throw std::invalid_argument("expected 'name' to be non-empty");
-    }
+  constexpr IntOption(T min_value = std::numeric_limits<T>::min(),
+                      T max_value = std::numeric_limits<T>::max())
+      : min_value_{min_value}, max_value_{max_value} {}
+
+  T operator()(const std::string &value, const std::string &option_desc) {
+    return mysql_harness::option_as_int(value, option_desc, min_value_,
+                                        max_value_);
   }
-
-  explicit ConfigOption(::stdx::string_view name)
-      : name_{name}, is_required_{true} {
-    if (name.empty()) {
-      throw std::invalid_argument("expected 'name' to be non-empty");
-    }
-  }
-
-  STDX_NONNULL stdx::expected<std::string, std::error_code> get_option_string(
-      const mysql_harness::ConfigSection *section) const {
-    std::string value;
-    try {
-      value = section->get(name_);
-    } catch (const mysql_harness::bad_option &) {
-      if (is_required()) {
-        return stdx::make_unexpected(make_error_code(option_errc::not_found));
-      }
-    }
-
-    if (value.empty()) {
-      if (is_required()) {
-        return stdx::make_unexpected(make_error_code(option_errc::empty));
-      } else {
-        value = default_value_;
-      }
-    }
-
-    return value;
-  }
-
-  std::string name() const { return name_; }
-  bool is_required() const { return is_required_; }
-  std::string default_value() const { return default_value_; }
 
  private:
-  const std::string name_;
-  const bool is_required_;
-  const std::string default_value_;
+  T min_value_;
+  T max_value_;
 };
+
+class StringOption {
+ public:
+  std::string operator()(const std::string &value,
+                         const std::string & /* option_desc */) {
+    return value;
+  }
+};
+
+class BoolOption {
+ public:
+  bool operator()(const std::string &value, const std::string &option_desc) {
+    if (value == "true" || value == "1") return true;
+    if (value == "false" || value == "0") return false;
+
+    throw std::invalid_argument(
+        option_desc + " needs a value of either 0, 1, false or true, was '" +
+        value + "'");
+  }
+};
+
+template <typename V>
+class FloatingPointOption {
+ public:
+  using value_type = V;
+
+  FloatingPointOption(
+      value_type min_value = 0,
+      value_type max_value = std::numeric_limits<value_type>::max())
+      : min_value_{min_value}, max_value_{max_value} {}
+
+  value_type operator()(const std::string &value,
+                        const std::string &option_desc) {
+    return mysql_harness::option_as_double(value, option_desc, min_value_,
+                                           max_value_);
+  }
+
+ private:
+  value_type min_value_;
+  value_type max_value_;
+};
+
+using DoubleOption = FloatingPointOption<double>;
+
+template <typename Dur>
+class DurationOption : public DoubleOption {
+ public:
+  using duration_type = Dur;
+  using __base = DoubleOption;
+
+  using __base::__base;
+
+  duration_type operator()(const std::string &value,
+                           const std::string &option_desc) {
+    double result = __base::operator()(value, option_desc);
+
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration<double>(result));
+  }
+};
+
+/**
+ * a double option with milli-second precision.
+ *
+ * input is seconds as double.
+ * output is a std::chrono::millisecond
+ */
+using MilliSecondsOption = DurationOption<std::chrono::milliseconds>;
 
 }  // namespace mysql_harness
 #endif

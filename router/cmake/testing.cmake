@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,18 @@ ENDFUNCTION()
 FUNCTION(CONFIGURE_TEST_FILE_TEMPLATES SOURCE_PATH _templates)
   SET(OUT_DIR ${PROJECT_BINARY_DIR}/tests/data/)
 
-  IF(NOT BUILD_IS_SINGLE_CONFIG)
+  IF(BUILD_IS_SINGLE_CONFIG)
+    SET(ORIG_HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+    SET(HARNESS_PLUGIN_OUTPUT_DIRECTORY
+      ${CMAKE_BINARY_DIR}/plugin_output_directory)
+    SET(ROUTER_RUNTIME_DIR ${OUT_DIR})
+    FOREACH(_template ${_templates})
+      STRING(REGEX REPLACE ".in$" "" _output ${_template})
+      #MESSAGE(STATUS "Generating ${_output} from ${_template}")
+      CONFIGURE_FILE(${SOURCE_PATH}/${_template} ${OUT_DIR}/${_output})
+    ENDFOREACH()
+    SET(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${OLD_HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+  ELSE()
     SET(ORIG_HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
     SET(PLUGIN_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory)
     FOREACH(config ${CMAKE_CONFIGURATION_TYPES})
@@ -188,53 +199,75 @@ FUNCTION(CONFIGURE_TEST_FILE_TEMPLATES SOURCE_PATH _templates)
       ENDFOREACH()
     ENDFOREACH()
     SET(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${OLD_HARNESS_PLUGIN_OUTPUT_DIRECTORY})
-  ELSE()
-    SET(ORIG_HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
-    SET(HARNESS_PLUGIN_OUTPUT_DIRECTORY
-      ${CMAKE_BINARY_DIR}/plugin_output_directory)
-    SET(ROUTER_RUNTIME_DIR ${OUT_DIR})
-    FOREACH(_template ${_templates})
-      STRING(REGEX REPLACE ".in$" "" _output ${_template})
-      #MESSAGE(STATUS "Generating ${_output} from ${_template}")
-      CONFIGURE_FILE(${SOURCE_PATH}/${_template} ${OUT_DIR}/${_output})
-    ENDFOREACH()
-    SET(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${OLD_HARNESS_PLUGIN_OUTPUT_DIRECTORY})
   ENDIF()
 ENDFUNCTION()
 
 # Copy plain configuration files to common place in tests/data
 FUNCTION(COPY_TEST_FILES SOURCE_PATH _files)
   SET(OUT_DIR ${PROJECT_BINARY_DIR}/tests/data/)
-  IF(NOT BUILD_IS_SINGLE_CONFIG)
+  IF(BUILD_IS_SINGLE_CONFIG)
+    # Copy plain configuration files
+    FOREACH(_file ${_files})
+      CONFIGURE_FILE(${SOURCE_PATH}/${_file} ${OUT_DIR}/${_file} COPYONLY)
+    ENDFOREACH()
+    SET(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${OLD_HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+  ELSE()
     FOREACH(config ${CMAKE_CONFIGURATION_TYPES})
       FOREACH(_file ${_files})
         CONFIGURE_FILE(${SOURCE_PATH}/${_file}
           ${OUT_DIR}/${config}/${_file} COPYONLY)
       ENDFOREACH()
     ENDFOREACH()
-  ELSE()
-    # Copy plain configuration files
-    FOREACH(_file ${_files})
-      CONFIGURE_FILE(${SOURCE_PATH}/${_file} ${OUT_DIR}/${_file} COPYONLY)
-    ENDFOREACH()
-    SET(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${OLD_HARNESS_PLUGIN_OUTPUT_DIRECTORY})
   ENDIF()
 ENDFUNCTION()
 
 # Create a directory structure inside of tests/data/${DIRECTORY_NAME}
 # (needed by some harness tests)
 FUNCTION(CREATE_HARNESS_TEST_DIRECTORY_POST_BUILD TARGET DIRECTORY_NAME)
-  IF(NOT BUILD_IS_SINGLE_CONFIG)
+  IF(BUILD_IS_SINGLE_CONFIG)
+    SET(OUT_DIR "${PROJECT_BINARY_DIR}/tests/data")
+    ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+      COMMAND ${CMAKE_COMMAND}
+      -E make_directory "${OUT_DIR}/var/log/${DIRECTORY_NAME}")
+  ELSE()
     SET(OUT_DIR ${PROJECT_BINARY_DIR}/tests/data/)
     FOREACH(config_ ${CMAKE_CONFIGURATION_TYPES})
       ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
         COMMAND ${CMAKE_COMMAND}
         -E make_directory ${OUT_DIR}/${config_}/var/log/${DIRECTORY_NAME})
     ENDFOREACH()
-  ELSE()
-      SET(OUT_DIR "${PROJECT_BINARY_DIR}/tests/data")
-      ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-        COMMAND ${CMAKE_COMMAND}
-        -E make_directory "${OUT_DIR}/var/log/${DIRECTORY_NAME}")
   ENDIF()
+ENDFUNCTION()
+
+# create a static-library from a library target
+#
+# build a static library using:
+#
+# - the same sources
+# - the same include dirs
+# - the same library dependencies
+#
+# as the source library.
+#
+# @param TO    targetname of the newly created static library
+# @param FROM  targetname of the library to get sources from
+FUNCTION(STATICLIB_FROM_TARGET TO FROM)
+  # library as object-lib for testing
+  #
+  # SOURCES is relative to SOURCE_DIR
+  GET_TARGET_PROPERTY(_SOURCES ${FROM} SOURCES)
+  GET_TARGET_PROPERTY(_SOURCE_DIR ${FROM} SOURCE_DIR)
+
+  SET(_LIB_SOURCES)
+  FOREACH(F ${_SOURCES})
+    LIST(APPEND _LIB_SOURCES ${_SOURCE_DIR}/${F})
+  ENDFOREACH()
+
+  ADD_LIBRARY(${TO}
+    STATIC ${_LIB_SOURCES})
+  TARGET_INCLUDE_DIRECTORIES(${TO}
+    PUBLIC $<TARGET_PROPERTY:${FROM},INCLUDE_DIRECTORIES>)
+  TARGET_LINK_LIBRARIES(${TO}
+    PUBLIC $<TARGET_PROPERTY:${FROM},LINK_LIBRARIES>
+    )
 ENDFUNCTION()

@@ -46,20 +46,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	warning	Number of rows changed from 0 to 1
 test.t1	repair	status	OK
 drop table t1;
-CREATE TABLE t1(a INT, KEY(a));
-INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
-SET myisam_repair_threads=2;
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	Table is already up to date
-SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE			YES	NULL
-SET myisam_repair_threads=@@global.myisam_repair_threads;
-DROP TABLE t1;
 CREATE TABLE t1(a INT);
 USE mysql;
 REPAIR TABLE test.t1 USE_FRM;
@@ -89,13 +75,11 @@ INSERT INTO t1 VALUES
 Warnings:
 Error	1034	myisam_sort_buffer_size is too small
 Error	1034	Number of rows changed from 0 to 157
-SET myisam_repair_threads=2;
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	error	myisam_sort_buffer_size is too small
 test.t1	repair	warning	Number of rows changed from 0 to 157
 test.t1	repair	status	OK
-SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
 CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
@@ -117,11 +101,9 @@ INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
 ('0'),('0'),('0'),('0'),('0'),('0'),('0');
-SET myisam_repair_threads=2;
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
 End of 4.1 tests

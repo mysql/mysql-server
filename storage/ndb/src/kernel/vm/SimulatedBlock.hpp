@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,14 @@
 #ifndef SIMULATEDBLOCK_H
 #define SIMULATEDBLOCK_H
 
+#include "util/require.h"
 #include <new>
 
 #include <NdbTick.h>
 #include <kernel_types.h>
 #include <util/version.h>
 #include <ndb_limits.h>
+#include "portlib/ndb_compiler.h"
 
 #include "VMSignal.hpp"
 #include <RefConvert.hpp>
@@ -71,11 +73,10 @@
 #include <ndb_global.h>
 #include "BlockThreadBitmask.hpp"
 #include <NdbHW.hpp>
+#include "portlib/mt-asm.h"
 
 struct CHARSET_INFO;
 
-#include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 248
 
@@ -844,6 +845,12 @@ protected:
 			   Uint32 length,
 			   SectionHandle* sections) const;
 
+  void sendSignalOverAllLinks(BlockReference ref,
+                        GlobalSignalNumber gsn,
+                        Signal25* signal,
+                        Uint32 length,
+                        JobBufferLevel jbuf ) const ;
+
   /**
    * EXECUTE_DIRECT comes in five variants.
    *
@@ -1210,6 +1217,23 @@ protected:
   void sendNextLinearFragment(Signal* signal, FragmentSendInfo & info);
   
   BlockNumber    number() const;
+
+  /**
+   * Ensure that signal's sender is same node
+   */
+  void LOCAL_SIGNAL(Signal* signal) const
+  {
+    ndbrequire(refToNode(signal->getSendersBlockRef()) == theNodeId);
+  }
+
+  /**
+   * Is reference for our node?
+   */
+  bool local_ref(BlockReference ref) const
+  {
+    return (refToNode(ref) == theNodeId ||
+            refToNode(ref) == 0);
+  }
 public:
   /* Must be public so that we can jam() outside of block scope. */
   EmulatedJamBuffer *jamBuffer() const;
@@ -1296,10 +1320,9 @@ protected:
   Block_context m_ctx;
   NewVARIABLE* allocateBat(int batSize);
   void freeBat();
-  static const NewVARIABLE* getBat    (BlockNumber blockNo,
-                                       Uint32 instanceNo);
-  static Uint16             getBatSize(BlockNumber blockNo,
-                                       Uint32 instanceNo);
+  static const NewVARIABLE * getBatVar(BlockNumber blockNo,
+                                       Uint32 instanceNo,
+                                       Uint32 varNo);
   
   static BlockReference calcTcBlockRef   (NodeId aNode);
   static BlockReference calcLqhBlockRef  (NodeId aNode);
@@ -2780,7 +2803,7 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 
 struct Hash2FragmentMap
 {
-  STATIC_CONST( MAX_MAP = NDB_MAX_HASHMAP_BUCKETS );
+  static constexpr Uint32 MAX_MAP = NDB_MAX_HASHMAP_BUCKETS;
   Uint32 m_cnt;
   Uint32 m_fragments;
   Uint16 m_map[MAX_MAP];

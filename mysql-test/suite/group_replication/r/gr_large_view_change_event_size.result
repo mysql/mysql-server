@@ -4,14 +4,14 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 #
-# Reduce the slave_max_allowed_packet value to just  0.125 MB
+# Reduce the replica_max_allowed_packet value to just  0.125 MB
 #
 [connection server1]
-SET @start_global_value_s1 = @@global.slave_max_allowed_packet;
-SET @@global.slave_max_allowed_packet=1024*128;
+SET @start_global_value_s1 = @@global.replica_max_allowed_packet;
+SET @@global.replica_max_allowed_packet=1024*128;
 [connection server2]
-SET @start_global_value_s2 = @@global.slave_max_allowed_packet;
-SET @@global.slave_max_allowed_packet=1024*128;
+SET @start_global_value_s2 = @@global.replica_max_allowed_packet;
+SET @@global.replica_max_allowed_packet=1024*128;
 #
 # Initiate a 2 member group
 # Make sure the certification garbage collector is not executed
@@ -99,7 +99,7 @@ DROP EVENT IF EXISTS test.event1;
 SET SESSION sql_log_bin= 1;
 SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
-SET @@global.slave_max_allowed_packet = @start_global_value_s1;
+SET @@global.replica_max_allowed_packet = @start_global_value_s1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
 ALTER EVENT event2 DISABLE;
@@ -107,7 +107,7 @@ DROP EVENT IF EXISTS test.event2;
 SET SESSION sql_log_bin= 1;
 SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
-SET @@global.slave_max_allowed_packet = @start_global_value_s2;
+SET @@global.replica_max_allowed_packet = @start_global_value_s2;
 [connection server1]
 DROP TABLE mytable;
 include/group_replication_end.inc

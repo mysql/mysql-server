@@ -26,6 +26,9 @@ YES
 update performance_schema.threads
 set resource_group = 'FOO' where PROCESSLIST_ID=connection_id();
 ERROR HY000: Invalid performance_schema usage.
+update performance_schema.threads
+set execution_engine='SECONDARY';
+ERROR HY000: Invalid performance_schema usage.
 delete from performance_schema.threads
 where id=1;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'threads'

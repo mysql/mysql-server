@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,11 +47,11 @@ class BackupReq {
 
   friend bool printBACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
-  STATIC_CONST( WAITCOMPLETED = 0x3 );
-  STATIC_CONST( USE_UNDO_LOG = 0x4 );
-  STATIC_CONST( MT_BACKUP = 0x8);
-  STATIC_CONST( ENCRYPTED_BACKUP = 0x10);
+  static constexpr Uint32 SignalLength = 4;
+  static constexpr Uint32 WAITCOMPLETED = 0x3;
+  static constexpr Uint32 USE_UNDO_LOG = 0x4;
+  static constexpr Uint32 MT_BACKUP = 0x8;
+  static constexpr Uint32 ENCRYPTED_BACKUP = 0x10;
 
 private:
   Uint32 senderData;
@@ -61,19 +61,6 @@ private:
    */
   Uint32 flags;
   Uint32 inputBackupId;
-};
-
-struct EncryptionPasswordData
-{
-  Uint32 password_length;
-  // one byte extra for trailing null, but for keep alignment make it four extra
-  alignas(Uint32) char encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 4];
-
-  EncryptionPasswordData()
-  {
-    password_length = 0;
-    memset(encryption_password, 0, sizeof(encryption_password));
-  }
 };
 
 class BackupData {
@@ -89,7 +76,7 @@ class BackupData {
 
   friend bool printBACKUP_DATA(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 25 );
+  static constexpr Uint32 SignalLength = 25;
 
   enum KeyValues {
     /**
@@ -101,7 +88,7 @@ public:
     MaxWrite   = 4, // Maximum write as multiple of blocksize
     
     // Max throughput
-    // Parallell files
+    // Parallel files
     
     NoOfTables = 1000,
     TableName  = 1001  // char*
@@ -148,7 +135,7 @@ class BackupRef {
 
   friend bool printBACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
 private:
   enum ErrorCodes {
@@ -189,7 +176,7 @@ class BackupConf {
 
   friend bool printBACKUP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2);
+  static constexpr Uint32 SignalLength = 2;
   
 private:
   Uint32 senderData;
@@ -212,7 +199,7 @@ class BackupAbortRep {
 
   friend bool printBACKUP_ABORT_REP(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
 private:
   Uint32 senderData;
@@ -236,7 +223,7 @@ class BackupCompleteRep {
 
   friend bool printBACKUP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 12 );
+  static constexpr Uint32 SignalLength = 12;
 private:
   Uint32 senderData;
   Uint32 backupId;
@@ -271,7 +258,7 @@ class AbortBackupOrd {
 
   friend bool printABORT_BACKUP_ORD(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   enum RequestType {
     ClientAbort = 1321,

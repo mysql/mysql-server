@@ -18,7 +18,7 @@ EOF
 --source include/shutdown_mysqld.inc
 
 --replace_result $MYSQLD MYSQLD $BOOTSTRAP_SQL BOOTSTRAP_SQL $ENCRYPT_DATADIR ENCRYPT_DATADIR $START_PAGE_SIZE PAGE_SIZE $ENCRYPT_ERROR_FILE ENCRYPT_ERROR_FILE
---let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --init-file=$BOOTSTRAP_SQL --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_page_size=$START_PAGE_SIZE --datadir=$ENCRYPT_DATADIR > $ENCRYPT_ERROR_FILE  2>&1
+--let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --init-file=$BOOTSTRAP_SQL --innodb_redo_log_capacity=10M --innodb_page_size=$START_PAGE_SIZE --datadir=$ENCRYPT_DATADIR > $ENCRYPT_ERROR_FILE  2>&1
 
 --exec $NEW_CMD
 
@@ -34,21 +34,19 @@ EOF
 
 if(!$page_compression) {
 --echo # In connection default - starting clone
-# Validate that redo and undo encryption cannot be set when clone in progress. */
+# Validate that redo and undo encryption can be set when clone in progress. */
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL set_encryption WAIT_FOR resume_clone';
 --source clone_command_send.inc
 
 connect (con1,localhost,root,,);
---echo # In connection con1 - Trying to set redo and undo encryption
+--echo # In connection con1 - Set redo and undo encryption
 SET DEBUG_SYNC = 'now WAIT_FOR set_encryption';
 
 SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
---error ER_CLONE_IN_PROGRESS
 SET GLOBAL innodb_redo_log_encrypt = ON;
 SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
 
 SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
---error ER_CLONE_IN_PROGRESS
 SET GLOBAL innodb_undo_log_encrypt = ON;
 SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
 
@@ -59,6 +57,8 @@ connection default;
 --reap
 disconnect con1;
 --force-rmdir $CLONE_DATADIR
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+SET GLOBAL innodb_undo_log_encrypt = OFF;
 }
 
 # Modify the schema and add compressed table

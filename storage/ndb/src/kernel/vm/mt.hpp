@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@
  */
 #define MAX_INSTANCES_PER_THREAD ((2 * NO_OF_BLOCKS) + 1)
 
-static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS, "");
+static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS);
 
 Uint32 mt_get_instance_count(Uint32 block);
 
@@ -142,6 +142,9 @@ SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
                           class SectionSegmentPool *thePool,
                           const SegmentedSectionPtr ptr[3]);
+SendStatus mt_send_remote_over_all_links(Uint32 self, const SignalHeader *sh,
+                                         Uint8 prio, const Uint32 *data,
+                                         NodeId nodeId);
 
 #ifdef ERROR_INSERT
 void mt_set_delayed_prepare(Uint32 self);

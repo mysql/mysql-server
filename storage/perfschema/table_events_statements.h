@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "sql_string.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/table_helper.h"
 
 class Field;
@@ -59,7 +60,7 @@ class PFS_index_events_statements : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("EVENT_ID") {}
 
-  ~PFS_index_events_statements() override {}
+  ~PFS_index_events_statements() override = default;
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events *pfs);
@@ -104,20 +105,14 @@ struct row_events_statements {
   /** Column DIGEST and DIGEST_TEXT. */
   PFS_digest_row m_digest;
   /** Column CURRENT_SCHEMA. */
-  char m_current_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_current_schema_name. */
-  uint m_current_schema_name_length;
+  PFS_schema_name m_current_schema_name;
 
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column OBJECT_SCHEMA. */
-  char m_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
+  PFS_schema_name m_schema_name;
   /** Column OBJECT_NAME. */
-  char m_object_name[NAME_LEN];
-  /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  PFS_object_name m_object_name;
 
   /** Column MESSAGE_TEXT. */
   char m_message_text[MYSQL_ERRMSG_SIZE + 1];
@@ -161,9 +156,13 @@ struct row_events_statements {
   ulonglong m_no_index_used;
   /** Column NO_GOOD_INDEX_USED. */
   ulonglong m_no_good_index_used;
+  /** Column CPU_TIME. */
+  ulonglong m_cpu_time;
 
   /** Column STATEMENT_ID. */
   ulonglong m_statement_id;
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_CURRENT. */
@@ -208,7 +207,7 @@ class table_events_statements_common : public PFS_engine_table {
   table_events_statements_common(const PFS_engine_table_share *share,
                                  void *pos);
 
-  ~table_events_statements_common() override {}
+  ~table_events_statements_common() override = default;
 
   int make_row_part_1(PFS_events_statements *statement,
                       sql_digest_storage *digest);
@@ -242,7 +241,7 @@ class table_events_statements_current : public table_events_statements_common {
   table_events_statements_current();
 
  public:
-  ~table_events_statements_current() override {}
+  ~table_events_statements_current() override = default;
 
  private:
   friend class table_events_statements_history;
@@ -284,7 +283,7 @@ class table_events_statements_history : public table_events_statements_common {
   table_events_statements_history();
 
  public:
-  ~table_events_statements_history() override {}
+  ~table_events_statements_history() override = default;
 
  private:
   /** Table share lock. */
@@ -321,7 +320,7 @@ class table_events_statements_history_long
   table_events_statements_history_long();
 
  public:
-  ~table_events_statements_history_long() override {}
+  ~table_events_statements_history_long() override = default;
 
  private:
   /** Table share lock. */

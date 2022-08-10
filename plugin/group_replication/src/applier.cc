@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,6 @@ Applier_module::Applier_module()
       applier_aborted(false),
       applier_error(0),
       suspended(false),
-      waiting_for_applier_suspension(false),
-      shared_stop_write_lock(nullptr),
       incoming(nullptr),
       pipeline(nullptr),
       stop_wait_timeout(LONG_TIMEOUT),
@@ -93,14 +91,13 @@ Applier_module::~Applier_module() {
 int Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
                                          bool reset_logs, ulong stop_timeout,
                                          rpl_sidno group_sidno,
-                                         ulonglong gtid_assignment_block_size,
-                                         Shared_writelock *shared_stop_lock) {
+                                         ulonglong gtid_assignment_block_size) {
   DBUG_TRACE;
 
   int error = 0;
 
   // create the receiver queue
-  this->incoming = new Synchronized_queue<Packet *>();
+  this->incoming = new Synchronized_queue<Packet *>(key_transaction_data);
 
   stop_wait_timeout = stop_timeout;
 
@@ -113,8 +110,6 @@ int Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
   reset_applier_logs = reset_logs;
   group_replication_sidno = group_sidno;
   this->gtid_assignment_block_size = gtid_assignment_block_size;
-
-  shared_stop_write_lock = shared_stop_lock;
 
   return error;
 }
@@ -316,11 +311,13 @@ int Applier_module::apply_view_change_packet(
                         "prepared transactions",
                         view_change_packet->view_id.c_str()));
     transaction_consistency_manager->schedule_view_change_event(pevent);
-    return error;
+    pevent->set_delayed_view_change_waiting_for_consistent_transactions();
   }
 
   error = inject_event_into_pipeline(pevent, cont);
-  if (!cont->is_transaction_discarded()) delete pevent;
+  if (!cont->is_transaction_discarded() &&
+      !pevent->is_delayed_view_change_waiting_for_consistent_transactions())
+    delete pevent;
 
   return error;
 }
@@ -328,25 +325,32 @@ int Applier_module::apply_view_change_packet(
 int Applier_module::apply_data_packet(Data_packet *data_packet,
                                       Format_description_log_event *fde_evt,
                                       Continuation *cont) {
+  DBUG_TRACE;
   int error = 0;
   uchar *payload = data_packet->payload;
   uchar *payload_end = data_packet->payload + data_packet->len;
 
   DBUG_EXECUTE_IF("group_replication_before_apply_data_packet", {
-    const char act[] = "now wait_for continue_apply";
+    const char act[] =
+        "now signal signal.group_replication_before_apply_data_packet_reached "
+        "wait_for continue_apply";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   while ((payload != payload_end) && !error) {
     uint event_len = uint4korr(((uchar *)payload) + EVENT_LEN_OFFSET);
 
-    Data_packet *new_packet = new Data_packet(payload, event_len);
+    Data_packet *new_packet =
+        new Data_packet(payload, event_len, key_transaction_data);
     payload = payload + event_len;
 
-    std::list<Gcs_member_identifier> *online_members = nullptr;
+    Members_list *online_members = nullptr;
     if (nullptr != data_packet->m_online_members) {
-      online_members =
-          new std::list<Gcs_member_identifier>(*data_packet->m_online_members);
+      online_members = new Members_list(
+          data_packet->m_online_members->begin(),
+          data_packet->m_online_members->end(),
+          Malloc_allocator<Gcs_member_identifier>(
+              key_consistent_members_that_must_prepare_transaction));
     }
 
     Pipeline_event *pevent =
@@ -354,7 +358,17 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
                            data_packet->m_consistency_level, online_members);
     error = inject_event_into_pipeline(pevent, cont);
 
+    DBUG_EXECUTE_IF("group_replication_apply_data_packet_after_inject", {
+      const char act[] =
+          "now SIGNAL "
+          "signal.group_replication_apply_data_packet_after_inject_reached "
+          "WAIT_FOR "
+          "signal.group_replication_apply_data_packet_after_inject_continue";
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    });
+
     delete pevent;
+
     DBUG_EXECUTE_IF("stop_applier_channel_after_reading_write_rows_log_event", {
       if (payload[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT) {
         error = 1;
@@ -386,18 +400,21 @@ int Applier_module::apply_single_primary_action_packet(
 
 int Applier_module::apply_transaction_prepared_action_packet(
     Transaction_prepared_action_packet *packet) {
+  DBUG_TRACE;
   return transaction_consistency_manager->handle_remote_prepare(
       packet->get_sid(), packet->m_gno, packet->m_gcs_member_id);
 }
 
 int Applier_module::apply_sync_before_execution_action_packet(
     Sync_before_execution_action_packet *packet) {
+  DBUG_TRACE;
   return transaction_consistency_manager->handle_sync_before_execution_message(
       packet->m_thread_id, packet->m_gcs_member_id);
 }
 
 int Applier_module::apply_leaving_members_action_packet(
     Leaving_members_action_packet *packet) {
+  DBUG_TRACE;
   return transaction_consistency_manager->handle_member_leave(
       packet->m_leaving_members);
 }
@@ -516,6 +533,23 @@ int Applier_module::applier_thread_handle() {
         packet_application_error = apply_leaving_members_action_packet(
             static_cast<Leaving_members_action_packet *>(packet));
         this->incoming->pop();
+        /**
+         @ref group_replication_wait_for_current_events_execution_fail
+         Member leave has been received. Primary change has started in
+         separate thread. Primary change will go to error and try to suspend
+         the applier by adding suspension packet. But we want to kill the
+         applier via shutdown before suspension packet is processed. So block
+         here till SHUTDOWN forwards the KILL signal.
+
+         @note If we do not block here, even if KILL is forwarded suspension
+         packet is processed and kill is seen post processing of suspend
+         packet, hence the DEBUG here
+        */
+        DBUG_EXECUTE_IF(
+            "group_replication_wait_for_current_events_execution_fail", {
+              while (!is_applier_thread_aborted()) my_sleep(1 * 1000 * 1000);
+            };);
+
         break;
       default:
         assert(0); /* purecov: inspected */
@@ -523,6 +557,7 @@ int Applier_module::applier_thread_handle() {
 
     delete packet;
   }
+
   if (packet_application_error) applier_error = packet_application_error;
   delete fde_evt;
   delete cont;
@@ -535,7 +570,9 @@ end:
       ->unregister_channel_observer(applier_channel_observer);
 
   // only try to leave if the applier managed to start
-  if (applier_error && applier_thd_state.is_running()) {
+  // or if the applier_thd was killed by the DBA.
+  if ((applier_error && applier_thd_state.is_running()) ||
+      applier_thd->killed) {
     const char *exit_state_action_abort_log_message =
         "Fatal error during execution on the Applier module of Group "
         "Replication.";
@@ -597,11 +634,15 @@ end:
 #endif
 
   delete applier_thd;
+  applier_thd = nullptr;
+  my_thread_end();
   applier_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
+  mysql_mutex_lock(&suspend_lock);
+  mysql_cond_broadcast(&suspension_waiting_condition);
+  mysql_mutex_unlock(&suspend_lock);
   mysql_mutex_unlock(&run_lock);
 
-  my_thread_end();
   applier_thread_is_exiting = true;
   my_thread_exit(nullptr);
 
@@ -778,13 +819,14 @@ int Applier_module::wait_for_applier_complete_suspension(
       we_are_waiting = true;
       wait();
   */
-  while (!suspended && !(*abort_flag) && !applier_aborted && !applier_error) {
+  while (!suspended && !(*abort_flag) && !is_applier_thread_aborted() &&
+         !applier_error) {
     mysql_cond_wait(&suspension_waiting_condition, &suspend_lock);
   }
 
   mysql_mutex_unlock(&suspend_lock);
 
-  if (applier_aborted || applier_error)
+  if (is_applier_thread_aborted() || applier_error)
     return APPLIER_THREAD_ABORTED; /* purecov: inspected */
 
   /**

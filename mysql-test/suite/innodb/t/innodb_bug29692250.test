@@ -9,7 +9,7 @@ source include/have_debug.inc;
 --disable_query_log
 CALL mtr.add_suppression("\\[ERROR\\] .* Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
 CALL mtr.add_suppression("\\[ERROR\\] .* Database page corruption on disk or a failed");
-CALL mtr.add_suppression("\\[ERROR\\] .* Assertion failure: ut0ut\.cc:");
+CALL mtr.add_suppression("\\[ERROR\\] .* Assertion failure: buf0buf\.cc:[0-9]+:ib::fatal triggered");
 CALL mtr.add_suppression("\\[ERROR\\] .* Trying to do I/O to a tablespace which exists without an \.ibd data file");
 CALL mtr.add_suppression("\\[ERROR\\] .* trying to read page \\[page id: space=.*, page number=.*\\] in nonexisting or being-dropped tablespace");
 --enable_query_log

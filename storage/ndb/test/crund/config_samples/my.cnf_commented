@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -108,9 +108,9 @@ ndb-connectstring=127.0.0.1
 #
 
 # do not start the slave threads when the server starts
-# - option: --skip-slave-start
+# - option: --skip-replica-start
 # - variable: n/a
-skip-slave-start
+skip-replica-start
 
 # basename for the relay log (and relay log index file)
 # - options: --relay-log, --relay-log-index
@@ -122,12 +122,12 @@ skip-slave-start
 #relay-log-index=mysql-relay-bin.index
 
 # log updates from master to the slave's own binary log
-# - option: --log-slave-updates (requires log-bin)
-# - variable: log_slave_updates (system, global, constant)
-#log-slave-updates
+# - option: --log-replica-updates (requires log-bin)
+# - variable: log_replica_updates (system, global, constant)
+#log-replica-updates
 
 # do not skip events having its own server ID (for replaying binlog)
-# - option: --replicate-same-server-id (cannot be used with log-slave-updates)
+# - option: --replicate-same-server-id (cannot be used with log-replica-updates)
 # - variable: n/a
 # - default: 0 (to prevent infinite loops caused by circular replication)
 #replicate-same-server-id
@@ -139,10 +139,10 @@ skip-slave-start
 #master-retry-count=1
 
 # relax replication type enforcements
-# - option: --slave-type-conversions
-# - variable: slave-type-conversions (system, global, constant)
+# - option: --replica-type-conversions
+# - variable: replica-type-conversions (system, global, constant)
 # - default: none of (one or more) ALL_LOSSY, ALL_NON_LOSSY
-#slave-type-conversions=ALL_NON_LOSSY
+#replica-type-conversions=ALL_NON_LOSSY
 
 #
 # mysqld cluster settings
@@ -158,10 +158,10 @@ skip-slave-start
 #max_allowed_packet=16M
 
 # enable batched operations on MySQL Cluster replication slaves
-# - option: --slave-allow-batching (or slave_allow_batching)
-# - variable: slave_allow_batching (system, global, changeable)
+# - option: --replica-allow-batching (or replica_allow_batching)
+# - variable: replica_allow_batching (system, global, changeable)
 # - default: 0
-#slave-allow-batching
+#replica-allow-batching
 
 # set the size in bytes that is used for NDB transaction batches
 # - option: --ndb-batch-size (or ndb_batch_size)

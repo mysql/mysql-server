@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "xcom/synode_no.h"  /* synode_eq */
 #include "xcom/xcom_base.h"  /* pm_finished */
 #include "xcom/xcom_cache.h" /* pax_machine, hash_get */
+#include "xcom/xcom_memory.h"
 
 static xcom_get_synode_app_data_result can_satisfy_request(
     synode_no_array const *const synodes);
@@ -52,7 +53,7 @@ xcom_get_synode_app_data_result xcom_get_synode_app_data(
    they are not.
    */
   if (reply->synode_app_data_array_len != 0) goto end;
-  if (reply->synode_app_data_array_val != NULL) goto end;
+  if (reply->synode_app_data_array_val != nullptr) goto end;
 
   error_code = can_satisfy_request(synodes);
   if (error_code != XCOM_GET_SYNODE_APP_DATA_OK) goto end;
@@ -100,7 +101,7 @@ static xcom_get_synode_app_data_result have_decided_synode_app_data(
   bool_t is_decided = FALSE;
 
   pax_machine *paxos = hash_get(*synode);
-  bool_t const is_cached = (paxos != NULL);
+  bool_t const is_cached = (paxos != nullptr);
   if (!is_cached) {
     error_code = XCOM_GET_SYNODE_APP_DATA_NOT_CACHED;
     goto end;
@@ -135,8 +136,8 @@ static xcom_get_synode_app_data_result prepare_reply(
   u_int const nr_synodes = synodes->synode_no_array_len;
 
   reply->synode_app_data_array_val =
-      (synode_app_data *)calloc(nr_synodes, sizeof(synode_app_data));
-  if (reply->synode_app_data_array_val == NULL) {
+      (synode_app_data *)xcom_calloc(nr_synodes, sizeof(synode_app_data));
+  if (reply->synode_app_data_array_val == nullptr) {
     /* purecov: begin inspected */
     error_code = XCOM_GET_SYNODE_APP_DATA_NO_MEMORY;
     goto end;
@@ -185,6 +186,7 @@ static xcom_get_synode_app_data_result copy_synode_app_data_to_reply(
   checked_data const *cached_data = &p->a->body.app_u_u.data;
 
   reply->synode = *synode;
+  reply->origin = p->a->unique_id;
 
   /*
    We need to copy because by the time the reply is sent, the cache may have

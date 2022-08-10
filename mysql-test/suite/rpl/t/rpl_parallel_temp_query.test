@@ -15,12 +15,12 @@ let $workers= 4;
 
 connection slave;
 
-flush status; # to nullify Slave_open_temp_tables
+flush status; # to nullify Replica_open_temp_tables
 
 # restart in Parallel
 source include/stop_slave.inc;
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-eval set @@global.slave_parallel_workers= $workers;
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+eval set @@global.replica_parallel_workers= $workers;
 
 source include/start_slave.inc;
 
@@ -98,11 +98,11 @@ while ($n)
 
 --source include/sync_slave_sql_with_master.inc
 
-if (`select variable_value - $workers*$temp_tables as must_be_zero from performance_schema.global_status where variable_name like 'Slave_open_temp_tables'`)
+if (`select variable_value - $workers*$temp_tables as must_be_zero from performance_schema.global_status where variable_name like 'Replica_open_temp_tables'`)
 {
-   --let $actual_temps= `select variable_value from performance_schema.global_status where variable_name like 'Slave_open_temp_tables'`
+   --let $actual_temps= `select variable_value from performance_schema.global_status where variable_name like 'Replica_open_temp_tables'`
    --let $exected= `select  $workers*$temp_tables`
-   --echo *** Wrong value of Slave_open_temp_tables: got $actual_temps, expected $expected ***
+   --echo *** Wrong value of Replica_open_temp_tables: got $actual_temps, expected $expected ***
    --die
 }
 
@@ -196,7 +196,9 @@ while ($n)
 --source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+--disable_warnings
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
+--enable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

@@ -77,8 +77,9 @@ set session innodb_ft_enable_stopword=2;
 set global innodb_ft_enable_stopword='AUTO';
 --error ER_WRONG_VALUE_FOR_VAR
 set session innodb_ft_enable_stopword='AUTO';
---echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_ft_enable_stopword=-3;
+--error ER_WRONG_VALUE_FOR_VAR
 set session innodb_ft_enable_stopword=-7;
 select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;

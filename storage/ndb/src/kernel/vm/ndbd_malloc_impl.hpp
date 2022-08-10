@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef NDBD_MALLOC_IMPL_H
 #define NDBD_MALLOC_IMPL_H
 
+#include "util/require.h"
 #include <algorithm>
 #ifdef VM_TRACE
 #ifndef NDBD_RANDOM_START_PAGE
@@ -39,7 +40,7 @@
 #include "NdbSeqLock.hpp"
 #include "Pool.hpp"
 #include <Vector.hpp>
-#include "util/NdbOut.hpp"
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 291
 
@@ -984,12 +985,13 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
      * Last page is region is reserved for no use.
      */
 #ifdef NDBD_RANDOM_START_PAGE
-    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: internal page %u %u",
-             (page_num + m_random_start_page_id),
-             page_num);
+    g_eventLogger->info(
+        "Warning: Ndbd_mem_manager::get_valid_page: internal page %u %u",
+        (page_num + m_random_start_page_id), page_num);
 #else
-    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: internal page %u",
-             page_num);
+    g_eventLogger->info(
+        "Warning: Ndbd_mem_manager::get_valid_page: internal page %u",
+        page_num);
 #endif
 #ifdef VM_TRACE
     abort();
@@ -1026,12 +1028,13 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
   if (unlikely(!page_is_mapped))
   {
 #ifdef NDBD_RANDOM_START_PAGE
-    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u %u",
-             (page_num + m_random_start_page_id),
-             page_num);
+    g_eventLogger->info(
+        "Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u %u",
+        (page_num + m_random_start_page_id), page_num);
 #else
-    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u",
-             page_num);
+    g_eventLogger->info(
+        "Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u",
+        page_num);
 #endif
 #ifdef VM_TRACE
     abort();

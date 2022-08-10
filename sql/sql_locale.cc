@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -574,8 +574,8 @@ MY_LOCALE my_locale_es_ES(17, "es_ES", "Spanish - Spain", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           ',',        /* decimal point es_ES */
-                          '\0',       /* thousands_sep es_ES */
-                          "\x80\x80", /* grouping      es_ES */
+                          '.',        /* thousands_sep es_ES */
+                          "\x03\x03", /* grouping      es_ES */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_ES *****/
 
@@ -2414,8 +2414,8 @@ MY_LOCALE my_locale_es_BO(82, "es_BO", "Spanish - Bolivia", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           ',',        /* decimal point es_BO */
-                          '\0',       /* thousands_sep es_BO */
-                          "\x80\x80", /* grouping      es_BO */
+                          '.',        /* thousands_sep es_BO */
+                          "\x03\x03", /* grouping      es_BO */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_BO *****/
 
@@ -2426,8 +2426,8 @@ MY_LOCALE my_locale_es_CL(83, "es_CL", "Spanish - Chile", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           ',',        /* decimal point es_CL */
-                          '\0',       /* thousands_sep es_CL */
-                          "\x80\x80", /* grouping      es_CL */
+                          '.',        /* thousands_sep es_CL */
+                          "\x03\x03", /* grouping      es_CL */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_CL *****/
 
@@ -2438,8 +2438,8 @@ MY_LOCALE my_locale_es_CO(84, "es_CO", "Spanish - Columbia", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           ',',        /* decimal point es_CO */
-                          '\0',       /* thousands_sep es_CO */
-                          "\x80\x80", /* grouping      es_CO */
+                          '.',        /* thousands_sep es_CO */
+                          "\x03\x03", /* grouping      es_CO */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_CO *****/
 
@@ -2449,9 +2449,9 @@ MY_LOCALE my_locale_es_CR(85, "es_CR", "Spanish - Costa Rica", false,
                           &my_locale_typelib_ab_month_names_es_ES,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
-                          '.',        /* decimal point es_CR */
-                          '\0',       /* thousands_sep es_CR */
-                          "\x80\x80", /* grouping      es_CR */
+                          ',',        /* decimal point es_CR */
+                          ' ',        /* thousands_sep es_CR */
+                          "\x03\x03", /* grouping      es_CR */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_CR *****/
 
@@ -2462,8 +2462,8 @@ MY_LOCALE my_locale_es_DO(86, "es_DO", "Spanish - Dominican Republic", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           '.',        /* decimal point es_DO */
-                          '\0',       /* thousands_sep es_DO */
-                          "\x80\x80", /* grouping      es_DO */
+                          ',',        /* thousands_sep es_DO */
+                          "\x03\x03", /* grouping      es_DO */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_DO *****/
 
@@ -2474,8 +2474,8 @@ MY_LOCALE my_locale_es_EC(87, "es_EC", "Spanish - Ecuador", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           ',',        /* decimal point es_EC */
-                          '\0',       /* thousands_sep es_EC */
-                          "\x80\x80", /* grouping      es_EC */
+                          '.',        /* thousands_sep es_EC */
+                          "\x03\x03", /* grouping      es_EC */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_EC *****/
 
@@ -2486,8 +2486,8 @@ MY_LOCALE my_locale_es_GT(88, "es_GT", "Spanish - Guatemala", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           '.',        /* decimal point es_GT */
-                          '\0',       /* thousands_sep es_GT */
-                          "\x80\x80", /* grouping      es_GT */
+                          ',',        /* thousands_sep es_GT */
+                          "\x03\x03", /* grouping      es_GT */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_GT *****/
 
@@ -2498,8 +2498,8 @@ MY_LOCALE my_locale_es_HN(89, "es_HN", "Spanish - Honduras", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           '.',        /* decimal point es_HN */
-                          '\0',       /* thousands_sep es_HN */
-                          "\x80\x80", /* grouping      es_HN */
+                          ',',        /* thousands_sep es_HN */
+                          "\x03\x03", /* grouping      es_HN */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_HN *****/
 
@@ -2510,8 +2510,8 @@ MY_LOCALE my_locale_es_MX(90, "es_MX", "Spanish - Mexico", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           '.',        /* decimal point es_MX */
-                          '\0',       /* thousands_sep es_MX */
-                          "\x80\x80", /* grouping      es_MX */
+                          ',',        /* thousands_sep es_MX */
+                          "\x03\x03", /* grouping      es_MX */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_MX *****/
 
@@ -2522,8 +2522,8 @@ MY_LOCALE my_locale_es_NI(91, "es_NI", "Spanish - Nicaragua", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           '.',        /* decimal point es_NI */
-                          '\0',       /* thousands_sep es_NI */
-                          "\x80\x80", /* grouping      es_NI */
+                          ',',        /* thousands_sep es_NI */
+                          "\x03\x03", /* grouping      es_NI */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_NI *****/
 
@@ -2534,8 +2534,8 @@ MY_LOCALE my_locale_es_PA(92, "es_PA", "Spanish - Panama", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           '.',        /* decimal point es_PA */
-                          '\0',       /* thousands_sep es_PA */
-                          "\x80\x80", /* grouping      es_PA */
+                          ',',        /* thousands_sep es_PA */
+                          "\x03\x03", /* grouping      es_PA */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_PA *****/
 
@@ -2546,8 +2546,8 @@ MY_LOCALE my_locale_es_PE(93, "es_PE", "Spanish - Peru", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           '.',        /* decimal point es_PE */
-                          '\0',       /* thousands_sep es_PE */
-                          "\x80\x80", /* grouping      es_PE */
+                          ',',        /* thousands_sep es_PE */
+                          "\x03\x03", /* grouping      es_PE */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_PE *****/
 
@@ -2558,8 +2558,8 @@ MY_LOCALE my_locale_es_PR(94, "es_PR", "Spanish - Puerto Rico", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           '.',        /* decimal point es_PR */
-                          '\0',       /* thousands_sep es_PR */
-                          "\x80\x80", /* grouping      es_PR */
+                          ',',        /* thousands_sep es_PR */
+                          "\x03\x03", /* grouping      es_PR */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_PR *****/
 
@@ -2570,8 +2570,8 @@ MY_LOCALE my_locale_es_PY(95, "es_PY", "Spanish - Paraguay", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           ',',        /* decimal point es_PY */
-                          '\0',       /* thousands_sep es_PY */
-                          "\x80\x80", /* grouping      es_PY */
+                          '.',        /* thousands_sep es_PY */
+                          "\x03\x03", /* grouping      es_PY */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_PY *****/
 
@@ -2582,8 +2582,8 @@ MY_LOCALE my_locale_es_SV(96, "es_SV", "Spanish - El Salvador", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           '.',        /* decimal point es_SV */
-                          '\0',       /* thousands_sep es_SV */
-                          "\x80\x80", /* grouping      es_SV */
+                          ',',        /* thousands_sep es_SV */
+                          "\x03\x03", /* grouping      es_SV */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_SV *****/
 
@@ -2606,8 +2606,8 @@ MY_LOCALE my_locale_es_UY(98, "es_UY", "Spanish - Uruguay", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           ',',        /* decimal point es_UY */
-                          '\0',       /* thousands_sep es_UY */
-                          "\x80\x80", /* grouping      es_UY */
+                          '.',        /* thousands_sep es_UY */
+                          "\x03\x03", /* grouping      es_UY */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_UY *****/
 
@@ -2618,8 +2618,8 @@ MY_LOCALE my_locale_es_VE(99, "es_VE", "Spanish - Venezuela", false,
                           &my_locale_typelib_day_names_es_ES,
                           &my_locale_typelib_ab_day_names_es_ES, 10, 9,
                           ',',        /* decimal point es_VE */
-                          '\0',       /* thousands_sep es_VE */
-                          "\x80\x80", /* grouping      es_VE */
+                          '.',        /* thousands_sep es_VE */
+                          "\x03\x03", /* grouping      es_VE */
                           &global_errmsgs[es_ES]);
 /***** LOCALE END es_VE *****/
 

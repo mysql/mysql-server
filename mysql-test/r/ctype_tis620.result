@@ -268,78 +268,86 @@ insert into t1 values (0x40),(0x41),(0x42),(0x43),(0x44),(0x45),(0x46),(0x47),(0
 insert into t1 values (0x50),(0x51),(0x52),(0x53),(0x54),(0x55),(0x56),(0x57),(0x58),(0x59),(0x5A),(0x5B),(0x5C),(0x5D),(0x5E),(0x5F);
 insert into t1 values (0x60),(0x61),(0x62),(0x63),(0x64),(0x65),(0x66),(0x67),(0x68),(0x69),(0x6A),(0x6B),(0x6C),(0x6D),(0x6E),(0x6F);
 insert into t1 values (0x70),(0x71),(0x72),(0x73),(0x74),(0x75),(0x76),(0x77),(0x78),(0x79),(0x7A),(0x7B),(0x7C),(0x7D),(0x7E),(0x7F);
-SELECT GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR ''), GROUP_CONCAT(hex(c1) ORDER BY BINARY c1) FROM t1 GROUP BY c1;
-GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR '')	GROUP_CONCAT(hex(c1) ORDER BY BINARY c1)
- 	20
-!	21
-"	22
-#	23
-$	24
-%	25
-&	26
-'	27
-(	28
-)	29
-*	2A
-+	2B
-,	2C
--	2D
-.	2E
-/	2F
-0	30
-1	31
-2	32
-3	33
-4	34
-5	35
-6	36
-7	37
-8	38
-9	39
-:	3A
-;	3B
-<	3C
-=	3D
->	3E
-?	3F
-@	40
-[	5B
-\	5C
-]	5D
-^	5E
-_	5F
-`	60
-Aa	41,61
-Bb	42,62
-Cc	43,63
-Dd	44,64
-Ee	45,65
-Ff	46,66
-Gg	47,67
-Hh	48,68
-Ii	49,69
-Jj	4A,6A
-Kk	4B,6B
-Ll	4C,6C
-Mm	4D,6D
-Nn	4E,6E
-Oo	4F,6F
-Pp	50,70
-Qq	51,71
-Rr	52,72
-Ss	53,73
-Tt	54,74
-Uu	55,75
-Vv	56,76
-Ww	57,77
-Xx	58,78
-Yy	59,79
-Zz	5A,7A
-{	7B
-|	7C
-}	7D
-~	7E
-	7F
+SELECT HEX(cx), cy
+FROM (SELECT GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR '') AS cx,
+GROUP_CONCAT(HEX(c1) ORDER BY BINARY c1) AS cy
+FROM t1
+GROUP BY c1
+) AS dt;
+HEX(cx)	cy
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+2A	2A
+2B	2B
+2C	2C
+2D	2D
+2E	2E
+2F	2F
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+3A	3A
+3B	3B
+3C	3C
+3D	3D
+3E	3E
+3F	3F
+40	40
+5B	5B
+5C	5C
+5D	5D
+5E	5E
+5F	5F
+60	60
+4161	41,61
+4262	42,62
+4363	43,63
+4464	44,64
+4565	45,65
+4666	46,66
+4767	47,67
+4868	48,68
+4969	49,69
+4A6A	4A,6A
+4B6B	4B,6B
+4C6C	4C,6C
+4D6D	4D,6D
+4E6E	4E,6E
+4F6F	4F,6F
+5070	50,70
+5171	51,71
+5272	52,72
+5373	53,73
+5474	54,74
+5575	55,75
+5676	56,76
+5777	57,77
+5878	58,78
+5979	59,79
+5A7A	5A,7A
+7B	7B
+7C	7C
+7D	7D
+7E	7E
+7F	7F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 SET collation_connection='tis620_bin';
 create table t1 select repeat('a',4000) a;
@@ -552,9 +560,9 @@ is_ipv4(inet_ntoa('1'))
 SELECT is_ipv6(inet_ntoa('1'));
 is_ipv6(inet_ntoa('1'))
 0
-SELECT inet6_aton(inet_ntoa('1'));
-inet6_aton(inet_ntoa('1'))
-   
+SELECT HEX(inet6_aton(inet_ntoa('1')));
+HEX(inet6_aton(inet_ntoa('1')))
+00000001
 SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL

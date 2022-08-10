@@ -185,7 +185,7 @@ set @old_os = @@session.optimizer_switch;
 set optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY,b	b	9	NULL	#	#	Using pushed condition (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9)); Using filesort
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY,b	PRIMARY	4	NULL	#	#	Using pushed condition (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9)); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9)) order by `test`.`t2`.`a`
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
@@ -194,6 +194,41 @@ a	b	c
 5	5	NULL
 8	3	NULL
 set optimizer_switch = @old_os;
+explain format=tree
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
+EXPLAIN
+-> Index scan on t2 using PRIMARY, with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null))
+
+explain format=tree
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL;
+EXPLAIN
+-> Table scan on t2, with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null))
+
+explain format=tree
+select * from t2 where b in (1,2,3) AND c IS NULL;
+EXPLAIN
+-> Table scan on t2, with pushed condition: ((t2.b in (1,2,3)) and (t2.c is null))
+
+explain format=tree
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+EXPLAIN
+-> Index range scan on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
+
+explain format=tree
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9;
+EXPLAIN
+-> Index range scan on t2 using PRIMARY over (a < 9), with pushed condition: (((t2.b = 3) or (t2.b = 5)) and (t2.c is null) and (t2.a < 9))
+
+explain format=tree
+select * from t2 where c IS NULL order by a;
+EXPLAIN
+-> Index scan on t2 using PRIMARY, with pushed condition: (t2.c is null)
+
+explain format=tree
+select * from t2 where b = 3 AND c IS NULL order by a;
+EXPLAIN
+-> Index scan on t2 using PRIMARY, with pushed condition: ((t2.b = 3) and (t2.c is null))
+
 drop table t2;
 CREATE TABLE t3 (
 a int unsigned NOT NULL,
@@ -933,13 +968,30 @@ from
 t2 as t1, t2 as t2, t2 as t3, t2 as t4;
 explain
 SELECT STRAIGHT_JOIN count(*) FROM 
-t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10000	100.00	Using pushed condition (`test`.`t1`.`a` is not null)
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	const,test.t1.a	1	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	func,test.t1.a	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`uq` is null))
+Note	1003	Can't push table 't2' as child, column 'uq' does neither 'ref' a column nor a constant
+Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`uq` <=> (`test`.`t1`.`a` + NULL)))
 SELECT STRAIGHT_JOIN count(*) FROM 
+t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
+count(*)
+0
+explain format=tree
+SELECT STRAIGHT_JOIN count(*) FROM
+t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+EXPLAIN
+-> Aggregate: count(0)
+    -> Inner hash join (t2.a = t1.a)
+        -> Table scan on t2, with pushed condition: (t2.uq is null)
+        -> Hash
+            -> Table scan on t1
+
+Warnings:
+Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
+SELECT STRAIGHT_JOIN count(*) FROM
 t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 count(*)
 0
@@ -1154,3 +1206,32 @@ t1.h = 8 /* use unique index on t1 */;
 i
 40
 DROP TABLE t1, t2;
+#
+# Bug#33317872 Incorrect Index selected leading to slower execution of queries
+#
+#   When choosing between a Multi-range-read on an unique index,
+#   and a range scan on an ordered index, where few rows are expected
+#   to be returned, prefer the unique index.
+#   (An ordered index scan has higher cost, as all fragments are scanned)
+#
+CREATE TABLE t (
+delivery_id bigint unsigned NOT NULL AUTO_INCREMENT,
+msg_id int unsigned NOT NULL,
+auth_login_type char(1) DEFAULT NULL,
+auth_login_id varchar(64),
+PRIMARY KEY (delivery_id),
+UNIQUE KEY msg_id(msg_id,auth_login_type,auth_login_id),
+KEY auth_login_id(auth_login_id)
+) ENGINE=ndbcluster;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+insert into t (msg_id, auth_login_type, auth_login_id) values
+(4866, '5', '81774133'),
+(4869, '5', '81774133');
+explain format=tree
+select * from t
+where auth_login_type='5' AND auth_login_id = '81774133' AND msg_id IN (4866,4869);
+EXPLAIN
+-> Index range scan on t using msg_id over (msg_id = 4866 AND auth_login_type = '5' AND auth_login_id = '81774133') OR (msg_id = 4869 AND auth_login_type = '5' AND auth_login_id = '81774133'), with pushed condition: ((t.auth_login_id = '81774133') and (t.auth_login_type = '5') and (t.msg_id in (4866,4869)))  (cost=1.91 rows=2)
+
+drop table t;

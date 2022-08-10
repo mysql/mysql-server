@@ -6,7 +6,7 @@
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 disable_query_log;
-call mtr.add_suppression(".* 'slave_parallel_workers = 2' is not supported when applying to Ndb");
+call mtr.add_suppression(".* 'replica_parallel_workers = 2' is not supported when applying to Ndb");
 call mtr.add_suppression("Slave SQL.*: Request to stop slave SQL Thread");
 call mtr.add_suppression("Slave SQL.*: Worker 1 failed");
 call mtr.add_suppression("Slave SQL.*: Worker 2 failed");
@@ -15,8 +15,8 @@ enable_query_log;
 
 connection slave;
 --source include/stop_slave.inc
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-set @@global.slave_parallel_workers= 2;
+set @save.replica_parallel_workers= @@global.replica_parallel_workers;
+set @@global.replica_parallel_workers= 2;
 --source include/start_slave.inc
 
 connection master;
@@ -36,7 +36,7 @@ drop table t1;
 
 connection slave;
 --source include/stop_slave.inc
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 
 --source include/start_slave.inc
 --source include/rpl_reset.inc

@@ -30,6 +30,7 @@ INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
 INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
 create table t3 (a int not null, b char(20), key(a)) engine=MERGE UNION=(t1,t2);
 select * from t3;
+--partially_sorted_result 1
 select * from t3 order by a desc;
 drop table t3;
 insert into t1 select NULL,message from t2;
@@ -1684,7 +1685,7 @@ DROP DATABASE `test/1`;
 
 
 --echo #
---echo # Bug#51494c rash with join, explain and 'sounds like' operator
+--echo # Bug#51494 crash with join, explain and 'sounds like' operator
 --echo #
 
 CREATE TABLE t1 (a INT) ENGINE=MYISAM;

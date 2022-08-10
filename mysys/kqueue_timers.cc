@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ static my_thread_handle timer_notify_thread;
   @param  arg   Unused.
 */
 
-static void *timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused))) {
+static void *timer_notify_thread_func(void *arg [[maybe_unused]]) {
   my_timer_t *timer;
   struct kevent kev;
 

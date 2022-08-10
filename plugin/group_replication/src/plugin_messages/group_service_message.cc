@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,20 +27,20 @@
 Group_service_message::Group_service_message()
     : Plugin_gcs_message(CT_MESSAGE_SERVICE_MESSAGE),
       m_tag(""),
-      m_data(),
+      m_data(Malloc_allocator<uchar>(key_message_service_received_message)),
       m_data_pointer(nullptr),
       m_data_pointer_length(0) {}
 
 Group_service_message::Group_service_message(const uchar *buf, size_t len)
     : Plugin_gcs_message(CT_MESSAGE_SERVICE_MESSAGE),
       m_tag(""),
-      m_data(),
+      m_data(Malloc_allocator<uchar>(key_message_service_received_message)),
       m_data_pointer(nullptr),
       m_data_pointer_length(0) {
   decode(buf, len);
 }
 
-Group_service_message::~Group_service_message() {}
+Group_service_message::~Group_service_message() = default;
 
 bool Group_service_message::set_data(const uchar *data,
                                      const size_t data_length) {

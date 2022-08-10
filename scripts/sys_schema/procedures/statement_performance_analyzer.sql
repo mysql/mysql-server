@@ -1,4 +1,4 @@
--- Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 -- 
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -428,6 +428,8 @@ BEGIN
   `SUM_SORT_SCAN` bigint unsigned NOT NULL,
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
+  `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `COUNT_SECONDARY` bigint unsigned NOT NULL,
   `FIRST_SEEN` timestamp(6) NULL DEFAULT NULL,
   `LAST_SEEN` timestamp(6) NULL DEFAULT NULL,
   `QUANTILE_95` bigint unsigned NOT NULL,
@@ -513,6 +515,8 @@ SELECT `d_end`.`SCHEMA_NAME`,
        `d_end`.`SUM_SORT_SCAN`-IFNULL(`d_start`.`SUM_SORT_SCAN`, 0) AS ''SUM_SORT_SCAN'',
        `d_end`.`SUM_NO_INDEX_USED`-IFNULL(`d_start`.`SUM_NO_INDEX_USED`, 0) AS ''SUM_NO_INDEX_USED'',
        `d_end`.`SUM_NO_GOOD_INDEX_USED`-IFNULL(`d_start`.`SUM_NO_GOOD_INDEX_USED`, 0) AS ''SUM_NO_GOOD_INDEX_USED'',
+       `d_end`.`SUM_CPU_TIME`-IFNULL(`d_start`.`SUM_CPU_TIME`, 0) AS ''SUM_CPU_TIME'',
+       `d_end`.`COUNT_SECONDARY`-IFNULL(`d_start`.`COUNT_SECONDARY`, 0) AS ''COUNT_SECONDARY'',
        `d_end`.`FIRST_SEEN`,
        `d_end`.`LAST_SEEN`,
        `d_end`.`QUANTILE_95`,

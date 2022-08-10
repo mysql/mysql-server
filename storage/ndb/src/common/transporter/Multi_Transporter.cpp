@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include "Multi_Transporter.hpp"
@@ -22,7 +23,6 @@
 #include <NdbSleep.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 // End of stuff to be moved
 
 Multi_Transporter::Multi_Transporter(TransporterRegistry &t_reg,
@@ -68,12 +68,12 @@ Multi_Transporter::resetBuffers()
   send_checksum_state.init();
 }
 
-bool Multi_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
+bool Multi_Transporter::connect_server_impl(NDB_SOCKET_TYPE /*sockfd*/)
 {
   return true;
 }
 
-bool Multi_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
+bool Multi_Transporter::connect_client_impl(NDB_SOCKET_TYPE /*sockfd*/)
 {
   return true;
 }

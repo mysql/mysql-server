@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ namespace {
 
 class Value {
  public:
-  Value() {}
+  Value() = default;
   explicit Value(const unsigned v) {
     int8store(buf.data(), static_cast<uint64_t>(v));
   }

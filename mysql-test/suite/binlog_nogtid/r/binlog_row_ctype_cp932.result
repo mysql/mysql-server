@@ -3195,6 +3195,8 @@ F9FA
 F9FB
 F9FC
 CREATE TABLE t2 SELECT CONVERT(c1 USING ucs2) AS c1 FROM t1;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(c1) FROM t2;
 HEX(c1)
 0005

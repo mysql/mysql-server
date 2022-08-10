@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,14 +51,7 @@ Metadata::Metadata(Metadata &&src) noexcept {
 }
 
 /** Assignment operator */
-Metadata &Metadata::operator=(const Metadata &src) {
-  key_id_ = src.key_id_;
-  owner_id_ = src.owner_id_;
-  hash_key_ = src.hash_key_;
-  valid_ = src.valid_;
-
-  return *this;
-}
+Metadata &Metadata::operator=(const Metadata &src) = default;
 
 Metadata &Metadata::operator=(Metadata &&src) noexcept {
   std::swap(src.key_id_, key_id_);

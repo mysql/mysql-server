@@ -5,9 +5,9 @@ exec $NDB_MGMD --bind-address=localhost:$MASTER_MYPORT2 --config-file=suite/ndb/
 	--configdir=$MYSQLTEST_VARDIR > $MYSQLTEST_VARDIR/mgmd_failure.log;
 
 
-
 --let $assert_select= Parameter TransactionMemory can not be set along with any of the below deprecated parameter
---let $assert_text= Parameter TransactionMemory can not be set along with any of the below deprecated parameter(s) MaxNoOfConcurrentScans, MaxNoOfConcurrentIndexOperations, MaxNoOfConcurrentOperations and MaxNoOfConcurrentTransactions
+--let $assert_text= Parameter TransactionMemory can not be set along with any of the below deprecated parameter(s) MaxNoOfConcurrentIndexOperations, MaxNoOfFiredTriggers, MaxNoOfLocalScans and MaxNoOfLocalOperations.
+
 --let $assert_file= $MYSQLTEST_VARDIR/mgmd_failure.log
 --let $assert_count= 1
 --source include/assert_grep.inc

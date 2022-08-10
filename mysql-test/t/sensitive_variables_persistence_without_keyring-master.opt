@@ -1,0 +1,2 @@
+$TEST_SENSITIVE_SYSTEM_VARIABLES_OPT
+--persist_sensitive_variables_in_plaintext=FALSE

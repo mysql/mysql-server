@@ -18,7 +18,7 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
 #include <mysql/components/services/bits/psi_bits.h>
 static constexpr unsigned PSI_INSTRUMENT_ME = 0;
 static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;

@@ -8,7 +8,7 @@
 #
 # For both STS and MTS configurations, we perform the following operations:
 #  - create a transaction on the slave forcing a replicated transaction to reach
-#  the maximum slave_transaction_retries
+#  the maximum replica_transaction_retries
 #  - Wait for the slave to reach the error condition ER_LOCK_WAIT_TIMEOUT and
 #  rollback the blocking transaction
 #  - collect the applying transaction GTID and start_apply timestamp
@@ -24,18 +24,17 @@
 
 # the test is binlog format agnostic
 --source include/have_binlog_format_row.inc
-# the test must start with a single-threaded slave
---source include/not_mts_slave_parallel_workers.inc
-
+--source include/only_mts_replica_parallel_type_logical_clock.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression(".*worker thread retried transaction 5 time.*");
 call mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 
+SET @saved_replica_parallel_workers= @@GLOBAL.replica_parallel_workers;
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
-SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
-SET GLOBAL slave_transaction_retries = 5;
+SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+SET GLOBAL replica_transaction_retries = 5;
 SET GLOBAL innodb_lock_wait_timeout = 2;
 
 --source include/rpl_connection_master.inc
@@ -57,7 +56,7 @@ while ($scenario < 3)
   --eval INSERT INTO t1 VALUES ($scenario);
 
   --source include/rpl_connection_slave.inc
-  # wait for slave_transaction_retries to reach the maximum retry value
+  # wait for replica_transaction_retries to reach the maximum retry value
   --let $slave_sql_errno = convert_error(ER_LOCK_WAIT_TIMEOUT)
   --source include/wait_for_slave_sql_to_stop.inc
 
@@ -85,7 +84,7 @@ while ($scenario < 3)
   --source include/assert.inc
 
   --source include/stop_slave.inc
-  SET GLOBAL slave_parallel_workers = 1;
+  SET GLOBAL replica_parallel_workers = 1;
   --source include/start_slave.inc
   --inc $scenario
 }
@@ -95,8 +94,10 @@ while ($scenario < 3)
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
-SET GLOBAL slave_parallel_workers = 0;
+--disable_warnings
+SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
+--enable_warnings
 --source include/start_slave.inc
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
-SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
+SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 --source include/rpl_end.inc

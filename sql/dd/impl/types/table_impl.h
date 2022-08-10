@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -459,6 +459,9 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
     Abstract_table_impl::set_last_altered(last_altered);
   }
   Column *add_column() override { return Abstract_table_impl::add_column(); }
+  bool drop_column(const String_type &name) override {
+    return Abstract_table_impl::drop_column(name);
+  }
   const Column_collection &columns() const override {
     return Abstract_table_impl::columns();
   }
@@ -591,6 +594,25 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
 
   Table_impl(const Table_impl &src);
   Table_impl *clone() const override { return new Table_impl(*this); }
+
+  // N.B.: returning dd::Table from this function might confuse MSVC
+  // compiler thanks to diamond inheritance.
+  Table_impl *clone_dropped_object_placeholder() const override {
+    /*
+      TODO: In future we might want to save even more memory and use separate
+            placeholder class implementing dd::Table interface instead of
+            Table_impl. Instances of such class can be several times smaller
+            than an empty Table_impl. It might make sense to do the same for
+            for some of other types as well.
+    */
+    Table_impl *placeholder = new Table_impl();
+    placeholder->set_id(id());
+    placeholder->set_schema_id(schema_id());
+    placeholder->set_name(name());
+    placeholder->set_engine(engine());
+    placeholder->set_se_private_id(se_private_id());
+    return placeholder;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

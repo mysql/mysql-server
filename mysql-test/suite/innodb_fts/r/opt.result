@@ -221,8 +221,8 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 docid	score
-5	0.45528939366340637
 1	0.22764469683170319
+5	0.45528939366340637
 SHOW SESSION STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -291,8 +291,8 @@ MATCH(title, text) AGAINST ('mysql') AS score2
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 docid	score1	score2
-5	0.45528939366340637	0.000000001885928302414186
 1	0.22764469683170319	0.000000003771856604828372
+5	0.45528939366340637	0.000000001885928302414186
 SHOW SESSION STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -329,8 +329,8 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 GROUP BY score;
 FTS_DOC_ID	score
-5	0.45528939366340637
 1	0.22764469683170319
+5	0.45528939366340637
 SHOW SESSION STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -365,14 +365,13 @@ Sort_range	0
 Sort_rows	0
 Sort_scan	0
 If count optimization applies, EXPLAIN shows
-"Select tables optimized away."
-EXPLAIN SELECT COUNT(*)
+"Rows fetched before execution."
+EXPLAIN FORMAT=TREE SELECT COUNT(*)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
 FLUSH STATUS;
 SELECT COUNT(*)
 FROM wp
@@ -390,66 +389,40 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 Optimization applies also to COUNT(expr) as long as expr is not nullable
-EXPLAIN SELECT COUNT(title)
+EXPLAIN FORMAT=TREE SELECT COUNT(title)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-Warnings:
-Note	1003	/* select#1 */ select count(`test`.`wp`.`title`) AS `COUNT(title)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
 SELECT COUNT(title)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 COUNT(title)
 2
 Optimization does not apply if not a single table query.
-EXPLAIN SELECT count(*)
-FROM wp, t1 
-WHERE MATCH(title, text) AGAINST ('database');
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where; Ft_hints: no_ranking; Using index
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`wp` join `test`.`t1` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
+Pattern "-> Aggregate" found
 SELECT count(*)
 FROM wp, t1 
 WHERE MATCH(title, text) AGAINST ('database');
 count(*)
 12
 Optimization does not apply if MATCH is part of an expression
-EXPLAIN SELECT COUNT(title) 
-FROM wp 
-WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where; Ft_hints: rank > 0
-Warnings:
-Note	1003	/* select#1 */ select count(`test`.`wp`.`title`) AS `COUNT(title)` from `test`.`wp` where ((match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database')) > 0)
+Pattern "-> Aggregate" found
 SELECT COUNT(title) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 COUNT(title)
 2
 Optimization does not apply if MATCH is part of an expression
-EXPLAIN SELECT COUNT(title) 
-FROM wp 
-WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where; Ft_hints: rank > 0
-Warnings:
-Note	1003	/* select#1 */ select count(`test`.`wp`.`title`) AS `COUNT(title)` from `test`.`wp` where ((match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database')) > 0)
+Pattern "-> Aggregate" found
 SELECT COUNT(title) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 COUNT(title)
 2
 Optimization does not apply if COUNT expression is nullable
-EXPLAIN SELECT COUNT(dummy) 
-FROM wp 
-WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where; Ft_hints: no_ranking
-Warnings:
-Note	1003	/* select#1 */ select count(`test`.`wp`.`dummy`) AS `COUNT(dummy)` from `test`.`wp` where (match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database'))
+Pattern "-> Aggregate" found
 SELECT COUNT(dummy) 
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
@@ -494,8 +467,8 @@ MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 docid	score
-5	2.2718474864959717
 1	1.6663280725479126
+5	2.2718474864959717
 SHOW SESSION STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -587,12 +560,12 @@ MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('+MySQL -database');
 docid	score
-5	0
 1	0
-6	0.000000003771856604828372
 2	0.000000001885928302414186
 3	0.000000001885928302414186
 4	0.000000001885928302414186
+5	0
+6	0.000000003771856604828372
 SHOW SESSION STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -795,8 +768,8 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp 
 WHERE MATCH(title, text) AGAINST ('database');
 docid	score
-5	0.9562782645225525
 1	0.5756555199623108
+5	0.9562782645225525
 SHOW SESSION STATUS LIKE 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
@@ -915,19 +888,19 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+very +fast' with query expansion))
 SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION);
 FTS_DOC_ID	title
+1	MySQL Tutorial
+10	MySQL software is Open Source
 11	The MySQL Database Server is very fast, reliable, scalable, and easy to use
 12	MySQL Server works in client/server enviornment ......
-10	MySQL software is Open Source
-4	1001 MySQL Tricks
+13	MyISAM
 14	A large amount of contributed MySQL software is available
 2	How To Use MySQL Well
-13	MyISAM
-5	MySQL vs. YourSQL database
-8	MySQL is a database management system
-1	MySQL Tutorial
-9	MySQL databases are relational
-6	MySQL Security
 3	Optimizing MySQL
+4	1001 MySQL Tricks
+5	MySQL vs. YourSQL database
+6	MySQL Security
+8	MySQL is a database management system
+9	MySQL databases are relational
 EXPLAIN
 SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@3' IN BOOLEAN MODE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -943,6 +916,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: no_ranking; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+for' in boolean mode))
+Pattern "Full-text covering index search on t1 using ft_idx" found
 SELECT FTS_DOC_ID  FROM t1
 WHERE MATCH(title, text) AGAINST ('+for' IN BOOLEAN MODE);
 FTS_DOC_ID
@@ -1077,9 +1051,9 @@ FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE M
 ORDER BY `rank`
 LIMIT 3;
 FTS_DOC_ID	rank
-9	0.15835624933242798
-12	0.15835624933242798
 1	0.15835624933242798
+12	0.15835624933242798
+9	0.15835624933242798
 EXPLAIN
 SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
@@ -1137,6 +1111,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: sorted, limit = 3; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) AS `rank` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) order by (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) desc limit 3
+Pattern "Full-text covering index search on t1 using ft_idx" found
 SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
@@ -1153,6 +1128,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	fulltext	PRIMARY,FTS_DOC_ID_INDEX,ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: sorted; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) AS `rank` from `test`.`t1` where ((match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) and (`test`.`t1`.`FTS_DOC_ID` > 1)) order by (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) desc limit 3
+EXPLAIN FORMAT=TREE
+SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
+FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1
+ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
+LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)
+    -> Filter:
+        -> Full-text covering index search on t1 using ft_idx (title='+database')
+
 SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
@@ -1216,12 +1201,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID` from `t
 SELECT FTS_DOC_ID FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) > 0.1;
 FTS_DOC_ID
+1
 11
+12
 5
 8
-1
 9
-12
 # additional test for correct behaviour
 EXPLAIN SELECT * FROM t1 ORDER BY MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) DESC LIMIT 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1233,12 +1218,12 @@ WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) AND
 MATCH (title, text) AGAINST ('mysql' IN NATURAL LANGUAGE MODE)
 LIMIT 6;
 FTS_DOC_ID
+1
 11
+12
 5
 8
-1
 9
-12
 # test OR condition
 SELECT FTS_DOC_ID
 FROM t1
@@ -1373,12 +1358,12 @@ WHERE MATCH(a.title, a.text) AGAINST ('+database' IN BOOLEAN MODE) and
 MATCH(b.title, b.text) AGAINST ('+mysql' IN BOOLEAN MODE) and
 a.FTS_DOC_ID = b.FTS_DOC_ID;
 FTS_DOC_ID	FTS_DOC_ID
-5	5
-8	8
 1	1
-9	9
 11	11
 12	12
+5	5
+8	8
+9	9
 EXPLAIN SELECT a.FTS_DOC_ID, b.FTS_DOC_ID
 FROM t1 a, t1 b
 WHERE MATCH(a.title, a.text) AGAINST ('+database' IN BOOLEAN MODE) and
@@ -1395,42 +1380,42 @@ FROM t1 a, t1 b
 WHERE MATCH(a.title, a.text) AGAINST ('+database' IN BOOLEAN MODE) and
 MATCH(b.title, b.text) AGAINST ('+database' IN BOOLEAN MODE);
 FTS_DOC_ID	MATCH(a.title, a.text) AGAINST ('+database' IN BOOLEAN MODE)	FTS_DOC_ID	MATCH(b.title, b.text) AGAINST ('+database' IN BOOLEAN MODE)
-5	0.47506874799728394	5	0.47506874799728394
-5	0.47506874799728394	8	0.31671249866485596
-5	0.47506874799728394	1	0.15835624933242798
-5	0.47506874799728394	9	0.15835624933242798
-5	0.47506874799728394	11	0.15835624933242798
-5	0.47506874799728394	12	0.15835624933242798
-8	0.31671249866485596	5	0.47506874799728394
-8	0.31671249866485596	8	0.31671249866485596
-8	0.31671249866485596	1	0.15835624933242798
-8	0.31671249866485596	9	0.15835624933242798
-8	0.31671249866485596	11	0.15835624933242798
-8	0.31671249866485596	12	0.15835624933242798
-1	0.15835624933242798	5	0.47506874799728394
-1	0.15835624933242798	8	0.31671249866485596
 1	0.15835624933242798	1	0.15835624933242798
-1	0.15835624933242798	9	0.15835624933242798
 1	0.15835624933242798	11	0.15835624933242798
 1	0.15835624933242798	12	0.15835624933242798
-9	0.15835624933242798	5	0.47506874799728394
-9	0.15835624933242798	8	0.31671249866485596
-9	0.15835624933242798	1	0.15835624933242798
-9	0.15835624933242798	9	0.15835624933242798
-9	0.15835624933242798	11	0.15835624933242798
-9	0.15835624933242798	12	0.15835624933242798
-11	0.15835624933242798	5	0.47506874799728394
-11	0.15835624933242798	8	0.31671249866485596
+1	0.15835624933242798	5	0.47506874799728394
+1	0.15835624933242798	8	0.31671249866485596
+1	0.15835624933242798	9	0.15835624933242798
 11	0.15835624933242798	1	0.15835624933242798
-11	0.15835624933242798	9	0.15835624933242798
 11	0.15835624933242798	11	0.15835624933242798
 11	0.15835624933242798	12	0.15835624933242798
-12	0.15835624933242798	5	0.47506874799728394
-12	0.15835624933242798	8	0.31671249866485596
+11	0.15835624933242798	5	0.47506874799728394
+11	0.15835624933242798	8	0.31671249866485596
+11	0.15835624933242798	9	0.15835624933242798
 12	0.15835624933242798	1	0.15835624933242798
-12	0.15835624933242798	9	0.15835624933242798
 12	0.15835624933242798	11	0.15835624933242798
 12	0.15835624933242798	12	0.15835624933242798
+12	0.15835624933242798	5	0.47506874799728394
+12	0.15835624933242798	8	0.31671249866485596
+12	0.15835624933242798	9	0.15835624933242798
+5	0.47506874799728394	1	0.15835624933242798
+5	0.47506874799728394	11	0.15835624933242798
+5	0.47506874799728394	12	0.15835624933242798
+5	0.47506874799728394	5	0.47506874799728394
+5	0.47506874799728394	8	0.31671249866485596
+5	0.47506874799728394	9	0.15835624933242798
+8	0.31671249866485596	1	0.15835624933242798
+8	0.31671249866485596	11	0.15835624933242798
+8	0.31671249866485596	12	0.15835624933242798
+8	0.31671249866485596	5	0.47506874799728394
+8	0.31671249866485596	8	0.31671249866485596
+8	0.31671249866485596	9	0.15835624933242798
+9	0.15835624933242798	1	0.15835624933242798
+9	0.15835624933242798	11	0.15835624933242798
+9	0.15835624933242798	12	0.15835624933242798
+9	0.15835624933242798	5	0.47506874799728394
+9	0.15835624933242798	8	0.31671249866485596
+9	0.15835624933242798	9	0.15835624933242798
 EXPLAIN SELECT a.FTS_DOC_ID, MATCH(a.title, a.text) AGAINST ('+database' IN BOOLEAN MODE),
 b.FTS_DOC_ID, MATCH(b.title, b.text) AGAINST ('+database' IN BOOLEAN MODE)
 FROM t1 a, t1 b
@@ -1707,3 +1692,42 @@ f1
 1
 DROP TABLE t1;
 # End of test for Bug#22679209
+#
+# Bug#32685616: WRONG RESULTS WITH FTS COVERING INDEX SCAN
+#
+CREATE TABLE t(FTS_DOC_ID BIGINT UNSIGNED PRIMARY KEY,
+x VARCHAR(10),
+FULLTEXT KEY (x));
+INSERT INTO t VALUES (1, 'abc'), (2, 'abc xyz'), (3, 'xyz abc'), (4, 'xyz');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT FTS_DOC_ID FROM t WHERE
+IF(MATCH(x) AGAINST('abc'), TRUE, FALSE) AND MATCH(x) AGAINST('xyz');
+FTS_DOC_ID
+2
+3
+SELECT 1 FROM t WHERE
+IF(MATCH(x) AGAINST('abc'), TRUE, FALSE) AND MATCH(x) AGAINST('xyz');
+1
+1
+1
+SELECT COUNT(*) FROM t WHERE
+IF(MATCH(x) AGAINST('abc'), TRUE, FALSE) AND MATCH(x) AGAINST('xyz');
+COUNT(*)
+2
+SELECT FTS_DOC_ID FROM t WHERE
+MATCH(x) AGAINST('xyz') AND IF(MATCH(x) AGAINST('abc'), TRUE, FALSE);
+FTS_DOC_ID
+2
+3
+SELECT 1 FROM t WHERE
+MATCH(x) AGAINST('xyz') AND IF(MATCH(x) AGAINST('abc'), TRUE, FALSE);
+1
+1
+1
+SELECT COUNT(*) FROM t WHERE
+MATCH(x) AGAINST('xyz') AND IF(MATCH(x) AGAINST('abc'), TRUE, FALSE);
+COUNT(*)
+2
+DROP TABLE t;

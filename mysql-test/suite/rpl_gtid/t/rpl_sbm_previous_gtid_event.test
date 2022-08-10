@@ -21,8 +21,8 @@ SET @save_global_debug=@@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,dbug.calculate_sbm_after_previous_gtid_log_event';
 
 # To avoid warning MTS
-SET @saved_slave_transaction_retries=@@global.slave_transaction_retries;
-SET @@global.slave_transaction_retries=0;
+SET @saved_replica_transaction_retries=@@global.replica_transaction_retries;
+SET @@global.replica_transaction_retries=0;
 # Previous gtid log events are generated at the time of
 #  relay log is rotated and will be written at the top
 #  of the relay log. There are few ways in which
@@ -106,5 +106,5 @@ SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 
 # Cleanup
 SET @@GLOBAL.DEBUG=@save_global_debug;
-SET @@global.slave_transaction_retries=@saved_slave_transaction_retries;
+SET @@global.replica_transaction_retries=@saved_replica_transaction_retries;
 --source include/rpl_end.inc

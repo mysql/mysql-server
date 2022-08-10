@@ -23,38 +23,53 @@ CALL mtr.add_suppression('MYSQL_BIN_LOG::purge_logs was called with file ..maste
 connection slave;
 stop slave;
 
-SET @@debug="d,simulate_find_log_pos_error";
+--let $debug_point= simulate_find_log_pos_error
+--source include/add_debug_point.inc
 
 --error ER_UNKNOWN_TARGET_BINLOG
 reset slave;
 show warnings;
 
-SET @@debug="";
+--let $debug_point= simulate_find_log_pos_error
+--source include/remove_debug_point.inc
+
 reset slave;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 
-SET @@debug="d,simulate_find_log_pos_error";
+--let $debug_point= simulate_find_log_pos_error
+--source include/add_debug_point.inc
 
 --error ER_UNKNOWN_TARGET_BINLOG
 CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 
-SET @@debug="";
+--let $debug_point= simulate_find_log_pos_error
+--source include/remove_debug_point.inc
+
 reset slave;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 
 connection master;
-SET @@debug="d,simulate_find_log_pos_error";
+
+--let $debug_point= simulate_find_log_pos_error
+--source include/add_debug_point.inc
+
 --error ER_UNKNOWN_TARGET_BINLOG
 reset master;
 
-SET @@debug="";
+--let $debug_point= simulate_find_log_pos_error
+--source include/remove_debug_point.inc
+
 reset master;
 
-SET @@debug="d,simulate_find_log_pos_error";
+--let $debug_point= simulate_find_log_pos_error
+--source include/add_debug_point.inc
+
 --error ER_UNKNOWN_TARGET_BINLOG
 purge binary logs to 'master-bin.000001';
 
-SET @@debug="";
+--let $debug_point= simulate_find_log_pos_error
+--source include/remove_debug_point.inc
+
 purge binary logs to 'master-bin.000001';
 
 --echo ==== clean up ====

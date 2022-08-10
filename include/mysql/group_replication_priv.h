@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -200,16 +200,33 @@ const char *get_write_set_algorithm_string(unsigned int algorithm);
 bool is_gtid_committed(const Gtid &gtid);
 
 /**
-  Returns the value of slave_max_allowed_packet.
+  Returns the value of replica_max_allowed_packet.
 
-  @return slave_max_allowed_packet
+  @return replica_max_allowed_packet
 */
-unsigned long get_slave_max_allowed_packet();
+unsigned long get_replica_max_allowed_packet();
 
 /**
-  @returns the maximum value of slave_max_allowed_packet.
+  Wait until the given Gtid_set is included in @@GLOBAL.GTID_EXECUTED.
+
+  @param[in] gtid_set_text Gtid_set to wait for.
+  @param[in] timeout       The maximum number of seconds that the
+                           function should wait, or 0 to wait indefinitely.
+  @param[in] update_thd_status
+                           when true updates the stage info with
+                           the new wait condition, when false keeps the
+                           current stage info.
+
+  @retval false the Gtid_set is included in @@GLOBAL.GTID_EXECUTED
+  @retval true  otherwise
+*/
+bool wait_for_gtid_set_committed(const char *gtid_set_text, double timeout,
+                                 bool update_thd_status);
+
+/**
+  @returns the maximum value of replica_max_allowed_packet.
  */
-unsigned long get_max_slave_max_allowed_packet();
+unsigned long get_max_replica_max_allowed_packet();
 
 /**
   @returns if the server is restarting after a clone

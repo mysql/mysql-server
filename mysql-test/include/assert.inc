@@ -6,11 +6,12 @@
 #
 # ==== Usage ====
 #
-# --let $assert_text= Relay_Log_Pos must be between min_pos and max_pos
-# --let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] >= $min_pos AND <1> <= $max_pos
-# [--let $extra_debug_info= some text]
-# [--let $extra_debug_eval= expression parsable by include/eval.inc]
-# [--let $rpl_debug= 1]
+# --let $assert_text = Relay_Log_Pos must be between min_pos and max_pos
+# --let $assert_cond = [SHOW SLAVE STATUS, Relay_Log_Pos, 1] >= $min_pos AND <1> <= $max_pos
+# [--let $assert_escape = 1]
+# [--let $extra_debug_info = some text]
+# [--let $extra_debug_eval = expression parsable by include/eval.inc]
+# [--let $rpl_debug = 1]
 # --source include/assert.inc
 #
 # Parameters:
@@ -26,10 +27,24 @@
 #   Both $assert_cond and the result from any substatement on the
 #   form [SQL_STATEMENT, COLUMN, ROW] will be used in SQL statements,
 #   inside single quotes (as in '$assert_text').  So any single quotes
-#   in these texts must be escaped or replaced by double quotes.
+#   in these texts must be escaped or replaced by double quotes, unless
+#   $assert_escape is used.
+#
+# $assert_escape
+#   By default, this script passes $assert_cond within single quotes
+#   to the server in SQL statements.  Therefore, any quotes or
+#   backslashes appearing in $eval_expr must be escaped.  If
+#   $assert_escape==1, this script escapes any single quotes that
+#   appear in $assert_cond, so the caller does not have to know how
+#   this script processes quotes.
 #
 # $rpl_debug
 #   Print extra debug info.
+#
+# $assert_no_stop
+#   Do not make the test fail even if the assert fails.  This is
+#   sometimes preferrable when debugging a script, since it may allow
+#   several errors to be caught in a single run.
 #
 # $extra_debug_info, $extra_debug_eval
 #   See include/show_rpl_debug_info.inc
@@ -53,6 +68,7 @@ if (!$assert_text)
 --let $_assert_old_eval_result= $eval_result
 --let $_assert_old_eval_no_result= $eval_no_result
 --let $eval_expr= $assert_cond
+--let $eval_escape = $assert_escape
 --source include/eval.inc
 
 # Check.
@@ -66,11 +82,19 @@ if (!$eval_result)
   {
     --source include/show_rpl_debug_info.inc
   }
+  if ($assert_no_stop) {
+    if (!$show_rpl_debug_info) {
+      --echo DO_NOT_CHECK_IN_THIS_LINE: When invoking include/assert.inc, assert_no_stop should only be used for debugging. Never check in a test that uses it to succeed.
+    }
+  }
+
   --echo Assertion text: '$assert_text'
   --echo Assertion condition: '$assert_cond'
   --echo Assertion condition, interpolated: '$assert_cond_interp'
   --echo Assertion result: '$assert_result'
-  --die Test assertion failed in assert.inc
+  if (!$assert_no_stop) {
+    --die Test assertion failed in assert.inc
+  }
 }
 
 --let $include_filename= assert.inc [$assert_text]

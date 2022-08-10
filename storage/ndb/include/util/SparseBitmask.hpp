@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ class SparseBitmask {
   Vector<unsigned> m_vec;
 
 public:
-  STATIC_CONST( NotFound = (unsigned)-1 );
+  static constexpr Uint32 NotFound = (unsigned)-1;
 
   SparseBitmask(unsigned max_size = NotFound - 1) : m_max_size(max_size) {}
 

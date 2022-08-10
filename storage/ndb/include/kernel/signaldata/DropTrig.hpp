@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ struct DropTrigReq
   static Uint32 getEndpointFlag(Uint32 i) { return (i >> 2) & 3;}
   static void setEndpointFlag(Uint32 & i, Uint32 v) { i |= ((v & 3) << 2); }
 
-  STATIC_CONST( SignalLength = 11 );
+  static constexpr Uint32 SignalLength = 11;
   SECTION( TRIGGER_NAME_SECTION = 0 ); // optional
 
   Uint32 clientRef;
@@ -61,7 +61,7 @@ struct DropTrigReq
 };
 
 struct DropTrigConf {
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };
@@ -82,7 +82,7 @@ struct DropTrigRef {
     UnsupportedTriggerType = 4240
   };
 
-  STATIC_CONST( SignalLength = 11 );
+  static constexpr Uint32 SignalLength = 11;
 
   Uint32 senderRef;
   union { Uint32 clientData, senderData; };

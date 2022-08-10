@@ -1347,31 +1347,31 @@ reset master;
 
 # Execute mysqldump, will fail on FLUSH TABLES
 --error 2
---exec $MYSQL_DUMP --compact --master-data -u mysqltest_1 test 2>&1
+--exec $MYSQL_DUMP --compact --source-data -u mysqltest_1 test 2>&1
 
 # Execute mysqldump, will fail on FLUSH TABLES
 # use --force, should no affect behaviour
 --error 2
---exec $MYSQL_DUMP --compact --force --master-data -u mysqltest_1 test 2>&1
+--exec $MYSQL_DUMP --compact --force --source-data -u mysqltest_1 test 2>&1
 
 # Add RELOAD grants
 grant RELOAD on *.* to mysqltest_1@localhost;
 
 # Execute mysqldump, will fail on SHOW MASTER STATUS
 --error 2
---exec $MYSQL_DUMP --compact --master-data -u mysqltest_1 test 2>&1
+--exec $MYSQL_DUMP --compact --source-data -u mysqltest_1 test 2>&1
 
 # Execute mysqldump, will fail on SHOW MASTER STATUS.
 # use --force, should not alter behaviour
 --error 2
---exec $MYSQL_DUMP --compact --force --master-data -u mysqltest_1 test 2>&1
+--exec $MYSQL_DUMP --compact --force --source-data -u mysqltest_1 test 2>&1
 
 # Add REPLICATION CLIENT grants
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 
 # Execute mysqldump, should now succeed
 --disable_result_log
---exec $MYSQL_DUMP --compact --master-data -u mysqltest_1 test 2>&1
+--exec $MYSQL_DUMP --compact --source-data -u mysqltest_1 test 2>&1
 --enable_result_log
 
 # Clean up
@@ -2791,3 +2791,199 @@ remove_file $MYSQLTEST_VARDIR/tmp/test_t2.log;
 remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;
 remove_file $MYSQLTEST_VARDIR/tmp/tmp2.xml;
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # WL13784 - Create auto_increment PK on table creation when no PK is specified
+--echo #
+--echo # Test case to verify Logical Dump using mysqldump tool
+--echo #
+
+SET @saved_global_sql_generate_invisible_primary_key =
+       @@global.sql_generate_invisible_primary_key;
+SET @saved_session_sql_generate_invisible_primary_key =
+       @@session.sql_generate_invisible_primary_key;
+
+# User created column "my_row_id" with generated invisible primary key column
+# properties and primary key on it, is treated as generated invisible primary
+# key column.
+CREATE TABLE t1 (my_row_id bigint unsigned NOT NULL AUTO_INCREMENT INVISIBLE, f INT,
+                 PRIMARY KEY(my_row_id));
+INSERT INTO t1 VALUES (1), (3), (7), (8), (4);
+SET SESSION sql_generate_invisible_primary_key=ON;
+CREATE TABLE t2 (f1 INT, f2 INT INVISIBLE DEFAULT 10);
+INSERT INTO t2 VALUES (1), (3), (7), (8), (4);
+CREATE TABLE t3 AS SELECT * FROM t2;
+
+--echo # Test case to check table dump with generated primary key.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--echo # Dump complete test database with generated invisible primary key
+--echo # information using mysqldump tool.
+--exec $MYSQL_DUMP --databases test > "$MYSQLTEST_VARDIR/tmp/test1.sql" 2>&1
+--echo # Dump test.t3 table with generated invisible primary key information
+--echo # using mysqldump tool.
+--exec $MYSQL_DUMP test t3 --tab "$MYSQLTEST_VARDIR/tmp" 2>"$MYSQLTEST_VARDIR/tmp/test_t3.log"
+DROP TABLE t1, t2, t3;
+
+--echo # Load from the test.t3 dump created using mysqldump tool."
+--exec $MYSQL --database test < $MYSQLTEST_VARDIR/tmp/t3.sql
+--echo # Table t3 should list generated primary key information.
+SHOW CREATE TABLE t3;
+DROP TABLE t3;
+
+--echo # Load from the complete test database dump created using mysqldump tool."
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test1.sql
+--echo # Table t1 should list generated primary key information.
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+SELECT my_row_id, f FROM t1;
+
+--echo # Table t2 should list generated primary key information.
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+SELECT my_row_id, f1, f2 FROM t2;
+
+--echo # Table t3 should list generated primary key information.
+SHOW CREATE TABLE t3;
+SELECT * FROM t3;
+SELECT my_row_id, f1 FROM t3;
+
+--echo # Test case to check table dump *without* generated primary key.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--echo # Dump complete "test" database *without* generated invisible primary
+--echo # key information using mysqldump tool.
+--exec $MYSQL_DUMP --skip-generated-invisible-primary-key --databases test > "$MYSQLTEST_VARDIR/tmp/test2.sql" 2>&1
+--echo # Dump test.t3 table *without* generated invisible primary key
+--echo # information using mysqldump tool.
+--exec $MYSQL_DUMP --skip-generated-invisible-primary-key test t3 --tab "$MYSQLTEST_VARDIR/tmp" 2>"$MYSQLTEST_VARDIR/tmp/test_t3.log"
+DROP TABLE t1, t2, t3;
+
+--echo # Load from the test.t3 dump created using mysqldump tool."
+--exec $MYSQL --database test < $MYSQLTEST_VARDIR/tmp/t3.sql
+--echo # Table t3 should *not* list generated primary key information.
+SHOW CREATE TABLE t3;
+SELECT * FROM t3;
+DROP TABLE t3;
+
+--echo # Load from the complete test database dump created using mysqldump tool."
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test2.sql
+--echo # Table t1 should *not* list generated primary key information.
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+SELECT f FROM t1;
+
+--echo # Table t2 should *not* list generated primary key information.
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+SELECT f1, f2 FROM t2;
+
+--echo # Table t3 should *not* list generated primary key information.
+SHOW CREATE TABLE t3;
+SELECT * FROM t3;
+SELECT f1 FROM t3;
+DROP TABLE t1, t2, t3;
+
+--echo # Test case to verify Logical Dump in XML format using mysqldump tool
+--echo # Load from the complete test database dump created using mysqldump tool."
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test1.sql
+--echo # Dump test.t1 table in XML format using mysqldump tool.
+--exec $MYSQL_DUMP --xml test t1 > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--echo # Dump test.t2 table in XML format using mysqldump tool.
+--exec $MYSQL_DUMP --xml test t2 > "$MYSQLTEST_VARDIR/tmp/tmp2.xml" 2>&1
+--echo # Dump test.t3 table in XML format using mysqldump tool.
+--exec $MYSQL_DUMP --xml test t3 > "$MYSQLTEST_VARDIR/tmp/tmp3.xml" 2>&1
+DELETE FROM t1;
+DELETE FROM t2;
+DELETE FROM t3;
+--echo # For columns t1.my_row_id and t1.f, values should be loaded from the dump.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE t1 (my_row_id, f);
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+SELECT my_row_id, f FROM t1;
+
+--echo # For columns t2.my_row_id, t1.f1 and t1.f2, values should be loaded from the dump.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp2.xml" INTO TABLE t2 (my_row_id, f1, f2);
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+SELECT my_row_id, f1 FROM t2;
+
+--echo # For columns t3.my_row_id and t1.f1, values should be loaded from the dump.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp3.xml" INTO TABLE t3 (my_row_id, f1);
+SHOW CREATE TABLE t3;
+SELECT * FROM t3;
+SELECT my_row_id, f1 FROM t3;
+
+--echo # Test case to check table dump *without* generated primary key in XML format.
+--echo # Dump test.t1 table *without* generated invisible primary key information in XML format
+--echo # using mysqldump tool.
+--exec $MYSQL_DUMP --xml --skip-generated-invisible-primary-key test t1 > "$MYSQLTEST_VARDIR/tmp/tmp1.xml" 2>&1
+--echo # Dump test.t2 table *without* generated invisible primary key information in XML format
+--echo # using mysqldump tool.
+--exec $MYSQL_DUMP --xml --skip-generated-invisible-primary-key test t2 > "$MYSQLTEST_VARDIR/tmp/tmp2.xml" 2>&1
+--echo # Dump test.t3 table *without* generated invisible primary key information in XML format
+--echo # using mysqldump tool.
+--exec $MYSQL_DUMP --xml --skip-generated-invisible-primary-key test t3 > "$MYSQLTEST_VARDIR/tmp/tmp3.xml" 2>&1
+DROP TABLE t1, t2, t3;
+
+--echo # Dump file tmp1.xml contains data for only one column "f". For my_row_id,
+--echo # default value is inserted.
+CREATE TABLE t1 (f INT NOT NULL PRIMARY KEY, my_row_id INT DEFAULT 580030);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE t1(f);
+SELECT * FROM t1;
+
+--echo # Dump file tmp2.xml contains data for column "f1" and "f2". For my_row_id,
+--echo # default value is inserted.
+CREATE TABLE t2 (f1 INT NOT NULL PRIMARY KEY, f2 INT, my_row_id INT DEFAULT 580030);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp2.xml" INTO TABLE t2(f1, f2);
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+
+--echo # Dump file tmp3.xml contains data for only one column "f1". For my_row_id,
+--echo # default value is inserted.
+CREATE TABLE t3 (f1 INT NOT NULL PRIMARY KEY, my_row_id INT DEFAULT 580030);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/tmp3.xml" INTO TABLE t3(f1);
+SHOW CREATE TABLE t3;
+SELECT * FROM t3;
+
+--echo # Test case to verify primary key generation while loading table dump
+--echo # obtained *without* generated primary key on a MySQL server with
+--echo # @@global.sql_generate_invisible_primary_key = ON.
+SET GLOBAL sql_generate_invisible_primary_key = ON;
+
+--echo # Load from the dump created without generated primary key information.
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/test2.sql
+--echo # Primary key is generated for table t1 while loading.
+--echo # Table t1 should list generated primary key information.
+SHOW CREATE TABLE t1;
+SELECT my_row_id, f FROM t1;
+
+--echo # Primary key is generated for table t2 while loading.
+--echo # Table t2 should list generated primary key information.
+SHOW CREATE TABLE t2;
+SELECT my_row_id, f1, f2 FROM t2;
+
+--echo # Primary key is generated for table t3 while loading.
+--echo # Table t3 should list generated primary key information.
+SHOW CREATE TABLE t3;
+SELECT my_row_id, f1 FROM t3;
+
+--echo # cleanup
+remove_file $MYSQLTEST_VARDIR/tmp/test1.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/test2.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/t3.txt;
+remove_file $MYSQLTEST_VARDIR/tmp/t3.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/test_t3.log;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp2.xml;
+remove_file $MYSQLTEST_VARDIR/tmp/tmp3.xml;
+DROP TABLE t1, t2, t3;
+SET GLOBAL sql_generate_invisible_primary_key =
+             @saved_global_sql_generate_invisible_primary_key;
+SET SESSION sql_generate_invisible_primary_key =
+              @saved_session_sql_generate_invisible_primary_key;

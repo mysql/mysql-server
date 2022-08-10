@@ -28,7 +28,6 @@ set @@persist_only.innodb_api_enable_mdl=0;
 set @@persist_only.innodb_autoinc_lock_mode=1;
 set @@persist_only.innodb_buffer_pool_chunk_size=134217728;
 set @@persist_only.innodb_buffer_pool_instances=1;
-set @@persist_only.innodb_doublewrite=1;
 set @@persist_only.innodb_force_recovery=0;
 set @@persist_only.innodb_ft_cache_size=16777216;
 set @@persist_only.innodb_ft_max_token_size=84;
@@ -36,9 +35,8 @@ set @@persist_only.innodb_ft_min_token_size=4;
 set @@persist_only.innodb_ft_sort_pll_degree=2;
 set @@persist_only.innodb_ft_total_cache_size=640000000;
 set @@persist_only.innodb_log_buffer_size=16777216;
-set @@persist_only.innodb_log_file_size=50331648;
-set @@persist_only.innodb_log_files_in_group=2;
-set @@persist_only.innodb_open_files=1;
+set @@persist_only.innodb_redo_log_capacity=100663296;
+set @@persist_only.innodb_open_files=100;
 set @@persist_only.innodb_page_cleaners=1;
 set @@persist_only.innodb_purge_threads=4;
 set @@persist_only.innodb_read_io_threads=4;
@@ -47,7 +45,7 @@ set @@persist_only.innodb_sort_buffer_size=1048576;
 set @@persist_only.innodb_sync_array_size=1;
 set @@persist_only.innodb_use_native_aio=1;
 set @@persist_only.innodb_write_io_threads=4;
-set @@persist_only.log_slave_updates=0;
+set @@persist_only.log_replica_updates=1;
 set @@persist_only.max_digest_length=1024;
 set @@persist_only.myisam_recover_options='OFF';
 set @@persist_only.ngram_token_size=2;
@@ -100,11 +98,11 @@ set @@persist_only.relay_log_recovery=0;
 set @@persist_only.relay_log_space_limit=0;
 set @@persist_only.skip_name_resolve=0;
 set @@persist_only.skip_show_database=0;
-set @@persist_only.slave_type_conversions='';
+set @@persist_only.replica_type_conversions='';
 set @@persist_only.table_open_cache_instances=16;
 set @@persist_only.thread_handling='one-thread-per-connection';
 set @@persist_only.thread_stack=286720;
-set @@persist_only.tls_version='TLSv1,TLSv1.1';
+set @@persist_only.tls_version='TLSv1.2,TLSv1.3';
 set @@persist_only.report_host=NULL;
 set @@persist_only.report_port=21000;
 set @@persist_only.report_password=NULL;
@@ -116,10 +114,8 @@ count(*)
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 101 rows.
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_log_buffer_size	16777216
-slave_type_conversions	
 back_log	80
 binlog_gtid_simple_recovery	ON
 disabled_storage_engines	
@@ -133,25 +129,25 @@ innodb_api_enable_mdl	0
 innodb_autoinc_lock_mode	1
 innodb_buffer_pool_chunk_size	134217728
 innodb_buffer_pool_instances	1
-innodb_doublewrite	1
 innodb_force_recovery	0
 innodb_ft_cache_size	16777216
 innodb_ft_max_token_size	84
 innodb_ft_min_token_size	4
 innodb_ft_sort_pll_degree	2
 innodb_ft_total_cache_size	640000000
-innodb_log_file_size	50331648
-innodb_log_files_in_group	2
-innodb_open_files	1
+innodb_log_buffer_size	16777216
+innodb_open_files	100
 innodb_page_cleaners	1
 innodb_purge_threads	4
 innodb_read_io_threads	4
+innodb_redo_log_capacity	100663296
 innodb_rollback_on_timeout	0
 innodb_sort_buffer_size	1048576
 innodb_sync_array_size	1
 innodb_use_native_aio	1
 innodb_write_io_threads	4
-log_slave_updates	OFF
+log_replica_updates	ON
+log_slave_updates	ON
 max_digest_length	1024
 myisam_recover_options	OFF
 ngram_token_size	2
@@ -202,17 +198,19 @@ performance_schema_setup_objects_size	-1
 performance_schema_users_size	-1
 relay_log_recovery	OFF
 relay_log_space_limit	0
+replica_type_conversions	
 report_host	
 report_password	
 report_port	21000
 report_user	
 skip_name_resolve	OFF
 skip_show_database	OFF
+slave_type_conversions	
 table_open_cache_instances	16
 thread_handling	one-thread-per-connection
 thread_stack	286720
-tls_version	TLSv1,TLSv1.1
-SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
+tls_version	TLSv1.2,TLSv1.3
+SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED' ORDER BY VARIABLE_NAME;
 VARIABLE_NAME
 back_log
 binlog_gtid_simple_recovery
@@ -227,7 +225,6 @@ innodb_api_enable_mdl
 innodb_autoinc_lock_mode
 innodb_buffer_pool_chunk_size
 innodb_buffer_pool_instances
-innodb_doublewrite
 innodb_force_recovery
 innodb_ft_cache_size
 innodb_ft_max_token_size
@@ -235,17 +232,17 @@ innodb_ft_min_token_size
 innodb_ft_sort_pll_degree
 innodb_ft_total_cache_size
 innodb_log_buffer_size
-innodb_log_file_size
-innodb_log_files_in_group
 innodb_open_files
 innodb_page_cleaners
 innodb_purge_threads
 innodb_read_io_threads
+innodb_redo_log_capacity
 innodb_rollback_on_timeout
 innodb_sort_buffer_size
 innodb_sync_array_size
 innodb_use_native_aio
 innodb_write_io_threads
+log_replica_updates
 log_slave_updates
 max_digest_length
 myisam_recover_options
@@ -297,6 +294,7 @@ performance_schema_setup_objects_size
 performance_schema_users_size
 relay_log_recovery
 relay_log_space_limit
+replica_type_conversions
 report_host
 report_password
 report_port

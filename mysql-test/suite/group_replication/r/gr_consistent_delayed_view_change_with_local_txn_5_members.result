@@ -1,0 +1,97 @@
+include/group_replication.inc [rpl_server_count=5]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 01. Boot start server1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 02. Start server2 and set member weight high
+[connection server2]
+include/save_sysvars.inc [ "GLOBAL.group_replication_member_weight" ]
+SET GLOBAL group_replication_member_weight= 90;
+include/start_group_replication.inc
+
+############################################################
+# 03. Start server3, 4 and 5
+[connection server3]
+include/start_group_replication.inc
+[connection server4]
+include/start_group_replication.inc
+[connection server5]
+include/start_group_replication.inc
+
+############################################################
+# 04. Stop GR on server1
+[connection server1]
+include/stop_group_replication.inc
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 05. Set the necessary debug point required for the simulation
+[connection server3]
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+[connection server4]
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+[connection server5]
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+############################################################
+# 06. Execute a transaction on newly elected primary.
+#     This transaction shall wait before sending transaction
+#     prepare ack message on server3, 4 and 5
+[connection server2]
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+############################################################
+# 07. Start GR on server1
+[connection server1]
+include/start_group_replication.inc
+
+############################################################
+# 08. Wait for the transaction to reach the debug sync point
+[connection server3]
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+[connection server4]
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+[connection server5]
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+
+############################################################
+# 09. Continue the transaction on server3, 4 and 5
+[connection server3]
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET DEBUG_SYNC= 'RESET';
+[connection server4]
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET DEBUG_SYNC= 'RESET';
+[connection server5]
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET DEBUG_SYNC= 'RESET';
+
+############################################################
+# 10. Reap the transaction server2
+[connection server2]
+
+############################################################
+# 11. Verify that MEMBER_STATE is ONLINE on server2
+include/assert.inc [Verified that MEMBER_STATE is ONLINE on server2]
+
+############################################################
+# 12. Verify that all members have table t1
+[connection server1]
+include/gr_wait_for_member_state.inc
+include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1, server4:test.t1, server5:test.t1]
+############################################################
+# 13. Cleaning up
+[connection server2]
+include/restore_sysvars.inc
+DROP TABLE t1;
+include/group_replication_end.inc

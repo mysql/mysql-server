@@ -85,7 +85,10 @@ SELECT User, Host FROM mysql.procs_priv WHERE User LIKE 'some_user_name%';
 --echo # Grant PROXY.
 GRANT PROXY ON root@localhost TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
 GRANT PROXY ON some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 TO root@localhost;
+
+--replace_column 7 ####-##-##-##:##:##
 SELECT * FROM mysql.proxies_priv WHERE user ='some_user_name';
+--replace_column 7 ####-##-##-##:##:##
 SELECT * FROM mysql.proxies_priv WHERE Proxied_user ='some_user_name';
 
 # Take dump
@@ -146,7 +149,9 @@ SELECT User, Host FROM mysql.password_history WHERE User='pass_hist_user';
 SELECT User, Host FROM mysql.procs_priv WHERE User LIKE 'some_user_name%';
 
 --echo # Grant PROXY.
+--replace_column 7 ####-##-##-##:##:##
 SELECT * FROM mysql.proxies_priv WHERE user ='some_user_name';
+--replace_column 7 ####-##-##-##:##:##
 SELECT * FROM mysql.proxies_priv WHERE Proxied_user ='some_user_name';
 
 --echo # Cleanup

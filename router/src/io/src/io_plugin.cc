@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,17 +40,18 @@
 #include <thread>
 
 // Harness interface include files
-#include "common.h"  // rename_thread
+#include "my_thread.h"  // my_thread_self_setname
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_export.h"
 #include "mysqlrouter/io_thread.h"
-#include "mysqlrouter/plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -67,16 +68,20 @@ static constexpr const char kSectionName[]{"io"};
 // - EPYC 7702: 64 cores/128 threads, 2x sockets
 static constexpr const size_t kMaxThreads{1024};
 
-class IoPluginConfig : public mysqlrouter::BasePluginConfig {
+using StringOption = mysql_harness::StringOption;
+template <class T>
+using IntOption = mysql_harness::IntOption<T>;
+
+class IoPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
   uint16_t num_threads;
 
   explicit IoPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
-        backend(get_option_string(section, "backend")),
-        num_threads(
-            get_uint_option<uint32_t>(section, "threads", 0, kMaxThreads)) {}
+      : mysql_harness::BasePluginConfig(section),
+        backend(get_option(section, "backend", StringOption{})),
+        num_threads(get_option(section, "threads",
+                               IntOption<uint32_t>{0, kMaxThreads})) {}
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string, std::string> defaults{
@@ -95,8 +100,6 @@ class IoPluginConfig : public mysqlrouter::BasePluginConfig {
     return false;
   }
 };
-
-static std::unique_ptr<net::io_context> io_ctx;
 
 static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
@@ -181,7 +184,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 }
 
 static void run(mysql_harness::PluginFuncEnv * /* env */) {
-  mysql_harness::rename_thread("io_main");
+  my_thread_self_setname("io_main");
   // run events in the mainloop until the app signals a shutdown
   IoComponent::get_instance().run();
 }
@@ -195,19 +198,26 @@ static std::array<const char *, 1> required = {{
     "logger",
 }};
 
+static std::array<const char *, 2> supported_options{"backend", "threads"};
+
 extern "C" {
 mysql_harness::Plugin IO_EXPORT harness_plugin_io = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
     mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch-descriptor
-    "IO", VERSION_NUMBER(0, 0, 1),
+    "IO",
+    VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     run,      // run
     nullptr,  // on_signal_stop
     false,    // signals ready
+    supported_options.size(),
+    supported_options.data(),
 };
 }

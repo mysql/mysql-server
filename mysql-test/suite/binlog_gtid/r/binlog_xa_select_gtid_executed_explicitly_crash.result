@@ -18,15 +18,15 @@ XA PREPARE '1';
 # Crash the server after preparing a XA transaction
 # and right before committing the XA transaction
 #
-SET @@SESSION.DEBUG= '+d, simulate_crash_on_commit_xa_trx';
+include/execute_to_conditional_timestamp_sync_point.inc [before_commit_xa_trx]
 XA COMMIT '1';
-ERROR HY000: Lost connection to MySQL server during query
+# Kill the server
 #
 # Verify that the following recovery is not aborting due to an
 # innodb_lock_wait_timeout error when it is reading the system
 # gtid_executed table.
 #
-# Restart the master server
+# restart
 # Rollback the XA transaction with xid '1' in order to release
 # MDL lock for the table t1 and so allow the statement DROP TABLE t1
 # to be executed successfully.

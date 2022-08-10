@@ -3,13 +3,13 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-show variables like 'slave_allow_batching';
+show variables like 'replica_allow_batching';
 Variable_name	Value
-slave_allow_batching	OFF
-set global slave_allow_batching=ON;
-show variables like 'slave_allow_batching';
+replica_allow_batching	ON
+set global replica_allow_batching=ON;
+show variables like 'replica_allow_batching';
 Variable_name	Value
-slave_allow_batching	ON
+replica_allow_batching	ON
 Now the normal test
 CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)) ENGINE = 'INNODB'  ;
 SELECT * FROM t1;
@@ -399,7 +399,7 @@ C1	C2
 1	3
 2	6
 3	9
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 --- on master: new values inserted ---
 INSERT INTO t7 VALUES (1,2), (2,4), (3,6);
 SELECT * FROM t7 ORDER BY C1;
@@ -408,7 +408,7 @@ C1	C2
 2	4
 3	6
 include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 --- on slave: old values should be overwritten by replicated values ---
 SELECT * FROM t7 ORDER BY C1;
 C1	C2
@@ -439,11 +439,11 @@ a	b	c
 2	4	6
 3	6	9
 99	99	99
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 --- on master ---
 INSERT INTO t8 VALUES (2,4,8);
 include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 --- on slave ---
 SELECT * FROM t8 ORDER BY a;
 a	b	c
@@ -460,13 +460,13 @@ include/rpl_reset.inc
 INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
 **** On Master ****
 include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 DELETE FROM t1 WHERE C1 = 'L';
 DELETE FROM t1;
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
 include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 include/check_slave_is_running.inc
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
@@ -534,8 +534,8 @@ c CHAR(255) CHARACTER SET utf8 NOT NULL,
 j INT NOT NULL) ENGINE = 'INNODB'  ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SET @saved_slave_type_conversions = @@slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 [expecting slave to replicate correctly]
 INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
@@ -550,7 +550,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t2, slave:t2]
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 1 size mismatch.* Error_code: MY-001535");
 call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: MY-001032");
 call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t.. cannot be converted from type.*, Error_code: MY-013146");
@@ -724,6 +724,5 @@ include/sync_slave_sql_with_master.inc
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global slave_allow_batching=OFF;
 include/start_slave.inc
 include/rpl_end.inc

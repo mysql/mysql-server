@@ -51,7 +51,6 @@ SELECT @must_be_present;
 @must_be_present
 present
 SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
-SET @orig_admin_tls_version = @@global.admin_tls_version;
 # check if the session has the original values
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
@@ -71,7 +70,6 @@ Variable_name	Value
 Ssl_cipher	orig_cipher;
 # in default connection
 SET GLOBAL admin_ssl_cipher = @orig_ssl_cipher;
-SET GLOBAL admin_tls_version = @orig_tls_version;
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
 # new values effective only after RELOAD TLS
 # Save the defaults
@@ -121,6 +119,7 @@ SET GLOBAL admin_ssl_crlpath = 'gizmo';
 SET GLOBAL admin_ssl_cipher = 'gizmo';
 SET GLOBAL admin_tls_ciphersuites = 'gizmo';
 SET GLOBAL admin_tls_version = 'gizmo';
+ERROR 42000: Variable 'admin_tls_version' can't be set to the value of 'gizmo'
 # Must fail
 SET SESSION admin_ssl_ca = 'gizmo';
 ERROR HY000: Variable 'admin_ssl_ca' is a GLOBAL variable and should be set with SET GLOBAL
@@ -143,7 +142,7 @@ ERROR HY000: Variable 'admin_tls_version' is a GLOBAL variable and should be set
 # Must return more than 1
 SELECT COUNT(*) FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin';
 COUNT(*)
-28
+29
 # 4. Main channel and Admin channel can be independent of
 #    each other wrt TLS context
 # Restarting server with admin interface with TLS support

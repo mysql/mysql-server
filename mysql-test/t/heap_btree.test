@@ -31,6 +31,7 @@ engine=heap;
 insert into t1 values (1,1),(2,2),(1,3),(2,4),(2,5),(2,6);
 explain select * from t1 where x=1;
 select * from t1 where x=1;
+--sorted_result
 select * from t1,t1 as t2 where t1.x=t2.y;
 explain select * from t1,t1 as t2 where t1.x=t2.y;
 drop table t1;

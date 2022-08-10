@@ -132,25 +132,6 @@ if ($rpl_assert_transaction_length)
   }
 }
 
-# Assert that replication asynchronous connection failover tables are properly
-# clean on the tests that do use them.
---let $_rpl_server= $rpl_server_count
-while ($_rpl_server)
-{
-  --let $rpl_connection_name= server_$_rpl_server
-  --source include/rpl_connection.inc
-
-  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover on server$_rpl_server'
-  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover, count, 1] = 0
-  --source include/assert.inc
-
-  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover_managed on server$_rpl_server'
-  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover_managed, count, 1] = 0
-  --source include/assert.inc
-
-  --dec $_rpl_server
-}
-
 if ($rpl_group_replication)
 {
   --let $_rpl_server= $rpl_server_count
@@ -218,6 +199,21 @@ if (!$rpl_group_replication)
   --let $rpl_change_topology_user_created=
 }
 
+# Clear replication asynchronous failover configuration tables
+if (!$rpl_group_replication)
+{
+  --let $_rpl_server= $rpl_server_count
+  while ($_rpl_server)
+  {
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
+
+    --source include/rpl_clear_asynchronous_failover_configuration.inc
+
+    --dec $_rpl_server
+  }
+}
+
 # Restore the server state by deleting all channels
 if ($rpl_multi_source)
 {
@@ -235,6 +231,38 @@ if ($rpl_multi_source)
 
 # rpl_change_topology executes CHANGE REPLICATION SOURCE for each connection.
 # we restore the gtid state by sourcing rpl_change_topology below
+
+# Restore state for GTID_ONLY
+
+if ($rpl_gtid_only)
+{
+  --let $_rpl_server= $rpl_server_count
+  while ($_rpl_server)
+  {
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
+
+    --disable_query_log
+    if (!$rpl_multi_source)
+    {
+      CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
+    }
+    if ($rpl_multi_source)
+    {
+      if($rpl_channel_name)
+      {
+        eval CHANGE REPLICATION SOURCE TO GTID_ONLY = 0 FOR CHANNEL $rpl_channel_name;
+      }
+      if(!$rpl_channel_name)
+      {
+        CHANGE REPLICATION SOURCE TO GTID_ONLY = 0 FOR CHANNEL '';
+      }
+    }
+    --enable_query_log
+    --dec $_rpl_server
+  }
+}
+
 --let $use_gtids= 0
 --let $rpl_group_replication= 0
 
@@ -266,7 +294,21 @@ while ($_rpl_server)
   if ($rpl_require_row_format)
   {
     --disable_query_log
-    CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0;
+    if (!$rpl_multi_source)
+    {
+      CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0;
+    }
+    if ($rpl_multi_source)
+    {
+      if($rpl_channel_name)
+      {
+        eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL $rpl_channel_name;
+      }
+      if(!$rpl_channel_name)
+      {
+        CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL '';
+      }
+    }
     --enable_query_log
   }
 
@@ -284,6 +326,9 @@ while ($_rpl_server)
 --let $rpl_inited= 0
 --let $_rpl_server_count=
 --let $rpl_multi_source= 0
+
+# cleanup any files created by JSON iterators
+--source include/destroy_json_functions.inc
 
 # Do not restore connection, because we have disconnected it.
 --let $skip_restore_connection= 1

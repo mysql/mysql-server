@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ class TransactionPayloadCompressionTest : public ::testing::Test {
   std::vector<std::size_t> m_payloads;
 
  protected:
-  TransactionPayloadCompressionTest() {}
+  TransactionPayloadCompressionTest() = default;
 
   void SetUp() override {
     for (auto size : buffer_sizes) m_payloads.push_back(size);

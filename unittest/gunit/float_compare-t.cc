@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,28 +91,28 @@ TEST(FloatCompare, AlmostEqualDouble) {
 }
 
 TEST(FloatCompare, AlmostEqualFloat) {
-  float val1 = 0.0;
-  float val2 = 1.0;
+  float val1 = 0.0F;
+  float val2 = 1.0F;
   EXPECT_FALSE(Float_compare::almost_equal(val1, val2));
 
-  val1 = -0.0;
-  val2 = 0.0;
+  val1 = -0.0F;
+  val2 = 0.0F;
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2));
 
-  val1 = 0.0;
-  val2 = 0.0;
+  val1 = 0.0F;
+  val2 = 0.0F;
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2));
 
   val1 = std::numeric_limits<float>::max();
   val2 = std::numeric_limits<float>::infinity();
   EXPECT_FALSE(Float_compare::almost_equal(val1, val2));
 
-  val1 = 1.0;
-  val2 = 1.0 + std::numeric_limits<float>::epsilon();
+  val1 = 1.0F;
+  val2 = 1.0F + std::numeric_limits<float>::epsilon();
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2));
 
-  val1 = 99999999.0000001;
-  val2 = 99999999.00000013;
+  val1 = 99999999.0000001F;
+  val2 = 99999999.00000013F;
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2));
 
   val1 = std::numeric_limits<float>::infinity();
@@ -123,8 +123,8 @@ TEST(FloatCompare, AlmostEqualFloat) {
   val2 = std::numeric_limits<float>::infinity();
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2));
 
-  val1 = 0.0 - std::numeric_limits<float>::epsilon();
-  val2 = 0.0 + std::numeric_limits<float>::epsilon();
+  val1 = 0.0F - std::numeric_limits<float>::epsilon();
+  val2 = 0.0F + std::numeric_limits<float>::epsilon();
   EXPECT_FALSE(Float_compare::almost_equal(val1, val2));
 
   val1 = std::numeric_limits<float>::quiet_NaN();
@@ -132,21 +132,21 @@ TEST(FloatCompare, AlmostEqualFloat) {
   EXPECT_FALSE(Float_compare::almost_equal(val1, val2));
 
   val1 = std::numeric_limits<float>::quiet_NaN();
-  val2 = 0.0;
+  val2 = 0.0F;
   EXPECT_FALSE(Float_compare::almost_equal(val1, val2));
 
-  val1 = 1.0e+18;
-  val2 = val1 + 100.0;
+  val1 = 1.0e+18F;
+  val2 = val1 + 100.0F;
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2));
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2, 4));
   EXPECT_FALSE(Float_compare::almost_equal(val1, val2, 0));
 
-  val1 = 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1;
-  val2 = 1.0;
+  val1 = 0.1F + 0.1F + 0.1F + 0.1F + 0.1F + 0.1F + 0.1F + 0.1F + 0.1F + 0.1F;
+  val2 = 1.0F;
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2));
 
-  val1 = 99999970.0;
-  val2 = 100000000.0;
+  val1 = 99999970.0F;
+  val2 = 100000000.0F;
   EXPECT_FALSE(Float_compare::almost_equal(val1, val2, 4));
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2, 6));
 }

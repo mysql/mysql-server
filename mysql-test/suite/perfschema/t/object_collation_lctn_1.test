@@ -1,0 +1,4 @@
+
+--source include/have_lowercase1.inc
+--source ../include/object_collation.inc
+

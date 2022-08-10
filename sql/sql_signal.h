@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ class Set_signal_information {
  public:
   Set_signal_information() { memset(m_item, 0, sizeof(m_item)); }
 
-  ~Set_signal_information() {}
+  ~Set_signal_information() = default;
 
   bool set_item(enum_condition_item_name name, Item *item);
 
@@ -95,7 +95,7 @@ class Sql_cmd_common_signal : public Sql_cmd {
                         Set_signal_information *set)
       : Sql_cmd(), m_cond(cond), m_set_signal_information(set) {}
 
-  ~Sql_cmd_common_signal() override {}
+  ~Sql_cmd_common_signal() override = default;
 
   /**
     Assign the condition items 'MYSQL_ERRNO', 'level' and 'MESSAGE_TEXT'
@@ -149,12 +149,12 @@ class Sql_cmd_signal : public Sql_cmd_common_signal {
   /**
     Constructor, used to represent a SIGNAL statement.
     @param cond the SQL condition to signal (required).
-    @param set the collection of signal informations to signal.
+    @param set the collection of signal information to signal.
   */
   Sql_cmd_signal(const sp_condition_value *cond, Set_signal_information *set)
       : Sql_cmd_common_signal(cond, set) {}
 
-  ~Sql_cmd_signal() override {}
+  ~Sql_cmd_signal() override = default;
 
   enum_sql_command sql_command_code() const override { return SQLCOM_SIGNAL; }
 
@@ -169,12 +169,12 @@ class Sql_cmd_resignal : public Sql_cmd_common_signal {
   /**
     Constructor, used to represent a RESIGNAL statement.
     @param cond the SQL condition to resignal (optional, may be NULL).
-    @param set the collection of signal informations to resignal.
+    @param set the collection of signal information to resignal.
   */
   Sql_cmd_resignal(const sp_condition_value *cond, Set_signal_information *set)
       : Sql_cmd_common_signal(cond, set) {}
 
-  ~Sql_cmd_resignal() override {}
+  ~Sql_cmd_resignal() override = default;
 
   enum_sql_command sql_command_code() const override { return SQLCOM_RESIGNAL; }
 

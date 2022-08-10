@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -102,6 +102,6 @@ mysql_declare_plugin(audit_log){
     0x0002,             /* version                       */
     nullptr,            /* status variables              */
     nullptr,            /* system variables              */
-    nullptr,            /* reserverd                     */
+    nullptr,            /* reserved                      */
     0                   /* flags                         */
 } mysql_declare_plugin_end;

@@ -1,7 +1,7 @@
 #ifndef SQL_REGEXP_REGEXP_FACADE_H_
 #define SQL_REGEXP_REGEXP_FACADE_H_
 
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,9 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 
-#include "nullable.h"
 #include "sql/item.h"
 #include "sql/regexp/regexp_engine.h"
 #include "sql_string.h"
@@ -93,7 +93,7 @@ class Regexp_facade {
     doesn't have to make a special case for when the regular expression is
     NULL. Instead, the case is handled here in the facade.
   */
-  Mysql::Nullable<bool> Matches(Item *subject_expr, int start, int occurrence);
+  std::optional<bool> Matches(Item *subject_expr, int start, int occurrence);
 
   /**
     Searches the subject for a match of the compiled regular expression and
@@ -107,8 +107,8 @@ class Regexp_facade {
 
     @return The first character of the match, or a null value if not found.
   */
-  Mysql::Nullable<int> Find(Item *subject_expr, int start, int occurrence,
-                            bool after_match);
+  std::optional<int> Find(Item *subject_expr, int start, int occurrence,
+                          bool after_match);
 
   /**
     @param subject_expr The string to search.

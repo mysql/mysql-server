@@ -911,8 +911,8 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
-MASTER_POS_WAIT('master-bin.000001', 513) >= 0
+SELECT SOURCE_POS_WAIT('master-bin.000001', 513) >= 0;
+SOURCE_POS_WAIT('master-bin.000001', 513) >= 0
 NULL
 SHOW TABLES LIKE 't_';
 Tables_in_test (t_)

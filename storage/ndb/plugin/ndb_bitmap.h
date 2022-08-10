@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,32 @@
 #include "my_bitmap.h"
 
 /**
+  Bitmap buffer providing space for the given number of bits.
+
+  NOTE! To be used when the max number of bits is known at compile time and is
+  reasonably small to justify avoiding the need to dynamically allocate memory
+  for the bitmap.
+ */
+template <size_t bits>
+class Ndb_bitmap_buf {
+  static_assert(bits > 0, "Number of bits must be greater than zero");
+
+  // Assume that my_bitmap_map is a 32 bit variable (since that's what the
+  // my_bitmap implementation assumes)
+  static_assert(sizeof(my_bitmap_map) == 4, "Unxpected my_bitmap_map type");
+
+  // Buffer space for number of bits, rounded up. Uninitialized.
+  my_bitmap_map m_buf[(bits + 31) / 32];
+
+ public:
+  Ndb_bitmap_buf() {}
+
+  static constexpr size_t size_in_bytes() { return sizeof(m_buf); }
+
+  my_bitmap_map *buf() { return m_buf; }
+};
+
+/**
   Initialize bitmap using provided buffer.
   @param bitmap     The MY_BITMAP to initialize
   @param buf        Buffer to hold the bits for the bitmap
@@ -45,13 +71,13 @@
 */
 
 template <size_t sz>
-static inline void ndb_bitmap_init(MY_BITMAP &bitmap, my_bitmap_map (&buf)[sz],
+static inline void ndb_bitmap_init(MY_BITMAP *bitmap, Ndb_bitmap_buf<sz> &buf,
                                    uint num_bits) {
   assert(num_bits > 0);
-  assert(bitmap_buffer_size(num_bits) <= (sz * sizeof(my_bitmap_map)));
+  assert(bitmap_buffer_size(num_bits) <= buf.size_in_bytes());
 
   // Function never fails when called with a "buf" provided
-  (void)bitmap_init(&bitmap, buf, num_bits);
+  (void)bitmap_init(bitmap, buf.buf(), num_bits);
 }
 
 /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,8 +217,8 @@ static Truncate_result handler_truncate_base(THD *thd, TABLE_LIST *table_ref,
     /*
       If truncate method is not implemented then we don't binlog the
       statement. If truncation has failed in a transactional engine then also we
-      donot binlog the statment. Only in non transactional engine we binlog
-      inspite of errors.
+      do not binlog the statement. Only in non transactional engine we binlog
+      in spite of errors.
      */
     if (error == HA_ERR_WRONG_COMMAND ||
         table_ref->table->file->has_transactions())
@@ -277,8 +277,8 @@ static Truncate_result handler_truncate_temporary(THD *thd,
     /*
       If truncate method is not implemented then we don't binlog the
       statement. If truncation has failed in a transactional engine then also we
-      donot binlog the statment. Only in non transactional engine we binlog
-      inspite of errors.
+      donot binlog the statement. Only in non transactional engine we binlog
+      in spite of errors.
      */
     if (error == HA_ERR_WRONG_COMMAND ||
         table_ref->table->file->has_transactions())
@@ -462,9 +462,6 @@ void Sql_cmd_truncate_table::cleanup_temporary(THD *thd, handlerton *hton,
 
   @param  thd         Thread context.
   @param  table_ref   Table list element for the table to be truncated.
-
-  @retval  false  Success.
-  @retval  true   Error.
 */
 
 void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
@@ -580,11 +577,11 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
       */
     case Truncate_result::OK:
       m_error = false;
-      // fallthrough
+      [[fallthrough]];
     case Truncate_result::FAILED_BUT_BINLOG:
       binlog_stmt = true;
       binlog_is_trans = table_ref->table->file->has_transactions();
-      // fallthrough
+      [[fallthrough]];
     case Truncate_result::FAILED_SKIP_BINLOG:
       /*
         Call to handler_truncate() might have updated table definition
@@ -615,9 +612,6 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
 
   @param  thd         Thread context.
   @param  table_ref   Table list element for the table to be truncated.
-
-  @retval  false  Success.
-  @retval  true   Error.
 */
 
 void Sql_cmd_truncate_table::truncate_temporary(THD *thd,

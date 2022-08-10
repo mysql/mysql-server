@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_table_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_table_bits.h"
 #include "sql/dd/types/foreign_key.h"  // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h"       // enum_query_type
 #include "sql/key.h"
@@ -100,6 +100,7 @@ class partition_info;
 enum enum_stats_auto_recalc : int;
 enum Value_generator_source : short;
 enum row_type : int;
+struct AccessPath;
 struct HA_CREATE_INFO;
 struct LEX;
 struct NESTED_JOIN;
@@ -108,7 +109,8 @@ struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 struct handlerton;
-typedef int8 plan_idx;
+struct Name_resolution_context;
+using plan_idx = int;
 
 namespace dd {
 class Table;
@@ -196,14 +198,14 @@ class Object_creation_ctx {
   void restore_env(THD *thd, Object_creation_ctx *backup_ctx);
 
  protected:
-  Object_creation_ctx() {}
+  Object_creation_ctx() = default;
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const = 0;
   virtual void delete_backup_ctx() = 0;
 
   virtual void change_env(THD *thd) const = 0;
 
  public:
-  virtual ~Object_creation_ctx() {}
+  virtual ~Object_creation_ctx() = default;
 };
 
 /*************************************************************************/
@@ -247,7 +249,7 @@ class Default_object_creation_ctx : public Object_creation_ctx {
     connection_cl stores the value of collation_connection session
     variable. Both character set and collation attributes are used.
 
-    Connection collation is included into query context, becase it defines
+    Connection collation is included into query context, because it defines
     the character set and collation of text literals in internal
     representation of query (item-objects).
   */
@@ -280,7 +282,6 @@ struct ORDER {
 
   ORDER *next{nullptr};
 
- protected:
   /**
     The initial ordering expression. Usually substituted during resolving
     and must not be used during optimization and execution.
@@ -596,7 +597,7 @@ class Table_check_intact {
 
  public:
   Table_check_intact() : has_keys(false) {}
-  virtual ~Table_check_intact() {}
+  virtual ~Table_check_intact() = default;
 
   /**
     Checks whether a table is intact. Should be done *just* after the table has
@@ -716,8 +717,6 @@ struct TABLE_SHARE {
   /** Category of this table. */
   TABLE_CATEGORY table_category{TABLE_UNKNOWN_CATEGORY};
 
-  /* hash of field names (contains pointers to elements of field array) */
-  collation_unordered_map<std::string, Field **> *name_hash{nullptr};
   MEM_ROOT mem_root;
   /**
     Used to allocate new handler for internal temporary table when the
@@ -743,7 +742,7 @@ struct TABLE_SHARE {
   Field **field{nullptr};
   Field **found_next_number_field{nullptr};
   KEY *key_info{nullptr};    /* data of keys defined for the table */
-  uint *blob_field{nullptr}; /* Index to blobs in Field arrray*/
+  uint *blob_field{nullptr}; /* Index to blobs in Field array */
 
   uchar *default_values{nullptr};      /* row with default values */
   LEX_STRING comment{nullptr, 0};      /* Comment about table */
@@ -819,6 +818,12 @@ struct TABLE_SHARE {
   */
   uint tmp_handler_count{0};
 
+  /**
+    Only for internal temporary tables.
+    Count of TABLEs (having this TABLE_SHARE) which have opened this table.
+  */
+  uint tmp_open_count{0};
+
   // Can only be 1,2,4,8 or 16, but use uint32_t since that how it is
   // represented in InnoDB
   std::uint32_t key_block_size{0}; /* create key_block_size, if used */
@@ -893,8 +898,8 @@ struct TABLE_SHARE {
     are in use by storage engine.
 
     @note db_options_in_use is normally copy of db_create_options but can
-          be overriden by SE. E.g. MyISAM does this at handler::open() and
-          hander::info() time.
+          be overridden by SE. E.g. MyISAM does this at handler::open() and
+          handler::info() time.
   */
   uint db_options_in_use{0};
   uint rowid_field_offset{0}; /* Field_nr +1 to rowid field */
@@ -1277,11 +1282,11 @@ class Blob_mem_storage {
   ~Blob_mem_storage();
 
   void reset() {
-    free_root(&storage, MYF(MY_MARK_BLOCKS_FREE));
+    storage.ClearForReuse();
     truncated_value = false;
   }
   /**
-     Fuction creates duplicate of 'from'
+     Function creates duplicate of 'from'
      string in 'storage' MEM_ROOT.
 
      @param from           string to copy
@@ -1444,7 +1449,7 @@ struct TABLE {
   Key_map covering_keys;
   Key_map quick_keys;
 
-  /* Merge keys are all keys that had a column reffered to in the query */
+  /* Merge keys are all keys that had a column referred to in the query */
   Key_map merge_keys;
 
   /*
@@ -1663,8 +1668,6 @@ struct TABLE {
     If set, indicate that the table is not replicated by the server.
   */
   bool no_replicate{false};
-  bool fulltext_searched{false};
-  bool no_cache{false};
   /* To signal that the table is associated with a HANDLER statement */
   bool open_by_handler{false};
   /**
@@ -1701,7 +1704,7 @@ struct TABLE {
     @note This member can be set only by thread that owns/has opened the
           table and while holding its THD::LOCK_thd_data lock.
           It can be read without locking by this owner thread, or by some other
-          thread concurrently after acquring owner's THD::LOCK_thd_data.
+          thread concurrently after acquiring owner's THD::LOCK_thd_data.
 
     @note The TABLE will not be reopened under LOCK TABLES in
           close_thread_tables().
@@ -1762,7 +1765,7 @@ struct TABLE {
   SortingIterator *duplicate_removal_iterator{nullptr};
 
   /**
-    The result of applying a unique opertion (by row ID) to the table, if done.
+    The result of applying a unique operation (by row ID) to the table, if done.
     In particular, this is done in some forms of index merge.
   */
   Sort_result unique_result;
@@ -1840,7 +1843,7 @@ struct TABLE {
   bool alloc_tmp_keys(uint new_key_count, uint new_key_part_count,
                       bool modify_share);
   bool add_tmp_key(Field_map *key_parts, bool invisible, bool modify_share);
-  void copy_tmp_key(int old_idx, bool modify_share);
+  void move_tmp_key(int old_idx, bool modify_share);
   void drop_unused_tmp_keys(bool modify_share);
 
   void set_keyread(bool flag);
@@ -2030,26 +2033,17 @@ struct TABLE {
   const Cost_model_table *cost_model() const { return &m_cost_model; }
 
   /**
-    Fix table's generated columns' (GC) and/or default expressions
+    Bind all the table's value generator columns in all the forms:
+    stored/virtual GC, default expressions and checked constraints.
 
     @details When a table is opened from the dictionary, the Value Generator
-    expressions are fixed during opening (see fix_value_generators_fields()).
+    expressions are bound during opening (see fix_value_generator_fields()).
     After query execution, Item::cleanup() is called on them
     (see cleanup_value_generator_items()). When the table is opened from the
-    table cache, the Value Generetor(s) need to be fixed again and this
+    table cache, the Value Generetor(s) need to be bound again and this
     function does that.
-
-    @param[in] thd     the current thread
   */
-  void refix_value_generator_items(THD *thd);
-
-  /**
-    Helper function for refix_value_generator_items() that fixes one column's
-    expression (be it GC or default expression) and check constraint expression.
-
-    @param[in,out] g_expr       the expression who's items needs to be fixed
-  */
-  void refix_inner_value_generator_items(Value_generator *g_expr);
+  void bind_value_generators_to_fields();
 
   /**
     Clean any state in items associated with generated columns to be ready for
@@ -2319,12 +2313,6 @@ static inline void empty_record(TABLE *table) {
     memset(table->null_flags, 255, table->s->null_bytes);
 }
 
-enum enum_schema_table_state : int {
-  NOT_PROCESSED = 0,
-  PROCESSED_BY_CREATE_SORT_INDEX,
-  PROCESSED_BY_JOIN_EXEC
-};
-
 #define MY_I_S_MAYBE_NULL 1
 #define MY_I_S_UNSIGNED 2
 
@@ -2355,7 +2343,7 @@ struct ST_FIELD_INFO {
      combine them using the bitwise or operator @c |. Both flags are
      defined in table.h.
    */
-  uint field_flags;  // Field atributes(maybe_null, signed, unsigned etc.)
+  uint field_flags;  // Field attributes (maybe_null, signed, unsigned etc.)
   const char *old_name;
   uint open_method;  // Not used
 };
@@ -2365,7 +2353,7 @@ struct ST_SCHEMA_TABLE {
   ST_FIELD_INFO *fields_info;
   /* Fill table with data */
   int (*fill_table)(THD *thd, TABLE_LIST *tables, Item *cond);
-  /* Handle fileds for old SHOW */
+  /* Handle fields for old SHOW */
   int (*old_format)(THD *thd, ST_SCHEMA_TABLE *schema_table);
   int (*process_table)(THD *thd, TABLE_LIST *tables, TABLE *table, bool res,
                        LEX_CSTRING db_name, LEX_CSTRING table_name);
@@ -2453,6 +2441,65 @@ enum class Lex_acl_attrib_udyn {
   NO         /* Value that maps to False is specified */
 };
 
+struct LEX_MFA {
+  LEX_CSTRING plugin;
+  LEX_CSTRING auth;
+  LEX_CSTRING generated_password;
+  LEX_CSTRING challenge_response;
+  uint nth_factor;
+  /*
+    The following flags are indicators for the SQL syntax used while
+    parsing CREATE/ALTER user. While other members are self-explanatory,
+    'uses_authentication_string_clause' signifies if the password is in
+    hash form (if the var was set to true) or not.
+  */
+  bool uses_identified_by_clause;
+  bool uses_authentication_string_clause;
+  bool uses_identified_with_clause;
+  bool has_password_generator;
+  /* flag set during CREATE USER .. INITIAL AUTHENTICATION BY */
+  bool passwordless;
+  /* flag set during ALTER USER .. ADD nth FACTOR */
+  bool add_factor;
+  /* flag set during ALTER USER .. MODIFY nth FACTOR */
+  bool modify_factor;
+  /* flag set during ALTER USER .. DROP nth FACTOR */
+  bool drop_factor;
+  /*
+    flag used during authentication and to decide if server should
+    be in sandbox mode or not
+  */
+  bool requires_registration;
+  /* flag set during ALTER USER .. nth FACTOR UNREGISTER */
+  bool unregister;
+  /* flag set during ALTER USER .. INITIATE REGISTRATION */
+  bool init_registration;
+  /* flag set during ALTER USER .. FINISH REGISTRATION */
+  bool finish_registration;
+
+  LEX_MFA() { reset(); }
+  void reset() {
+    plugin = EMPTY_CSTR;
+    auth = NULL_CSTR;
+    generated_password = NULL_CSTR;
+    challenge_response = NULL_CSTR;
+    nth_factor = 1;
+    uses_identified_by_clause = false;
+    uses_authentication_string_clause = false;
+    uses_identified_with_clause = false;
+    has_password_generator = false;
+    passwordless = false;
+    add_factor = false;
+    drop_factor = false;
+    modify_factor = false;
+    requires_registration = false;
+    unregister = false;
+    init_registration = false;
+    finish_registration = false;
+  }
+  void copy(LEX_MFA *m, MEM_ROOT *alloc);
+};
+
 /*
   This structure holds the specifications relating to
   ALTER user ... PASSWORD EXPIRE ...
@@ -2504,29 +2551,54 @@ struct LEX_ALTER {
 struct LEX_USER {
   LEX_CSTRING user;
   LEX_CSTRING host;
-  LEX_CSTRING plugin;
-  LEX_CSTRING auth;
   LEX_CSTRING current_auth;
-  /*
-    The following flags are indicators for the SQL syntax used while
-    parsing CREATE/ALTER user. While other members are self-explanatory,
-    'uses_authentication_string_clause' signifies if the password is in
-    hash form (if the var was set to true) or not.
-  */
-  bool uses_identified_by_clause;
-  bool uses_identified_with_clause;
-  bool uses_authentication_string_clause;
   bool uses_replace_clause;
   bool retain_current_password;
   bool discard_old_password;
-  bool has_password_generator;
   LEX_ALTER alter_status;
+  /* restrict MFA methods to atmost 3 authentication plugins */
+  LEX_MFA first_factor_auth_info;
+  List<LEX_MFA> mfa_list;
+  bool with_initial_auth;
+
+  void init() {
+    user = NULL_CSTR;
+    host = NULL_CSTR;
+    current_auth = NULL_CSTR;
+    uses_replace_clause = false;
+    retain_current_password = false;
+    discard_old_password = false;
+    alter_status.account_locked = false;
+    alter_status.expire_after_days = 0;
+    alter_status.update_account_locked_column = false;
+    alter_status.update_password_expired_column = false;
+    alter_status.update_password_expired_fields = false;
+    alter_status.use_default_password_lifetime = true;
+    alter_status.use_default_password_history = true;
+    alter_status.update_password_require_current =
+        Lex_acl_attrib_udyn::UNCHANGED;
+    alter_status.password_history_length = 0;
+    alter_status.password_reuse_interval = 0;
+    alter_status.failed_login_attempts = 0;
+    alter_status.password_lock_time = 0;
+    alter_status.update_failed_login_attempts = false;
+    alter_status.update_password_lock_time = false;
+    first_factor_auth_info.reset();
+    mfa_list.clear();
+    with_initial_auth = false;
+  }
+
+  LEX_USER() { init(); }
+
+  bool add_mfa_identifications(LEX_MFA *factor2, LEX_MFA *factor3 = nullptr);
+
   /*
     Allocates the memory in the THD mem pool and initialize the members of
     this struct. It is preferable to use this method to create a LEX_USER
     rather allocating the memory in the THD and initializing the members
     explicitly.
   */
+  static LEX_USER *alloc(THD *thd);
   static LEX_USER *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
   /*
     Initialize the members of this struct. It is preferable to use this method
@@ -3005,7 +3077,7 @@ struct TABLE_LIST {
   /// Set table as full-text search (default is not fulltext searched)
   void set_fulltext_searched() { m_fulltext_searched = true; }
 
-  /// Return true if table is insertable-into
+  /// Returns true if a MATCH function references this table.
   bool is_fulltext_searched() const { return m_fulltext_searched; }
 
   /**
@@ -3101,11 +3173,9 @@ struct TABLE_LIST {
   /// Check if we can push outer where condition to this derived table
   bool can_push_condition_to_derived(THD *thd);
 
-  /// Get derived table expression
-  Item *get_derived_expr(uint expr_index);
-
-  /// Get cloned item for a derived table column. This creates the clone.
-  Item *get_clone_for_derived_expr(THD *thd, Item *item);
+  /// Return the number of hidden fields added for the temporary table
+  /// created for this derived table.
+  uint get_hidden_field_count_for_derived() const;
 
   /// Clean up the query expression for a materialized derived table
   void cleanup_derived(THD *thd);
@@ -3324,6 +3394,8 @@ struct TABLE_LIST {
 
   const Lock_descriptor &lock_descriptor() const { return m_lock_descriptor; }
 
+  bool is_derived_unfinished_materialization() const;
+
  private:
   /**
     The members below must be kept aligned so that (1 << m_tableno) == m_map.
@@ -3403,6 +3475,15 @@ struct TABLE_LIST {
     Holds the function used as the table function
   */
   Table_function *table_function{nullptr};
+
+  /**
+    If we've previously made an access path for “derived”, it is cached here.
+    This is useful if we need to plan the query block twice (the hypergraph
+    optimizer can do so, with and without in2exists predicates), both saving
+    work and avoiding issues when we try to throw away the old items_to_copy
+    for a new (identical) one.
+   */
+  AccessPath *access_path_for_derived{nullptr};
 
  private:
   /**
@@ -3674,7 +3755,7 @@ struct TABLE_LIST {
   bool has_db_lookup_value{false};
   bool has_table_lookup_value{false};
   uint table_open_method{0};
-  enum_schema_table_state schema_table_state{NOT_PROCESSED};
+  bool schema_table_filled{false};
 
   MDL_request mdl_request;
 
@@ -3830,7 +3911,7 @@ class Field_iterator_natural_join : public Field_iterator {
 
  public:
   Field_iterator_natural_join() : cur_column_ref(nullptr) {}
-  ~Field_iterator_natural_join() override {}
+  ~Field_iterator_natural_join() override = default;
   void set(TABLE_LIST *table) override;
   void next() override;
   bool end_of_fields() override { return !cur_column_ref; }
@@ -3902,9 +3983,10 @@ static inline void tmp_restore_column_map(MY_BITMAP *bitmap,
 
 /* The following is only needed for debugging */
 
-static inline my_bitmap_map *dbug_tmp_use_all_columns(
-    TABLE *table MY_ATTRIBUTE((unused)),
-    MY_BITMAP *bitmap MY_ATTRIBUTE((unused))) {
+static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table
+                                                      [[maybe_unused]],
+                                                      MY_BITMAP *bitmap
+                                                      [[maybe_unused]]) {
 #ifndef NDEBUG
   return tmp_use_all_columns(table, bitmap);
 #else
@@ -3912,9 +3994,10 @@ static inline my_bitmap_map *dbug_tmp_use_all_columns(
 #endif
 }
 
-static inline void dbug_tmp_restore_column_map(
-    MY_BITMAP *bitmap MY_ATTRIBUTE((unused)),
-    my_bitmap_map *old MY_ATTRIBUTE((unused))) {
+static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap
+                                               [[maybe_unused]],
+                                               my_bitmap_map *old
+                                               [[maybe_unused]]) {
 #ifndef NDEBUG
   tmp_restore_column_map(bitmap, old);
 #endif
@@ -3922,13 +4005,12 @@ static inline void dbug_tmp_restore_column_map(
 
 /*
   Variant of the above : handle both read and write sets.
-  Provide for the possiblity of the read set being the same as the write set
+  Provide for the possibility of the read set being the same as the write set
 */
 static inline void dbug_tmp_use_all_columns(
-    TABLE *table MY_ATTRIBUTE((unused)),
-    my_bitmap_map **save MY_ATTRIBUTE((unused)),
-    MY_BITMAP *read_set MY_ATTRIBUTE((unused)),
-    MY_BITMAP *write_set MY_ATTRIBUTE((unused))) {
+    TABLE *table [[maybe_unused]], my_bitmap_map **save [[maybe_unused]],
+    MY_BITMAP *read_set [[maybe_unused]],
+    MY_BITMAP *write_set [[maybe_unused]]) {
 #ifndef NDEBUG
   save[0] = read_set->bitmap;
   save[1] = write_set->bitmap;
@@ -3938,9 +4020,8 @@ static inline void dbug_tmp_use_all_columns(
 }
 
 static inline void dbug_tmp_restore_column_maps(
-    MY_BITMAP *read_set MY_ATTRIBUTE((unused)),
-    MY_BITMAP *write_set MY_ATTRIBUTE((unused)),
-    my_bitmap_map **old MY_ATTRIBUTE((unused))) {
+    MY_BITMAP *read_set [[maybe_unused]], MY_BITMAP *write_set [[maybe_unused]],
+    my_bitmap_map **old [[maybe_unused]]) {
 #ifndef NDEBUG
   tmp_restore_column_map(read_set, old[0]);
   tmp_restore_column_map(write_set, old[1]);
@@ -3950,24 +4031,30 @@ static inline void dbug_tmp_restore_column_maps(
 void init_mdl_requests(TABLE_LIST *table_list);
 
 /**
-   Unpacks the definition of a generated column, default expression or check
-   constraint expression passed as argument. Parses the text obtained from
-   TABLE_SHARE and produces an Item.
+   Unpacks the definition of a value generator in all its forms: generated
+   column, default expression or checked constraint.
+   The function parses the text definition of this expression, resolves its
+   items and runs validation and calculates the base_columns_map which is used
+   for tracking the columns the expression depends on.
 
-  @param thd                  Thread handler
-  @param table                Table with the checked field
-  @param val_generator        The expression to unpack.
-  @param source               Source of value generator(a generated column,
-                              a regular column with generated default value or
-                              a check constraint).
-  @param source_name          Name of the source (generated column, a reguler
-                              column with generated default value or a check
-                              constraint).
-  @param field                Pointer to Field object
-  @param is_create_table      Indicates that table is opened as part
-                              of CREATE or ALTER and does not yet exist in SE
-  @param error_reported       updated flag for the caller that no other error
-                              messages are to be generated.
+  @param[in] thd               Thread handler
+  @param[in] table             Table having the value generator to be unpacked
+  @param[in,out] val_generator Contains the expression in string format, and,
+                               if successful will be replaced by the parser
+                               with a new one having the unpacked expression.
+  @param[in] source            Source of value generator(a generated column,
+                               a regular column with generated default value or
+                               a check constraint).
+  @param[in] source_name       Name of the source (generated column, a regular
+                               column with generated default value or a check
+                               constraint).
+  @param[in] field             The column the value generator depends on. Can
+                               be null for checked constraints which do not
+                               depend on a single column.
+  @param[in] is_create_table   Indicates that table is opened as part
+                               of CREATE or ALTER and does not yet exist in SE
+  @param[out] error_reported   updated flag for the caller that no other error
+                               messages are to be generated.
 
   @retval true Failure.
   @retval false Success.
@@ -4141,6 +4228,8 @@ class Common_table_expr {
       : references(mem_root), recursive(false), tmp_tables(mem_root) {}
   TABLE *clone_tmp_table(THD *thd, TABLE_LIST *tl);
   bool substitute_recursive_reference(THD *thd, Query_block *sl);
+  /// Remove one table reference.
+  void remove_table(TABLE_LIST *tr);
   /// Empties the materialized CTE and informs all of its clones.
   bool clear_all_references();
   /**
@@ -4174,21 +4263,37 @@ class Common_table_expr {
 */
 class Derived_refs_iterator {
   TABLE_LIST *const start;  ///< The reference provided in construction.
-  int ref_idx;              ///< Current index in cte->tmp_tables
+  size_t ref_idx{0};        ///< Current index in cte->tmp_tables
+  bool m_is_first{true};    ///< True when at first reference in list
  public:
-  explicit Derived_refs_iterator(TABLE_LIST *start_arg)
-      : start(start_arg), ref_idx(-1) {}
+  explicit Derived_refs_iterator(TABLE_LIST *start_arg) : start(start_arg) {}
   TABLE *get_next() {
-    ref_idx++;
     const Common_table_expr *cte = start->common_table_expr();
-    if (!cte) return (ref_idx < 1) ? start->table : nullptr;
-    return ((uint)ref_idx < cte->tmp_tables.size())
-               ? cte->tmp_tables[ref_idx]->table
-               : nullptr;
+    m_is_first = ref_idx == 0;
+    // Derived tables and views have a single reference.
+    if (cte == nullptr) {
+      return ref_idx++ == 0 ? start->table : nullptr;
+    }
+    /*
+      CTEs may have multiple references. Return the next one, but notice that
+      some references may have been deleted.
+    */
+    while (ref_idx < cte->tmp_tables.size()) {
+      TABLE *table = cte->tmp_tables[ref_idx++]->table;
+      if (table != nullptr) return table;
+    }
+    return nullptr;
   }
-  void rewind() { ref_idx = -1; }
+  void rewind() {
+    ref_idx = 0;
+    m_is_first = true;
+  }
   /// @returns true if the last get_next() returned the first element.
-  bool is_first() const { return ref_idx == 0; }
+  bool is_first() const {
+    // Call after get_next() has been called:
+    assert(ref_idx > 0);
+    return m_is_first;
+  }
 };
 
 /**

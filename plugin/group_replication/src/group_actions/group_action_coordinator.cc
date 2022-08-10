@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ Group_action_information::Group_action_information()
       execution_message_area(new Group_action_diagnostics()),
       action_result(Group_action::GROUP_ACTION_RESULT_END) {}
 
-Group_action_information::~Group_action_information() {}
+Group_action_information::~Group_action_information() = default;
 
 /**
  The 'action' / 'action information' object life cycle:
@@ -416,7 +416,7 @@ bool Group_action_coordinator::handle_action_message(
 
 bool Group_action_coordinator::handle_action_start_message(
     Group_action_message *message, const std::string &message_origin) {
-  std::vector<Group_member_info *> *all_members_info = nullptr;
+  Group_member_info_list *all_members_info = nullptr;
   int error = 0;
   bool is_message_sender = !message_origin.compare(
       local_member_info->get_gcs_member_id().get_member_id());
@@ -601,7 +601,7 @@ bool Group_action_coordinator::handle_action_stop_message(
 }
 
 bool Group_action_coordinator::member_in_recovery(
-    std::vector<Group_member_info *> *all_members_info) {
+    Group_member_info_list *all_members_info) {
   bool member_in_recovery = false;
   for (Group_member_info *member : *all_members_info) {
     if (member->get_recovery_status() ==
@@ -614,7 +614,7 @@ bool Group_action_coordinator::member_in_recovery(
 }
 
 bool Group_action_coordinator::member_from_invalid_version(
-    std::vector<Group_member_info *> *all_members_info) {
+    Group_member_info_list *all_members_info) {
   bool member_from_invalid_version = false;
   for (Group_member_info *member : *all_members_info) {
     if (member->get_member_version().get_version() <
@@ -915,6 +915,7 @@ int Group_action_coordinator::execute_group_action_handler() {
   thd->release_resources();
   global_thd_manager_remove_thd(thd);
   delete thd;
+  my_thread_end();
 
   mysql_mutex_lock(&group_thread_run_lock);
   action_handler_thd_state.set_terminated();
@@ -923,8 +924,6 @@ int Group_action_coordinator::execute_group_action_handler() {
 
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
-
-  my_thread_end();
 
   return error;
 }
@@ -966,9 +965,9 @@ int Group_action_coordinator::after_view_change(
   return 0;
 }
 
-int Group_action_coordinator::after_primary_election(std::string, bool,
-                                                     enum_primary_election_mode,
-                                                     int) {
+int Group_action_coordinator::after_primary_election(
+    std::string, enum_primary_election_primary_change_status,
+    enum_primary_election_mode, int) {
   return 0;
 }
 

@@ -69,12 +69,19 @@ drop table t1,t2;
 select find_in_set(binary 'a',binary 'A,B,C');
 find_in_set(binary 'a',binary 'A,B,C')
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select find_in_set('a',binary 'A,B,C');
 find_in_set('a',binary 'A,B,C')
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select find_in_set(binary 'a', 'A,B,C');
 find_in_set(binary 'a', 'A,B,C')
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select find_in_set('1','3,1,');
 find_in_set('1','3,1,')
 2
@@ -251,6 +258,7 @@ from( make_set( ( extract( minute_second from
 )
 ;
 Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1292	Truncated incorrect date value: '1.01'
 Warning	1411	Incorrect datetime value: '1.01' for function str_to_date
 # Bug#21547779 Assertion failed: select_lex->leaf_table_count == 0
@@ -266,3 +274,46 @@ DROP TABLE t;
 select find_in_set(json_unquote(json_set('{}','$','')),1);
 find_in_set(json_unquote(json_set('{}','$','')),1)
 0
+# Bug#33635637: Regression in FIND_IN_SET() in 8.0.22
+CREATE TABLE t1 (
+c varchar(40),
+z varchar(40),
+s set('alpha','bravo','charlie','delta','echo','foxtrot','golf')
+);
+INSERT INTO t1 VALUES
+('foxtrot', 'zulu', 'bravo,delta,foxtrot'),
+('foxtrot', 'zulu', 'foxtrot'),
+('foxtrot', 'zulu', 'alpha');
+SET @a = 'foxtrot';
+SET @z = 'zulu';
+SELECT 'using string   ' as param, FIND_IN_SET('foxtrot', s) as f, s FROM t1
+UNION
+SELECT 'using variable', FIND_IN_SET(@a, s), s FROM t1
+UNION
+SELECT 'using column  ', FIND_IN_SET(c, s), s FROM t1;
+param	f	s
+using string   	6	bravo,delta,foxtrot
+using string   	6	foxtrot
+using string   	0	alpha
+using variable	6	bravo,delta,foxtrot
+using variable	6	foxtrot
+using variable	0	alpha
+using column  	6	bravo,delta,foxtrot
+using column  	6	foxtrot
+using column  	0	alpha
+SELECT 'invalid string   ' as param, FIND_IN_SET('zulu', s) as f, s FROM t1
+UNION
+SELECT 'invalid variable', FIND_IN_SET(@z, s), s FROM t1
+UNION
+SELECT 'invalid column  ', FIND_IN_SET(z, s), s FROM t1;
+param	f	s
+invalid string   	0	bravo,delta,foxtrot
+invalid string   	0	foxtrot
+invalid string   	0	alpha
+invalid variable	0	bravo,delta,foxtrot
+invalid variable	0	foxtrot
+invalid variable	0	alpha
+invalid column  	0	bravo,delta,foxtrot
+invalid column  	0	foxtrot
+invalid column  	0	alpha
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include "storage/perfschema/pfs_con_slice.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_name.h"
 
 struct PFS_global_param;
 struct PFS_memory_stat_alloc_delta;
@@ -52,13 +53,8 @@ struct PFS_thread;
 
 /** Hash key for a user. */
 struct PFS_user_key {
-  /**
-    Hash search key.
-    This has to be a string for @c LF_HASH,
-    the format is @c "<username><0x00>"
-  */
-  char m_hash_key[USERNAME_LENGTH + 1];
-  uint m_key_length;
+  /** User name. */
+  PFS_user_name m_user_name;
 };
 
 /** Per user statistics. */
@@ -114,8 +110,6 @@ struct PFS_ALIGNED PFS_user : public PFS_connection_slice {
   /** Internal lock. */
   pfs_lock m_lock;
   PFS_user_key m_key;
-  const char *m_username;
-  uint m_username_length;
 
   ulonglong m_disconnected_count;
 
@@ -136,8 +130,7 @@ void cleanup_user(void);
 int init_user_hash(const PFS_global_param *param);
 void cleanup_user_hash(void);
 
-PFS_user *find_or_create_user(PFS_thread *thread, const char *username,
-                              uint username_length);
+PFS_user *find_or_create_user(PFS_thread *thread, const PFS_user_name *user);
 
 PFS_user *sanitize_user(PFS_user *unsafe);
 void purge_all_user(void);

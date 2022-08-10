@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -55,12 +55,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/field.h"     /* Field, Field_json, Field_enum, TYPE_OK */
 #include "sql/handler.h"   /* handler, DB_TYPE_NDBCLUSTER, handlerton */
 #include "sql/item_func.h" /* mqh_used */
-#include "sql/key.h"       /* key_copy, KEY */
-#include "sql/mysqld.h"    /* specialflag */
-#include "sql/records.h"
-#include "sql/row_iterator.h"     /* RowIterator */
-#include "sql/sql_class.h"        /* THD */
-#include "sql/sql_const.h"        /* ACL_ALLOC_BLOCK_SIZE, MAX_KEY_LENGTH */
+#include "sql/iterators/row_iterator.h" /* RowIterator */
+#include "sql/key.h"                    /* key_copy, KEY */
+#include "sql/mysqld.h"                 /* specialflag */
+#include "sql/sql_class.h"              /* THD */
+#include "sql/sql_const.h" /* ACL_ALLOC_BLOCK_SIZE, MAX_KEY_LENGTH */
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"          /* LEX */
 #include "sql/sql_plugin.h"       /* plugin_unlock, my_plugin_lock_by_name */
 #include "sql/sql_plugin_ref.h"   /* plugin_decl, plugin_ref */
@@ -68,7 +68,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/sql_update.h"       /* compare_records */
 #include "sql/system_variables.h" /* System_variables */
 #include "sql/table.h"            /* TABLE, TABLE_SHARE, ... */
-#include "sql/thr_malloc.h"       /* init_sql_alloc */
 #include "sql/tztime.h"           /* Time_zone */
 #include "sql_string.h"           /* String */
 #include "template_utils.h"       /* down_cast */
@@ -79,7 +78,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 namespace consts {
 /** Initial timestamp */
-const struct timeval BEGIN_TIMESTAMP = {0, 0};
+const my_timeval BEGIN_TIMESTAMP = {0, 0};
 
 /** Error indicating table operation error */
 const int CRITICAL_ERROR = -1;
@@ -110,10 +109,13 @@ const std::string json_metadata_tag("metadata");
 /** comment tag */
 const std::string json_comment_tag("comment");
 
+/** multi factor authentication methods */
+const std::string json_multi_factor_authentication(
+    "multi_factor_authentication");
 }  // namespace consts
 
-bool replace_user_metadata(THD *thd, const std::string &json_blob,
-                           bool expect_text, TABLE *user_table);
+static bool replace_user_metadata(const std::string &json_blob,
+                                  bool expect_text, TABLE *user_table);
 
 namespace acl_table {
 
@@ -124,7 +126,9 @@ static std::map<const User_attribute_type, const std::string>
         {User_attribute_type::RESTRICTIONS, consts::Restrictions},
         {User_attribute_type::PASSWORD_LOCKING, consts::Password_locking},
         {User_attribute_type::METADATA, consts::json_metadata_tag},
-        {User_attribute_type::COMMENT, consts::json_comment_tag}};
+        {User_attribute_type::COMMENT, consts::json_comment_tag},
+        {User_attribute_type::MULTI_FACTOR_AUTHENTICATION_DATA,
+         consts::json_multi_factor_authentication}};
 
 Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
                                          bool read_restrictions,
@@ -136,14 +140,17 @@ Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
       m_restrictions(),
       m_global_privs(global_privs),
       m_password_lock(),
+      m_mfa(nullptr),
       m_user_attributes_json(nullptr) {}
 
 Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
                                          bool read_restrictions,
                                          Auth_id &auth_id,
-                                         Restrictions *restrictions)
+                                         Restrictions *restrictions,
+                                         I_multi_factor_auth *mfa)
     : Acl_user_attributes(mem_root, read_restrictions, auth_id, ~NO_ACCESS) {
   if (restrictions) m_restrictions = *restrictions;
+  m_mfa = mfa;
 }
 
 Acl_user_attributes::~Acl_user_attributes() { m_restrictions.clear_db(); }
@@ -200,6 +207,29 @@ void Acl_user_attributes::report_and_remove_invalid_db_restrictions(
     the internal container of DB_restrictions
   */
   db_restrictions.remove(0);
+}
+
+bool Acl_user_attributes::deserialize_multi_factor(
+    const Json_object &json_object) {
+  Json_dom *mfa = json_object.get(
+      attribute_type_to_str
+          [User_attribute_type::MULTI_FACTOR_AUTHENTICATION_DATA]);
+  if (mfa) {
+    if (mfa->json_type() != enum_json_type::J_ARRAY) return true;
+    Json_array *mfa_arr = down_cast<Json_array *>(mfa);
+    I_multi_factor_auth *i_mfa =
+        (mfa_arr->size() ? new (&global_acl_memory)
+                               Multi_factor_auth_list(&global_acl_memory)
+                         : nullptr);
+    for (uint i = 0; i < mfa_arr->size(); i++) {
+      i_mfa->add_factor(new (&global_acl_memory)
+                            Multi_factor_auth_info(&global_acl_memory));
+      Json_dom *mfa_arr_obj = (*mfa_arr)[i];
+      if (i_mfa->deserialize(i, mfa_arr_obj)) return true;
+    }
+    set_mfa(i_mfa);
+  }
+  return false;
 }
 
 bool Acl_user_attributes::deserialize_password_lock(
@@ -277,7 +307,10 @@ bool Acl_user_attributes::deserialize(const Json_object &json_object) {
     m_restrictions.set_db(db_restrictions);
   }
 
-  return deserialize_password_lock(json_object);
+  if (deserialize_password_lock(json_object)) return true;
+  if (deserialize_multi_factor(json_object)) return true;
+
+  return false;
 }
 
 bool Acl_user_attributes::serialize(Json_object &json_object) const {
@@ -321,7 +354,14 @@ bool Acl_user_attributes::serialize(Json_object &json_object) const {
     Json_object *obj = down_cast<Json_object *>(m_user_attributes_json.get());
     obj->remove(attribute_type_to_str[User_attribute_type::PASSWORD_LOCKING]);
   }
-
+  if (m_mfa) {
+    Json_array mfa_arr;
+    if (m_mfa->serialize(mfa_arr)) return true;
+    json_object.add_clone(
+        attribute_type_to_str
+            [User_attribute_type::MULTI_FACTOR_AUTHENTICATION_DATA],
+        &mfa_arr);
+  }
   if (m_user_attributes_json) {
     Json_dom_ptr copy_attributes = m_user_attributes_json->clone();
     Json_object_ptr tmp(down_cast<Json_object *>(copy_attributes.release()));
@@ -361,7 +401,6 @@ namespace {
 /**
   Helper function to parse mysql.user.user_attributes column
 
-  @param [in]  thd             Thread handle
   @param [in]  table           Handle to mysql.user table
   @param [in]  table_schema    mysql.user schema version
   @param [out] user_attributes Deserialized user attributes
@@ -370,8 +409,7 @@ namespace {
     @retval false Success
     @retval true  Problem parsing the column
 */
-bool parse_user_attributes(THD *thd, TABLE *table,
-                           User_table_schema *table_schema,
+bool parse_user_attributes(TABLE *table, User_table_schema *table_schema,
                            Acl_user_attributes &user_attributes) {
   // Read only if the column of type JSON and it is not null.
   if (table->field[table_schema->user_attributes_idx()]->type() ==
@@ -382,11 +420,10 @@ bool parse_user_attributes(THD *thd, TABLE *table,
              table->field[table_schema->user_attributes_idx()])
              ->val_json(&json_wrapper)))
       return true;
-    if (user_attributes.consume_user_attributes_json(
-            json_wrapper.clone_dom(thd)))
+    if (user_attributes.consume_user_attributes_json(json_wrapper.clone_dom()))
       return true;
     const Json_object *json_object =
-        down_cast<const Json_object *>(json_wrapper.to_dom(thd));
+        down_cast<const Json_object *>(json_wrapper.to_dom());
     if (user_attributes.deserialize(*json_object)) return true;
   }
   return false;
@@ -400,7 +437,8 @@ Acl_table_user_writer_status::Acl_table_user_writer_status()
       password_change_timestamp(consts::BEGIN_TIMESTAMP),
       second_cred(consts::empty_string),
       restrictions(),
-      password_lock() {}
+      password_lock(),
+      multi_factor(nullptr) {}
 
 /**
   mysql.user table writer constructor
@@ -415,11 +453,13 @@ Acl_table_user_writer_status::Acl_table_user_writer_status()
   @param [in] can_create_user  Whether user has ability to create new user
   @param [in] what_to_update   Things to be updated
   @param [in] restrictions     Restrictions of the user, if there is any
+  @param [in] mfa              Interface pointer to Multi factor authentication
+  methods
 */
 Acl_table_user_writer::Acl_table_user_writer(
     THD *thd, TABLE *table, LEX_USER *combo, ulong rights, bool revoke_grant,
     bool can_create_user, Pod_user_what_to_update what_to_update,
-    Restrictions *restrictions = nullptr)
+    Restrictions *restrictions = nullptr, I_multi_factor_auth *mfa = nullptr)
     : Acl_table(thd, table, acl_table::Acl_table_operation::OP_INSERT),
       m_has_user_application_user_metadata(false),
       m_combo(combo),
@@ -428,7 +468,8 @@ Acl_table_user_writer::Acl_table_user_writer(
       m_can_create_user(can_create_user),
       m_what_to_update(what_to_update),
       m_table_schema(nullptr),
-      m_restrictions(restrictions) {
+      m_restrictions(restrictions),
+      m_mfa(mfa) {
   if (table) {
     User_table_schema_factory user_table_schema_factory;
     m_table_schema = user_table_schema_factory.get_user_table_schema(table);
@@ -483,6 +524,14 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
       (m_what_to_update.m_user_attributes & USER_ATTRIBUTE_RETAIN_PASSWORD))
     current_password = get_current_credentials();
 
+  /*
+    Set in memory copy of Multi factor authentication details. In case ALTER
+    USER is executed to alter Multi factor authentication attributes,
+    update_user_attributes call will modify the needed data structures, else in
+    case of GRANT/REVOKE in memory copy is returned.
+  */
+  if (m_mfa) return_value.multi_factor = m_mfa;
+
   if (update_authentication_info(return_value) ||
       update_privileges(return_value) || update_ssl_properties() ||
       update_user_attributes(current_password, return_value) ||
@@ -525,6 +574,7 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
 */
 bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
   bool update_password = (m_what_to_update.m_what & PLUGIN_ATTR);
+
   switch (m_operation) {
     case Acl_table_operation::OP_INSERT:
     case Acl_table_operation::OP_UPDATE: {
@@ -565,14 +615,15 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
           now.
         */
         if (m_revoke_grant) {
-          my_error(ER_NONEXISTING_GRANT, MYF(0), m_combo->user.str,
-                   m_combo->host.str);
+          bool ret = report_missing_user_grant_message(
+              m_thd, false, m_combo->user.str, m_combo->host.str, nullptr,
+              ER_NONEXISTING_GRANT);
           /*
             Return 1 as an indication that expected error occurred during
             handling of REVOKE statement for an unknown user.
           */
-          error = 1;
-          return true;
+          if (ret) error = 1;
+          return ret;
         }
 
         if (m_thd->lex->sql_command == SQLCOM_ALTER_USER) {
@@ -581,8 +632,10 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
           return true;
         }
 
-        optimize_plugin_compare_by_pointer(&m_combo->plugin);
-        builtin_plugin = auth_plugin_is_built_in(m_combo->plugin.str);
+        optimize_plugin_compare_by_pointer(
+            &m_combo->first_factor_auth_info.plugin);
+        builtin_plugin =
+            auth_plugin_is_built_in(m_combo->first_factor_auth_info.plugin.str);
 
         /* The user record was neither present nor the intention was to
          * create it */
@@ -643,7 +696,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
         */
         old_plugin.length = strlen(old_plugin.str);
 
-        /* Optimize for pointer comparision of built-in plugin name */
+        /* Optimize for pointer comparison of built-in plugin name */
         optimize_plugin_compare_by_pointer(&old_plugin);
         builtin_plugin = auth_plugin_is_built_in(old_plugin.str);
       }
@@ -739,10 +792,12 @@ bool Acl_table_user_writer::update_authentication_info(
     bool builtin_plugin;
     if (m_table->s->fields >= m_table_schema->plugin_idx()) {
       m_table->field[m_table_schema->plugin_idx()]->store(
-          m_combo->plugin.str, m_combo->plugin.length, system_charset_info);
+          m_combo->first_factor_auth_info.plugin.str,
+          m_combo->first_factor_auth_info.plugin.length, system_charset_info);
       m_table->field[m_table_schema->plugin_idx()]->set_notnull();
       m_table->field[m_table_schema->authentication_string_idx()]->store(
-          m_combo->auth.str, m_combo->auth.length, &my_charset_utf8_bin);
+          m_combo->first_factor_auth_info.auth.str,
+          m_combo->first_factor_auth_info.auth.length, &my_charset_utf8_bin);
       m_table->field[m_table_schema->authentication_string_idx()]
           ->set_notnull();
     } else {
@@ -750,8 +805,9 @@ bool Acl_table_user_writer::update_authentication_info(
       return true;
     }
     /* If we change user plugin then check if it is builtin plugin */
-    optimize_plugin_compare_by_pointer(&m_combo->plugin);
-    builtin_plugin = auth_plugin_is_built_in(m_combo->plugin.str);
+    optimize_plugin_compare_by_pointer(&m_combo->first_factor_auth_info.plugin);
+    builtin_plugin =
+        auth_plugin_is_built_in(m_combo->first_factor_auth_info.plugin.str);
     /*
       we update the password last changed field whenever there is change
       in auth str and plugin is built in
@@ -1072,7 +1128,7 @@ bool Acl_table_user_writer::update_password_reuse() {
 }
 
 /**
-  Whether current password is required to update exisitng one
+  Whether current password is required to update existing one
 
   Raises error in DA if mysql.user table does not have
   password_require_current column.
@@ -1129,10 +1185,9 @@ bool Acl_table_user_writer::update_user_attributes(
       Acl_user_attributes user_attributes(
           m_thd->mem_root,
           !(m_what_to_update.m_user_attributes & USER_ATTRIBUTE_RESTRICTIONS),
-          auth_id, m_restrictions);
+          auth_id, m_restrictions, m_mfa);
       if (m_operation == Acl_table_operation::OP_UPDATE &&
-          parse_user_attributes(m_thd, m_table, m_table_schema,
-                                user_attributes))
+          parse_user_attributes(m_table, m_table_schema, user_attributes))
         return true;
 
       /* Update additional password */
@@ -1172,6 +1227,13 @@ bool Acl_table_user_writer::update_user_attributes(
             m_combo->alter_status.password_lock_time;
       user_attributes.set_password_lock(return_value.password_lock);
 
+      if (m_what_to_update.m_user_attributes & USER_ATTRIBUTE_UPDATE_MFA) {
+        user_attributes.set_mfa(m_mfa);
+        if (m_mfa) {
+          if (user_attributes.get_mfa()->update_user_attributes()) return true;
+        }
+      }
+      return_value.multi_factor = user_attributes.get_mfa();
       /* Update the column in the table */
       if (write_user_attributes_column(user_attributes)) return true;
 
@@ -1186,7 +1248,7 @@ bool Acl_table_user_writer::update_user_attributes(
     }
   }
   return false;
-}
+}  // namespace acl_table
 
 /**
   Send the function for updating the user metadata JSON code
@@ -1277,9 +1339,7 @@ std::string Acl_table_user_writer::get_current_credentials() {
 */
 Acl_table_user_reader::Acl_table_user_reader(THD *thd, TABLE *table)
     : Acl_table(thd, table, acl_table::Acl_table_operation::OP_READ),
-      m_restrictions(new Restrictions) {
-  init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, ACL_ALLOC_BLOCK_SIZE, 0);
-}
+      m_restrictions(new Restrictions) {}
 
 /**
   Free resources before we destroy.
@@ -1287,7 +1347,6 @@ Acl_table_user_reader::Acl_table_user_reader(THD *thd, TABLE *table)
 Acl_table_user_reader::~Acl_table_user_reader() {
   if (m_table_schema) delete m_table_schema;
   if (m_restrictions) delete m_restrictions;
-  free_root(&m_mem_root, MYF(0));
 }
 
 /**
@@ -1317,7 +1376,7 @@ Acl_table_op_status Acl_table_user_reader::finish_operation(
 */
 bool Acl_table_user_reader::setup_table(bool &is_old_db_layout) {
   DBUG_TRACE;
-  m_iterator = init_table_iterator(m_thd, m_table, nullptr,
+  m_iterator = init_table_iterator(m_thd, m_table,
                                    /*ignore_not_found_rows=*/false,
                                    /*count_examined_rows=*/false);
   if (m_iterator == nullptr) return true;
@@ -1551,7 +1610,7 @@ void Acl_table_user_reader::read_user_resources(ACL_USER &user) {
   Read plugin information
 
   If it is old layout read accordingly. Also, validate authentication string
-  against expecte format for the plugin.
+  against expected format for the plugin.
 
   @param [out] user                           ACL_USER structure
   @param [out] super_users_with_empty_plugin  User has SUPER privilege or
@@ -1629,7 +1688,7 @@ bool Acl_table_user_reader::read_plugin_info(
     }
     /*
       By comparing the plugin with the built in plugins it is possible
-      to optimize the string allocation and comparision.
+      to optimize the string allocation and comparison.
     */
     optimize_plugin_compare_by_pointer(&user.plugin);
   }
@@ -1708,7 +1767,7 @@ void Acl_table_user_reader::read_password_locked(ACL_USER &user) {
 */
 void Acl_table_user_reader::read_password_last_changed(ACL_USER &user) {
   /*
-  Initalize the values of timestamp and expire after day
+  Initialize the values of timestamp and expire after day
   to error and true respectively.
   */
   user.password_last_changed.time_type = MYSQL_TIMESTAMP_ERROR;
@@ -1826,8 +1885,7 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
     Acl_user_attributes user_attributes(&m_mem_root, true, auth_id,
                                         user.access);
     if (!m_table->field[m_table_schema->user_attributes_idx()]->is_null()) {
-      if (parse_user_attributes(m_thd, m_table, m_table_schema,
-                                user_attributes)) {
+      if (parse_user_attributes(m_table, m_table_schema, user_attributes)) {
         LogErr(WARNING_LEVEL, ER_WARNING_AUTHCACHE_INVALID_USER_ATTRIBUTES,
                user.user ? user.user : "",
                user.host.get_host() ? user.host.get_host() : "");
@@ -1856,6 +1914,7 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
                                       MYSQL_AUTHENTICATION_PLUGIN);
       if (plugin) {
         st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
+
         if (auth->validate_authentication_string(
                 const_cast<char *>(
                     user.credentials[SECOND_CRED].m_auth_string.str),
@@ -1876,6 +1935,9 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
     user.password_locked_state.set_parameters(
         user_attributes.get_password_lock_time_days(),
         user_attributes.get_failed_login_attempts());
+    // details of Multi factor authentication user attributes
+    I_multi_factor_auth *m = user_attributes.get_mfa();
+    user.set_mfa(nullptr, m);
   } else {
     user.credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
   }
@@ -1919,12 +1981,13 @@ void Acl_table_user_reader::add_row_to_acl_users(ACL_USER &user) {
   password_life.password_lock_time =
       user.password_locked_state.get_password_lock_time_days();
   password_life.update_password_lock_time = true;
+
   acl_users_add_one(user.user, user.host.get_host(), user.ssl_type,
                     user.ssl_cipher, user.x509_issuer, user.x509_subject,
                     &user.user_resource, user.access, user.plugin, auth,
                     second_auth, user.password_last_changed, password_life,
                     false, *m_restrictions, password_life.failed_login_attempts,
-                    password_life.password_lock_time, m_thd);
+                    password_life.password_lock_time, user.m_mfa, m_thd);
 }
 
 /**
@@ -2032,6 +2095,7 @@ Password_lock::Password_lock(Password_lock &&other) {
   std::swap(password_lock_time_days, other.password_lock_time_days);
   std::swap(failed_login_attempts, other.failed_login_attempts);
 }
+
 }  // namespace acl_table
 
 /**
@@ -2046,6 +2110,8 @@ Password_lock::Password_lock(Password_lock &&other) {
   @param [in] what_to_update   Bitmap indicating which attributes need to be
                                updated.
   @param [in] restrictions     Restrictions handle if there is any
+  @param [in] mfa              Interface pointer to Multi factor authentication
+  methods
 
   @return  Operation result
   @retval  0    OK.
@@ -2057,10 +2123,12 @@ Password_lock::Password_lock(Password_lock &&other) {
 int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                        bool revoke_grant, bool can_create_user,
                        acl_table::Pod_user_what_to_update &what_to_update,
-                       Restrictions *restrictions /*= nullptr*/) {
-  acl_table::Acl_table_user_writer user_table(thd, table, combo, rights,
-                                              revoke_grant, can_create_user,
-                                              what_to_update, restrictions);
+                       Restrictions *restrictions /*= nullptr*/,
+                       I_multi_factor_auth *mfa /*= nullptr*/) {
+  acl_table::Acl_table_user_writer user_table(
+      thd, table, combo, rights, revoke_grant, can_create_user, what_to_update,
+      restrictions, mfa);
+
   LEX *lex = thd->lex;
   if (lex->alter_user_attribute !=
       enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED) {
@@ -2069,7 +2137,8 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                      lex->alter_user_comment_text.length);
 
     user_table.replace_user_application_user_metadata([=](TABLE *table_inner) {
-      if (replace_user_metadata(thd, json_blob,
+      assert(!thd->is_error());
+      if (replace_user_metadata(json_blob,
                                 lex->alter_user_attribute ==
                                     enum_alter_user_attribute::
                                         ALTER_USER_COMMENT /* expect text */,
@@ -2090,7 +2159,8 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
   if (!(return_value.error || return_value.skip_cache_update)) {
     bool old_row_exists = (user_table.get_operation_mode() ==
                            acl_table::Acl_table_operation::OP_UPDATE);
-    bool builtin_plugin = auth_plugin_is_built_in(combo->plugin.str);
+    bool builtin_plugin =
+        auth_plugin_is_built_in(combo->first_factor_auth_info.plugin.str);
     bool update_password = (what_to_update.m_what & PLUGIN_ATTR);
 
     /*
@@ -2102,27 +2172,30 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
     if (builtin_plugin && (update_password || !old_row_exists))
       thd->variables.time_zone->gmt_sec_to_TIME(
           &password_change_time,
-          (my_time_t)return_value.password_change_timestamp.tv_sec);
+          (my_time_t)return_value.password_change_timestamp.m_tv_sec);
     else
       password_change_time.time_type = MYSQL_TIMESTAMP_ERROR;
     clear_and_init_db_cache(); /* Clear privilege cache */
     if (old_row_exists) {
-      acl_update_user(combo->user.str, combo->host.str, lex->ssl_type,
-                      lex->ssl_cipher, lex->x509_issuer, lex->x509_subject,
-                      &lex->mqh, return_value.updated_rights, combo->plugin,
-                      combo->auth, return_value.second_cred,
-                      password_change_time, combo->alter_status,
-                      return_value.restrictions, what_to_update,
-                      return_value.password_lock.failed_login_attempts,
-                      return_value.password_lock.password_lock_time_days);
+      acl_update_user(
+          combo->user.str, combo->host.str, lex->ssl_type, lex->ssl_cipher,
+          lex->x509_issuer, lex->x509_subject, &lex->mqh,
+          return_value.updated_rights, combo->first_factor_auth_info.plugin,
+          combo->first_factor_auth_info.auth, return_value.second_cred,
+          password_change_time, combo->alter_status, return_value.restrictions,
+          what_to_update, return_value.password_lock.failed_login_attempts,
+          return_value.password_lock.password_lock_time_days,
+          return_value.multi_factor);
     } else
       acl_insert_user(thd, combo->user.str, combo->host.str, lex->ssl_type,
                       lex->ssl_cipher, lex->x509_issuer, lex->x509_subject,
-                      &lex->mqh, return_value.updated_rights, combo->plugin,
-                      combo->auth, password_change_time, combo->alter_status,
-                      return_value.restrictions,
+                      &lex->mqh, return_value.updated_rights,
+                      combo->first_factor_auth_info.plugin,
+                      combo->first_factor_auth_info.auth, password_change_time,
+                      combo->alter_status, return_value.restrictions,
                       return_value.password_lock.failed_login_attempts,
-                      return_value.password_lock.password_lock_time_days);
+                      return_value.password_lock.password_lock_time_days,
+                      return_value.multi_factor);
   }
   return return_value.error;
 }
@@ -2152,7 +2225,6 @@ bool read_user_table(THD *thd, TABLE *table) {
    through a lambda expression. It's assumed that the user table has been
    opened and the matching row for the target user is in record[0]
 
-   @param thd The thread context
    @param json_blob Either a plain text comment or a JSON object depending on
    @param expect_text if expect_text is true then json_blob is plain text
    @param user_table A cursor to the open mysql.user table.
@@ -2163,9 +2235,8 @@ bool read_user_table(THD *thd, TABLE *table) {
     @retval false success
     @retval true failure
 */
-bool replace_user_metadata(THD *thd, const std::string &json_blob,
-                           bool expect_text, TABLE *user_table) {
-  assert(!thd->is_error());
+static bool replace_user_metadata(const std::string &json_blob,
+                                  bool expect_text, TABLE *user_table) {
   Json_dom_ptr json_dom;
   Json_wrapper json_wrapper;
   if (user_table->field[MYSQL_USER_FIELD_USER_ATTRIBUTES]->type() !=
@@ -2192,7 +2263,7 @@ bool replace_user_metadata(THD *thd, const std::string &json_blob,
       my_error(ER_INVALID_USER_ATTRIBUTE_JSON, MYF(0));
       return true;
     }
-    json_dom = json_wrapper.clone_dom(thd);
+    json_dom = json_wrapper.clone_dom();
   }  // end else
   Json_object *json_ob = down_cast<Json_object *>(json_dom.get());
   Json_dom *metadata_dom =
@@ -2217,10 +2288,9 @@ bool replace_user_metadata(THD *thd, const std::string &json_blob,
                         new (std::nothrow) Json_string(json_blob));
   } else {
     // ALTER USER x ATTRIBUTE y
-    const char *errmsg;
-    size_t offset;
-    auto metadata_patch = Json_dom::parse(json_blob.c_str(), json_blob.length(),
-                                          &errmsg, &offset);
+    auto metadata_patch = Json_dom::parse(
+        json_blob.c_str(), json_blob.length(), [](const char *, size_t) {},
+        [] { my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0)); });
     if (metadata_patch == nullptr ||
         metadata_patch->json_type() != enum_json_type::J_OBJECT) {
       my_error(ER_INVALID_USER_ATTRIBUTE_JSON, MYF(0));
@@ -2277,10 +2347,9 @@ USER statement is issued.
 bool read_user_application_user_metadata_from_table(
     const LEX_CSTRING user, const LEX_CSTRING host, String *metadata_str,
     TABLE *table, bool mode_no_backslash_escapes) {
-  MEM_ROOT tmp_mem;
+  MEM_ROOT tmp_mem(PSI_NOT_INSTRUMENTED, 256);
   char null_token[5] = {'n', 'u', 'l', 'l', '\0'};
   uchar user_key[MAX_KEY_LENGTH];
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
   if (table->file->ha_index_init(0, false)) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
@@ -2311,10 +2380,9 @@ bool read_user_application_user_metadata_from_table(
     table->file->ha_index_end();
     return false;
   }
-  const char *errmsg;
-  size_t offset;
   auto attributes_dom = Json_dom::parse(
-      attributes_field, strlen(attributes_field), &errmsg, &offset);
+      attributes_field, strlen(attributes_field), [](const char *, size_t) {},
+      JsonDocumentDefaultDepthHandler);
   table->file->ha_index_end();
   if (attributes_dom == nullptr ||
       attributes_dom->json_type() != enum_json_type::J_OBJECT) {
@@ -2327,7 +2395,8 @@ bool read_user_application_user_metadata_from_table(
                        [acl_table::User_attribute_type::METADATA]);
   if (metadata_dom == nullptr) return false;  // success but out string is empty
   Json_wrapper wr(metadata_dom, true);
-  wr.to_string(metadata_str, true, __FUNCTION__);
+  wr.to_string(metadata_str, true, __FUNCTION__,
+               JsonDocumentDefaultDepthHandler);
   if (!mode_no_backslash_escapes) double_the_backslash(metadata_str);
   return false;
 }

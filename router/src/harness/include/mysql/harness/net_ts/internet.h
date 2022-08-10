@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -385,7 +385,7 @@ inline stdx::expected<address_v6, std::error_code> make_address_v6(
 
   scope_id_type scope_id{0};
   int inet_pton_res;
-  // parse the scope_id seperately as inet_pton() doesn't know about it.
+  // parse the scope_id separately as inet_pton() doesn't know about it.
   //
   // only numeric IDs though. For named scope-ids like "lo", getifaddrs() is
   // needed
@@ -412,7 +412,7 @@ inline stdx::expected<address_v6, std::error_code> make_address_v6(
     inet_pton_res = ::inet_pton(AF_INET6, str, &ipv6_addr);
   }
   if (inet_pton_res == 1) {
-    return {stdx::in_place_t(), ipv6_addr, scope_id};
+    return {std::in_place, ipv6_addr, scope_id};
   } else if (inet_pton_res == 0) {
     // parse failed
     return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));

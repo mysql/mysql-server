@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,8 @@
 #include "xcom/xcom_cache.h"
 
 void deliver_view_msg(site_def const *site);
-void deliver_global_view_msg(site_def const *site, synode_no message_id);
+void deliver_global_view_msg(site_def const *site, node_set const ns,
+                             synode_no message_id);
 
 /**
   Delivers the @c app payload to XCom's upper layer, e.g. GCS.

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,10 @@
 
 #include <mutex>
 
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/http_server_export.h"
+
+class HttpServer;
 
 class HTTP_SERVER_EXPORT BaseRequestHandler {
  public:

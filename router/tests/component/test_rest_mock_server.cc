@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,18 +25,17 @@
 #include <thread>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
+#include <gmock/gmock.h>
 #include <rapidjson/document.h>
 
 #include "dim.h"
-#include "gmock/gmock.h"
 #include "mock_server_rest_client.h"
 #include "mysql/harness/logging/registry.h"
-#include "mysql_session.h"
+#include "mysqlrouter/http_request.h"
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -57,10 +56,7 @@ using JsonDocument =
 using JsonValue =
     rapidjson::GenericValue<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
-class RestMockServerTest : public RouterComponentTest {
- protected:
-  TcpPortPool port_pool_;
-};
+class RestMockServerTest : public RouterComponentTest {};
 
 /**
  * base class.
@@ -532,8 +528,6 @@ INSTANTIATE_TEST_SUITE_P(
                         HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Options, kMockServerGlobalsRestUri,
                         HttpStatusCode::MethodNotAllowed),
-        std::make_tuple(HttpMethod::Connect, kMockServerGlobalsRestUri,
-                        HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Head, kMockServerGlobalsRestUri,
                         HttpStatusCode::MethodNotAllowed)));
 
@@ -550,10 +544,12 @@ INSTANTIATE_TEST_SUITE_P(
                         HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Options, kMockServerConnectionsRestUri,
                         HttpStatusCode::MethodNotAllowed),
-        std::make_tuple(HttpMethod::Connect, kMockServerConnectionsRestUri,
-                        HttpStatusCode::MethodNotAllowed),
         std::make_tuple(HttpMethod::Head, kMockServerConnectionsRestUri,
-                        HttpStatusCode::MethodNotAllowed)));
+                        HttpStatusCode::MethodNotAllowed)),
+    [](const auto &info) {
+      return http_method_to_string(std::get<0>(info.param)) + "_" +
+             std::to_string(std::get<2>(info.param));
+    });
 
 /**
  * test storing globals in mock_server via REST bridge.

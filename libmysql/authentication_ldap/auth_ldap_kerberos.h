@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,10 +46,10 @@
   with one name that is considered canonical
 
   Credential cache:
-  A credential cache (or “ccache”) holds Kerberos credentials while they remain
-  valid and, generally, while the user’s session lasts, so that authenticating
-  to a service multiple times (e.g., connecting to a web or mail server more
-  than once) doesn’t require contacting the KDC every time.
+  A credential cache (or “ccache”) holds Kerberos credentials while they
+  remain valid and, generally, while the user’s session lasts, so that
+  authenticating to a service multiple times (e.g., connecting to a web or mail
+  server more than once) doesn’t require contacting the KDC every time.
 */
 namespace auth_ldap_client_kerberos_context {
 class Kerberos {
@@ -63,9 +63,8 @@ class Kerberos {
     3. If user credentials already exist in the cache, it doesn't attempt to get
     it again.
 
-    @return
-      @retval true Successfully able to obtain and store credentials.
-      @retval false Failed to obtain and store credentials.
+    @retval true Successfully able to obtain and store credentials.
+    @retval false Failed to obtain and store credentials.
   */
   bool obtain_store_credentials();
   /**
@@ -73,9 +72,8 @@ class Kerberos {
     parses the user name from it. If user name has not been provided in the
     MySQL client, This method can be used to get the user name  and use for
     authentication.
-    @return
-      @retval true Successfully able to get user name.
-      @retval false Failed to get user name.
+    @retval true Successfully able to get user name.
+    @retval false Failed to get user name.
   */
   bool get_user_name(std::string *name);
   void destroy_credentials();
@@ -88,10 +86,9 @@ class Kerberos {
   /**
     This function creates kerberos context, initializes credentials cache and
     user principal.
-    @return
-      @retval true All the required kerberos objects like context,
+    @retval true All the required kerberos objects like context,
     credentials cache and user principal are initialized correctly.
-      @retval false Required kerberos objects failed to initialized.
+    @retval false Required kerberos objects failed to initialized.
   */
   bool setup();
   /**

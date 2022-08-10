@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,8 +49,7 @@ inline dict_table_t *dict_table_get_low(
 
 /** Checks if a table is in the dictionary cache.
  @return table, NULL if not found */
-UNIV_INLINE
-dict_table_t *dict_table_check_if_in_cache_low(
+static inline dict_table_t *dict_table_check_if_in_cache_low(
     const char *table_name); /*!< in: table name */
 
 #include "dict0priv.ic"

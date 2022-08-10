@@ -10,8 +10,8 @@ sorts_using_scans	bigint unsigned	NO		NULL
 sort_using_range	bigint unsigned	NO		NULL	
 rows_sorted	bigint unsigned	NO		NULL	
 avg_rows_sorted	decimal(21,0)	NO		0	
-first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+first_seen	timestamp(6)	NO		NULL	
+last_seen	timestamp(6)	NO		NULL	
 digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.statements_with_sorting;
 DESC sys.x$statements_with_sorting;
@@ -26,7 +26,7 @@ sorts_using_scans	bigint unsigned	NO		NULL
 sort_using_range	bigint unsigned	NO		NULL	
 rows_sorted	bigint unsigned	NO		NULL	
 avg_rows_sorted	decimal(21,0)	NO		0	
-first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+first_seen	timestamp(6)	NO		NULL	
+last_seen	timestamp(6)	NO		NULL	
 digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.x$statements_with_sorting;

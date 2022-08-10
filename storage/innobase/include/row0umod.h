@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,8 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Undoes a modify operation on a row of a table.
  @return DB_SUCCESS or error code */
-dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
-                     que_thr_t *thr)    /*!< in: query thread */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
+                                   que_thr_t *thr);   /*!< in: query thread */
 
 #endif

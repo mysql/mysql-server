@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -303,7 +303,7 @@ bool create_dd_schema(THD *thd);
 bool initialize_dd_properties(THD *thd);
 
 /**
-  Predicate to check if a table type is a non-inert DD ot DDSE table.
+  Predicate to check if a table type is a non-inert DD or a DDSE table.
 
   @param table_type    Type as defined in the System_tables registry.
   @returns             true if the table is a non-inert DD or DDSE table,

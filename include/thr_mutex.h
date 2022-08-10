@@ -1,7 +1,7 @@
 #ifndef THR_MUTEX_INCLUDED
 #define THR_MUTEX_INCLUDED
 
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@
   - native_mutex_t
   - my_mutex_t
 */
-#include "mysql/components/services/thr_mutex_bits.h"
+#include "mysql/components/services/bits/thr_mutex_bits.h"
 
 /* Define mutex types, see my_thr_init.c */
 #define MY_MUTEX_INIT_SLOW NULL
@@ -77,7 +77,7 @@ extern native_mutexattr_t my_errorcheck_mutexattr;
 
 static inline int native_mutex_init(native_mutex_t *mutex,
                                     const native_mutexattr_t *attr
-                                        MY_ATTRIBUTE((unused))) {
+                                    [[maybe_unused]]) {
 #ifdef _WIN32
   InitializeCriticalSection(mutex);
   return 0;

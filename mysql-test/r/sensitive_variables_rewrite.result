@@ -1,0 +1,59 @@
+#
+# WL#13469: secure storage for sensitive system variables
+#
+# Test for sensitive variables value rewrite functionality
+#
+# Setup
+#
+INSTALL COMPONENT 'file://component_test_sensitive_system_variables';
+TRUNCATE TABLE mysql.general_log;
+SELECT @@session.autocommit INTO @save_session_autocommit;
+SELECT @@session.debug_sensitive_session_string INTO @save_debug_sensitive_session_string;
+SET GLOBAL general_log_file = '.../log/rewrite_general.log';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+#
+# Set sensitive system variables
+#
+SET @@session.debug_sensitive_session_string= "haha";
+SET @@session.autocommit = 0, @@session.debug_sensitive_session_string= "haha";
+SET GLOBAL test_component.sensitive_string_1 = "haha";
+SET PERSIST test_component.sensitive_string_2 = "haha";
+Warnings:
+Warning	4098	SENSITIVE system variable 'test_component.sensitive_string_2' was persisted without encryption. Consider restarting server with keyring component support to persist SENSITIVE variables securely.
+SET PERSIST_ONLY test_component.sensitive_ro_string_1 = 'haha';
+Warnings:
+Warning	4098	SENSITIVE system variable 'test_component.sensitive_ro_string_1' was persisted without encryption. Consider restarting server with keyring component support to persist SENSITIVE variables securely.
+SET @@session.debug_sensitive_session_string = @save_debug_sensitive_session_string;
+SET @@session.autocommit= @save_session_autocommit;
+RESET PERSIST;
+#
+# Check error log data
+#
+# Must be 1 (Single SELECT statement)
+SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE ('%haha%');
+COUNT(*)
+1
+# Must be 7 (6 SET statement + 1 SELECT statement)
+SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE ('%REDACTED%');
+COUNT(*)
+7
+# List all SET statements
+SELECT argument FROM mysql.general_log WHERE argument LIKE ('SET%');
+argument
+SET GLOBAL general_log=       'ON'
+SET SESSION debug_sensitive_session_string=<REDACTED>
+SET SESSION autocommit=0, SESSION debug_sensitive_session_string=<REDACTED>
+SET GLOBAL test_component.sensitive_string_1=<REDACTED>
+SET PERSIST test_component.sensitive_string_2=<REDACTED>
+SET PERSIST_ONLY test_component.sensitive_ro_string_1=<REDACTED>
+SET SESSION debug_sensitive_session_string=<REDACTED>
+SET @@session.autocommit= @save_session_autocommit
+#
+# cleanup
+#
+SET GLOBAL general_log_file =  '.../mysqld.1/mysqld.log';
+SET GLOBAL log_output=        'FILE';
+SET GLOBAL general_log=       1;
+TRUNCATE TABLE mysql.general_log;
+UNINSTALL COMPONENT "file://component_test_sensitive_system_variables";

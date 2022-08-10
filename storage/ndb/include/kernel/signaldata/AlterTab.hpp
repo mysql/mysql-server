@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 
 
 struct AlterTabReq {
-  STATIC_CONST( SignalLength = 12 );
+  static constexpr Uint32 SignalLength = 12;
 
   enum RequestType {
     AlterTablePrepare = 0, // Prepare alter table
@@ -73,7 +73,7 @@ struct AlterTabReq {
 };
 
 struct AlterTabConf {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -83,7 +83,7 @@ struct AlterTabConf {
 };
 
 struct AlterTabRef {
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   Uint32 senderRef;
   Uint32 senderData;

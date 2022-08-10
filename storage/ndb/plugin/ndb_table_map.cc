@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 #include "sql/table.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
-Ndb_table_map::Ndb_table_map(struct TABLE *mysqlTable,
+Ndb_table_map::Ndb_table_map(const TABLE *mysqlTable,
                              const NdbDictionary::Table *ndbTable)
     : m_ndb_table(ndbTable),
       m_array_size(mysqlTable->s->fields),
@@ -131,24 +131,6 @@ uint Ndb_table_map::num_stored_fields(const TABLE *table) {
     if (!(*vfield_ptr)->stored_in_db) num_stored_fields--;
   }
   return num_stored_fields;
-}
-
-bool Ndb_table_map::have_physical_blobs(const TABLE *table) {
-  for (uint i = 0; i < table->s->fields; i++) {
-    Field *field = table->field[i];
-    if (!field->stored_in_db) {
-      // Not stored
-      continue;
-    }
-
-    if (field->is_flag_set(BLOB_FLAG)) {
-      // Double check that TABLE_SHARE thinks that table had some
-      // blobs(physical or not)
-      assert(table->s->blob_fields > 0);
-      return true;
-    }
-  }
-  return false;
 }
 
 #ifndef NDEBUG

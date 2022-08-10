@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ Session::Session(MYSQL_THD current_session)
     : m_previous_session(current_session),
       m_current_session(mysql_parser_open_session()) {}
 
-Condition_handler::~Condition_handler() {}
+Condition_handler::~Condition_handler() = default;
 
 /**
   Bridge function between the C++ API offered by this module and the C API of

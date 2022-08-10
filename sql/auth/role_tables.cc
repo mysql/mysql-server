@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,13 +43,13 @@
 #include "sql/auth/sql_user_table.h"
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
-#include "sql/records.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"
 #include "sql/table.h"
 #include "sql_string.h"
 #include "thr_lock.h"
@@ -185,7 +185,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
 
 /*
   Populates caches from roles tables.
-  Assumes that tables are opened and requried locks are taken.
+  Assumes that tables are opened and required locks are taken.
   Assumes that caller will close the tables.
 
   @param [in] thd      Handle to THD object
@@ -211,7 +211,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
 
   {
     roles_edges_table->use_all_columns();
-    iterator = init_table_iterator(thd, roles_edges_table, nullptr,
+    iterator = init_table_iterator(thd, roles_edges_table,
                                    /*ignore_not_found_rows=*/false,
                                    /*count_examined_rows=*/false);
     if (iterator == nullptr) {
@@ -223,8 +223,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
     ACL_USER *acl_role;
     ACL_USER *acl_user;
     int read_rec_errcode;
-    MEM_ROOT tmp_mem;
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 128, 0);
+    MEM_ROOT tmp_mem(PSI_NOT_INSTRUMENTED, 128);
     g_authid_to_vertex->clear();
     g_granted_roles->clear();
     while (!(read_rec_errcode = iterator->Read())) {
@@ -271,7 +270,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
 
     default_role_table->use_all_columns();
 
-    iterator = init_table_iterator(thd, default_role_table, nullptr,
+    iterator = init_table_iterator(thd, default_role_table,
                                    /*ignore_not_found_rows=*/false,
                                    /*count_examined_rows=*/false);
     DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit", iterator = nullptr;);

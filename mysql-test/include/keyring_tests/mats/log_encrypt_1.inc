@@ -8,7 +8,7 @@ call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 2 in a fi
 call mtr.add_suppression("\\[ERROR\\] .* The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] .* Could not find a valid tablespace file for");
 call mtr.add_suppression("\\[ERROR\\] .* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("\\[ERROR\\] .* Can't set redo log files to be encrypted.");
 --enable_query_log
 
 # Restart with redo log encryption enabled

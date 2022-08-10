@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class PFS_index_ees_by_host_by_error : public PFS_engine_index {
         m_key_1("HOST"),
         m_key_2("ERROR_NUMBER") {}
 
-  ~PFS_index_ees_by_host_by_error() override {}
+  ~PFS_index_ees_by_host_by_error() override = default;
 
   virtual bool match(PFS_host *pfs);
   virtual bool match_error_index(uint error_index);
@@ -125,7 +125,7 @@ class table_ees_by_host_by_error : public PFS_engine_table {
   table_ees_by_host_by_error();
 
  public:
-  ~table_ees_by_host_by_error() override {}
+  ~table_ees_by_host_by_error() override = default;
 
  protected:
   int make_row(PFS_host *host, int error_index);

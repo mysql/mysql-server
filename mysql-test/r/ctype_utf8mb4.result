@@ -802,6 +802,8 @@ uf	7566
 æ	C3A6
 Œ	C592
 œ	C593
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(s1 order by binary s1) from t1 group by s1;
 group_concat(s1 order by binary s1)
 a,ä
@@ -821,6 +823,8 @@ ue
 uf
 Æ,æ
 Œ,œ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1), hex(weight_string(s1)) FROM t1 ORDER BY s1, BINARY(s1);
 s1	hex(s1)	hex(weight_string(s1))
 a	61	0041
@@ -846,9 +850,13 @@ uf	7566	00550046
 æ	C3A6	00C6
 Œ	C592	0152
 œ	C593	0152
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1) FROM t1 WHERE s1='ae' ORDER BY s1, BINARY(s1);
 s1	hex(s1)
 ae	6165
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 "END ctype_german.inc"
 SET collation_connection='utf8mb4_bin';
@@ -1682,7 +1690,7 @@ Warnings:
 Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 select concat(a, if(b>10, N'æ', N'ß')) from t1;
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb3_general_ci,COERCIBLE) for operation 'concat'
 drop table t1;
 set names utf8mb4;
 create table t1 (a varchar(10) character set latin1, b int);
@@ -2053,6 +2061,8 @@ u_decimal	hex(utf8mb4_encoding)
 1114111	F48FBFBF
 119070	F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480
 119070	F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 INSERT IGNORE INTO t1 VALUES (1114111, x'f5808080');
 Warnings:
 Warning	1366	Incorrect string value: '\xF5\x80\x80\x80' for column 'utf8mb4_encoding' at row 1
@@ -2207,7 +2217,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int NOT NULL,
-  `utf8mb4_encoding` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
+  `utf8mb4_encoding` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
 u_decimal	hex(utf8mb4_encoding)
@@ -2304,7 +2314,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `utf8mb4` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-  `utf8mb3` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `utf8mb3` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL,
   `concat(utf8mb4,utf8mb3)` varchar(20) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t3;
@@ -2324,9 +2334,9 @@ DROP TABLE t2;
 CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4);
 INSERT INTO t1 VALUES (x'f48fbfbf');
 SELECT CONCAT(utf8mb4, _utf8 '�') FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb3_general_ci,COERCIBLE) for operation 'concat'
 SELECT CONCAT('a', _utf8 '�') FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,COERCIBLE) and (utf8_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,COERCIBLE) and (utf8mb3_general_ci,COERCIBLE) for operation 'concat'
 DROP TABLE t1;
 #
 # Bug#51675 Server crashes on inserting 4 byte char.
@@ -2341,7 +2351,7 @@ p VARCHAR(15) CHARACTER SET utf8
 ) DEFAULT CHARSET=latin1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 ADD INDEX (subject);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -2358,7 +2368,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `p` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
   KEY `subject` (`subject`(250))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 INSERT INTO t1(subject) VALUES ('abcd');
@@ -2472,9 +2482,9 @@ is_ipv4(inet_ntoa('1'))
 SELECT is_ipv6(inet_ntoa('1'));
 is_ipv6(inet_ntoa('1'))
 0
-SELECT inet6_aton(inet_ntoa('1'));
-inet6_aton(inet_ntoa('1'))
-   
+SELECT HEX(inet6_aton(inet_ntoa('1')));
+HEX(inet6_aton(inet_ntoa('1')))
+00000001
 SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL
@@ -2649,104 +2659,112 @@ insert into t1 values (0x40),(0x41),(0x42),(0x43),(0x44),(0x45),(0x46),(0x47),(0
 insert into t1 values (0x50),(0x51),(0x52),(0x53),(0x54),(0x55),(0x56),(0x57),(0x58),(0x59),(0x5A),(0x5B),(0x5C),(0x5D),(0x5E),(0x5F);
 insert into t1 values (0x60),(0x61),(0x62),(0x63),(0x64),(0x65),(0x66),(0x67),(0x68),(0x69),(0x6A),(0x6B),(0x6C),(0x6D),(0x6E),(0x6F);
 insert into t1 values (0x70),(0x71),(0x72),(0x73),(0x74),(0x75),(0x76),(0x77),(0x78),(0x79),(0x7A),(0x7B),(0x7C),(0x7D),(0x7E),(0x7F);
-SELECT GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR ''), GROUP_CONCAT(hex(c1) ORDER BY BINARY c1) FROM t1 GROUP BY c1;
-GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR '')	GROUP_CONCAT(hex(c1) ORDER BY BINARY c1)
- 	20
-!	21
-"	22
-#	23
-$	24
-%	25
-&	26
-'	27
-(	28
-)	29
-*	2A
-+	2B
-,	2C
--	2D
-.	2E
-/	2F
-0	30
-1	31
-2	32
-3	33
-4	34
-5	35
-6	36
-7	37
-8	38
-9	39
-:	3A
-;	3B
-<	3C
-=	3D
->	3E
-?	3F
-@	40
-A	41
-B	42
-C	43
-D	44
-E	45
-F	46
-G	47
-H	48
-I	49
-J	4A
-K	4B
-L	4C
-M	4D
-N	4E
-O	4F
-P	50
-Q	51
-R	52
-S	53
-T	54
-U	55
-V	56
-W	57
-X	58
-Y	59
-Z	5A
-[	5B
-\	5C
-]	5D
-^	5E
-_	5F
-`	60
-a	61
-b	62
-c	63
-d	64
-e	65
-f	66
-g	67
-h	68
-i	69
-j	6A
-k	6B
-l	6C
-m	6D
-n	6E
-o	6F
-p	70
-q	71
-r	72
-s	73
-t	74
-u	75
-v	76
-w	77
-x	78
-y	79
-z	7A
-{	7B
-|	7C
-}	7D
-~	7E
-	7F
+SELECT HEX(cx), cy
+FROM (SELECT GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR '') AS cx,
+GROUP_CONCAT(HEX(c1) ORDER BY BINARY c1) AS cy
+FROM t1
+GROUP BY c1
+) AS dt;
+HEX(cx)	cy
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+2A	2A
+2B	2B
+2C	2C
+2D	2D
+2E	2E
+2F	2F
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+3A	3A
+3B	3B
+3C	3C
+3D	3D
+3E	3E
+3F	3F
+40	40
+41	41
+42	42
+43	43
+44	44
+45	45
+46	46
+47	47
+48	48
+49	49
+4A	4A
+4B	4B
+4C	4C
+4D	4D
+4E	4E
+4F	4F
+50	50
+51	51
+52	52
+53	53
+54	54
+55	55
+56	56
+57	57
+58	58
+59	59
+5A	5A
+5B	5B
+5C	5C
+5D	5D
+5E	5E
+5F	5F
+60	60
+61	61
+62	62
+63	63
+64	64
+65	65
+66	66
+67	67
+68	68
+69	69
+6A	6A
+6B	6B
+6C	6C
+6D	6D
+6E	6E
+6F	6F
+70	70
+71	71
+72	72
+73	73
+74	74
+75	75
+76	76
+77	77
+78	78
+79	79
+7A	7A
+7B	7B
+7C	7C
+7D	7D
+7E	7E
+7F	7F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 select @@collation_connection;
 @@collation_connection
@@ -3227,6 +3245,8 @@ F0ABA0B6	F0ABA0B6	F0ABA0B6	F0ABA0B6	𫠶
 F0ABA0B7	F0ABA0B7	F0ABA0B7	F0ABA0B7	𫠷
 F0ABA0B8	F0ABA0B8	F0ABA0B8	F0ABA0B8	𫠸
 F0ABA0B9	F0ABA0B9	F0ABA0B9	F0ABA0B9	𫠹
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0xFFFF));
 INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0x10FFFF));
@@ -3240,9 +3260,13 @@ hex(c)	hex(weight_string(c))
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 F0909080	F0909080	𐐀
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 F09090A8	F09090A8	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT hex(c) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3258,9 +3282,13 @@ hex(c)	hex(weight_string(c))
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 F0909080	F0909080	𐐀
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 F09090A8	F09090A8	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 CREATE TABLE t1(a CHAR(10)) COLLATE utf8mb4_0900_bin;
 INSERT INTO t1 VALUES('aaa'), ('aaaa'), ('aaaaa');

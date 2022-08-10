@@ -446,7 +446,7 @@ COUNT(*)
 1000
 SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1";
 NAME	N_COLS	INSTANT_COLS
-test/t1	6	1
+test/t1	6	0
 SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
 NAME	POS	HAS_DEFAULT
 v1	1	1
@@ -477,8 +477,8 @@ COUNT(*)
 1000
 SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
 NAME	N_COLS	INSTANT_COLS
-test/t1	6	1
-test/t2	6	1
+test/t1	6	0
+test/t2	6	0
 SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
 NAME	POS	HAS_DEFAULT
 v1	1	1
@@ -491,33 +491,9 @@ CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v1 VARCHAR(255));
 ALTER TABLE t2 ADD COLUMN v2 VARCHAR(255);
 ALTER TABLE t2 DISCARD TABLESPACE;
 # Copy CFG/IBD file from temp
-# IMPORT should succeed. Target table metadata should have been updated.
+# IMPORT should fail as INSTANT METADATA doesn't match.
 ALTER TABLE t2 IMPORT TABLESPACE;
-SELECT * from t2 limit 10;
-id	v1	v2
-1	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-2	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-3	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-4	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-5	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-6	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-7	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-8	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-9	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-10	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
-SELECT COUNT(*) from t2;
-COUNT(*)
-1000
-SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
-NAME	N_COLS	INSTANT_COLS
-test/t1	6	1
-test/t2	6	1
-SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
-NAME	POS	HAS_DEFAULT
-v1	1	1
-v2	2	1
-v1	1	1
-v2	2	1
+ERROR HY000: Schema mismatch (Table has instant column but current row version didn't match.)
 DROP TABLE t2;
 # Create table t2 with two column added INSTANTly
 CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);
@@ -544,8 +520,8 @@ COUNT(*)
 1000
 SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
 NAME	N_COLS	INSTANT_COLS
-test/t1	6	1
-test/t2	6	1
+test/t1	6	0
+test/t2	6	0
 SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
 NAME	POS	HAS_DEFAULT
 v1	1	1

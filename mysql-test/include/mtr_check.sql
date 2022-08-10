@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+-- Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -76,19 +76,24 @@ BEGIN
           FROM performance_schema.global_variables
              WHERE VARIABLE_NAME='ndb_connectstring') THEN
 
-      -- List dict objects in NDB, skip objects created by ndbcluster plugin
-      -- and HashMap's since those can't be dropped after having been
-      -- created by test
-      SELECT id, indented_name FROM ndbinfo.dict_obj_tree
-        WHERE root_type != 24 AND  -- HashMap
-              root_name NOT IN ( 'mysql/def/ndb_schema',
-                                 'mysql/def/ndb_schema_result',
-                                 'mysql/def/ndb_index_stat_head',
-                                 'mysql/def/ndb_index_stat_sample',
-                                 'mysql/def/ndb_apply_status',
-                                 'mysql/def/ndb_sql_metadata')
-        ORDER BY path;
+      -- Check ndbinfo engine is enabled, else ndbinfo schema will not exists
+      IF ((SELECT count(*) FROM information_schema.engines
+           WHERE engine='ndbinfo' AND support IN ('YES', 'DEFAULT')) = 1) THEN
 
+        -- List dict objects in NDB, skip objects created by ndbcluster plugin
+        -- and HashMap's since those can't be dropped after having been
+        -- created by test
+        SELECT id, indented_name FROM ndbinfo.dict_obj_tree
+          WHERE root_type != 24 AND  -- HashMap
+                root_name NOT IN ( 'mysql/def/ndb_schema',
+                                   'mysql/def/ndb_schema_result',
+                                   'mysql/def/ndb_index_stat_head',
+                                   'mysql/def/ndb_index_stat_sample',
+                                   'mysql/def/ndb_apply_status',
+                                   'mysql/def/ndb_sql_metadata')
+          ORDER BY path;
+
+      END IF;
     END IF;
   END IF;
 END$$
@@ -179,7 +184,7 @@ BEGIN
   SELECT name, status FROM INFORMATION_SCHEMA.INNODB_METRICS
     ORDER BY name;
 
-  SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
+  SHOW GLOBAL STATUS LIKE 'replica_open_temp_tables';
 
   -- Check for number of active connections before & after the test run.
 
@@ -209,6 +214,7 @@ BEGIN
     mysql.default_roles,
     mysql.db,
     mysql.func,
+    mysql.general_log,
     mysql.global_grants,
     mysql.help_category,
     mysql.help_keyword,
@@ -218,7 +224,10 @@ BEGIN
     mysql.proxies_priv,
     mysql.replication_asynchronous_connection_failover,
     mysql.replication_asynchronous_connection_failover_managed,
+    mysql.replication_group_configuration_version,
+    mysql.replication_group_member_actions,
     mysql.role_edges,
+    mysql.slow_log,
     mysql.tables_priv,
     mysql.time_zone,
     mysql.time_zone_leap_second,

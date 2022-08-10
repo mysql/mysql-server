@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #include <signaldata/ApiVersion.hpp>
 #include <RefConvert.hpp>
 #include <NdbTCP.h>
@@ -28,13 +27,18 @@
 #include <ws2tcpip.h>
 #endif
 
-bool
-printAPI_VERSION_REQ(FILE * output,
-                     const Uint32 * theData,
-                     Uint32 len,
-                     Uint16 recBlockNo){
+bool printAPI_VERSION_REQ(FILE *output,
+                          const Uint32 *theData,
+                          Uint32 len,
+                          Uint16 /*recBlockNo*/)
+{
+  if (len < ApiVersionReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
 
-  ApiVersionReq * sig = (ApiVersionReq *)&theData[0];
+  const ApiVersionReq *sig = (const ApiVersionReq *)&theData[0];
 
   fprintf(output,
           " senderRef: (node: %d, block: %d), nodeId: %d\n" \
@@ -44,13 +48,12 @@ printAPI_VERSION_REQ(FILE * output,
   return true;
 }
 
-bool
-printAPI_VERSION_CONF(FILE * output,
-                      const Uint32 * theData,
-                      Uint32 len,
-                      Uint16 recBlockNo){
-
-  ApiVersionConf * sig = (ApiVersionConf *)&theData[0];
+bool printAPI_VERSION_CONF(FILE *output,
+                           const Uint32 *theData,
+                           Uint32 len,
+                           Uint16 /*recBlockNo*/)
+{
+  const ApiVersionConf *sig = (const ApiVersionConf *)&theData[0];
 
   if (len <= ApiVersionConf::SignalLengthIPv4)
   {

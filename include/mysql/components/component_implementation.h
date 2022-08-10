@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -280,6 +280,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   SERVICE_TYPE(service) * mysql_service_##service
 
 /**
+  Create a service placeholder, with an arbitrary name.
+
+  Identical to @ref REQUIRES_SERVICE_PLACEHOLDER(),
+  except that the service handle name is provided
+  by the caller, instead of being derived from the service type.
+
+  Use with @ref REQUIRES_SERVICE_AS().
+
+  @param service A referenced Service name.
+  @param name Service handle name.
+*/
+
+#define REQUIRES_SERVICE_PLACEHOLDER_AS(service, name) \
+  SERVICE_TYPE(service) * name
+
+/**
   Adds a Service requirement with a pointer to placeholder to the list of
   components.
 
@@ -291,6 +307,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
         static_cast < void **>                                                 \
             (static_cast <void *>(const_cast <mysql_service_##service##_t **>( \
                 &mysql_service_##service)))                                    \
+  }
+
+/**
+  Adds a Service requirement with a pointer to placeholder to the list of
+  components.
+
+  Use with @ref REQUIRES_SERVICE_PLACEHOLDER_AS().
+
+  @param service A referenced Service name.
+  @param name Service handle name.
+*/
+#define REQUIRES_SERVICE_AS(service, name)                                     \
+  {                                                                            \
+#service,                                                                  \
+        static_cast < void **>(static_cast <void *>(                           \
+                          const_cast <mysql_service_##service##_t **>(&name))) \
   }
 
 /**

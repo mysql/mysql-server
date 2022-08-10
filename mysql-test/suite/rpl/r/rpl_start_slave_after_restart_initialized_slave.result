@@ -9,11 +9,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CALL mtr.add_suppression("Error during --relay-log-recovery*");
 CALL mtr.add_suppression("Server was not able to find a rotate event*");
 CALL mtr.add_suppression("Recovery from master pos*");
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=1 --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=1]
 [connection server_2]
 include/start_slave.inc
 include/rpl_reset.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=1 --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=1]
 [connection server_2]
 include/start_slave.inc
 include/rpl_reset.inc

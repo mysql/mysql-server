@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -222,7 +222,7 @@ NdbBackup::getBackupDataDirForNode(int node_id)
     return "";
 
   // Fetch configuration from management server
-  ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(handle, 0));
+  ndb_mgm::config_ptr conf(ndb_mgm_get_configuration(handle, 0));
   if (!conf)
   {
     const char * err_msg = ndb_mgm_get_latest_error_msg(handle);

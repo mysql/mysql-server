@@ -138,7 +138,9 @@ SET global.rpl_read_size = 8192;
 --Error ER_UNKNOWN_TABLE
 SELECT global.rpl_read_size;
 --Error ER_BAD_FIELD_ERROR
-SELECT rpl_read_size = @@session.rpl_read_size;
+SELECT rpl_read_size;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.rpl_read_size;
 
 
 ##############################

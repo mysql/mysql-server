@@ -109,7 +109,10 @@ CREATE TABLE t1(a INT, b INT) ENGINE = InnoDB;
 CREATE TABLE t2(a INT, b INT NOT NULL) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(1, NULL),(2,NULL);
 INSERT INTO t2 VALUES (1,3), (2,4);
+# Different number of warnings with hypergraph.
+--disable_warnings
 UPDATE IGNORE t1,t2 SET t2.b=NULL;
+--enable_warnings
 DROP TABLE t1,t2;
 
 --echo #
@@ -201,7 +204,10 @@ INSERT INTO t1 VALUES(1, NULL),(2,NULL);
 INSERT INTO t2 VALUES (1,3), (2,4);
 --error ER_BAD_NULL_ERROR
 UPDATE t1,t2 SET t2.b=NULL;
+# Different number of warnings with hypergraph.
+--disable_warnings
 UPDATE IGNORE t1,t2 SET t2.b=NULL;
+--enable_warnings
 DROP TABLE t1, t2;
 #ER_ROW_IS_REFERENCED_2
 #ER_NO_REFERENCED_ROW_2
@@ -493,7 +499,10 @@ CREATE TABLE t1(a INT, b INT) ENGINE = InnoDB;
 CREATE TABLE t2(a INT, b INT NOT NULL) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(1, NULL),(2,NULL);
 INSERT INTO t2 VALUES (1,3), (2,4);
+# Different number of warnings with hypergraph.
+--disable_warnings
 UPDATE IGNORE t1,t2 SET t2.b=NULL;
+--enable_warnings
 UPDATE IGNORE t2,t1 SET t2.b=NULL;
 DROP TABLE t1,t2;
 
@@ -592,7 +601,10 @@ INSERT INTO t2 VALUES(7);
 --echo #
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 DELETE FROM t1 where a <=> ln(0);
+--disable_warnings
 DELETE IGNORE FROM t1 where a <=> ln(0);
+--enable_warnings
+--skip_if_hypergraph  # Different number of warnings.
 SHOW WARNINGS;
 
 --echo #

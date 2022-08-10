@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ class table_variables_info : public PFS_engine_table {
   table_variables_info();
 
  public:
-  ~table_variables_info() override {}
+  ~table_variables_info() override = default;
 
  protected:
   int make_row(const System_variable *system_var);

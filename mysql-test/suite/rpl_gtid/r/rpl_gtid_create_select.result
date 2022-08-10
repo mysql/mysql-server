@@ -21,9 +21,6 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/save_master_pos.inc
 CREATE TABLE t1 AS SELECT * FROM t0;
 FLUSH LOGS;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
-master-bin.000002	196			####
 [connection slave]
 # Crash slave server when applying row event (the INSERT)
 SET global DEBUG='+d, crash_on_transactional_ddl_insert';
@@ -33,7 +30,6 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 # Wait for server to stop
 # Restart the server.
 include/rpl_start_server.inc [server_number=2]
-SET global DEBUG='-d, crash_on_transactional_ddl_insert';
 include/assert.inc [Make sure there is only table 't0' in schema 'test'.]
 # Reset the master log position back to event that starts
 # CREATE TABLE ... SELECT and start the slave, without causing crash.
@@ -49,4 +45,19 @@ include/diff_tables.inc [master:t1, slave:t1]
 # Cleanup
 [connection master]
 DROP TABLE t0,t1;
+include/sync_slave_sql_with_master.inc
+#
+# R3 Verify that executing CREATE TABLE ... SELECT with sql mode set
+#    to ANSI gets replicated to slave. This test is added for Bug#33064062.
+#
+[connection master]
+SET @orig_sql_mode_session= @@SESSION.sql_mode;
+SET SESSION sql_mode='ANSI';
+CREATE TABLE t1 AS SELECT 1;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+SET SESSION sql_mode= @orig_sql_mode_session;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

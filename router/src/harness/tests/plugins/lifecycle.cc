@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include <condition_variable>
 #include <cstdarg>
 #include <cstdlib>
+#include <cstring>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
@@ -48,7 +49,6 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
-#include "router_config.h"
 
 #include "my_compiler.h"
 
@@ -195,7 +195,7 @@ void init_exit_strategies(const mysql_harness::ConfigSection *section) {
   // clang-format on
 
   // process configuration
-  for (const std::string &func : {"init", "start", "stop", "deinit"}) {
+  for (const char *func : {"init", "start", "stop", "deinit"}) {
     if (section->has(func)) {
       const std::string &line = section->get(func);
 
@@ -215,10 +215,10 @@ void init_exit_strategies(const mysql_harness::ConfigSection *section) {
       } else if (line.find("error") != std::string::npos) {
         g_strategies[section->key].exit_type[func] = ET_ERROR;
       } else if (line.find("exitonstop_s") != std::string::npos &&
-                 func == "start") {
+                 strcmp(func, "start") == 0) {
         g_strategies[section->key].exit_type[func] = ET_EXIT_ON_STOP_SYNC;
       } else if (line.find("exitonstop") != std::string::npos &&
-                 func == "start") {
+                 strcmp(func, "start") == 0) {
         g_strategies[section->key].exit_type[func] = ET_EXIT_ON_STOP;
       } else if (line.find("exit") != std::string::npos) {
         g_strategies[section->key].exit_type[func] = ET_EXIT;
@@ -424,14 +424,18 @@ LIFECYCLE_API mysql_harness::Plugin harness_plugin_routertestplugin_lifecycle =
         "Lifecycle test plugin",                 // name
         VERSION_NUMBER(1, 0, 0),
         // requires
-        requires.size(), requires.data(),
+        requires.size(),
+        requires.data(),
         // conflicts
-        0, nullptr,
+        0,
+        nullptr,
         init,    // init
         deinit,  // deinit
         start,   // start
         stop,    // stop
         false,   // declares_readiness
+        0,
+        nullptr,
 };
 
 LIFECYCLE_API void lifecycle_init(int flags) {
@@ -449,7 +453,7 @@ LIFECYCLE_API void lifecycle_init(int flags) {
     std::lock_guard<std::mutex> lock(g_strategies_mtx);
     g_strategies.clear();
 
-    for (const std::string &key : {"instance1", "instance2", "instance3"}) {
+    for (const char *key : {"instance1", "instance2", "instance3"}) {
       g_strategies[key].strategy_set = false;  // optimisation,
     }                                          // doesn't affect behavior
   }

@@ -7,7 +7,7 @@
 --echo #########
 let $MYSQLD_BASEDIR= `select @@basedir`;
 let $START_PAGE_SIZE= `select @@innodb_page_size`;
-let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+let $LOG_SIZE= `select @@innodb_redo_log_capacity`;
 
 --echo # Create path for ibdata* & undo* files
 --mkdir $MYSQL_TMP_DIR/innodb_undo_data_dir
@@ -36,7 +36,7 @@ EOF
 --echo # INITIALIZE NEW SERVER
 --echo #########################################################################
 --source include/keyring_tests/helper/binary_backup_manifest.inc
-let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="" $PLUGIN_DIR_OPT;
+let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --initialize-insecure --innodb_redo_log_capacity=$LOG_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="" $PLUGIN_DIR_OPT;
 
 --echo # Server should be initialized successfully.
 --exec $NEW_CMD
@@ -53,7 +53,7 @@ let NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OF
 # - Header page for UNDO tablespace wouldn't have been flushed
 # - So encryption information is still in REDO Log.
 --source include/keyring_tests/helper/binary_restore_manifest.inc
-let $NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --innodb_undo_log_encrypt=ON --debug=d,crash_before_purge_thread $PLUGIN_DIR_OPT;
+let $NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --innodb_redo_log_capacity=$LOG_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --innodb_undo_log_encrypt=ON --debug=d,crash_before_purge_thread $PLUGIN_DIR_OPT;
 --error 1,2,42,137
 --exec $NEW_CMD
 
@@ -68,7 +68,7 @@ let $NEW_CMD = $MYSQLD --no-defaults $PLUGIN_DIR_OPT --innodb_dedicated_server=O
 # - the encryption information wouldn't be applied on page 0.
 # - And as we don't allow master thread to rotate default master key, UNDO
 #   tablespace encryption information will be lost at next restart.
-let $restart_parameters = restart: $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --innodb_undo_log_encrypt=ON --debug=d,skip_rotating_default_master_key;
+let $restart_parameters = restart: $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --innodb_redo_log_capacity=$LOG_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --innodb_undo_log_encrypt=ON --debug=d,skip_rotating_default_master_key;
 --source include/start_mysqld_no_echo.inc
 
 --echo #########################################################################
@@ -78,7 +78,7 @@ let $restart_parameters = restart: $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF
 # During this restart, without the fix:
 # - Encryption information will be looked for on page 0. But as it wasn't
 #   applied in previous start, it wouldn't be found thus ASSERT will be hit.
-let $restart_parameters = restart: $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --innodb_undo_log_encrypt=OFF;
+let $restart_parameters = restart: $PLUGIN_DIR_OPT --innodb_dedicated_server=OFF --innodb_redo_log_capacity=$LOG_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --innodb_undo_log_encrypt=OFF;
 --source include/restart_mysqld_no_echo.inc
 
 --echo ###########

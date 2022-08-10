@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,6 +114,13 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
   FragPtr fragPtr;
   ScanOpPtr scanPtr;
   IndexPtr indexPtr;
+  if (unlikely(scanPtrI == RNIL))
+  {
+    jam();
+    /* Make sure context is cleared */
+    c_ctx.reset();
+    return;
+  }
   scanPtr.i = scanPtrI;
   ndbrequire(c_scanOpPool.getUncheckedPtrRW(scanPtr));
   prefetch_scan_record_3((Uint32*)scanPtr.p);
@@ -298,7 +305,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
   do {
     // get the index
     IndexPtr indexPtr;
-    c_indexPool.getPtr(indexPtr, req->tableId);
+    ndbrequire(c_indexPool.getPtr(indexPtr, req->tableId));
     // get the fragment
     FragPtr fragPtr;
     findFrag(jamBuffer(), *indexPtr.p, req->fragmentNo, fragPtr);
@@ -336,6 +343,29 @@ Dbtux::execACC_SCANREQ(Signal* signal)
       /* Return ACC_SCANCONF */
       return;
     }
+    const bool isStatScan = AccScanReq::getStatScanFlag(req->requestInfo);
+    if (unlikely(isStatScan)) {
+      // Check if index stat can handle this index length
+      const Uint32 indexMaxKeyBytes =
+        indexPtr.p->m_keySpec.get_max_data_len(false);
+      if (indexMaxKeyBytes > (StatOp::MaxKeySize * 4)) {
+        // Unsupported key size. Returning an error could cause index creation
+        // to fail. Instead simply return ACC_SCANCONF treating it as an empty
+        // fragment
+        jam();
+        g_eventLogger->info("Index stat scan requested on index with "
+                            "unsupported key size");
+        scanPtr.p = nullptr;
+        c_ctx.scanPtr = scanPtr; // Ensure crash if we try to use pointer.
+        AccScanConf* const conf = (AccScanConf*)signal->getDataPtrSend();
+        conf->scanPtr = req->senderData;
+        conf->accPtr = RNIL;
+        conf->flag = AccScanConf::ZEMPTY_FRAGMENT;
+        signal->theData[8] = 0;
+        /* Return ACC_SCANCONF */
+        return;
+      }
+    }
     // seize from pool and link to per-fragment list
     if (ERROR_INSERTED(12008) ||
         ! c_scanOpPool.seize(scanPtr)) {
@@ -361,23 +391,15 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     scanPtr.p->m_lockMode = AccScanReq::getLockMode(req->requestInfo);
     scanPtr.p->m_descending = AccScanReq::getDescendingFlag(req->requestInfo);
     c_ctx.scanPtr = scanPtr;
+
     /*
      * readCommitted lockMode keyInfo
      * 1 0 0 - read committed (no lock)
      * 0 0 0 - read latest (read lock)
      * 0 1 1 - read exclusive (write lock)
      */
-    const bool isStatScan = AccScanReq::getStatScanFlag(req->requestInfo);
     if (unlikely(isStatScan)) {
       jam();
-      // Check if index stat can handle this index length
-      Uint32 indexMaxKeyBytes = indexPtr.p->m_keySpec.get_max_data_len(false);
-      if (indexMaxKeyBytes > (StatOp::MaxKeySize * 4)) {
-        jam();
-        errorCode = AccScanRef::TuxInvalidKeySize;
-        break;
-      }
-
       if (!scanPtr.p->m_readCommitted) {
         jam();
         errorCode = AccScanRef::TuxInvalidLockMode;
@@ -645,7 +667,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     break;
   case NextScanReq::ZSCAN_COMMIT:
     jamDebug();
-    // Fall through
+    [[fallthrough]];
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jamDebug();
     if (! scan.m_readCommitted)

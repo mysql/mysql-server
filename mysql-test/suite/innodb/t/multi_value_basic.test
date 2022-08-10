@@ -893,4 +893,96 @@ SELECT * FROM t1 WHERE 1 MEMBER OF (j->'$[*]');
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#33334928: SELECT COUNT(*) using multi-valued index
+--echo #               reports wrong number of rows.
+--echo #
+
+CREATE TABLE t (
+  id int NOT NULL,
+  doc_id int DEFAULT NULL,
+  doc json DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY mv_id (id,(cast(json_extract(doc,'$.val') as unsigned array))),
+  KEY mv_doc_id (doc_id,(cast(json_extract(doc,'$.val') as unsigned array)))
+);
+INSERT INTO t values (1, 2, '{"val":[1,2,3,4,5]}'), (2, 1, '{"val":[2,3,4,5]}'), (3, 2, '{"val":[2,3,4,5]}'), (4, NULL, '{"val":[3,4,5]}'), (5, 2, '{"val":[4,5]}');
+
+ANALYZE TABLE t;
+
+EXPLAIN SELECT COUNT(*) FROM t WHERE id = '1';
+SELECT COUNT(*) FROM t WHERE id = '1';
+
+EXPLAIN SELECT COUNT(*) FROM t FORCE INDEX (mv_id) WHERE id = '1';
+SELECT COUNT(*) FROM t FORCE INDEX (mv_id) WHERE id = '1';
+
+EXPLAIN SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+
+EXPLAIN SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+SELECT COUNT(*) FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+
+EXPLAIN SELECT * FROM t WHERE id = '1';
+SELECT * FROM t WHERE id = '1';
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_id) WHERE id = '1';
+SELECT * FROM t FORCE INDEX (mv_id) WHERE id = '1';
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+# Hypergraph ignores FORCE INDEX, so we need --sorted_result in case
+# it does not use the index.
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
+
+EXPLAIN SELECT * FROM t WHERE doc_id is NOT NULL;
+SELECT * FROM t WHERE doc_id is NOT NULL;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id is NOT NULL;
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id is NOT NULL;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
+--sorted_result
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
+
+EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id >= 1 AND doc_id < 2;
+SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id >= 1 AND doc_id < 2;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug #32725063 CRASH WITH MULTI-VALUED INDEXES IN
+--echo # COMBINATION WITH AT LEAST GENERATED FK
+
+CREATE TABLE t1 (id BIGINT NOT NULL AUTO_INCREMENT, data JSON,PRIMARY KEY (id));
+ALTER TABLE t1 ADD INDEX ix_t1_idArray ((CAST(data->'$.idArray' AS UNSIGNED ARRAY))),
+ADD COLUMN parent_id BIGINT GENERATED ALWAYS AS (data->'$.parentID') STORED,
+ADD INDEX ix_t1_parent (parent_id),
+ADD CONSTRAINT fk_t1_parent FOREIGN KEY (parent_id) REFERENCES t1 (id) ON DELETE CASCADE;
+INSERT INTO t1 (data) VALUES ('{\"idArray\":[1]}');
+INSERT INTO t1 (data) VALUES ('{\"parentID\":1,\"idArray\":[1]}');
+DELETE FROM t1 WHERE id = 1;
+DROP TABLE t1;
+
+# Test case where parent and child tables are seperate
+CREATE TABLE t1 (id BIGINT NOT NULL , PRIMARY KEY (id));
+CREATE TABLE t2(data JSON,child_id bigint GENERATED ALWAYS AS (data->'$.parentID') STORED,key(child_id));
+ALTER TABLE t2 ADD INDEX ix_t1_idArray ((CAST(data->'$.idArray' AS UNSIGNED ARRAY)));
+ALTER TABLE t2 ADD CONSTRAINT fk_t1_parent FOREIGN KEY (child_id) REFERENCES t1 (id) ON DELETE CASCADE;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 (data) VALUES ('{\"parentID\":1,\"idArray\":[1]}');
+DELETE FROM t1 WHERE id = 1;
+DROP TABLE t2,t1;
+
 --source include/wait_until_count_sessions.inc

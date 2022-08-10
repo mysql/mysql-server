@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,28 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
-  Bug#16403708 SUBOPTIMAL CODE IN MY_STRNXFRM_SIMPLE()
-  Bug#68476    Suboptimal code in my_strnxfrm_simple()
-
-  Below we test some alternative implementations for my_strnxfrm_simple.
-  In order to do benchmarking, configure in optimized mode, and
-  generate a separate executable for this file:
-    cmake -DMERGE_UNITTESTS=0
-  You may want to tweak some constants below:
-   - experiment with num_iterations
-  run './strings_strnxfrm-t --disable-tap-output'
-    to see timing reports for your platform.
-
-
-  Benchmarking with gcc and clang indicates that:
-
-  There is insignificant difference between my_strnxfrm_simple and strnxfrm_new
-  when src != dst
-
-  my_strnxfrm_simple() is significantly faster than strnxfrm_new
-  when src == dst, especially for long strings.
-
-  Loop unrolling gives significant speedup for large strings.
+  In order to do benchmarking, configure in optimized mode, and build the
+  target
+    strings_strnxfrm-t
+  it is defined, but not built by default. Then run with:
+    ./bin/strings_strnxfrm-t --gtest_filter='Microbenchmarks*'
  */
 
 #include <gtest/gtest.h>
@@ -218,7 +201,7 @@ TEST_P(StrnxfrmTest, ModifiedUnrolledSrcSrc) {
 }
 
 TEST(StrXfrmTest, SimpleUTF8Correctness) {
-  CHARSET_INFO *cs = init_collation("utf8_bin");
+  CHARSET_INFO *cs = init_collation("utf8mb3_bin");
 
   const char *src = "abc æøå 日本語";
   unsigned char buf[32];
@@ -518,7 +501,7 @@ TEST(StrXfrmTest, NullPointer) {
 static void BM_SimpleUTF8(size_t num_iterations) {
   StopBenchmarkTiming();
 
-  CHARSET_INFO *cs = init_collation("utf8_bin");
+  CHARSET_INFO *cs = init_collation("utf8mb3_bin");
 
   static constexpr int key_cols = 12;
   static constexpr int set_key_cols = 6;  // Only the first half is set.
@@ -2356,7 +2339,7 @@ void test_strnxfrmlen(CHARSET_INFO *cs) {
 
   fprintf(stderr,
           "Longest character in '%s': U+%04lX, %d bytes (strnxfrm_len=%d)\n",
-          cs->name, longest.second, static_cast<int>(longest.first),
+          cs->m_coll_name, longest.second, static_cast<int>(longest.first),
           static_cast<int>(max_len));
 }
 
@@ -2368,8 +2351,8 @@ TEST(StrxfrmLenTest, StrnxfrmLenIsLongEnoughForAllCharacters) {
 
   for (CHARSET_INFO *cs : all_charsets) {
     if (cs && (cs->state & MY_CS_AVAILABLE)) {
-      SCOPED_TRACE(cs->name);
-      test_strnxfrmlen(init_collation(cs->name));
+      SCOPED_TRACE(cs->m_coll_name);
+      test_strnxfrmlen(init_collation(cs->m_coll_name));
     }
   }
 }
@@ -2555,39 +2538,43 @@ TEST(StrmxfrmHashTest, HashStability) {
       {"utf32_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
       {"utf32_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf32_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
-      {"utf8_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
-      {"utf8_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
-      {"utf8_general_mysql500_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
-      {"utf8_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
-      {"utf8_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
-      {"utf8_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
-      {"utf8_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
-      {"utf8_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
-      {"utf8_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_tolower_ci", {{0x8eab9a2c403c8eb9LL, 0x0000055fLL}}},
-      {"utf8_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
-      {"utf8_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
-      {"utf8_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
-      {"utf8_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"utf8mb3_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8mb3_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf8mb3_general_mysql500_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf8mb3_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"utf8mb3_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"utf8mb3_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"utf8mb3_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8mb3_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"utf8mb3_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_tolower_ci", {{0x8eab9a2c403c8eb9LL, 0x0000055fLL}}},
+      {"utf8mb3_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"utf8mb3_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"utf8mb3_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb3_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf8mb4_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
       {"utf8mb4_0900_as_ci", {{0xfc978781d49d0d9bLL, 0x00000001LL}}},
       {"utf8mb4_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
       {"utf8mb4_0900_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
       {"utf8mb4_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"utf8mb4_bg_0900_ai_ci", {{0xb55bc2bf5ab2bf53LL, 0x00000001LL}}},
+      {"utf8mb4_bg_0900_as_cs", {{0x36f5a31292841899LL, 0x00000001LL}}},
+      {"utf8mb4_bs_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_bs_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
       {"utf8mb4_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf8mb4_cs_0900_ai_ci", {{0x36582be4fafa0bbbLL, 0x00000001LL}}},
       {"utf8mb4_cs_0900_as_cs", {{0xac403419684d8c71LL, 0x00000001LL}}},
@@ -2609,6 +2596,8 @@ TEST(StrmxfrmHashTest, HashStability) {
       {"utf8mb4_et_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
       {"utf8mb4_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
       {"utf8mb4_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_gl_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_gl_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
       {"utf8mb4_hr_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
       {"utf8mb4_hr_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
       {"utf8mb4_hu_0900_ai_ci", {{0x3162e9e9cebb9148LL, 0x00000001LL}}},
@@ -2627,6 +2616,12 @@ TEST(StrmxfrmHashTest, HashStability) {
       {"utf8mb4_lt_0900_as_cs", {{0xe2e6dc41a4d6b3c1LL, 0x00000001LL}}},
       {"utf8mb4_lv_0900_ai_ci", {{0xcd5ce469f67f6792LL, 0x00000001LL}}},
       {"utf8mb4_lv_0900_as_cs", {{0xfe377cec9551f0f4LL, 0x00000001LL}}},
+      {"utf8mb4_mn_cyrl_0900_ai_ci", {{0xb55bc2bf5ab2bf53LL, 0x00000001LL}}},
+      {"utf8mb4_mn_cyrl_0900_as_cs", {{0x36f5a31292841899LL, 0x00000001LL}}},
+      {"utf8mb4_nb_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_nb_0900_as_cs", {{0xCFB3E3073C9F5A19LL, 0x00000001LL}}},
+      {"utf8mb4_nn_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_nn_0900_as_cs", {{0xCFB3E3073C9F5A19LL, 0x00000001LL}}},
       {"utf8mb4_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf8mb4_pl_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
       {"utf8mb4_pl_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
@@ -2646,6 +2641,8 @@ TEST(StrmxfrmHashTest, HashStability) {
       {"utf8mb4_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf8mb4_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
       {"utf8mb4_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_sr_latn_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_sr_latn_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
       {"utf8mb4_sv_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
       {"utf8mb4_sv_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
       {"utf8mb4_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
@@ -2668,7 +2665,7 @@ TEST(StrmxfrmHashTest, HashStability) {
 
   for (CHARSET_INFO *cs : all_charsets) {
     if (cs && (cs->state & MY_CS_AVAILABLE)) {
-      init_collation(cs->name);
+      init_collation(cs->m_coll_name);
 
       char buf[4096];
       uint errors;
@@ -2685,16 +2682,17 @@ TEST(StrmxfrmHashTest, HashStability) {
       // into “expected” above.
       if (false) {
         printf("    {\"%s\", {{0x%016" PRIx64 "LL, 0x%" PRIx64 "LL}}},\n",
-               cs->name, nr1, nr2);
+               cs->m_coll_name, nr1, nr2);
         continue;
       }
 
-      ASSERT_EQ(1, expected.count(cs->name))
-          << "Character set " << cs->name << " is missing in the database";
-      SCOPED_TRACE(cs->name);
+      ASSERT_EQ(1, expected.count(cs->m_coll_name))
+          << "Character set " << cs->m_coll_name
+          << " is missing in the database";
+      SCOPED_TRACE(cs->m_coll_name);
 
-      EXPECT_EQ(expected[cs->name].hash_value.first, nr1);
-      EXPECT_EQ(expected[cs->name].hash_value.second, nr2);
+      EXPECT_EQ(expected[cs->m_coll_name].hash_value.first, nr1);
+      EXPECT_EQ(expected[cs->m_coll_name].hash_value.second, nr2);
     }
   }
 }

@@ -25,8 +25,8 @@ EOF
 
 --connection slave
 --source include/stop_slave.inc
-SET @save_slave_parallel_workers= @@slave_parallel_workers;
-eval SET @@global.slave_parallel_workers=$max_workers;
+SET @save_replica_parallel_workers= @@replica_parallel_workers;
+eval SET @@global.replica_parallel_workers=$max_workers;
 --source include/start_slave.inc
 
 --connection master
@@ -52,6 +52,8 @@ DROP DATABASE db2;
 --remove_file $MYSQLTEST_VARDIR/load_bug12982188.txt
 
 --sync_slave_with_master
-SET @@global.slave_parallel_workers= @save_slave_parallel_workers;
+--disable_warnings
+SET @@global.replica_parallel_workers= @save_replica_parallel_workers;
+--enable_warnings
 
 --source include/rpl_end.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -176,7 +176,7 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
        m_policy.get_id() == LATCH_ID_BUF_POOL_ZIP)
           ? SYNC_BUF_BLOCK
           : SYNC_MUTEX,
-      filename, line, &cell);
+      {filename, line}, &cell);
 
   /* The memory order of the array reservation and
   the change in the waiters field is important: when

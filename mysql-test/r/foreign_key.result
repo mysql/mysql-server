@@ -4933,3 +4933,230 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES child, parent;
+#
+# Bug#33114045 - TRANSFER_PREEXISTING_FOREIGN_KEYS: ASSERTION `!FIND->IS_VIRTUAL_GCOL()'
+#                FAILED.
+# Assertion to make sure foreign key is referencing non-virtual column failed.
+#
+CREATE TABLE t (a INT KEY, b INT NOT NULL UNIQUE KEY,
+CONSTRAINT FOREIGN KEY (a) REFERENCES t(b));
+# Without fix, assertion fails for the following ALTER TABLE statements in
+# the debug build. Statements executes successfully in the non-debug build.
+ALTER TABLE t ADD COLUMN a INT GENERATED ALWAYS AS (1) FIRST;
+ERROR 42S21: Duplicate column name 'a'
+ALTER TABLE t ADD COLUMN b INT GENERATED ALWAYS AS (1) FIRST;
+ERROR 42S21: Duplicate column name 'b'
+DROP TABLE t;
+#
+# As a result of table rename operation, orphan non-self-referencing
+# foreign keys become non-orphan/adopted self-referencing foreign keys.
+# Test cases to verify such transformation of foreign keys.
+#
+SET SESSION FOREIGN_KEY_CHECKS=0;
+# 1. Test case to verify transformation of a foreign key with ALTER TABLE
+#    RENAME operation using INPLACE algorithm.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+SELECT constraint_name, unique_constraint_name FROM
+INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+CONSTRAINT_NAME	UNIQUE_CONSTRAINT_NAME
+t2_ibfk_1	PRIMARY
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# 2. Test case to verify transformation of a foreign key with ALTER TABLE
+#    RENAME operation using INSTANT algorithm.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+SELECT constraint_name, unique_constraint_name FROM
+INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+CONSTRAINT_NAME	UNIQUE_CONSTRAINT_NAME
+t2_ibfk_1	PRIMARY
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# 3. Test case to verify transformation of a foreign key with ALTER TABLE
+#    RENAME operation using COPY algorithm.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+SELECT constraint_name, unique_constraint_name FROM
+INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+CONSTRAINT_NAME	UNIQUE_CONSTRAINT_NAME
+t2_ibfk_1	PRIMARY
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# 4. Test case to verify transformation of a foreign key with RENAME TABLE
+#    statement.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f1));
+RENAME TABLE t1 TO t2;
+SELECT constraint_name, unique_constraint_name FROM
+INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE table_name='t2';
+CONSTRAINT_NAME	UNIQUE_CONSTRAINT_NAME
+t2_ibfk_1	PRIMARY
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+# 5. Test case to check if orphan non-self-referencing foreign key is
+#    transformed when table schema and table name are changed.
+#    Foreign key is not transformed in this case.
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f3));
+CREATE DATABASE db2;
+ALTER TABLE db1.t1 RENAME TO db2.t2, ALGORITHM=COPY;
+SHOW CREATE TABLE db2.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `db1`.`t2` (`f3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+RENAME TABLE db2.t2 TO db1.t1;
+ALTER TABLE db1.t1 RENAME TO db2.t2, ALGORITHM=INPLACE;
+SHOW CREATE TABLE db2.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `db1`.`t2` (`f3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+RENAME TABLE db2.t2 TO db1.t1;
+ALTER TABLE db1.t1 RENAME TO db2.t2, ALGORITHM=INSTANT;
+SHOW CREATE TABLE db2.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `db1`.`t2` (`f3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+RENAME TABLE db2.t2 TO db1.t1;
+RENAME TABLE db1.t1 TO db2.t2;
+SHOW CREATE TABLE db2.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `db1`.`t2` (`f3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE db1;
+DROP DATABASE db2;
+# 6. Test case to verify table rename operation on the table containing
+#    orphan non-self-referencing foreign key. Foreign key referenced column
+#    does not exist in the table.
+#    Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+RENAME TABLE t1 TO t2;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+# 7. Test case to verify table rename operation on the table containing
+#    orphan non-self-referencing foreign key. Foreign key referenced column
+#    is dropped in the same ALTER TABLE statement.
+#    Table rename operation fails in this case.
+ALTER TABLE t1 ADD f3 INT UNIQUE;
+ALTER TABLE t1 RENAME TO t2, DROP COLUMN f3, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, DROP COLUMN f3, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, DROP COLUMN f3, ALGORITHM=INSTANT;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+DROP TABLE t1;
+# 8. Test case to verify table rename operation on the table containing
+#    orphan non-self-referencing foreign key. Foreign key referenced column
+#    is renamed in the same ALTER TABLE statement.
+#    Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 INT, KEY (f3),
+FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, CHANGE f3 f4 INT, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, CHANGE f3 f4 INT, ALGORITHM=INSTANT;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, CHANGE f3 f4 INT, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'f3' for constraint 't1_ibfk_1' in the referenced table 't2'
+DROP TABLE t1;
+# 9. Test case to verify table rename operation on the table containing
+#    orphan non-self-referencing foreign key. Foreign key referenced column
+#    is a virtual column.
+#    Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, F3 INT AS (f1+1) VIRTUAL,
+FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'f3' which is not supported.
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'f3' which is not supported.
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'f3' which is not supported.
+RENAME TABLE t1 TO t2;
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'f3' which is not supported.
+DROP TABLE t1;
+# 10. Test case to verify table rename operation on the table containing
+#     orphan non-self-referencing foreign key. Parent index does not
+#     exist in the table.
+#     Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 INT,
+FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+RENAME TABLE t1 TO t2;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_ibfk_1' in the referenced table 't2'
+DROP TABLE t1;
+# 11. Test case to verify table rename operation on the table containing
+#     orphan non-self-referencing foreign key. Table's column is not
+#     compatible with the foreign key's referenced column.
+#     Table rename operation fails in this case.
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT, f3 CHAR(10), KEY(f3),
+FOREIGN KEY(f2) REFERENCES t2(f3));
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=COPY;
+ERROR HY000: Referencing column 'f2' and referenced column 'f3' in foreign key constraint 't1_ibfk_1' are incompatible.
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+ERROR HY000: Referencing column 'f2' and referenced column 'f3' in foreign key constraint 't1_ibfk_1' are incompatible.
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INPLACE;
+ERROR HY000: Referencing column 'f2' and referenced column 'f3' in foreign key constraint 't1_ibfk_1' are incompatible.
+RENAME TABLE t1 TO t2;
+ERROR HY000: Referencing column 'f2' and referenced column 'f3' in foreign key constraint 't1_ibfk_1' are incompatible.
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS = DEFAULT;

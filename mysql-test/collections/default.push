@@ -8,7 +8,6 @@
 # Non-Windows platforms
 #
 perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug-server --force  --comment=all-default-debug --vardir=var-all-default --skip-combinations --unit-tests-report --no-skip --exclude-platform=windows --skip-ndb
-
 #
 # Windows - run RPL separately with 8 threads
 #

@@ -6,16 +6,16 @@ CALL mtr.add_suppression("One can only use the --user switch.*");
 # Syntax check for PERSIST option
 SET PERSIST auto_increment_increment=10;
 SET @@persist.event_scheduler=0;
-SET PERSIST slave_compressed_protocol=1;
+SET PERSIST replica_compressed_protocol=1;
 # Invalid syntax cases.
-SET GLOBAL PERSIST slave_compressed_protocol=1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PERSIST slave_compressed_protocol=1' at line 1
-SET PERSIST @@global.slave_compressed_protocol=1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@global.slave_compressed_protocol=1' at line 1
-SET PERSIST @@session.slave_compressed_protocol=1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@session.slave_compressed_protocol=1' at line 1
-SET @@persist.@@slave_compressed_protocol=1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@slave_compressed_protocol=1' at line 1
+SET GLOBAL PERSIST replica_compressed_protocol=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PERSIST replica_compressed_protocol=1' at line 1
+SET PERSIST @@global.replica_compressed_protocol=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@global.replica_compressed_protocol=1' at line 1
+SET PERSIST @@session.replica_compressed_protocol=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@session.replica_compressed_protocol=1' at line 1
+SET @@persist.@@replica_compressed_protocol=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@replica_compressed_protocol=1' at line 1
 # Variables_info table should include info for
 SET SESSION auto_increment_increment=3;
 SELECT VARIABLE_NAME, VARIABLE_SOURCE
@@ -243,6 +243,7 @@ SET PERSIST log_output=DEFAULT ,PERSIST general_log=DEFAULT;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 SET PERSIST block_encryption_mode=DEFAULT, PERSIST ft_boolean_syntax=DEFAULT,
 PERSIST innodb_checksum_algorithm=DEFAULT,
 PERSIST log_error_services=DEFAULT,
@@ -386,35 +387,35 @@ RESET PERSIST;
 CREATE USER bug25677422;
 GRANT ALL ON *.* TO bug25677422;
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 SET PERSIST_ONLY innodb_read_io_threads= 16;
 SET PERSIST long_query_time= 8.3452;
-SET PERSIST_ONLY innodb_log_file_size= 4194304, ft_query_expansion_limit= 80;
+SET PERSIST_ONLY innodb_redo_log_capacity= 8388608, ft_query_expansion_limit= 80;
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
 FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
-'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+('sort_buffer_size', 'max_heap_table_size', 'replica_net_timeout',
+'long_query_time', 'innodb_read_io_threads', 'innodb_redo_log_capacity',
 'ft_query_expansion_limit');
 VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
 ft_query_expansion_limit	COMPILED	root
-innodb_log_file_size	EXPLICIT	root
 innodb_read_io_threads	COMPILED	bug25677422
+innodb_redo_log_capacity	EXPLICIT	root
 long_query_time	DYNAMIC	root
 max_heap_table_size	DYNAMIC	bug25677422
-slave_net_timeout	DYNAMIC	bug25677422
+replica_net_timeout	DYNAMIC	bug25677422
 sort_buffer_size	DYNAMIC	bug25677422
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
 FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
-'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+('sort_buffer_size', 'max_heap_table_size', 'replica_net_timeout',
+'long_query_time', 'innodb_read_io_threads', 'innodb_redo_log_capacity',
 'ft_query_expansion_limit');
 VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
 ft_query_expansion_limit	COMPILED	root
-innodb_log_file_size	EXPLICIT	root
 innodb_read_io_threads	COMPILED	bug25677422
+innodb_redo_log_capacity	EXPLICIT	root
 long_query_time	DYNAMIC	root
 max_heap_table_size	DYNAMIC	bug25677422
-slave_net_timeout	DYNAMIC	bug25677422
+replica_net_timeout	DYNAMIC	bug25677422
 sort_buffer_size	DYNAMIC	bug25677422
 # Restart server
 # restart
@@ -422,42 +423,43 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE
 VARIABLE_SOURCE = 'PERSISTED';
 VARIABLE_NAME
 ft_query_expansion_limit
-innodb_log_file_size
 innodb_read_io_threads
+innodb_redo_log_capacity
 long_query_time
 max_heap_table_size
+replica_net_timeout
 slave_net_timeout
 sort_buffer_size
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
 FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
-'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+('sort_buffer_size', 'max_heap_table_size', 'replica_net_timeout',
+'long_query_time', 'innodb_read_io_threads', 'innodb_redo_log_capacity',
 'ft_query_expansion_limit');
 VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
 ft_query_expansion_limit	PERSISTED	root
-innodb_log_file_size	PERSISTED	root
 innodb_read_io_threads	PERSISTED	bug25677422
+innodb_redo_log_capacity	PERSISTED	root
 long_query_time	PERSISTED	root
 max_heap_table_size	PERSISTED	bug25677422
-slave_net_timeout	PERSISTED	bug25677422
+replica_net_timeout	PERSISTED	bug25677422
 sort_buffer_size	PERSISTED	bug25677422
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
 FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
-'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+('sort_buffer_size', 'max_heap_table_size', 'replica_net_timeout',
+'long_query_time', 'innodb_read_io_threads', 'innodb_redo_log_capacity',
 'ft_query_expansion_limit');
 VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
 ft_query_expansion_limit	PERSISTED	root
-innodb_log_file_size	PERSISTED	root
 innodb_read_io_threads	PERSISTED	bug25677422
+innodb_redo_log_capacity	PERSISTED	root
 long_query_time	PERSISTED	root
 max_heap_table_size	PERSISTED	bug25677422
-slave_net_timeout	PERSISTED	bug25677422
+replica_net_timeout	PERSISTED	bug25677422
 sort_buffer_size	PERSISTED	bug25677422
 DROP USER bug25677422;
 RESET PERSIST;
 SET GLOBAL sort_buffer_size=DEFAULT, max_heap_table_size=DEFAULT,
-slave_net_timeout=DEFAULT, long_query_time=DEFAULT;
+replica_net_timeout=DEFAULT, long_query_time=DEFAULT;
 # Restart server with defaults
 # restart
 SELECT 'END OF TEST';

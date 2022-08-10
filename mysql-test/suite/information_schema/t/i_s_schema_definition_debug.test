@@ -292,10 +292,22 @@ INSERT INTO I_S_published_schema
     '6702af4a1d352b7c8a27280358b7fa95667c5b3e27d1a7f1e4ffbe791d00dffe');
 INSERT INTO I_S_published_schema
   VALUES ('80023', '80023', 0,
-        '8192d3fc214188e4e6b3a349c7fc0d532b1d6d24250db043e9c18cab9a91bd86');
+        '9c2b5a3a5d542a2408cdab784ecd704649656a4f6f623d12dd5f52d2a5e679f3');
 INSERT INTO I_S_published_schema
   VALUES ('80023', '80023', 1,
-        'd6812577ebeb81a659d9599ec80d609978b1e3e06c026607e70fbac112a1825a');
+        'f9e66faba69fd615e14afc9f3253a488609909d9358fd9a79d04a612ba8b0e57');
+INSERT INTO I_S_published_schema
+  VALUES ('80029', '80029', 0,
+        'd8f5013771e8f2d28283159286ec85ec7a481724e3cfdda3c098b7cf2acd9a64');
+INSERT INTO I_S_published_schema
+  VALUES ('80029', '80029', 1,
+        '06bdff30a209ee9b41bf1b654048010e0ca67399ccca594600659816fb3ee036');  
+INSERT INTO I_S_published_schema
+  VALUES ('80030', '80030', 0,
+        'f2f9eac78a7fe69de079bd55831bb4451236c492a76f9195e43051db44e84510');  
+INSERT INTO I_S_published_schema
+  VALUES ('80030', '80030', 1,
+        '4399948df993b3a2084c4a6dd80d76e38b2ff874e68b7e33a16b907eeb090ff0');
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w

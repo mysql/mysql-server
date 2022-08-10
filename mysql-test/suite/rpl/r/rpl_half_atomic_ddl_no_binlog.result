@@ -91,9 +91,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
-ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci;
+ALTER DATABASE db_0 DEFAULT COLLATE utf8mb3_general_ci;
 Warnings:
-Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	#	Rotate	#	#	master-bin.000002;pos=POS
@@ -130,7 +130,7 @@ DROP TABLE t_2;
 Loop: 1 out of 13; current query: 'CREATE TABLE t_2 (a int auto_increment primary key)'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = 't_2'';
 [connection slave]
 *** Query: 'CREATE TABLE t_2 (a int auto_increment primary key)'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -142,7 +142,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 2 out of 13; current query: 'ALTER TABLE t_2 ADD COLUMN b INT NOT NULL, ALGORITHM=COPY, COMMENT 'Col b copy-added''; pre-binlog check: ''; pre-commit check: 'select TABLE_COMMENT LIKE 'Col b copy-added' FROM information_schema.tables where table_name = 't_2'';
 [connection slave]
 *** Query: 'ALTER TABLE t_2 ADD COLUMN b INT NOT NULL, ALGORITHM=COPY, COMMENT 'Col b copy-added''. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -154,7 +154,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 3 out of 13; current query: 'ALTER TABLE t_2 ADD INDEX idx(b), ALGORITHM= INPLACE, COMMENT 'Index on b inplace-added''; pre-binlog check: ''; pre-commit check: 'select TABLE_COMMENT LIKE 'Index on b inplace-added' FROM information_schema.tables where table_name = 't_2'';
 [connection slave]
 *** Query: 'ALTER TABLE t_2 ADD INDEX idx(b), ALGORITHM= INPLACE, COMMENT 'Index on b inplace-added''. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -166,7 +166,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 4 out of 13; current query: 'ALTER TABLE t_2 RENAME t_3'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = 't_3'';
 [connection slave]
 *** Query: 'ALTER TABLE t_2 RENAME t_3'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -178,7 +178,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 5 out of 13; current query: 'RENAME TABLE t_3 TO t_2 /* Name restored */'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = 't_2'';
 [connection slave]
 *** Query: 'RENAME TABLE t_3 TO t_2 /* Name restored */'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -190,7 +190,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 6 out of 13; current query: 'INSERT INTO t_2 SET a=1,b=1'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM t_2';
 [connection slave]
 *** Query: 'INSERT INTO t_2 SET a=1,b=1'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -202,7 +202,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 7 out of 13; current query: 'TRUNCATE TABLE t_2'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 0 FROM t_2';
 [connection slave]
 *** Query: 'TRUNCATE TABLE t_2'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -214,7 +214,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 8 out of 13; current query: 'CREATE TABLESPACE ts_0 ADD DATAFILE 'ts_0.ibd''; pre-binlog check: ''; pre-commit check: 'SELECT COUNT(*) = 1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts_0'';
 [connection slave]
 *** Query: 'CREATE TABLESPACE ts_0 ADD DATAFILE 'ts_0.ibd''. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -226,7 +226,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 9 out of 13; current query: 'DROP TABLESPACE ts_0'; pre-binlog check: ''; pre-commit check: 'SELECT COUNT(*) = 0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts_0'';
 [connection slave]
 *** Query: 'DROP TABLESPACE ts_0'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -238,7 +238,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 10 out of 13; current query: 'CREATE DATABASE db_0 DEFAULT COLLATE latin1_general_ci'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'db_0'';
 [connection slave]
 *** Query: 'CREATE DATABASE db_0 DEFAULT COLLATE latin1_general_ci'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -247,10 +247,10 @@ include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 11 out of 13; current query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'db_0' and default_collation_name = 'utf8_general_ci'';
+Loop: 11 out of 13; current query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8mb3_general_ci'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'db_0' and default_collation_name = 'utf8mb3_general_ci'';
 [connection slave]
-*** Query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+*** Query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8mb3_general_ci'. Crash right before the query gets committed. ***
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -262,7 +262,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 12 out of 13; current query: 'DROP DATABASE db_0'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = 'db_0'';
 [connection slave]
 *** Query: 'DROP DATABASE db_0'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:
@@ -274,7 +274,7 @@ include/gtid_step_assert.inc [count=1, only_count=1]
 Loop: 13 out of 13; current query: 'DROP TABLE t_2'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.tables WHERE table_name = 't_2'';
 [connection slave]
 *** Query: 'DROP TABLE t_2'. Crash right before the query gets committed. ***
-SET @@GLOBAL.debug="+d,slave_crash_after_commit";
+SET @@GLOBAL.debug="+d,replica_crash_after_commit";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 Warnings:

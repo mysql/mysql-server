@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ PFS_engine_table *table_status_by_thread::create(PFS_engine_table_share *) {
 }
 
 int table_status_by_thread::delete_all_rows(void) {
-  /* Lock required to aggregate to global_status_vars. */
+  /* Lock required to aggregate to global_status_var. */
   mysql_mutex_lock(&LOCK_status);
 
   reset_status_by_thread();
@@ -170,7 +170,7 @@ int table_status_by_thread::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_status_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_status_by_thread::index_init(uint idx [[maybe_unused]], bool) {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_session();
 

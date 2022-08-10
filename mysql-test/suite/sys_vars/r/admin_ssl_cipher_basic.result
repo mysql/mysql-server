@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.admin_ssl_cipher);
 COUNT(@@GLOBAL.admin_ssl_cipher)
 0
 0 Expected
-SELECT admin_ssl_cipher = @@SESSION.admin_ssl_cipher;
+SELECT admin_ssl_cipher;
 ERROR 42S22: Unknown column 'admin_ssl_cipher' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

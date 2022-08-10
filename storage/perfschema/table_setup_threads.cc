@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,7 @@ int table_setup_threads::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_setup_threads::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_setup_threads::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_setup_threads *result;
 
   assert(idx == 0);
@@ -199,8 +199,8 @@ int table_setup_threads::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* NAME */
-          set_field_varchar_utf8(f, m_row.m_instr_class->m_name,
-                                 m_row.m_instr_class->m_name_length);
+          set_field_varchar_utf8(f, m_row.m_instr_class->m_name.str(),
+                                 m_row.m_instr_class->m_name.length());
           break;
         case 1: /* ENABLED */
           set_field_enum(f,
@@ -248,8 +248,6 @@ int table_setup_threads::update_row_values(TABLE *table, const unsigned char *,
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
-        case 0: /* NAME */
-          return HA_ERR_WRONG_COMMAND;
         case 1: /* ENABLED */
           value = (enum_yes_no)get_field_enum(f);
           m_row.m_instr_class->m_enabled = (value == ENUM_YES) ? true : false;
@@ -258,12 +256,8 @@ int table_setup_threads::update_row_values(TABLE *table, const unsigned char *,
           value = (enum_yes_no)get_field_enum(f);
           m_row.m_instr_class->m_history = (value == ENUM_YES) ? true : false;
           break;
-        case 3: /* PROPERTIES */
-        case 4: /* VOLATILITY */
-        case 5: /* DOCUMENTATION */
-          return HA_ERR_WRONG_COMMAND;
         default:
-          assert(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }

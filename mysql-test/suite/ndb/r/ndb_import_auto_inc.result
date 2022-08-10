@@ -1,0 +1,382 @@
+# ndb_import tests with auto inc columns:
+set ndb_autoincrement_prefetch_sz = 1;
+create table t10 (
+a tinyint not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+8
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+8
+drop table t10, t10ver;
+create table t10 (
+a tinyint unsigned not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+7
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+7
+drop table t10, t10ver;
+create table t10 (
+a smallint not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+8
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+8
+drop table t10, t10ver;
+create table t10 (
+a smallint unsigned not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+7
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+7
+drop table t10, t10ver;
+create table t10 (
+a mediumint not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+8
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+8
+drop table t10, t10ver;
+create table t10 (
+a mediumint unsigned not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+7
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+7
+drop table t10, t10ver;
+create table t10 (
+a int not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+8
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+8
+drop table t10, t10ver;
+create table t10 (
+a int unsigned not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+7
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+7
+drop table t10, t10ver;
+create table t10 (
+a bigint not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+8
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+8
+drop table t10, t10ver;
+create table t10 (
+a bigint unsigned not null auto_increment primary key,
+b int,
+c bigint
+) engine ndb;
+create table t10ver like t10;
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1366	Incorrect integer value: '' for column 'a' at row 4
+Warning	1366	Incorrect integer value: '' for column 'a' at row 7
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
+AUTO_INCREMENT
+123
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10";
+AUTO_INCREMENT
+1025
+select count(*) from t10ver;
+count(*)
+8
+select count(*) from t10;
+count(*)
+7
+select count(*) from t10 x, t10ver y
+where x.b = y.b;
+count(*)
+7
+# Simple hidden-pk test
+create table t3 (
+b int not null,
+# unique key would turn into pk
+key bx (b)
+) engine=ndb;
+create table t3ver like t3;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t3ver";
+AUTO_INCREMENT
+NULL
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t3";
+AUTO_INCREMENT
+NULL
+select count(*) from t3ver;
+count(*)
+1000
+select count(*) from t3;
+count(*)
+1000
+select count(*) from t3 x, t3ver y
+where x.b = y.b;
+count(*)
+1000
+Test auto inc PK works when it is the middle column
+create table t12 (
+a smallint,
+b mediumint not null auto_increment primary key,
+c int
+) engine ndb;
+create table t12ver like t12;
+Warnings:
+Warning	1366	Incorrect integer value: '' for column 'b' at row 2
+Warning	1366	Incorrect integer value: '' for column 'b' at row 5
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t12ver";
+AUTO_INCREMENT
+90
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t12";
+AUTO_INCREMENT
+1025
+select count(*) from t12ver;
+count(*)
+6
+select count(*) from t12;
+count(*)
+6
+select count(*) from t12 x, t12ver y
+where x.a = y.a;
+count(*)
+6
+Test auto inc PK works when it is the last column
+create table t13 (
+a int,
+b int,
+c smallint unsigned not null auto_increment primary key
+) engine ndb;
+create table t13ver like t13;
+Warnings:
+Warning	1366	Incorrect integer value: '' for column 'c' at row 2
+Warning	1366	Incorrect integer value: '' for column 'c' at row 5
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t13ver";
+AUTO_INCREMENT
+50003
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t13";
+AUTO_INCREMENT
+1025
+select count(*) from t13ver;
+count(*)
+7
+select count(*) from t13;
+count(*)
+7
+select count(*) from t13 x, t13ver y
+where x.a = y.a;
+count(*)
+7
+Test when all input rows have user-provided auto inc PK.
+create table t14 (
+a mediumint unsigned not null auto_increment primary key,
+b int
+) engine ndb;
+create table t14ver like t14;
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t14ver";
+AUTO_INCREMENT
+1889
+select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t14";
+AUTO_INCREMENT
+1
+select * from t14ver order by a;
+a	b
+1288	20000
+1388	30000
+1488	40000
+1588	56
+1688	50000
+1788	60000
+1888	89
+select * from t14 order by a;
+a	b
+1288	20000
+1388	30000
+1488	40000
+1588	56
+1688	50000
+1788	60000
+1888	89
+select count(*) from t14ver;
+count(*)
+7
+select count(*) from t14;
+count(*)
+7
+select count(*) from t14 x, t14ver y
+where x.b = y.b;
+count(*)
+7
+drop table t10, t10ver, t3, t3ver, t12, t12ver, t13, t13ver, t14, t14ver;

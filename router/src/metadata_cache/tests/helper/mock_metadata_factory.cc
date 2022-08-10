@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,18 +24,17 @@
 
 #include <memory>
 
-#include "metadata_factory.h"  // get_instance
 #include "mock_metadata.h"
+#include "mock_metadata_factory.h"  // get_instance
 
-std::shared_ptr<MetaData> meta_data;
+static std::shared_ptr<MetaData> mock_meta_data;
 
-std::shared_ptr<MetaData> get_instance(
-    mysqlrouter::ClusterType /*cluster_type*/, const std::string &user,
-    const std::string &password, int connect_timeout, int read_timeout,
-    int connection_attempts, const mysqlrouter::SSLOptions &ssl_options,
+std::shared_ptr<MetaData> mock_metadata_factory_get_instance(
+    mysqlrouter::ClusterType /*cluster_type*/,
+    const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+    const mysqlrouter::SSLOptions &ssl_options,
     const bool use_cluster_notifications, unsigned /*view_id*/ = 0) {
-  meta_data.reset(new MockNG(user, password, connect_timeout, read_timeout,
-                             connection_attempts, ssl_options,
-                             use_cluster_notifications));
-  return meta_data;
+  mock_meta_data = std::make_shared<MockNG>(session_config, ssl_options,
+                                            use_cluster_notifications);
+  return mock_meta_data;
 }

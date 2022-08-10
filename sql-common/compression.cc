@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,6 @@ enum_compression_algorithm get_compression_algorithm(std::string name) {
 
   @param       name    comma separated list of compression algorithm names
   @param[out]  list    list containing algorithm names
-
-  @retval void
 */
 void parse_compression_algorithms_list(std::string name,
                                        std::vector<std::string> &list) {
@@ -91,10 +89,9 @@ bool is_zstd_compression_level_valid(uint level) {
   @retval 0  success
   @retval 1  error or warnings
 */
-bool validate_compression_attributes(
-    std::string algorithm_names,
-    std::string channel_name MY_ATTRIBUTE((unused)),
-    bool ignore_errors MY_ATTRIBUTE((unused))) {
+bool validate_compression_attributes(std::string algorithm_names,
+                                     std::string channel_name [[maybe_unused]],
+                                     bool ignore_errors [[maybe_unused]]) {
   DBUG_TRACE;
   /*
     Note: there's no real limit like that to the string. But, since the

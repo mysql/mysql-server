@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -146,7 +146,7 @@ int table_global_status::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_global_status::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_global_status::index_init(uint idx [[maybe_unused]], bool) {
   /* Build a cache of all global status variables. Sum across threads. */
   m_status_cache.materialize_global();
 

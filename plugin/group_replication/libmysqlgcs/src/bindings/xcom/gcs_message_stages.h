@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ class Gcs_message_stage {
 
   explicit Gcs_message_stage(bool enabled) : m_is_enabled(enabled) {}
 
-  virtual ~Gcs_message_stage() {}
+  virtual ~Gcs_message_stage() = default;
 
   /**
    Return the unique stage code.
@@ -396,7 +396,7 @@ class Gcs_message_pipeline {
 
   Gcs_message_pipeline &operator=(Gcs_message_pipeline &&p) = delete;
 
-  virtual ~Gcs_message_pipeline() {}
+  virtual ~Gcs_message_pipeline() = default;
 
   /**
    This member function SHALL be called by the message sender. It makes the

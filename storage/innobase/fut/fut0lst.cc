@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -349,12 +349,7 @@ void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr) {
   mlog_write_ulint(base + FLST_LEN, len - 1, MLOG_4BYTES, mtr);
 }
 
-/** Validates a file-based list.
- @return true if ok */
-ibool flst_validate(
-    const flst_base_node_t *base, /*!< in: pointer to base node of list */
-    mtr_t *mtr1)                  /*!< in: mtr */
-{
+void flst_validate(const flst_base_node_t *base, mtr_t *mtr1) {
   space_id_t space;
   const flst_node_t *node;
   fil_addr_t node_addr;
@@ -410,6 +405,4 @@ ibool flst_validate(
   }
 
   ut_a(fil_addr_is_null(node_addr));
-
-  return (TRUE);
 }

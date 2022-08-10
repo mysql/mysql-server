@@ -46,6 +46,7 @@ insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 
 # REPLACE ... SELECT does not yet work with PS
 replace into t2 select grp, a, c from t1 limit 2,1;
+--sorted_result
 select * from t2;
 
 drop table t1,t2;
@@ -369,7 +370,7 @@ select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
 select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
 
 # Queries to which max/min optimization is not applied
-
+ANALYZE TABLE t1, t2;
 explain 
 select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
 explain 
@@ -1386,3 +1387,120 @@ INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
 SELECT f1, STD(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING STD(f2) IS NULL;
 SELECT f1, STD(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING STD(f2) IS NOT NULL;
 DROP TABLE t1;
+
+--echo # Bug#32713860: Executing prepare returns wrong result
+
+CREATE TABLE t1 (
+  i8 BIGINT UNIQUE,
+  dc DECIMAL(10,4) UNIQUE,
+  f8 DOUBLE UNIQUE,
+  vc VARCHAR(10) UNIQUE
+);
+INSERT INTO t1 VALUES(123456, 123456.7890, 123456, '123456');
+
+SET @i8=123456;
+SET @dc='123456.7890';
+SET @f8=123456.0E0;
+SET @vc='123456';
+
+PREPARE si8 FROM 'SELECT MAX(i8) FROM t1 WHERE i8 > ?';
+PREPARE ei8 FROM 'EXPLAIN SELECT MAX(i8) FROM t1 WHERE i8 > ?';
+PREPARE sdc FROM 'SELECT MAX(dc) FROM t1 WHERE dc > ?';
+PREPARE edc FROM 'EXPLAIN SELECT MAX(dc) FROM t1 WHERE dc > ?';
+PREPARE sf8 FROM 'SELECT MAX(f8) FROM t1 WHERE f8 > ?';
+PREPARE ef8 FROM 'EXPLAIN SELECT MAX(f8) FROM t1 WHERE f8 > ?';
+PREPARE svc FROM 'SELECT MAX(vc) FROM t1 WHERE vc > ?';
+PREPARE evc FROM 'EXPLAIN SELECT MAX(vc) FROM t1 WHERE vc > ?';
+
+SELECT MAX(i8) FROM t1 WHERE i8 > 123456;
+EXECUTE si8 USING @i8;
+EXPLAIN SELECT MAX(i8) FROM t1 WHERE i8 > 123456;
+EXECUTE ei8 USING @i8;
+SELECT MAX(dc) FROM t1 WHERE dc > 123456.7890;
+EXECUTE sdc USING @dc;
+EXPLAIN SELECT MAX(dc) FROM t1 WHERE dc > 123456.7890;
+EXECUTE edc USING @dc;
+SELECT MAX(f8) FROM t1 WHERE f8 > 123456e0;
+EXECUTE sf8 USING @f8;
+EXPLAIN SELECT MAX(f8) FROM t1 WHERE f8 > 123456e0;
+EXECUTE ef8 USING @f8;
+SELECT MAX(vc) FROM t1 WHERE vc > '123456';
+EXECUTE svc USING @vc;
+EXPLAIN SELECT MAX(vc) FROM t1 WHERE vc > '123456';
+EXECUTE evc USING @vc;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32552332 - CAN'T WRITE; DUPLICATE KEY IN TABLE '/TMP/#SQL...'
+--echo #
+
+CREATE TABLE tr (c1 INT);
+INSERT INTO tr VALUES (1);
+
+# Generates a integer sequence from 1 to 2 and repeats
+DELIMITER |;
+CREATE FUNCTION seq_1_to_2() RETURNS INT
+BEGIN
+  DECLARE limit_value, return_value INT;
+  SET limit_value = 2;
+  SELECT c1 INTO return_value FROM tr;
+  IF (return_value < limit_value) THEN
+     UPDATE tr SET c1 = c1 + 1;
+  ELSE
+     UPDATE tr SET c1 = 1;
+  END IF;
+  RETURN (return_value);
+END|
+DELIMITER ;|
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (11);
+
+SELECT seq_1_to_2() as seq, COUNT(*) FROM t1 GROUP BY seq;
+SELECT FLOOR(seq_1_to_2() * 2) AS val, COUNT(*) FROM t1 GROUP BY val;
+SELECT val, COUNT(*) FROM (SELECT FLOOR(seq_1_to_2())+1 val FROM t1) x
+  GROUP BY x.val;
+
+DROP TABLE t1, tr;
+DROP FUNCTION seq_1_to_2;
+
+--echo #
+--echo # Bug #34030363 virtual double Item_sum_std::val_real():
+--echo #               Assertion `nr >= 0.0' failed
+--echo #
+
+CREATE TABLE t1(value double);
+
+INSERT INTO t1 VALUES
+(9.33174e+07),
+(4.5e+95),
+(7.31463e+09),
+(1.79769e+308),
+(-2.59078e+12),
+(2.34165e+21),
+(-1.79769e+308),
+(0.0);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT STDDEV(value) from t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t2(grp int, value double);
+
+INSERT INTO t2 VALUES
+(0, 9.33174e+07),
+(1, 4.5e+95),
+(0, 7.31463e+09),
+(1, 1.79769e+308),
+(0, -2.59078e+12),
+(1, 2.34165e+21),
+(0, -1.79769e+308),
+(1, 0.0);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT VARIANCE(value) FROM t2 GROUP BY grp;
+
+DROP TABLE t2;

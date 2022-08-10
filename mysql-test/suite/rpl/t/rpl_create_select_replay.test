@@ -172,10 +172,10 @@ DROP TABLE t0;
 --echo #
 RESET MASTER;
 
-SET GLOBAL DEBUG='+d, force_rollback_in_slave_on_transactional_ddl_commit';
+SET GLOBAL DEBUG='+d, force_rollback_in_replica_on_transactional_ddl_commit';
 --exec $MYSQL test < $MYSQLBINLOG_OUTFILE
 --remove_file $MYSQLBINLOG_OUTFILE
-SET global DEBUG='-d, force_rollback_in_slave_on_transactional_ddl_commit';
+SET global DEBUG='-d, force_rollback_in_replica_on_transactional_ddl_commit';
 
 --let $assert_text= Verify that only table t0 is present in test database
 --let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "1"
@@ -352,6 +352,5 @@ SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 --source include/assert.inc
 
 DROP TABLE t0;
-SET global DEBUG='-d, crash_on_transactional_ddl_commit';
 --remove_file $MYSQLBINLOG_OUTFILE
 RESET MASTER;

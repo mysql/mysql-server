@@ -1,0 +1,82 @@
+--echo #
+--echo # WL#13075: Support TLS session reuse in the C API
+--echo #
+
+--echo # Check the default value
+SELECT @@GLOBAL.ssl_session_cache_timeout;
+--echo 300 Expected
+
+
+--echo # Check if value can set
+SET @@GLOBAL.ssl_session_cache_timeout=400;
+SELECT @@GLOBAL.ssl_session_cache_timeout;
+--echo 400 expected
+
+
+--echo # Check if the value in GLOBAL Table matches value in variable
+
+--disable_warnings
+SELECT @@GLOBAL.ssl_session_cache_timeout = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='ssl_session_cache_timeout';
+--enable_warnings
+--echo 1 Expected
+
+SELECT @@GLOBAL.ssl_session_cache_timeout;
+
+--echo # Check if there's only one value in global_variables
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='ssl_session_cache_timeout';
+--enable_warnings
+--echo 1 Expected
+
+
+
+--echo # Check if accessing variable with and without GLOBAL point to same variable
+# 1 expected
+SELECT @@ssl_session_cache_timeout = @@GLOBAL.ssl_session_cache_timeout;
+
+
+--echo # Check if ssl_session_cache_timeout can be accessed with @@ sign
+SELECT @@ssl_session_cache_timeout;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@local.ssl_session_cache_timeout;
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.ssl_session_cache_timeout;
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT @@GLOBAL.ssl_session_cache_timeout;
+--echo 400 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT ssl_session_cache_timeout = @@SESSION.ssl_session_cache_timeout;
+
+--echo # Set value to min
+SET @@GLOBAL.ssl_session_cache_timeout = 0;
+# expect success
+
+--echo # Set value to max
+SET @@GLOBAL.ssl_session_cache_timeout = 84600;
+# expect success
+
+--echo # Set value below min
+SET @@GLOBAL.ssl_session_cache_timeout = -1;
+# expect warning
+
+--echo # Set value above max
+SET @@GLOBAL.ssl_session_cache_timeout = 84600 + 1;
+# expect warning
+
+--echo # expect to be able to set it with step of 1
+SET @@GLOBAL.ssl_session_cache_timeout = 300;
+SET @@GLOBAL.ssl_session_cache_timeout = 301;
+SET @@GLOBAL.ssl_session_cache_timeout = 299;
+
+
+--echo # Cleanup
+SET @@GLOBAL.ssl_session_cache_timeout = default;

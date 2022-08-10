@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ class View_table_impl : public Weak_object_impl, public View_table {
 
   View_table_impl(const View_table_impl &src, View_impl *parent);
 
-  ~View_table_impl() override {}
+  ~View_table_impl() override = default;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);

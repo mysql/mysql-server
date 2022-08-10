@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,4 +36,4 @@ std::string Abstract_data_object::get_schema() const { return m_schema; }
 
 uint64 Abstract_data_object::get_id() const { return m_id; }
 
-Abstract_data_object::~Abstract_data_object() {}
+Abstract_data_object::~Abstract_data_object() = default;

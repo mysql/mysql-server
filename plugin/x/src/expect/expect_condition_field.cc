@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,7 @@ Expect_condition_field::Expect_condition_field(const std::string &value)
                        value) {}
 
 Expect_condition_field::Expect_condition_field(
-    const Expect_condition_field &other)
-    : Expect_condition(other) {}
+    const Expect_condition_field &other) = default;
 
 Expect_condition_field::Expect_condition_ptr Expect_condition_field::clone() {
   return Expect_condition_ptr{new Expect_condition_field(*this)};

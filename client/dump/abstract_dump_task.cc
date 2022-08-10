@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ using namespace Mysql::Tools::Dump;
 Abstract_dump_task::Abstract_dump_task(Abstract_data_object *related_object)
     : m_related_object(related_object) {}
 
-Abstract_dump_task::~Abstract_dump_task() {}
+Abstract_dump_task::~Abstract_dump_task() = default;
 
 I_data_object *Abstract_dump_task::get_related_db_object() const {
   return m_related_object;

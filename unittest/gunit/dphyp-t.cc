@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,38 +48,6 @@ class MockReceiver {
   MOCK_METHOD1(HasSeen, bool(NodeMap));
   MOCK_METHOD1(FoundSingleNode, bool(int));
   MOCK_METHOD3(FoundSubgraphPair, bool(NodeMap, NodeMap, int));
-};
-
-class TrivialReceiver {
- public:
-  explicit TrivialReceiver(const Hypergraph &g) : m_g(g) {}
-
-  bool HasSeen(NodeMap subgraph) const {
-    return seen_subgraphs.count(subgraph) != 0;
-  }
-  bool FoundSingleNode(int node_idx) {
-    printf("Found node R%d\n", node_idx + 1);
-    seen_subgraphs.insert(TableBitmap(node_idx));
-    return false;
-  }
-
-  // Called EmitCsgCmp() in the paper.
-  bool FoundSubgraphPair(NodeMap left, NodeMap right,
-                         int edge_idx MY_ATTRIBUTE((unused))) {
-    printf("Found sets %s and %s, connected by edge %s-%s\n",
-           PrintSet(left).c_str(), PrintSet(right).c_str(),
-           PrintSet(m_g.edges[edge_idx].left).c_str(),
-           PrintSet(m_g.edges[edge_idx].right).c_str());
-    assert(left != 0);
-    assert(right != 0);
-    assert((left & right) == 0);
-    seen_subgraphs.insert(left | right);
-    return false;
-  }
-
- private:
-  std::unordered_set<NodeMap> seen_subgraphs;
-  const Hypergraph &m_g;
 };
 
 TEST(DPhypTest, ExampleHypergraph) {

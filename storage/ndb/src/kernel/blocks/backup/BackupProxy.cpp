@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@ BackupProxy::BackupProxy(Block_context& ctx) :
   // GSN_STTOR
   addRecSignal(GSN_UTIL_SEQUENCE_CONF, &BackupProxy::execUTIL_SEQUENCE_CONF);
   addRecSignal(GSN_UTIL_SEQUENCE_REF, &BackupProxy::execUTIL_SEQUENCE_REF);
+  addRecSignal(GSN_NODE_START_REP, &BackupProxy::execNODE_START_REP, true);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &BackupProxy::execDUMP_STATE_ORD, true);
   addRecSignal(GSN_EVENT_REP, &BackupProxy::execEVENT_REP);
@@ -548,5 +549,17 @@ BackupProxy::sendABORT_BACKUP_ORD(Signal* signal, Uint32 ssId,
   sendSignal(workerRef(ss.m_worker), GSN_ABORT_BACKUP_ORD,
                       signal, AbortBackupOrd::SignalLength, JBB);
 }
+
+void
+BackupProxy::execNODE_START_REP(Signal *signal)
+{
+  jam();
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    sendSignal(workerRef(i), GSN_NODE_START_REP, signal,
+               signal->getLength(), JBB);
+  }
+}
+
 
 BLOCK_FUNCTIONS(BackupProxy)

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -130,15 +130,14 @@ static int generate_auth_string_hash(char *outbuf, unsigned int *buflen,
   return 0;
 }
 
-static int validate_auth_string_hash(char *const inbuf MY_ATTRIBUTE((unused)),
-                                     unsigned int buflen
-                                         MY_ATTRIBUTE((unused))) {
+static int validate_auth_string_hash(char *const inbuf [[maybe_unused]],
+                                     unsigned int buflen [[maybe_unused]]) {
   return 0;
 }
 
-static int set_salt(const char *password MY_ATTRIBUTE((unused)),
-                    unsigned int password_len MY_ATTRIBUTE((unused)),
-                    unsigned char *salt MY_ATTRIBUTE((unused)),
+static int set_salt(const char *password [[maybe_unused]],
+                    unsigned int password_len [[maybe_unused]],
+                    unsigned char *salt [[maybe_unused]],
                     unsigned char *salt_len) {
   *salt_len = 0;
   return 0;
@@ -301,5 +300,5 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
 mysql_declare_client_plugin(AUTHENTICATION) "auth_test_plugin",
     MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "Dialog Client Authentication Plugin",
-    {0, 1, 0}, "GPL", nullptr, nullptr, nullptr, nullptr, test_plugin_client,
-    nullptr mysql_end_client_plugin;
+    {0, 1, 0}, "GPL", nullptr, nullptr, nullptr, nullptr,
+    nullptr, test_plugin_client, nullptr, mysql_end_client_plugin;

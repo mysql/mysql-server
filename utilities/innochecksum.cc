@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,7 +164,7 @@ static TYPELIB innochecksum_algorithms_typelib = {
 /** Error logging classes. */
 namespace ib {
 
-logger::~logger() {}
+logger::~logger() = default;
 
 info::~info() {
   std::cerr << "[INFO] innochecksum: " << m_oss.str() << std::endl;
@@ -178,10 +178,19 @@ error::~error() {
   std::cerr << "[ERROR] innochecksum: " << m_oss.str() << std::endl;
 }
 
+/*
+MSVS complains: Warning C4722: destructor never returns, potential memory leak.
+But, the whole point of using ib::fatal temporary object is to cause an abort.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4722)
+
 fatal::~fatal() {
   std::cerr << "[FATAL] innochecksum: " << m_oss.str() << std::endl;
   ut_error;
 }
+// Restore the MSVS checks for Warning C4722, silenced for ib::fatal::~fatal().
+MY_COMPILER_DIAGNOSTIC_POP()
 }  // namespace ib
 
 /** A dummy implementation.  Actual implementation available in fil0fil.cc */
@@ -403,8 +412,8 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	crc32		Calculated crc32 checksum */
-  inline void print_strict_crc32(ulint checksum_field1, ulint checksum_field2,
-                                 uint32_t crc32,
+  inline void print_strict_crc32(uint32_t checksum_field1,
+                                 uint32_t checksum_field2, uint32_t crc32,
                                  srv_checksum_algorithm_t algo) const override {
     if (algo != SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 || !m_is_log_enabled) {
       return;
@@ -413,17 +422,18 @@ class InnocheckReporter : public BlockReporter {
     fprintf(m_log_file,
             "page::%" PRIuMAX
             ";"
-            " crc32 calculated = %u;"
-            " recorded checksum field1 = " ULINTPF
-            " recorded checksum field2 = " ULINTPF "\n",
+            " crc32 calculated = %" PRIu32
+            ";"
+            " recorded checksum field1 = %" PRIu32
+            " recorded checksum field2 = %" PRIu32 "\n",
             m_page_no, crc32, checksum_field1, checksum_field2);
   }
 
   /** Print innodb checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  inline void print_strict_innodb(ulint checksum_field1,
-                                  ulint checksum_field2) const override {
+  inline void print_strict_innodb(uint32_t checksum_field1,
+                                  uint32_t checksum_field2) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -431,13 +441,13 @@ class InnocheckReporter : public BlockReporter {
     fprintf(m_log_file,
             "page::%" PRIuMAX
             ";"
-            " old style: calculated = " ULINTPF "; recorded checksum = " ULINTPF
+            " old style: calculated = %" PRIu32 "; recorded checksum = %" PRIu32
             "\n",
             m_page_no, buf_calc_page_old_checksum(m_read_buf), checksum_field2);
     fprintf(m_log_file,
             "page::%" PRIuMAX
             ";"
-            " new style: calculated = " ULINTPF "; recorded checksum = " ULINTPF
+            " new style: calculated = %" PRIu32 "; recorded checksum = %" PRIu32
             "\n",
             m_page_no, buf_calc_page_new_checksum(m_read_buf), checksum_field1);
   }
@@ -445,17 +455,17 @@ class InnocheckReporter : public BlockReporter {
   /** Print none checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  inline void print_strict_none(ulint checksum_field1, ulint checksum_field2,
+  inline void print_strict_none(uint32_t checksum_field1,
+                                uint32_t checksum_field2,
                                 srv_checksum_algorithm_t algo) const override {
     if (!m_is_log_enabled || algo != SRV_CHECKSUM_ALGORITHM_STRICT_NONE) {
       return;
     }
 
     fprintf(m_log_file,
-            "page::%" PRIuMAX
-            "; none checksum: calculated = %lu;"
-            " recorded checksum_field1 = " ULINTPF
-            " recorded checksum_field2 = " ULINTPF "\n",
+            "page::%" PRIuMAX "; none checksum: calculated = %" PRIu32
+            "; recorded checksum_field1 = %" PRIu32
+            " recorded checksum_field2 = %" PRIu32 "\n",
             m_page_no, BUF_NO_CHECKSUM_MAGIC, checksum_field1, checksum_field2);
   }
 
@@ -473,8 +483,8 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	algo		current checksum algorithm */
   inline void print_innodb_checksum(
-      ulint old_checksum, ulint new_checksum, ulint checksum_field1,
-      ulint checksum_field2, srv_checksum_algorithm_t algo) const override {
+      uint32_t old_checksum, uint32_t new_checksum, uint32_t checksum_field1,
+      uint32_t checksum_field2, srv_checksum_algorithm_t algo) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -484,14 +494,14 @@ class InnocheckReporter : public BlockReporter {
         fprintf(m_log_file,
                 "page::%" PRIuMAX
                 ";"
-                " old style: calculated = " ULINTPF "; recorded = " ULINTPF
+                " old style: calculated = %" PRIu32 "; recorded = %" PRIu32
                 "\n",
                 m_page_no, old_checksum, checksum_field2);
         fprintf(m_log_file,
                 "page::%" PRIuMAX
                 ";"
-                " new style: calculated = " ULINTPF
-                "; crc32 = %u; recorded = " ULINTPF "\n",
+                " new style: calculated = %" PRIu32 "; crc32 = %" PRIu32
+                "; recorded = %" PRIu32 "\n",
                 m_page_no, new_checksum, buf_calc_page_crc32(m_read_buf),
                 checksum_field1);
         break;
@@ -500,14 +510,14 @@ class InnocheckReporter : public BlockReporter {
         fprintf(log_file,
                 "page::%" PRIuMAX
                 ";"
-                " old style: calculated = " ULINTPF
-                "; recorded checksum = " ULINTPF "\n",
+                " old style: calculated = %" PRIu32
+                "; recorded checksum = %" PRIu32 "\n",
                 m_page_no, old_checksum, checksum_field2);
         fprintf(log_file,
                 "page::%" PRIuMAX
                 ";"
-                " new style: calculated = " ULINTPF
-                "; recorded checksum = " ULINTPF "\n",
+                " new style: calculated = %" PRIu32
+                "; recorded checksum = %" PRIu32 "\n",
                 m_page_no, new_checksum, checksum_field1);
         break;
       case SRV_CHECKSUM_ALGORITHM_CRC32:
@@ -535,18 +545,19 @@ class InnocheckReporter : public BlockReporter {
   /** Print both new-style, old-style & crc32 checksum values.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  inline void print_crc32_checksum(ulint checksum_field1,
-                                   ulint checksum_field2) const override {
+  inline void print_crc32_checksum(uint32_t checksum_field1,
+                                   uint32_t checksum_field2) const override {
     if (m_is_log_enabled) {
       fprintf(m_log_file,
-              "page::%" PRIuMAX "; old style: calculated = " ULINTPF
-              "; recorded = " ULINTPF "\n",
+              "page::%" PRIuMAX "; old style: calculated = %" PRIu32
+              "; recorded = %" PRIu32 "\n",
               m_page_no, buf_calc_page_old_checksum(m_read_buf),
               checksum_field2);
       fprintf(m_log_file,
-              "page::%" PRIuMAX "; new style: calculated = " ULINTPF
-              "; crc32 = %u;"
-              " recorded = " ULINTPF "\n",
+              "page::%" PRIuMAX "; new style: calculated = %" PRIu32
+              "; crc32 = %" PRIu32
+              ";"
+              " recorded = %" PRIu32 "\n",
               m_page_no, buf_calc_page_new_checksum(m_read_buf),
               buf_calc_page_crc32(m_read_buf), checksum_field1);
     }
@@ -566,8 +577,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print checksum values on a compressed page.
   @param[in]	calc	the calculated checksum value
   @param[in]	stored	the stored checksum in header. */
-  inline void print_compressed_checksum(ib_uint32_t calc,
-                                        ib_uint32_t stored) const override {
+  inline void print_compressed_checksum(uint32_t calc,
+                                        uint32_t stored) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -575,8 +586,9 @@ class InnocheckReporter : public BlockReporter {
     fprintf(m_log_file,
             "page::%" PRIuMAX
             ";"
-            " %s checksum: calculated = %u;"
-            " recorded = %u\n",
+            " %s checksum: calculated = %" PRIu32
+            ";"
+            " recorded = %" PRIu32 "\n",
             m_page_no,
             buf_checksum_algorithm_name(
                 static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm)),
@@ -591,12 +603,12 @@ class InnocheckReporter : public BlockReporter {
     fprintf(m_log_file,
             "page::%" PRIuMAX
             ": crc32 checksum:"
-            " calculated = %u; recorded = %u\n",
+            " calculated = %" PRIu32 "; recorded = %" PRIu32 "\n",
             m_page_no, crc32, stored);
     fprintf(m_log_file,
             "page::%" PRIuMAX
             ": none checksum:"
-            " calculated = %lu; recorded = %u\n",
+            " calculated = %" PRIu32 "; recorded = %" PRIu32 "\n",
             m_page_no, BUF_NO_CHECKSUM_MAGIC, stored);
   }
 
@@ -612,21 +624,17 @@ class InnocheckReporter : public BlockReporter {
 @param[in]	page_size	page size
 @retval true if page is corrupted otherwise false. */
 static bool is_page_corrupted(const byte *buf, const page_size_t &page_size) {
-  /* use to store LSN values. */
-  ulint logseq;
-  ulint logseqfield;
-
   if (!page_size.is_compressed()) {
     /* check the stored log sequence numbers
     for uncompressed tablespace. */
-    logseq = mach_read_from_4(buf + FIL_PAGE_LSN + 4);
-    logseqfield = mach_read_from_4(buf + page_size.logical() -
-                                   FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
+    const auto logseq = mach_read_from_4(buf + FIL_PAGE_LSN + 4);
+    const auto logseqfield = mach_read_from_4(buf + page_size.logical() -
+                                              FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
 
     if (is_log_enabled) {
       fprintf(log_file,
-              "page::%" PRIuMAX "; log sequence number:first = " ULINTPF
-              "; second = " ULINTPF "\n",
+              "page::%" PRIuMAX "; log sequence number:first = %" PRIu32
+              "; second = %" PRIu32 "\n",
               cur_page_num, logseq, logseqfield);
       if (logseq != logseqfield) {
         fprintf(log_file,
@@ -682,11 +690,11 @@ static bool is_page_empty(const byte *page, size_t len) {
 @param[in]	page_size		page size in bytes on disk.
 @retval		true			do rewrite
 @retval		false			skip the rewrite as checksum stored
-match with calculated or page is doublwrite buffer. */
+match with calculated or page is doublewrite buffer. */
 static bool update_checksum(byte *page, const page_size_t &page_size) {
   size_t physical_page_size = static_cast<size_t>(page_size.physical());
   bool iscompressed = page_size.is_compressed();
-  ib_uint32_t checksum = 0;
+  uint32_t checksum = 0;
   byte stored1[4]; /* get FIL_PAGE_SPACE_OR_CHKSUM field checksum */
   byte stored2[4]; /* get FIL_PAGE_END_LSN_OLD_CHKSUM field checksum */
 
@@ -720,7 +728,7 @@ static bool update_checksum(byte *page, const page_size_t &page_size) {
       fprintf(log_file,
               "page::%" PRIuMAX
               "; Updated checksum ="
-              " %u\n",
+              " %" PRIu32 "\n",
               cur_page_num, checksum);
     }
 
@@ -736,7 +744,7 @@ static bool update_checksum(byte *page, const page_size_t &page_size) {
 
       case SRV_CHECKSUM_ALGORITHM_INNODB:
       case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-        checksum = (ib_uint32_t)buf_calc_page_new_checksum(page);
+        checksum = (uint32_t)buf_calc_page_new_checksum(page);
         break;
 
       case SRV_CHECKSUM_ALGORITHM_NONE:
@@ -752,13 +760,13 @@ static bool update_checksum(byte *page, const page_size_t &page_size) {
       fprintf(log_file,
               "page::%" PRIuMAX
               "; Updated checksum field1"
-              " = %u\n",
+              " = %" PRIu32 "\n",
               cur_page_num, checksum);
     }
 
     if (write_check == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB ||
         write_check == SRV_CHECKSUM_ALGORITHM_INNODB) {
-      checksum = (ib_uint32_t)buf_calc_page_old_checksum(page);
+      checksum = (uint32_t)buf_calc_page_old_checksum(page);
     }
 
     mach_write_to_4(page + physical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM,
@@ -768,7 +776,7 @@ static bool update_checksum(byte *page, const page_size_t &page_size) {
       fprintf(log_file,
               "page::%" PRIuMAX
               "; Updated checksum "
-              "field2 = %u\n",
+              "field2 = %" PRIu32 "\n",
               cur_page_num, checksum);
     }
   }
@@ -875,8 +883,8 @@ static void parse_page(const byte *page, FILE *file) {
                 cur_page_num, id);
 
         fprintf(file,
-                " page level=" ULINTPF ", No. of records=" ULINTPF
-                ", garbage=" ULINTPF ", %s\n",
+                " page level=" UINT16PF ", No. of records=" UINT16PF
+                ", garbage=" UINT16PF ", %s\n",
                 page_header_get_field(page, PAGE_LEVEL),
                 page_header_get_field(page, PAGE_N_RECS),
                 page_header_get_field(page, PAGE_GARBAGE), str);
@@ -894,8 +902,8 @@ static void parse_page(const byte *page, FILE *file) {
                 cur_page_num, id);
 
         fprintf(file,
-                " page level=" ULINTPF ", No. of records=" ULINTPF
-                ", garbage=" ULINTPF ", %s\n",
+                " page level=" UINT16PF ", No. of records=" UINT16PF
+                ", garbage=" UINT16PF ", %s\n",
                 page_header_get_field(page, PAGE_LEVEL),
                 page_header_get_field(page, PAGE_N_RECS),
                 page_header_get_field(page, PAGE_GARBAGE), str);
@@ -963,7 +971,9 @@ static void parse_page(const byte *page, FILE *file) {
           }
           break;
 
+        case TRX_UNDO_PREPARED_80028:
         case TRX_UNDO_PREPARED:
+        case TRX_UNDO_PREPARED_IN_TC:
           page_type.n_undo_state_prepared++;
           if (page_type_dump) {
             fprintf(file, ", %s",
@@ -1282,9 +1292,10 @@ static void usage(void) {
   my_print_variables(innochecksum_options);
 }
 
-extern "C" bool innochecksum_get_one_option(
-    int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-    char *argument MY_ATTRIBUTE((unused))) {
+extern "C" bool innochecksum_get_one_option(int optid,
+                                            const struct my_option *opt
+                                            [[maybe_unused]],
+                                            char *argument [[maybe_unused]]) {
   switch (optid) {
 #ifndef NDEBUG
     case '#':
@@ -1508,7 +1519,7 @@ int main(int argc, char **argv) {
 
     /* Testing for lock mechanism. The innochecksum
     acquire lock on given file. So other tools accessing the same
-    file for processsing must fail. */
+    file for processing must fail. */
 #ifdef _WIN32
     DBUG_EXECUTE_IF(
         "innochecksum_cause_mysqld_crash", ut_ad(page_dump_filename);
@@ -1775,12 +1786,13 @@ int main(int argc, char **argv) {
 
 /** Report a failed assertion
 @param[in]	expr	the failed assertion (optional)
-@param[in]	file	source file containting the assertion
+@param[in]	file	source file containing the assertion
 @param[in]	line	line number of the assertion */
-void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line) {
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line) {
   fprintf(stderr,
           "Innochecksum: Assertion failure in"
-          " file %s line " ULINTPF "\n",
+          " file %s line " UINT64PF "\n",
           file, line);
 
   if (expr) {

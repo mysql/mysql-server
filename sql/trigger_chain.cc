@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,7 +196,7 @@ bool Trigger_chain::has_updated_trigger_fields(const MY_BITMAP *used_fields) {
   Trigger *t;
 
   while ((t = it++)) {
-    // Even if one trigger is unparseable, the whole thing is not usable.
+    // Even if one trigger is unparsable, the whole thing is not usable.
 
     if (t->has_parse_error()) return false;
 

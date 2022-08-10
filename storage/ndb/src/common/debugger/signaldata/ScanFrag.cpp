@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-
 #include <BlockNumbers.h>
 #include <signaldata/ScanTab.hpp>
 #include <signaldata/ScanFrag.hpp>
 
-bool
-printSCAN_FRAGREQ(FILE * output, const Uint32 * theData, 
-		  Uint32 len, Uint16 receiverBlockNo) {
-  const ScanFragReq * const sig = (ScanFragReq *)theData;
+bool printSCAN_FRAGREQ(FILE *output,
+                       const Uint32 *theData,
+                       Uint32 len,
+                       Uint16 /*receiverBlockNo*/)
+{
+  if (len < ScanFragReq::SignalLength)
+  {
+    assert(false);
+    return false;
+  }
+
+  const ScanFragReq *const sig = (const ScanFragReq *)theData;
   fprintf(output, " senderData: 0x%x\n", sig->senderData);
   fprintf(output, " resultRef: 0x%x\n", sig->resultRef);
   fprintf(output, " savePointId: %u\n", sig->savePointId);
@@ -92,9 +98,10 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
   return true;
 }
 
-bool
-printSCAN_FRAGCONF(FILE * output, const Uint32 * theData,
-                   Uint32 len, Uint16 receiverBlockNo)
+bool printSCAN_FRAGCONF(FILE *output,
+                        const Uint32 *theData,
+                        Uint32 len,
+                        Uint16 /*receiverBlockNo*/)
 {
   const ScanFragConf * const sig =
     reinterpret_cast<const ScanFragConf*>(theData);

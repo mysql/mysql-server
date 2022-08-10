@@ -12,7 +12,7 @@
 --echo # Test Upgrade from old version $OLD_VERSION
 
 --source include/have_innodb_16k.inc
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 
 # For all other versions we run only on case sensitive fs
 if ($OLD_VERSION != 8019) {

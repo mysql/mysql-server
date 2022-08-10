@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@
 */
 
 /*
-   This file is basicly tis620 character sets with some extra functions
+   This file is basically tis620 character sets with some extra functions
    for tis-620 handling
 */
 
@@ -582,7 +582,7 @@ static size_t thai2sortable(uchar *tstr, size_t len) {
   string
 
   NOTE:
-    We can't cut strings at end \0 as this would break comparision with
+    We can't cut strings at end \0 as this would break comparison with
     LIKE characters, where the min range is stored as end \0
 
   Arg: 2 Strings and it compare length
@@ -590,7 +590,7 @@ static size_t thai2sortable(uchar *tstr, size_t len) {
 */
 
 extern "C" {
-static int my_strnncoll_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncoll_tis620(const CHARSET_INFO *cs [[maybe_unused]],
                                const uchar *s1, size_t len1, const uchar *s2,
                                size_t len2, bool s2_is_prefix) {
   uchar buf[80];
@@ -614,7 +614,7 @@ static int my_strnncoll_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   return i;
 }
 
-static int my_strnncollsp_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+static int my_strnncollsp_tis620(const CHARSET_INFO *cs [[maybe_unused]],
                                  const uchar *a0, size_t a_length,
                                  const uchar *b0, size_t b_length) {
   uchar buf[80], *end, *a, *b, *alloced = nullptr;
@@ -668,10 +668,10 @@ ret:
 }
 
 /*
-  strnxfrm replacment, convert Thai string to sortable string
+  strnxfrm replacement, convert Thai string to sortable string
 
   Arg: Destination buffer, source string, dest length and source length
-  Ret: Conveted string size
+  Ret: Converted string size
 */
 
 static size_t my_strnxfrm_tis620(const CHARSET_INFO *cs, uchar *dst,
@@ -860,16 +860,16 @@ static const uchar *uni_to_cs[256] = {
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, plFF};
 
 extern "C" {
-static int my_mb_wc_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           my_wc_t *wc, const uchar *str, const uchar *end) {
+static int my_mb_wc_tis620(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
+                           const uchar *str, const uchar *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
   *wc = cs_to_uni[*str];
   return (!wc[0] && str[0]) ? -1 : 1;
 }
 
-static int my_wc_mb_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                           my_wc_t wc, uchar *str, uchar *end) {
+static int my_wc_mb_tis620(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
+                           uchar *str, uchar *end) {
   const uchar *pl;
 
   if (str >= end) return MY_CS_TOOSMALL;
@@ -929,7 +929,7 @@ CHARSET_INFO my_charset_tis620_thai_ci = {
     0,                                               /* number    */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state     */
     "tis620",                                        /* cs name    */
-    "tis620_thai_ci",                                /* name      */
+    "tis620_thai_ci",                                /* m_coll_name */
     "TIS620 Thai",                                   /* comment   */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
@@ -964,7 +964,7 @@ CHARSET_INFO my_charset_tis620_bin = {
     0,                              /* number    */
     MY_CS_COMPILED | MY_CS_BINSORT, /* state     */
     "tis620",                       /* cs name    */
-    "tis620_bin",                   /* name      */
+    "tis620_bin",                   /* m_coll_name */
     "TIS620 Thai",                  /* comment   */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */

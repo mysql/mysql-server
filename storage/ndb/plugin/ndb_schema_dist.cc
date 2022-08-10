@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -273,7 +273,7 @@ bool Ndb_schema_dist_client::Prepared_keys::check_key(
   return false;
 }
 
-extern void update_slave_api_stats(const Ndb *);
+extern void update_slave_api_stats(const Thd_ndb *);
 
 Ndb_schema_dist_client::~Ndb_schema_dist_client() {
   if (m_share) {
@@ -286,7 +286,7 @@ Ndb_schema_dist_client::~Ndb_schema_dist_client() {
     // NOTE! This is just a "convenient place" to call this
     // function, it could be moved to "end of statement"(if there
     // was such a place..).
-    update_slave_api_stats(m_thd_ndb->ndb);
+    update_slave_api_stats(m_thd_ndb);
   }
 
   if (m_holding_acl_mutex) {
@@ -622,20 +622,6 @@ bool Ndb_schema_dist_client::acl_notify(std::string user_list) {
   return log_schema_op(user_list.c_str(), user_list.length(), key.first.c_str(),
                        key.second.c_str(), unique_id(), unique_version(),
                        SOT_ACL_SNAPSHOT);
-}
-
-bool Ndb_schema_dist_client::tablespace_changed(const char *tablespace_name,
-                                                int id, int version) {
-  DBUG_TRACE;
-  return log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd), "",
-                       tablespace_name, id, version, SOT_TABLESPACE);
-}
-
-bool Ndb_schema_dist_client::logfilegroup_changed(const char *logfilegroup_name,
-                                                  int id, int version) {
-  DBUG_TRACE;
-  return log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd), "",
-                       logfilegroup_name, id, version, SOT_LOGFILE_GROUP);
 }
 
 bool Ndb_schema_dist_client::create_tablespace(const char *tablespace_name,
