@@ -874,7 +874,7 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateAppliedOnce) {
 TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1, t2, (t3 LEFT JOIN t4 ON t3.x = t4.x), t5 "
-      "WHERE t2.x = t3.x AND t3.x = t5.x AND t3.x = t3.y AND t1.x <> t5.x",
+      "WHERE t2.x = t3.x AND t3.x = t5.x AND t3.x = t3.y AND t1.y <> t5.y",
       /*nullable=*/true);
 
   // Build multiple equalities from the WHERE condition.
@@ -924,7 +924,7 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition2) {
       "SELECT 1 FROM t1 JOIN t2 ON t1.x = t2.x "
       "JOIN t3 LEFT JOIN t4 ON t3.x = t4.x "
       "JOIN t5 JOIN t6 ON t5.y = t6.x ON t5.x = t3.x ON t1.x = t6.x "
-      "WHERE (t3.x IS NULL OR t6.x <> t4.x) AND t3.x <> t5.x",
+      "WHERE (t3.y IS NULL OR t6.y <> t4.y) AND t3.y <> t5.z",
       /*nullable=*/true);
 
   // Build multiple equalities from the WHERE condition.
@@ -970,7 +970,7 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition2) {
   // selectivity is not double-counted.
   const JoinPredicate &predicate = graph.edges[edge_idx];
   ASSERT_EQ(1, predicate.expr->join_conditions.size());
-  EXPECT_EQ("((t3.x is null) or (t6.x <> t4.x))",
+  EXPECT_EQ("((t3.y is null) or (t6.y <> t4.y))",
             ItemToString(predicate.expr->join_conditions[0]));
   ASSERT_EQ(1, predicate.expr->equijoin_conditions.size());
   EXPECT_EQ("(t2.x = t6.x)",
@@ -1416,8 +1416,8 @@ TEST_P(MakeHypergraphMultipleEqualParamTest,
   string other_table = (table_num == 0) ? "t1" : "t2";
   string query_str =
       "SELECT 1 FROM t1, t2 WHERE t1.x=t2.x "
-      "AND t1.x NOT IN (SELECT t3.x FROM t3 WHERE t3.x <> " +
-      other_table + ".x + 1)";
+      "AND t1.x NOT IN (SELECT t3.x FROM t3 WHERE t3.y <> " +
+      other_table + ".y + 1)";
   Query_block *query_block = ParseAndResolve(query_str.c_str(),
                                              /*nullable=*/false);
 
@@ -1463,7 +1463,7 @@ TEST_P(MakeHypergraphMultipleEqualParamTest,
   ASSERT_EQ(1, graph.edges[1].expr->join_conditions.size());
   EXPECT_EQ("(" + other_table + ".x = t3.x)",
             ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
-  EXPECT_EQ("(t3.x <> (" + other_table + ".x + 1))",
+  EXPECT_EQ("(t3.y <> (" + other_table + ".y + 1))",
             ItemToString(graph.edges[1].expr->join_conditions[0]));
 }
 
@@ -2820,7 +2820,7 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant) {
 TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant2) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1, t2, t3 WHERE t2.x = t3.x AND t2.x IN "
-      "(SELECT t5.x FROM t4, t5 WHERE t4.x = t5.x AND t4.x <> t1.x)",
+      "(SELECT t5.x FROM t4, t5 WHERE t4.x = t5.x AND t4.y <> t1.y)",
       /*nullable=*/false);
 
   // Add an index on t2.x to make the join predicate t2.x = t3.x sargable.
@@ -2874,7 +2874,7 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant2) {
   // filter for it in some form (it ends up as t3.x = t4.x due to multiple
   // equalities).
   ASSERT_EQ(AccessPath::FILTER, root->nested_loop_join().inner->type);
-  EXPECT_EQ("((t3.x = t4.x) and (t4.x <> t1.x))",
+  EXPECT_EQ("((t3.x = t4.x) and (t4.y <> t1.y))",
             ItemToString(root->nested_loop_join().inner->filter().condition));
 
   // The innermost table on the right side is an EQ_REF lookup subsuming the
@@ -4781,6 +4781,44 @@ TEST_F(HypergraphOptimizerTest, PropagateCondConstants) {
   // Check that the second predicate in the where condition is removed
   // as it's always true.
   EXPECT_EQ("(t1.x = 10)", ItemToString(query_block->where_cond()));
+}
+
+TEST_F(HypergraphOptimizerTest, PropagationInNonEqualities) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x FROM t1 JOIN t2 WHERE t1.x = t2.x AND t1.x <> t2.x + 10",
+      /*nullable=*/true);
+
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+
+  // Set up some large scan costs to discourage nested loop.
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  RelationalExpression *expr = root->hash_join().join_predicate->expr;
+  ASSERT_EQ(1, expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t2.x)", ItemToString(expr->equijoin_conditions[0]));
+
+  AccessPath *t1 = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::FILTER, t1->type);
+  EXPECT_EQ("(t1.x <> (t1.x + 10))", ItemToString(t1->filter().condition));
+  EXPECT_EQ(m_fake_tables["t1"], t1->filter().child->table_scan().table);
+
+  AccessPath *t2 = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
+  EXPECT_EQ(m_fake_tables["t2"], t2->table_scan().table);
 }
 
 TEST_F(HypergraphOptimizerTest, RowCountImplicitlyGrouped) {
