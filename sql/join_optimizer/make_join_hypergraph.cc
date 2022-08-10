@@ -76,7 +76,8 @@ namespace {
 
 RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const mem_root_deque<TABLE_LIST *> &join_list);
-bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions);
+bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
+                              Mem_root_array<Item *> *conditions);
 
 inline bool IsMultipleEquals(Item *cond) {
   return cond->type() == Item::FUNC_ITEM &&
@@ -309,7 +310,8 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
       Item *join_cond = EarlyExpandMultipleEquals(tl->join_cond_optim(),
                                                   join->tables_in_subtree);
       ExtractConditions(join_cond, &join->join_conditions);
-      EarlyNormalizeConditions(thd, &join->join_conditions);
+      EarlyNormalizeConditions(thd, join->tables_in_subtree,
+                               &join->join_conditions);
       ReorderConditions(&join->join_conditions);
     }
     ret = join;
@@ -2200,9 +2202,11 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
 }
 
 /**
-  Do some constant propagation, conversion/folding work needed for correctness.
+  Do some equality and constant propagation, conversion/folding work needed
+  for correctness and performance.
  */
-bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
+bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
+                              Mem_root_array<Item *> *conditions) {
   CSEConditions(thd, conditions);
   for (auto it = conditions->begin(); it != conditions->end();) {
     /**
@@ -2212,19 +2216,38 @@ bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
       only the corner cases where equality propagation in optimize_cond()
       would have been rejected (which is done in old optimizer at a later
       point).
+      For join conditions which are not part of multiple equalities, try
+      to substitute fields with the fields from available tables in the
+      join. It's possible only if there are multiple equalities for the
+      fields in the join condition.
+      E.g.
+      1. t1.a = t2.a and t1.a <> t2.a would be multi-equal(t1.a, t2.a)
+      and t1.a <> t2.a post optimize_cond(). We could transform this
+      condition into multi-equal(t1.a, t2.a) and t1.a <> t1.a.
+      2. t1.a = t2.a + t3.a could be converted to t1.a = t2.a + t2.a
+      if there is multiple equality (t2.a, t3.a). This makes it an
+      equi-join condition rather than an extra predicate for the join.
     */
-    if (!AreMultipleBitsSet((*it)->used_tables() & ~PSEUDO_TABLE_BITS)) {
+    const bool is_filter =
+        !AreMultipleBitsSet((*it)->used_tables() & ~PSEUDO_TABLE_BITS);
+    if (is_filter || !is_function_of_type(*it, Item_func::MULT_EQUAL_FUNC)) {
       *it = CompileItem(
           *it, [](Item *) { return true; },
-          [](Item *item) -> Item * {
+          [tables_in_subtree, is_filter](Item *item) -> Item * {
             if (item->type() == Item::FIELD_ITEM) {
               Item_equal *item_equal =
                   down_cast<Item_field *>(item)->item_equal;
               if (item_equal) {
                 Item *const_item = item_equal->get_const();
-                if (const_item != nullptr &&
-                    item->has_compatible_context(const_item))
+                if (is_filter && const_item != nullptr &&
+                    item->has_compatible_context(const_item)) {
                   return const_item;
+                } else if (!is_filter && const_item == nullptr) {
+                  for (Item_field &field : item_equal->get_fields()) {
+                    if (IsSubset(field.used_tables(), tables_in_subtree))
+                      return &field;
+                  }
+                }
               }
             }
             return item;
@@ -3264,7 +3287,8 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     Item *where_cond = EarlyExpandMultipleEquals(join->where_cond,
                                                  /*tables_in_subtree=*/~0);
     ExtractConditions(where_cond, &where_conditions);
-    if (EarlyNormalizeConditions(thd, &where_conditions)) {
+    if (EarlyNormalizeConditions(thd, TablesBetween(0, MAX_TABLES),
+                                 &where_conditions)) {
       return true;
     }
     ReorderConditions(&where_conditions);
