@@ -3157,7 +3157,7 @@ void CostingReceiver::ProposeHashJoin(
     // a plan with hash joins.
     RelationalExpression *semijoin = edge->expr->right;
     const table_map disallowed_tables =
-        semijoin->nodes_in_subtree & ~GetVisibleTables(semijoin);
+        semijoin->tables_in_subtree & ~GetVisibleTables(semijoin);
     if (disallowed_tables != 0) {
       for (Item *cond : edge->expr->equijoin_conditions) {
         if (Overlaps(disallowed_tables, cond->used_tables()) &&
