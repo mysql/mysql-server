@@ -151,7 +151,6 @@ bool Ack_receiver::add_slave(THD *thd) {
           &slave.compress_ctx, algorithm,
           thd->get_protocol_classic()->get_compression_level());
   }
-  slave.is_leaving = false;
   slave.vio = thd->get_protocol_classic()->get_vio();
   slave.vio->mysql_socket.m_psi = nullptr;
 
@@ -186,7 +185,7 @@ void Ack_receiver::remove_slave(THD *thd) {
   */
   for (it = m_slaves.begin(); it != m_slaves.end(); ++it) {
     if (it->thread_id == thd->thread_id()) {
-      it->is_leaving = true;
+      it->m_status = Slave::EnumStatus::leaving;
       m_slaves_changed = true;
       break;
     }
@@ -196,7 +195,8 @@ void Ack_receiver::remove_slave(THD *thd) {
     Wait till Ack_receiver::run() is done reading from the
     slave's socket.
   */
-  while ((it != m_slaves.end()) && (it->is_leaving) && (m_status == ST_UP)) {
+  while ((it != m_slaves.end()) &&
+         (it->m_status == Slave::EnumStatus::leaving) && (m_status == ST_UP)) {
     mysql_cond_wait(&m_cond, &m_mutex);
     /*
       In above cond_wait, we release and reacquire m_mutex.
@@ -311,8 +311,9 @@ void Ack_receiver::run() {
           if (likely(len != packet_error))
             repl_semisync->reportReplyPacket(slave_obj.server_id, net.read_pos,
                                              len);
-          else if (net.last_errno == ER_NET_READ_ERROR)
+          else if (net.last_errno == ER_NET_READ_ERROR) {
             listener.clear_socket_info(i);
+          }
         } while (net.vio->has_data(net.vio) && m_status == ST_UP);
       }
       i++;

@@ -34,11 +34,12 @@
 #include "sql/sql_class.h"
 
 struct Slave {
+  enum class EnumStatus { up, leaving, down };
   uint32_t thread_id;
   Vio *vio;
   uint server_id;
   mysql_compress_context compress_ctx;
-  bool is_leaving;
+  EnumStatus m_status = EnumStatus::up;
 
   my_socket sock_fd() const { return vio->mysql_socket.fd; }
 };
