@@ -1267,10 +1267,10 @@ static void MoveFilterPredicatesIntoHashJoinCondition(
     // Conditions with subqueries are not moved.
     if (condition->has_subquery()) continue;
     moved_predicates.SetBit(filter_idx);
-    if (is_function_of_type(condition, Item_func::EQ_FUNC) &&
-        down_cast<Item_func_eq *>(condition)
+    if (condition->type() == Item::FUNC_ITEM &&
+        down_cast<Item_func *>(condition)
             ->contains_only_equi_join_condition()) {
-      equijoin_conditions.push_back(down_cast<Item_func_eq *>(condition));
+      equijoin_conditions.push_back(down_cast<Item_eq_base *>(condition));
     } else {
       join_conditions.push_back(condition);
     }
