@@ -2110,6 +2110,233 @@ TEST_F(StatsUpdatesFrequencyTest, StatsUpdatesFrequencyHighTTL) {
   EXPECT_GE(last_check_in_count, 0);
 }
 
+/**
+ * @test Checks that "use_replica_primary_as_rw" router options from the
+ * metadata is handled properly when the target cluster is Replica
+ */
+TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNode) {
+  const int primary_cluster_id = 0;
+  const int target_cluster_id = 1;
+
+  std::string router_cs_options =
+      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
+          "use_replica_primary_as_rw": false})";
+  create_clusterset(view_id, target_cluster_id, primary_cluster_id,
+                    "metadata_clusterset.js", router_cs_options);
+
+  const auto primary_node_http_port =
+      clusterset_data_.clusters[0].nodes[0].http_port;
+
+  SCOPED_TRACE("// Launch the Router");
+  /*auto &router =*/launch_router();
+
+  SCOPED_TRACE(
+      "// Make the connections to both RW and RO ports and check if they are "
+      "directed to expected nodes of the Replica Cluster");
+
+  // 'use_replica_primary_as_rw' is false and our target cluster is Replica so
+  // no RW connections should be possible
+  verify_new_connection_fails(router_port_rw);
+
+  // the Replica's primary should be used in rotation as a destination of the RO
+  // connections
+  for (size_t i = 0;
+       i < clusterset_data_.clusters[target_cluster_id].nodes.size(); ++i) {
+    make_new_connection_ok(
+        router_port_ro,
+        clusterset_data_.clusters[target_cluster_id].nodes[i].classic_port);
+  }
+
+  // ==================================================================
+  // now we set 'use_replica_primary_as_rw' to 'true' in the metadata
+  router_cs_options =
+      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
+          "use_replica_primary_as_rw": true})";
+
+  set_mock_metadata(view_id, target_cluster_id, target_cluster_id,
+                    primary_node_http_port, clusterset_data_,
+                    router_cs_options);
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 2));
+
+  std::vector<std::unique_ptr<MySQLSession>> rw_connections;
+  std::vector<std::unique_ptr<MySQLSession>> ro_connections;
+  // Now the RW connection should be ok and directed to the Replicas Primary
+  for (size_t i = 0; i < 2; ++i) {
+    auto res = make_new_connection_ok(
+        router_port_rw,
+        clusterset_data_.clusters[target_cluster_id].nodes[0].classic_port);
+
+    rw_connections.push_back(std::move(res));
+  }
+
+  // The Replicas Primary should not be used as a destination for RO connections
+  // now
+  for (size_t i = 0; i < 4; ++i) {
+    auto res = make_new_connection_ok(
+        router_port_ro, clusterset_data_.clusters[target_cluster_id]
+                            .nodes[i % 2 + 1]
+                            .classic_port);
+
+    ro_connections.push_back(std::move(res));
+  }
+
+  // ==================================================================
+  // set 'use_replica_primary_as_rw' to 'false'
+  router_cs_options =
+      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
+          "use_replica_primary_as_rw": false})";
+
+  set_mock_metadata(view_id, target_cluster_id, target_cluster_id,
+                    primary_node_http_port, clusterset_data_,
+                    router_cs_options);
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 2));
+
+  // check that the RW connections were dropped
+  for (auto &con : rw_connections) {
+    EXPECT_TRUE(wait_connection_dropped(*con));
+  }
+
+  // check that the RO connections are fine
+  for (auto &con : ro_connections) {
+    verify_existing_connection_ok(con.get());
+  }
+
+  // connections to the RW port should not be possible again
+  verify_new_connection_fails(router_port_rw);
+
+  // the Replica's primary should be used in rotation as a destination of the RO
+  // connections
+  const auto target_cluster_nodes =
+      clusterset_data_.clusters[target_cluster_id].nodes.size();
+  for (size_t i = 0; i < target_cluster_nodes; ++i) {
+    make_new_connection_ok(router_port_ro,
+                           clusterset_data_.clusters[target_cluster_id]
+                               .nodes[i % target_cluster_nodes]
+                               .classic_port);
+  }
+}
+
+/**
+ * @test Checks that "use_replica_primary_as_rw" router option from the
+ * metadata is ignored when the target cluster is Primary
+ */
+TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNodeIgnoredIfTargetPrimary) {
+  const int primary_cluster_id = 0;
+  const int target_cluster_id = 0;  // our target is primary cluster
+
+  std::string router_cs_options =
+      R"({"target_cluster" : "primary",
+          "use_replica_primary_as_rw": false})";
+  create_clusterset(view_id, target_cluster_id, primary_cluster_id,
+                    "metadata_clusterset.js", router_cs_options);
+
+  SCOPED_TRACE("// Launch the Router");
+  /*auto &router =*/launch_router();
+
+  // 'use_replica_primary_as_rw' is 'false' but our target cluster is Primary so
+  //  RW connections should be possible
+  make_new_connection_ok(
+      router_port_rw,
+      clusterset_data_.clusters[target_cluster_id].nodes[0].classic_port);
+
+  // the RO connections should be routed to the Secondary nodes of the Primary
+  // Cluster
+  for (size_t i = 0;
+       i < clusterset_data_.clusters[target_cluster_id].nodes.size(); ++i) {
+    make_new_connection_ok(router_port_ro,
+                           clusterset_data_.clusters[target_cluster_id]
+                               .nodes[1 + i % 2]
+                               .classic_port);
+  }
+
+  // ==================================================================
+  // set 'use_replica_primary_as_rw' to 'true'
+  router_cs_options =
+      R"({"target_cluster" : "primary",
+          "use_replica_primary_as_rw": true})";
+
+  const auto primary_node_http_port =
+      clusterset_data_.clusters[0].nodes[0].http_port;
+  set_mock_metadata(view_id, target_cluster_id, target_cluster_id,
+                    primary_node_http_port, clusterset_data_,
+                    router_cs_options);
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 2));
+
+  // check that the behavior did not change
+
+  make_new_connection_ok(
+      router_port_rw,
+      clusterset_data_.clusters[target_cluster_id].nodes[0].classic_port);
+
+  // the RO connections should be routed to the Secondary nodes of the Primary
+  // Cluster
+  for (size_t i = 0;
+       i < clusterset_data_.clusters[target_cluster_id].nodes.size(); ++i) {
+    make_new_connection_ok(router_port_ro,
+                           clusterset_data_.clusters[target_cluster_id]
+                               .nodes[1 + (i + 1) % 2]
+                               .classic_port);
+  }
+}
+
+class ClusterSetUseReplicaPrimaryAsRwNodeInvalidTest
+    : public ClusterSetTest,
+      public ::testing::WithParamInterface<std::string> {};
+
+/**
+ * @test Checks that invalid values of "use_replica_primary_as_rw" in the
+ * metadata are handled properly (default = false used) when the target
+ * cluster is Replica
+ */
+TEST_P(ClusterSetUseReplicaPrimaryAsRwNodeInvalidTest,
+       UseReplicaPrimaryAsRwNodeInvalid) {
+  const int primary_cluster_id = 0;
+  const int target_cluster_id = 1;
+
+  std::string inv = "\"\"";
+  std::string router_cs_options =
+      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
+          "use_replica_primary_as_rw": )" +
+      GetParam() + "}";
+  create_clusterset(view_id, target_cluster_id, primary_cluster_id,
+                    "metadata_clusterset.js", router_cs_options);
+
+  SCOPED_TRACE("// Launch the Router");
+  auto &router = launch_router();
+
+  SCOPED_TRACE(
+      "// Make the connections to both RW and RO ports and check if they are "
+      "directed to expected nodes of the Replica Cluster");
+
+  // 'use_replica_primary_as_rw' is false and our target cluster is Replica so
+  // no RW connections should be possible
+  verify_new_connection_fails(router_port_rw);
+
+  // the Replica's primary should be used in rotation as a destination of the RO
+  // connections
+  for (size_t i = 0;
+       i < clusterset_data_.clusters[target_cluster_id].nodes.size(); ++i) {
+    make_new_connection_ok(
+        router_port_ro,
+        clusterset_data_.clusters[target_cluster_id].nodes[i].classic_port);
+  }
+
+  const std::string warning =
+      "WARNING .* Error parsing use_replica_primary_as_rw from the "
+      "router.options: options.use_replica_primary_as_rw='" +
+      GetParam() + "'; not a boolean. Using default value 'false'";
+
+  EXPECT_TRUE(wait_log_contains(router, warning, 1s)) << warning;
+}
+
+INSTANTIATE_TEST_SUITE_P(UseReplicaPrimaryAsRwNodeInvalid,
+                         ClusterSetUseReplicaPrimaryAsRwNodeInvalidTest,
+                         ::testing::Values("\"\"", "0", "1", "\"foo\"",
+                                           "\"false\""));
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin_path = Path(argv[0]).dirname();

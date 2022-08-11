@@ -422,6 +422,21 @@ class RouterClusterSetOptions {
     return stats_updates_frequency;
   }
 
+  bool get_use_replica_primary_as_rw() const {
+    std::string out_error;
+    auto result = get_router_option_bool(
+        options_str_, "use_replica_primary_as_rw", false, out_error);
+    if (!out_error.empty()) {
+      log_warning(
+          "Error parsing use_replica_primary_as_rw from the router.options: "
+          "%s. Using default value 'false'",
+          out_error.c_str());
+      return false;
+    }
+
+    return result;
+  }
+
  private:
   std::string get_router_option_str(const std::string &options,
                                     const std::string &name,
@@ -433,7 +448,7 @@ class RouterClusterSetOptions {
     rapidjson::Document json_doc;
     json_doc.Parse(options);
 
-    if (!json_doc.IsObject()) {
+    if (json_doc.HasParseError() || !json_doc.IsObject()) {
       out_error = "not a valid JSON object";
       return default_value;
     }
@@ -461,7 +476,7 @@ class RouterClusterSetOptions {
     rapidjson::Document json_doc;
     json_doc.Parse(options);
 
-    if (!json_doc.IsObject()) {
+    if (json_doc.HasParseError() || !json_doc.IsObject()) {
       out_error = "not a valid JSON object";
       return default_value;
     }
@@ -481,6 +496,38 @@ class RouterClusterSetOptions {
     }
 
     return it->value.GetUint();
+  }
+
+  uint32_t get_router_option_bool(const std::string &options,
+                                  const std::string &name,
+                                  const bool &default_value,
+                                  std::string &out_error) const {
+    out_error = "";
+    if (options.empty()) return default_value;
+
+    rapidjson::Document json_doc;
+    json_doc.Parse(options);
+
+    if (json_doc.HasParseError() || !json_doc.IsObject()) {
+      out_error = "not a valid JSON object";
+      return default_value;
+    }
+
+    const auto it = json_doc.FindMember(name);
+    if (it == json_doc.MemberEnd()) {
+      return default_value;
+    }
+
+    if (!it->value.IsBool()) {
+      rapidjson::StringBuffer sb;
+      rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+      it->value.Accept(writer);
+      out_error =
+          "options." + name + "='" + sb.GetString() + "'; not a boolean";
+      return default_value;
+    }
+
+    return it->value.GetBool();
   }
 
   std::string options_str_;
@@ -1629,8 +1676,11 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
         result.cluster_data);  // throws metadata_cache::metadata_error
 
     // change the mode of RW node(s) reported by the GR to RO if the
-    // Cluster is Replica or if our target cluster is invalidated
-    if (!result.cluster_data.is_primary || result.cluster_data.is_invalidated) {
+    // Cluster is Replica (and 'use_replica_primary_as_rw' option is not set) or
+    // if our target cluster is invalidated
+    if ((!result.cluster_data.is_primary &&
+         !router_clusterset_options.get_use_replica_primary_as_rw()) ||
+        result.cluster_data.is_invalidated) {
       for (auto &member : result.cluster_data.members) {
         if (member.mode == metadata_cache::ServerMode::ReadWrite) {
           member.mode = metadata_cache::ServerMode::ReadOnly;
