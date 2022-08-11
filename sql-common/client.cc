@@ -3201,7 +3201,9 @@ static net_async_status read_one_row_nonblocking(MYSQL *mysql, uint fields,
 ****************************************************************************/
 
 MYSQL *STDCALL mysql_init(MYSQL *mysql) {
-  if (mysql_server_init(0, nullptr, nullptr)) return nullptr;
+  //WARP
+  //if (mysql_server_init(0, nullptr, nullptr)) return nullptr;
+  mysql_server_init(0, nullptr, nullptr);
   if (!mysql) {
     if (!(mysql = (MYSQL *)my_malloc(key_memory_MYSQL, sizeof(*mysql),
                                      MYF(MY_WME | MY_ZEROFILL)))) {

@@ -128,22 +128,17 @@ struct MYSQL_STMT_EXT {
 int STDCALL mysql_server_init(int argc [[maybe_unused]],
                               char **argv [[maybe_unused]],
                               char **groups [[maybe_unused]]) {
-	std::cerr << "ENTER MYSQL_SERVER_INIT\n";
   int result = 0;
   if (!mysql_client_init) {
-  std::cerr << "HERE1\n";
     mysql_client_init = true;
     org_my_init_done = my_init_done;
     if (my_init()) /* Will init threads */
       return 1;
-  std::cerr << "HERE2\n";
     init_client_errs();
     if (mysql_client_plugin_init()) return 1;
-  std::cerr << "HERE3\n";
     ssl_start();
 
     if (!mysql_port) {
-	    std::cerr << "HERE4\n";
       char *env;
       struct servent *serv_ptr [[maybe_unused]];
 
@@ -165,7 +160,6 @@ int STDCALL mysql_server_init(int argc [[maybe_unused]],
 #endif
       if ((env = getenv("MYSQL_TCP_PORT"))) mysql_port = (uint)atoi(env);
     }
-	    std::cerr << "HERE5\n";
 
     if (!mysql_unix_port) {
       char *env;
@@ -182,9 +176,7 @@ int STDCALL mysql_server_init(int argc [[maybe_unused]],
 #endif
   } else {
     result = (int)my_thread_init(); /* Init if new thread */
-	    std::cerr << "HERE6: " << result << "\n";
   }
-	    std::cerr << "HERE7\n";
   return result;
 }
 
