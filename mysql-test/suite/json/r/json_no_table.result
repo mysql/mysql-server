@@ -4276,9 +4276,6 @@ ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Inv
 do st_geometryn(st_astext(1, 'axis-order=srid-defined'),
 st_aswkt(least(not(json_arrayagg('aa')), connection_id())));
 ERROR 22023: Invalid GIS data provided to function st_astext.
-do conv(null,1,((json_merge_preserve('1',1 ,'1') or 1) <=>
-(json_arrayagg(1) and 1)));
-ERROR 22032: Invalid data type for JSON data in argument 2 to function json_merge_preserve; a JSON string or JSON type is required.
 do nullif(json_arrayagg(convert(utc_timestamp() using gb2312)) <=>
 instr(1 , 0xf722a67b), -9223372036854775809);
 ERROR HY000: Cannot convert string '\xF7"\xA6{' from binary to utf8mb3
