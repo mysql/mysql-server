@@ -2955,11 +2955,6 @@ DO NULLIF(NULLIF(JSON_OBJECTAGG('ab',' *. b$_ 7?C **c3'),
 do st_geometryn(st_astext(1, 'axis-order=srid-defined'),
                 st_aswkt(least(not(json_arrayagg('aa')), connection_id())));
 
-# Arg_comparator::compare_int_signed
---error ER_INVALID_TYPE_FOR_JSON
-do conv(null,1,((json_merge_preserve('1',1 ,'1') or 1) <=>
-                (json_arrayagg(1) and 1)));
-
 # Arg_comparator::compare_decimal
 --error ER_CANNOT_CONVERT_STRING
 do nullif(json_arrayagg(convert(utc_timestamp() using gb2312)) <=>
