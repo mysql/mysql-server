@@ -2555,7 +2555,10 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
       ha->push_where_clause = "";
       remainder1 = ha->cond_push(join->where_cond, true);
     }
-    ha->push_where_clause = save_where;
+    if(ha->push_where_clause != "") {
+	    ha->push_where_clause += " AND ";
+    }
+    ha->push_where_clause += save_where;
     
     assert(root_path->filter().condition != nullptr);
     if(remainder) 
@@ -3091,7 +3094,8 @@ int ha_warp::bitmap_merge_join() {
     bool dim_is_nullable = dim_field->is_nullable();
 
     if(dim_pushdown_info->filter == "") {
-	    dim_pushdown_info->filter="1=1";
+	    continue;
+	    //dim_pushdown_info->filter="1=1";
     } 
     
     dim_pushdown_clause = dim_pushdown_info->filter;
