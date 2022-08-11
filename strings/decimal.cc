@@ -225,20 +225,26 @@ static inline dec1 mod_by_pow10(dec1 x, int p) {
 
 #define sanity(d) assert((d)->len > 0)
 
-#define FIX_INTG_FRAC_ERROR(len, intg1, frac1, error) \
-  do {                                                \
-    if (unlikely(intg1 + frac1 > (len))) {            \
-      if (unlikely(intg1 > (len))) {                  \
-        intg1 = (len);                                \
-        frac1 = 0;                                    \
-        error = E_DEC_OVERFLOW;                       \
-      } else {                                        \
-        frac1 = (len)-intg1;                          \
-        error = E_DEC_TRUNCATED;                      \
-      }                                               \
-    } else                                            \
-      error = E_DEC_OK;                               \
-  } while (0)
+namespace {
+/**
+  Verifies input arguments len, intg1 and frac1, and sets error output
+  argument to indicate over/under-flow or OK.
+ */
+inline void fix_intg_frac_error(const int &len, int *intg1, int *frac1,
+                                int *error) {
+  if (*intg1 + *frac1 > len) {
+    if (*intg1 > len) {
+      *intg1 = len;
+      *frac1 = 0;
+      *error = E_DEC_OVERFLOW;
+    } else {
+      *frac1 = len - *intg1;
+      *error = E_DEC_TRUNCATED;
+    }
+  } else
+    *error = E_DEC_OK;
+}
+}  // namespace
 
 #define ADD(to, from1, from2, carry) /* assume carry <= 1 */ \
   do {                                                       \
@@ -929,6 +935,9 @@ int string2decimal(const char *from, decimal_t *to, const char **end) {
   while (s < end_of_string && my_isspace(&my_charset_latin1, *s)) s++;
   if (s == end_of_string) goto fatal_error;
 
+  // Skip leading zeros.
+  while (s < (end_of_string - 1) && s[0] == '0' && s[1] == '0') s++;
+
   if ((to->sign = (*s == '-')))
     s++;
   else if (*s == '+')
@@ -955,7 +964,7 @@ int string2decimal(const char *from, decimal_t *to, const char **end) {
 
   intg1 = ROUND_UP(intg);
   frac1 = ROUND_UP(frac);
-  FIX_INTG_FRAC_ERROR(to->len, intg1, frac1, error);
+  fix_intg_frac_error(to->len, &intg1, &frac1, &error);
   if (unlikely(error)) {
     frac = frac1 * DIG_PER_DEC1;
     if (error == E_DEC_OVERFLOW) intg = intg1 * DIG_PER_DEC1;
@@ -1493,7 +1502,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale,
   d_copy[0] ^= 0x80;
   from = d_copy;
 
-  FIX_INTG_FRAC_ERROR(to->len, intg1, frac1, error);
+  fix_intg_frac_error(to->len, &intg1, &frac1, &error);
   if (unlikely(error)) {
     if (intg1 < intg0 + (intg0x > 0)) {
       from += dig2bytes[intg0x] + sizeof(dec1) * (intg0 - intg1);
@@ -1847,7 +1856,7 @@ static int do_add(const decimal_t *from1, const decimal_t *from2,
     to->buf[0] = 0; /* safety */
   }
 
-  FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);
+  fix_intg_frac_error(to->len, &intg0, &frac0, &error);
   if (unlikely(error == E_DEC_OVERFLOW)) {
     max_decimal(to->len * DIG_PER_DEC1, 0, to);
     return error;
@@ -1968,7 +1977,7 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
     to->sign = 1 - to->sign;
   }
 
-  FIX_INTG_FRAC_ERROR(to->len, intg1, frac0, error);
+  fix_intg_frac_error(to->len, &intg1, &frac0, &error);
   buf0 = to->buf + intg1 + frac0;
 
   to->frac = std::max(from1->frac, from2->frac);
@@ -2098,7 +2107,7 @@ int decimal_mul(const decimal_t *from_1, const decimal_t *from_2,
 
   iii = intg0; /* save 'ideal' values */
   jjj = frac0;
-  FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error); /* bound size */
+  fix_intg_frac_error(to->len, &intg0, &frac0, &error); /* bound size */
   to->sign = from1->sign != from2->sign;
   to->frac = from1->frac + from2->frac; /* store size in digits */
   to->frac = std::min(to->frac, DECIMAL_NOT_SPECIFIED);
@@ -2288,7 +2297,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
          prec = intg+frac
     */
     frac0 = ROUND_UP(frac1 + frac2 + scale_incr);
-    FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);
+    fix_intg_frac_error(to->len, &intg0, &frac0, &error);
     to->sign = from1->sign != from2->sign;
     to->intg = intg0 * DIG_PER_DEC1;
     to->frac = frac0 * DIG_PER_DEC1;
