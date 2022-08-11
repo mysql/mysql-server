@@ -1149,13 +1149,13 @@ void ha_warp::maintain_indexes(const char *datadir) {
       if(col->hasIndex()) {
         col->loadIndex();
         if (col->indexedRows() != tbl->nRows() ) {
-                    // rebuild the index if the existing one does not
-                    // have the same number of rows as the current data
-                    // partition
-                    col->unloadIndex();
-                    //col->purgeIndexFile();
-                    auto idx = ibis::index::create(col, NULL);
-                    delete idx;
+          // update the index if the existing one does not
+          // have the same number of rows as the current data
+          // partition
+          col->unloadIndex();
+          //col->purgeIndexFile();
+          auto idx = ibis::index::create(col, NULL);
+          delete idx;
         }
         col->unloadIndex();
       }
@@ -2521,11 +2521,6 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
   AQP::Join_plan query_plan(thd, root_path, join);
   const uint count = query_plan.get_access_count();
   
-  String str;
-  str.reserve(1024*1024);
-  if(join->where_cond) { 
-    join->where_cond->print(thd, &str, QT_ORDINARY);
-  }
   for (uint i = 0; i < count; i++) {
     AQP::Table_access *table_access = query_plan.get_table_access(i);
 
@@ -2538,9 +2533,6 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
 	    continue; 
     }
     
-    if(cond) {
-      cond->print(thd, &str, QT_ORDINARY);
-    }
     auto share = ha->get_warp_share();
     auto pushdown_info = get_or_create_pushdown_info(table->in_use, table->alias, share->data_dir_name);
     assert(pushdown_info != NULL);
