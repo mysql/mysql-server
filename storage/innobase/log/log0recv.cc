@@ -4106,6 +4106,32 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   return DB_SUCCESS;
 }
 
+/** Check the page type, if there is a mismtach then throw
+fatal error. It may so happen that data file before 5.7 GA version
+may contain uninitialized bytes in the FIL_PAGE_TYPE field.
+@param[in]  page_id         Page id to verify
+@param[in]  type            Expected page type
+*/
+static void verify_page_type(page_id_t page_id, page_type_t type) {
+  mtr_t mtr;
+  mtr_start(&mtr);
+  /* We should not write to redo log before checkpointing is enabled as it risks
+  running out of space, and we don't expect to write anything in this mtr.
+  It should be read only */
+  mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
+  const auto *block =
+      buf_page_get(page_id, univ_page_size, RW_S_LATCH, UT_LOCATION_HERE, &mtr);
+
+  const auto page_type = fil_page_get_type(block->frame);
+  if (page_type != type) {
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_INVALID_PAGE_TYPE, unsigned{type},
+              unsigned{page_type}, ulong{page_id.space()},
+              ulong{page_id.page_no()});
+  }
+  mtr_commit(&mtr);
+}
+
 MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   /* Make sure that the recv_writer thread is done. This is
   required because it grabs various mutexes and we want to
@@ -4154,39 +4180,12 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   if (!aborting) {
     /* Validate a few system page types that were left uninitialized
     by older versions of MySQL. */
-    mtr_t mtr;
-
-    mtr.start();
-
-    buf_block_t *block;
-
-    /* Bitmap page types will be reset in buf_dblwr_check_block()
-    without redo logging. */
-
-    block = buf_page_get(page_id_t(IBUF_SPACE_ID, FSP_IBUF_HEADER_PAGE_NO),
-                         univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
-
-    fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
-
-    /* Already MySQL 3.23.53 initialized FSP_IBUF_TREE_ROOT_PAGE_NO
-    to FIL_PAGE_INDEX. No need to reset that one. */
-
-    block = buf_page_get(page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO),
-                         univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
-
-    fil_block_check_type(block, FIL_PAGE_TYPE_TRX_SYS, &mtr);
-
-    block = buf_page_get(page_id_t(TRX_SYS_SPACE, FSP_FIRST_RSEG_PAGE_NO),
-                         univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
-
-    fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
-
-    block = buf_page_get(page_id_t(TRX_SYS_SPACE, FSP_DICT_HDR_PAGE_NO),
-                         univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
-
-    fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
-
-    mtr.commit();
+    verify_page_type({IBUF_SPACE_ID, FSP_IBUF_HEADER_PAGE_NO},
+                     FIL_PAGE_TYPE_SYS);
+    verify_page_type({TRX_SYS_SPACE, FSP_FIRST_RSEG_PAGE_NO},
+                     FIL_PAGE_TYPE_SYS);
+    verify_page_type({TRX_SYS_SPACE, TRX_SYS_PAGE_NO}, FIL_PAGE_TYPE_TRX_SYS);
+    verify_page_type({TRX_SYS_SPACE, FSP_DICT_HDR_PAGE_NO}, FIL_PAGE_TYPE_SYS);
   }
 
   /* Free up the flush_rbt. */

@@ -1543,7 +1543,8 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
     descr = xdes_get_descriptor_with_space_hdr(header, space->id, i, mtr,
                                                init_space, &desc_block);
     if (desc_block != nullptr) {
-      fil_block_check_type(desc_block, FIL_PAGE_TYPE_XDES, mtr);
+      buf_block_reset_page_type_on_mismatch(*desc_block, FIL_PAGE_TYPE_XDES,
+                                            *mtr);
     }
     xdes_init(descr, mtr);
 
@@ -1584,7 +1585,8 @@ static xdes_t *fsp_alloc_free_extent(space_id_t space_id,
   ut_a(space != nullptr);
 
   if (desc_block != nullptr) {
-    fil_block_check_type(desc_block, FIL_PAGE_TYPE_XDES, mtr);
+    buf_block_reset_page_type_on_mismatch(*desc_block, FIL_PAGE_TYPE_XDES,
+                                          *mtr);
   }
 
   if (descr && (xdes_get_state(descr, mtr) == XDES_FREE)) {
@@ -2048,7 +2050,7 @@ static fseg_inode_t *fsp_alloc_seg_inode(
 
   block = buf_page_get(page_id, page_size, RW_SX_LATCH, UT_LOCATION_HERE, mtr);
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-  fil_block_check_type(block, FIL_PAGE_INODE, mtr);
+  buf_block_reset_page_type_on_mismatch(*block, FIL_PAGE_INODE, *mtr);
 
   page = buf_block_get_frame(block);
 
@@ -2297,11 +2299,11 @@ buf_block_t *fseg_create_general(
 
     header = byte_offset + buf_block_get_frame(block);
 
-    const ulint type = space_id == TRX_SYS_SPACE && page == TRX_SYS_PAGE_NO
-                           ? FIL_PAGE_TYPE_TRX_SYS
-                           : FIL_PAGE_TYPE_SYS;
+    const auto type = space_id == TRX_SYS_SPACE && page == TRX_SYS_PAGE_NO
+                          ? FIL_PAGE_TYPE_TRX_SYS
+                          : FIL_PAGE_TYPE_SYS;
 
-    fil_block_check_type(block, type, mtr);
+    buf_block_reset_page_type_on_mismatch(*block, type, *mtr);
   }
 
   if (rw_lock_get_x_lock_count(&space->latch) == 1) {
@@ -2989,7 +2991,7 @@ buf_block_t *fseg_alloc_free_page_general(fseg_header_t *seg_header,
   }
 
   inode = fseg_inode_get(seg_header, space_id, page_size, mtr, &iblock);
-  fil_block_check_type(iblock, FIL_PAGE_INODE, mtr);
+  buf_block_reset_page_type_on_mismatch(*iblock, FIL_PAGE_INODE, *mtr);
 
   if (!has_done_reservation &&
       !fsp_reserve_free_extents(&n_reserved, space_id, 2, FSP_NORMAL, mtr)) {
@@ -3476,7 +3478,7 @@ void fseg_free_page(fseg_header_t *seg_header, space_id_t space_id,
   DBUG_LOG("fseg_free_page", "space_id: " << space_id << ", page_no: " << page);
 
   seg_inode = fseg_inode_get(seg_header, space_id, page_size, mtr, &iblock);
-  fil_block_check_type(iblock, FIL_PAGE_INODE, mtr);
+  buf_block_reset_page_type_on_mismatch(*iblock, FIL_PAGE_INODE, *mtr);
 
   const page_id_t page_id(space_id, page);
 
@@ -3638,7 +3640,7 @@ bool fseg_free_step(
     return true;
   }
 
-  fil_block_check_type(iblock, FIL_PAGE_INODE, mtr);
+  buf_block_reset_page_type_on_mismatch(*iblock, FIL_PAGE_INODE, *mtr);
   descr = fseg_get_first_extent(inode, space_id, page_size, mtr);
 
   if (descr != nullptr) {
@@ -3702,7 +3704,7 @@ bool fseg_free_step_not_header(
   buf_block_t *iblock;
 
   inode = fseg_inode_get(header, space_id, page_size, mtr, &iblock);
-  fil_block_check_type(iblock, FIL_PAGE_INODE, mtr);
+  buf_block_reset_page_type_on_mismatch(*iblock, FIL_PAGE_INODE, *mtr);
 
   descr = fseg_get_first_extent(inode, space_id, page_size, mtr);
 

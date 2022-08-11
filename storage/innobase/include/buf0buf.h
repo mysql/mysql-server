@@ -2632,6 +2632,24 @@ inline const page_zip_des_t *buf_block_get_page_zip(
     const buf_block_t *block) noexcept {
   return block->get_page_zip();
 }
+
+/** Verify the page contained by the block. If there is page type
+mismatch then reset it to expected page type. Data files created
+before MySQL 5.7 GA may contain garbage in the FIL_PAGE_TYPE field.
+@param[in,out]  block       block that may possibly have invalid
+                            FIL_PAGE_TYPE
+@param[in]      type        Expected page type
+@param[in,out]  mtr         Mini-transaction */
+inline void buf_block_reset_page_type_on_mismatch(buf_block_t &block,
+                                                  page_type_t type,
+                                                  mtr_t &mtr) {
+  byte *page = block.frame;
+  page_type_t page_type = fil_page_get_type(page);
+  if (page_type != type) {
+    const page_id_t &page_id = block.page.id;
+    fil_page_reset_type(page_id, page, type, &mtr);
+  }
+}
 #include "buf0buf.ic"
 
 #endif /* !buf0buf_h */

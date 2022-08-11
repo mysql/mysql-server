@@ -1798,34 +1798,6 @@ void fil_page_reset_type(const page_id_t &page_id, byte *page, ulint type,
 inline page_type_t fil_page_get_type(const byte *page) {
   return (static_cast<page_type_t>(mach_read_from_2(page + FIL_PAGE_TYPE)));
 }
-/** Check (and if needed, reset) the page type.
-Data files created before MySQL 5.1 may contain
-garbage in the FIL_PAGE_TYPE field.
-In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
-@param[in]      page_id         Page number
-@param[in,out]  page            Page with possibly invalid FIL_PAGE_TYPE
-@param[in]      type            Expected page type
-@param[in,out]  mtr             Mini-transaction */
-inline void fil_page_check_type(const page_id_t &page_id, byte *page,
-                                ulint type, mtr_t *mtr) {
-  ulint page_type = fil_page_get_type(page);
-
-  if (page_type != type) {
-    fil_page_reset_type(page_id, page, type, mtr);
-  }
-}
-
-/** Check (and if needed, reset) the page type.
-Data files created before MySQL 5.1 may contain
-garbage in the FIL_PAGE_TYPE field.
-In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
-@param[in,out]  block           Block with possibly invalid FIL_PAGE_TYPE
-@param[in]      type            Expected page type
-@param[in,out]  mtr             Mini-transaction */
-#define fil_block_check_type(block, type, mtr) \
-  fil_page_check_type(block->page.id, block->frame, type, mtr)
 
 #ifdef UNIV_DEBUG
 /** Increase redo skipped count for a tablespace.
