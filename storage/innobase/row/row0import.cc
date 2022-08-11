@@ -2378,8 +2378,16 @@ dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
   while (!m_rec_iter.end()) {
     rec_t *rec = m_rec_iter.current();
 
-    auto deleted = rec_get_deleted_flag(rec, comp);
+    auto has_version =
+        (comp ? rec_new_is_versioned(rec) : rec_old_is_versioned(rec));
 
+    /* CFG file is required to process records having version */
+
+    if (m_cfg->m_missing && has_version) {
+      return (DB_SCHEMA_MISMATCH);
+    }
+
+    auto deleted = rec_get_deleted_flag(rec, comp);
     /* For the clustered index we have to adjust the BLOB
     reference and the system fields irrespective of the
     delete marked flag. The adjustment of delete marked
@@ -4474,6 +4482,13 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
         IO_BUFFER_SIZE(cfg.m_page_size.physical(), cfg.m_page_size.physical()),
         cfg.m_compression_type, fetchIndexRootPages);
 
+    if (err == DB_SCHEMA_MISMATCH) {
+      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "CFG file is missing and source table is found to have row "
+              "versions. CFG file is must to IMPORT tables with row versions.");
+      return (row_import_cleanup(prebuilt, trx, err));
+    }
+
     if (err == DB_SUCCESS) {
       err = fetchIndexRootPages.build_row_import(&cfg);
 
@@ -4532,6 +4547,13 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
       table,
       IO_BUFFER_SIZE(cfg.m_page_size.physical(), cfg.m_page_size.physical()),
       cfg.m_compression_type, converter);
+
+  if (err == DB_SCHEMA_MISMATCH) {
+    ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+            "CFG file is missing and source table is found to have row "
+            "versions. CFG file is must to IMPORT tables with row versions.");
+    return (row_import_cleanup(prebuilt, trx, err));
+  }
 
   DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
                   err = DB_TOO_MANY_CONCURRENT_TRXS;);
