@@ -158,9 +158,12 @@ static int warp_init_func(void *p) {
   DBUG_ENTER("warp_init_func");
   sql_print_information("WARP storage engine initialization started");
   handlerton *warp_hton;
-  ibis::fileManager::adjustCacheSize(my_cache_size);
+  if(my_cache_size>0) {
+    ibis::fileManager::adjustCacheSize(my_cache_size);
+  }
+
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(1);
+  ibis::util::setVerboseLevel(0);
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
 #endif
@@ -2535,7 +2538,7 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
     
     auto share = ha->get_warp_share();
     auto pushdown_info = get_or_create_pushdown_info(table->in_use, table->alias, share->data_dir_name);
-    assert(pushdown_info != NULL);
+    assert(pushdown_info != nullptr);
     ha->push_where_clause = "";
     const Item* remainder=nullptr;
     const Item* remainder1=nullptr;
