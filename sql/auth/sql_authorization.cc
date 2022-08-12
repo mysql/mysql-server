@@ -608,6 +608,11 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
 bool check_single_table_access(THD *thd, ulong privilege, 
                                TABLE_LIST *all_tables, bool no_errors)
 {
+  if (all_tables->is_derived()) {
+    all_tables->set_privileges(privilege);
+    return false;
+  }
+
   Security_context *backup_ctx= thd->security_context();
 
   /* we need to switch to the saved context (if any) */
