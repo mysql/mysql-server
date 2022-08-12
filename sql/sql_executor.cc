@@ -824,7 +824,7 @@ static AccessPath *NewInvalidatorAccessPathForTable(
       NewInvalidatorAccessPath(thd, path, qep_tab->table()->alias);
 
   // Copy costs.
-  invalidator->num_output_rows = path->num_output_rows;
+  invalidator->set_num_output_rows(path->num_output_rows());
   invalidator->cost = path->cost;
 
   QEP_TAB *tab2 = &qep_tab->join()->qep_tab[table_index_to_invalidate];
@@ -1664,7 +1664,7 @@ AccessPath *GetAccessPathForDerivedTable(
   }
 
   path->cost_before_filter = path->cost;
-  path->num_output_rows_before_filter = path->num_output_rows;
+  path->num_output_rows_before_filter = path->num_output_rows();
 
   table_ref->access_path_for_derived = path;
   return path;
@@ -1794,9 +1794,9 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
                               AccessPath *path) {
   double num_rows_after_filtering = pos->rows_fetched * pos->filter_effect;
   if (is_after_filter) {
-    path->num_output_rows = num_rows_after_filtering;
+    path->set_num_output_rows(num_rows_after_filtering);
   } else {
-    path->num_output_rows = pos->rows_fetched;
+    path->set_num_output_rows(pos->rows_fetched);
   }
 
   // Note that we don't try to adjust for the filtering here;
@@ -1830,7 +1830,7 @@ void SetCostOnNestedLoopAccessPath(const Cost_model_server &cost_model,
     inner = path->nested_loop_join().inner;
   }
 
-  if (outer->num_output_rows == -1.0 || inner->num_output_rows == -1.0) {
+  if (outer->num_output_rows() == -1.0 || inner->num_output_rows() == -1.0) {
     // Missing cost information on at least one child.
     return;
   }
@@ -1839,11 +1839,11 @@ void SetCostOnNestedLoopAccessPath(const Cost_model_server &cost_model,
   // make a lot of sense.
   double inner_expected_rows_before_filter =
       pos_inner->filter_effect > 0.0
-          ? (inner->num_output_rows / pos_inner->filter_effect)
+          ? (inner->num_output_rows() / pos_inner->filter_effect)
           : 0.0;
   double joined_rows =
-      outer->num_output_rows * inner_expected_rows_before_filter;
-  path->num_output_rows = joined_rows * pos_inner->filter_effect;
+      outer->num_output_rows() * inner_expected_rows_before_filter;
+  path->set_num_output_rows(joined_rows * pos_inner->filter_effect);
   path->cost = outer->cost + pos_inner->read_cost +
                cost_model.row_evaluate_cost(joined_rows);
 }
@@ -1858,15 +1858,15 @@ void SetCostOnHashJoinAccessPath(const Cost_model_server &cost_model,
   AccessPath *outer = path->hash_join().outer;
   AccessPath *inner = path->hash_join().inner;
 
-  if (outer->num_output_rows == -1.0 || inner->num_output_rows == -1.0) {
+  if (outer->num_output_rows() == -1.0 || inner->num_output_rows() == -1.0) {
     // Missing cost information on at least one child.
     return;
   }
 
   // Mirrors set_prefix_join_cost(), even though the cost calculation doesn't
   // make a lot of sense.
-  double joined_rows = outer->num_output_rows * inner->num_output_rows;
-  path->num_output_rows = joined_rows * pos_outer->filter_effect;
+  double joined_rows = outer->num_output_rows() * inner->num_output_rows();
+  path->set_num_output_rows(joined_rows * pos_outer->filter_effect);
   path->cost = inner->cost + pos_outer->read_cost +
                cost_model.row_evaluate_cost(joined_rows);
 }
@@ -2724,7 +2724,7 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
     }
 
     if (!qep_tab->condition_is_pushed_to_sort()) {  // See the comment on #2.
-      double expected_rows = table_path->num_output_rows;
+      double expected_rows = table_path->num_output_rows();
       table_path = PossiblyAttachFilter(table_path, predicates_below_join, thd,
                                         conditions_depend_on_outer_tables);
       POSITION *pos = qep_tab->position();
@@ -2949,7 +2949,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
   if (query_block->is_table_value_constructor) {
     best_rowcount = query_block->row_value_list->size();
     path = NewTableValueConstructorAccessPath(thd);
-    path->num_output_rows = query_block->row_value_list->size();
+    path->set_num_output_rows(query_block->row_value_list->size());
     path->cost = 0.0;
     path->init_cost = 0.0;
   } else if (const_tables == primary_tables) {
@@ -3292,8 +3292,8 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(AccessPath *path) {
       // We cannot call EstimateFilterCost() in the pre-hypergraph optimizer,
       // as on repeated execution of a prepared query, the condition may contain
       // references to subqueries that are destroyed and not re-optimized yet.
-      path->cost += EstimateFilterCost(thd, path->num_output_rows, having_cond,
-                                       query_block)
+      path->cost += EstimateFilterCost(thd, path->num_output_rows(),
+                                       having_cond, query_block)
                         .cost_if_not_materialized;
     }
   }

@@ -86,7 +86,7 @@ double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
 
 void EstimateSortCost(AccessPath *path) {
   AccessPath *child = path->sort().child;
-  const double num_input_rows = child->num_output_rows;
+  const double num_input_rows = child->num_output_rows();
   const double num_output_rows =
       path->sort().limit != HA_POS_ERROR
           ? std::min<double>(num_input_rows, path->sort().limit)
@@ -108,10 +108,10 @@ void EstimateSortCost(AccessPath *path) {
                  num_output_rows * std::max(log2(num_output_rows), 1.0));
   }
 
-  path->num_output_rows = num_output_rows;
+  path->set_num_output_rows(num_output_rows);
   path->cost = path->init_cost = child->cost + sort_cost;
   path->init_once_cost = 0.0;
-  path->num_output_rows_before_filter = path->num_output_rows;
+  path->num_output_rows_before_filter = path->num_output_rows();
   path->cost_before_filter = path->cost;
 }
 
@@ -135,7 +135,7 @@ void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
         /*read_rows=*/num_rows);
     cost->cost_to_materialize +=
         subquery.path->cost +
-        kMaterializeOneRowCost * subquery.path->num_output_rows;
+        kMaterializeOneRowCost * subquery.path->num_output_rows();
   } else {
     cost->cost_if_materialized += num_rows * subquery.path->cost;
   }
@@ -160,28 +160,29 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
   AccessPath *table_path = path->materialize().table_path;
 
   path->cost = 0;
-  path->num_output_rows = 0;
+  path->set_num_output_rows(0.0);
   double cost_for_cacheable = 0.0;
   for (const MaterializePathParameters::QueryBlock &block :
        path->materialize().param->query_blocks) {
-    if (block.subquery_path->num_output_rows >= 0.0) {
-      path->num_output_rows += block.subquery_path->num_output_rows;
+    if (block.subquery_path->num_output_rows() >= 0.0) {
+      path->set_num_output_rows(path->num_output_rows() +
+                                block.subquery_path->num_output_rows());
       path->cost += block.subquery_path->cost;
       if (block.join != nullptr && block.join->query_block->is_cacheable()) {
         cost_for_cacheable += block.subquery_path->cost;
       }
     }
   }
-  path->cost += kMaterializeOneRowCost * path->num_output_rows;
+  path->cost += kMaterializeOneRowCost * path->num_output_rows();
 
   if (table_path->type == AccessPath::TABLE_SCAN) {
-    table_path->num_output_rows = path->num_output_rows;
+    table_path->set_num_output_rows(path->num_output_rows());
     table_path->init_cost = table_path->init_once_cost = 0.0;
 
     if (Overlaps(test_flags, TEST_NO_TEMP_TABLES)) {
       // Unit tests don't load any temporary table engines,
       // so just make up a number.
-      table_path->cost = path->num_output_rows * 0.1;
+      table_path->cost = path->num_output_rows() * 0.1;
     } else {
       TABLE dummy_table;
       TABLE *temp_table = table_path->table_scan().table;
@@ -199,7 +200,7 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
       // Try to get usable estimates. Ignored by InnoDB, but used by
       // TempTable.
       temp_table->file->stats.records =
-          min(path->num_output_rows, LLONG_MAX_DOUBLE);
+          min(path->num_output_rows(), LLONG_MAX_DOUBLE);
       table_path->cost = temp_table->file->table_scan_cost().total_cost();
     }
   }
@@ -214,12 +215,12 @@ void EstimateAggregateCost(AccessPath *path, const Query_block *query_block) {
 
   // TODO(sgunders): How do we estimate how many rows aggregation
   // will be reducing the output by in explicitly grouped queries?
-  path->num_output_rows =
-      query_block->is_implicitly_grouped() ? 1.0 : child->num_output_rows;
+  path->set_num_output_rows(
+      query_block->is_implicitly_grouped() ? 1.0 : child->num_output_rows());
   path->init_cost = child->init_cost;
   path->init_once_cost = child->init_once_cost;
-  path->cost = child->cost + kAggregateOneRowCost * child->num_output_rows;
-  path->num_output_rows_before_filter = path->num_output_rows;
+  path->cost = child->cost + kAggregateOneRowCost * child->num_output_rows();
+  path->num_output_rows_before_filter = path->num_output_rows();
   path->cost_before_filter = path->cost;
   path->ordering_state = child->ordering_state;
 }
@@ -228,7 +229,7 @@ void EstimateDeleteRowsCost(AccessPath *path) {
   const auto &param = path->delete_rows();
   const AccessPath *child = param.child;
 
-  path->num_output_rows = child->num_output_rows;
+  path->set_num_output_rows(child->num_output_rows());
   path->init_once_cost = child->init_once_cost;
   path->init_cost = child->init_cost;
 
@@ -238,14 +239,14 @@ void EstimateDeleteRowsCost(AccessPath *path) {
       param.tables_to_delete_from & ~param.immediate_tables;
   path->cost = child->cost + kMaterializeOneRowCost *
                                  PopulationCount(buffered_tables) *
-                                 child->num_output_rows;
+                                 child->num_output_rows();
 }
 
 void EstimateUpdateRowsCost(AccessPath *path) {
   const auto &param = path->update_rows();
   const AccessPath *child = param.child;
 
-  path->num_output_rows = child->num_output_rows;
+  path->set_num_output_rows(child->num_output_rows());
   path->init_once_cost = child->init_once_cost;
   path->init_cost = child->init_cost;
 
@@ -255,5 +256,5 @@ void EstimateUpdateRowsCost(AccessPath *path) {
       param.tables_to_update & ~param.immediate_tables;
   path->cost = child->cost + kMaterializeOneRowCost *
                                  PopulationCount(buffered_tables) *
-                                 child->num_output_rows;
+                                 child->num_output_rows();
 }

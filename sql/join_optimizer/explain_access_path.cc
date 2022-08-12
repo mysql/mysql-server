@@ -724,15 +724,15 @@ static bool AddPathCosts(const AccessPath *path, Json_object *obj,
                          bool explain_analyze) {
   bool error = false;
 
-  if (path->num_output_rows >= 0.0) {
+  if (path->num_output_rows() >= 0.0) {
     // Calculate first row cost
     if (path->init_cost >= 0.0) {
       double first_row_cost;
-      if (path->num_output_rows <= 1.0) {
+      if (path->num_output_rows() <= 1.0) {
         first_row_cost = path->cost;
       } else {
-        first_row_cost = path->init_cost +
-                         (path->cost - path->init_cost) / path->num_output_rows;
+        first_row_cost = path->init_cost + (path->cost - path->init_cost) /
+                                               path->num_output_rows();
       }
       error |= AddMemberToObject<Json_double>(obj, "estimated_first_row_cost",
                                               first_row_cost);
@@ -740,8 +740,8 @@ static bool AddPathCosts(const AccessPath *path, Json_object *obj,
     error |=
         AddMemberToObject<Json_double>(obj, "estimated_total_cost", path->cost);
     error |= AddMemberToObject<Json_double>(obj, "estimated_rows",
-                                            path->num_output_rows);
-  } /* if (path->num_output_rows >= 0.0) */
+                                            path->num_output_rows());
+  } /* if (path->num_output_rows() >= 0.0) */
 
   /* Add analyze figures */
   if (explain_analyze) {

@@ -673,7 +673,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
   if (group_path) {
     DBUG_EXECUTE_IF("force_lis_for_group_by", group_path->cost = 0.0;);
     param.table->quick_condition_rows =
-        min<double>(group_path->num_output_rows, table->file->stats.records);
+        min<double>(group_path->num_output_rows(), table->file->stats.records);
     Opt_trace_object grp_summary(trace, "best_group_range_summary",
                                  Opt_trace_context::RANGE_OPTIMIZER);
     if (unlikely(trace->is_started()))
@@ -695,7 +695,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                            skip_records_in_range, force_skip_scan);
     if (skip_scan_path) {
       param.table->quick_condition_rows = min<double>(
-          skip_scan_path->num_output_rows, table->file->stats.records);
+          skip_scan_path->num_output_rows(), table->file->stats.records);
       Opt_trace_object summary(trace, "best_skip_scan_summary",
                                Opt_trace_context::RANGE_OPTIMIZER);
       if (unlikely(trace->is_started()))
@@ -787,7 +787,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
           if (new_conj_path)
             param.table->quick_condition_rows =
                 min<double>(param.table->quick_condition_rows,
-                            new_conj_path->num_output_rows);
+                            new_conj_path->num_output_rows());
           if (!best_conj_path ||
               (new_conj_path && new_conj_path->cost < best_conj_path->cost)) {
             best_conj_path = new_conj_path;
@@ -803,7 +803,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     using indexes for access.
   */
   if (best_path && (table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
-    records = best_path->num_output_rows;
+    records = best_path->num_output_rows();
     *path = best_path;
   }
 
@@ -813,7 +813,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       Opt_trace_object trace_range_plan(trace, "range_access_plan");
       trace_basic_info(thd, best_path, &param, &trace_range_plan);
     }
-    trace_range_summary.add("rows_for_plan", best_path->num_output_rows)
+    trace_range_summary.add("rows_for_plan", best_path->num_output_rows())
         .add("cost_for_plan", best_path->cost)
         .add("chosen", true);
   }
@@ -866,12 +866,12 @@ static AccessPath *get_ror_union_path(
       double scan_cost = 0.0;
       if (child_param.can_be_used_for_ror) {
         /* Ok, we have index_only cost, now get full rows scan cost */
-        scan_cost =
-            table->file
-                ->read_cost(child_param.index, 1, (*cur_child)->num_output_rows)
-                .total_cost();
+        scan_cost = table->file
+                        ->read_cost(child_param.index, 1,
+                                    (*cur_child)->num_output_rows())
+                        .total_cost();
         scan_cost += table->cost_model()->row_evaluate_cost(
-            (*cur_child)->num_output_rows);
+            (*cur_child)->num_output_rows());
       } else
         scan_cost = read_cost;
 
@@ -886,9 +886,9 @@ static AccessPath *get_ror_union_path(
           return nullptr;
       }
       roru_index_cost += (*cur_roru_plan)->cost;
-      roru_total_records += (*cur_roru_plan)->num_output_rows;
+      roru_total_records += (*cur_roru_plan)->num_output_rows();
       roru_intersect_part *=
-          (*cur_roru_plan)->num_output_rows / table->file->stats.records;
+          (*cur_roru_plan)->num_output_rows() / table->file->stats.records;
     }
   }
 
@@ -950,7 +950,7 @@ static AccessPath *get_ror_union_path(
     AccessPath *path = new (param->return_mem_root) AccessPath;
     path->type = AccessPath::ROWID_UNION;
     path->cost = roru_total_cost;
-    path->num_output_rows = roru_total_records;
+    path->set_num_output_rows(roru_total_records);
     path->rowid_union().table = table;
     path->rowid_union().children = children;
     path->rowid_union().forced_by_hint = force_index_merge;
@@ -1111,9 +1111,9 @@ static AccessPath *get_best_disjunct_quick(
       const bool pk_is_clustered = table->file->primary_key_is_clustered();
       if (pk_is_clustered && child_param.index == table->s->primary_key) {
         cpk_scan = cur_child;
-        cpk_scan_records = (*cur_child)->num_output_rows;
+        cpk_scan_records = (*cur_child)->num_output_rows();
       } else
-        non_cpk_scan_records += (*cur_child)->num_output_rows;
+        non_cpk_scan_records += (*cur_child)->num_output_rows();
 
       trace_idx
           .add_utf8("index_to_merge", table->key_info[child_param.index].name)
@@ -1208,8 +1208,8 @@ static AccessPath *get_best_disjunct_quick(
 
       // TODO(sgunders): init_cost is high in practice, so should not be zero.
       imerge_path->cost = imerge_cost;
-      imerge_path->num_output_rows = min<double>(
-          non_cpk_scan_records + cpk_scan_records, table->file->stats.records);
+      imerge_path->set_num_output_rows(min<double>(
+          non_cpk_scan_records + cpk_scan_records, table->file->stats.records));
       read_cost = imerge_cost;
     }
   }

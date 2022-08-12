@@ -351,9 +351,6 @@ struct AccessPath {
   /// information in EXPLAIN ANALYZE queries.
   RowIterator *iterator = nullptr;
 
-  /// Expected number of output rows, -1.0 for unknown.
-  double num_output_rows{-1.0};
-
   /// Expected cost to read all of this access path once; -1.0 for unknown.
   double cost{-1.0};
 
@@ -839,7 +836,14 @@ struct AccessPath {
     return u.update_rows;
   }
 
+  double num_output_rows() const { return m_num_output_rows; }
+
+  void set_num_output_rows(double val) { m_num_output_rows = val; }
+
  private:
+  /// Expected number of output rows, -1.0 for unknown.
+  double m_num_output_rows{-1.0};
+
   // We'd prefer if this could be an std::variant, but we don't have C++17 yet.
   // It is private to force all access to be through the type-checking
   // accessors.
@@ -1211,7 +1215,7 @@ static_assert(sizeof(AccessPath) <= 144,
               "(96 bytes for the base, 48 bytes for the variant.)");
 
 inline void CopyBasicProperties(const AccessPath &from, AccessPath *to) {
-  to->num_output_rows = from.num_output_rows;
+  to->set_num_output_rows(from.num_output_rows());
   to->cost = from.cost;
   to->init_cost = from.init_cost;
   to->init_once_cost = from.init_once_cost;
@@ -1315,7 +1319,7 @@ inline AccessPath *NewConstTableAccessPath(THD *thd, TABLE *table,
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::CONST_TABLE;
   path->count_examined_rows = count_examined_rows;
-  path->num_output_rows = 1.0;
+  path->set_num_output_rows(1.0);
   path->cost = 0.0;
   path->init_cost = 0.0;
   path->init_once_cost = 0.0;
@@ -1438,6 +1442,7 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
                                             bool count_all_rows,
                                             bool reject_multiple_rows,
                                             ha_rows *send_records_override) {
+  void EstimateLimitOffsetCost(AccessPath * path);
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::LIMIT_OFFSET;
   path->immediate_update_delete_table = child->immediate_update_delete_table;
@@ -1448,23 +1453,23 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
   path->limit_offset().reject_multiple_rows = reject_multiple_rows;
   path->limit_offset().send_records_override = send_records_override;
 
-  if (child->num_output_rows >= 0.0) {
-    path->num_output_rows =
-        offset >= child->num_output_rows
+  if (child->num_output_rows() >= 0.0) {
+    path->set_num_output_rows(
+        offset >= child->num_output_rows()
             ? 0.0
-            : (std::min<double>(child->num_output_rows, limit) - offset);
+            : (std::min<double>(child->num_output_rows(), limit) - offset));
   }
 
   if (child->init_cost < 0.0) {
     // We have nothing better, since we don't know how much is startup cost.
     path->cost = child->cost;
-  } else if (child->num_output_rows < 1e-6) {
+  } else if (child->num_output_rows() < 1e-6) {
     path->cost = path->init_cost = child->init_cost;
   } else {
     const double fraction_start_read =
-        std::min(1.0, double(offset) / child->num_output_rows);
+        std::min(1.0, double(offset) / child->num_output_rows());
     const double fraction_full_read =
-        std::min(1.0, double(limit) / child->num_output_rows);
+        std::min(1.0, double(limit) / child->num_output_rows());
     path->cost = child->init_cost +
                  fraction_full_read * (child->cost - child->init_cost);
     path->init_cost = child->init_cost +
@@ -1481,7 +1486,7 @@ inline AccessPath *NewFakeSingleRowAccessPath(THD *thd,
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::FAKE_SINGLE_ROW;
   path->count_examined_rows = count_examined_rows;
-  path->num_output_rows = 1.0;
+  path->set_num_output_rows(1.0);
   path->cost = 0.0;
   path->init_cost = 0.0;
   path->init_once_cost = 0.0;
@@ -1494,7 +1499,7 @@ inline AccessPath *NewZeroRowsAccessPath(THD *thd, AccessPath *child,
   path->type = AccessPath::ZERO_ROWS;
   path->zero_rows().child = child;
   path->zero_rows().cause = cause;
-  path->num_output_rows = 0.0;
+  path->set_num_output_rows(0.0);
   path->cost = 0.0;
   path->init_cost = 0.0;
   path->init_once_cost = 0.0;
@@ -1512,7 +1517,7 @@ inline AccessPath *NewZeroRowsAggregatedAccessPath(THD *thd,
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::ZERO_ROWS_AGGREGATED;
   path->zero_rows_aggregated().cause = cause;
-  path->num_output_rows = 1.0;
+  path->set_num_output_rows(1.0);
   path->cost = 0.0;
   path->init_cost = 0.0;
   return path;
