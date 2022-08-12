@@ -96,7 +96,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f, Ndb *ndb,
       m_state(EO_ERROR),
       m_oid(~(Uint32)0),
       m_stop_gci(),
-      m_allow_empty_update(false) {
+      m_allow_empty_update(false),
+      m_requestInfo{0} {
   DBUG_TRACE;
   init();
 }
@@ -109,7 +110,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb, NdbEventImpl *evnt)
       m_state(EO_ERROR),
       m_oid(~(Uint32)0),
       m_stop_gci(),
-      m_allow_empty_update(false) {
+      m_allow_empty_update(false),
+      m_requestInfo{0} {
   DBUG_TRACE;
   init();
 }

@@ -49,7 +49,10 @@ while (`SELECT INSTR("$_event","$wait_binlog_event") = 0`)
 
   connection $source_server;
   --disable_query_log
+  # Supress warning for no replica update filter in NDB
+  --disable_warnings
   create table wait_schema_logging (a int primary key) engine=ndb;
+  --enable_warnings
   drop table wait_schema_logging;
   --enable_query_log
   connection $dest_server;

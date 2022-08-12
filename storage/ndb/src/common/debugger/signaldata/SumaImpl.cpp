@@ -119,6 +119,9 @@ bool printSUB_START_REQ(FILE *output, const Uint32 *theData, Uint32 len,
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " senderData: %x\n", sig->senderData);
+  if (len > SubStartReq::SignalLengthWithoutRequestInfo)
+    fprintf(output, " requestInfo: %x\n", sig->requestInfo);
+
   return false;
 }
 

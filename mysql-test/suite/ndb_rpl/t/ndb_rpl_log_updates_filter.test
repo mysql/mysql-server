@@ -1,0 +1,31 @@
+--source include/have_debug.inc
+
+--echo # This test runs ndb_rpl.ndb_rpl_log_updates but first sets a debug flag,
+--echo # which triggers a failure if the NDB data node sent an update to a
+--echo # server that does not log replica updates on the binlog
+
+--let @saved_debug= @@GLOBAL.DEBUG
+
+--echo Connecting to server.4
+--connect(server.4,127.0.0.1,root,,test,$SERVER_MYPORT_4,)
+# Double check that this mysqld is configured to not log replica updates
+SELECT @@global.log_replica_updates;
+SET @@GLOBAL.DEBUG= '+d,test_log_replica_updates_filter';
+
+--echo Connecting to server.5
+--connect(server.5,127.0.0.1,root,,test,$SERVER_MYPORT_5,)
+# Double check that this mysqld is configured to not log replica updates
+SELECT @@global.log_replica_updates;
+SET @@GLOBAL.DEBUG= '+d,test_log_replica_updates_filter';
+
+# Run test
+--echo Running test ndb_rpl_log_updates
+--connection default
+--source ndb_rpl_log_updates.test
+
+--connection server.4
+SET @@GLOBAL.DEBUG=@saved_debug;
+--connection server.5
+SET @@GLOBAL.DEBUG=@saved_debug;
+--disconnect server.4
+--disconnect server.5

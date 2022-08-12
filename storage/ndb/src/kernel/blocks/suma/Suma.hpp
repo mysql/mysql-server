@@ -158,6 +158,7 @@ class Suma : public SimulatedBlock {
     Subscriber() {}
     Uint32 m_senderRef;
     Uint32 m_senderData;
+    Uint32 m_requestInfo;
     Uint32 nextList;
 
     union {
@@ -419,6 +420,8 @@ class Suma : public SimulatedBlock {
    * Functions
    */
   bool removeSubscribersOnNode(Signal *signal, Uint32 nodeId);
+
+  bool applyAnyValueFilters(Uint32 requestInfo, Uint32 anyValue) const;
 
   void sendSubIdRef(Signal *signal, Uint32 senderRef, Uint32 senderData,
                     Uint32 errorCode);

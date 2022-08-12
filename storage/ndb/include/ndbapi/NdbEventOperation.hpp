@@ -40,7 +40,7 @@ class NdbRecAttr;
  *
  * Brief description on how to work with events:
  *
- * - An event, represented by an NdbDictionary::Event, i created in the
+ * - An event, represented by an NdbDictionary::Event, is created in the
  *   Database through
  *   NdbDictionary::Dictionary::createEvent() (note that this can be done
  *   by any application or thread and not necessarily by the "listener")
@@ -171,6 +171,18 @@ class NdbEventOperation {
    */
   NdbBlob *getBlobHandle(const char *anAttrName);
   NdbBlob *getPreBlobHandle(const char *anAttrName);
+
+  /**
+    Activate data node filtering of updates that have
+    the no-logging flag set in anyvalue.
+   */
+  void setFilterAnyvalueMySQLNoLogging();
+
+  /**
+    Activate data node filtering of updates applied by a replica, ie where the
+    serverid portion of anyvalue is set.
+   */
+  void setFilterAnyvalueMySQLNoReplicaUpdates();
 
   int isOverrun() const;
 

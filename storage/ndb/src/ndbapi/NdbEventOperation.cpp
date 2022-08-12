@@ -181,6 +181,15 @@ void NdbEventOperation::setCustomData(void *data) {
 }
 void *NdbEventOperation::getCustomData() const { return m_impl.m_custom_data; }
 
+void NdbEventOperation::setFilterAnyvalueMySQLNoLogging() {
+  m_impl.m_requestInfo |= SubStartReq::FILTER_ANYVALUE_MYSQL_NO_LOGGING;
+}
+
+void NdbEventOperation::setFilterAnyvalueMySQLNoReplicaUpdates() {
+  m_impl.m_requestInfo |=
+      SubStartReq::SubStartReq::FILTER_ANYVALUE_MYSQL_NO_REPLICA_UPDATES;
+}
+
 void NdbEventOperation::setAnyValueFilter(AnyValueFilterFn fn) {
   m_impl.m_any_value_filter = fn;
 }

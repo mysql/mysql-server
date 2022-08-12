@@ -636,6 +636,9 @@ class NdbEventOperationImpl : public NdbEventOperation {
   // Used for allowing empty updates be passed to the user
   bool m_allow_empty_update;
 
+  // Placeholder for the requestinfo which will be sent in SubStartReq
+  Uint32 m_requestInfo;
+
   // Default implementation that performs no filtering
   static Uint32 default_anyvalue_filter(Uint32 any_value) { return any_value; }
   // Callback for filtering any_value in received row changes

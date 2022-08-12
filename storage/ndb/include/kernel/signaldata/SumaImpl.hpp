@@ -95,7 +95,8 @@ struct SubStartReq {
   friend class Suma;
 
   friend bool printSUB_START_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  static constexpr Uint32 SignalLength = 7;
+  static constexpr Uint32 SignalLengthWithoutRequestInfo = 7;
+  static constexpr Uint32 SignalLength = 8;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -104,6 +105,13 @@ struct SubStartReq {
   Uint32 part;  // SubscriptionData::Part
   Uint32 subscriberData;
   Uint32 subscriberRef;
+  Uint32 requestInfo;
+
+  // For requestInfo bitwise options
+  enum RequestInfo {
+    FILTER_ANYVALUE_MYSQL_NO_LOGGING = 1 << 0,
+    FILTER_ANYVALUE_MYSQL_NO_REPLICA_UPDATES = 1 << 1,
+  };
 };
 
 struct SubStartRef {

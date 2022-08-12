@@ -3473,6 +3473,7 @@ class Dbdict : public SimulatedBlock {
     Uint32 m_subscriptionKey;
     Uint32 m_subscriberRef;
     Uint32 m_subscriberData;
+    Uint32 m_requestInfo;
     Uint8 m_buckets_per_ng[256];  // For SUB_START_REQ
     union {
       SubStartConf m_sub_start_conf;

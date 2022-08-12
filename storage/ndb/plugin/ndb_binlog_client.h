@@ -128,10 +128,10 @@ class Ndb_binlog_client {
                    const NDB_SHARE *share);
 
  private:
-  NdbEventOperation *create_event_op_in_NDB(Ndb *ndb,
-                                            const NdbDictionary::Table *ndbtab,
-                                            const std::string &event_name,
-                                            const Ndb_event_data *event_data);
+  NdbEventOperation *create_event_op_in_NDB(
+      Ndb *ndb, const NdbDictionary::Table *ndbtab,
+      const std::string &event_name, const Ndb_event_data *event_data,
+      bool skip_setup_datanode_anyvalue_filter);
 
  public:
   int create_event_op(NDB_SHARE *share, const dd::Table *table_def,

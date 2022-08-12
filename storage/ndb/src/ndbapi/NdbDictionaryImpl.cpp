@@ -5393,11 +5393,12 @@ int NdbDictInterface::executeSubscribeEvent(NdbEventOperationImpl &ev_op) {
   req->part = SubscriptionData::TableData;
   req->subscriberData = ev_op.m_oid;
   req->subscriberRef = m_reference;
+  req->requestInfo = ev_op.m_requestInfo;
 
-  DBUG_PRINT("info",
-             ("GSN_SUB_START_REQ subscriptionId=%d,subscriptionKey=%d,"
-              "subscriberData=%d",
-              req->subscriptionId, req->subscriptionKey, req->subscriberData));
+  DBUG_PRINT("info", ("GSN_SUB_START_REQ subscriptionId=%d,subscriptionKey=%d,"
+                      "subscriberData=%d requestInfo=%x",
+                      req->subscriptionId, req->subscriptionKey,
+                      req->subscriberData, req->requestInfo));
 
   int errCodes[] = {SubStartRef::Busy, SubStartRef::BusyWithNR,
                     SubStartRef::NotMaster, 0};

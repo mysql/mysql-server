@@ -5282,12 +5282,15 @@ struct AnyValueFilter {
    @param ndbtab        The Ndb table to create event operation for
    @param event_name    Name of the event in NDB to create event operation on
    @param event_data    Pointer to Ndb_event_data to setup for receiving events
+   @param skip_setup_datanode_anyvalue_filter Don't setup anyvalue filters in
+                        datanode when creating event subscription.
 
    @return Pointer to created NdbEventOperation on success, nullptr on failure
 */
 NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
     Ndb *ndb, const NdbDictionary::Table *ndbtab, const std::string &event_name,
-    const Ndb_event_data *event_data) {
+    const Ndb_event_data *event_data,
+    bool skip_setup_datanode_anyvalue_filter) {
   int retries = 100;
   while (true) {
     // Create the event operation. This incurs one roundtrip to check that event
@@ -5321,6 +5324,28 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
     /* Check if user explicitly requires monitoring of empty updates */
     op->setAllowEmptyUpdate(opt_ndb_log_empty_update);
 
+    // Setup nologging to be filtered in NDB
+    if (!skip_setup_datanode_anyvalue_filter) {
+      ndb_log_verbose(1, "Binlog: filter nologging in NDB");
+      op->setFilterAnyvalueMySQLNoLogging();
+    }
+
+    // Setup replica updates to be filtered in NDB
+    if (!opt_log_replica_updates && !skip_setup_datanode_anyvalue_filter) {
+      if (opt_server_id_bits != 32) {
+        log_warning(ER_GET_ERRMSG,
+                    "Replica updates are only filtered in NDB when using "
+                    "--server-id-bits=32");
+      } else {
+        ndb_log_verbose(1, "Binlog: filter replica updates in NDB");
+        op->setFilterAnyvalueMySQLNoReplicaUpdates();
+      }
+    }
+
+    /*
+     * Set the filter function to be applied on the anyValue when
+     * event data is returned
+     */
     op->setAnyValueFilter(AnyValueFilter::do_filter);
 
     // Setup the attributes that should be subscribed.
@@ -5456,6 +5481,12 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
       Ndb_schema_dist_client::is_schema_dist_result_table(share->db,
                                                           share->table_name);
 
+  // Skip anyvalue filter in NDB for the util tables used for
+  //  1) schema distribution
+  //  2) replication applier status
+  const bool skip_setup_anyvalue_filter = is_schema_dist_setup ||          // 1
+                                          share->is_apply_status_table();  // 2
+
   const bool use_full_event =
       share->get_binlog_full() || share->get_subscribe_constrained();
   const std::string event_name =
@@ -5477,8 +5508,8 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
     return -1;
   }
 
-  NdbEventOperation *new_op =
-      create_event_op_in_NDB(ndb, ndbtab, event_name, event_data);
+  NdbEventOperation *new_op = create_event_op_in_NDB(
+      ndb, ndbtab, event_name, event_data, skip_setup_anyvalue_filter);
   if (new_op == nullptr) {
     // Warnings already printed/logged
     Ndb_event_data::destroy(event_data);
@@ -6183,6 +6214,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
   uint32 anyValue = pOp->getAnyValue();
   if (ndbcluster_anyvalue_is_reserved(anyValue)) {
     if (ndbcluster_anyvalue_is_nologging(anyValue)) {
+      DBUG_EXECUTE_IF("test_log_replica_updates_filter", { abort(); });
       return 0;
     }
 
@@ -6313,6 +6345,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         This event comes from a slave applier since it has an originating
         server id set. Since option to log slave updates is not set, skip it.
       */
+      DBUG_EXECUTE_IF("test_log_replica_updates_filter", { abort(); });
       return 0;
     }
   }
