@@ -120,6 +120,36 @@ DROP TABLE t1;
 SET secondary_engine_cost_threshold = default;
 SET optimizer_switch="subquery_to_derived=default";
 
+--echo #
+--echo # Bug#34445328 (Hypergraph) Optimizer degenerate join
+--echo # conditions when encountering semi join + outer join
+--echo #
+
+CREATE TABLE t (a INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (), (), ();
+ALTER TABLE t SECONDARY_LOAD;
+ANALYZE TABLE t;
+
+# The subquery_to_derived transformation attaches a degenerate join
+# condition (t3.a=t4.a) to the left outer join. Since HeatWave does
+# not accept left outer join conditions that reference only the
+# right/inner side of the join, we create a filter just below the join
+# for this case when a secondary engine is used (pushing such a
+# condition down is perfectly valid). Note that currently, due to
+# bug#34444550, the condition is dropped altogether with the old
+# optimizer. With the hypergraph optimizer, expect no join conditions
+# in the outer join, and instead have a filter with the t3.a=t4.a
+# condition.
+EXPLAIN FORMAT=TREE
+SELECT 1
+FROM t AS t1 LEFT JOIN t AS t2
+  ON 1 IN (
+    SELECT 1 FROM t AS t3 WHERE a <=>
+      (SELECT a FROM t AS t4)
+  );
+
+DROP TABLE t;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

@@ -2834,6 +2834,75 @@ bool IsEmptyJoin(const RelationalExpression::Type join_type, bool left_is_empty,
 }
 
 /**
+  If the ON clause of a left join only references tables on the right side of
+  the join, pushing the condition into the right side is a valid thing to do. If
+  such conditions are not pushed down for some reason, and are left in the ON
+  clause, HeatWave might reject the query. This happens if the entire join
+  condition is degenerate and only references the right side. Such conditions
+  are most commonly seen in queries that have gone through subquery_to_derived
+  transformation.
+
+  This limitation is worked around here by moving the degenerate join condition
+  from the join predicate to a filter path on top of the right path. This is
+  only done for secondary storage engines.
+
+  TODO(khatlen): If HeatWave gets capable of processing queries with such
+  conditions, this workaround should be removed.
+ */
+void MoveDegenerateJoinConditionToFilter(THD *thd, Query_block *query_block,
+                                         const JoinPredicate **edge,
+                                         AccessPath **right_path) {
+  assert(SecondaryEngineHandlerton(thd) != nullptr);
+  const RelationalExpression *expr = (*edge)->expr;
+  assert(expr->type == RelationalExpression::LEFT_JOIN);
+
+  // If we have a degenerate join condition which references some tables on the
+  // inner side of the join, and no tables on the outer side, we are allowed to
+  // filter on that condition before the join. Do so
+  if (expr->conditions_used_tables == 0 ||
+      !IsSubset(expr->conditions_used_tables, expr->right->tables_in_subtree)) {
+    return;
+  }
+
+  // If the join condition only references tables on one side of the join, there
+  // cannot be any equijoin conditions, as they reference both sides.
+  assert(expr->equijoin_conditions.empty());
+  assert(!expr->join_conditions.empty());
+
+  // Create a filter on top of right_path. This filter contains the entire
+  // (degenerate) join condition.
+  List<Item> conds;
+  for (Item *cond : expr->join_conditions) {
+    conds.push_back(cond);
+  }
+  Item *filter_cond = CreateConjunction(&conds);
+  AccessPath *filter_path = NewFilterAccessPath(thd, *right_path, filter_cond);
+  CopyBasicProperties(**right_path, filter_path);
+  filter_path->num_output_rows *= (*edge)->selectivity;
+  filter_path->cost += EstimateFilterCost(thd, (*right_path)->num_output_rows,
+                                          filter_cond, query_block)
+                           .cost_if_not_materialized;
+
+  // Build a new join predicate with no join condition.
+  RelationalExpression *new_expr =
+      new (thd->mem_root) RelationalExpression(thd);
+  new_expr->type = expr->type;
+  new_expr->tables_in_subtree = expr->tables_in_subtree;
+  new_expr->nodes_in_subtree = expr->nodes_in_subtree;
+  new_expr->left = expr->left;
+  new_expr->right = expr->right;
+
+  JoinPredicate *new_edge = new (thd->mem_root) JoinPredicate{
+      new_expr, /*selectivity=*/1.0, (*edge)->estimated_bytes_per_row,
+      (*edge)->functional_dependencies, /*functional_dependencies_idx=*/{}};
+
+  // Use the filter path and the new join edge with no condition for creating
+  // the hash join.
+  *right_path = filter_path;
+  *edge = new_edge;
+}
+
+/**
   Called to signal that it's possible to connect the non-overlapping
   table subsets “left” and “right” through the edge given by “edge_idx”
   (which corresponds to an index in m_graph->edges), ie., we have found
@@ -3174,6 +3243,12 @@ void CostingReceiver::ProposeHashJoin(
         }
       }
     }
+  }
+
+  if (edge->expr->type == RelationalExpression::LEFT_JOIN &&
+      SecondaryEngineHandlerton(m_thd) != nullptr) {
+    MoveDegenerateJoinConditionToFilter(m_thd, m_query_block, &edge,
+                                        &right_path);
   }
 
   assert(BitsetsAreCommitted(left_path));

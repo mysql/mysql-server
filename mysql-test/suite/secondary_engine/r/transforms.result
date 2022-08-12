@@ -312,3 +312,37 @@ DROP PREPARE s2;
 DROP TABLE t1;
 SET secondary_engine_cost_threshold = default;
 SET optimizer_switch="subquery_to_derived=default";
+#
+# Bug#34445328 (Hypergraph) Optimizer degenerate join
+# conditions when encountering semi join + outer join
+#
+CREATE TABLE t (a INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (), (), ();
+ALTER TABLE t SECONDARY_LOAD;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT 1
+FROM t AS t1 LEFT JOIN t AS t2
+ON 1 IN (
+SELECT 1 FROM t AS t3 WHERE a <=>
+(SELECT a FROM t AS t4)
+);
+EXPLAIN
+-> Nested loop left join  (cost=9.40 rows=81)
+    -> Table scan on t1  (cost=0.80 rows=3)
+    -> Nested loop inner join  (cost=3.87 rows=27)
+        -> Table scan on t2  (cost=0.27 rows=3)
+        -> Constant row from <subquery2>  (cost=0.00..0.00 rows=1)
+            -> Materialize with deduplication  (cost=7.98..7.98 rows=9)
+                -> Left hash join (no condition)  (cost=7.08 rows=9)
+                    -> Table scan on t3  (cost=0.80 rows=3)
+                    -> Hash
+                        -> Table scan on derived_2_3  (cost=0.85..2.54 rows=3)
+                            -> Materialize  (cost=1.95..3.64 rows=3)
+                                -> Table scan on t4  (cost=0.80 rows=3)
+
+Warnings:
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+DROP TABLE t;

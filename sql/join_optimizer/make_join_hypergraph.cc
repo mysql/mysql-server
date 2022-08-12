@@ -1526,7 +1526,7 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
   // rewriting causes conditions to appear higher up in the tree that we
   // _must_ push back down and through them for correctness. Thus, we have
   // no choice but to just trust that these conditions are pushable.
-  // (The user cannot cannot specify semijoins directly, so all such conditions
+  // (The user cannot specify semijoins directly, so all such conditions
   // come from ourselves.)
   const bool can_push_into_right =
       (IsInnerJoin(expr->type) ||
