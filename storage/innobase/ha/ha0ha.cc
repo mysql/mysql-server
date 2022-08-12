@@ -40,11 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0sea.h"
 #include "page0page.h"
 
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-/** Maximum number of records in a page */
-static const ulint MAX_N_POINTERS = UNIV_PAGE_SIZE_MAX / REC_N_NEW_EXTRA_BYTES;
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-
 hash_table_t *ib_create(size_t n, latch_id_t id, size_t n_sync_obj,
                         uint32_t type) {
   hash_table_t *table;
@@ -100,6 +95,22 @@ void ha_clear(hash_table_t *table) /*!< in, own: hash table */
   }
 }
 
+#ifdef UNIV_DEBUG
+/** Verify if latch corresponding to the hash table is x-latched
+@param[in]      table           hash table */
+static void ha_btr_search_latch_x_locked(const hash_table_t *table) {
+  ulong i;
+  for (i = 0; i < btr_ahi_parts; ++i) {
+    if (btr_search_sys->parts[i].hash_table == table) {
+      break;
+    }
+  }
+
+  ut_ad(i < btr_ahi_parts);
+  ut_ad(rw_lock_own(&btr_search_sys->parts[i].latch, RW_LOCK_X));
+}
+#endif /* UNIV_DEBUG */
+
 bool ha_insert_for_hash_func(hash_table_t *table, uint64_t hash_value,
                              IF_AHI_DEBUG(buf_block_t *block, )
                                  const rec_t *data) {
@@ -113,7 +124,10 @@ bool ha_insert_for_hash_func(hash_table_t *table, uint64_t hash_value,
   ut_a(block->frame == page_align(data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
   hash_assert_can_modify(table, hash_value);
+
+  ut_d(ha_btr_search_latch_x_locked(table));
   ut_ad(btr_search_enabled);
+  ut_ad(block->ahi.index != nullptr);
 
   auto &first_node =
       hash_get_first(table, hash_calc_cell_id(hash_value, table));
@@ -126,8 +140,9 @@ bool ha_insert_for_hash_func(hash_table_t *table, uint64_t hash_value,
       if (table->adaptive) {
         buf_block_t *prev_block = prev_node->block;
         ut_a(prev_block->frame == page_align(prev_node->data));
-        ut_a(prev_block->n_pointers.fetch_sub(1) - 1 < MAX_N_POINTERS);
-        ut_a(block->n_pointers.fetch_add(1) + 1 < MAX_N_POINTERS);
+        ut_a(prev_block->ahi.n_pointers.fetch_sub(1) - 1 <
+             (int)MAX_REC_PER_PAGE);
+        ut_a(block->ahi.n_pointers.fetch_add(1) + 1 < (int)MAX_REC_PER_PAGE);
       }
 
       prev_node->block = block;
@@ -158,7 +173,7 @@ bool ha_insert_for_hash_func(hash_table_t *table, uint64_t hash_value,
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
   if (table->adaptive) {
-    ut_a(block->n_pointers.fetch_add(1) + 1 < MAX_N_POINTERS);
+    ut_a(block->ahi.n_pointers.fetch_add(1) + 1 < (int)MAX_REC_PER_PAGE);
   }
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
@@ -183,22 +198,6 @@ bool ha_insert_for_hash_func(hash_table_t *table, uint64_t hash_value,
   return true;
 }
 
-#ifdef UNIV_DEBUG
-/** Verify if latch corresponding to the hash table is x-latched
-@param[in]      table           hash table */
-static void ha_btr_search_latch_x_locked(const hash_table_t *table) {
-  ulong i;
-  for (i = 0; i < btr_ahi_parts; ++i) {
-    if (btr_search_sys->hash_tables[i] == table) {
-      break;
-    }
-  }
-
-  ut_ad(i < btr_ahi_parts);
-  ut_ad(rw_lock_own(btr_search_latches[i], RW_LOCK_X));
-}
-#endif /* UNIV_DEBUG */
-
 /** Deletes a hash node. */
 void ha_delete_hash_node(hash_table_t *table, /*!< in: hash table */
                          ha_node_t *del_node) /*!< in: node to be deleted */
@@ -206,11 +205,15 @@ void ha_delete_hash_node(hash_table_t *table, /*!< in: hash table */
   ut_ad(table);
   ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   ut_d(ha_btr_search_latch_x_locked(table));
+
   ut_ad(btr_search_enabled);
+  ut_ad(del_node->block->ahi.index != nullptr);
+
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
   if (table->adaptive) {
     ut_a(del_node->block->frame = page_align(del_node->data));
-    ut_a(del_node->block->n_pointers.fetch_sub(1) - 1 < MAX_N_POINTERS);
+    ut_a(del_node->block->ahi.n_pointers.fetch_sub(1) - 1 <
+         (int)MAX_REC_PER_PAGE);
   }
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
@@ -232,17 +235,16 @@ bool ha_search_and_update_if_found_func(hash_table_t *table,
 
   ut_d(ha_btr_search_latch_x_locked(table));
 
-  if (!btr_search_enabled) {
-    return false;
-  }
-
+  ut_ad(btr_search_enabled);
+  ut_ad(new_block->ahi.index != nullptr);
   node = ha_search_with_data(table, hash_value, data);
 
   if (node) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
     if (table->adaptive) {
-      ut_a(node->block->n_pointers.fetch_sub(1) - 1 < MAX_N_POINTERS);
-      ut_a(new_block->n_pointers.fetch_add(1) + 1 < MAX_N_POINTERS);
+      ut_a(node->block->ahi.n_pointers.fetch_sub(1) - 1 <
+           (int)MAX_REC_PER_PAGE);
+      ut_a(new_block->ahi.n_pointers.fetch_add(1) + 1 < (int)MAX_REC_PER_PAGE);
     }
 
     node->block = new_block;
@@ -262,6 +264,7 @@ void ha_remove_a_node_to_page(hash_table_t *table, uint64_t hash_value,
   ut_ad(table);
   ut_ad(table->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
   hash_assert_can_modify(table, hash_value);
+
   ut_ad(btr_search_enabled);
 
   node = ha_chain_get_first(table, hash_value);
@@ -357,7 +360,9 @@ builds, see http://bugs.mysql.com/36941 */
 
     n_bufs = UT_LIST_GET_LEN(table->heap->base) - 1;
 
-    if (table->heap->free_block.load()) {
+    ut_ad(table->heap->free_block_ptr != nullptr);
+
+    if (table->heap->free_block_ptr->load()) {
       n_bufs++;
     }
 

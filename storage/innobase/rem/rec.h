@@ -135,6 +135,19 @@ in addition to the data and the offsets.
 This is used only after instant ADD COLUMN. */
 constexpr uint32_t REC_N_TMP_EXTRA_BYTES = 1;
 
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+/** Maximum number of records in a page */
+constexpr auto MAX_REC_PER_PAGE = UNIV_PAGE_SIZE_MAX / REC_N_NEW_EXTRA_BYTES;
+
+/* We use decltype(A.load()) not decltype(A)::value_type, as some compilers
+don't have it implemented, even as they should have this with the C++17
+implementation. Maybe this will be available on all compilers with C++20. */
+static_assert(MAX_REC_PER_PAGE <=
+              std::numeric_limits<
+                  decltype(buf_block_t::ahi_t::n_pointers.load())>::max());
+
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 /* Record status values */
 constexpr uint32_t REC_STATUS_ORDINARY = 0;
 constexpr uint32_t REC_STATUS_NODE_PTR = 1;

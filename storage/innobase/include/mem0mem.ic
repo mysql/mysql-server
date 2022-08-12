@@ -468,16 +468,16 @@ static inline void mem_heap_free(mem_heap_t *heap) {
 }
 
 /** Returns the space in bytes occupied by a memory heap. */
-static inline ulint mem_heap_get_size(mem_heap_t *heap) /*!< in: heap */
+static inline size_t mem_heap_get_size(mem_heap_t *heap) /*!< in: heap */
 {
-  ulint size = 0;
+  size_t size = 0;
 
   ut_d(mem_block_validate(heap));
 
   size = heap->total_size;
 
 #ifndef UNIV_LIBRARY
-  if (heap->free_block.load()) {
+  if (heap->free_block_ptr != nullptr && heap->free_block_ptr->load()) {
     size += UNIV_PAGE_SIZE;
   }
 #endif /* !UNIV_LIBRARY */

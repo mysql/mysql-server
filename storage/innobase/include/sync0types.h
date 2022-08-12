@@ -314,6 +314,8 @@ enum latch_level_t {
 
   SYNC_DICT_OPERATION,
 
+  SYNC_AHI_ENABLED,
+
   SYNC_TRX_I_S_LAST_READ,
 
   SYNC_TRX_I_S_RWLOCK,
@@ -338,6 +340,7 @@ up its meta-data. See sync0debug.c. The order does not matter here, but
 alphabetical ordering seems useful */
 enum latch_id_t {
   LATCH_ID_NONE = 0,
+  LATCH_ID_AHI_ENABLED,
   LATCH_ID_AUTOINC,
   LATCH_ID_BUF_BLOCK_MUTEX,
   LATCH_ID_BUF_POOL_CHUNKS,

@@ -39,21 +39,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 performed not using or not finding row with the AHI index. It may decide to try
 to update the searched record on which the supplied cursor in positioned at, or
 add the whole page to AHI.
-@param[in,out]  info    search info
 @param[in]      cursor  cursor which was just positioned */
-void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor);
+void btr_search_info_update_slow(btr_cur_t *cursor);
 
-static inline const btr_search_t *btr_search_get_info(
-    const dict_index_t *index) {
-  return (index->search_info);
-}
-
-static inline btr_search_t *btr_search_get_info(dict_index_t *index) {
-  return (index->search_info);
-}
-
-static inline void btr_search_info_update(dict_index_t *index,
-                                          btr_cur_t *cursor) {
+static inline void btr_search_info_update(btr_cur_t *cursor) {
+  const auto index = cursor->index;
   ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
   ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 
@@ -64,12 +54,9 @@ static inline void btr_search_info_update(dict_index_t *index,
     return;
   }
 
-  btr_search_t *info;
-  info = btr_search_get_info(index);
+  const auto hash_analysis_value = ++index->search_info->hash_analysis;
 
-  info->hash_analysis++;
-
-  if (info->hash_analysis < BTR_SEARCH_HASH_ANALYSIS) {
+  if (hash_analysis_value < BTR_SEARCH_HASH_ANALYSIS) {
     /* Do nothing */
 
     return;
@@ -77,7 +64,7 @@ static inline void btr_search_info_update(dict_index_t *index,
 
   ut_ad(cursor->flag != BTR_CUR_HASH);
 
-  btr_search_info_update_slow(info, cursor);
+  btr_search_info_update_slow(cursor);
 }
 
 static inline void btr_search_x_lock(const dict_index_t *index,
@@ -96,13 +83,13 @@ static inline void btr_search_x_unlock(const dict_index_t *index) {
 
 static inline void btr_search_x_lock_all(ut::Location location) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_x_lock_gen(btr_search_latches[i], 0, location);
+    rw_lock_x_lock_gen(&btr_search_sys->parts[i].latch, 0, location);
   }
 }
 
 static inline void btr_search_x_unlock_all() {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_x_unlock(btr_search_latches[i]);
+    rw_lock_x_unlock(&btr_search_sys->parts[i].latch);
   }
 }
 
@@ -122,20 +109,20 @@ static inline void btr_search_s_unlock(const dict_index_t *index) {
 
 static inline void btr_search_s_lock_all(ut::Location location) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_s_lock_gen(btr_search_latches[i], 0, location);
+    rw_lock_s_lock_gen(&btr_search_sys->parts[i].latch, 0, location);
   }
 }
 
 static inline void btr_search_s_unlock_all() {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_s_unlock(btr_search_latches[i]);
+    rw_lock_s_unlock(&btr_search_sys->parts[i].latch);
   }
 }
 
 #ifdef UNIV_DEBUG
 static inline bool btr_search_own_all(ulint mode) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    if (!rw_lock_own(btr_search_latches[i], mode)) {
+    if (!rw_lock_own(&btr_search_sys->parts[i].latch, mode)) {
       return (false);
     }
   }
@@ -144,7 +131,7 @@ static inline bool btr_search_own_all(ulint mode) {
 
 static inline bool btr_search_own_any(ulint mode) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    if (rw_lock_own(btr_search_latches[i], mode)) {
+    if (rw_lock_own(&btr_search_sys->parts[i].latch, mode)) {
       return (true);
     }
   }
@@ -152,21 +139,20 @@ static inline bool btr_search_own_any(ulint mode) {
 }
 #endif /* UNIV_DEBUG */
 
-static inline size_t btr_get_search_slot(const space_index_t index_id,
-                                         const space_id_t space_id) {
-  return static_cast<size_t>(ut::hash_uint64_pair(index_id, space_id) %
-                             btr_ahi_parts_fast_modulo);
+static inline size_t btr_search_hash_index_id(const dict_index_t *index) {
+  return ut::hash_uint64_pair(index->space, index->id);
+}
+
+static inline btr_search_sys_t::search_part_t &btr_get_search_part(
+    const dict_index_t *index) {
+  ut_ad(index != nullptr);
+
+  const auto index_slot =
+      btr_search_hash_index_id(index) % btr_ahi_parts_fast_modulo;
+
+  return btr_search_sys->parts[index_slot];
 }
 
 static inline rw_lock_t *btr_get_search_latch(const dict_index_t *index) {
-  ut_ad(index != nullptr);
-
-  return btr_search_latches[btr_get_search_slot(index->id, index->space)];
-}
-
-static inline hash_table_t *btr_get_search_table(const dict_index_t *index) {
-  ut_ad(index != nullptr);
-
-  return btr_search_sys
-      ->hash_tables[btr_get_search_slot(index->id, index->space)];
+  return &btr_get_search_part(index).latch;
 }

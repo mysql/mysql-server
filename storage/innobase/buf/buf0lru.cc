@@ -287,16 +287,9 @@ scan_again:
 
     mutex_enter(&block->mutex);
 
-    /* This debug check uses a dirty read that could
-    theoretically cause false positives while
-    buf_pool_clear_hash_index() is executing.
-    (Other conflicting access paths to the adaptive hash
-    index should not be possible, because when a
-    tablespace is being discarded or dropped, there must
-    be no concurrent access to the contained tables.) */
-    assert_block_ahi_valid(block);
+    block->ahi.validate();
 
-    bool skip = bpage->buf_fix_count > 0 || !block->index;
+    bool skip = bpage->buf_fix_count > 0 || !block->ahi.index;
 
     mutex_exit(&block->mutex);
 
@@ -883,7 +876,7 @@ scan_again:
     if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
       /* Do nothing, because the adaptive hash index
       covers uncompressed pages only. */
-    } else if (((buf_block_t *)bpage)->index) {
+    } else if (((buf_block_t *)bpage)->ahi.index) {
       mutex_exit(&buf_pool->LRU_list_mutex);
 
       rw_lock_x_unlock(hash_lock);
@@ -900,16 +893,7 @@ scan_again:
 
       goto scan_again;
     } else {
-      /* This debug check uses a dirty read that could
-      theoretically cause false positives while
-      buf_pool_clear_hash_index() is executing,
-      if the writes to block->index=NULL and
-      block->n_pointers=0 are reordered.
-      (Other conflicting access paths to the adaptive hash
-      index should not be possible, because when a
-      tablespace is being discarded or dropped, there must
-      be no concurrent access to the contained tables.) */
-      assert_block_ahi_empty((buf_block_t *)bpage);
+      reinterpret_cast<buf_block_t *>(bpage)->ahi.assert_empty();
     }
 
     if (bpage->is_dirty()) {
@@ -1169,11 +1153,6 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
   return (freed);
 }
 
-/** Try to free a replaceable block.
-@param[in,out]  buf_pool        buffer pool instance
-@param[in]      scan_all        scan whole LRU list if true, otherwise scan
-                                only BUF_LRU_SEARCH_SCAN_THRESHOLD blocks
-@return true if found and freed */
 bool buf_LRU_scan_and_free_block(buf_pool_t *buf_pool, bool scan_all) {
   bool freed = false;
   bool use_unzip_list = UT_LIST_GET_LEN(buf_pool->unzip_LRU) > 0;
@@ -1244,7 +1223,7 @@ buf_block_t *buf_LRU_get_free_only(buf_pool_t *buf_pool) {
       /* found valid free block */
       /* No adaptive hash index entries may point to
       a free block. */
-      assert_block_ahi_empty(block);
+      block->ahi.assert_empty();
 
       buf_block_set_state(block, BUF_BLOCK_READY_FOR_USE);
 
@@ -1988,9 +1967,8 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
   buf_LRU_block_remove_hashed().  We need to flag
   the contents of the page valid (which it still is) in
   order to avoid bogus Valgrind warnings.*/
-
   UNIV_MEM_VALID(((buf_block_t *)bpage)->frame, UNIV_PAGE_SIZE);
-  btr_search_drop_page_hash_index((buf_block_t *)bpage);
+  btr_search_drop_page_hash_index((buf_block_t *)bpage, true);
   UNIV_MEM_INVALID(((buf_block_t *)bpage)->frame, UNIV_PAGE_SIZE);
 
   if (b != nullptr) {
@@ -2038,7 +2016,7 @@ void buf_LRU_block_free_non_file_page(buf_block_t *block) {
       ut_error;
   }
 
-  assert_block_ahi_empty(block);
+  block->ahi.assert_empty();
   ut_ad(!block->page.in_free_list);
   ut_ad(!block->page.in_flush_list);
   ut_ad(!block->page.in_LRU_list);

@@ -69,21 +69,36 @@ TEST(ut0new, edgecases) {
 
 struct Pod_type {
   Pod_type(int _x, int _y) : x(_x), y(_y) {}
+  ~Pod_type() {}
   int x;
   int y;
 };
+
 struct My_fancy_sum {
   My_fancy_sum(int x, int y) : result(x + y) {}
   int result;
 };
 struct Non_pod_type {
   Non_pod_type(int _x, int _y, std::string _s)
-      : x(_x), y(_y), s(_s), sum(std::make_unique<My_fancy_sum>(x, y)) {}
+      : x(_x), y(_y), s(_s), sum(x, y) {
+    s_count++;
+  }
+  Non_pod_type(const Non_pod_type &other)
+      : x(other.x), y(other.y), s(other.s), sum(other.sum) {
+    s_count++;
+  }
+  ~Non_pod_type() { s_count--; }
   int x;
   int y;
   std::string s;
-  std::unique_ptr<My_fancy_sum> sum;
+  My_fancy_sum sum;
+  static size_t get_count() { return s_count; }
+
+ private:
+  static size_t s_count;
 };
+size_t Non_pod_type::s_count{0};
+
 struct Default_constructible_pod {
   Default_constructible_pod() : x(0), y(1) {}
   int x, y;
@@ -382,15 +397,18 @@ TYPED_TEST_SUITE_P(ut0new_new_delete_non_pod_types);
 TYPED_TEST_P(ut0new_new_delete_non_pod_types, non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
+  EXPECT_EQ(type::get_count(), 0);
   type *ptr = with_pfs ? ut::new_withkey<type>(ut::make_psi_memory_key(pfs_key),
                                                2, 5, std::string("non-pod"))
                        : ut::new_<type>(2, 5, std::string("non-pod"));
   EXPECT_TRUE(ptr_is_suitably_aligned(ptr));
   EXPECT_EQ(ptr->x, 2);
   EXPECT_EQ(ptr->y, 5);
-  EXPECT_EQ(ptr->sum->result, 7);
+  EXPECT_EQ(ptr->sum.result, 7);
   EXPECT_EQ(ptr->s, std::string("non-pod"));
+  EXPECT_EQ(type::get_count(), 1);
   ut::delete_(ptr);
+  EXPECT_EQ(type::get_count(), 0);
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_new_delete_non_pod_types, non_pod_types);
 INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_new_delete_non_pod_types,
@@ -468,6 +486,7 @@ TYPED_TEST_SUITE_P(ut0new_new_delete_non_pod_types_arr);
 TYPED_TEST_P(ut0new_new_delete_non_pod_types_arr, non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
+  EXPECT_EQ(type::get_count(), 0);
   type *ptr = with_pfs ? ut::new_arr_withkey<type>(
                              ut::make_psi_memory_key(pfs_key),
                              std::forward_as_tuple(1, 2, std::string("a")),
@@ -487,29 +506,32 @@ TYPED_TEST_P(ut0new_new_delete_non_pod_types_arr, non_pod_types) {
   EXPECT_EQ(ptr[0].x, 1);
   EXPECT_EQ(ptr[0].y, 2);
   EXPECT_TRUE(ptr[0].s == std::string("a"));
-  EXPECT_EQ(ptr[0].sum->result, 3);
+  EXPECT_EQ(ptr[0].sum.result, 3);
 
   EXPECT_EQ(ptr[1].x, 3);
   EXPECT_EQ(ptr[1].y, 4);
   EXPECT_TRUE(ptr[1].s == std::string("b"));
-  EXPECT_EQ(ptr[1].sum->result, 7);
+  EXPECT_EQ(ptr[1].sum.result, 7);
 
   EXPECT_EQ(ptr[2].x, 5);
   EXPECT_EQ(ptr[2].y, 6);
   EXPECT_TRUE(ptr[2].s == std::string("c"));
-  EXPECT_EQ(ptr[2].sum->result, 11);
+  EXPECT_EQ(ptr[2].sum.result, 11);
 
   EXPECT_EQ(ptr[3].x, 7);
   EXPECT_EQ(ptr[3].y, 8);
   EXPECT_TRUE(ptr[3].s == std::string("d"));
-  EXPECT_EQ(ptr[3].sum->result, 15);
+  EXPECT_EQ(ptr[3].sum.result, 15);
 
   EXPECT_EQ(ptr[4].x, 9);
   EXPECT_EQ(ptr[4].y, 10);
   EXPECT_TRUE(ptr[4].s == std::string("e"));
-  EXPECT_EQ(ptr[4].sum->result, 19);
+  EXPECT_EQ(ptr[4].sum.result, 19);
+
+  EXPECT_EQ(type::get_count(), 5);
 
   ut::delete_arr(ptr);
+  EXPECT_EQ(type::get_count(), 0);
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_new_delete_non_pod_types_arr, non_pod_types);
 INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_new_delete_non_pod_types_arr,
@@ -1326,6 +1348,7 @@ TYPED_TEST_P(aligned_new_delete_non_pod_types, non_pod_types) {
   auto with_pfs = TypeParam::with_pfs;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
+    EXPECT_EQ(type::get_count(), 0);
     type *ptr =
         with_pfs
             ? ut::aligned_new_withkey<type>(ut::make_psi_memory_key(pfs_key),
@@ -1335,9 +1358,11 @@ TYPED_TEST_P(aligned_new_delete_non_pod_types, non_pod_types) {
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
     EXPECT_EQ(ptr->x, 2);
     EXPECT_EQ(ptr->y, 5);
-    EXPECT_EQ(ptr->sum->result, 7);
+    EXPECT_EQ(ptr->sum.result, 7);
     EXPECT_EQ(ptr->s, std::string("non-pod"));
+    EXPECT_EQ(type::get_count(), 1);
     ut::aligned_delete(ptr);
+    EXPECT_EQ(type::get_count(), 0);
   }
 }
 REGISTER_TYPED_TEST_SUITE_P(aligned_new_delete_non_pod_types, non_pod_types);
@@ -1434,6 +1459,7 @@ TYPED_TEST_P(aligned_new_delete_non_pod_types_arr, non_pod_types) {
   auto with_pfs = TypeParam::with_pfs;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
+    EXPECT_EQ(type::get_count(), 0);
     type *ptr =
         with_pfs ? ut::aligned_new_arr_withkey<type>(
                        ut::make_psi_memory_key(pfs_key), alignment,
@@ -1454,29 +1480,31 @@ TYPED_TEST_P(aligned_new_delete_non_pod_types_arr, non_pod_types) {
     EXPECT_EQ(ptr[0].x, 1);
     EXPECT_EQ(ptr[0].y, 2);
     EXPECT_TRUE(ptr[0].s == std::string("a"));
-    EXPECT_EQ(ptr[0].sum->result, 3);
+    EXPECT_EQ(ptr[0].sum.result, 3);
 
     EXPECT_EQ(ptr[1].x, 3);
     EXPECT_EQ(ptr[1].y, 4);
     EXPECT_TRUE(ptr[1].s == std::string("b"));
-    EXPECT_EQ(ptr[1].sum->result, 7);
+    EXPECT_EQ(ptr[1].sum.result, 7);
 
     EXPECT_EQ(ptr[2].x, 5);
     EXPECT_EQ(ptr[2].y, 6);
     EXPECT_TRUE(ptr[2].s == std::string("c"));
-    EXPECT_EQ(ptr[2].sum->result, 11);
+    EXPECT_EQ(ptr[2].sum.result, 11);
 
     EXPECT_EQ(ptr[3].x, 7);
     EXPECT_EQ(ptr[3].y, 8);
     EXPECT_TRUE(ptr[3].s == std::string("d"));
-    EXPECT_EQ(ptr[3].sum->result, 15);
+    EXPECT_EQ(ptr[3].sum.result, 15);
 
     EXPECT_EQ(ptr[4].x, 9);
     EXPECT_EQ(ptr[4].y, 10);
     EXPECT_TRUE(ptr[4].s == std::string("e"));
-    EXPECT_EQ(ptr[4].sum->result, 19);
+    EXPECT_EQ(ptr[4].sum.result, 19);
 
+    EXPECT_EQ(type::get_count(), 5);
     ut::aligned_delete_arr(ptr);
+    EXPECT_EQ(type::get_count(), 0);
   }
 }
 REGISTER_TYPED_TEST_SUITE_P(aligned_new_delete_non_pod_types_arr,
@@ -1812,6 +1840,7 @@ TEST(aligned_array_pointer, access_data_through_subscript_operator) {
 TEST(aligned_array_pointer, initialize_an_array_of_non_pod_types) {
   constexpr auto alignment = 4 * 1024;
   ut::aligned_array_pointer<Non_pod_type, alignment> ptr;
+  EXPECT_EQ(Non_pod_type::get_count(), 0);
   ptr.alloc(std::forward_as_tuple(1, 2, std::string("a")),
             std::forward_as_tuple(3, 4, std::string("b")),
             std::forward_as_tuple(5, 6, std::string("c")),
@@ -1840,7 +1869,9 @@ TEST(aligned_array_pointer, initialize_an_array_of_non_pod_types) {
   EXPECT_EQ(ptr[4].y, 10);
   EXPECT_TRUE(ptr[4].s == std::string("e"));
 
+  EXPECT_EQ(Non_pod_type::get_count(), 5);
   ptr.dealloc();
+  EXPECT_EQ(Non_pod_type::get_count(), 0);
 }
 
 TEST(aligned_array_pointer, distance_between_elements_in_arr) {
@@ -1932,6 +1963,7 @@ TYPED_TEST_P(ut0new_allocator_non_pod_types, non_pod_types) {
 
   auto n_elements = 100;
   ut::allocator<T, allocator_variant> a(pfs_key);
+
   auto ptr = a.allocate(n_elements);
 
   EXPECT_TRUE(ptr_is_suitably_aligned(ptr));
@@ -2014,35 +2046,39 @@ TYPED_TEST_P(ut0new_allocator_std_vector_with_non_pod_types,
              std_vector_with_non_pod_types) {
   using T = typename TypeParam::type;
   using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+  {
+    std::vector<T, ut::allocator<T, allocator_variant>> vec;
+    EXPECT_EQ(T::get_count(), 0);
+    vec.push_back({1, 2, std::string("a")});
+    vec.push_back({3, 4, std::string("b")});
+    vec.push_back({5, 6, std::string("c")});
+    vec.push_back({7, 8, std::string("d")});
+    vec.push_back({9, 10, std::string("e")});
 
-  std::vector<T, ut::allocator<T, allocator_variant>> vec;
-  vec.push_back({1, 2, std::string("a")});
-  vec.push_back({3, 4, std::string("b")});
-  vec.push_back({5, 6, std::string("c")});
-  vec.push_back({7, 8, std::string("d")});
-  vec.push_back({9, 10, std::string("e")});
+    EXPECT_TRUE(ptr_is_suitably_aligned(&vec[0]));
 
-  EXPECT_TRUE(ptr_is_suitably_aligned(&vec[0]));
+    EXPECT_EQ(vec[0].x, 1);
+    EXPECT_EQ(vec[0].y, 2);
+    EXPECT_TRUE(vec[0].s == std::string("a"));
 
-  EXPECT_EQ(vec[0].x, 1);
-  EXPECT_EQ(vec[0].y, 2);
-  EXPECT_TRUE(vec[0].s == std::string("a"));
+    EXPECT_EQ(vec[1].x, 3);
+    EXPECT_EQ(vec[1].y, 4);
+    EXPECT_TRUE(vec[1].s == std::string("b"));
 
-  EXPECT_EQ(vec[1].x, 3);
-  EXPECT_EQ(vec[1].y, 4);
-  EXPECT_TRUE(vec[1].s == std::string("b"));
+    EXPECT_EQ(vec[2].x, 5);
+    EXPECT_EQ(vec[2].y, 6);
+    EXPECT_TRUE(vec[2].s == std::string("c"));
 
-  EXPECT_EQ(vec[2].x, 5);
-  EXPECT_EQ(vec[2].y, 6);
-  EXPECT_TRUE(vec[2].s == std::string("c"));
+    EXPECT_EQ(vec[3].x, 7);
+    EXPECT_EQ(vec[3].y, 8);
+    EXPECT_TRUE(vec[3].s == std::string("d"));
 
-  EXPECT_EQ(vec[3].x, 7);
-  EXPECT_EQ(vec[3].y, 8);
-  EXPECT_TRUE(vec[3].s == std::string("d"));
-
-  EXPECT_EQ(vec[4].x, 9);
-  EXPECT_EQ(vec[4].y, 10);
-  EXPECT_TRUE(vec[4].s == std::string("e"));
+    EXPECT_EQ(vec[4].x, 9);
+    EXPECT_EQ(vec[4].y, 10);
+    EXPECT_TRUE(vec[4].s == std::string("e"));
+    EXPECT_EQ(T::get_count(), 5);
+  }
+  EXPECT_EQ(T::get_count(), 0);
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_allocator_std_vector_with_non_pod_types,
                             std_vector_with_non_pod_types);
@@ -2097,31 +2133,33 @@ TYPED_TEST_P(
     std_vector_with_default_non_pod_constructible_types) {
   using T = typename TypeParam::type;
   using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+  {
+    std::vector<T, ut::allocator<T, allocator_variant>> vec;
 
-  std::vector<T, ut::allocator<T, allocator_variant>> vec;
-  vec.push_back({});
-  vec.push_back({});
-  vec.push_back({});
-  vec.push_back({});
-  vec.push_back({});
+    vec.push_back({});
+    vec.push_back({});
+    vec.push_back({});
+    vec.push_back({});
+    vec.push_back({});
 
-  EXPECT_TRUE(ptr_is_suitably_aligned(&vec[0]));
+    EXPECT_TRUE(ptr_is_suitably_aligned(&vec[0]));
 
-  EXPECT_EQ(vec[0].x, 0);
-  EXPECT_EQ(vec[0].y, 1);
-  EXPECT_TRUE(vec[0].s == std::string("non-pod-string"));
+    EXPECT_EQ(vec[0].x, 0);
+    EXPECT_EQ(vec[0].y, 1);
+    EXPECT_TRUE(vec[0].s == std::string("non-pod-string"));
 
-  EXPECT_EQ(vec[1].x, 0);
-  EXPECT_EQ(vec[1].y, 1);
-  EXPECT_TRUE(vec[1].s == std::string("non-pod-string"));
+    EXPECT_EQ(vec[1].x, 0);
+    EXPECT_EQ(vec[1].y, 1);
+    EXPECT_TRUE(vec[1].s == std::string("non-pod-string"));
 
-  EXPECT_EQ(vec[2].x, 0);
-  EXPECT_EQ(vec[2].y, 1);
-  EXPECT_TRUE(vec[2].s == std::string("non-pod-string"));
+    EXPECT_EQ(vec[2].x, 0);
+    EXPECT_EQ(vec[2].y, 1);
+    EXPECT_TRUE(vec[2].s == std::string("non-pod-string"));
 
-  EXPECT_EQ(vec[3].x, 0);
-  EXPECT_EQ(vec[3].y, 1);
-  EXPECT_TRUE(vec[3].s == std::string("non-pod-string"));
+    EXPECT_EQ(vec[3].x, 0);
+    EXPECT_EQ(vec[3].y, 1);
+    EXPECT_TRUE(vec[3].s == std::string("non-pod-string"));
+  }
 }
 REGISTER_TYPED_TEST_SUITE_P(
     ut0new_allocator_std_vector_with_default_non_pod_constructible_types,
@@ -2221,14 +2259,20 @@ TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_non_pod_types);
 TYPED_TEST_P(ut0new_make_unique_ptr_non_pod_types, non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
-  auto ptr = with_pfs ? ut::make_unique<type>(ut::make_psi_memory_key(pfs_key),
-                                              2, 5, std::string("non-pod"))
-                      : ut::make_unique<type>(2, 5, std::string("non-pod"));
-  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
-  EXPECT_EQ(ptr->x, 2);
-  EXPECT_EQ(ptr->y, 5);
-  EXPECT_EQ(ptr->sum->result, 7);
-  EXPECT_EQ(ptr->s, std::string("non-pod"));
+  EXPECT_EQ(type::get_count(), 0);
+  {
+    auto ptr = with_pfs
+                   ? ut::make_unique<type>(ut::make_psi_memory_key(pfs_key), 2,
+                                           5, std::string("non-pod"))
+                   : ut::make_unique<type>(2, 5, std::string("non-pod"));
+    EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+    EXPECT_EQ(ptr->x, 2);
+    EXPECT_EQ(ptr->y, 5);
+    EXPECT_EQ(ptr->sum.result, 7);
+    EXPECT_EQ(ptr->s, std::string("non-pod"));
+    EXPECT_EQ(type::get_count(), 1);
+  }
+  EXPECT_EQ(type::get_count(), 0);
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_non_pod_types,
                             non_pod_types);
@@ -2244,12 +2288,15 @@ TYPED_TEST_P(ut0new_make_unique_ptr_default_constructible_non_pod_types,
              default_constructible_non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
-  auto ptr = with_pfs ? ut::make_unique<type>(ut::make_psi_memory_key(pfs_key))
-                      : ut::make_unique<type>();
-  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
-  EXPECT_EQ(ptr->x, 0);
-  EXPECT_EQ(ptr->y, 1);
-  EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+  {
+    auto ptr = with_pfs
+                   ? ut::make_unique<type>(ut::make_psi_memory_key(pfs_key))
+                   : ut::make_unique<type>();
+    EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+    EXPECT_EQ(ptr->x, 0);
+    EXPECT_EQ(ptr->y, 1);
+    EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+  }
 }
 REGISTER_TYPED_TEST_SUITE_P(
     ut0new_make_unique_ptr_default_constructible_non_pod_types,
@@ -2376,16 +2423,21 @@ TYPED_TEST_P(ut0new_make_unique_aligned_non_pod_types, non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
   auto alignment = 4 * alignof(std::max_align_t);
-  auto ptr = with_pfs ? ut::make_unique_aligned<type>(
-                            ut::make_psi_memory_key(pfs_key), alignment, 2, 5,
-                            std::string("non-pod"))
-                      : ut::make_unique_aligned<type>(alignment, 2, 5,
-                                                      std::string("non-pod"));
-  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
-  EXPECT_EQ(ptr->x, 2);
-  EXPECT_EQ(ptr->y, 5);
-  EXPECT_EQ(ptr->sum->result, 7);
-  EXPECT_EQ(ptr->s, std::string("non-pod"));
+  EXPECT_EQ(type::get_count(), 0);
+  {
+    auto ptr = with_pfs ? ut::make_unique_aligned<type>(
+                              ut::make_psi_memory_key(pfs_key), alignment, 2, 5,
+                              std::string("non-pod"))
+                        : ut::make_unique_aligned<type>(alignment, 2, 5,
+                                                        std::string("non-pod"));
+    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+    EXPECT_EQ(ptr->x, 2);
+    EXPECT_EQ(ptr->y, 5);
+    EXPECT_EQ(ptr->sum.result, 7);
+    EXPECT_EQ(ptr->s, std::string("non-pod"));
+    EXPECT_EQ(type::get_count(), 1);
+  }
+  EXPECT_EQ(type::get_count(), 0);
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_non_pod_types,
                             non_pod_types);
@@ -2403,13 +2455,15 @@ TYPED_TEST_P(ut0new_make_unique_aligned_default_constructible_non_pod_types,
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
   auto alignment = 4 * alignof(std::max_align_t);
-  auto ptr = with_pfs ? ut::make_unique_aligned<type>(
-                            ut::make_psi_memory_key(pfs_key), alignment)
-                      : ut::make_unique_aligned<type>(alignment);
-  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
-  EXPECT_EQ(ptr->x, 0);
-  EXPECT_EQ(ptr->y, 1);
-  EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+  {
+    auto ptr = with_pfs ? ut::make_unique_aligned<type>(
+                              ut::make_psi_memory_key(pfs_key), alignment)
+                        : ut::make_unique_aligned<type>(alignment);
+    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+    EXPECT_EQ(ptr->x, 0);
+    EXPECT_EQ(ptr->y, 1);
+    EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+  }
 }
 REGISTER_TYPED_TEST_SUITE_P(
     ut0new_make_unique_aligned_default_constructible_non_pod_types,
@@ -2539,14 +2593,20 @@ TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_non_pod_types);
 TYPED_TEST_P(ut0new_make_shared_ptr_non_pod_types, non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
-  auto ptr = with_pfs ? ut::make_shared<type>(ut::make_psi_memory_key(pfs_key),
-                                              2, 5, std::string("non-pod"))
-                      : ut::make_shared<type>(2, 5, std::string("non-pod"));
-  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
-  EXPECT_EQ(ptr->x, 2);
-  EXPECT_EQ(ptr->y, 5);
-  EXPECT_EQ(ptr->sum->result, 7);
-  EXPECT_EQ(ptr->s, std::string("non-pod"));
+  EXPECT_EQ(type::get_count(), 0);
+  {
+    auto ptr = with_pfs
+                   ? ut::make_shared<type>(ut::make_psi_memory_key(pfs_key), 2,
+                                           5, std::string("non-pod"))
+                   : ut::make_shared<type>(2, 5, std::string("non-pod"));
+    EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+    EXPECT_EQ(ptr->x, 2);
+    EXPECT_EQ(ptr->y, 5);
+    EXPECT_EQ(ptr->sum.result, 7);
+    EXPECT_EQ(ptr->s, std::string("non-pod"));
+    EXPECT_EQ(type::get_count(), 1);
+  }
+  EXPECT_EQ(type::get_count(), 0);
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_non_pod_types,
                             non_pod_types);
@@ -2562,13 +2622,15 @@ TYPED_TEST_P(ut0new_make_shared_ptr_default_constructible_non_pod_types,
              default_constructible_non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
-
-  auto ptr = with_pfs ? ut::make_shared<type>(ut::make_psi_memory_key(pfs_key))
-                      : ut::make_shared<type>();
-  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
-  EXPECT_EQ(ptr->x, 0);
-  EXPECT_EQ(ptr->y, 1);
-  EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+  {
+    auto ptr = with_pfs
+                   ? ut::make_shared<type>(ut::make_psi_memory_key(pfs_key))
+                   : ut::make_shared<type>();
+    EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+    EXPECT_EQ(ptr->x, 0);
+    EXPECT_EQ(ptr->y, 1);
+    EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+  }
 }
 REGISTER_TYPED_TEST_SUITE_P(
     ut0new_make_shared_ptr_default_constructible_non_pod_types,
@@ -2780,16 +2842,21 @@ TYPED_TEST_P(ut0new_make_shared_aligned_non_pod_types, non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
   auto alignment = 4 * alignof(std::max_align_t);
-  auto ptr = with_pfs ? ut::make_shared_aligned<type>(
-                            ut::make_psi_memory_key(pfs_key), alignment, 2, 5,
-                            std::string("non-pod"))
-                      : ut::make_shared_aligned<type>(alignment, 2, 5,
-                                                      std::string("non-pod"));
-  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
-  EXPECT_EQ(ptr->x, 2);
-  EXPECT_EQ(ptr->y, 5);
-  EXPECT_EQ(ptr->sum->result, 7);
-  EXPECT_EQ(ptr->s, std::string("non-pod"));
+  EXPECT_EQ(type::get_count(), 0);
+  {
+    auto ptr = with_pfs ? ut::make_shared_aligned<type>(
+                              ut::make_psi_memory_key(pfs_key), alignment, 2, 5,
+                              std::string("non-pod"))
+                        : ut::make_shared_aligned<type>(alignment, 2, 5,
+                                                        std::string("non-pod"));
+    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+    EXPECT_EQ(ptr->x, 2);
+    EXPECT_EQ(ptr->y, 5);
+    EXPECT_EQ(ptr->sum.result, 7);
+    EXPECT_EQ(ptr->s, std::string("non-pod"));
+    EXPECT_EQ(type::get_count(), 1);
+  }
+  EXPECT_EQ(type::get_count(), 0);
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_non_pod_types,
                             non_pod_types);
@@ -2807,13 +2874,16 @@ TYPED_TEST_P(ut0new_make_shared_aligned_default_constructible_non_pod_types,
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
   auto alignment = 4 * alignof(std::max_align_t);
-  auto ptr = with_pfs ? ut::make_shared_aligned<type>(
-                            ut::make_psi_memory_key(pfs_key), alignment)
-                      : ut::make_shared_aligned<type>(alignment);
-  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
-  EXPECT_EQ(ptr->x, 0);
-  EXPECT_EQ(ptr->y, 1);
-  EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+
+  {
+    auto ptr = with_pfs ? ut::make_shared_aligned<type>(
+                              ut::make_psi_memory_key(pfs_key), alignment)
+                        : ut::make_shared_aligned<type>(alignment);
+    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+    EXPECT_EQ(ptr->x, 0);
+    EXPECT_EQ(ptr->y, 1);
+    EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+  }
 }
 REGISTER_TYPED_TEST_SUITE_P(
     ut0new_make_shared_aligned_default_constructible_non_pod_types,

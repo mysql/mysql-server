@@ -41,6 +41,86 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0mtr.h"
 #include "rem0rec.h"
 
+/** The search info struct in an index */
+struct btr_search_t {
+  /** Number of blocks in this index tree that have search index built i.e.
+  block->ahi.index points to this index. */
+  std::atomic<size_t> ref_count;
+
+  /** @{ The following fields are not protected by any latch.
+  Unfortunately, this means that they must be aligned to the machine word, i.e.,
+  they cannot be turned into bit-fields. */
+
+  /** the root page frame when it was last time fetched, or NULL. */
+  buf_block_t *root_guess;
+  /** when this exceeds BTR_SEARCH_HASH_ANALYSIS, the hash analysis starts; this
+  is reset if no success noticed. */
+  std::atomic<uint64_t> hash_analysis;
+  /** true if the last search would have succeeded, or did succeed, using the
+  hash index; NOTE that the value here is not exact: it is not calculated for
+  every search, and the calculation itself is not always accurate! */
+  bool last_hash_succ;
+  /** number of consecutive searches which would have succeeded, or did succeed,
+  using the hash index; the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5. */
+  std::atomic<uint64_t> n_hash_potential;
+  /** @} */
+
+  std::atomic<btr_search_prefix_info_t> prefix_info;
+  static_assert(decltype(prefix_info)::is_always_lock_free);
+#ifdef UNIV_SEARCH_PERF_STAT
+  /** number of successful hash searches so far. */
+  std::atomic<ulint> n_hash_succ;
+  /** number of failed hash searches */
+  std::atomic<ulint> n_hash_fail;
+  /** number of successful pattern searches thus far */
+  std::atomic<ulint> n_patt_succ;
+  /** number of searches */
+  std::atomic<ulint> n_searches;
+#endif /* UNIV_SEARCH_PERF_STAT */
+#ifdef UNIV_DEBUG
+  /** magic number @see BTR_SEARCH_MAGIC_N */
+  ulint magic_n;
+#endif /* UNIV_DEBUG */
+};
+
+#ifdef UNIV_DEBUG
+/** value of btr_search_t::magic_n, used in assertions */
+constexpr uint32_t BTR_SEARCH_MAGIC_N = 1112765;
+#endif /* UNIV_DEBUG */
+
+/** The hash index system */
+class btr_search_sys_t {
+ public:
+  btr_search_sys_t(size_t hash_size);
+
+  class search_part_t {
+   public:
+    void initialize(size_t hash_size);
+    /** The latch protecting the adaptive search part: this latch protects the
+    (1) positions of records on those pages where a hash index has been built.
+    NOTE: It does not protect values of non-ordering fields within a record from
+    being updated in-place! We can use fact (1) to perform unique searches to
+    indexes. */
+    alignas(ut::INNODB_CACHE_LINE_SIZE) rw_lock_t latch;
+    /** The adaptive hash table, mapping dtuple_hash values to rec_t pointers
+    on index pages. For any hash value at most one pointer is hold. Is protected
+    by the part's latch. It is in a separate cache line to not collide with the
+    possible multiple readers that are registering for the latching. */
+    alignas(ut::INNODB_CACHE_LINE_SIZE) hash_table_t *hash_table;
+    /** A pointer to a free block that the heap in the hash table may use for
+    adding new hash nodes. Changes to nullptr are done under appropriate
+    X-latched rwlock. Changes from nullptr to non-nullptr are done without any
+    protection. Changes from non-null to a different non-null are prohibited. */
+    std::atomic<buf_block_t *> free_block_for_heap;
+  };
+
+  /** Partitions of the AHI system. */
+  ut::unique_ptr_aligned<search_part_t[]> parts;
+};
+
+/** The adaptive hash index */
+extern btr_search_sys_t *btr_search_sys;
+
 /** Creates and initializes the adaptive search system at a database start.
 @param[in]      hash_size       hash table size. */
 void btr_search_sys_create(ulint hash_size);
@@ -53,41 +133,37 @@ void btr_search_sys_resize(ulint hash_size);
 void btr_search_sys_free();
 
 /** Disable the adaptive hash search system and empty the index.
-@param[in]      need_mutex      Need to acquire dict_sys->mutex */
-void btr_search_disable(bool need_mutex);
+@returns true if the AHI system was enabled and became disabled. */
+bool btr_search_disable();
 /** Enable the adaptive hash search system. */
 void btr_search_enable();
-
-/** Returns search info for an index.
- @return search info; search mutex reserved */
-static inline btr_search_t *btr_search_get_info(
-    dict_index_t *index); /*!< in: index */
 
 /** Creates and initializes a search info struct.
 @param[in]      heap            heap where created.
 @return own: search info struct */
 btr_search_t *btr_search_info_create(mem_heap_t *heap);
 
-/** Returns the value of ref_count.
-@param[in]      info            search info
-@return ref_count value. */
-size_t btr_search_info_get_ref_count(const btr_search_t *info);
+/** Wait for the specified index to have all references from AHI dropped. We
+assume the caller prevents the new references from AHI from being created. This
+means the reference count will monotonically drop to zero.
+@param[in,out]  table   table handler
+@param[in,out]  index   index data dictionary structure
+@param[in]      force   should the wait be forced even if SRV_SHUTDOWN_CLEANUP
+                        state was reached? */
+void btr_search_await_no_reference(dict_table_t *table, dict_index_t *index,
+                                   bool force);
 
 /** Updates the search info statistics following a search in B-tree that was
 performed not using or not finding row with the AHI index. It may do nothing or
 decide to try to update the searched record on which the supplied cursor in
 positioned at, or add the whole page to AHI.
-@param[in]      index   index of the cursor
 @param[in]      cursor  cursor which was just positioned */
-static inline void btr_search_info_update(dict_index_t *index,
-                                          btr_cur_t *cursor);
+static inline void btr_search_info_update(btr_cur_t *cursor);
 
 /** Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns true, then cursor->up_match and cursor->low_match
 both have sensible values.
-@param[in,out]  index           Index
-@param[in,out]  info            Index search info
 @param[in]      tuple           Logical record
 @param[in]      mode            PAGE_CUR_L, ....
 @param[in]      latch_mode      BTR_SEARCH_LEAF, ...;
@@ -101,30 +177,36 @@ both have sensible values.
                                 search system: RW_S/X_LATCH or 0
 @param[in]      mtr             Mini-transaction
 @return true if succeeded */
-bool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
-                              const dtuple_t *tuple, ulint mode,
+bool btr_search_guess_on_hash(const dtuple_t *tuple, ulint mode,
                               ulint latch_mode, btr_cur_t *cursor,
                               ulint has_search_latch, mtr_t *mtr);
 
 /** Moves or deletes hash entries for moved records. If new_page is already
-hashed, then the hash index for page, if any, is dropped. If new_page is not
-hashed, and page is hashed, then a new hash index is built to new_page with the
-same parameters as page (this often happens when a page is split).
+hashed in compatible way or not cached at all, then the hash index for the new
+page is (re-)built. Otherwise the old page hash records are dropped.
 @param[in,out]  new_block       records are copied to this page.
 @param[in,out]  block           index page from which record are copied, and the
                                 copied records will be deleted from this page.
 @param[in,out]  index           record descriptor */
-void btr_search_move_or_delete_hash_entries(buf_block_t *new_block,
-                                            buf_block_t *block,
-                                            dict_index_t *index);
+void btr_search_update_hash_on_move(buf_block_t *new_block, buf_block_t *block,
+                                    dict_index_t *index);
 
 /** Drop any adaptive hash index entries that point to an index page.
 @param[in,out]  block   block containing index page, s- or x-latched, or an
                         index page for which we know that
                         block->buf_fix_count == 0 or it is an index page which
                         has already been removed from the buf_pool->page_hash
-                        i.e.: it is in state BUF_BLOCK_REMOVE_HASH */
-void btr_search_drop_page_hash_index(buf_block_t *block);
+                        i.e.: it is in state BUF_BLOCK_REMOVE_HASH
+@param[in]      force   Should the block's index be reset even if AHI is
+                        disabled? */
+void btr_search_drop_page_hash_index(buf_block_t *block, bool force = false);
+
+/** Resets block's AHI index field to nullptr, removes the reference from
+index's reference counter. This is done after all blocks' records were removed
+from AHI hash tables and caller assures the block still has reference to index.
+@param[in,out]  block           index page from which records were removed from
+                                AHI hash tables. */
+void btr_search_set_block_not_cached(buf_block_t *block);
 
 /** Drop any adaptive hash index entries that may point to an index
 page that may be in the buffer pool, when a page is evicted from the
@@ -156,7 +238,7 @@ void btr_search_update_hash_on_insert(btr_cur_t *cursor);
 
 /** Updates the page hash index when a single record is deleted from a page.
 @param[in]      cursor  cursor which was positioned on the record to delete
-using btr_cur_search_, the record is not yet deleted. */
+                        using btr_cur_search_, the record is not yet deleted. */
 void btr_search_update_hash_on_delete(btr_cur_t *cursor);
 
 /** Validates the search system.
@@ -225,94 +307,22 @@ static inline void btr_search_s_lock_all(ut::Location location);
 /** Unlock all search latches from shared mode. */
 static inline void btr_search_s_unlock_all();
 
-/** Get the adaptive hash search index slot ID for a b-tree specified by its IDs
-of index and space.
-@param[in] index_id Index of the b-tree index
-@param[in] space_id Index of the tablespace the index is in.
-@return Index of the slot for btr_search_sys->hash_tables and btr_search_latches
-arrays. */
-static inline size_t btr_get_search_slot(const space_index_t index_id,
-                                         const space_id_t space_id);
+/** Compute a hash value for a specified index.
+@param[in]      index   Index structure
+@return hash value of the index */
+static inline size_t btr_search_hash_index_id(const dict_index_t *index);
+
+/** Gets a pointer to a adaptive search part structure for a specified index.
+@param[in]      index   Index structure
+@return hash value of the index */
+static inline class btr_search_sys_t::search_part_t &btr_get_search_part(
+    const dict_index_t *index);
 
 /** Get the latch based on index attributes.
 A latch is selected from an array of latches using pair of index-id, space-id.
 @param[in]      index   index handler
 @return latch */
 static inline rw_lock_t *btr_get_search_latch(const dict_index_t *index);
-
-/** Get the hash-table based on index attributes.
-A table is selected from an array of tables using pair of index-id, space-id.
-@param[in]      index   index handler
-@return hash table */
-static inline hash_table_t *btr_get_search_table(const dict_index_t *index);
-
-/** The search info struct in an index */
-struct btr_search_t {
-  /** Number of blocks in this index tree that have search index built i.e.
-  block->index points to this index. */
-  std::atomic<ulint> ref_count;
-
-  /** @{ The following fields are not protected by any latch.
-  Unfortunately, this means that they must be aligned to the machine word, i.e.,
-  they cannot be turned into bit-fields. */
-
-  /** the root page frame when it was last time fetched, or NULL. */
-  buf_block_t *root_guess;
-  /** when this exceeds BTR_SEARCH_HASH_ANALYSIS, the hash analysis starts; this
-  is reset if no success noticed. */
-  ulint hash_analysis;
-  /** true if the last search would have succeeded, or did succeed, using the
-  hash index; NOTE that the value here is not exact: it is not calculated for
-  every search, and the calculation itself is not always accurate! */
-  bool last_hash_succ;
-  /** number of consecutive searches which would have succeeded, or did succeed,
-  using the hash index; the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5. */
-  ulint n_hash_potential;
-  /** @} */
-
-  /**---------------------- @{ */
-  /** recommended prefix length for hash search: number of full fields */
-  ulint n_fields;
-  /** recommended prefix: number of bytes in an incomplete field
-  @see BTR_PAGE_MAX_REC_SIZE */
-  ulint n_bytes;
-  /** true or false, depending on whether the leftmost record of several records
-  with the same prefix should be indexed in the hash index */
-  bool left_side;
-  /*---------------------- @} */
-#ifdef UNIV_SEARCH_PERF_STAT
-  /** number of successful hash searches so far. */
-  std::atomic<ulint> n_hash_succ;
-  /** number of failed hash searches */
-  std::atomic<ulint> n_hash_fail;
-  /** number of successful pattern searches thus far */
-  std::atomic<ulint> n_patt_succ;
-  /** number of searches */
-  std::atomic<ulint> n_searches;
-#endif /* UNIV_SEARCH_PERF_STAT */
-#ifdef UNIV_DEBUG
-  /** magic number @see BTR_SEARCH_MAGIC_N */
-  ulint magic_n;
-#endif /* UNIV_DEBUG */
-};
-
-#ifdef UNIV_DEBUG
-/** value of btr_search_t::magic_n, used in assertions */
-constexpr uint32_t BTR_SEARCH_MAGIC_N = 1112765;
-#endif /* UNIV_DEBUG */
-
-/** The hash index system */
-struct btr_search_sys_t {
-  /** the adaptive hash tables, mapping dtuple_hash values to rec_t pointers on
-  index pages */
-  hash_table_t **hash_tables;
-};
-
-/** Latches protecting access to adaptive hash index. */
-extern rw_lock_t **btr_search_latches;
-
-/** The adaptive hash index */
-extern btr_search_sys_t *btr_search_sys;
 
 #ifdef UNIV_SEARCH_PERF_STAT
 /** Number of successful adaptive hash index lookups */

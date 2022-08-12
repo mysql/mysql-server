@@ -1283,8 +1283,6 @@ static bool dict_table_can_be_evicted(
 
     for (index = table->first_index(); index != nullptr;
          index = index->next()) {
-      const btr_search_t *info = btr_search_get_info(index);
-
       /* We are not allowed to free the in-memory index
       struct dict_index_t until all entries in the adaptive
       hash index that point to any of the page belonging to
@@ -1297,7 +1295,7 @@ static bool dict_table_can_be_evicted(
 
       See also: dict_index_remove_from_cache_low() */
 
-      if (btr_search_info_get_ref_count(info) > 0) {
+      if (index->search_info->ref_count > 0) {
         return false;
       }
     }
@@ -1863,7 +1861,6 @@ static void dict_table_remove_from_cache_low(
 {
   dict_foreign_t *foreign;
   dict_index_t *index;
-  lint size;
 
   ut_ad(table);
   ut_ad(dict_lru_validate());
@@ -1938,7 +1935,8 @@ static void dict_table_remove_from_cache_low(
     ut::delete_(table->vc_templ);
   }
 
-  size = mem_heap_get_size(table->heap) + strlen(table->name.m_name) + 1;
+  const auto size =
+      mem_heap_get_size(table->heap) + strlen(table->name.m_name) + 1;
 
   ut_ad(dict_sys->size >= size);
 
@@ -2624,10 +2622,6 @@ static void dict_index_remove_from_cache_low(
     bool lru_evict)      /*!< in: true if index being evicted
                          to make room in the table LRU list */
 {
-  lint size;
-  ulint retries = 0;
-  btr_search_t *info;
-
   ut_ad(table && index);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -2641,48 +2635,7 @@ static void dict_index_remove_from_cache_low(
     row_log_free(index->online_log);
   }
 
-  /* We always create search info whether adaptive hash index is enabled or not.
-   */
-  info = btr_search_get_info(index);
-  ut_ad(info);
-
-  /* We are not allowed to free the in-memory index struct
-  dict_index_t until all entries in the adaptive hash index
-  that point to any of the page belonging to his b-tree index
-  are dropped. This is so because dropping of these entries
-  require access to dict_index_t struct. To avoid such scenario
-  We keep a count of number of such pages in the search_info and
-  only free the dict_index_t struct when this count drops to
-  zero. See also: dict_table_can_be_evicted() */
-
-  do {
-    ulint ref_count = btr_search_info_get_ref_count(info);
-
-    if (ref_count == 0) {
-      break;
-    }
-
-    /* Sleep for 10ms before trying again. */
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    ++retries;
-
-    if (retries % 500 == 0) {
-      /* No luck after 5 seconds of wait. */
-      ib::error(ER_IB_MSG_181) << "Waited for " << retries / 100
-                               << " secs for hash index"
-                                  " ref_count ("
-                               << ref_count
-                               << ") to drop to 0."
-                                  " index: "
-                               << index->name << " table: " << table->name;
-    }
-
-    /* To avoid a hang here we commit suicide if the
-    ref_count doesn't drop to zero in 600 seconds. */
-    if (retries >= 60000) {
-      ut_error;
-    }
-  } while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP || !lru_evict);
+  btr_search_await_no_reference(table, index, !lru_evict);
 
   rw_lock_free(&index->lock);
 
@@ -2729,7 +2682,7 @@ static void dict_index_remove_from_cache_low(
     }
   }
 
-  size = mem_heap_get_size(index->heap);
+  const auto size = mem_heap_get_size(index->heap);
 
   ut_ad(!table->is_intrinsic());
   ut_ad(dict_sys->size >= size);

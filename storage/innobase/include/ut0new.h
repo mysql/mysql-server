@@ -1656,7 +1656,7 @@ inline void aligned_delete(T *ptr) noexcept {
     shall be wrapped into a std::tuple. See examples down below. Instruments the
     memory with given PSI memory key in case PFS memory support is enabled.
 
-    To create an array of default-intialized T's, one can use this function
+    To create an array of default-initialized T's, one can use this function
     template but for convenience purposes one can achieve the same by using
     the ut::aligned_new_arr_withkey with ut::Count overload.
 
@@ -2551,6 +2551,23 @@ std::enable_if_t<detail::is_bounded_array_v<T>> make_unique_aligned(
 template <typename T, typename... Args>
 std::enable_if_t<detail::is_bounded_array_v<T>> make_unique_aligned(
     PSI_memory_key_t key, Args &&...) = delete;
+
+/** The following is a common type that is returned by all the
+    ut::make_unique_aligned (non-aligned) specializations listed above. This is
+    effectively a if-ladder for the following list of conditions on the input
+    type: !std::is_array<T>::value -> std::unique_ptr<T,
+   detail::Aligned_deleter<T>> detail::is_unbounded_array_v<T> ->
+      std::unique_ptr<T,detail::Aligned_array_deleter<std::remove_extent_t<T>>>
+   else (or else if detail::is_bounded_array_v<T>) -> void (we do not support
+   bounded array ut::make_unique)
+ */
+template <typename T>
+using unique_ptr_aligned = std::conditional_t<
+    !std::is_array<T>::value, std::unique_ptr<T, detail::Aligned_deleter<T>>,
+    std::conditional_t<detail::is_unbounded_array_v<T>,
+                       std::unique_ptr<T, detail::Aligned_array_deleter<
+                                              std::remove_extent_t<T>>>,
+                       void>>;
 
 /** Dynamically allocates storage for an object of type T. Constructs the object
     of type T with provided Args. Wraps the pointer to T instance into the

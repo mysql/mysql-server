@@ -730,7 +730,7 @@ static inline void buf_block_modify_clock_inc(buf_block_t *block) {
 #ifdef UNIV_DEBUG
   buf_pool_t *buf_pool = buf_pool_from_bpage(&block->page);
 #endif /* UNIV_DEBUG */
-  assert_block_ahi_valid(block);
+  block->ahi.validate();
 
   /* No block latch is acquired for internal temporary tables. */
   ut_ad(fsp_is_system_temporary(block->page.id.space()) ||
