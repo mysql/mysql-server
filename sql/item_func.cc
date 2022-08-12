@@ -7770,6 +7770,12 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
     }
     allows_multi_table_search &= allows_search_on_non_indexed_columns(
         ((Item_field *)item)->field->table);
+    // MATCH should only operate on fields, so don't let constant propagation
+    // replace them with constants. (Only relevant to MyISAM, which allows any
+    // type of column in the MATCH clause. InnoDB requires the columns to have a
+    // full-text index, which again requires the column type to be a string
+    // type, and constant propagation is already disabled for strings.)
+    item->disable_constant_propagation(nullptr);
   }
 
   /*
