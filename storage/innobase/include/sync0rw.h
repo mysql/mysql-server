@@ -433,12 +433,12 @@ struct rw_lock_t
   struct PSI_rwlock *pfs_psi;
 #endif /* UNIV_PFS_RWLOCK */
 
-#ifdef UNIV_DEBUG
+#ifndef UNIV_DEBUG
   /** Destructor */
-  ~rw_lock_t() override {
-    ut_ad(magic_n == MAGIC_N);
-    magic_n = 0;
-  }
+  ~rw_lock_t();
+#else
+  /** Destructor */
+  ~rw_lock_t() override;
 
   virtual std::string to_string() const override;
   virtual std::string locked_from() const override;

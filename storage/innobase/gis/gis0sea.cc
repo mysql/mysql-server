@@ -1373,7 +1373,7 @@ static void rtr_non_leaf_insert_stack_push(
 }
 
 /** Copy a buf_block_t structure, except "block->lock",
-"block->mutex","block->debug_latch", "block->n_pointers and block->frame."
+"block->mutex","block->debug_latch", "block->ahi.n_pointers and block->frame."
 @param[in,out]  matches copy to match->block
 @param[in]      block   block to copy */
 static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
@@ -1395,12 +1395,10 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
    */
   ut_ad(rw_lock_validate(&matches->block.lock));
   matches->block.n_hash_helps.store(block->n_hash_helps.load());
-  matches->block.n_bytes.store(block->n_bytes.load());
-  matches->block.n_fields.store(block->n_fields.load());
-  matches->block.left_side.store(block->left_side.load());
-  matches->block.curr_n_fields = block->curr_n_fields;
-  matches->block.curr_left_side = block->curr_left_side;
-  matches->block.index = block->index;
+  matches->block.ahi.recommended_prefix_info.store(
+      block->ahi.recommended_prefix_info.load());
+  matches->block.ahi.prefix_info.store(block->ahi.prefix_info.load());
+  matches->block.ahi.index.store(block->ahi.index.load());
   matches->block.made_dirty_with_no_latch = block->made_dirty_with_no_latch;
   matches->block.modify_clock = block->modify_clock;
 
@@ -1412,9 +1410,11 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   defined the default copy assignment operator was not correct. This was changed
   because an std::atomic<bool> member was added and rw_lock_t became explicitly
   non copyable. */
-  UNIV_MEM_INVALID(&matches->block.debug_latch, sizeof(rw_lock_t));
-  UNIV_MEM_INVALID(&matches->block.mutex, sizeof(BPageMutex));
-  UNIV_MEM_INVALID(&matches->block.n_pointers, sizeof(std::atomic<ulint>));
+  UNIV_MEM_INVALID(&matches->block.debug_latch,
+                   sizeof(matches->block.debug_latch));
+  UNIV_MEM_INVALID(&matches->block.mutex, sizeof(matches->block.mutex));
+  UNIV_MEM_INVALID(&matches->block.ahi.n_pointers,
+                   sizeof(matches->block.ahi.n_pointers));
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 }

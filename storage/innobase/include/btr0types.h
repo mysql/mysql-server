@@ -50,7 +50,7 @@ struct btr_search_t;
 
 /** Is search system enabled.
 Search system is protected by array of latches. */
-extern bool btr_search_enabled;
+extern std::atomic_bool btr_search_enabled;
 
 /** Number of adaptive hash index partition. */
 extern ulong btr_ahi_parts;

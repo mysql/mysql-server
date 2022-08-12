@@ -87,7 +87,7 @@ enum srv_shutdown_t {
     - buf_resize thread.
   @remarks If your thread might touch DD objects or use system transactions
   it must be stopped within SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS phase.
-*/
+  */
   SRV_SHUTDOWN_CLEANUP,
 
   /** Stopping the master thread. */

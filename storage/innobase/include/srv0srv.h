@@ -654,6 +654,21 @@ to users.
 @param[in] new_limit new limit to be set. */
 void innobase_set_open_files_limit(long new_limit);
 
+extern ulong srv_fatal_semaphore_wait_threshold;
+extern uint srv_flush_log_at_timeout;
+extern bool srv_btr_search_enabled;
+extern ulong srv_replication_delay;
+
+extern ulong srv_log_wait_for_write_timeout;
+extern ulong srv_log_wait_for_flush_timeout;
+extern ulong srv_log_writer_timeout;
+extern ulong srv_log_checkpoint_every;
+extern ulong srv_log_flusher_timeout;
+extern ulong srv_log_write_notifier_timeout;
+extern ulong srv_log_flush_notifier_timeout;
+
+extern uint buf_LRU_old_threshold;
+
 extern ulong srv_n_page_cleaners;
 
 extern double srv_max_dirty_pages_pct;
