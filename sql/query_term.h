@@ -267,7 +267,7 @@ class Query_term {
 
  public:
   /// Getter for m_parent, q.v.
-  Query_term_set_op *parent() { return m_parent; }
+  Query_term_set_op *parent() const { return m_parent; }
 
   /**
     Reset resources used.

@@ -658,7 +658,7 @@ class Query_expression {
       return m_query_term->query_block();
   }
   bool is_leaf_block(Query_block *qb);
-  Query_term *find_blocks_query_term(Query_block *qb) {
+  Query_term *find_blocks_query_term(const Query_block *qb) const {
     for (auto qt : query_terms<>()) {
       if (qt->query_block() == qb) return qt;
     }
@@ -1515,7 +1515,7 @@ class Query_block : public Query_term {
 
     @todo Integrate better with Query_expression::set_limit()
   */
-  ha_rows get_offset(const THD *thd);
+  ha_rows get_offset(const THD *thd) const;
   /**
    Get limit.
 
@@ -1525,7 +1525,7 @@ class Query_block : public Query_term {
 
    @todo Integrate better with Query_expression::set_limit()
   */
-  ha_rows get_limit(const THD *thd);
+  ha_rows get_limit(const THD *thd) const;
 
   /// Assign a default name resolution object for this query block.
   bool set_context(Name_resolution_context *outer_context);
@@ -1799,7 +1799,7 @@ class Query_block : public Query_term {
   void set_right_joins() { m_right_joins = true; }
 
   /// Lookup for Query_block type
-  enum_explain_type type();
+  enum_explain_type type() const;
 
   /// Lookup for a type string
   const char *get_type_str() { return type_str[static_cast<int>(type())]; }

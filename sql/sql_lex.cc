@@ -2412,14 +2412,14 @@ void Query_expression::set_explain_marker_from(THD *thd,
   thd->unlock_query_plan();
 }
 
-ha_rows Query_block::get_offset(const THD *) {
+ha_rows Query_block::get_offset(const THD *) const {
   if (offset_limit != nullptr)
     return ha_rows{offset_limit->val_uint()};
   else
     return ha_rows{0};
 }
 
-ha_rows Query_block::get_limit(const THD *thd) {
+ha_rows Query_block::get_limit(const THD *thd) const {
   /*
     If m_use_select_limit is set in the query block, return the value
     of the variable select_limit, unless an explicit limit is set.
@@ -4291,7 +4291,7 @@ static enum_explain_type setop2result(Query_term *qt) {
   are in sql_union.cc
 */
 
-enum_explain_type Query_block::type() {
+enum_explain_type Query_block::type() const {
   Query_term *qt = master_query_expression()->find_blocks_query_term(this);
   if (qt->term_type() != QT_QUERY_BLOCK) {
     return setop2result(qt);

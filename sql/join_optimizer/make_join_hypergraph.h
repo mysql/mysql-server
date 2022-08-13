@@ -77,6 +77,25 @@ struct JoinHypergraph {
 
   hypergraph::Hypergraph graph;
 
+  /// Flag to indicate (mostly for secondary engines) that the partial plans for
+  /// the current query block have the aggregation node present.
+  bool query_block_has_aggregation_node{false};
+
+  /// Flag to indicate (mostly for secondary engines) that the current query
+  /// block contains a WINDOW AccessPath.
+  bool query_block_has_windowfunc{false};
+
+  /// Flag to indicate (mostly for secondary engines) that the partial plans for
+  /// the current query block contains more than one "base" tables. These can
+  /// include derived tables and common table expressions.
+  bool query_block_has_multiple_base_tables{false};
+
+  /// Flag to indicate (mostly for secondary engines) that for the current query
+  /// block all join ordering-related AccessPaths were proposed and the
+  /// secondary engine can handle ORDER BY and / or LIMIT OFFSET clauses when it
+  /// needs to treat them specially.
+  bool query_block_ready_to_handle_distinct_order_by_limit_offset{false};
+
   // Maps table->tableno() to an index in “nodes”, also suitable for
   // a bit index in a NodeMap. This is normally the identity mapping,
   // except for when scalar-to-derived conversion is active.

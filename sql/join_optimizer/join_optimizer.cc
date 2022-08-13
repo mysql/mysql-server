@@ -163,7 +163,7 @@ AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
 class CostingReceiver {
  public:
   CostingReceiver(
-      THD *thd, Query_block *query_block, const JoinHypergraph &graph,
+      THD *thd, Query_block *query_block, JoinHypergraph &graph,
       const LogicalOrderings *orderings,
       const Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
       const Mem_root_array<ActiveIndexInfo> *active_indexes,
@@ -313,7 +313,7 @@ class CostingReceiver {
   int m_num_seen_subgraph_pairs = 0;
 
   /// The graph we are running over.
-  const JoinHypergraph *m_graph;
+  JoinHypergraph *m_graph;
 
   /// Whether we have applied clamping due to a multi-column EQ_REF at any
   /// point. There is a known issue (see bug #33550360) where this can cause
@@ -2091,6 +2091,7 @@ void CostingReceiver::ProposeAccessPathForIndex(
 bool CostingReceiver::ProposeTableScan(
     TABLE *table, int node_idx, double force_num_output_rows_after_filter,
     bool is_recursive_reference) {
+  m_graph->query_block_has_multiple_base_tables = false;
   AccessPath path;
   if (is_recursive_reference) {
     path.type = AccessPath::FOLLOW_TAIL;
@@ -3047,15 +3048,12 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       // For inner joins and full outer joins, the order does not matter.
       // In lieu of a more precise cost model, always keep the one that hashes
       // the fewest amount of rows. (This has lower initial cost, and the same
-      // cost.) When cost estimates are supplied by the secondary engine,
-      // explore both orders, since the secondary engine might unilaterally
-      // decide to prefer or reject one particular order. (TODO: Remove this,
-      // as the only relevant secondary engine does its own flipping.)
+      // cost.)
       //
       // Finally, if either of the sides are parameterized on something
       // external, flipping the order will not necessarily be allowed (and would
       // cause us to not give a hash join for these tables at all).
-      if (is_commutative && m_secondary_engine_cost_hook == nullptr &&
+      if (is_commutative &&
           !Overlaps(left_path->parameter_tables | right_path->parameter_tables,
                     RAND_TABLE_BIT)) {
         if (left_path->num_output_rows() < right_path->num_output_rows()) {
@@ -3166,6 +3164,8 @@ void CostingReceiver::ProposeHashJoin(
     OrderingSet new_obsolete_orderings, bool rewrite_semi_to_inner,
     bool *wrote_trace) {
   if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) return;
+
+  m_graph->query_block_has_multiple_base_tables = true;
 
   if (Overlaps(left_path->parameter_tables, right) ||
       Overlaps(right_path->parameter_tables, left | RAND_TABLE_BIT)) {
@@ -6597,6 +6597,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     if (join->make_sum_func_list(*join->fields, /*before_group_by=*/true))
       return nullptr;
 
+    graph.query_block_has_aggregation_node = true;
+
     if (trace != nullptr) {
       *trace += "Applying aggregation for GROUP BY\n";
     }
@@ -6726,6 +6728,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
 
   join->m_windowing_steps = !join->m_windows.is_empty();
+  graph.query_block_has_windowfunc = true;
   if (join->m_windowing_steps) {
     root_candidates = ApplyWindowFunctions(
         thd, receiver, orderings, fd_set, aggregation_is_unordered,
@@ -6739,6 +6742,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       "Applying filter for window function in2exists conditions\n", trace,
       &root_candidates, &receiver);
 
+  graph.query_block_ready_to_handle_distinct_order_by_limit_offset = true;
   if (join->select_distinct || join->order.order != nullptr) {
     // UPDATE and DELETE must preserve row IDs through ORDER BY in order to keep
     // track of which rows to update or delete.
