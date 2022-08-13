@@ -238,7 +238,7 @@ EOF
       --enable_abort_on_error
     }
 
-    SELECT filename FROM file_tbl
+    SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ filename FROM file_tbl
       WHERE filename NOT LIKE 'check-mysqld_%'
       AND filename NOT LIKE 'mysql%.sock%'
       AND filename NOT LIKE 'file_list_%.flist'

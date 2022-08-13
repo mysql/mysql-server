@@ -144,7 +144,7 @@ while ($_dt_tables)
 
   # Compute length of ORDER BY clause.
   let $_dt_order_by_length=
-    `SELECT SUM(LENGTH(column_name) + 3) FROM information_schema.columns
+    `SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ SUM(LENGTH(column_name) + 3) FROM information_schema.columns
             WHERE table_schema = '$_dt_database' AND
                   table_name = '$_dt_table' AND
                   column_type != 'JSON'
@@ -169,7 +169,7 @@ while ($_dt_tables)
   # It would be better to do GROUP_CONCAT(CONCAT('`', column_name, '`')) but
   # BUG#58087 prevents us from returning strings that begin with backticks.
   let $_dt_column_list=
-    `SELECT GROUP_CONCAT(column_name ORDER BY ORDINAL_POSITION SEPARATOR '`,`')
+    `SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ GROUP_CONCAT(column_name ORDER BY ORDINAL_POSITION SEPARATOR '`,`')
             FROM information_schema.columns
             WHERE table_schema = '$_dt_database' AND
                   table_name = '$_dt_table' AND
@@ -194,10 +194,10 @@ while ($_dt_tables)
   # $mask_column_list can be set in the test. If it is not defined,
   # all the columns can be written to the file.
   if ($mask_column_list) {
-    --let $statement = SELECT `$_dt_column_list` FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
+    --let $statement = SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ `$_dt_column_list` FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
   }
   if (!$mask_column_list) {
-    --let $statement = SELECT * FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
+    --let $statement = SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
   }
   if ($rpl_debug)
   {

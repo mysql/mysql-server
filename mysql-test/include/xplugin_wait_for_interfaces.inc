@@ -21,7 +21,7 @@ if ($wait_for_tcpsocket_status != "no_wait")
   }
 
   let $wait_condition=
-    SELECT 1 FROM performance_schema.global_status WHERE
+    SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ 1 FROM performance_schema.global_status WHERE
       VARIABLE_NAME like 'Mysqlx_address' AND
       VARIABLE_VALUE != '' AND
       VARIABLE_VALUE $wait_operation 'UNDEFINED';
@@ -34,7 +34,7 @@ if ($wait_for_tcpsocket_status != "no_wait")
     echo - wait_for_unixsocket_status=$wait_for_unixsocket_status;
     echo;
     echo Some status variables returned unexpected data:;
-    SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_address" OR VARIABLE_NAME like "Mysqlx_socket" OR VARIABLE_NAME like "Mysqlx_port";
+    SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_address" OR VARIABLE_NAME like "Mysqlx_socket" OR VARIABLE_NAME like "Mysqlx_port";
     die;
   }
 }
@@ -48,7 +48,7 @@ if ($wait_for_unixsocket_status != "no_wait")
   }
 
   let $wait_condition=
-    SELECT 1 FROM performance_schema.global_status WHERE
+    SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ 1 FROM performance_schema.global_status WHERE
       (VARIABLE_NAME like 'Mysqlx_socket' AND
        VARIABLE_VALUE != '' AND
        VARIABLE_VALUE $wait_operation 'UNDEFINED') OR
@@ -62,7 +62,7 @@ if ($wait_for_unixsocket_status != "no_wait")
     echo - wait_for_unixsocket_status=$wait_for_unixsocket_status;
     echo;
     echo Some status variables returned unexpected data:;
-    SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_address" OR VARIABLE_NAME like "Mysqlx_socket" OR VARIABLE_NAME like "Mysqlx_port";
+    SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_address" OR VARIABLE_NAME like "Mysqlx_socket" OR VARIABLE_NAME like "Mysqlx_port";
     die;
   }
 

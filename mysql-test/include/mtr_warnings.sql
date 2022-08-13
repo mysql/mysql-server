@@ -437,11 +437,11 @@ BEGIN
   --
   -- Get the number of marked lines and return result
   --
-  SELECT COUNT(*) INTO @num_warnings FROM error_log
+  SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ COUNT(*) INTO @num_warnings FROM error_log
     WHERE suspicious=1;
 
   IF @num_warnings > 0 THEN
-    SELECT line
+    SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ line
         FROM error_log WHERE suspicious=1;
     -- SELECT * FROM test_suppressions;
     -- Return 2 -> check failed
