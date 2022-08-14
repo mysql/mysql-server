@@ -1,0 +1,107 @@
+###############################################################################
+# Validate that when a 8.0.27+ server joins a 8.0.26 group, the joining server
+# preserves its default "mysql_start_failover_channels_if_primary" member action.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap a group with server1 as the primary, faking
+#    that this server has 8.0.26 version.
+# 2. Join server2 to the group.
+#    server2 must have the member action
+#    "mysql_start_failover_channels_if_primary" before and
+#    after join the group.
+# 3. Clean up.
+###############################################################################
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_skip_group_replication_start= 1
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap a group with server1 as the primary, faking
+--echo #    that this server has 8.0.26 version.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Fake that this is a 8.0.26 server by deleting the member action
+# "mysql_start_failover_channels_if_primary".
+SET session sql_log_bin=0;
+DELETE FROM mysql.replication_group_member_actions WHERE name="mysql_start_failover_channels_if_primary";
+SET session sql_log_bin=1;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= There must be one member action
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 1
+--source include/assert.inc
+
+--let $assert_text= mysql_disable_super_read_only_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=1 AND error_handling=\'IGNORE\'] = 1
+--source include/assert.inc
+
+--let $assert_text= There must be one GR configuration version
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_configuration_version] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 1
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Join server2 to the group.
+--echo #    server2 must have the member action
+--echo #    "mysql_start_failover_channels_if_primary" before and
+--echo #    after join the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= There must be two member actions
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2
+--source include/assert.inc
+
+--let $assert_text= mysql_disable_super_read_only_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=1 AND error_handling=\'IGNORE\'] = 1
+--source include/assert.inc
+
+--let $assert_text= mysql_start_failover_channels_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=10 AND error_handling=\'CRITICAL\'] = 1
+--source include/assert.inc
+
+--let $assert_text= There must be one GR configuration version
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_configuration_version] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 1
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+
+--let $assert_text= There must be two member actions
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2
+--source include/assert.inc
+
+--let $assert_text= mysql_disable_super_read_only_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=1 AND error_handling=\'IGNORE\'] = 1
+--source include/assert.inc
+
+--let $assert_text= mysql_start_failover_channels_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=10 AND error_handling=\'CRITICAL\'] = 1
+--source include/assert.inc
+
+--let $assert_text= There must be one GR configuration version
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_configuration_version] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 1
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--source include/group_replication_end.inc
