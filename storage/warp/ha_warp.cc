@@ -2529,7 +2529,13 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
 
     const Item *cond = table_access->get_condition();
     const TABLE *table = table_access->get_table();
-    QEP_TAB *qep_tab = table->reginfo.qep_tab;
+    if(!table)  {
+       continue;
+    }
+    QEP_TAB *qep_tab = nullptr;
+    if(table->reginfo.qep_tab != nullptr) {
+      qep_tab = table->reginfo.qep_tab;
+    }
     ha_warp *const ha = (ha_warp*)(table->file);
     
     if (cond == nullptr && join->where_cond == nullptr) { 
