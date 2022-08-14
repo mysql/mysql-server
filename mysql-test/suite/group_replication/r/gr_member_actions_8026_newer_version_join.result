@@ -1,0 +1,40 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a group with server1 as the primary, faking
+#    that this server has 8.0.26 version.
+[connection server1]
+SET session sql_log_bin=0;
+DELETE FROM mysql.replication_group_member_actions WHERE name="mysql_start_failover_channels_if_primary";
+SET session sql_log_bin=1;
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [There must be one member action]
+include/assert.inc [mysql_disable_super_read_only_if_primary action default value]
+include/assert.inc [There must be one GR configuration version]
+include/assert.inc [The version of replication_group_member_actions must be 1]
+
+############################################################
+# 2. Join server2 to the group.
+#    server2 must have the member action
+#    "mysql_start_failover_channels_if_primary" before and
+#    after join the group.
+[connection server2]
+include/assert.inc [There must be two member actions]
+include/assert.inc [mysql_disable_super_read_only_if_primary action default value]
+include/assert.inc [mysql_start_failover_channels_if_primary action default value]
+include/assert.inc [There must be one GR configuration version]
+include/assert.inc [The version of replication_group_member_actions must be 1]
+include/start_group_replication.inc
+include/assert.inc [There must be two member actions]
+include/assert.inc [mysql_disable_super_read_only_if_primary action default value]
+include/assert.inc [mysql_start_failover_channels_if_primary action default value]
+include/assert.inc [There must be one GR configuration version]
+include/assert.inc [The version of replication_group_member_actions must be 1]
+
+############################################################
+# 3. Clean up.
+include/group_replication_end.inc

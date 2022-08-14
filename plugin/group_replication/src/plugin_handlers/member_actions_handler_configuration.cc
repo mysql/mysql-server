@@ -315,6 +315,7 @@ bool Member_actions_handler_configuration::update_all_actions_internal(
   assert(action_list.version() > 0);
   assert(action_list.action_size() > 0);
   bool error = false;
+  bool mysql_start_failover_channels_if_primary_updated = false;
 
   Rpl_sys_table_access table_op(s_schema_name, s_table_name, s_fields_number);
 
@@ -387,12 +388,39 @@ bool Member_actions_handler_configuration::update_all_actions_internal(
   Field **fields = table->field;
   for (const protobuf_replication_group_member_actions::Action &action :
        action_list.action()) {
+    if (action.name().compare("mysql_start_failover_channels_if_primary") ==
+        0) {
+      mysql_start_failover_channels_if_primary_updated = true;
+    }
+
     field_store(fields[0], action.name());
     field_store(fields[1], action.event());
     field_store(fields[2], action.enabled());
     field_store(fields[3], action.type());
     field_store(fields[4], action.priority());
     field_store(fields[5], action.error_handling());
+
+    error |= table->file->ha_write_row(table->record[0]) != 0;
+    if (error) {
+      /* purecov: begin inspected */
+      return true;
+      /* purecov: end */
+    }
+  }
+
+  /*
+    When a 8.0.27+ server joins a 8.0.26 group, the joining server
+    will not receive the action "mysql_start_failover_channels_if_primary",
+    the group does not know it, as such we need to add its default value.
+  */
+  if (!mysql_start_failover_channels_if_primary_updated) {
+    Field **fields = table->field;
+    field_store(fields[0], "mysql_start_failover_channels_if_primary");
+    field_store(fields[1], "AFTER_PRIMARY_ELECTION");
+    field_store(fields[2], 1);
+    field_store(fields[3], "INTERNAL");
+    field_store(fields[4], 10);
+    field_store(fields[5], "CRITICAL");
 
     error |= table->file->ha_write_row(table->record[0]) != 0;
     if (error) {
