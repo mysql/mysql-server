@@ -69,7 +69,8 @@ TEST(ut0new, edgecases) {
 
 struct Pod_type {
   Pod_type(int _x, int _y) : x(_x), y(_y) {}
-  ~Pod_type() {}
+  Pod_type(const Pod_type &) = default;
+  ~Pod_type() = default;
   int x;
   int y;
 };

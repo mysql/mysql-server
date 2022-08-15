@@ -320,11 +320,64 @@ IF(HAVE_LIBNUMA)
   SET(NUMA_LIBRARY "numa")
 ENDIF()
 
+IF(LINUX AND MY_COMPILER_IS_CLANG)
+  # Clang needs library support for code like:
+  SET(ATOMIC_SOURCE_CODE
+   "
+  #include <atomic>
+  int main () {
+    struct A { char a [3]; } a = { { 'a', 'b', 'c' } };
+    std::atomic<A> aa;
+    aa.store (a);
+    return 0;
+  }"
+  )
+
+  # On some platforms (ubuntu) linking with -latomic is enough,
+  # we get a dependency
+  #   libatomic.so.1 => /lib/x86_64-linux-gnu/libatomic.so.1
+  # On other platforms (redhat) we need to look explicitly for
+  #   /lib64/libatomic.so.1
+  # Note that there is no libatomic.so symlink on either platform.
+  CHECK_CXX_SOURCE_COMPILES("${ATOMIC_SOURCE_CODE}" HAVE_BUILTIN_ATOMIC_LIB)
+  IF(NOT HAVE_BUILTIN_ATOMIC_LIB)
+    CMAKE_PUSH_CHECK_STATE()
+    SET(CMAKE_REQUIRED_LIBRARIES atomic)
+    CHECK_CXX_SOURCE_COMPILES("${ATOMIC_SOURCE_CODE}" HAVE_EXTERNAL_ATOMIC_LIB)
+    CMAKE_POP_CHECK_STATE()
+
+    IF(HAVE_EXTERNAL_ATOMIC_LIB)
+      SET(ATOMIC_LIBRARY -latomic)
+    ELSE()
+      # Assuming that libatomic.so.1 is in the same place as libc.so
+      FIND_LIBRARY(LIBC c)
+      GET_FILENAME_COMPONENT(SYSTEM_LIBRARY_DIR "${LIBC}" DIRECTORY)
+      FIND_FILE(ATOMIC_LIBRARY_FILE
+        NAMES libatomic.so.1 libatomic.so.1.2.0
+        PATHS ${SYSTEM_LIBRARY_DIR}
+        )
+      IF(ATOMIC_LIBRARY_FILE)
+        SET(ATOMIC_LIBRARY ${ATOMIC_LIBRARY_FILE})
+      ELSE()
+        MESSAGE(WARNING "Cannot find system atomic library. "
+        "You need to install the required package:\n"
+        "  Debian/Ubuntu:              apt install libatomic1\n"
+        "  RedHat/Fedora/Oracle Linux: yum install libatomic libatomic-static\n"
+        "  SuSE:                       zypper install libatomic\n"
+        )
+        MESSAGE(FATAL_ERROR "Clang requires -latomic on this platform.")
+      ENDIF()
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 MYSQL_ADD_PLUGIN(innobase
   ${INNOBASE_SOURCES} ${INNOBASE_ZIP_DECOMPRESS_SOURCES} STORAGE_ENGINE
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
-  LINK_LIBRARIES sql_dd sql_gis ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
+  LINK_LIBRARIES sql_dd sql_gis ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY}
+  ${ATOMIC_LIBRARY}
+  )
 
 # On linux: /usr/include/stdio.h:#define BUFSIZ 8192
 # On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024
