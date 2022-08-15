@@ -865,3 +865,11 @@ SELECT x FROM t GROUP BY x, MATCH(x) AGAINST ('abc')
 HAVING MATCH(x) AGAINST ('abc');
 x
 DROP TABLE t;
+#
+# Bug#34311472: Assertion in val_real() failed in MySQL 8.0.29
+#
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (1);
+SELECT * FROM t WHERE MATCH(x) AGAINST('abc' IN BOOLEAN MODE) AND x = 1;
+x
+DROP TABLE t;
