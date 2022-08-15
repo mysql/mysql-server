@@ -164,13 +164,12 @@ classic_proto_verify_connection_attributes(const std::string &attrs) {
   // track if each key has a matching value.
   bool is_key{true};
   auto attr_buf = net::buffer(attrs);
-  do {
+
+  while (net::buffer_size(attr_buf) != 0) {
     const auto decode_res =
         classic_protocol::decode<classic_protocol::wire::VarString>(attr_buf,
                                                                     {});
-    if (!decode_res) {
-      return decode_res.get_unexpected();
-    }
+    if (!decode_res) return decode_res.get_unexpected();
 
     const auto bytes_read = decode_res->first;
     const auto kv = decode_res->second;
@@ -179,7 +178,7 @@ classic_proto_verify_connection_attributes(const std::string &attrs) {
 
     // toggle the key/value tracker.
     is_key = !is_key;
-  } while (net::buffer_size(attr_buf) != 0);
+  }
 
   // if the last key doesn't have a value, fail
   if (!is_key || net::buffer_size(attr_buf) != 0) {
