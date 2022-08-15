@@ -1,6 +1,9 @@
+Get WarpSQL on the Amazon AMI marketplace.  See http://www.leapdb.com for more information.
+Get support and binaries for WarpSQL from LeapDB too!
+
 Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
-This is a release of MySQL, an SQL database server.
+This is a release of MySQL, an SQL database server which includes the WARP storage engine and the WARP rewriter kit.
 
 License information can be found in the LICENSE file.
 
