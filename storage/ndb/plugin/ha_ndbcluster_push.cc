@@ -1072,9 +1072,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     }
   }
 
-  const ndb_table_access_map inner_nest(m_tables[tab_no].m_inner_nest);
-  if (!inner_nest.contain(all_parents)) {  // Is not a plain inner-join
-
+  if (true) {
+    // Need to always check and set up m_ancestor_nests
     ndb_table_access_map depend_parents;
 
     /**
@@ -1102,16 +1101,12 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     depend_parents.add(parents_of_condition);
 
     /**
-     * In the (unlikely) case of parent references to tables not
-     * in our embedding join nests at all, we have to make sure that we do
-     * not cause extra dependencies to be added between the referred join nests.
+     * Set up the join-nest ancestor dependencies required by the set of
+     * 'depend_tables' refered from this table. That is: the 'real'
+     * outer-join nest dependencies, represented in m_ancestor_nests.
      */
-    const ndb_table_access_map embedding_nests(
-        m_tables[tab_no].embedding_nests());
-    if (unlikely(!embedding_nests.contain(depend_parents))) {
-      if (!is_outer_nests_referable(table, depend_parents)) {
-        return false;
-      }
+    if (!set_ancestor_nests(table, depend_parents)) {
+      return false;
     }
 
     /**
@@ -1123,22 +1118,24 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
      */
     const uint first_inner = m_tables[tab_no].m_first_inner;
     // Only interested in the upper-nest-level dependencies:
-    depend_parents.intersect(m_tables[first_inner].embedding_nests());
+    depend_parents.intersect(m_tables[first_inner].ancestor_nests());
 
     // Can these outer parent dependencies co-exists with existing
     // ancestor dependencies?
     if (!depend_parents.is_clear_all() &&
         !m_tables[first_inner].m_ancestors.is_clear_all()) {
+      const ndb_table_access_map ancestor_nests(
+          m_tables[tab_no].ancestor_nests());
       ndb_table_access_map nest_dependencies(depend_parents);
       nest_dependencies.add(m_tables[first_inner].m_ancestors);
 
       uint ancestor_no = first_inner;
-      while (!embedding_nests.contain(nest_dependencies)) {
+      while (!ancestor_nests.contain(nest_dependencies)) {
         ancestor_no = nest_dependencies.last_table(ancestor_no - 1);
         nest_dependencies.clear_bit(ancestor_no);
 
         // If remaining dependencies are unavailable from parent, we can't push
-        if (!m_tables[ancestor_no].embedding_nests().contain(
+        if (!m_tables[ancestor_no].ancestor_nests().contain(
                 nest_dependencies)) {
           const AQP::Table_access *const parent =
               m_plan.get_table_access(ancestor_no);
@@ -1154,7 +1151,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     }
     m_tables[first_inner].m_ancestors.add(depend_parents);
     assert(!m_tables[first_inner].m_ancestors.contain(first_inner));
-    assert(!m_tables[first_inner].m_ancestors.is_overlapping(inner_nest));
+    assert(!m_tables[first_inner].m_ancestors.is_overlapping(
+        m_tables[tab_no].m_inner_nest));
   }
 
   m_join_scope.add(tab_no);
@@ -1486,12 +1484,15 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
 
 /***************************************************************
  *
- * is_outer_nests_referable()
+ * set_ancestor_nests()
  *
- * In the (unlikely) case of parent references to tables not
- * in our embedding join nests, we have to make sure that we do
- * not cause extra dependencies to be added between the join nests.
- * (Which would have changed the join semantic specified in query)
+ * Check the ancestor dependencies required by a set of 'depend_parents'
+ * tables for not conflicting with previous ancestor dependencies already
+ * required. If not conflicting, set the ancestors required by this
+ * table.
+ *
+ * Note that if we unintentionally add equality dependencies between
+ * join nests, we could changed the join semantic specified in query
  *
  * If this table has multiple dependencies, it can only be added to
  * the set of pushed tables if the dependent tables themself
@@ -1509,7 +1510,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
  *
  * Algorithm:
  * 1. Calculate the minimum set of 'dependencies' for the
- *    key_parents[].
+ *    key_parents[]. (Supplied as argument)
  *
  * 2. Check the 'dependencies' set, starting at the last (the
  *    table closest to this table). Check that it either already
@@ -1517,14 +1518,12 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
  *    dependent tables, or that we are allowed to add the required
  *    dependencies.
  ***************************************************************/
-bool ndb_pushed_builder_ctx::is_outer_nests_referable(
+bool ndb_pushed_builder_ctx::set_ancestor_nests(
     const AQP::Table_access *table, const ndb_table_access_map depend_parents) {
   DBUG_TRACE;
 
   const uint tab_no = table->get_access_no();
   const uint first_inner = m_tables[tab_no].m_first_inner;
-  // Check that embedding nests does not already contain dependent parents
-  assert(!m_tables[tab_no].embedding_nests().contain(depend_parents));
 
   /**
    * Include nest-level ancestor dependencies already enforced.
@@ -1534,9 +1533,9 @@ bool ndb_pushed_builder_ctx::is_outer_nests_referable(
 
   /**
    * Check that all parents we depend on are available from within the
-   * embedding nests. This include upper_nests previously extended
+   * ancestor_nests. This include m_ancestor_nests previously extended
    * with previous references to tables not in the direct line of
-   * upper nests. Which then become a part of later embedded_nests being
+   * upper nests. Which then become a part of later ancestor_nests being
    * referrable.
    */
   {
@@ -1544,7 +1543,7 @@ bool ndb_pushed_builder_ctx::is_outer_nests_referable(
     dependencies.clear_bit(parent_no);
 
     // If remaining dependencies are unavailable from parent, we can't push
-    if (!m_tables[parent_no].embedding_nests().contain(dependencies)) {
+    if (!m_tables[parent_no].ancestor_nests().contain(dependencies)) {
       const AQP::Table_access *const parent =
           m_plan.get_table_access(parent_no);
       EXPLAIN_NO_PUSH(
@@ -1558,22 +1557,22 @@ bool ndb_pushed_builder_ctx::is_outer_nests_referable(
 
     /**
      * Allow all tables in the referred parents nest to become
-     * part of the set of later referrable upper_nests.
+     * part of the set of later referrable ancestor_nests.
      */
-    if (unlikely(parent_no < first_inner)) {
-      // referred nest is not embedded within current inner_nest
-      assert(m_tables[parent_no].m_last_inner < tab_no);
-
+    if (parent_no >= first_inner) {  // Inner joined with parent
+      m_tables[tab_no].m_ancestor_nests =
+          m_tables[first_inner].m_ancestor_nests;
+    } else {  // Outer joins with parent
       /**
-       * Referring the outer-joined parent, introduce the requirement
-       * that all our upper_nest table either has to be in the same
-       * inner_nest as the parent, or be in the parents upper_nest.
-       * Rebuild our upper_nests to reflect this.
+       * Referring an outer-joined parent: We verified above above that all
+       * remaining depend_tables are available as 'ancestors' of the
+       * selected parent - which also becomes ancestors of this table,
+       * including all tables in the parent inner-nest.
        */
-      ndb_table_access_map new_upper_nests(m_tables[parent_no].m_upper_nests);
-      new_upper_nests.add(full_inner_nest(parent_no, tab_no));
-      m_tables[first_inner].m_upper_nests = new_upper_nests;
-      m_tables[tab_no].m_upper_nests = new_upper_nests;
+      ndb_table_access_map ancestor_nests(m_tables[parent_no].m_ancestor_nests);
+      ancestor_nests.add(full_inner_nest(parent_no, tab_no));
+      m_tables[tab_no].m_ancestor_nests = ancestor_nests;
+      m_tables[first_inner].m_ancestor_nests = ancestor_nests;
     }
   }
   return true;
