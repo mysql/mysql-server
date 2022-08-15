@@ -1125,6 +1125,45 @@ TEST_P(ReuseConnectionTest, classic_protocol_query_with_result) {
   ASSERT_NO_ERROR(query_res) << query_res.error();
 }
 
+TEST_P(ReuseConnectionTest, classic_protocol_query_multiple_packets) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  cli.username("root");
+  cli.password("");
+
+  auto connect_res =
+      cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
+  ASSERT_TRUE(connect_res) << connect_res.error();
+
+  std::string stmt(16L * 1024 * 1024 + 16, 'a');
+  stmt.insert(0, "SELECT '");
+  stmt.back() = '\'';
+
+  size_t field_len = stmt.size() - ("SELECT '"sv).size() - ("'"sv).size();
+
+  SCOPED_TRACE("// SELECT ... <large-string>");
+  auto query_res = cli.query(stmt);
+  ASSERT_TRUE(query_res) << query_res.error();
+
+  auto results = std::move(*query_res);
+
+  uint64_t num_res{};
+  for (const auto &res : results) {
+    ++num_res;
+    ASSERT_EQ(res.field_count(), 1);
+
+    uint64_t num_rows{};
+    for (const auto &row : res.rows()) {
+      ++num_rows;
+      EXPECT_EQ(strlen(row[0]), field_len);
+    }
+
+    EXPECT_EQ(num_rows, 1);
+  }
+  EXPECT_EQ(num_res, 1);
+}
+
 TEST_P(ReuseConnectionTest, classic_protocol_query_call) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;

@@ -670,7 +670,8 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
               << "seq-id: " << (int)(current_frame.seq_id_) << ", done"
               << "\n";
 #endif
-    bool is_overlong_packet = current_frame.frame_size_ == 0xffffff;
+    // payload-length + frame-header-size
+    bool is_overlong_packet = current_frame.frame_size_ == (0xffffffL + 4);
 
     // frame is forwarded, reset for the next one.
     src_protocol->current_frame().reset();
@@ -2975,36 +2976,48 @@ void MysqlRoutingClassicConnection::cmd_query_row() {
   };
 
   switch (Msg{msg_type}) {
-    case Msg::Eof: {
-      // if it fails, the next function will fail with not-enough-input
-      (void)ensure_has_full_frame(src_channel, src_protocol);
-
-      auto &recv_buf = src_channel->recv_plain_buffer();
-      const auto decode_res =
-          classic_protocol::decode<classic_protocol::frame::Frame<
-              classic_protocol::message::server::Eof>>(
-              net::buffer(recv_buf), src_protocol->shared_capabilities());
-      if (!decode_res) {
-        auto ec = decode_res.error();
-
-        if (ec == classic_protocol::codec_errc::not_enough_input) {
-          return async_recv_server(Function::kCmdQueryRow);
-        }
-
-        return recv_server_failed(ec);
-      }
-
-      auto eof_msg = decode_res->second.payload();
-
-      if (eof_msg.status_flags().test(
-              classic_protocol::status::pos::more_results_exist)) {
-        return cmd_query_row_forward_more_resultsets();
-      } else {
-        return cmd_query_row_forward_last();
-      }
-    }
     case Msg::Error:
       return cmd_query_row_forward_last();
+    case Msg::Eof:
+      // A row and a EOF packet both may start with 0xfe:
+      //
+      // - a EOF message always starts with 0xfe
+      // - a row may start with 0xfe if the first field as > 16Mbyte long
+      //   (var-string, 8-byte prefix).
+      //
+      // EOF: 09 00 00 01 fe 00 00 ...
+      // ROW: ff ff ff 01 fe 00 00 00 01 00 00 00 00
+      //
+      if (src_protocol->current_frame()->frame_size_ < (1 << 16)) {
+        // if it fails, the next function will fail with not-enough-input
+        (void)ensure_has_full_frame(src_channel, src_protocol);
+
+        auto &recv_buf = src_channel->recv_plain_buffer();
+        const auto decode_res =
+            classic_protocol::decode<classic_protocol::frame::Frame<
+                classic_protocol::message::server::Eof>>(
+                net::buffer(recv_buf), src_protocol->shared_capabilities());
+        if (!decode_res) {
+          auto ec = decode_res.error();
+
+          if (ec == classic_protocol::codec_errc::not_enough_input) {
+            return async_recv_server(Function::kCmdQueryRow);
+          }
+
+          return recv_server_failed(ec);
+        }
+
+        auto eof_msg = decode_res->second.payload();
+
+        if (eof_msg.status_flags().test(
+                classic_protocol::status::pos::more_results_exist)) {
+          return cmd_query_row_forward_more_resultsets();
+        } else {
+          return cmd_query_row_forward_last();
+        }
+      }
+
+      [[fallthrough]];
     default:
       return cmd_query_row_forward();
   }
