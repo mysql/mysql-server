@@ -611,7 +611,7 @@ class ha_warp : public handler {
   int set_column_set(); 
   //int set_column_set(uint32_t idxno);
   int find_current_row(uchar *buf, ibis::table::cursor* cursor);
-  void create_writer(TABLE *table_arg);
+  int create_writer(TABLE *table_arg);
   std::string get_writer_partition();
   void write_buffered_rows_to_disk();
   void foreground_write();

@@ -861,7 +861,9 @@ int ha_warp::write_row(uchar *buf) {
     a new writer is constructed because the old one will
     still be background writing.
   */
-  create_writer(table);
+  if(create_writer(table)) {
+    DBUG_RETURN(-1);
+  }
   mysql_mutex_lock(&share->mutex);
   mysql_mutex_unlock(&share->mutex);
   /* The auto_increment value isn't being properly persisted between
@@ -1242,9 +1244,9 @@ THR_LOCK_DATA **ha_warp::store_lock(THD *, THR_LOCK_DATA **to,
   DBUG_RETURN(to);
 }
 
-void ha_warp::create_writer(TABLE *table_arg) {
+int ha_warp::create_writer(TABLE *table_arg) {
   if(writer != NULL) {
-    return;
+    return 0;
   }
   
   /*
@@ -1318,6 +1320,20 @@ void ha_warp::create_writer(TABLE *table_arg) {
       case MYSQL_TYPE_LONG_BLOB:
       case MYSQL_TYPE_BLOB:
       case MYSQL_TYPE_JSON:
+        /*CHARSET NUMBER:46
+          CHARSET M_COL_NAME:utf8mb4_bin*/
+        if((*field)->charset()->number != 46) {
+          std::string errmsg = "Unsupported character set or collation for column (only utf8mb4/utf8mb4_bin supported): " +
+                             std::string((*field)->field_name);
+          my_error(1031, MYF(0), errmsg.c_str());
+          return 1;
+        }
+        if(strcmp((*field)->charset()->m_coll_name, "utf8mb4_bin")) {
+          std::string errmsg = "Unsupported character set or collation for column (only utf8mb4/utf8mb4_bin supported): " +
+                             std::string((*field)->field_name);
+          my_error(1031, MYF(0), errmsg.c_str());
+          return 1;
+        }
         index_spec="<binning none/><encoding binary/>";
         datatype = ibis::TEXT;
         break;
@@ -1376,6 +1392,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
                              std::string((*field)->field_name);
         my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), errmsg.c_str());
         datatype = ibis::UNKNOWN_TYPE;
+        return 1;
         break;
     }
     /* Fastbit supports numerous bitmap index options.  You can place these
@@ -1428,6 +1445,8 @@ void ha_warp::create_writer(TABLE *table_arg) {
   writer->setPartitionMax(my_partition_max_rows);
   mysql_mutex_lock(&share->mutex);
   mysql_mutex_unlock(&share->mutex);
+
+  return 0;
 }
 
 /*
@@ -1443,8 +1462,11 @@ int ha_warp::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
   DBUG_ENTER("ha_warp::create");
   int rc = 0;
   if(!(share = get_share(name, table))) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  /* create the writer object from the list of columns in the table */
-  create_writer(table_arg);
+  /* create the writer object from the list of columns in the table 
+     if non-zero is returned return error 1030 - unsupported option*/
+  if(create_writer(table_arg)) {
+    DBUG_RETURN(1031);
+  }
 
   char errbuf[MYSYS_STRERROR_SIZE];
   DBUG_PRINT("ha_warp::create",

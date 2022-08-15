@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS customer
     C_Region varchar(12),
     C_Phone varchar(15),
     C_MktSegment varchar(10)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
  
 DROP TABLE IF EXISTS part;
 CREATE TABLE IF NOT EXISTS part
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS part
     P_Type varchar(25),
     P_Size tinyint,
     P_Container char(10)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
  
 DROP TABLE IF EXISTS supplier;
 CREATE TABLE supplier
@@ -35,7 +35,7 @@ CREATE TABLE supplier
     S_Nation char(15),
     S_Region char(12),
     S_Phone char(15)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
  
 DROP TABLE IF EXISTS dim_date;
 CREATE TABLE IF NOT EXISTS dim_date
@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS dim_date
     D_LastDayInMonthFl tinyint,
     D_HolidayFl tinyint,
     D_WeekDayFl tinyint
-);
+
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
  
 DROP TABLE IF EXISTS lineorder;
 CREATE TABLE IF NOT EXISTS lineorder
@@ -79,4 +80,4 @@ CREATE TABLE IF NOT EXISTS lineorder
     LO_Tax tinyint,
     LO_CommitDateKey int not null,
     LO_ShipMode varchar(10)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
