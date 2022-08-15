@@ -1731,7 +1731,7 @@ void MysqlRoutingClassicConnection::client_send_server_greeting_from_router() {
       classic_protocol::capabilities::secure_connection |
       classic_protocol::capabilities::multi_statements |
       classic_protocol::capabilities::multi_results |
-      // ps_multi_results (to-be-done)
+      classic_protocol::capabilities::ps_multi_results |
       classic_protocol::capabilities::plugin_auth |
       classic_protocol::capabilities::connect_attributes |
       classic_protocol::capabilities::client_auth_method_data_varint |
@@ -3616,12 +3616,46 @@ void MysqlRoutingClassicConnection::
   }
 
   return forward_server_to_client(
-      Function::kCmdStmtPrepareResponseForwardEndOfColumns,
+      Function::kCmdStmtExecuteResponseForwardEndOfColumns,
       Function::kCmdStmtExecuteResponseCheckRow);
 }
 
 void MysqlRoutingClassicConnection::
     cmd_stmt_execute_response_forward_end_of_rows() {
+  auto *socket_splicer = this->socket_splicer();
+  auto src_channel = socket_splicer->server_channel();
+  auto src_protocol = server_protocol();
+
+  // if it fails, the next function will fail with not-enough-input
+  (void)ensure_has_full_frame(src_channel, src_protocol);
+
+  auto &recv_buf = src_channel->recv_plain_buffer();
+
+  // decode msg from frame.
+  const auto decode_res = classic_protocol::decode<
+      classic_protocol::frame::Frame<classic_protocol::message::server::Eof>>(
+      net::buffer(recv_buf), src_protocol->shared_capabilities());
+  if (!decode_res) {
+    auto ec = decode_res.error();
+
+    if (ec == classic_protocol::codec_errc::not_enough_input) {
+      return async_recv_server(
+          Function::kCmdStmtExecuteResponseForwardEndOfRows);
+    }
+
+    return recv_server_failed(decode_res.error());
+  }
+
+  auto msg = decode_res->second.payload();
+
+  // intermediate end-of-rows, more resultsets follow.
+  if (msg.status_flags().test(
+          classic_protocol::status::pos::more_results_exist)) {
+    return forward_server_to_client(
+        Function::kCmdStmtExecuteResponseForwardEndOfRows,
+        Function::kCmdStmtExecuteResponse);
+  }
+
   return forward_server_to_client(
       Function::kCmdStmtExecuteResponseForwardEndOfRows,
       Function::kClientRecvCmd);

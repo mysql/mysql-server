@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <iterator>
 #include <string>
 #include <string_view>
 
@@ -849,17 +850,6 @@ class MysqlClient {
      public:
       ResultSet(MYSQL_STMT *st) : st_{st} {}
 
-      ResultSet(const ResultSet &) = delete;
-      ResultSet(ResultSet &&other) : st_{std::exchange(other.st_, nullptr)} {}
-      ResultSet &operator=(const ResultSet &) = delete;
-      ResultSet &operator=(ResultSet &&other) {
-        st_ = std::exchange(other.st_, nullptr);
-
-        return *this;
-      }
-
-      ~ResultSet() { mysql_stmt_free_result(st_); }
-
       Rows rows() const { return {st_}; }
 
       // fetch one row.
@@ -895,6 +885,13 @@ class MysqlClient {
 
       uint64_t affected_rows() const { return mysql_stmt_affected_rows(st_); }
       uint64_t insert_id() const { return mysql_stmt_insert_id(st_); }
+      bool is_out_param() const {
+        // server-status is updated at the end of the resultset which may not be
+        // fetched yet.
+        mysql_stmt_store_result(st_);
+
+        return st_->mysql->server_status & SERVER_PS_OUT_PARAMS;
+      }
 
      private:
       MYSQL_STMT *st_;
@@ -904,30 +901,51 @@ class MysqlClient {
      public:
       class Iterator {
        public:
-        using reference = ResultSet;
+        using difference_type = std::ptrdiff_t;
+        using value_type = ResultSet;
+        using reference = value_type &;
+        using pointer = value_type *;
+        using iterator_category = std::input_iterator_tag;
 
         Iterator(MYSQL_STMT *st) : st_{st} {}
         Iterator &operator++() {
+          if (st_ != nullptr && mysql_stmt_field_count(st_) > 0) {
+            mysql_stmt_free_result(st_);
+          }
+
           if (0 != mysql_stmt_next_result(st_)) {
             st_ = nullptr;
           }
 
           return *this;
         }
-        bool operator!=(const Iterator &other) { return st_ != other.st_; }
 
-        reference operator*() { return {st_}; }
+        bool operator==(const Iterator &other) const {
+          return st_ == other.st_;
+        }
+        bool operator!=(const Iterator &other) const {
+          return !(*this == other);
+        }
+
+        reference operator*() { return res_; }
+        pointer operator->() { return &res_; }
 
        private:
         MYSQL_STMT *st_;
+
+        ResultSet res_{st_};
       };
 
       using iterator = Iterator;
+      using value_type = iterator::value_type;
+      using reference = iterator::reference;
 
       Result(MYSQL_STMT *st) : st_{st} {}
 
       iterator begin() { return {st_}; }
+      iterator begin() const { return {st_}; }
       iterator end() { return {nullptr}; }
+      iterator end() const { return {nullptr}; }
 
      private:
       MYSQL_STMT *st_;

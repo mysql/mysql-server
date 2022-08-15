@@ -1675,6 +1675,94 @@ TEST_P(ReuseConnectionTest, classic_protocol_prepare_reset) {
   ASSERT_NO_ERROR(reset_res) << reset_res.error();
 }
 
+TEST_P(ReuseConnectionTest, classic_protocol_prepare_call) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  cli.username("root");
+  cli.password("");
+
+  auto connect_res =
+      cli.connect(shared_router_->host(), shared_router_->port(GetParam()));
+  ASSERT_NO_ERROR(connect_res);
+
+  {
+    auto query_res = cli.query("DROP SCHEMA IF EXISTS testing");
+    ASSERT_NO_ERROR(query_res) << query_res.error();
+  }
+
+  {
+    auto query_res = cli.query("CREATE SCHEMA testing");
+    ASSERT_NO_ERROR(query_res) << query_res.error();
+  }
+
+  SCOPED_TRACE("// create a stored proc with multiple results and outparams");
+  {
+    auto query_res = cli.query(
+        R"(
+CREATE PROCEDURE testing.p1 (OUT param1 INT, OUT param2 INT) BEGIN
+SELECT 1 INTO param1;
+SELECT 2 INTO param2;
+SELECT 3;
+END)");
+    ASSERT_NO_ERROR(query_res) << query_res.error();
+  }
+
+  SCOPED_TRACE("// prepare 'call testing.p1()'");
+  auto stmt_res = cli.prepare("CALL testing.p1(?, ?)");
+  ASSERT_TRUE(stmt_res) << stmt_res.error();
+
+  auto stmt = std::move(stmt_res.value());
+
+  std::array<int64_t, 2> values{1, 2};
+  std::array<MYSQL_BIND, 2> params{
+      IntegerParam{&values[0]},
+      IntegerParam{&values[1]},
+  };
+
+  {
+    auto bind_res = stmt.bind_params(params);
+    EXPECT_NO_ERROR(bind_res) << bind_res.error();
+  }
+
+  SCOPED_TRACE("// ... and execute() it");
+  auto exec_res = stmt.execute();
+  EXPECT_NO_ERROR(exec_res) << exec_res.error();
+
+  {
+    auto results = std::move(*exec_res);
+
+    auto m_field_count =
+        &MysqlClient::PreparedStatement::ResultSet::field_count;
+    auto m_is_out_param =
+        &MysqlClient::PreparedStatement::ResultSet::is_out_param;
+
+    using ::testing::AllOf;
+    using ::testing::ElementsAre;
+    using ::testing::Eq;
+    using ::testing::Property;
+
+    EXPECT_THAT(
+        results,
+        ElementsAre(AllOf(Property("field_count", m_field_count, Eq(1)),
+                          Property("is_out_param", m_is_out_param, Eq(false))),
+                    AllOf(Property("field_count", m_field_count, Eq(2)),
+                          Property("is_out_param", m_is_out_param, Eq(true))),
+                    Property("field_count", m_field_count, Eq(0))));
+  }
+
+  SCOPED_TRACE(
+      "// check a new query can be sent to verify all packets have received.");
+  {
+    auto results_res = cli.query("SELECT 1");
+    ASSERT_NO_ERROR(results_res) << results_res.error();
+
+    for (const auto &res : *results_res) {
+      EXPECT_EQ(res.field_count(), 1);
+    }
+  }
+}
+
 //
 // mysql_native_password
 //
