@@ -171,7 +171,8 @@ struct JoinHypergraph {
   The result is suitable for running DPhyp (subgraph_enumeration.h)
   to find optimal join planning.
  */
-bool MakeJoinHypergraph(THD *thd, std::string *trace, JoinHypergraph *graph);
+bool MakeJoinHypergraph(THD *thd, std::string *trace, JoinHypergraph *graph,
+                        bool *where_is_always_false);
 
 // Exposed for testing only.
 void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,

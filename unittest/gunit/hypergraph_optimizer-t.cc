@@ -203,7 +203,12 @@ TEST_F(MakeHypergraphTest, SingleTable) {
       ParseAndResolve("SELECT 1 FROM t1", /*nullable=*/true);
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, /*trace=*/nullptr, &graph));
+  string trace;
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
@@ -222,7 +227,10 @@ TEST_F(MakeHypergraphTest, InnerJoin) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -260,7 +268,10 @@ TEST_F(MakeHypergraphTest, OuterJoin) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -297,7 +308,10 @@ TEST_F(MakeHypergraphTest, OuterJoinNonNullRejecting) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -336,7 +350,10 @@ TEST_F(MakeHypergraphTest, SemiJoin) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -374,7 +391,10 @@ TEST_F(MakeHypergraphTest, AntiJoin) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -413,7 +433,10 @@ TEST_F(MakeHypergraphTest, Predicates) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -452,7 +475,10 @@ TEST_F(MakeHypergraphTest, PushdownFromOuterJoinCondition) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -502,7 +528,10 @@ TEST_F(MakeHypergraphTest, AssociativeRewriteToImprovePushdown) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -550,7 +579,10 @@ TEST_F(MakeHypergraphTest, Cycle) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -627,7 +659,10 @@ TEST_F(MakeHypergraphTest, NoCycleBelowOuterJoin) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -668,7 +703,10 @@ TEST_F(MakeHypergraphTest, CyclePushedFromOuterJoinCondition) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -729,7 +767,10 @@ TEST_F(MakeHypergraphTest, CycleWithNullSafeEqual) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   // Expect a hypergraph of three nodes, and one simple edge connecting each
@@ -763,7 +804,10 @@ TEST_F(MakeHypergraphTest, MultipleEqualitiesCauseCycle) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -811,7 +855,10 @@ TEST_F(MakeHypergraphTest, CyclesGetConsistentSelectivities) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   ASSERT_EQ(3, graph.edges.size());
@@ -835,7 +882,10 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateAppliedOnce) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   ASSERT_EQ(4, graph.nodes.size());
@@ -885,7 +935,10 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   ASSERT_EQ(5, graph.nodes.size());
@@ -935,7 +988,10 @@ TEST_F(MakeHypergraphTest, MultiEqualityPredicateNoRedundantJoinCondition2) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   ASSERT_EQ(6, graph.nodes.size());
@@ -996,7 +1052,10 @@ TEST_F(MakeHypergraphTest, ConflictRulesWithManyTables) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   SortNodes(&graph);
@@ -1031,7 +1090,10 @@ TEST_F(MakeHypergraphTest, HyperpredicatesDoNotBlockExtraCycleEdges) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -1081,7 +1143,10 @@ TEST_F(MakeHypergraphTest, Flattening) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -1143,7 +1208,10 @@ TEST_F(MakeHypergraphTest, PredicatePromotionOnMultipleEquals) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -1221,7 +1289,10 @@ TEST_F(MakeHypergraphTest, MultipleEqualityPushedFromJoinConditions) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -1271,7 +1342,10 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityCausesCycle) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -1352,7 +1426,10 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -1429,7 +1506,10 @@ TEST_P(MakeHypergraphMultipleEqualParamTest,
 
   JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
@@ -2378,7 +2458,9 @@ TEST_P(HypergraphOptimizerCyclePredicatesSargableTest,
   string trace;
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
   JoinHypergraph graph(m_thd->mem_root, query_block);
-  ASSERT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
   FindSargablePredicates(m_thd, &trace, &graph);
 
   // Each node should have two sargable join predicates
@@ -4386,13 +4468,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRangeInJoinWithFilterAndAggregation) {
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
 
-  ASSERT_EQ(AccessPath::AGGREGATE, root->type);
-  // The filter on top of the ZERO_ROWS access path is redundant, but harmless.
-  ASSERT_EQ(AccessPath::FILTER, root->aggregate().child->type);
-  EXPECT_EQ("(rand(0) < 0.5)",
-            ItemToString(root->aggregate().child->filter().condition));
-  EXPECT_EQ(AccessPath::ZERO_ROWS,
-            root->aggregate().child->filter().child->type);
+  EXPECT_EQ(AccessPath::ZERO_ROWS_AGGREGATED, root->type);
 }
 
 TEST_F(HypergraphOptimizerTest, SimpleRangeScan) {
@@ -4559,9 +4635,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRange) {
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
 
-  ASSERT_EQ(AccessPath::ZERO_ROWS, root->type);
-  ASSERT_EQ(AccessPath::TABLE_SCAN, root->zero_rows().child->type);
-  EXPECT_STREQ("t1", root->zero_rows().child->table_scan().table->alias);
+  EXPECT_EQ(AccessPath::ZERO_ROWS, root->type);
 
   query_block->cleanup(/*full=*/true);
 }
@@ -4569,11 +4643,16 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRange) {
 TEST_F(HypergraphOptimizerTest, ImpossibleRangeWithOverflowBitset) {
   // We want to test a query that has an impossible range and enough predicates
   // that they don't fit in an inlined OverflowBitset in the zero-rows access
-  // path. We need at least 64 predicates to make OverflowBitset overflow.
+  // path. We need at least 64 predicates to make OverflowBitset overflow. Also
+  // add a join to the query, since an assert failure was seen when proposing a
+  // join path with a table with an always false range condition on one of the
+  // sides when the number of predicates exceeded what could fit in an inlined
+  // OverflowBitset.
   constexpr int number_of_predicates = 70;
-  string query = "SELECT 1 FROM t1 WHERE t1.x >= 2 AND t1.x <= 1";
+  string query =
+      "SELECT 1 FROM t1, t2 WHERE t1.x >= 2 AND t1.x <= 1 AND t1.y = t2.y";
   for (int i = 2; i < number_of_predicates; ++i) {
-    query += " AND t1.y <> " + to_string(i);
+    query += " AND t1.z <> " + to_string(i);
   }
 
   Query_block *query_block = ParseAndResolve(query.c_str(),
@@ -4594,13 +4673,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRangeWithOverflowBitset) {
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
 
-  // The predicate bitsets in the zero-rows access path need to have enough
-  // space for all the predicates. Otherwise, assert failures/undefined
-  // behaviour may occur when the zero-rows path is combined with other paths in
-  // joins.
   EXPECT_EQ(AccessPath::ZERO_ROWS, root->type);
-  EXPECT_LE(number_of_predicates, root->filter_predicates.capacity());
-  EXPECT_LE(number_of_predicates, root->delayed_predicates.capacity());
 }
 
 TEST_F(HypergraphOptimizerTest, IndexMerge) {
@@ -4822,6 +4895,46 @@ TEST_F(HypergraphOptimizerTest, PropagationInNonEqualities) {
   AccessPath *t2 = root->hash_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
   EXPECT_EQ(m_fake_tables["t2"], t2->table_scan().table);
+}
+
+TEST_F(HypergraphOptimizerTest, PropagateEqualityToZeroRows) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1, t2 WHERE t1.x = t2.x AND t1.x < t2.x",
+                      /*nullable=*/true);
+
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  EXPECT_EQ(AccessPath::ZERO_ROWS, root->type);
+}
+
+TEST_F(HypergraphOptimizerTest, PropagateEqualityToZeroRowsAggregated) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT COUNT(*) FROM t1, t2 WHERE t1.x = t2.x AND t1.x < t2.x",
+      /*nullable=*/true);
+
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  EXPECT_EQ(AccessPath::ZERO_ROWS_AGGREGATED, root->type);
 }
 
 TEST_F(HypergraphOptimizerTest, RowCountImplicitlyGrouped) {

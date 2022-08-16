@@ -684,6 +684,7 @@ class JOIN {
   bool clear_fields(table_map *save_nullinfo);
   void restore_fields(table_map save_nullinfo);
 
+ private:
   /**
     Return whether the caller should send a row even if the join
     produced no rows if:
@@ -700,6 +701,7 @@ class JOIN {
             query_block->having_value != Item::COND_FALSE);
   }
 
+ public:
   bool generate_derived_keys();
   void finalize_derived_keys();
   bool get_best_combination();
@@ -995,6 +997,7 @@ class JOIN {
    */
   void create_access_paths();
 
+ public:
   /**
     Create access paths with the knowledge that there are going to be zero rows
     coming from tables (before aggregation); typically because we know that
@@ -1004,6 +1007,7 @@ class JOIN {
    */
   void create_access_paths_for_zero_rows();
 
+ private:
   void create_access_paths_for_index_subquery();
 
   /** @{ Helpers for create_access_paths. */

@@ -5295,6 +5295,19 @@ bool HasEqRefWithCache(AccessPath *path) {
 }
 
 /**
+  Creates a ZERO_ROWS access path for an always empty join result, or a
+  ZERO_ROWS_AGGREGATED in case of an implicitly grouped query. The zero rows
+  path is wrapped in FILTER (for HAVING) or LIMIT_OFFSET paths as needed, as
+  well as UPDATE_ROWS/DELETE_ROWS paths for UPDATE/DELETE statements.
+ */
+AccessPath *CreateZeroRowsForEmptyJoin(JOIN *join, const char *cause) {
+  join->zero_result_cause = cause;
+  join->needs_finalize = true;
+  join->create_access_paths_for_zero_rows();
+  return join->root_access_path();
+}
+
+/**
   Creates an AGGREGATE AccessPath, possibly with an intermediary STREAM node if
   one is needed.
 
@@ -6330,9 +6343,20 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
   // Convert the join structures into a hypergraph.
   JoinHypergraph graph(thd->mem_root, query_block);
-  if (MakeJoinHypergraph(thd, trace, &graph)) {
+  bool where_is_always_false = false;
+  if (MakeJoinHypergraph(thd, trace, &graph, &where_is_always_false)) {
     return nullptr;
   }
+
+  if (where_is_always_false) {
+    if (trace != nullptr) {
+      *trace +=
+          "Skipping join order optimization because an always false condition "
+          "was found in the WHERE clause.\n";
+    }
+    return CreateZeroRowsForEmptyJoin(join, "WHERE condition is always false");
+  }
+
   FindSargablePredicates(thd, trace, &graph);
 
   // Now that we have all join conditions, cache some properties
@@ -6489,16 +6513,14 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
   // If we know the result will be empty, there is no point in adding paths for
   // filters, aggregation, windowing and sorting on top of it further down. Just
-  // remove the empty result directly.
-  if (receiver.always_empty() && !join->send_row_on_empty_set() &&
-      update_delete_target_tables == 0) {
+  // return the empty result directly.
+  if (receiver.always_empty()) {
     for (AccessPath *root_path : root_candidates) {
       if (root_path->type == AccessPath::ZERO_ROWS) {
         if (trace != nullptr) {
-          *trace += "The query returns zero rows. Final cost is 0.0.\n";
+          *trace += "The join returns zero rows. Final cost is 0.0.\n";
         }
-        join->needs_finalize = true;
-        return root_path;
+        return CreateZeroRowsForEmptyJoin(join, root_path->zero_rows().cause);
       }
     }
   }

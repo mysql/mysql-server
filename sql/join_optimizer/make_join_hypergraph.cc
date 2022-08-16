@@ -77,7 +77,8 @@ namespace {
 RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const mem_root_deque<TABLE_LIST *> &join_list);
 bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
-                              Mem_root_array<Item *> *conditions);
+                              Mem_root_array<Item *> *conditions,
+                              bool *always_false);
 
 inline bool IsMultipleEquals(Item *cond) {
   return cond->type() == Item::FUNC_ITEM &&
@@ -310,8 +311,9 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
       Item *join_cond = EarlyExpandMultipleEquals(tl->join_cond_optim(),
                                                   join->tables_in_subtree);
       ExtractConditions(join_cond, &join->join_conditions);
+      bool always_false = false;
       EarlyNormalizeConditions(thd, join->tables_in_subtree,
-                               &join->join_conditions);
+                               &join->join_conditions, &always_false);
       ReorderConditions(&join->join_conditions);
     }
     ret = join;
@@ -2206,7 +2208,8 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
   for correctness and performance.
  */
 bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
-                              Mem_root_array<Item *> *conditions) {
+                              Mem_root_array<Item *> *conditions,
+                              bool *always_false) {
   CSEConditions(thd, conditions);
   for (auto it = conditions->begin(); it != conditions->end();) {
     /**
@@ -2262,7 +2265,8 @@ bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
       it = conditions->erase(it);
     } else if (res == Item::COND_FALSE) {
       conditions->clear();
-      conditions->push_back(new Item_int(0));
+      conditions->push_back(new Item_func_false);
+      *always_false = true;
       return false;
     } else {
       ++it;
@@ -3236,7 +3240,8 @@ void CompleteFullMeshForMultipleEqualities(
 
 const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
 
-bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
+bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
+                        bool *where_is_always_false) {
   const Query_block *query_block = graph->query_block();
   const JOIN *join = graph->join();
 
@@ -3288,7 +3293,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
                                                  /*tables_in_subtree=*/~0);
     ExtractConditions(where_cond, &where_conditions);
     if (EarlyNormalizeConditions(thd, TablesBetween(0, MAX_TABLES),
-                                 &where_conditions)) {
+                                 &where_conditions, where_is_always_false)) {
       return true;
     }
     ReorderConditions(&where_conditions);
