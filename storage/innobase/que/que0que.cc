@@ -432,7 +432,7 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
     case QUE_NODE_PURGE:
       purge = static_cast<purge_node_t *>(node);
 
-      mem_heap_free(purge->heap);
+      purge->deinit();
 
       break;
 

@@ -903,6 +903,9 @@ static void ib_qry_proc_free(
   que_graph_free_recursive(q_proc->grph.ins);
   que_graph_free_recursive(q_proc->grph.upd);
   que_graph_free_recursive(q_proc->grph.sel);
+  if (q_proc->node.upd && q_proc->node.upd->update) {
+    q_proc->node.upd->update->free_per_stmt_heap();
+  }
 
   memset(q_proc, 0x0, sizeof(*q_proc));
 }
