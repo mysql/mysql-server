@@ -3515,6 +3515,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
     // We cannot handle outer-joined tables with expensive join conditions here:
     assert(!tab->join_cond()->is_expensive());
     if (tab->join_cond()->val_int() == 0) table->set_null_row();
+    if (thd->is_error()) return 1;
   }
 
   /* Check appearance of new constant items in Item_equal objects */

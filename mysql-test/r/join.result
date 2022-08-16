@@ -2786,3 +2786,16 @@ ON t4.a = t2.a) ON t1.a = t2.a;
 a	a	a	a
 1	1	NULL	NULL
 DROP TABLE t1, t2, t3, t4;
+# Bug#34327798: Assertion `!thd->is_error()' failed in 8.0.29
+CREATE TABLE t1 (k INT, KEY(k)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+SELECT ra1.k
+FROM t1 AS ra1 LEFT JOIN t1 AS ra2
+ON CAST(SHA(ra2.k >> 'fixme') AS JSON) = ra2.k
+LEFT JOIN
+t1 AS ra3 LEFT JOIN t1 AS ra4
+ON ra3.k = ra4.k
+ON ra3.k = ra3.k
+WHERE ra3.k < ra1.k;
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 3.
+DROP TABLE t1;
