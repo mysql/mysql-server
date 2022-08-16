@@ -247,6 +247,10 @@ class ndb_pushed_builder_ctx {
 
   ndb_table_access_map get_table_map(table_map external_map) const;
 
+  // get required nest level ancestor
+  struct pushed_tables;
+  ndb_table_access_map required_ancestors(const pushed_tables *table) const;
+
  private:
   const Thd_ndb *const m_thd_ndb;
 
@@ -531,12 +535,12 @@ class ndb_pushed_builder_ctx {
      * 2) After ::optimize_query_plan() m_ancestors will contain all
      *    ancestor tables reachable through the m_parent chain
      *
-     * Note that we use mechanism 1) on nest level as well:
-     * The 'first_inner' in each join_nest hold the mandatory ancestor
-     * dependencies for all tables in this nest. This also include
-     * other join_nests embedded with this nest, such that the
-     * first_inner of a nest also depends on all tables in the
-     * first_upper (the 'first_inner' in the upper_nest).
+     * Note that there are mandatory nest level dependencies as well.
+     * The aggregate of all table ancestors in the same nest
+     * are mandatory ancestors for the nest. This also include
+     * other join_nests embedded with this nest. The method
+     * get_nest_ancestors() is provided for collecting such
+     * dependencies.
      *
      * There are implementation limitations in the SPJ-API
      * ::prepareResultSet() which calls for such ancestor dependencies
