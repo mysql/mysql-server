@@ -1414,8 +1414,12 @@ struct dict_index_t {
   }
 
   void destroy_fields_array() {
-    fields_array.clear();
-    std::vector<uint16_t>().swap(fields_array);
+    /* The dict_index_t destructor is never called. The object is "destructed"
+    manually in dict_mem_index_free() and then the memory is just freed. This
+    method is called from the mentioned dict_mem_index_free(). Please note that
+    this vector is never constructed either - we just zero the memory and start
+    using it after calling a "constructor" dict_mem_fill_index_struct(). */
+    fields_array.~vector<uint16_t>();
   }
 
   /** Adds a field definition to an index. NOTE: does not take a copy
@@ -1440,7 +1444,7 @@ struct dict_index_t {
   }
 
   /** Gets the nth physical pos field.
-  @param[in]  pos  physocal position of the field
+  @param[in]  pos  physical position of the field
   @return pointer to the field object. */
   dict_field_t *get_physical_field(size_t pos) const {
     ut_ad(pos < n_def);
