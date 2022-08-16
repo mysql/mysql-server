@@ -42,8 +42,20 @@ SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
 include/start_and_bootstrap_group_replication.inc
 [connection server4]
 include/start_group_replication.inc
+
+# 5. Create and start new channel ch1_5: server5(slave), server1(master)
+#    and verify channel ch1_5 IO and SQL THREADS are ON.
+
+[connection server5]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 for channel 'ch1_5';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1_5']
+include/assert.inc [Verify channel ch1_5 IO_THREAD is ON]
+include/assert.inc [Verify channel ch1_5 SQL_THREAD is ON]
 #
-# 5. Add two asynchronous connection failover servers from two different
+# 6. Add two asynchronous connection failover servers from two different
 #    groups and verify that they are inserted successfully in
 #    performance_schema.replication_asynchronous_connection_failover.
 #
@@ -56,19 +68,7 @@ The UDF asynchronous_connection_failover_add_managed() executed successfully.
 SELECT asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_4, '', 80, 60);;
 asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_4, '', 80, 60)
 The UDF asynchronous_connection_failover_add_managed() executed successfully.
-include/assert.inc ['There are two rows in performance_schema.replication_asynchronous_connection_failover']
-
-# 6. Create and start new channel ch1_5: server5(slave), server1(master)
-#    and verify channel ch1_5 IO and SQL THREADS are ON.
-
-[connection server5]
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 for channel 'ch1_5';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'ch1_5']
-include/assert.inc [Verify channel ch1_5 IO_THREAD is ON]
-include/assert.inc [Verify channel ch1_5 SQL_THREAD is ON]
+include/assert_grep.inc ['There are two rows in performance_schema.replication_asynchronous_connection_failover']
 
 # 7. Verify four senders are added automatically to
 #    replication_asynchronous_connection_failover table.

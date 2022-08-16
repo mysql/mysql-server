@@ -7,11 +7,11 @@
 # 2. Start GR on first group members: server1 and 2.
 # 3. Configure second group members: server3 and 4.
 # 4. Start GR on second group members: server3 and 4.
-# 5. Add two asynchronous connection failover servers from two different
+# 5. Create and start new channel ch1_5: server5(slave), server1(master)
+#    and verify channel ch1_5 IO and SQL THREADS are ON.
+# 6. Add two asynchronous connection failover servers from two different
 #    groups and verify that they are inserted successfully in
 #    performance_schema.replication_asynchronous_connection_failover.
-# 6. Create and start new channel ch1_5: server5(slave), server1(master)
-#    and verify channel ch1_5 IO and SQL THREADS are ON.
 # 7. Verify four senders are added automatically to
 #    replication_asynchronous_connection_failover table.
 # 8. Verify it gets reconnected to source with highest
@@ -176,9 +176,31 @@ while ($_rpl_server > 2)
 --let $group_replication_group_name= $_group_replication_group_name2
 --source include/start_group_replication.inc
 
+--echo
+--echo # 5. Create and start new channel ch1_5: server5(slave), server1(master)
+--echo #    and verify channel ch1_5 IO and SQL THREADS are ON.
+--echo
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 for channel 'ch1_5'
+
+--let $rpl_channel_name='ch1_5'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--let $assert_text= Verify channel ch1_5 IO_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name = \'ch1_5\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify channel ch1_5 SQL_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_applier_status WHERE channel_name = \'ch1_5\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
 
 --echo #
---echo # 5. Add two asynchronous connection failover servers from two different
+--echo # 6. Add two asynchronous connection failover servers from two different
 --echo #    groups and verify that they are inserted successfully in
 --echo #    performance_schema.replication_asynchronous_connection_failover.
 --echo #
@@ -200,32 +222,12 @@ while ($_rpl_server > 2)
 --replace_result $SERVER_MYPORT_4 SERVER_MYPORT_4 $_tmp_gr_group_name2 GROUP_NAME
 --eval SELECT asynchronous_connection_failover_add_managed('ch1_5', 'GroupReplication', '$_tmp_gr_group_name2', '127.0.0.1', $SERVER_MYPORT_4, '', 80, 60);
 
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_switch_highest_weight_auto
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.5.err
+--let $assert_count= 2
+--let $assert_select= The group .* for the channel 'ch1_5' has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.
 --let $assert_text= 'There are two rows in performance_schema.replication_asynchronous_connection_failover'
---let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
---source include/assert.inc
-
-
---echo
---echo # 6. Create and start new channel ch1_5: server5(slave), server1(master)
---echo #    and verify channel ch1_5 IO and SQL THREADS are ON.
---echo
---let $rpl_connection_name= server5
---source include/rpl_connection.inc
-
---replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 for channel 'ch1_5'
-
---let $rpl_channel_name='ch1_5'
---source include/start_slave.inc
---let $rpl_channel_name=
-
---let $assert_text= Verify channel ch1_5 IO_THREAD is ON
---let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name = \'ch1_5\', SERVICE_STATE, 1]" = "ON"
---source include/assert.inc
-
---let $assert_text= Verify channel ch1_5 SQL_THREAD is ON
---let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_applier_status WHERE channel_name = \'ch1_5\', SERVICE_STATE, 1]" = "ON"
---source include/assert.inc
+--source include/assert_grep.inc
 
 
 --echo
