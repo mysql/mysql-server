@@ -32,23 +32,21 @@
 --let LOG_FILE_JSON=$MYSQL_TMP_DIR/buffered1.err.00.json
 --let LOG_FILE_JSON_TO_TRAD=$MYSQL_TMP_DIR/buffered1.converted.err
 # To test filtering on buffered messages
---let SUPPRESSED_ERRCODE1=convert_error(ER_CHANGED_MAX_OPEN_FILES)
+--let SUPPRESSED_ERRCODE1=convert_error(ER_BASEDIR_SET_TO)
 # To test filtering on non-buffered messages
 --let SUPPRESSED_ERRCODE2=convert_error(ER_DD_INIT_FAILED)
 
 # restart the server so it will write both trad and JSON error logs,
 # with some messages suppressed:
---let $log_services="log_filter_internal,log_sink_internal,log_sink_json"
---let $log_sup_list="ER_CHANGED_MAX_OPEN_FILES,ER_DD_INIT_FAILED,ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS,ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS,ER_BASEDIR_SET_TO,ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_NOT_RO"
+SET PERSIST log_error_services="log_filter_internal,log_sink_internal,log_sink_json";
+SET PERSIST log_error_suppression_list="ER_BASEDIR_SET_TO,ER_DD_INIT_FAILED";
 
 --let LOG_FILE1= $MYSQLTEST_VARDIR/tmp/test1.err
---let restart_parameters="restart: --log-error=$LOG_FILE_TRAD --log-error-services=$log_services --log-error-suppression-list=$log_sup_list"
+--let restart_parameters="restart: --log-error=$LOG_FILE_TRAD --log-error-verbosity=3"
 --replace_result $LOG_FILE_TRAD LOG_FILE_TRAD
 --source include/restart_mysqld.inc
 
-# We should have our logs; restart with default file names.
---let $restart_parameters =
---source include/restart_mysqld.inc
+SELECT "Hi";
 
 # Now convert the JSON log to trad format, so we can more easily compare
 # the contents of the two:
@@ -59,39 +57,44 @@
    my $file_json= $ENV{'LOG_FILE_JSON'};
    my $file_conv= $ENV{'LOG_FILE_JSON_TO_TRAD'};
 
-   # read trad log
+   # Read entire trad log so far (i.e. start-up log).
    open(FILET,"$file_trad") or die("Unable to open $file_trad $!\n");
    my @log_lines_trad=<FILET>;
    close(FILET);
 
 #  s/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *(\[.*)$/$1/ for @log_lines_trad;
 
-   # Read JSON log.
+   # Read entire JSON log so far (i.e. start-up log).
    open(FILEJ,"$file_json") or die("Unable to open $file_json $!\n");
    my @log_lines_json=<FILEJ>;
    close(FILEJ);
 
    # Write trad log output generated from JSON input
-   # (so that we may use diff to show the trad log and the JSON log
+   # (so that we may use diff to show that trad log and the JSON log
    # contain the same events).
    open(my $outfh,">",$file_conv) or
      die("Unable to open file '$file_conv' for writing $!\n");
 
    # Test for validity of the JSON docs in error log.
+
+   # JSON-log is in JSON-lines format. Convert it to plain JSON.
    my $string = "[\n".join("", @log_lines_json)."\n]";
    $string =~ s/\}\n\{/\},\n\{/g ;
-   my $parsed_json;
+
+   # Attempt to decode the JSON document we built:
    my $success=1;
-   $parsed_json = decode_json $string;
+   my $parsed_json = decode_json $string;
+
    unless ( $parsed_json )
    {
-     print "[ FAIL ] Error while parsing the error log as a json document:".
+     print "[ FAIL ] Error while parsing the error log as a JSON document:".
            "\n$@\n";
      $success=0;
    }
+
    if($success)
    {
-     print "[ PASS ] Error log successfully parsed as a json document\n";
+     print "[ PASS ] Error log successfully parsed as a JSON document\n";
      for my $item( sort { $a->{time} cmp $b->{time} } @$parsed_json ){
         my $errcode_formatted= sprintf("%06d", $item->{'err_code'});
 
@@ -110,8 +113,8 @@
         # log_sink_trad does '\n' -> ' ', so we need to emulate that.
         $msg =~ s/\n/ /g;
 
-        print $outfh $item->{'time'}." ".$thread_id." "."[".$label."] [MY-".$errcode_formatted."] [".
-                     $item->{'subsystem'}."] ".$msg . "\n";
+        print $outfh $item->{'time'}." ".$thread_id." "."[".$label."] [MY-".
+              $errcode_formatted."] [".$item->{'subsystem'}."] ".$msg . "\n";
      }
    }
    close($outfh);
@@ -152,5 +155,9 @@
  EOF
 
 # Cleanup
-SET GLOBAL log_error_services=default;
+RESET PERSIST log_error_services;
+RESET PERSIST log_error_suppression_list;
+SET GLOBAL log_error_services=DEFAULT;
+SET GLOBAL log_error_suppression_list=DEFAULT;
+
 --remove_files_wildcard $MYSQL_TMP_DIR buffered1*
