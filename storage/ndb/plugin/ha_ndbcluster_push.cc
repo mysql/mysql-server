@@ -1107,40 +1107,38 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     }
   }
 
-  if (true) {
-    /**
-     * Set up the join-nest ancestor dependencies required by the set of
-     * 'depend_tables' refered from this table. That is: the 'real'
-     * outer-join nest dependencies, represented in m_ancestor_nests.
-     */
-    if (!set_ancestor_nests(table, depend_parents)) {
-      return false;
-    }
-
-    /**
-     * Calculate contribution to the required_ancestors() dependencies,
-     * from this table. Each 'required_ancestor'-table need to be an
-     * ancestor table when constructing the SPJ query-tree.
-     * These ancestor dependencies are set as the required 'm_ancestors'
-     * on each table, and the nest-level ancestors are provided
-     * by required_ancestors(), and later used to enforce
-     * ::optimize_query_plan() to use these tables as (grand-)parents
-     */
-    const uint first_inner = m_tables[tab_no].m_first_inner;
-    // Only interested in the upper-nest-level dependencies:
-    depend_parents.intersect(m_tables[first_inner].ancestor_nests());
-    m_tables[tab_no].m_ancestors.add(depend_parents);
-
-    // Our ancestor_nests need to cover required parents and ancestors
-    assert(m_tables[tab_no].ancestor_nests().contain(depend_parents));
-    assert(m_tables[tab_no].ancestor_nests().contain(
-        required_ancestors(&m_tables[tab_no])));
-
-    // required_ancestors only cares about tables outside of inner_nest
-    assert(!required_ancestors(&m_tables[tab_no]).contain(first_inner));
-    assert(!required_ancestors(&m_tables[tab_no])
-                .is_overlapping(m_tables[tab_no].m_inner_nest));
+  /**
+   * Set up the join-nest ancestor dependencies required by the set of
+   * 'depend_tables' refered from this table. That is: the 'real'
+   * outer-join nest dependencies, represented in m_ancestor_nests.
+   */
+  if (!set_ancestor_nests(table, depend_parents)) {
+    return false;
   }
+
+  /**
+   * Calculate contribution to the required_ancestors() dependencies,
+   * from this table. Each 'required_ancestor'-table need to be an
+   * ancestor table when constructing the SPJ query-tree.
+   * These ancestor dependencies are set as the required 'm_ancestors'
+   * on each table, and the nest-level ancestors are provided
+   * by required_ancestors(), and later used to enforce
+   * ::optimize_query_plan() to use these tables as (grand-)parents
+   */
+  const uint first_inner = m_tables[tab_no].m_first_inner;
+  // Only interested in the upper-nest-level dependencies:
+  depend_parents.intersect(m_tables[first_inner].ancestor_nests());
+  m_tables[tab_no].m_ancestors.add(depend_parents);
+
+  // Our ancestor_nests need to cover required parents and ancestors
+  assert(m_tables[tab_no].ancestor_nests().contain(depend_parents));
+  assert(m_tables[tab_no].ancestor_nests().contain(
+      required_ancestors(&m_tables[tab_no])));
+
+  // required_ancestors only cares about tables outside of inner_nest
+  assert(!required_ancestors(&m_tables[tab_no]).contain(first_inner));
+  assert(!required_ancestors(&m_tables[tab_no])
+              .is_overlapping(m_tables[tab_no].m_inner_nest));
 
   m_join_scope.add(tab_no);
   return true;
@@ -1525,42 +1523,38 @@ bool ndb_pushed_builder_ctx::set_ancestor_nests(
    * upper nests. Which then become a part of later ancestor_nests being
    * referrable.
    */
-  {
-    const uint parent_no = dependencies.last_table(tab_no - 1);
-    dependencies.clear_bit(parent_no);
+  const uint parent_no = dependencies.last_table(tab_no - 1);
+  dependencies.clear_bit(parent_no);
 
-    // If remaining dependencies are unavailable from parent, we can't push
-    if (!m_tables[parent_no].ancestor_nests().contain(dependencies)) {
-      const AQP::Table_access *const parent =
-          m_plan.get_table_access(parent_no);
-      EXPLAIN_NO_PUSH(
-          "Can't push table '%s' as child of '%s', "
-          "as it would make the parent table '%s' "
-          "depend on table(s) outside of its join-nest",
-          table->get_table()->alias, m_join_root->get_table()->alias,
-          parent->get_table()->alias);
-      return false;
-    }
+  // If remaining dependencies are unavailable from parent, we can't push
+  if (!m_tables[parent_no].ancestor_nests().contain(dependencies)) {
+    const AQP::Table_access *const parent = m_plan.get_table_access(parent_no);
+    EXPLAIN_NO_PUSH(
+        "Can't push table '%s' as child of '%s', "
+        "as it would make the parent table '%s' "
+        "depend on table(s) outside of its join-nest",
+        table->get_table()->alias, m_join_root->get_table()->alias,
+        parent->get_table()->alias);
+    return false;
+  }
 
+  /**
+   * Allow all tables in the referred parents nest to become
+   * part of the set of later referrable ancestor_nests.
+   */
+  if (parent_no >= first_inner) {  // Inner joined with parent
+    m_tables[tab_no].m_ancestor_nests = m_tables[first_inner].m_ancestor_nests;
+  } else {  // Outer joins with parent
     /**
-     * Allow all tables in the referred parents nest to become
-     * part of the set of later referrable ancestor_nests.
+     * Referring an outer-joined parent: We verified above above that all
+     * remaining depend_tables are available as 'ancestors' of the
+     * selected parent - which also becomes ancestors of this table,
+     * including all tables in the parent inner-nest.
      */
-    if (parent_no >= first_inner) {  // Inner joined with parent
-      m_tables[tab_no].m_ancestor_nests =
-          m_tables[first_inner].m_ancestor_nests;
-    } else {  // Outer joins with parent
-      /**
-       * Referring an outer-joined parent: We verified above above that all
-       * remaining depend_tables are available as 'ancestors' of the
-       * selected parent - which also becomes ancestors of this table,
-       * including all tables in the parent inner-nest.
-       */
-      ndb_table_access_map ancestor_nests(m_tables[parent_no].m_ancestor_nests);
-      ancestor_nests.add(full_inner_nest(parent_no, tab_no));
-      m_tables[tab_no].m_ancestor_nests = ancestor_nests;
-      m_tables[first_inner].m_ancestor_nests = ancestor_nests;
-    }
+    ndb_table_access_map ancestor_nests(m_tables[parent_no].m_ancestor_nests);
+    ancestor_nests.add(full_inner_nest(parent_no, tab_no));
+    m_tables[tab_no].m_ancestor_nests = ancestor_nests;
+    m_tables[first_inner].m_ancestor_nests = ancestor_nests;
   }
   return true;
 }
