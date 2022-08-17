@@ -52,8 +52,8 @@ public:
   int inflate(output_iterator* out, input_iterator* in);
   int inflate_end();
 
-  off_t get_input_position() const { return file.total_in; }
-  off_t get_output_position() const { return file.total_out; }
+  ndb_off_t get_input_position() const { return file.total_in; }
+  ndb_off_t get_output_position() const { return file.total_out; }
 private:
   // RFC1950 ZLIB Compressed Data Format Specification version 3.3
   // RFC1951 DEFLATE Compressed Data Format Specification version 1.3

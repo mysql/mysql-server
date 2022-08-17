@@ -78,8 +78,8 @@ public:
 
   bool getParams(BaseString &config) override;
 
-  off_t getCurrentSize() override;
-  off_t getMaxSize() override { return m_maxFileSize; }
+  ndb_off_t getCurrentSize() override;
+  ndb_off_t getMaxSize() override { return m_maxFileSize; }
 
 protected:	
   void writeHeader(const char* pCategory, Logger::LoggerLevel level,
@@ -111,7 +111,7 @@ private:
   bool setMaxFiles(const BaseString &files);
   
   int m_maxNoFiles;
-  off_t m_maxFileSize;
+  ndb_off_t m_maxFileSize;
   unsigned int m_maxLogEntries;
   File_class* m_pLogFile;
 };

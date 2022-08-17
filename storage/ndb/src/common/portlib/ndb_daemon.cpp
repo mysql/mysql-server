@@ -239,12 +239,12 @@ int ndb_daemon_init(int argc,
 #define F_ULOCK _LK_UNLCK
 #define F_LOCK  _LK_LOCK
 
-static inline int lockf(int fd, int cmd, off_t len)
+static inline int lockf(int fd, int cmd, ndb_off_t len)
 {
   return _locking(fd, cmd, len);
 }
 
-static inline int ftruncate(int fd, off_t length)
+static inline int ftruncate(int fd, ndb_off_t length)
 {
   return _chsize(fd, length);
 }

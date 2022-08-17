@@ -51,7 +51,7 @@ File_class::exists(const char* aFileName)
   return true;
 }
 
-off_t
+ndb_off_t
 File_class::size(FILE* f)
 {
   struct stat s;
@@ -192,7 +192,7 @@ File_class::writeChar(const char* buf)
   return writeChar(buf, 0, (long)::strlen(buf));
 }
 
-off_t
+ndb_off_t
 File_class::size() const
 {
   return File_class::size(m_file);

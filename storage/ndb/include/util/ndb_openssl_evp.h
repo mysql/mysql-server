@@ -91,7 +91,7 @@ public:
   int set_aes_256_xts(bool padding, size_t data_unit_size);
 
   // Set CBC or XTS mode first, prior call
-  size_t get_needed_key_iv_pair_count(off_t estimated_data_size) const;
+  size_t get_needed_key_iv_pair_count(ndb_off_t estimated_data_size) const;
   static constexpr size_t get_pbkdf2_max_key_iv_pair_count(
       size_t keying_material_buffer_size);
   static constexpr size_t get_aeskw_max_key_iv_pair_count(
@@ -166,30 +166,32 @@ public:
   void reset();
   int set_context(const ndb_openssl_evp* context);
 
-  int setup_key_iv(off_t input_position, const byte **key, const byte **iv, byte xts_seq_num[16]);
-  int setup_encrypt_key_iv(off_t input_position);
-  int setup_decrypt_key_iv(off_t input_position, const byte* iv_=nullptr);
+  int setup_key_iv(ndb_off_t input_position, const byte **key, const byte **iv,
+                   byte xts_seq_num[16]);
+  int setup_encrypt_key_iv(ndb_off_t input_position);
+  int setup_decrypt_key_iv(ndb_off_t input_position, const byte* iv_=nullptr);
 
-  int encrypt_init(off_t output_position, off_t input_position);
+  int encrypt_init(ndb_off_t output_position, ndb_off_t input_position);
   int encrypt(output_iterator* out, input_iterator* in);
   int encrypt_end();
 
-  int decrypt_init(off_t output_position, off_t input_position);
-  int decrypt_init_reverse(off_t output_position, off_t input_position);
+  int decrypt_init(ndb_off_t output_position, ndb_off_t input_position);
+  int decrypt_init_reverse(ndb_off_t output_position,
+                           ndb_off_t input_position);
   int decrypt(output_iterator* out, input_iterator* in);
   int decrypt_reverse(output_reverse_iterator* out, input_reverse_iterator* in);
   int decrypt_end();
 
-  off_t get_input_position() const { return m_input_position; }
-  off_t get_output_position() const { return m_output_position; }
+  ndb_off_t get_input_position() const { return m_input_position; }
+  ndb_off_t get_output_position() const { return m_output_position; }
 private:
   enum operation_mode { NO_OP, ENCRYPT, DECRYPT };
   operation_mode m_op_mode;
   bool m_reverse;
   bool m_at_padding_end;
 
-  off_t m_input_position;
-  off_t m_output_position;
+  ndb_off_t m_input_position;
+  ndb_off_t m_output_position;
   const ndb_openssl_evp* m_context;
   EVP_CIPHER_CTX *m_evp_context;
   byte m_key_iv[KEY_LEN + IV_LEN];

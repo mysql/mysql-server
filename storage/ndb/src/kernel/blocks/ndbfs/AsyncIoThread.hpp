@@ -94,7 +94,7 @@ public:
       struct{
 	char *buf;
 	size_t size;
-	off_t offset;
+	ndb_off_t offset;
       } pages[NDB_FS_RW_PAGES];
     } readWrite;
     struct {

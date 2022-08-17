@@ -329,7 +329,7 @@ AsyncFile::openReq(Request * request)
   // Verify file size (OM_CHECK_SIZE)
   if (flags & FsOpenReq::OM_CHECK_SIZE)
   {
-    ndb_file::off_t file_data_size = m_xfile.get_size();
+    ndb_off_t file_data_size = m_xfile.get_size();
     if (file_data_size == -1)
     {
       NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
@@ -386,8 +386,8 @@ AsyncFile::openReq(Request * request)
   if (flags & FsOpenReq::OM_SPARSE_INIT)
   {
     {
-      off_t file_data_size = m_xfile.get_size();
-      off_t data_size = request->par.open.file_size;
+      ndb_off_t file_data_size = m_xfile.get_size();
+      ndb_off_t data_size = request->par.open.file_size;
       require(file_data_size == data_size);  // Currently do not support neither
                                              // gz or enc on redo-log file
     }
@@ -403,8 +403,8 @@ AsyncFile::openReq(Request * request)
 
   if (flags & FsOpenReq::OM_INIT)
   {
-    off_t file_data_size = m_xfile.get_size();
-    off_t data_size = request->par.open.file_size;
+    ndb_off_t file_data_size = m_xfile.get_size();
+    ndb_off_t data_size = request->par.open.file_size;
     require(file_data_size == data_size);
 
     m_file.set_autosync(16 * 1024 * 1024);
@@ -416,7 +416,7 @@ AsyncFile::openReq(Request * request)
     }
 
     // Initialise blocks
-    ndb_file::off_t off = 0;
+    ndb_off_t off = 0;
     FsReadWriteReq req[1];
 
     Uint32 index = 0;
@@ -444,7 +444,7 @@ AsyncFile::openReq(Request * request)
     require(page_cnt > 0);
     while (off < file_data_size)
     {
-      ndb_file::off_t size = 0;
+      ndb_off_t size = 0;
       Uint32 cnt = 0;
       while (cnt < page_cnt && (off + size) < file_data_size)
       {
@@ -480,7 +480,7 @@ AsyncFile::openReq(Request * request)
         cnt++;
         size += request->par.open.page_size;
       }
-      ndb_file::off_t save_size = size;
+      ndb_off_t save_size = size;
       byte* buf = (byte*)m_page_ptr.p;
       while (size > 0)
       {
@@ -581,7 +581,7 @@ AsyncFile::openReq(Request * request)
   // Read file size
   if (flags & FsOpenReq::OM_READ_SIZE)
   {
-    ndb_file::off_t file_data_size = m_xfile.get_size();
+    ndb_off_t file_data_size = m_xfile.get_size();
     if (file_data_size == -1)
     {
       NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
@@ -734,12 +734,12 @@ AsyncFile::readReq( Request * request)
      * is, current_data_offset zero always corresponds to
      * current_file_offset zero.
      */
-    off_t current_data_offset = request->par.readWrite.pages[0].offset;
+    ndb_off_t current_data_offset = request->par.readWrite.pages[0].offset;
     /*
      * Assumes size-preserving transform is used, currently either raw or
      * encrypted.
      */
-    off_t current_file_offset = current_data_offset;
+    ndb_off_t current_file_offset = current_data_offset;
     for (int i = 0; i < request->par.readWrite.numberOfPages; i++)
     {
       if (current_data_offset != request->par.readWrite.pages[i].offset)
@@ -846,12 +846,13 @@ AsyncFile::readReq( Request * request)
   // Only one page supported.
   require(request->par.readWrite.numberOfPages == 1);
   {
-    off_t offset = request->par.readWrite.pages[0].offset;
+    ndb_off_t offset = request->par.readWrite.pages[0].offset;
     size_t size  = request->par.readWrite.pages[0].size;
     char * buf   = request->par.readWrite.pages[0].buf;
 
     size_t bytes_read = 0;
-    if (offset != (off_t)m_next_read_pos && offset < m_xfile.get_data_size())
+    if (offset != (ndb_off_t)m_next_read_pos &&
+        offset < m_xfile.get_data_size())
     {
       // read out of sync
       request->par.readWrite.pages[0].size = 0;
@@ -890,7 +891,7 @@ AsyncFile::readReq( Request * request)
       return;
     }
     m_next_read_pos += request->par.readWrite.pages[0].size;
-    require((off_t)m_next_read_pos <= m_xfile.get_data_size());
+    require((ndb_off_t)m_next_read_pos <= m_xfile.get_data_size());
     if (bytes_read != size)
     {
       DEBUG(g_eventLogger->info("Warning partial read %d != %d on %s",
@@ -997,12 +998,12 @@ AsyncFile::writeReq(Request * request)
    * is, current_data_offset zero always corresponds to
    * current_file_offset zero.
    */
-  off_t current_data_offset = request->par.readWrite.pages[0].offset;
+  ndb_off_t current_data_offset = request->par.readWrite.pages[0].offset;
   /*
    * Assumes size-preserving transform is used, currently either raw or
    * encrypted.
    */
-  off_t current_file_offset = current_data_offset;
+  ndb_off_t current_file_offset = current_data_offset;
   for (Uint32 i = 0; i < cnt; i++)
   {
     if (current_data_offset != request->par.readWrite.pages[i].offset)
@@ -1095,7 +1096,7 @@ void AsyncFile::syncReq(Request *request)
 
 bool AsyncFile::check_odirect_request(const char* buf,
                                            size_t sz,
-                                           off_t offset)
+                                           ndb_off_t offset)
 {
   if (m_open_flags & FsOpenReq::OM_DIRECT)
   {

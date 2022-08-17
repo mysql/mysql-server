@@ -80,7 +80,8 @@ int ndb_file::write_forward(const void* buf, ndb_file::size_t count)
   return ret;
 }
 
-int ndb_file::write_pos(const void* buf, ndb_file::size_t count, ndb_file::off_t offset)
+int ndb_file::write_pos(const void* buf, ndb_file::size_t count,
+                        ndb_off_t offset)
 {
   require(check_block_size_and_alignment(buf, count, offset));
   int ret;
@@ -111,25 +112,29 @@ int ndb_file::read_backward(void* buf, ndb_file::size_t count) const
   // Current pos - count must be within file.
   // Seek -count, read should read all.
   // if partial read - fatal error!
-  int ret;
   errno = 0;
-  off_t offset = ::lseek(m_handle, -(long)count, SEEK_CUR);
+  const off_t off_count = (off_t)count;
+  if (off_count < 0 || std::uintmax_t{count} != std::uintmax_t(off_count))
+  {
+    errno = EOVERFLOW;
+    return -1;
+  }
+  ndb_off_t offset = ::lseek(m_handle, -off_count, SEEK_CUR);
   if (offset < 0)
   {
     if (errno != 0)
       return -1;
     std::abort();
   }
-  // TODO check for negative offset
-  // TODO use read_pos ?
+  ssize_t ret;
   do {
     ret = ::read(m_handle, buf, count);
   } while (ret == -1 && errno == EINTR);
-  if (ret >= 0 && ret != (long)count)
+  if (ret >= 0 && ret != off_count)
   {
-    std::abort(); // TODO something less fatal, should kind of close file
+    return -1;
   }
-  offset = ::lseek(m_handle, -(long)count, SEEK_CUR);
+  offset = ::lseek(m_handle, -off_count, SEEK_CUR);
   if (offset < 0)
   {
     if (errno != 0)
@@ -138,7 +143,8 @@ int ndb_file::read_backward(void* buf, ndb_file::size_t count) const
   }
   return ret;
 }
-int ndb_file::read_pos(void* buf, ndb_file::size_t count, ndb_file::off_t offset) const
+int ndb_file::read_pos(void* buf, ndb_file::size_t count,
+    ndb_off_t offset) const
 {
   require(check_block_size_and_alignment(buf, count, offset));
   int ret;
@@ -148,25 +154,22 @@ int ndb_file::read_pos(void* buf, ndb_file::size_t count, ndb_file::off_t offset
   return ret;
 }
 
-ndb_file::off_t ndb_file::get_pos() const
+ndb_off_t ndb_file::get_pos() const
 {
-  off_t ret = ::lseek(m_handle, 0, SEEK_CUR);
-  if (ret == -1)
-    return ret;
-  return ret;
+  return ::lseek(m_handle, 0, SEEK_CUR);
 }
 
-int ndb_file::set_pos(off_t pos) const
+int ndb_file::set_pos(ndb_off_t pos) const
 {
   require(check_block_size_and_alignment(nullptr, 0, pos));
-  off_t ret = ::lseek(m_handle, pos, SEEK_SET);
+  ndb_off_t ret = ::lseek(m_handle, pos, SEEK_SET);
   if (ret == -1)
     return -1;
   require(ret == pos);
   return 0;
 }
 
-ndb_file::off_t ndb_file::get_size() const
+ndb_off_t ndb_file::get_size() const
 {
   struct stat st;
   int ret = ::fstat(m_handle, &st);
@@ -175,11 +178,11 @@ ndb_file::off_t ndb_file::get_size() const
   return st.st_size;
 }
 
-int ndb_file::extend(off_t end, extend_flags flags) const
+int ndb_file::extend(ndb_off_t end, extend_flags flags) const
 {
   require(check_block_size_and_alignment(nullptr, end, end));
   require((flags == NO_FILL) || (flags == ZERO_FILL));
-  const off_t size = get_size();
+  const ndb_off_t size = get_size();
   if (size == -1)
   {
     return -1;
@@ -202,10 +205,10 @@ int ndb_file::extend(off_t end, extend_flags flags) const
   return 0;
 }
 
-int ndb_file::truncate(off_t end) const
+int ndb_file::truncate(ndb_off_t end) const
 {
   require(check_block_size_and_alignment(nullptr, end, end));
-  off_t size = get_size();
+  ndb_off_t size = get_size();
   if (size == -1)
   {
     return -1;
@@ -225,7 +228,7 @@ int ndb_file::truncate(off_t end) const
 
 int ndb_file::allocate() const
 {
-  off_t size = get_size();
+  ndb_off_t size = get_size();
   if (size == -1)
   {
     return -1;
@@ -237,7 +240,7 @@ int ndb_file::allocate() const
     xfs_flock64_t fl;
     fl.l_whence= 0;
     fl.l_start= 0;
-    fl.l_len= (off64_t)size;
+    fl.l_len= (ndb_off_t)size;
     if (::xfsctl(NULL, m_handle, XFS_IOC_RESVSP64, &fl) < 0)
     {
       std::printf("failed to optimally allocate disk space");

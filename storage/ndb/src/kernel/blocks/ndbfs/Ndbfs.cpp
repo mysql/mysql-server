@@ -897,7 +897,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       for (unsigned int i = 0; i < fsRWReq->numberOfPages; i++) {
 	jam();
 	const UintPtr varIndex = fsRWReq->data.listOfPair[i].varIndex;
-	const UintPtr fileOffset = fsRWReq->data.listOfPair[i].fileOffset;
+	const ndb_off_t fileOffset = fsRWReq->data.listOfPair[i].fileOffset;
 	if (varIndex >= tNRR) {
 	  jam();
 	  errorCode = FsRef::fsErrInvalidParameters;
@@ -905,7 +905,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
 	}//if
 	request->par.readWrite.pages[i].buf = &tWA[varIndex * tClusterSize];
 	request->par.readWrite.pages[i].size = tPageSize;
-	request->par.readWrite.pages[i].offset = (off_t)(fileOffset*tPageSize);
+	request->par.readWrite.pages[i].offset = (fileOffset*tPageSize);
       }//for
       request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
       break;
@@ -919,9 +919,9 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
         goto error;
       }//if
       const UintPtr varIndex = fsRWReq->data.arrayOfPages.varIndex;
-      const UintPtr fileOffset = fsRWReq->data.arrayOfPages.fileOffset;
+      const ndb_off_t fileOffset = fsRWReq->data.arrayOfPages.fileOffset;
       
-      request->par.readWrite.pages[0].offset = (off_t)(fileOffset * tPageSize);
+      request->par.readWrite.pages[0].offset = (fileOffset * tPageSize);
       request->par.readWrite.pages[0].size = tPageSize * fsRWReq->numberOfPages;
       request->par.readWrite.numberOfPages = 1;
       request->par.readWrite.pages[0].buf = &tWA[varIndex * tPageSize];
@@ -944,10 +944,10 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
 	  goto error;
 	}//if
         // NDB_FS_RW_PAGES overkill, at most 15 ! Or more via execute direct?
+        const ndb_off_t offset = (tPageOffset + (i * tPageSize));
 	request->par.readWrite.pages[i].buf = &tWA[varIndex * tClusterSize];
 	request->par.readWrite.pages[i].size = tPageSize;
-	request->par.readWrite.pages[i].offset = (off_t)
-          (tPageOffset + (i*tPageSize));
+	request->par.readWrite.pages[i].offset = offset;
       }//for
       request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
       break;
@@ -965,12 +965,12 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       }
 
       const Uint32 memoryOffset = fsRWReq->data.memoryAddress.memoryOffset;
-      const Uint32 fileOffset = fsRWReq->data.memoryAddress.fileOffset;
+      const ndb_off_t fileOffset = fsRWReq->data.memoryAddress.fileOffset;
       const Uint32 sz = fsRWReq->data.memoryAddress.size;
 
       request->par.readWrite.pages[0].buf = &tWA[memoryOffset];
       request->par.readWrite.pages[0].size = sz;
-      request->par.readWrite.pages[0].offset = (off_t)(fileOffset);
+      request->par.readWrite.pages[0].offset = fileOffset;
       request->par.readWrite.numberOfPages = 1;
       break;
     }

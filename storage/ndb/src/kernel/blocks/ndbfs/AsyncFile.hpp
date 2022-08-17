@@ -106,7 +106,7 @@ public:
 private:
   int ndbxfrm_append(Request* request, ndbxfrm_input_iterator* in);
 
-  bool check_odirect_request(const char* buf, size_t sz, off_t offset);
+  bool check_odirect_request(const char* buf, size_t sz, ndb_off_t offset);
 
   Request *m_current_request, *m_last_request;
 

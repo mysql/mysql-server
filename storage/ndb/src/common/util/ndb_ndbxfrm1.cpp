@@ -536,7 +536,7 @@ int ndb_ndbxfrm1::trailer::get_data_crc32(Uint32* crc32) const
   return 0;
 }
 
-int ndb_ndbxfrm1::trailer::set_file_pos(off_t file_pos)
+int ndb_ndbxfrm1::trailer::set_file_pos(ndb_off_t file_pos)
 {
   if (m_file_pos != 0) RETURN(-1);
 
