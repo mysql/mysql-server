@@ -34,8 +34,8 @@
 #ifndef REQUIRE
 #define REQUIRE(r) do { if (unlikely(!(r))) { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require((r)); } } while (0)
 #endif
-#define RETURN(r) do { REQUIRE((r) >= 0); return (r); } while (0)
-//#define RETURN(r) return (r)
+//#define RETURN(r) do { REQUIRE((r) >= 0); return (r); } while (0)
+#define RETURN(r) return (r)
 // clang-format on
 
 /*
