@@ -1493,6 +1493,14 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
   bool fix_having = m_query_block->having_fix_field;
 
   derived_cond = and_items(derived_cond, cond_to_attach);
+  // Need to call setup_ftfuncs() if we are going to push
+  // down a condition having full text function.
+  if (m_query_block->has_ft_funcs() &&
+      contains_function_of_type(cond_to_attach, Item_func::FT_FUNC)) {
+    if (setup_ftfuncs(thd, m_query_block)) {
+      return true;
+    }
+  }
   if (having) m_query_block->having_fix_field = true;
   if (!derived_cond->fixed && derived_cond->fix_fields(thd, &derived_cond)) {
     m_query_block->having_fix_field = fix_having;
@@ -1504,14 +1512,6 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
   having ? m_query_block->set_having_cond(derived_cond)
          : m_query_block->set_where_cond(derived_cond);
   thd->lex->set_current_query_block(saved_query_block);
-  // Need to call setup_ftfuncs() if we have pushed down a condition having
-  // full text function.
-  if (m_query_block->has_ft_funcs() &&
-      contains_function_of_type(cond_to_attach, Item_func::FT_FUNC)) {
-    if (setup_ftfuncs(thd, m_query_block)) {
-      return true;
-    }
-  }
   return false;
 }
 
