@@ -927,7 +927,7 @@ EXPLAIN
         -> Table scan on t2  (cost=0.26 rows=2)
         -> Hash
             -> Table scan on derived_1_2  (cost=2.50..2.50 rows=0)
-                -> Materialize  (cost=2.50..2.50 rows=0)
+                -> Materialize  (cost=0.00..0.00 rows=0)
                     -> Filter: (1 = any_value(t1.a))
                         -> Table scan on <temporary>
                             -> Aggregate using temporary table

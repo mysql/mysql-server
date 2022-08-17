@@ -1148,6 +1148,8 @@ struct AccessPath {
       // Large, and has nontrivial destructors, so split out
       // into its own allocation.
       MaterializePathParameters *param;
+      /** The total cost of executing the queries that we materialize.*/
+      double subquery_cost;
     } materialize;
     struct {
       AccessPath *table_path;
@@ -1452,32 +1454,8 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
   path->limit_offset().count_all_rows = count_all_rows;
   path->limit_offset().reject_multiple_rows = reject_multiple_rows;
   path->limit_offset().send_records_override = send_records_override;
-
-  if (child->num_output_rows() >= 0.0) {
-    path->set_num_output_rows(
-        offset >= child->num_output_rows()
-            ? 0.0
-            : (std::min<double>(child->num_output_rows(), limit) - offset));
-  }
-
-  if (child->init_cost < 0.0) {
-    // We have nothing better, since we don't know how much is startup cost.
-    path->cost = child->cost;
-  } else if (child->num_output_rows() < 1e-6) {
-    path->cost = path->init_cost = child->init_cost;
-  } else {
-    const double fraction_start_read =
-        std::min(1.0, double(offset) / child->num_output_rows());
-    const double fraction_full_read =
-        std::min(1.0, double(limit) / child->num_output_rows());
-    path->cost = child->init_cost +
-                 fraction_full_read * (child->cost - child->init_cost);
-    path->init_cost = child->init_cost +
-                      fraction_start_read * (child->cost - child->init_cost);
-  }
-  path->init_once_cost = child->init_once_cost;
   path->ordering_state = child->ordering_state;
-
+  EstimateLimitOffsetCost(path);
   return path;
 }
 
@@ -1591,6 +1569,7 @@ inline AccessPath *NewMaterializeAccessPath(
   path->type = AccessPath::MATERIALIZE;
   path->materialize().table_path = table_path;
   path->materialize().param = param;
+  path->materialize().subquery_cost = -1.0;
   if (rematerialize) {
     path->safe_for_rowid = AccessPath::SAFE_IF_SCANNED_ONCE;
   } else {

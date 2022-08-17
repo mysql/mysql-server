@@ -42,6 +42,7 @@
 #include "sql/iterators/sorting_iterator.h"
 #include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/opt_explain.h"
@@ -97,10 +98,11 @@ static bool PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
                         const std::unique_ptr<Json_array> &range_array,
                         string *ranges_out);
 static std::unique_ptr<Json_object> ExplainAccessPath(
-    const AccessPath *path, JOIN *join, bool is_root_of_join,
-    Json_object *input_obj = nullptr);
+    const AccessPath *path, const AccessPath *materialized_path, JOIN *join,
+    bool is_root_of_join, Json_object *input_obj = nullptr);
 static std::unique_ptr<Json_object> AssignParentPath(
-    AccessPath *parent_path, std::unique_ptr<Json_object> obj, JOIN *join);
+    AccessPath *parent_path, const AccessPath *materialized_path,
+    std::unique_ptr<Json_object> obj, JOIN *join);
 inline static double GetJSONDouble(const Json_object *obj, const char *key) {
   return down_cast<const Json_double *>(obj->get(key))->value();
 }
@@ -386,8 +388,8 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
   /* Move the Materialize to the bottom of its table path, and return a new
    * object for this table path.
    */
-  ret_obj =
-      AssignParentPath(path->materialize().table_path, move(ret_obj), join);
+  ret_obj = AssignParentPath(path->materialize().table_path, path,
+                             move(ret_obj), join);
 
   // Children.
 
@@ -444,16 +446,44 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
   return (error ? nullptr : std::move(ret_obj));
 }
 
+/**
+    AccessPath objects of type TEMPTABLE_AGGREGATE, MATERIALIZE, and
+    MATERIALIZE_INFORMATION_SCHEMA_TABLE represent a materialized
+    set of rows. These materialized AccessPaths have a another path member
+    (called table_path) that iterates over the materialized rows.
+
+    So codewise, table_path is a child of the materialized path, even if it
+    is logically the parent, as it consumes the results from the materialized
+    path. For that reason, we present table_path above the materialized path in
+    'explain' output (@see AddPathCost for details).
+
+    This function therefore sets the JSON object for the materialized
+    path to be the leaf descendant of the table_path JSON
+    object. (Note that in some cases table_path does not operate
+    directly on materialized_path. Instead, table_path is the first in
+    a chain of paths where the final path is typically a TABLE_SCAN of
+    REF access path that the iterates over the materialized rows.)
+
+    @param table_path the head of the chain of paths that iterates over the
+           materialized rows.
+    @param materialized_path if (the leaf descendant of) table_path iterates
+           over the rows from a MATERIALIZE path, then 'materialized_path'
+           is that path. Otherwise it is nullptr.
+    @param materialized_obj the JSON object describing the materialized path.
+    @param join the JOIN to which 'table_path' belongs.
+    @returns the JSON object describing table_path.
+*/
 static std::unique_ptr<Json_object> AssignParentPath(
-    AccessPath *parent_path, std::unique_ptr<Json_object> obj, JOIN *join) {
+    AccessPath *table_path, const AccessPath *materialized_path,
+    std::unique_ptr<Json_object> materialized_obj, JOIN *join) {
   // We don't want to include the SELECT subquery list in the parent path;
   // Let them get printed in the actual root node. So is_root_of_join=false.
-  std::unique_ptr<Json_object> newobj =
-      ExplainAccessPath(parent_path, join, /*is_root_of_join=*/false);
-  if (newobj == nullptr) return nullptr;
+  std::unique_ptr<Json_object> table_obj = ExplainAccessPath(
+      table_path, materialized_path, join, /*is_root_of_join=*/false);
+  if (table_obj == nullptr) return nullptr;
 
   /* Get the bottommost object from the new object tree. */
-  Json_object *bottom_obj = newobj.get();
+  Json_object *bottom_obj = table_obj.get();
   while (bottom_obj->get("inputs") != nullptr) {
     Json_dom *children = bottom_obj->get("inputs");
     assert(children->json_type() == enum_json_type::J_ARRAY);
@@ -463,10 +493,11 @@ static std::unique_ptr<Json_object> AssignParentPath(
 
   /* Place the input object as a child of the bottom-most object */
   std::unique_ptr<Json_array> children(new (std::nothrow) Json_array());
-  if (children == nullptr || children->append_alias(move(obj))) return nullptr;
+  if (children == nullptr || children->append_alias(move(materialized_obj)))
+    return nullptr;
   if (bottom_obj->add_alias("inputs", move(children))) return nullptr;
 
-  return newobj;
+  return table_obj;
 }
 
 static bool ExplainIndexSkipScanAccessPath(Json_object *obj,
@@ -657,7 +688,7 @@ static bool AddChildrenToObject(Json_object *obj,
         subjoin != parent_join || parent_is_root_of_join;
 
     std::unique_ptr<Json_object> child_obj = ExplainAccessPath(
-        child.path, subjoin, child_is_root_of_join, child.obj);
+        child.path, nullptr, subjoin, child_is_root_of_join, child.obj);
     if (child_obj == nullptr) return true;
     if (!child.description.empty()) {
       if (AddMemberToObject<Json_string>(child_obj.get(), "heading",
@@ -678,7 +709,7 @@ static std::unique_ptr<Json_object> ExplainQueryPlan(
 
   /* Create a Json object for the SELECT path */
   if (path != nullptr) {
-    obj = ExplainAccessPath(path, join, is_root_of_join);
+    obj = ExplainAccessPath(path, nullptr, join, is_root_of_join);
     if (obj == nullptr) return nullptr;
   }
   if (query_plan != nullptr) {
@@ -719,26 +750,95 @@ static std::unique_ptr<Json_object> ExplainQueryPlan(
   return obj;
 }
 
-/* Append the various costs. */
-static bool AddPathCosts(const AccessPath *path, Json_object *obj,
+/** Append the various costs.
+    @param path the path that we add costs for.
+    @param materialized_path the MATERIALIZE path for which 'path' is the
+           table_path, or nullptr 'path' is not a table_path.
+    @param obj the JSON object describing 'path'.
+    @param explain_analyze true if we run an 'eaxplain analyze' command.
+    @returns true iff there was an error.
+*/
+static bool AddPathCosts(const AccessPath *path,
+                         const AccessPath *materialized_path, Json_object *obj,
                          bool explain_analyze) {
+  const AccessPath *const table_path = path->type == AccessPath::MATERIALIZE
+                                           ? path->materialize().table_path
+                                           : nullptr;
+
+  double cost;
+
+  /*
+    A MATERIALIZE AccessPath has a child path (called table_path)
+    that iterates over the materialized rows.
+    So codewise, table_path is a child of materialized_path, even if it is
+    logically the parent, as it consumes the results from materialized_path.
+    For that reason, we present table_path above materialized_path in
+    'explain' output, e.g.:
+
+    .-> Sort: i  (cost=8.45..8.45 rows=10)
+    .    -> Table scan on <union temporary>  (cost=1.76..4.12 rows=10)
+    .        -> Union materialize with deduplication  (cost=1.50..1.50 rows=10)
+    .            -> Table scan on t1  (cost=0.05..0.25 rows=5)
+    .            -> Table scan on t2  (cost=0.05..0.25 rows=5)
+
+    The cost of an access path includes the cost all of its descendants.
+    Since table_path is codewise a child of materialized_path, this means that:
+
+    - The cost of table_path is the cost of accessing the materialized
+      structure plus the cost of the descendants (inputs) of materialized_path.
+
+    - The cost of materialized_path is the cost of materialization plus
+      the cost of table_path.
+
+    When we wish to display table_path as the parent of materialized_path,
+    we need to compensate for this:
+
+    - For table_path, we show the cost of materialized_path, as this includes
+      the cost of materialization, iteration and the descendants.
+
+    - For the MATERIALIZE AccessPath we show the cost of the descendants plus
+      the cost of materialization.
+  */
+  if (materialized_path == nullptr) {
+    if (table_path == nullptr) {
+      cost = std::max(0.0, path->cost);
+    } else {
+      assert(path->materialize().subquery_cost >= 0.0);
+      cost = path->materialize().subquery_cost +
+             kMaterializeOneRowCost * path->num_output_rows();
+    }
+  } else {
+    assert(materialized_path->cost >= 0.0);
+    cost = materialized_path->cost;
+  }
+
   bool error = false;
 
   if (path->num_output_rows() >= 0.0) {
     // Calculate first row cost
-    if (path->init_cost >= 0.0) {
+    double init_cost;
+    if (materialized_path == nullptr) {
+      if (table_path == nullptr) {
+        init_cost = path->init_cost;
+      } else {
+        init_cost = cost;
+      }
+    } else {
+      init_cost = materialized_path->init_cost;
+    }
+
+    if (init_cost >= 0.0) {
       double first_row_cost;
       if (path->num_output_rows() <= 1.0) {
-        first_row_cost = path->cost;
+        first_row_cost = cost;
       } else {
-        first_row_cost = path->init_cost + (path->cost - path->init_cost) /
-                                               path->num_output_rows();
+        first_row_cost =
+            init_cost + (cost - init_cost) / path->num_output_rows();
       }
       error |= AddMemberToObject<Json_double>(obj, "estimated_first_row_cost",
                                               first_row_cost);
     }
-    error |=
-        AddMemberToObject<Json_double>(obj, "estimated_total_cost", path->cost);
+    error |= AddMemberToObject<Json_double>(obj, "estimated_total_cost", cost);
     error |= AddMemberToObject<Json_double>(obj, "estimated_rows",
                                             path->num_output_rows());
   } /* if (path->num_output_rows() >= 0.0) */
@@ -774,7 +874,7 @@ static bool AddPathCosts(const AccessPath *path, Json_object *obj,
   return error;
 }
 
-/*
+/**
    Given a json object, update it's appropriate json fields according to the
    input path. Also update the 'children' with a flat list of direct children
    of the passed object.  In most of cases, the returned object is same as the
@@ -786,9 +886,19 @@ static bool AddPathCosts(const AccessPath *path, Json_object *obj,
    indirectly create any json children objects recursively. It may cause stack
    overflow. Hence json children are created only after this function returns
    in function ExplainAccessPath().
+
+   @param ret_obj The JSON object describing 'path'.
+   @param path the path to describe.
+   @param materialized_path if 'path' is the table_path of a MATERIALIZE path,
+          then materialized_path is that path. Otherwise it is nullptr.
+   @param join the JOIN to which 'path' belongs.
+   @param children the paths that are the children of the path that the
+          returned JSON object represents (i.e. the next paths to be explained).
+   @returns either ret_obj or a new JSON object with ret_obj as a descendant.
 */
 static std::unique_ptr<Json_object> SetObjectMembers(
-    std::unique_ptr<Json_object> ret_obj, const AccessPath *path, JOIN *join,
+    std::unique_ptr<Json_object> ret_obj, const AccessPath *path,
+    const AccessPath *materialized_path, JOIN *join,
     vector<ExplainChild> *children) {
   bool error = false;
   string description;
@@ -1234,7 +1344,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       error |= AddMemberToObject<Json_string>(obj, "access_type",
                                               "temp_table_aggregate");
       ret_obj = AssignParentPath(path->temptable_aggregate().table_path,
-                                 move(ret_obj), join);
+                                 nullptr, move(ret_obj), join);
       if (ret_obj == nullptr) return nullptr;
       description = "Aggregate using temporary table";
       children->push_back({path->temptable_aggregate().subquery_path});
@@ -1283,7 +1393,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       break;
     case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE: {
       ret_obj = AssignParentPath(
-          path->materialize_information_schema_table().table_path,
+          path->materialize_information_schema_table().table_path, nullptr,
           move(ret_obj), join);
       if (ret_obj == nullptr) return nullptr;
       const char *table =
@@ -1484,7 +1594,8 @@ static std::unique_ptr<Json_object> SetObjectMembers(
   }
 
   // Append the various costs.
-  error |= AddPathCosts(path, obj, current_thd->lex->is_explain_analyze);
+  error |= AddPathCosts(path, materialized_path, obj,
+                        current_thd->lex->is_explain_analyze);
 
   // Empty description means the object already has the description set above.
   if (!description.empty()) {
@@ -1495,14 +1606,24 @@ static std::unique_ptr<Json_object> SetObjectMembers(
   return (error ? nullptr : move(ret_obj));
 }
 
-/*
+/**
    Convert the AccessPath into a Json object that represents the EXPLAIN output
    This Json object may in turn be used to output in whichever required format.
+
+   @param path the path to describe.
+   @param materialized_path if 'path' is the table_path of a MATERIALIZE path,
+          then materialized_path is that path. Otherwise it is nullptr.
+   @param join the JOIN to which 'path' belongs.
+   @param is_root_of_join 'true' if 'path' is the root path of a
+          Query_expression that is not a union.
+   @param input_obj The JSON object describing 'path', or nullptr if a new
+          object should be allocated..
+   @returns the root of the tree of JSON objects generated from 'path'.
+          (In most cases a single object.)
 */
-static std::unique_ptr<Json_object> ExplainAccessPath(const AccessPath *path,
-                                                      JOIN *join,
-                                                      bool is_root_of_join,
-                                                      Json_object *input_obj) {
+static std::unique_ptr<Json_object> ExplainAccessPath(
+    const AccessPath *path, const AccessPath *materialized_path, JOIN *join,
+    bool is_root_of_join, Json_object *input_obj) {
   bool error = false;
   vector<ExplainChild> children;
   Json_object *obj;
@@ -1523,8 +1644,8 @@ static std::unique_ptr<Json_object> ExplainAccessPath(const AccessPath *path,
     return ret_obj;
   }
 
-  if ((ret_obj = SetObjectMembers(move(ret_obj), path, join, &children)) ==
-      nullptr)
+  if ((ret_obj = SetObjectMembers(move(ret_obj), path, materialized_path, join,
+                                  &children)) == nullptr)
     return nullptr;
 
   // If we are crossing into a different query block, but there's a streaming
@@ -1614,7 +1735,7 @@ std::string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
 
   /* Create a Json object for the plan */
   std::unique_ptr<Json_object> json =
-      ExplainAccessPath(path, join, is_root_of_join);
+      ExplainAccessPath(path, nullptr, join, is_root_of_join);
   if (json == nullptr) return "";
 
   /* Output in tree format.*/
@@ -1654,7 +1775,7 @@ string GetForceSubplanToken(AccessPath *path, JOIN *join) {
 
   /* Create a Json object for the plan */
   std::unique_ptr<Json_object> json =
-      ExplainAccessPath(path, join, /*is_root_of_join=*/true);
+      ExplainAccessPath(path, nullptr, join, /*is_root_of_join=*/true);
   if (json == nullptr) return "";
 
   format.ExplainPrintTreeNode(json.get(), 0, &explain,

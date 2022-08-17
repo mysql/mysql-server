@@ -4753,19 +4753,7 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
     AccessPath *stream_path = NewStreamingAccessPath(
         thd, path, join, /*temp_table_param=*/nullptr, /*table=*/nullptr,
         /*ref_slice=*/-1);
-    stream_path->set_num_output_rows(path->num_output_rows());
-    stream_path->cost = path->cost;
-    stream_path->init_cost = path->init_cost;
-    stream_path->init_once_cost =
-        0.0;  // Never recoverable across query blocks.
-    stream_path->num_output_rows_before_filter = stream_path->num_output_rows();
-    stream_path->cost_before_filter = stream_path->cost;
-    stream_path->ordering_state = path->ordering_state;
-    stream_path->safe_for_rowid = path->safe_for_rowid;
-    // Streaming paths are usually added after all filters have been applied, so
-    // we don't expect any delayed predicates. If there are any, we need to copy
-    // them into stream_path.
-    assert(IsEmpty(path->delayed_predicates));
+    EstimateStreamCost(stream_path);
     return stream_path;
   } else {
     // Filesort needs sort by row ID, possibly because large blobs are

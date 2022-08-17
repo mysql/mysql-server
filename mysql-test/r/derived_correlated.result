@@ -272,8 +272,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
         -> Select #4 (subquery in condition; dependent)
-            -> Table scan on dt2  (cost=2.51..2.51 rows=1)
-                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=3.06..3.06 rows=1)
+            -> Table scan on dt2  (cost=3.06..3.06 rows=1)
+                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=0.55..0.55 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
@@ -527,8 +527,8 @@ EXPLAIN
 -> Nested loop inner join  (cost=6.35 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt2  (cost=2.51..2.51 rows=1)
-        -> Materialize (invalidate on row from t1)  (cost=3.06..3.06 rows=1)
+    -> Table scan on dt2  (cost=3.06..3.06 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=0.55..0.55 rows=1)
             -> Limit: 1 row(s)  (cost=0.45 rows=1)
                 -> Table scan on t2  (cost=0.45 rows=2)
 
@@ -1779,8 +1779,8 @@ EXPLAIN
                 -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
         -> Select #4 (subquery in condition; dependent)
-            -> Table scan on dt2  (cost=2.51..2.51 rows=1)
-                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=3.06..3.06 rows=1)
+            -> Table scan on dt2  (cost=3.06..3.06 rows=1)
+                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=0.55..0.55 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
@@ -2037,13 +2037,13 @@ EXPLAIN
 -> Nested loop inner join  (cost=8.62 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt3  (cost=2.51..2.51 rows=1)
-        -> Materialize (invalidate on row from t1)  (cost=7.14..7.14 rows=1)
-            -> Table scan on dt2  (cost=2.51..2.51 rows=1)
-                -> Materialize  (cost=4.53..4.53 rows=1)
+    -> Table scan on dt3  (cost=7.14..7.14 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=4.62..4.62 rows=1)
+            -> Table scan on dt2  (cost=4.53..4.53 rows=1)
+                -> Materialize  (cost=2.01..2.01 rows=1)
                     -> Limit: 1 row(s)  (cost=1.91..1.91 rows=1)
-                        -> Table scan on dt  (cost=1.26..2.52 rows=2)
-                            -> Materialize  (cost=1.91..3.17 rows=2)
+                        -> Table scan on dt  (cost=1.91..3.18 rows=2)
+                            -> Materialize  (cost=0.65..0.65 rows=2)
                                 -> Table scan on t2  (cost=0.45 rows=2)
 
 Warnings:

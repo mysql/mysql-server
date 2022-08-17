@@ -1488,11 +1488,69 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
       qep_tab->invalidators, /*need_rowid=*/false, table_path);
 }
 
-AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
+/**
+   Recalculate the cost of 'path'.
+   @param path the access path for which we update the cost numbers.
+   @param outer_query_block the query block to which 'path belongs.
+*/
+static void RecalculateTablePathCost(AccessPath *path,
+                                     const Query_block &outer_query_block) {
+  switch (path->type) {
+    case AccessPath::FILTER: {
+      const AccessPath &child = *path->filter().child;
+      path->set_num_output_rows(child.num_output_rows());
+      path->init_cost = child.init_cost;
+
+      const FilterCost filterCost =
+          EstimateFilterCost(current_thd, path->num_output_rows(),
+                             path->filter().condition, &outer_query_block);
+
+      path->cost = child.cost + (path->filter().materialize_subqueries
+                                     ? filterCost.cost_if_materialized
+                                     : filterCost.cost_if_not_materialized);
+    } break;
+
+    case AccessPath::SORT:
+      EstimateSortCost(path);
+      break;
+
+    case AccessPath::LIMIT_OFFSET:
+      EstimateLimitOffsetCost(path);
+      break;
+
+    case AccessPath::DELETE_ROWS:
+      EstimateDeleteRowsCost(path);
+      break;
+
+    case AccessPath::UPDATE_ROWS:
+      EstimateUpdateRowsCost(path);
+      break;
+
+    case AccessPath::STREAM:
+      EstimateStreamCost(path);
+      break;
+
+    case AccessPath::MATERIALIZE:
+      EstimateMaterializeCost(current_thd, path);
+      break;
+
+    default:
+      assert(false);
+  }
+}
+
+AccessPath *MoveCompositeIteratorsFromTablePath(
+    AccessPath *path, const Query_block &outer_query_block) {
+  assert(path->cost >= 0.0);
   AccessPath *table_path = path->materialize().table_path;
   AccessPath *bottom_of_table_path = nullptr;
-  const auto scan_functor = [&bottom_of_table_path, path](AccessPath *sub_path,
-                                                          const JOIN *) {
+  // For EXPLAIN, we recalculate the cost to reflect the new order of
+  // AccessPath objects.
+  const bool explain = current_thd->lex->is_explain();
+  Prealloced_array<AccessPath *, 4> ancestor_paths{PSI_NOT_INSTRUMENTED};
+
+  const auto scan_functor = [&bottom_of_table_path, &ancestor_paths, path,
+                             explain](AccessPath *sub_path, const JOIN *) {
     switch (sub_path->type) {
       case AccessPath::TABLE_SCAN:
       case AccessPath::REF:
@@ -1504,16 +1562,33 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
       case AccessPath::INDEX_RANGE_SCAN:
         // We found our real bottom.
         path->materialize().table_path = sub_path;
+        if (explain) {
+          EstimateMaterializeCost(current_thd, path);
+        }
         return true;
       default:
         // New possible bottom, so keep going.
         bottom_of_table_path = sub_path;
+        ancestor_paths.push_back(sub_path);
         return false;
     }
   };
   WalkAccessPaths(table_path, /*join=*/nullptr,
                   WalkAccessPathPolicy::ENTIRE_TREE, scan_functor);
   if (bottom_of_table_path != nullptr) {
+    if (bottom_of_table_path->type == AccessPath::ZERO_ROWS) {
+      // There's nothing to materialize for ZERO_ROWS, so we can drop the
+      // entire MATERIALIZE node.
+      return bottom_of_table_path;
+    }
+    if (explain) {
+      EstimateMaterializeCost(current_thd, path);
+    }
+
+    // This isn't strictly accurate, but helps propagate information
+    // better throughout the tree nevertheless.
+    CopyBasicProperties(*path, table_path);
+
     switch (bottom_of_table_path->type) {
       case AccessPath::FILTER:
         bottom_of_table_path->filter().child = path;
@@ -1530,10 +1605,6 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
       case AccessPath::UPDATE_ROWS:
         bottom_of_table_path->update_rows().child = path;
         break;
-      case AccessPath::ZERO_ROWS:
-        // There's nothing to materialize for ZERO_ROWS, so we can drop the
-        // entire MATERIALIZE node.
-        return bottom_of_table_path;
 
       // It's a bit odd to have STREAM and MATERIALIZE nodes
       // inside table_path, but it happens when we have UNION with
@@ -1554,12 +1625,18 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
         assert(false);
     }
 
-    // This isn't strictly accurate, but helps propagate information
-    // better throughout the tree nevertheless.
-    CopyBasicProperties(*path, table_path);
-
     path = table_path;
   }
+
+  if (explain) {
+    // Update cost from the bottom an up, so that the cost of each path
+    // includes the cost of its descendants.
+    for (auto ancestor = ancestor_paths.end() - 1;
+         ancestor >= ancestor_paths.begin(); ancestor--) {
+      RecalculateTablePathCost(*ancestor, outer_query_block);
+    }
+  }
+
   return path;
 }
 
@@ -1617,7 +1694,8 @@ AccessPath *GetAccessPathForDerivedTable(
             ? query_expression->m_reject_multiple_rows
             : false);
     EstimateMaterializeCost(thd, path);
-    path = MoveCompositeIteratorsFromTablePath(path);
+    path = MoveCompositeIteratorsFromTablePath(
+        path, *query_expression->outer_query_block());
     if (query_expression->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
       // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
@@ -1660,7 +1738,8 @@ AccessPath *GetAccessPathForDerivedTable(
         /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
         query_expression->m_reject_multiple_rows);
     EstimateMaterializeCost(thd, path);
-    path = MoveCompositeIteratorsFromTablePath(path);
+    path = MoveCompositeIteratorsFromTablePath(
+        path, *query_expression->outer_query_block());
   }
 
   path->cost_before_filter = path->cost;
