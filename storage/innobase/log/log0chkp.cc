@@ -410,6 +410,7 @@ dberr_t log_files_next_checkpoint(log_t &log, lsn_t next_checkpoint_lsn) {
 
   log_limits_mutex_enter(log);
   log_update_limits_low(log);
+  log_update_exported_variables(log);
   log.dict_max_allowed_checkpoint_lsn = 0;
   log_limits_mutex_exit(log);
 
@@ -1190,8 +1191,6 @@ void log_update_concurrency_margin(log_t &log) {
 
 void log_update_limits_low(log_t &log) {
   ut_ad(srv_is_being_started || log_limits_mutex_own(log));
-
-  log_update_exported_variables(log);
 
   log_update_concurrency_margin(log);
 
