@@ -54,6 +54,25 @@ public:
   static constexpr size_t KEY_LEN = 32;
   static constexpr size_t IV_LEN = 32;
   /*
+   * The data unit size is the amount of data that is encrypted with the same
+   * key and IV.
+   *
+   * Note that for XTS what we store and call key_iv pair is the two keys, but
+   * when encrypting a data chunk one also use a 16 bit sector number as IV
+   * calculated from the data position.
+   *
+   * The typical data unit size in Ndb is 32768 bytes since that is the typical
+   * page size.
+   *
+   * The choice of UINT32_MAX as max data unit size serves two purposes:
+   *
+   *   - it works also for 32-bit platforms.
+   *   - the data size per key_iv pair fits in a 64-bit signed int also for XTS
+   *     (needs 48 bits). Which simplifies safe calculations in
+   *     get_needed_key_iv_pair_count().
+   */
+  static constexpr size_t MAX_DATA_UNIT_SIZE = UINT32_MAX;
+  /*
    * MAX_KEY_IV_COUNT is 511 to keep ndb_openssl_evp::key256_iv256_set within
    * 32KiB.
    */
@@ -62,11 +81,11 @@ public:
   static constexpr size_t CBC_KEY_LEN = 32;
   static constexpr size_t CBC_IV_LEN = 16;
   static constexpr size_t CBC_BLOCK_LEN = 16;
-  static constexpr size_t XTS_KEY_LEN = 64;
-  static constexpr size_t XTS_IV_LEN = 16;
+  static constexpr size_t XTS_KEYS_LEN = 64;
+  static constexpr size_t XTS_SEQNUM_LEN = 16;
   static constexpr size_t XTS_BLOCK_LEN = 1;
   static constexpr size_t AESKW_EXTRA = 8;
-  static_assert(KEY_LEN + IV_LEN == XTS_KEY_LEN, "xts uses double key length");
+  static_assert(KEY_LEN + IV_LEN == XTS_KEYS_LEN, "xts uses double key length");
   static_assert(KEY_LEN == CBC_KEY_LEN);
   static_assert(CBC_IV_LEN <= IV_LEN);
 
