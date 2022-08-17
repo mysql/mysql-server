@@ -1,4 +1,14 @@
 SET DEBUG_SYNC='trx_flush_log_if_needed SIGNAL hit';
+SET GLOBAL innodb_monitor_enable = "trx_on_log%";
+SET GLOBAL innodb_monitor_reset="trx_on_log_%";
+SELECT SUM(count_reset) FROM information_schema.innodb_metrics
+WHERE name IN ("trx_on_log_no_waits", "trx_on_log_waits");
+SUM(count_reset)
+0
 CREATE PROCEDURE t () BEGIN END;
+SELECT SUM(count_reset) FROM information_schema.innodb_metrics
+WHERE name IN ("trx_on_log_no_waits", "trx_on_log_waits");
+SUM(count_reset)
+1
 SET DEBUG_SYNC='now WAIT_FOR hit';
 DROP PROCEDURE t;

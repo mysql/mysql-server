@@ -2,7 +2,19 @@
 
 SET DEBUG_SYNC='trx_flush_log_if_needed SIGNAL hit';
 
+# Verify the trx_on_log monitors
+SET GLOBAL innodb_monitor_enable = "trx_on_log%";
+# Reset the monitors so that test can run in parallel conistently
+SET GLOBAL innodb_monitor_reset="trx_on_log_%";
+# Must be 0
+SELECT SUM(count_reset) FROM information_schema.innodb_metrics
+ WHERE name IN ("trx_on_log_no_waits", "trx_on_log_waits");
+
 CREATE PROCEDURE t () BEGIN END;
+
+SELECT SUM(count_reset) FROM information_schema.innodb_metrics
+ WHERE name IN ("trx_on_log_no_waits", "trx_on_log_waits");
+--source include/innodb_monitor_restore.inc
 
 SET DEBUG_SYNC='now WAIT_FOR hit';
 
