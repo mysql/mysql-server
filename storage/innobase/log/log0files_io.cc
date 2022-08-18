@@ -1238,3 +1238,8 @@ Log_files_context::Log_files_context(const std::string &root_path,
     : m_root_path{root_path}, m_files_ruleset{files_ruleset} {}
 
 /** @} */
+
+void Log_data_block_header::set_lsn(lsn_t lsn) {
+  m_epoch_no = log_block_convert_lsn_to_epoch_no(lsn);
+  m_hdr_no = log_block_convert_lsn_to_hdr_no(lsn);
+}

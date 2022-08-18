@@ -1259,8 +1259,7 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
   std::memset(last_block + data_len, 0x00, OS_FILE_LOG_BLOCK_SIZE - data_len);
 
   Log_data_block_header block_header;
-  block_header.m_epoch_no = log_block_convert_lsn_to_epoch_no(block_lsn);
-  block_header.m_hdr_no = log_block_convert_lsn_to_hdr_no(block_lsn);
+  block_header.set_lsn(block_lsn);
   block_header.m_data_len = data_len;
   block_header.m_first_rec_group = log_block_get_first_rec_group(last_block);
   ut_ad(block_header.m_first_rec_group <= data_len);

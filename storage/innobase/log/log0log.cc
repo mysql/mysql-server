@@ -723,8 +723,7 @@ dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
   block = static_cast<byte *>(log.buf) + block_lsn % log.buf_size;
 
   Log_data_block_header block_header;
-  block_header.m_epoch_no = log_block_convert_lsn_to_epoch_no(block_lsn);
-  block_header.m_hdr_no = log_block_convert_lsn_to_epoch_no(block_lsn);
+  block_header.set_lsn(block_lsn);
   block_header.m_data_len = start_lsn - block_lsn;
 
   if (first_block != nullptr) {

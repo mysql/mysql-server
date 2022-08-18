@@ -255,6 +255,10 @@ struct Log_data_block_header {
   /** Offset to the first mtr starting in this block, or 0 if there is no
   mtr starting in this block. */
   uint16_t m_first_rec_group;
+
+  /** Sets m_epoch_no and m_hdr_no from a single lsn
+   */
+  void set_lsn(lsn_t lsn);
 };
 
 /** Pair of: log file id and log file size (expressed in bytes). */

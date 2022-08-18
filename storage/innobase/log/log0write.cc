@@ -1555,8 +1555,7 @@ static inline void prepare_full_blocks(const log_t &log, byte *buffer,
     const lsn_t block_lsn = start_lsn + buffer_offset;
 
     Log_data_block_header block_header;
-    block_header.m_epoch_no = log_block_convert_lsn_to_epoch_no(block_lsn);
-    block_header.m_hdr_no = log_block_convert_lsn_to_hdr_no(block_lsn);
+    block_header.set_lsn(block_lsn);
     block_header.m_data_len = OS_FILE_LOG_BLOCK_SIZE;
     block_header.m_first_rec_group = log_block_get_first_rec_group(ptr);
     log_data_block_header_serialize(block_header, ptr);
@@ -1646,8 +1645,7 @@ static inline void copy_to_write_ahead_buffer(log_t &log, const byte *buffer,
     const lsn_t block_lsn = start_lsn + completed_blocks_size;
 
     Log_data_block_header block_header;
-    block_header.m_epoch_no = log_block_convert_lsn_to_epoch_no(block_lsn);
-    block_header.m_hdr_no = log_block_convert_lsn_to_hdr_no(block_lsn);
+    block_header.set_lsn(block_lsn);
     block_header.m_data_len = incomplete_size;
     block_header.m_first_rec_group =
         log_block_get_first_rec_group(incomplete_block);

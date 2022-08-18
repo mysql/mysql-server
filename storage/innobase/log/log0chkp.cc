@@ -528,8 +528,7 @@ dberr_t log_files_write_first_data_block_low(log_t &log,
 
   /* Write the first empty log block to the log buffer. */
   Log_data_block_header block_header;
-  block_header.m_epoch_no = log_block_convert_lsn_to_epoch_no(block_lsn);
-  block_header.m_hdr_no = log_block_convert_lsn_to_hdr_no(block_lsn);
+  block_header.set_lsn(block_lsn);
   block_header.m_first_rec_group = block_header.m_data_len = data_end;
 
   byte block[OS_FILE_LOG_BLOCK_SIZE] = {};
