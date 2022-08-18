@@ -47,8 +47,11 @@ std::string find_executable_path(const std::string &name) {
 #endif
 
   for (auto subpath : mysql_harness::split_string(path, path_sep)) {
-    auto fn = mysql_harness::Path(subpath).join(name);
-    if (fn.exists()) return fn.str();
+    // the path can end with the separator so the last value can be ""
+    if (!subpath.empty()) {
+      auto fn = mysql_harness::Path(subpath).join(name);
+      if (fn.exists()) return fn.str();
+    }
   }
 
   return {};
