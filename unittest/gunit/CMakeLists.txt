@@ -331,6 +331,7 @@ SET(SERVER_TESTS
   json_path
   locking_service
   log_throttle
+  log_timestamp
   make_sortkey
   mdl_sync
   my_decimal
