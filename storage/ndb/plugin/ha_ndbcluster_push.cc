@@ -480,6 +480,22 @@ ndb_table_access_map ndb_pushed_builder_ctx::required_ancestors(
 }
 
 /**
+ * Get all parent tables possibly referable from the key_parent[].
+ * Note that when 'equality sets' are applied by the optimizer,
+ * each key reference may have multiple alternative parents.
+ */
+ndb_table_access_map ndb_pushed_builder_ctx::get_all_key_parents(
+    uint tab_no) const {
+  ndb_table_access_map all_key_parents;
+  const AQP::Table_access *table = m_plan.get_table_access(tab_no);
+  for (uint key_part_no = 0; key_part_no < table->get_no_of_key_fields();
+       key_part_no++) {
+    all_key_parents.add(m_tables[tab_no].m_key_parents[key_part_no]);
+  }
+  return all_key_parents;
+}
+
+/**
  * Main entry point to build a pushed join having 'join_root'
  * as it first operation.
  *
@@ -1013,20 +1029,67 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
      * Calculate full set of possible ancestors for this table in
      * the query tree. Note that they do not become mandatory ancestors
      * before being added to the m_ancestors bitmap (Further below)
+     *
+     * 1) All possible key parents, previously calculated as 'all_parents',
+     *    as well as all nest-level required_ancestors() are initial parent
+     *    candidates. (Note that no table-level m_ancestors are set yet)
+     *
+     * 2) For all tables being a 'possible_ancestor' of this table:
+     *    a) Add the key_parents[] referred from such tables as well.
+     *    b) Add any enforced 'm_ancestors'.
+     *
+     * 3) Add tables requiring existing ancestors as its own ancestors:
+     *    For all preceeding table *not* yet being a 'possible_ancestor', if:
+     *    a) Table is a member of the ancestor nests (I.e. the set of nests
+     *       already being referred) ): Do not add new nest dependencies
+     *    AND
+     *    b) Table access is a 'single-row-lookup' ): Else we get a
+     *       multiplicative access-fanout on all tables getting it as an
+     *       ancestor.
+     *
+     *    Then we can add this table as a possible ancestor, if EITHER:
+     *    c) All referred key_parents[] are possible_ancestors.
+     *    d) All required_ancestors are possible_ancestors.
+     *    -> I.e. Table will always be joined with these ancestors, still
+     *       providing the existing possible_ancestor as grand-ancestors.
      */
-    ndb_table_access_map all_ancestors(all_parents);
-    for (uint i = tab_no - 1; i > root_no; i--) {
-      if (all_ancestors.contain(i)) {
-        AQP::Table_access *ancestor = m_plan.get_table_access(i);
 
-        for (uint key_part_no = 0;
-             key_part_no < ancestor->get_no_of_key_fields(); key_part_no++) {
-          all_ancestors.add(m_tables[i].m_key_parents[key_part_no]);
-          assert(m_join_scope.contain(all_ancestors));
-        }
-        all_ancestors.add(m_tables[i].m_ancestors);  // Add enforced ancestors
+    // 1) Start with all parent candidates for this 'table'
+    ndb_table_access_map possible_ancestors(all_parents);
+    possible_ancestors.add(required_ancestors(&m_tables[tab_no]));
+
+    // 2) For all possible_ancestor tables, add its ancestors as well:
+    for (uint i = tab_no - 1; i > root_no; i--) {
+      if (possible_ancestors.contain(i)) {
+        const ndb_table_access_map all_key_parents(get_all_key_parents(i));
+        possible_ancestors.add(all_key_parents);          // 2a)
+        possible_ancestors.add(m_tables[i].m_ancestors);  // 2b)
       }
     }
+
+    // 3) Add tables requiring existing ancestors as its own ancestors:
+    const ndb_table_access_map ancestor_nests(
+        m_tables[tab_no].ancestor_nests());
+    for (uint i = root_no + 1; i < tab_no; i++) {
+      if (m_join_scope.contain(i) &&         // Table is pushed
+          !possible_ancestors.contain(i) &&  // Not already an ancestor
+          ancestor_nests.contain(i) &&       // 3a) In ancestor-nests of table
+          !m_scan_operations.contain(i)) {   // 3b) Is a single-row access type
+
+        // 3c) All referred key_parents[] are possible_ancestors.
+        const ndb_table_access_map all_key_parents(get_all_key_parents(i));
+        if (possible_ancestors.contain(all_key_parents)) {
+          possible_ancestors.add(i);
+        }
+        // 3d) All required_ancestors are possible_ancestors.
+        if (!m_tables[i].m_ancestors.is_clear_all() &&
+            possible_ancestors.contain(m_tables[i].m_ancestors)) {
+          possible_ancestors.add(i);
+        }
+      }
+    }
+    assert(m_join_scope.contain(possible_ancestors));
+
     /**
      * Calculate the set of tables where the referred Field values may be
      * handled as either constant or parameter values from a pushed condition.
@@ -1066,7 +1129,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     table_map param_expr_tables(0);
     if (ndbd_support_param_cmp(m_thd_ndb->ndb->getMinDbNodeVersion())) {
       for (uint i = root_no; i < tab_no; i++) {
-        if (all_ancestors.contain(i)) {
+        if (possible_ancestors.contain(i)) {
           const TABLE *table = m_plan.get_table_access(i)->get_table();
           param_expr_tables |= table->pos_in_table_list->map();
         }

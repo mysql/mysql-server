@@ -243,6 +243,9 @@ class ndb_pushed_builder_ctx {
   int build_key(const AQP::Table_access *table, const NdbQueryOperand *op_key[],
                 NdbQueryOptions *key_options);
 
+  // Get all parent tables referred by key
+  ndb_table_access_map get_all_key_parents(uint tab_no) const;
+
   uint get_table_no(const Item *key_item) const;
 
   ndb_table_access_map get_table_map(table_map external_map) const;

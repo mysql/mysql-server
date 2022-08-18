@@ -3235,6 +3235,177 @@ eval explain format=tree $query;
 eval $query;
 
 
+--echo ##################
+--echo #
+--echo # Bug#34508948 Allow more conditions to be pushed down
+--echo #
+--echo ##################
+
+##########
+# In order to push a condition as part of pushed join, all tables
+# refererd from the pushed condition need to be ancestors of the table
+# having the pushed condition.
+#
+# In test case below t3 will have the filter:
+#   WHERE t1.pk = 8 OR t1.col_varchar_256_key = t3.col_varchar_256
+#
+# While, the t3 join condition is:
+#   ON table3.col_int_key = table1.col_int
+#
+# As only t1 is refererd by the join condition, t1 becomes the natural
+# ancestor of t3 in the pushed join. However, SPJ allows us to add extra
+# 'proxy' ancestors when they have common ancestors. Thus, by detecting that
+# t2 also has t1 as an ancestor, it can be forced as an ancestor of t3, such
+# that t3 get the ancestor set [t1,t2] -> t3 condition becomes pushable
+#
+let $query=
+SELECT STRAIGHT_JOIN
+  table1.pk, table2.pk, table3.pk
+FROM p AS table1
+  JOIN g AS table2 ON table2.col_int_unique = table1.col_int_unique
+  JOIN n AS table3 ON table3.col_int_key = table1.col_int
+WHERE table3.pk = 8 OR table3.col_varchar_256_key = table2.col_varchar_256;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+##########
+# ~Same query with t2 join condition changed from an unique-key lookup
+# on 't2.col_int_unique' to use the non-unique 'table2.col_int_key'.
+# Forcing t2 as an proxy-ancestor to t3 would result in a t3 lookup for
+# each t2 row matching 'table2.col_int_key = table1.col_int_key'.
+# Depending on the fanout of this join condition, it could result in
+# a prohibitive increase in t3 accesses.
+# Thus, we intentionally do not add tables having a non-unique access
+# as extra ancestors -> t3 condition not pushable
+#
+let $query=
+SELECT STRAIGHT_JOIN
+  table1.pk, table2.pk, table3.pk
+FROM p AS table1
+  JOIN g AS table2 ON table2.col_int_key = table1.col_int_key
+  JOIN n AS table3 ON table3.col_int_key = table1.col_int
+WHERE table3.pk = 8 OR table3.col_varchar_256_key = table2.col_varchar_256;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+##############
+# ~Same query again, this time t2 is outer joined with an unique-lookup
+#
+# Query plan is: t1, (outer join t2), t3 'with filter'.
+#
+# The outer joined table2 is referred from the filter:
+#  t3.pk = 8 OR t3.col_varchar_256_key = t2.col_varchar_256
+#
+# As t3 is inner joined with t1, t2 is *not* in t3's scope of
+# 'embedding_nests'.
+# Pushing the filter condition, would have required adding
+# t2 as an ancestor of t3, which would implicitely add a not-null
+# requirement on t2 as well - Effectively changing the outer join
+# semantic to an inner join.
+#
+# -> Do NOT push the filter condition!
+#
+let $query=
+SELECT STRAIGHT_JOIN
+  table1.pk, table2.pk, table3.pk
+FROM p AS table1
+  LEFT JOIN g AS table2 ON table2.col_int_unique = table1.col_int_unique
+  JOIN n AS table3 ON table3.col_int_key = table1.col_int
+WHERE table3.pk = 8 OR table3.col_varchar_256_key = table2.col_varchar_256;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+#######
+# Some other random queries picked up from RQG testing. Which
+# demonstrate the enhanced condition pushdown as well as
+# protecting agains some cases where we found a too eager
+# condition pushdown
+
+let $query=
+SELECT
+  table1.pk, table2.pk, table3.pk, table4.pk
+FROM c AS table1
+  RIGHT JOIN a AS table2
+    RIGHT JOIN d AS table3 ON table2.pk = table3.col_int
+    RIGHT JOIN d AS table4 ON table3.col_int_key = table4.col_int_key AND
+                              table2.col_int_unique = table4.col_int_unique
+  ON table1.pk = table2.col_int_unique
+WHERE table1.col_int_unique > 9;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT table3.col_char_16_unique AS field1
+FROM d AS table1
+  JOIN m AS table2 ON table1.col_int_unique = table2.pk
+  JOIN m AS table3 ON table1.pk = table3.col_int_unique
+  RIGHT JOIN j AS table4 ON table3.col_int_key = table4.col_int AND
+                            table2.col_int_unique = table4.col_int_key
+WHERE table2.col_int = 76;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT
+  table2.col_int_key AS field1
+FROM d AS table1
+  JOIN f AS table2
+    LEFT JOIN m AS table3
+      RIGHT JOIN e AS table4 ON table3.col_int_key = table4.col_int_unique
+    ON table2.pk = table3.col_int
+  ON table1.col_int_unique = table2.col_int_key
+  JOIN h AS table5 ON table4.col_int_key = table5.col_int_key AND
+                      table2.col_int_unique = table5.col_int_unique;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT
+  #table2.col_char_16_unique AS field1
+  table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
+FROM a AS table1
+  JOIN k AS table2 ON table1.col_int_unique = table2.col_int
+  RIGHT JOIN r AS table3 ON table1.col_varchar_10_key = table3.col_varchar_10_key
+  RIGHT JOIN w AS table4
+    JOIN l AS table5
+      RIGHT JOIN v AS table6 ON table5.col_varchar_10_unique = table6.col_varchar_10_unique
+    ON table4.pk = table6.col_int_unique
+  ON table2.col_int_key = table5.col_int_key AND
+     table3.col_int_unique = table4.col_int_unique
+WHERE table4.pk >= 3;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+# end bug#34508948
+################
+
 ######################################################
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 
