@@ -26,11 +26,8 @@
 #include "mysql/components/services/pfs_plugin_table_service.h"
 #include "plugin/group_replication/include/gcs_operations.h"
 #include "plugin/group_replication/include/member_info.h"
-#include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/include/perfschema/table_communication_information.h"
 #include "plugin/group_replication/include/perfschema/utilities.h"
-#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
-#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 extern Gcs_operations *gcs_module;
 extern Group_member_info_manager_interface *group_member_mgr;
@@ -38,43 +35,40 @@ extern Group_member_info *local_member_info;
 
 namespace gr {
 namespace perfschema {
-namespace pfs_table_communication_information {
-
-static constexpr int SUCCESS = 0;
-
-struct dummy_table_handle_type {};
-static dummy_table_handle_type dummy_table_handle{};
-
-static constexpr unsigned long long NR_ROWS{1};
-static unsigned long long s_current_pos{0};
-static uint32_t s_write_concurrency{0};
-static Member_version s_mysql_version{0x00000};
-static unsigned long s_single_writer_capable{0};
 
 /**
-  Fetch preferred leaders instance.
-
-  @return Reference to the Group_member_info_list instance.
+  A row in the replication_group_communication_information table.
 */
-Group_member_info_list &get_preferred_leaders() {
-  static Group_member_info_list s_preferred_leaders(
-      (Malloc_allocator<Group_member_info *>(key_group_member_info)));
-  return s_preferred_leaders;
-}
+struct Replication_group_communication_information {
+  uint32_t write_concurrency{0};
+  Member_version mysql_version{0x00000};
+  unsigned long single_writer_capable{0};
+  Group_member_info_list found_preferred_leaders{
+      (Malloc_allocator<Group_member_info *>(key_group_member_info))};
+  Group_member_info_list found_actual_leaders{
+      (Malloc_allocator<Group_member_info *>(key_group_member_info))};
+};
 
 /**
-  Fetch actual leaders instance.
-  The actual leaders are members which is carrying out leader at this moment.
-
-  @return Reference to the Group_member_info_list instance.
+  A structure to define a handle for table in plugin/component code.
 */
-Group_member_info_list &get_actual_leaders() {
-  static Group_member_info_list s_actual_leaders(
-      (Malloc_allocator<Group_member_info *>(key_group_member_info)));
-  return s_actual_leaders;
-}
+struct Replication_group_communication_information_table_handle {
+  unsigned long long current_pos{0};
+  Replication_group_communication_information row;
 
-static bool fetch_row_data() {
+  /**
+    Fetch values required for the row and stores into row struct
+    members. This stored data is read later through read_row_values().
+
+    @return Operation status
+      @retval 0     Success
+      @retval 1     Failure
+  */
+  bool fetch_row_data();
+};
+
+bool Replication_group_communication_information_table_handle::
+    fetch_row_data() {
   bool constexpr ERROR = true;
   bool constexpr OK = false;
 
@@ -83,7 +77,7 @@ static bool fetch_row_data() {
   }
 
   enum enum_gcs_error error_code =
-      gcs_module->get_write_concurrency(s_write_concurrency);
+      gcs_module->get_write_concurrency(row.write_concurrency);
   if (error_code != GCS_OK) {
     return ERROR;
   }
@@ -92,7 +86,7 @@ static bool fetch_row_data() {
   if (gcs_version == Gcs_protocol_version::UNKNOWN) {
     return ERROR;
   }
-  s_mysql_version = convert_to_mysql_version(gcs_version);
+  row.mysql_version = convert_to_mysql_version(gcs_version);
 
   std::vector<Gcs_member_identifier> preferred_leaders;
   std::vector<Gcs_member_identifier> actual_leaders;
@@ -101,23 +95,17 @@ static bool fetch_row_data() {
     return ERROR;
   }
 
-  Group_member_info_list found_preferred_leaders(
-      (Malloc_allocator<Group_member_info *>(key_group_member_info)));
   for (const auto &preferred_leader : preferred_leaders) {
     auto member_id =
         group_member_mgr->get_group_member_info_by_member_id(preferred_leader);
-    if (member_id) found_preferred_leaders.emplace_back(member_id);
+    if (member_id) row.found_preferred_leaders.emplace_back(member_id);
   }
-  get_preferred_leaders() = found_preferred_leaders;
 
-  Group_member_info_list found_actual_leaders(
-      (Malloc_allocator<Group_member_info *>(key_group_member_info)));
   for (const auto &actual_leader : actual_leaders) {
     auto member_id =
         group_member_mgr->get_group_member_info_by_member_id(actual_leader);
-    if (member_id) found_actual_leaders.emplace_back(member_id);
+    if (member_id) row.found_actual_leaders.emplace_back(member_id);
   }
-  get_actual_leaders() = found_actual_leaders;
 
   // If we are running a version that does not support Single Leader,
   // we will report it as not running in Single Leader.
@@ -127,13 +115,13 @@ static bool fetch_row_data() {
   // members if the protocol version is >=V3.
   // Hence we retrieve the first group member, and get the value from it.
 
-  s_single_writer_capable = 0;
+  row.single_writer_capable = 0;
   if (local_member_info != nullptr && gcs_version >= Gcs_protocol_version::V3) {
     auto recovery_status = local_member_info->get_recovery_status();
 
     if (recovery_status == Group_member_info::MEMBER_IN_RECOVERY ||
         recovery_status == Group_member_info::MEMBER_ONLINE) {
-      s_single_writer_capable = static_cast<unsigned long>(
+      row.single_writer_capable = static_cast<unsigned long>(
           local_member_info->get_allow_single_leader());
     }
   }
@@ -141,40 +129,50 @@ static bool fetch_row_data() {
   return OK;
 }
 
-static unsigned long long get_row_count() { return NR_ROWS; }
+unsigned long long Pfs_table_communication_information::get_row_count() {
+  return NR_ROWS;
+}
 
-static int rnd_next(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
-  if (s_current_pos >= NR_ROWS) {
+int Pfs_table_communication_information::rnd_next(PSI_table_handle *handle) {
+  Replication_group_communication_information_table_handle *t =
+      (Replication_group_communication_information_table_handle *)handle;
+
+  if (t->current_pos >= NR_ROWS) {
     return PFS_HA_ERR_END_OF_FILE;
   }
 
-  bool const error = fetch_row_data();
+  bool const error = t->fetch_row_data();
   if (error) {
     // Is there a more suitable error code?
     return PFS_HA_ERR_END_OF_FILE;
   }
 
-  s_current_pos++;
+  t->current_pos++;
 
   return SUCCESS;
 }
 
-static int rnd_init(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
-                    bool scan MY_ATTRIBUTE((unused))) {
+int Pfs_table_communication_information::rnd_init(PSI_table_handle *handle
+                                                  [[maybe_unused]],
+                                                  bool scan [[maybe_unused]]) {
   return SUCCESS;
 }
 
-static int rnd_pos(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+int Pfs_table_communication_information::rnd_pos(PSI_table_handle *handle
+                                                 [[maybe_unused]]) {
   return SUCCESS;
 }
 
-static void reset_position(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
-  s_current_pos = 0;
+void Pfs_table_communication_information::reset_position(
+    PSI_table_handle *handle) {
+  Replication_group_communication_information_table_handle *t =
+      (Replication_group_communication_information_table_handle *)handle;
+  t->current_pos = 0;
 }
 
-static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
-                             PSI_field *field,
-                             unsigned int index MY_ATTRIBUTE((unused))) {
+int Pfs_table_communication_information::read_column_value(
+    PSI_table_handle *handle, PSI_field *field,
+    unsigned int index [[maybe_unused]]) {
   Registry_guard guard;
   my_service<SERVICE_TYPE(pfs_plugin_column_tiny_v1)> column_tinyint_service{
       "pfs_plugin_column_tiny_v1", guard.get_registry()};
@@ -183,22 +181,41 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
   my_service<SERVICE_TYPE(pfs_plugin_column_blob_v1)> column_blob_service{
       "pfs_plugin_column_blob_v1", guard.get_registry()};
 
+  DBUG_EXECUTE_IF(
+      "group_replication_wait_before_group_communication_information_read_"
+      "column_"
+      "value",
+      {
+        const char act[] =
+            "now signal "
+            "signal.after_group_communication_information_read_column_value_"
+            "waiting "
+            "wait_for "
+            "signal.after_group_communication_information_read_column_value_"
+            "continue";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      };);
+
+  Replication_group_communication_information_table_handle *t =
+      (Replication_group_communication_information_table_handle *)handle;
+
   switch (index) {
     case 0: {  // WRITE_CONCURRENCY
-      column_bigint_service->set_unsigned(field, {s_write_concurrency, false});
+      column_bigint_service->set_unsigned(field,
+                                          {t->row.write_concurrency, false});
       break;
     }
     case 1: {  // PROTOCOL_VERSION
-      column_blob_service->set(field,
-                               s_mysql_version.get_version_string().c_str(),
-                               s_mysql_version.get_version_string().size());
+      column_blob_service->set(
+          field, t->row.mysql_version.get_version_string().c_str(),
+          t->row.mysql_version.get_version_string().size());
       break;
     }
     case 2: {  // WRITE_CONSENSUS_LEADERS_PREFERRED
       std::stringstream ss;
-      for (std::size_t i = 0; i < get_preferred_leaders().size(); i++) {
-        ss << get_preferred_leaders().at(i)->get_uuid();
-        if (i < get_preferred_leaders().size() - 1) {
+      for (std::size_t i = 0; i < t->row.found_preferred_leaders.size(); i++) {
+        ss << t->row.found_preferred_leaders.at(i)->get_uuid();
+        if (i < t->row.found_preferred_leaders.size() - 1) {
           ss << ',';
         }
       }
@@ -207,9 +224,9 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
     }
     case 3: {  // WRITE_CONSENSUS_LEADERS_ACTUAL
       std::stringstream ss;
-      for (std::size_t i = 0; i < get_actual_leaders().size(); i++) {
-        ss << get_actual_leaders().at(i)->get_uuid();
-        if (i < get_actual_leaders().size() - 1) {
+      for (std::size_t i = 0; i < t->row.found_actual_leaders.size(); i++) {
+        ss << t->row.found_actual_leaders.at(i)->get_uuid();
+        if (i < t->row.found_actual_leaders.size() - 1) {
           ss << ',';
         }
       }
@@ -217,30 +234,32 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
       break;
     }
     case 4: {  // WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE
-      column_tinyint_service->set_unsigned(field,
-                                           {s_single_writer_capable, false});
+      column_tinyint_service->set_unsigned(
+          field, {t->row.single_writer_capable, false});
       break;
     }
   }
   return 0;
 }
 
-static PSI_table_handle *open_table(PSI_pos **pos MY_ATTRIBUTE((unused))) {
-  auto *dummy = reinterpret_cast<PSI_table_handle *>(&dummy_table_handle);
-  reset_position(dummy);
-  *pos = reinterpret_cast<PSI_pos *>(&s_current_pos);
-  return dummy;
+PSI_table_handle *Pfs_table_communication_information::open_table(
+    PSI_pos **pos) {
+  Replication_group_communication_information_table_handle *handle =
+      new Replication_group_communication_information_table_handle();
+
+  reset_position((PSI_table_handle *)handle);
+  *pos = reinterpret_cast<PSI_pos *>(&(handle->current_pos));
+  return (PSI_table_handle *)handle;
 }
 
-static void close_table(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
-  for (auto &it : get_preferred_leaders()) delete it;
-  get_preferred_leaders().clear();
-
-  for (auto &it : get_actual_leaders()) delete it;
-  get_actual_leaders().clear();
+void Pfs_table_communication_information::close_table(
+    PSI_table_handle *handle) {
+  Replication_group_communication_information_table_handle *t =
+      (Replication_group_communication_information_table_handle *)handle;
+  for (auto &it : t->row.found_preferred_leaders) delete it;
+  for (auto &it : t->row.found_actual_leaders) delete it;
+  delete t;
 }
-
-}  // namespace pfs_table_communication_information
 
 bool Pfs_table_communication_information::deinit() { return false; }
 
@@ -256,27 +275,28 @@ bool Pfs_table_communication_information::init() {
       "the option group_replication_paxos_single_leader was set to at the time "
       "this member joined the group. '";
   m_share.m_ref_length =
-      sizeof pfs_table_communication_information::s_current_pos;
+      sizeof Replication_group_communication_information_table_handle::
+          current_pos;
   m_share.m_acl = READONLY;
-  m_share.get_row_count = pfs_table_communication_information::get_row_count;
+  m_share.get_row_count = Pfs_table_communication_information::get_row_count;
 
   /* Initialize PFS_engine_table_proxy */
   m_share.m_proxy_engine_table = {
-      pfs_table_communication_information::rnd_next,
-      pfs_table_communication_information::rnd_init,
-      pfs_table_communication_information::rnd_pos,
+      Pfs_table_communication_information::rnd_next,
+      Pfs_table_communication_information::rnd_init,
+      Pfs_table_communication_information::rnd_pos,
       nullptr,  // index_init,
       nullptr,  // index_read,
       nullptr,  // index_next,
-      pfs_table_communication_information::read_column_value,
-      pfs_table_communication_information::reset_position,
+      Pfs_table_communication_information::read_column_value,
+      Pfs_table_communication_information::reset_position,
       nullptr,  // write_column_value,
       nullptr,  // write_row_values,
       nullptr,  // update_column_value,
       nullptr,  // update_row_values,
       nullptr,  // delete_row_values,
-      pfs_table_communication_information::open_table,
-      pfs_table_communication_information::close_table};
+      Pfs_table_communication_information::open_table,
+      Pfs_table_communication_information::close_table};
   return false;
 }
 
