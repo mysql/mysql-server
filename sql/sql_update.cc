@@ -621,7 +621,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   {  // Start of scope for Modification_plan
     ha_rows rows;
     if (range_scan)
-      rows = range_scan->num_output_rows;
+      rows = range_scan->num_output_rows();
     else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {

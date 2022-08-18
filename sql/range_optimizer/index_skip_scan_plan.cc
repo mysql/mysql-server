@@ -500,7 +500,7 @@ AccessPath *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param, SEL_TREE *tree,
   AccessPath *path = new (param->return_mem_root) AccessPath;
   path->type = AccessPath::INDEX_SKIP_SCAN;
   path->cost = best_read_cost.total_cost();
-  path->num_output_rows = best_records;
+  path->set_num_output_rows(best_records);
 
   IndexSkipScanParameters *ext =
       new (param->return_mem_root) IndexSkipScanParameters;

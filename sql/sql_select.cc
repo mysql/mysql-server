@@ -3183,7 +3183,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
         if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST) {
           double rows_w_const_cond = qep_tab->position()->rows_fetched;
           qep_tab->position()->rows_fetched =
-              tab->range_scan()->num_output_rows;
+              tab->range_scan()->num_output_rows();
           if (tab->position()->filter_effect != COND_FILTER_STALE) {
             // Constant condition moves to filter_effect:
             if (tab->position()->rows_fetched == 0)  // avoid division by zero

@@ -13816,7 +13816,7 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
 -> Nested loop inner join  (cost=12.30 rows=54)
-    -> Constant row from <subquery2>  (cost=0.00..0.00 rows=1)
+    -> Constant row from <subquery2>  (cost=6.65..6.65 rows=1)
         -> Materialize with deduplication  (cost=6.65..6.65 rows=18)
             -> Nested loop left join  (cost=4.85 rows=18)
                 -> Nested loop left join  (cost=1.55 rows=6)

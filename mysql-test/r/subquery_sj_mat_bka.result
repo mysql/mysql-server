@@ -13824,7 +13824,7 @@ EXPLAIN
 -> Inner hash join (no condition)  (cost=9.59 rows=54)
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Hash
-        -> Constant row from <subquery2>  (cost=0.00..0.00 rows=1)
+        -> Constant row from <subquery2>  (cost=3.94..3.94 rows=1)
             -> Materialize with deduplication  (cost=3.94..3.94 rows=18)
                 -> Left hash join (no condition)  (cost=2.14 rows=18)
                     -> Left hash join (no condition)  (cost=1.12 rows=6)

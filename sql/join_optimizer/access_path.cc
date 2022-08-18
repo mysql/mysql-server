@@ -391,7 +391,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       case AccessPath::TABLE_SCAN: {
         const auto &param = path->table_scan();
         iterator = NewIterator<TableScanIterator>(
-            thd, mem_root, param.table, path->num_output_rows, examined_rows);
+            thd, mem_root, param.table, path->num_output_rows(), examined_rows);
         break;
       }
       case AccessPath::INDEX_SCAN: {
@@ -399,11 +399,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         if (param.reverse) {
           iterator = NewIterator<IndexScanIterator<true>>(
               thd, mem_root, param.table, param.idx, param.use_order,
-              path->num_output_rows, examined_rows);
+              path->num_output_rows(), examined_rows);
         } else {
           iterator = NewIterator<IndexScanIterator<false>>(
               thd, mem_root, param.table, param.idx, param.use_order,
-              path->num_output_rows, examined_rows);
+              path->num_output_rows(), examined_rows);
         }
         break;
       }
@@ -412,11 +412,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         if (param.reverse) {
           iterator = NewIterator<RefIterator<true>>(
               thd, mem_root, param.table, param.ref, param.use_order,
-              path->num_output_rows, examined_rows);
+              path->num_output_rows(), examined_rows);
         } else {
           iterator = NewIterator<RefIterator<false>>(
               thd, mem_root, param.table, param.ref, param.use_order,
-              path->num_output_rows, examined_rows);
+              path->num_output_rows(), examined_rows);
         }
         break;
       }
@@ -424,7 +424,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         const auto &param = path->ref_or_null();
         iterator = NewIterator<RefOrNullIterator>(
             thd, mem_root, param.table, param.ref, param.use_order,
-            path->num_output_rows, examined_rows);
+            path->num_output_rows(), examined_rows);
         break;
       }
       case AccessPath::EQ_REF: {
@@ -466,7 +466,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       case AccessPath::FOLLOW_TAIL: {
         const auto &param = path->follow_tail();
         iterator = NewIterator<FollowTailIterator>(
-            thd, mem_root, param.table, path->num_output_rows, examined_rows);
+            thd, mem_root, param.table, path->num_output_rows(), examined_rows);
         break;
       }
       case AccessPath::INDEX_RANGE_SCAN: {
@@ -474,19 +474,19 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         TABLE *table = param.used_key_part[0].field->table;
         if (param.geometry) {
           iterator = NewIterator<GeometryIndexRangeScanIterator>(
-              thd, mem_root, table, examined_rows, path->num_output_rows,
+              thd, mem_root, table, examined_rows, path->num_output_rows(),
               param.index, param.need_rows_in_rowid_order, param.reuse_handler,
               mem_root, param.mrr_flags, param.mrr_buf_size,
               Bounds_checked_array{param.ranges, param.num_ranges});
         } else if (param.reverse) {
           iterator = NewIterator<ReverseIndexRangeScanIterator>(
-              thd, mem_root, table, examined_rows, path->num_output_rows,
+              thd, mem_root, table, examined_rows, path->num_output_rows(),
               param.index, mem_root, param.mrr_flags,
               Bounds_checked_array{param.ranges, param.num_ranges},
               param.using_extended_key_parts);
         } else {
           iterator = NewIterator<IndexRangeScanIterator>(
-              thd, mem_root, table, examined_rows, path->num_output_rows,
+              thd, mem_root, table, examined_rows, path->num_output_rows(),
               param.index, param.need_rows_in_rowid_order, param.reuse_handler,
               mem_root, param.mrr_flags, param.mrr_buf_size,
               Bounds_checked_array{param.ranges, param.num_ranges});
@@ -731,8 +731,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         const bool probe_input_batch_mode =
             eligible_for_batch_mode && ShouldEnableBatchMode(param.outer);
-        double estimated_build_rows = param.inner->num_output_rows;
-        if (param.inner->num_output_rows < 0.0) {
+        double estimated_build_rows = param.inner->num_output_rows();
+        if (param.inner->num_output_rows() < 0.0) {
           // Not all access paths may propagate their costs properly.
           // Choose a fairly safe estimate (it's better to be too large
           // than too small).
@@ -818,9 +818,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                                eligible_for_batch_mode, &job, &todo);
           continue;
         }
-        ha_rows num_rows_estimate = param.child->num_output_rows < 0.0
+        ha_rows num_rows_estimate = param.child->num_output_rows() < 0.0
                                         ? HA_POS_ERROR
-                                        : lrint(param.child->num_output_rows);
+                                        : lrint(param.child->num_output_rows());
         Filesort *filesort = param.filesort;
         iterator = NewIterator<SortingIterator>(
             thd, mem_root, filesort, move(job.children[0]), num_rows_estimate,
@@ -1327,7 +1327,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
     // calculation we are doing in CostingReceiver::ProposeNestedLoopJoin();
     // we don't have space in the AccessPath to store it there.
     double filter_cost = right_path->cost;
-    double filter_rows = right_path->num_output_rows;
+    double filter_rows = right_path->num_output_rows();
 
     List<Item> items;
     for (size_t filter_idx :
@@ -1359,7 +1359,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
     CopyBasicProperties(*right_path, filter_path);
     filter_path->filter().condition = CreateConjunction(&items);
     filter_path->cost = filter_cost;
-    filter_path->num_output_rows = filter_rows;
+    filter_path->set_num_output_rows(filter_rows);
 
     path->nested_loop_join().inner = filter_path;
 
@@ -1391,7 +1391,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
   }
   AccessPath *new_path = new (thd->mem_root) AccessPath(*path);
   new_path->filter_predicates.Clear();
-  new_path->num_output_rows = path->num_output_rows_before_filter;
+  new_path->set_num_output_rows(path->num_output_rows_before_filter);
   new_path->cost = path->cost_before_filter;
 
   // We don't really know how much of init_cost comes from the filter,

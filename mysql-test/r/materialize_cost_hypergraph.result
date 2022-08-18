@@ -1,0 +1,59 @@
+CREATE TABLE t1(i INT, j INT);
+INSERT INTO t1 VALUES (0,0),(1,1),(2,2),(3,3),(4,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+#
+# Bug#34302461: EXPLAIN cost and row estimates are wrong for UNION
+#
+EXPLAIN FORMAT=TREE SELECT i FROM t1 UNION SELECT 7 ORDER BY i;
+EXPLAIN
+-> Sort: i  (cost=5.58..5.58 rows=6)
+    -> Table scan on <union temporary>  (cost=1.28..3.43 rows=6)
+        -> Union materialize with deduplication  (cost=0.85..0.85 rows=6)
+            -> Table scan on t1  (cost=0.05..0.25 rows=5)
+            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+EXPLAIN FORMAT=TREE SELECT * FROM (SELECT i FROM t1 UNION SELECT 7) d1
+ORDER BY i;
+EXPLAIN
+-> Sort: d1.i  (cost=5.58..5.58 rows=6)
+    -> Table scan on d1  (cost=1.28..3.43 rows=6)
+        -> Union materialize with deduplication  (cost=0.85..0.85 rows=6)
+            -> Table scan on t1  (cost=0.05..0.25 rows=5)
+            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY i;
+EXPLAIN
+-> Sort: i  (cost=8.45..8.45 rows=10)
+    -> Table scan on <union temporary>  (cost=1.76..4.12 rows=10)
+        -> Union materialize with deduplication  (cost=1.50..1.50 rows=10)
+            -> Table scan on t1  (cost=0.05..0.25 rows=5)
+            -> Table scan on t1  (cost=0.05..0.25 rows=5)
+
+EXPLAIN FORMAT=TREE SELECT * FROM (SELECT * FROM t1 UNION SELECT * FROM t1)
+d1 ORDER BY i;
+EXPLAIN
+-> Sort: d1.i  (cost=8.45..8.45 rows=10)
+    -> Table scan on d1  (cost=1.76..4.12 rows=10)
+        -> Union materialize with deduplication  (cost=1.50..1.50 rows=10)
+            -> Table scan on t1  (cost=0.05..0.25 rows=5)
+            -> Table scan on t1  (cost=0.05..0.25 rows=5)
+
+#
+# Bug#33834146: 'EXPLAIN ANALYZE' cost + elapsed time not cumulative
+# when using materialization
+#
+EXPLAIN FORMAT=TREE INSERT INTO t1 SELECT MAX(i), 3 FROM
+(SELECT * FROM t1 ORDER BY j LIMIT 5) AS d1;
+EXPLAIN
+-> Insert into t1
+    -> Table scan on <temporary>  (cost=8.09..8.09 rows=1)
+        -> Temporary table  (cost=5.57..5.57 rows=1)
+            -> Aggregate: max(d1.i)  (cost=5.47..5.47 rows=1)
+                -> Table scan on d1  (cost=2.92..4.97 rows=5)
+                    -> Materialize  (cost=2.41..2.41 rows=5)
+                        -> Sort: t1.j, limit input to 5 row(s) per chunk  (cost=1.91..1.91 rows=5)
+                            -> Table scan on t1  (cost=0.05..0.25 rows=5)
+
+DROP TABLE t1;

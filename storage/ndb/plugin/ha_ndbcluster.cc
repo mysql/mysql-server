@@ -14391,7 +14391,7 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
           // Entire FILTER condition was pushed down.
           // Remove the FILTER operation, keep the estimated rows/cost.
           // (Used for explain only, query plan is already decided)
-          param.child->num_output_rows = subpath->num_output_rows;
+          param.child->set_num_output_rows(subpath->num_output_rows());
           param.child->cost = subpath->cost;
           *subpath = std::move(*param.child);
         }
