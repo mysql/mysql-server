@@ -1835,3 +1835,27 @@ WHERE (vc3 IN (SELECT c1 FROM t1 WHERE c2='01'))
 
 DROP VIEW v1;
 DROP TABLE vt1, vt2, vt3, vt4, t1, t2;
+
+--echo #
+--echo #  Bug 33971286 - LEFT JOIN and Subquery single condition returns incorrect results
+--echo #
+
+CREATE TABLE ot (c0 BIGINT NOT NULL, c1 VARCHAR(5));
+INSERT INTO ot VALUES (1, 'A'), (2, 'B'), (3, 'C'), (4, 'C');
+
+CREATE TABLE it1 (c0 INT NOT NULL, c1 BIGINT NOT NULL);
+INSERT INTO it1 VALUES (1, 3), (2, 2);
+
+CREATE TABLE it2 (c0 BIGINT NOT NULL, c1 VARCHAR(5));
+INSERT INTO it2 VALUES (1, 'A'), (2, 'B'), (3, 'C'), (4, 'C');
+
+ANALYZE TABLE ot, it1, it2;
+
+--let  query=SELECT ot.c0, dt.c0 AS dt_c0 FROM ot LEFT JOIN (SELECT it1.* FROM it1 WHERE c0 IN (SELECT c0 FROM it2 WHERE c1 = 'A')) dt ON ot.c0 = dt.c0
+--eval EXPLAIN $query
+--eval $query;
+SET optimizer_switch = "derived_merge=off,firstmatch=off";
+--eval EXPLAIN $query
+--eval $query;
+SET optimizer_switch = default;
+DROP TABLE ot, it1, it2;
