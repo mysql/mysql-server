@@ -1,1 +1,1 @@
---initialize --innodb_page_size=16k
+--initialize --innodb_page_size=16k --innodb_buffer_pool_size=48M
