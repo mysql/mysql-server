@@ -182,6 +182,9 @@ class Storage {
   /** Delete all elements in the storage. After this `size()` will be zero. */
   void clear();
 
+  /** A simple getter. */
+  size_t number_of_elements_per_page() const;
+
  private:
   /** Align elements to this number of bytes. */
   static constexpr size_t ALIGN_TO = alignof(void *);
@@ -634,6 +637,10 @@ inline void Storage::clear() {
   m_first_page = nullptr;
   m_last_page = nullptr;
   m_number_of_elements = 0;
+}
+
+inline size_t Storage::number_of_elements_per_page() const {
+  return m_number_of_elements_per_page;
 }
 
 inline size_t Storage::page_size() const {

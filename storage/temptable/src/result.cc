@@ -47,6 +47,8 @@ const char *result_to_string(Result r) {
       return "TABLE_CORRUPT";
     case Result::TABLE_EXIST:
       return "TABLE_EXIST";
+    case Result::TOO_BIG_ROW:
+      return "TOO_BIG_ROW";
     case Result::UNSUPPORTED:
       return "UNSUPPORTED";
     case Result::WRONG_COMMAND:

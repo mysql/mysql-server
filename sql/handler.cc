@@ -4343,6 +4343,12 @@ void handler::print_error(int error, myf errflag) {
     case HA_ERR_TOO_LONG_PATH:
       textno = ER_TABLE_NAME_CAUSES_TOO_LONG_PATH;
       break;
+    case HA_ERR_TOO_BIG_ROW: {
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_GET_ERRNO, MYF(0), HA_ERR_TOO_BIG_ROW,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, HA_ERR_TOO_BIG_ROW));
+    }
+      return;
     default: {
       /* The error was "unknown" to this function.
          Ask handler if it has got a message for this error */
