@@ -70,14 +70,7 @@ static void rec_init_offsets_new(const rec_t *rec, const dict_index_t *index,
   ut_ad(!rec_new_is_versioned(rec));
 
   const byte *nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
-  size_t nullable_cols;
-  if (index->has_row_versions()) {
-    nullable_cols = index->get_nullable_in_version(0);
-  } else if (index->has_instant_cols()) {
-    nullable_cols = index->get_instant_nullable();
-  } else {
-    nullable_cols = index->n_nullable;
-  }
+  const size_t nullable_cols = index->get_nullable_before_instant_add_drop();
 
   const byte *lens = nulls - UT_BITS_IN_BYTES(nullable_cols);
   ulint offs = 0;
