@@ -155,6 +155,11 @@ struct JoinHypergraph {
   /// the root cause.
   bool has_reordered_left_joins = false;
 
+  /// The set of tables that are on the inner side of some outer join or
+  /// antijoin. If a table is not part of this set, and it is found to be empty,
+  /// we can assume that the result of the top-level join will also be empty.
+  table_map tables_inner_to_outer_or_anti = 0;
+
  private:
   /// A pointer to the query block being planned.
   const Query_block *m_query_block;

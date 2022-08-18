@@ -3236,6 +3236,34 @@ void CompleteFullMeshForMultipleEqualities(
   }
 }
 
+/**
+  Returns a map of all tables that are on the inner side of some outer join or
+  antijoin.
+ */
+table_map GetTablesInnerToOuterJoinOrAntiJoin(
+    const RelationalExpression *expr) {
+  switch (expr->type) {
+    case RelationalExpression::INNER_JOIN:
+    case RelationalExpression::SEMIJOIN:
+    case RelationalExpression::STRAIGHT_INNER_JOIN:
+      return GetTablesInnerToOuterJoinOrAntiJoin(expr->left) |
+             GetTablesInnerToOuterJoinOrAntiJoin(expr->right);
+    case RelationalExpression::LEFT_JOIN:
+    case RelationalExpression::ANTIJOIN:
+      return GetTablesInnerToOuterJoinOrAntiJoin(expr->left) |
+             expr->right->tables_in_subtree;
+    case RelationalExpression::FULL_OUTER_JOIN:
+      return expr->tables_in_subtree;
+    case RelationalExpression::MULTI_INNER_JOIN:
+      assert(false);  // Should have been unflattened by now.
+      return 0;
+    case RelationalExpression::TABLE:
+      return 0;
+  }
+  assert(false);
+  return 0;
+}
+
 }  // namespace
 
 const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
@@ -3393,6 +3421,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   // Now that we have the hypergraph construction done, it no longer hurts
   // to remove impossible conditions.
   ClearImpossibleJoinConditions(root);
+
+  graph->tables_inner_to_outer_or_anti =
+      GetTablesInnerToOuterJoinOrAntiJoin(root);
 
   // Add cycles.
   size_t old_graph_edges = graph->graph.edges.size();

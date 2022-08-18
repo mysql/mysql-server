@@ -705,10 +705,16 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
         return true;
       }
       if (impossible) {
+        const char *const cause = "WHERE condition is always false";
+        if (!IsBitSet(tl->tableno(), m_graph->tables_inner_to_outer_or_anti)) {
+          // The entire top-level join is going to be empty, so we can abort the
+          // planning and return a zero rows plan.
+          m_query_block->join->zero_result_cause = cause;
+          return true;
+        }
         AccessPath *table_path =
             NewTableScanAccessPath(m_thd, table, /*count_examined_rows=*/false);
-        AccessPath *zero_path = NewZeroRowsAccessPath(
-            m_thd, table_path, "Impossible WHERE condition");
+        AccessPath *zero_path = NewZeroRowsAccessPath(m_thd, table_path, cause);
 
         // We need to get the set of functional dependencies right,
         // even though we don't need to actually apply any filters.
@@ -6450,7 +6456,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       thd->variables.optimizer_max_subgraph_pairs, secondary_engine_cost_hook,
       trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
-      !thd->is_error()) {
+      !thd->is_error() && join->zero_result_cause == nullptr) {
     SimplifyQueryGraph(thd, thd->variables.optimizer_max_subgraph_pairs, &graph,
                        trace);
 
@@ -6481,12 +6487,19 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         /*subgraph_pair_limit=*/-1, secondary_engine_cost_hook, trace);
     // Reset the secondary engine planning flags
     graph.secondary_engine_costing_flags = {};
-    if (EnumerateAllConnectedPartitions(graph.graph, &receiver)) {
-      assert(thd->is_error());
+    if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
+        thd->is_error()) {
       return nullptr;
     }
   }
   if (thd->is_error()) return nullptr;
+
+  if (join->zero_result_cause != nullptr) {
+    if (trace != nullptr) {
+      *trace += "The join returns zero rows. Final cost is 0.0.\n";
+    }
+    return CreateZeroRowsForEmptyJoin(join, join->zero_result_cause);
+  }
 
   // Get the root candidates. If there is a secondary engine cost hook, there
   // may be no candidates, as the hook may have rejected so many access paths

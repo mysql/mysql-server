@@ -5868,14 +5868,14 @@ TEST_F(HypergraphSecondaryEngineTest, DontCallCostHookForEmptyJoins) {
   // The join is known to be always empty.
   EXPECT_EQ(AccessPath::ZERO_ROWS, root->type);
 
-  // The secondary engine cost hook should have seen the TABLE_SCAN on t2, the
-  // ZERO_ROWS for t1, and the ZERO_ROWS for the join. It should not have seen
-  // any join paths.
-  ASSERT_EQ(3, paths.size());
+  // The secondary engine cost hook should see the TABLE_SCAN on t2, since
+  // that's the first table found by the join enumeration algorithm. When the
+  // join enumeration goes on to see t1, it detects that t1 has a condition
+  // that's always false, and it immediately stops exploring more plans. The
+  // hook therefore doesn't see any more plans.
+  ASSERT_EQ(1, paths.size());
   ASSERT_EQ(AccessPath::TABLE_SCAN, paths[0].type);
   EXPECT_STREQ("t2", paths[0].table_scan().table->alias);
-  EXPECT_EQ(AccessPath::ZERO_ROWS, paths[1].type);
-  EXPECT_EQ(AccessPath::ZERO_ROWS, paths[2].type);
 }
 
 /*
