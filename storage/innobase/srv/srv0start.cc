@@ -1790,7 +1790,7 @@ dberr_t srv_start(bool create_new_db) {
   ulint start = (srv_read_only_mode) ? 0 : 2;
 
   /* Sequence number displayed in the thread os name. */
-  PSI_thread_seqnum pfs_seqnum;
+  PSI_thread_seqnum pfs_seqnum [[maybe_unused]];
 
   for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
     IB_thread thread;

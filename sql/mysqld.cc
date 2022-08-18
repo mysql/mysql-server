@@ -11640,7 +11640,8 @@ void refresh_status() {
 class Do_THD_reset_status : public Do_THD_Impl {
  public:
   Do_THD_reset_status() {}
-  void operator()(THD *thd) override {
+  void operator()(THD *thd [[maybe_unused]]) override {
+#ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_thread *thread = thd->get_psi();
     if (thread != nullptr) {
       /*
@@ -11654,6 +11655,7 @@ class Do_THD_reset_status : public Do_THD_Impl {
       */
       PSI_THREAD_CALL(aggregate_thread_status)(thread);
     }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
 };
 

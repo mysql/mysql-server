@@ -30,6 +30,8 @@ Created 10/13/2010 Jimmy Yang */
 
 #include <sys/types.h>
 
+#include "univ.i"
+
 #include "ddl0ddl.h"
 #include "ddl0fts.h"
 #include "ddl0impl-builder.h"
@@ -1500,7 +1502,11 @@ dberr_t FTS::init(size_t n_threads) noexcept {
 dberr_t FTS::start_parse_threads(Builder *builder) noexcept {
   auto fn = [&](PSI_thread_seqnum seqnum, Parser *parser, Builder *builder) {
     ut_a(seqnum > 0);
+#ifdef UNIV_PFS_THREAD
     Runnable runnable{fts_parallel_tokenization_thread_key, seqnum};
+#else
+    Runnable runnable{PSI_NOT_INSTRUMENTED, seqnum};
+#endif /* UNIV_PFS_THREAD */
 
     auto old_thd = current_thd;
 
@@ -1553,7 +1559,11 @@ dberr_t FTS::insert(Builder *builder) noexcept {
   auto fn = [&](PSI_thread_seqnum seqnum, FTS::Inserter::Handler *handler,
                 dberr_t &err) {
     ut_a(seqnum > 0);
+#ifdef UNIV_PFS_THREAD
     Runnable runnable{fts_parallel_merge_thread_key, seqnum};
+#else
+    Runnable runnable{PSI_NOT_INSTRUMENTED, seqnum};
+#endif /* UNIV_PFS_THREAD */
 
     if (!handler->m_files.empty()) {
       err = m_inserter->insert(builder, handler);

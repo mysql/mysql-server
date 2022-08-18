@@ -560,7 +560,8 @@ static inline bool switch_thread_resource_group(
     resourcegroups::Resource_group *src_resource_grp,
     resourcegroups::Resource_group *tgt_resource_grp) {
   assert(src_resource_grp != nullptr && tgt_resource_grp != nullptr);
-  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  auto res_grp_mgr [[maybe_unused]] =
+      resourcegroups::Resource_group_mgr::instance();
 
   resourcegroups::Resource_group_switch_handler *src_rg_switch_handler =
       src_resource_grp->resource_group_switch_handler(pfs_thread_id);
@@ -720,14 +721,15 @@ static bool check_resource_group_set_privilege(Security_context *sctx) {
   @retval    true     Failure.
 */
 static inline bool populate_pfs_thread_attribute_for_thread(
-    THD *thd, ulonglong pfs_thread_id,
-    std::map<ulonglong, PSI_thread_attrs> &threads_pfs_attr_map,
-    bool report_error) {
+    THD *thd [[maybe_unused]], ulonglong pfs_thread_id [[maybe_unused]],
+    std::map<ulonglong, PSI_thread_attrs> &threads_pfs_attr_map
+    [[maybe_unused]],
+    bool report_error [[maybe_unused]]) {
+#ifdef HAVE_PSI_THREAD_INTERFACE
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
   PSI_thread_attrs pfs_thread_attr;
   memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
   if (res_grp_mgr->get_thread_attributes(&pfs_thread_attr, pfs_thread_id) ||
       pfs_thread_id != pfs_thread_attr.m_thread_internal_id) {
     if (report_error) {

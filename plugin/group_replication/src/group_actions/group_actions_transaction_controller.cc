@@ -234,17 +234,24 @@ end:
   // code, and cleaner look of code
   std::chrono::time_point<SteadyClock> time_now = SteadyClock::now();
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   std::string status_info = "Group replication transaction monitor";
+
   PSI_THREAD_CALL(set_thread_info)(status_info.c_str(), status_info.length());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   mysql_mutex_lock(&m_run_lock);
   m_transaction_monitor_thd_state.set_running();
   mysql_cond_broadcast(&m_run_cond);
 
   m_mysql_new_transaction_control->stop();
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
   status_info =
       "Group replication transaction monitor: Stopped new transactions";
+
   PSI_THREAD_CALL(set_thread_info)(status_info.c_str(), status_info.length());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   // main_loop
   while (!m_abort && !thd->is_killed()) {
@@ -296,19 +303,23 @@ end:
       m_mysql_close_connection_of_binloggable_transaction_not_reached_commit
           ->close();
       clients_disconnected = true;
+#ifdef HAVE_PSI_THREAD_INTERFACE
       status_info =
           "Group replication transaction monitor: Stopped client connections";
       PSI_THREAD_CALL(set_thread_info)
       (status_info.c_str(), status_info.length());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
     }
   }
 
   m_mysql_before_commit_transaction_control->allow();
   m_mysql_new_transaction_control->allow();
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   status_info =
       "Group replication transaction monitor: Allowing new transactions";
   PSI_THREAD_CALL(set_thread_info)(status_info.c_str(), status_info.length());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   DBUG_EXECUTE_IF("group_replication_transaction_monitor_end", {
     const char act[] =

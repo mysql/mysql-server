@@ -41,11 +41,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0log.h"               /* row_log_estimate_work() */
 #include "srv0srv.h"               /* Alter_stage */
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
-
 // Forward declaration.
 class Alter_stage;
 using Alter_stages = std::vector<Alter_stage *, ut::allocator<Alter_stage *>>;
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
 
 /** Class used to report ALTER TABLE progress via performance_schema.
 The only user of this class is the ALTER TABLE code and it calls the methods
@@ -669,8 +669,11 @@ class Alter_stage {
   @param[in] n_sort_indexes     Number of indexe.s */
   void begin_phase_read_pk(size_t n_sort_indexes) {}
 
-  /** Increments the numbfer of rows read so far. */
+  /** Increments the number of rows read so far. */
   void n_pk_recs_inc() {}
+
+  /** Increments the number of rows read so far. */
+  void n_pk_recs_inc(uint64_t) {}
 
   /** Increment depending on stage. */
   void inc(uint64_t inc_val = 1) {}
@@ -699,7 +702,7 @@ class Alter_stage {
 
   /** Aggregate the sub stages..
   @param[in] stages             Stages to aggregate. */
-  void Alter_stage::aggregate(const Alter_stages &alter_stages) noexcept {}
+  void aggregate(const Alter_stages &alter_stages) noexcept {}
 };
 
 class Alter_stage_ts {

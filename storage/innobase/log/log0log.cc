@@ -1283,8 +1283,13 @@ static void log_allocate_buffer(log_t &log) {
   ut_a(srv_log_buffer_size <= INNODB_LOG_BUFFER_SIZE_MAX);
   ut_a(srv_log_buffer_size >= 4 * UNIV_PAGE_SIZE);
 
+#ifdef UNIV_PFS_MEMORY
   log.buf.alloc_withkey(ut::make_psi_memory_key(log_buffer_memory_key),
                         ut::Count{srv_log_buffer_size});
+#else
+  log.buf.alloc_withkey(ut::make_psi_memory_key(PSI_NOT_INSTRUMENTED),
+                        ut::Count{srv_log_buffer_size});
+#endif
 }
 
 static void log_deallocate_buffer(log_t &log) { log.buf.dealloc(); }

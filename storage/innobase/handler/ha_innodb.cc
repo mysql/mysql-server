@@ -133,6 +133,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0meb.h"
 #include "log0pfs.h"
 #include "log0pre_8_0_30.h"
+#include "log0sys.h"
 #include "log0write.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"

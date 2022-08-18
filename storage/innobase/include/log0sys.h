@@ -34,6 +34,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef log0sys_h
 #define log0sys_h
 
+#include "univ.i"
+
 /* Log_consumer */
 #include "log0consumer.h"
 
@@ -717,9 +719,9 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 /** Redo log system (singleton). */
 extern log_t *log_sys;
 
-#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_PFS_MEMORY
 /* PFS key for the redo log buffer's memory */
 extern PSI_memory_key log_buffer_memory_key;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_PFS_MEMORY */
 
 #endif /* !log0sys_h */
