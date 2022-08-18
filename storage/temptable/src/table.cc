@@ -98,6 +98,7 @@ Table::Table(TABLE *mysql_table, Block *shared_block,
 
   if (m_all_columns_are_fixed_size) {
     m_rows.element_size(m_mysql_row_length);
+    assert(m_rows.number_of_elements_per_page() > 0);
   } else {
     m_rows.element_size(sizeof(Row));
   }

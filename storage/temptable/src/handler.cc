@@ -132,6 +132,14 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
     DBUG_EXECUTE_IF("temptable_create_return_non_result_type_exception",
                     throw 42;);
 
+    // Calculate m_number_of_elements_per_page, see Table::Table():
+    if (all_columns_are_fixed_size) {
+      Storage rows_of_the_table = Storage(nullptr);
+      rows_of_the_table.element_size(mysql_table->s->rec_buff_length);
+      if (rows_of_the_table.number_of_elements_per_page() == 0)
+        DBUG_RET(Result::TOO_BIG_ROW);
+    }
+
     size_t per_table_limit = thd_get_tmp_table_size(ha_thd());
     auto &kv_store = kv_store_shard[thd_thread_id(ha_thd())];
     const auto insert_result = kv_store.emplace(
