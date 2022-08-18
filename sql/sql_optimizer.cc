@@ -6079,7 +6079,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
         &range_scan);
     tab->set_range_scan(range_scan);
 
-    if (error == 1) return range_scan->num_output_rows;
+    if (error == 1) return range_scan->num_output_rows();
     if (error == -1) {
       tl->table->reginfo.impossible_range = true;
       return 0;
@@ -9738,7 +9738,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
             if (!tab->needed_reg.is_clear_all() &&
                 (tab->table()->quick_keys.is_clear_all() ||
                  (tab->range_scan() &&
-                  (tab->range_scan()->num_output_rows >= 100.0)))) {
+                  (tab->range_scan()->num_output_rows() >= 100.0)))) {
               tab->use_quick = QS_DYNAMIC_RANGE;
               tab->set_type(JT_ALL);
             } else

@@ -91,7 +91,7 @@ void trace_basic_info_group_index_skip_scan(THD *thd, const AccessPath *path,
   trace_object->add("min_aggregate", !param->min_functions.empty())
       .add("max_aggregate", !param->max_functions.empty())
       .add("distinct_aggregate", param->have_agg_distinct)
-      .add("rows", path->num_output_rows)
+      .add("rows", path->num_output_rows())
       .add("cost", path->cost);
 
   const KEY_PART_INFO *key_part = param->index_info->key_part;
@@ -995,7 +995,7 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   AccessPath *path = new (param->return_mem_root) AccessPath;
   path->type = AccessPath::GROUP_INDEX_SKIP_SCAN;
   path->cost = best_read_cost.total_cost();
-  path->num_output_rows = best_records;
+  path->set_num_output_rows(best_records);
 
   // Extract the list of MIN and MAX functions; join->sum_funcs will change
   // after temporary table setup, so it needs to be done before the iterator

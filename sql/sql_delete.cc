@@ -484,7 +484,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   {
     ha_rows rows;
     if (range_scan)
-      rows = range_scan->num_output_rows;
+      rows = range_scan->num_output_rows();
     else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {

@@ -824,7 +824,7 @@ static AccessPath *NewInvalidatorAccessPathForTable(
       NewInvalidatorAccessPath(thd, path, qep_tab->table()->alias);
 
   // Copy costs.
-  invalidator->num_output_rows = path->num_output_rows;
+  invalidator->set_num_output_rows(path->num_output_rows());
   invalidator->cost = path->cost;
 
   QEP_TAB *tab2 = &qep_tab->join()->qep_tab[table_index_to_invalidate];
@@ -1488,11 +1488,69 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
       qep_tab->invalidators, /*need_rowid=*/false, table_path);
 }
 
-AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
+/**
+   Recalculate the cost of 'path'.
+   @param path the access path for which we update the cost numbers.
+   @param outer_query_block the query block to which 'path belongs.
+*/
+static void RecalculateTablePathCost(AccessPath *path,
+                                     const Query_block &outer_query_block) {
+  switch (path->type) {
+    case AccessPath::FILTER: {
+      const AccessPath &child = *path->filter().child;
+      path->set_num_output_rows(child.num_output_rows());
+      path->init_cost = child.init_cost;
+
+      const FilterCost filterCost =
+          EstimateFilterCost(current_thd, path->num_output_rows(),
+                             path->filter().condition, &outer_query_block);
+
+      path->cost = child.cost + (path->filter().materialize_subqueries
+                                     ? filterCost.cost_if_materialized
+                                     : filterCost.cost_if_not_materialized);
+    } break;
+
+    case AccessPath::SORT:
+      EstimateSortCost(path);
+      break;
+
+    case AccessPath::LIMIT_OFFSET:
+      EstimateLimitOffsetCost(path);
+      break;
+
+    case AccessPath::DELETE_ROWS:
+      EstimateDeleteRowsCost(path);
+      break;
+
+    case AccessPath::UPDATE_ROWS:
+      EstimateUpdateRowsCost(path);
+      break;
+
+    case AccessPath::STREAM:
+      EstimateStreamCost(path);
+      break;
+
+    case AccessPath::MATERIALIZE:
+      EstimateMaterializeCost(current_thd, path);
+      break;
+
+    default:
+      assert(false);
+  }
+}
+
+AccessPath *MoveCompositeIteratorsFromTablePath(
+    AccessPath *path, const Query_block &outer_query_block) {
+  assert(path->cost >= 0.0);
   AccessPath *table_path = path->materialize().table_path;
   AccessPath *bottom_of_table_path = nullptr;
-  const auto scan_functor = [&bottom_of_table_path, path](AccessPath *sub_path,
-                                                          const JOIN *) {
+  // For EXPLAIN, we recalculate the cost to reflect the new order of
+  // AccessPath objects.
+  const bool explain = current_thd->lex->is_explain();
+  Prealloced_array<AccessPath *, 4> ancestor_paths{PSI_NOT_INSTRUMENTED};
+
+  const auto scan_functor = [&bottom_of_table_path, &ancestor_paths, path,
+                             explain](AccessPath *sub_path, const JOIN *) {
     switch (sub_path->type) {
       case AccessPath::TABLE_SCAN:
       case AccessPath::REF:
@@ -1504,16 +1562,33 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
       case AccessPath::INDEX_RANGE_SCAN:
         // We found our real bottom.
         path->materialize().table_path = sub_path;
+        if (explain) {
+          EstimateMaterializeCost(current_thd, path);
+        }
         return true;
       default:
         // New possible bottom, so keep going.
         bottom_of_table_path = sub_path;
+        ancestor_paths.push_back(sub_path);
         return false;
     }
   };
   WalkAccessPaths(table_path, /*join=*/nullptr,
                   WalkAccessPathPolicy::ENTIRE_TREE, scan_functor);
   if (bottom_of_table_path != nullptr) {
+    if (bottom_of_table_path->type == AccessPath::ZERO_ROWS) {
+      // There's nothing to materialize for ZERO_ROWS, so we can drop the
+      // entire MATERIALIZE node.
+      return bottom_of_table_path;
+    }
+    if (explain) {
+      EstimateMaterializeCost(current_thd, path);
+    }
+
+    // This isn't strictly accurate, but helps propagate information
+    // better throughout the tree nevertheless.
+    CopyBasicProperties(*path, table_path);
+
     switch (bottom_of_table_path->type) {
       case AccessPath::FILTER:
         bottom_of_table_path->filter().child = path;
@@ -1530,10 +1605,6 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
       case AccessPath::UPDATE_ROWS:
         bottom_of_table_path->update_rows().child = path;
         break;
-      case AccessPath::ZERO_ROWS:
-        // There's nothing to materialize for ZERO_ROWS, so we can drop the
-        // entire MATERIALIZE node.
-        return bottom_of_table_path;
 
       // It's a bit odd to have STREAM and MATERIALIZE nodes
       // inside table_path, but it happens when we have UNION with
@@ -1554,12 +1625,18 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
         assert(false);
     }
 
-    // This isn't strictly accurate, but helps propagate information
-    // better throughout the tree nevertheless.
-    CopyBasicProperties(*path, table_path);
-
     path = table_path;
   }
+
+  if (explain) {
+    // Update cost from the bottom an up, so that the cost of each path
+    // includes the cost of its descendants.
+    for (auto ancestor = ancestor_paths.end() - 1;
+         ancestor >= ancestor_paths.begin(); ancestor--) {
+      RecalculateTablePathCost(*ancestor, outer_query_block);
+    }
+  }
+
   return path;
 }
 
@@ -1617,7 +1694,8 @@ AccessPath *GetAccessPathForDerivedTable(
             ? query_expression->m_reject_multiple_rows
             : false);
     EstimateMaterializeCost(thd, path);
-    path = MoveCompositeIteratorsFromTablePath(path);
+    path = MoveCompositeIteratorsFromTablePath(
+        path, *query_expression->outer_query_block());
     if (query_expression->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
       // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
@@ -1660,11 +1738,12 @@ AccessPath *GetAccessPathForDerivedTable(
         /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
         query_expression->m_reject_multiple_rows);
     EstimateMaterializeCost(thd, path);
-    path = MoveCompositeIteratorsFromTablePath(path);
+    path = MoveCompositeIteratorsFromTablePath(
+        path, *query_expression->outer_query_block());
   }
 
   path->cost_before_filter = path->cost;
-  path->num_output_rows_before_filter = path->num_output_rows;
+  path->num_output_rows_before_filter = path->num_output_rows();
 
   table_ref->access_path_for_derived = path;
   return path;
@@ -1794,9 +1873,9 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
                               AccessPath *path) {
   double num_rows_after_filtering = pos->rows_fetched * pos->filter_effect;
   if (is_after_filter) {
-    path->num_output_rows = num_rows_after_filtering;
+    path->set_num_output_rows(num_rows_after_filtering);
   } else {
-    path->num_output_rows = pos->rows_fetched;
+    path->set_num_output_rows(pos->rows_fetched);
   }
 
   // Note that we don't try to adjust for the filtering here;
@@ -1830,7 +1909,7 @@ void SetCostOnNestedLoopAccessPath(const Cost_model_server &cost_model,
     inner = path->nested_loop_join().inner;
   }
 
-  if (outer->num_output_rows == -1.0 || inner->num_output_rows == -1.0) {
+  if (outer->num_output_rows() == -1.0 || inner->num_output_rows() == -1.0) {
     // Missing cost information on at least one child.
     return;
   }
@@ -1839,11 +1918,11 @@ void SetCostOnNestedLoopAccessPath(const Cost_model_server &cost_model,
   // make a lot of sense.
   double inner_expected_rows_before_filter =
       pos_inner->filter_effect > 0.0
-          ? (inner->num_output_rows / pos_inner->filter_effect)
+          ? (inner->num_output_rows() / pos_inner->filter_effect)
           : 0.0;
   double joined_rows =
-      outer->num_output_rows * inner_expected_rows_before_filter;
-  path->num_output_rows = joined_rows * pos_inner->filter_effect;
+      outer->num_output_rows() * inner_expected_rows_before_filter;
+  path->set_num_output_rows(joined_rows * pos_inner->filter_effect);
   path->cost = outer->cost + pos_inner->read_cost +
                cost_model.row_evaluate_cost(joined_rows);
 }
@@ -1858,15 +1937,15 @@ void SetCostOnHashJoinAccessPath(const Cost_model_server &cost_model,
   AccessPath *outer = path->hash_join().outer;
   AccessPath *inner = path->hash_join().inner;
 
-  if (outer->num_output_rows == -1.0 || inner->num_output_rows == -1.0) {
+  if (outer->num_output_rows() == -1.0 || inner->num_output_rows() == -1.0) {
     // Missing cost information on at least one child.
     return;
   }
 
   // Mirrors set_prefix_join_cost(), even though the cost calculation doesn't
   // make a lot of sense.
-  double joined_rows = outer->num_output_rows * inner->num_output_rows;
-  path->num_output_rows = joined_rows * pos_outer->filter_effect;
+  double joined_rows = outer->num_output_rows() * inner->num_output_rows();
+  path->set_num_output_rows(joined_rows * pos_outer->filter_effect);
   path->cost = inner->cost + pos_outer->read_cost +
                cost_model.row_evaluate_cost(joined_rows);
 }
@@ -2724,7 +2803,7 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
     }
 
     if (!qep_tab->condition_is_pushed_to_sort()) {  // See the comment on #2.
-      double expected_rows = table_path->num_output_rows;
+      double expected_rows = table_path->num_output_rows();
       table_path = PossiblyAttachFilter(table_path, predicates_below_join, thd,
                                         conditions_depend_on_outer_tables);
       POSITION *pos = qep_tab->position();
@@ -2949,7 +3028,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
   if (query_block->is_table_value_constructor) {
     best_rowcount = query_block->row_value_list->size();
     path = NewTableValueConstructorAccessPath(thd);
-    path->num_output_rows = query_block->row_value_list->size();
+    path->set_num_output_rows(query_block->row_value_list->size());
     path->cost = 0.0;
     path->init_cost = 0.0;
   } else if (const_tables == primary_tables) {
@@ -3292,8 +3371,8 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(AccessPath *path) {
       // We cannot call EstimateFilterCost() in the pre-hypergraph optimizer,
       // as on repeated execution of a prepared query, the condition may contain
       // references to subqueries that are destroyed and not re-optimized yet.
-      path->cost += EstimateFilterCost(thd, path->num_output_rows, having_cond,
-                                       query_block)
+      path->cost += EstimateFilterCost(thd, path->num_output_rows(),
+                                       having_cond, query_block)
                         .cost_if_not_materialized;
     }
   }

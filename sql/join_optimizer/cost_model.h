@@ -72,7 +72,7 @@ void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
   of any subqueries that may be present and that need evaluation.
  */
 FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
-                              Query_block *outer_query_block);
+                              const Query_block *outer_query_block);
 
 /**
   A cheaper overload of EstimateFilterCost() that assumes that all
@@ -100,6 +100,12 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path);
 void EstimateAggregateCost(AccessPath *path, const Query_block *query_block);
 void EstimateDeleteRowsCost(AccessPath *path);
 void EstimateUpdateRowsCost(AccessPath *path);
+
+/// Estimate the costs and row count for a STREAM AccessPath.
+void EstimateStreamCost(AccessPath *path);
+
+/// Estimate the costs and row count for a LIMIT_OFFSET AccessPath.
+void EstimateLimitOffsetCost(AccessPath *path);
 
 inline double FindOutputRowsForJoin(double left_rows, double right_rows,
                                     const JoinPredicate *edge) {

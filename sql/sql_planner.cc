@@ -1826,7 +1826,7 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
       pos->loosescan_key = used_index(tab->range_scan());
       pos->read_cost = tab->range_scan()->cost;
       // this is ok because idx == join->const_tables
-      pos->rows_fetched = tab->range_scan()->num_output_rows;
+      pos->rows_fetched = tab->range_scan()->num_output_rows();
       pos->loosescan_parts = quick_max_keypart + 1;
       pos->key = nullptr;
       trace_range.add("chosen", true);

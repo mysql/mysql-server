@@ -457,8 +457,8 @@ EXPLAIN FORMAT=TREE SELECT * FROM
 WHERE f1 > 2;
 EXPLAIN
 -> Filter: (dt.f1 > 2)  (cost=4.82..7.71 rows=4)
-    -> Table scan on dt  (cost=0.22..2.65 rows=12)
-        -> Materialize  (cost=2.98..6.51 rows=12)
+    -> Table scan on dt  (cost=2.98..6.51 rows=12)
+        -> Materialize  (cost=3.86..3.86 rows=12)
             -> Window aggregate with buffering: sum(t1.f2) OVER ()   (cost=0.22..2.66 rows=12)
                 -> Stream results  (cost=0.12..1.46 rows=12)
                     -> Group (no aggregates)  (cost=0.12..1.46 rows=12)
@@ -523,23 +523,23 @@ EXPLAIN
           "operation": "Materialize",
           "access_type": "materialize",
           "estimated_rows": 12.0,
-          "estimated_total_cost": 6.505360623781677,
-          "estimated_first_row_cost": 2.9761939571150102
+          "estimated_total_cost": 3.855360623781677,
+          "estimated_first_row_cost": 3.855360623781677
         }
       ],
       "operation": "Table scan on dt",
       "table_name": "dt",
       "access_type": "table",
       "estimated_rows": 12.0,
-      "estimated_total_cost": 2.65,
-      "estimated_first_row_cost": 0.22083333333333333
+      "estimated_total_cost": 6.5053606237816775,
+      "estimated_first_row_cost": 2.9761939571150102
     }
   ],
   "condition": "(dt.f1 > 2)",
   "operation": "Filter: (dt.f1 > 2)",
   "access_type": "filter",
   "estimated_rows": 3.9995999336242676,
-  "estimated_total_cost": 7.705360623781677,
+  "estimated_total_cost": 7.705360623781678,
   "estimated_first_row_cost": 4.817956899382495
 }
 # Filter, nested loop
@@ -624,8 +624,8 @@ test.t2	analyze	status	OK
 EXPLAIN analyze FORMAT=TREE SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
 EXPLAIN
 -> Sort: t1.b  (cost=2.88..2.88 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
-    -> Table scan on <temporary>  (cost=0.85..2.54 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
-        -> Temporary table  (cost=2.45..4.14 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+    -> Table scan on <temporary>  (cost=2.45..4.14 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+        -> Temporary table  (cost=1.60..1.60 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
             -> Group aggregate: group_concat(t2.b separator ',')  (cost=0.43..1.30 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
                 -> Nested loop left join  (cost=0.33..1.00 rows=3) (actual time=N.NNN..N.NNN rows=4 loops=1)
                     -> Index scan on t1 using PRIMARY  (cost=0.08..0.25 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
@@ -692,16 +692,16 @@ EXPLAIN
           "temp_table": true,
           "access_type": "materialize",
           "estimated_rows": 3.0,
-          "estimated_total_cost": 4.1377500000000005,
-          "estimated_first_row_cost": 2.4460833333333336
+          "estimated_total_cost": 1.60025,
+          "estimated_first_row_cost": 1.60025
         }
       ],
       "operation": "Table scan on <temporary>",
       "table_name": "<temporary>",
       "access_type": "table",
       "estimated_rows": 3.0,
-      "estimated_total_cost": 2.5375,
-      "estimated_first_row_cost": 0.8458333333333333
+      "estimated_total_cost": 4.13775,
+      "estimated_first_row_cost": 2.446083333333333
     }
   ],
   "operation": "Sort: t1.b",

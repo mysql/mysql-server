@@ -540,8 +540,13 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
 
   If a ZERO_ROWS access path is materialized, we simply replace the MATERIALIZE
   path with the ZERO_ROWS path, since there is nothing to materialize.
+  @param path the MATERIALIZE path.
+  @param query_block The query block in which 'path' belongs.
+  @returns The new root of the set of AccessPaths formed by 'path' and its
+  descendants.
  */
-AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path);
+AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path,
+                                                const Query_block &query_block);
 
 AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path);

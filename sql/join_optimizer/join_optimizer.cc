@@ -1191,7 +1191,8 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
   path->type = AccessPath::INDEX_RANGE_SCAN;
   path->init_cost = 0.0;
   path->cost = path->cost_before_filter = best_cost;
-  path->num_output_rows_before_filter = path->num_output_rows = best_num_rows;
+  path->set_num_output_rows(best_num_rows);
+  path->num_output_rows_before_filter = best_num_rows;
   path->index_range_scan().index = keynr;
   path->index_range_scan().num_used_key_parts = used_key_parts;
   path->index_range_scan().used_key_part = param->key[best_key];
@@ -1419,7 +1420,7 @@ bool CostingReceiver::FindIndexRangeScans(
           materialize_subqueries, &new_path, &new_fd_set);
 
       // Override the number of estimated rows, so that all paths get the same.
-      new_path.num_output_rows = *num_output_rows_after_filter;
+      new_path.set_num_output_rows(*num_output_rows_after_filter);
 
       string description_for_trace = string(key->name) + " range";
       ProposeAccessPathWithOrderings(
@@ -1492,7 +1493,7 @@ bool CostingReceiver::FindIndexRangeScans(
 
         // Override the number of estimated rows, so that all paths get the
         // same.
-        new_path.num_output_rows = *num_output_rows_after_filter;
+        new_path.set_num_output_rows(*num_output_rows_after_filter);
 
         string description_for_trace = string(key->name) + " ordered range";
         auto access_path_it = m_access_paths.find(TableBitmap(node_idx));
@@ -1577,7 +1578,7 @@ void CostingReceiver::ProposeIndexMerge(
     }
     paths.push_back(path);
     cost += path->cost;
-    num_output_rows += path->num_output_rows;
+    num_output_rows += path->num_output_rows();
 
     if (allow_clustered_primary_key_scan &&
         table->file->primary_key_is_clustered() &&
@@ -1586,7 +1587,7 @@ void CostingReceiver::ProposeIndexMerge(
       *has_clustered_primary_key_scan = true;
     } else {
       non_cpk_cost += path->cost;
-      non_cpk_rows = path->num_output_rows;
+      non_cpk_rows = path->num_output_rows();
     }
   }
 
@@ -1635,8 +1636,9 @@ void CostingReceiver::ProposeIndexMerge(
 
   imerge_path.cost = imerge_path.cost_before_filter = cost;
   imerge_path.init_cost = init_cost;
-  imerge_path.num_output_rows = imerge_path.num_output_rows_before_filter =
+  imerge_path.num_output_rows_before_filter =
       min<double>(num_output_rows, num_output_rows_after_filter);
+  imerge_path.set_num_output_rows(imerge_path.num_output_rows_before_filter);
 
   if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
     imerge_path.immediate_update_delete_table = node_idx;
@@ -1687,7 +1689,7 @@ void CostingReceiver::ProposeIndexMerge(
 
     // Override the number of estimated rows, so that all paths get the
     // same.
-    new_path.num_output_rows = num_output_rows_after_filter;
+    new_path.set_num_output_rows(num_output_rows_after_filter);
 
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set,
@@ -2063,7 +2065,7 @@ void CostingReceiver::ProposeAccessPathForIndex(
                                 path, &new_fd_set);
 
     if (force_num_output_rows_after_filter >= 0.0) {
-      path->num_output_rows = force_num_output_rows_after_filter;
+      path->set_num_output_rows(force_num_output_rows_after_filter);
     }
 
     path->ordering_state =
@@ -2144,7 +2146,7 @@ bool CostingReceiver::ProposeTableScan(
         NewMaterializeInformationSchemaTableAccessPath(m_thd, new_path, tl,
                                                        /*condition=*/nullptr);
 
-    materialize_path->num_output_rows = path.num_output_rows;
+    materialize_path->set_num_output_rows(path.num_output_rows());
     materialize_path->num_output_rows_before_filter =
         path.num_output_rows_before_filter;
     materialize_path->init_cost = path.cost;       // Rudimentary.
@@ -2160,9 +2162,9 @@ bool CostingReceiver::ProposeTableScan(
     // to completely wild plans. Add a placeholder to make sure we have
     // _something_ to work with.
     if (materialize_path->num_output_rows_before_filter == 0) {
-      new_path->num_output_rows = 1000;
+      new_path->set_num_output_rows(1000);
       new_path->num_output_rows_before_filter = 1000;
-      materialize_path->num_output_rows = 1000;
+      materialize_path->set_num_output_rows(1000);
       materialize_path->num_output_rows_before_filter = 1000;
     }
 
@@ -2183,10 +2185,10 @@ bool CostingReceiver::ProposeTableScan(
       materialize_path->cost_before_filter = materialize_path->init_cost =
           materialize_path->init_once_cost = materialize_path->cost;
       materialize_path->num_output_rows_before_filter =
-          materialize_path->num_output_rows;
+          materialize_path->num_output_rows();
 
       if (materialize_path->num_output_rows_before_filter <= 0.0) {
-        materialize_path->num_output_rows = 1000.0;
+        materialize_path->set_num_output_rows(1000.0);
         materialize_path->num_output_rows_before_filter = 1000.0;
       }
 
@@ -2540,7 +2542,8 @@ bool CostingReceiver::ProposeFullTextIndexScan(
       IsLimitHintPushableToFullTextSearch(match, *m_graph,
                                           m_sargable_fulltext_predicates),
       /*count_examined_rows=*/true);
-  path->num_output_rows = path->num_output_rows_before_filter = num_output_rows;
+  path->set_num_output_rows(num_output_rows);
+  path->num_output_rows_before_filter = num_output_rows;
   path->cost = path->cost_before_filter = cost;
   path->init_cost = path->init_once_cost = 0;
   path->ordering_state = ordering_state;
@@ -2574,7 +2577,7 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
     if (force_num_output_rows_after_filter >= 0.0) {
-      path->num_output_rows = force_num_output_rows_after_filter;
+      path->set_num_output_rows(force_num_output_rows_after_filter);
     }
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set, /*obsolete_orderings=*/0, path,
@@ -2615,7 +2618,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
   double materialize_cost = 0.0;
 
   const NodeMap my_map = TableBitmap(node_idx);
-  path->num_output_rows = path->num_output_rows_before_filter;
+  path->set_num_output_rows(path->num_output_rows_before_filter);
   path->cost = path->cost_before_filter;
   MutableOverflowBitset filter_predicates{m_thd->mem_root,
                                           m_graph->predicates.size()};
@@ -2648,7 +2651,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
     if (m_graph->predicates[i].total_eligibility_set == my_map) {
       filter_predicates.SetBit(i);
       FilterCost cost =
-          EstimateFilterCost(m_thd, path->num_output_rows,
+          EstimateFilterCost(m_thd, path->num_output_rows(),
                              m_graph->predicates[i].contained_subqueries);
       if (materialize_subqueries) {
         path->cost += cost.cost_if_materialized;
@@ -2660,7 +2663,8 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
         // We already factored in this predicate when calculating
         // the selectivity of the ref access, so don't do it again.
       } else {
-        path->num_output_rows *= m_graph->predicates[i].selectivity;
+        path->set_num_output_rows(path->num_output_rows() *
+                                  m_graph->predicates[i].selectivity);
       }
       *new_fd_set |= m_graph->predicates[i].functional_dependencies;
     } else if (Overlaps(m_graph->predicates[i].total_eligibility_set, my_map)) {
@@ -2878,8 +2882,9 @@ void MoveDegenerateJoinConditionToFilter(THD *thd, Query_block *query_block,
   Item *filter_cond = CreateConjunction(&conds);
   AccessPath *filter_path = NewFilterAccessPath(thd, *right_path, filter_cond);
   CopyBasicProperties(**right_path, filter_path);
-  filter_path->num_output_rows *= (*edge)->selectivity;
-  filter_path->cost += EstimateFilterCost(thd, (*right_path)->num_output_rows,
+  filter_path->set_num_output_rows(filter_path->num_output_rows() *
+                                   (*edge)->selectivity);
+  filter_path->cost += EstimateFilterCost(thd, (*right_path)->num_output_rows(),
                                           filter_cond, query_block)
                            .cost_if_not_materialized;
 
@@ -3053,7 +3058,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       if (is_commutative && m_secondary_engine_cost_hook == nullptr &&
           !Overlaps(left_path->parameter_tables | right_path->parameter_tables,
                     RAND_TABLE_BIT)) {
-        if (left_path->num_output_rows < right_path->num_output_rows) {
+        if (left_path->num_output_rows() < right_path->num_output_rows()) {
           ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
                           new_obsolete_orderings,
                           /*rewrite_semi_to_inner=*/false, &wrote_trace);
@@ -3135,7 +3140,7 @@ AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
                                                semijoin_group_size);
     CopyBasicProperties(*path, dedup_path);
     // TODO(sgunders): Model the actual reduction in rows somehow.
-    dedup_path->cost += kAggregateOneRowCost * path->num_output_rows;
+    dedup_path->cost += kAggregateOneRowCost * path->num_output_rows();
   }
   return dedup_path;
 }
@@ -3305,9 +3310,9 @@ void CostingReceiver::ProposeHashJoin(
     if (right_path_already_applied_selectivity < 0.0) {
       return;
     }
-    double outer_input_rows = left_path->num_output_rows;
+    double outer_input_rows = left_path->num_output_rows();
     double inner_input_rows =
-        right_path->num_output_rows / right_path_already_applied_selectivity;
+        right_path->num_output_rows() / right_path_already_applied_selectivity;
 
     // If left and right are flipped for semijoins, we need to flip
     // them back for row calculation (or we'd clamp to the wrong value).
@@ -3322,9 +3327,9 @@ void CostingReceiver::ProposeHashJoin(
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   // NOTE: Keep this in sync with SimulateJoin().
   const double build_cost =
-      right_path->cost + right_path->num_output_rows * kHashBuildOneRowCost;
+      right_path->cost + right_path->num_output_rows() * kHashBuildOneRowCost;
   double cost = left_path->cost + build_cost +
-                left_path->num_output_rows * kHashProbeOneRowCost +
+                left_path->num_output_rows() * kHashProbeOneRowCost +
                 num_output_rows * kHashReturnOneRowCost;
 
   // Note: This isn't strictly correct if the non-equijoin conditions
@@ -3336,7 +3341,7 @@ void CostingReceiver::ProposeHashJoin(
 
   join_path.num_output_rows_before_filter = num_output_rows;
   join_path.cost_before_filter = cost;
-  join_path.num_output_rows = num_output_rows;
+  join_path.set_num_output_rows(num_output_rows);
   join_path.init_cost = build_cost + left_path->init_cost;
 
   double estimated_bytes_per_row = edge->estimated_bytes_per_row;
@@ -3369,7 +3374,8 @@ void CostingReceiver::ProposeHashJoin(
   }
 
   const double hash_memory_used_bytes =
-      estimated_bytes_per_row * right_path->num_output_rows;
+      estimated_bytes_per_row * right_path->num_output_rows();
+
   if (hash_memory_used_bytes <= m_thd->variables.join_buff_size * 0.9 &&
       right_path->parameter_tables == 0) {
     // Fits in memory (with 10% estimation margin), and has
@@ -3508,7 +3514,7 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
                     multiple_equality_bitmap)) {
         if (!subsumed) {
           FilterCost cost = EstimateFilterCost(
-              m_thd, join_path->num_output_rows, pred.contained_subqueries);
+              m_thd, join_path->num_output_rows(), pred.contained_subqueries);
           if (materialize_subqueries) {
             join_path->cost += cost.cost_if_materialized;
             materialize_cost += cost.cost_to_materialize;
@@ -3516,7 +3522,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
             join_path->cost += cost.cost_if_not_materialized;
           }
           if (!already_applied_as_sargable) {
-            join_path->num_output_rows *= pred.selectivity;
+            join_path->set_num_output_rows(join_path->num_output_rows() *
+                                           pred.selectivity);
             filter_predicates.SetBit(pred_idx);
           }
         }
@@ -3541,7 +3548,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
         // in order to force them into being representative for their multiple
         // equality.
         if (pred.selectivity > 1e-6) {
-          join_path->num_output_rows /= pred.selectivity;
+          join_path->set_num_output_rows(join_path->num_output_rows() /
+                                         pred.selectivity);
         }
       }
       *new_fd_set |= pred.functional_dependencies;
@@ -3793,7 +3801,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
     // selectivity will already be applied in FindOutputRowsForJoin().
     // NOTE(sgunders): We don't model the effect of short-circuiting filters on
     // the cost here.
-    double rows_after_filtering = inner->num_output_rows;
+    double rows_after_filtering = inner->num_output_rows();
 
     right_path_already_applied_selectivity =
         FindAlreadyAppliedSelectivity(edge, left_path, right_path, left, right);
@@ -3838,9 +3846,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // Ignores the row count from filter_path; see above.
   {
     assert(right_path_already_applied_selectivity >= 0.0);
-    double outer_input_rows = left_path->num_output_rows;
+    double outer_input_rows = left_path->num_output_rows();
     double inner_input_rows =
-        right_path->num_output_rows / right_path_already_applied_selectivity;
+        right_path->num_output_rows() / right_path_already_applied_selectivity;
 
     // If left and right are flipped for semijoins, we need to flip
     // them back for row calculation (or we'd clamp to the wrong value).
@@ -3861,8 +3869,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
       }
     }
 
-    join_path.num_output_rows_before_filter = join_path.num_output_rows =
+    join_path.num_output_rows_before_filter =
         FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
+    join_path.set_num_output_rows(join_path.num_output_rows_before_filter);
   }
   join_path.init_cost = left_path->init_cost;
 
@@ -3874,7 +3883,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // factors), but it should be fairly benign in general.
   join_path.cost_before_filter = join_path.cost =
       left_path->cost + inner->init_cost +
-      inner_rescan_cost * ceil(left_path->num_output_rows);
+      inner_rescan_cost * ceil(left_path->num_output_rows());
 
   // Nested-loop preserves any ordering from the outer side. Note that actually,
   // the two orders are _concatenated_ (if you nested-loop join something
@@ -4063,8 +4072,8 @@ PathComparisonResult CompareAccessPaths(const LogicalOrderings &orderings,
   // non-optimal now, e.g. by saving on filtering work, or having less work
   // done in other joins. Thus, we need to keep it around as an extra
   // cost dimension.
-  flags = AddFlag(flags, FuzzyComparison(a.num_output_rows, b.num_output_rows,
-                                         fuzz_factor));
+  flags = AddFlag(flags, FuzzyComparison(a.num_output_rows(),
+                                         b.num_output_rows(), fuzz_factor));
 
   flags = AddFlag(flags, FuzzyComparison(a.cost, b.cost, fuzz_factor));
   flags =
@@ -4246,7 +4255,7 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
   if (path.init_once_cost != 0.0) {
     str += StringPrintf(", rescan_cost=%.1f", path.rescan_cost());
   }
-  str += StringPrintf(", rows=%.1f", path.num_output_rows);
+  str += StringPrintf(", rows=%.1f", path.num_output_rows());
 
   if (!join_order.empty()) str += ", join_order=" + join_order;
 
@@ -4421,7 +4430,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     assert(!m_thd->is_error());
     assert(path->init_cost <= path->cost);
     if (!IsEmpty(path->filter_predicates)) {
-      assert(path->num_output_rows <= path->num_output_rows_before_filter);
+      assert(path->num_output_rows() <= path->num_output_rows_before_filter);
       assert(path->cost_before_filter <= path->cost);
       assert(path->init_cost <= path->cost_before_filter);
     }
@@ -4464,11 +4473,11 @@ AccessPath *CostingReceiver::ProposeAccessPath(
   }
 #endif
   if (verify_consistency && path->parameter_tables == 0 &&
-      path->num_output_rows >= 1e-3) {
+      path->num_output_rows() >= 1e-3) {
     for (const AccessPath *other_path : *existing_paths) {
       if (other_path->parameter_tables == 0 &&
-          (other_path->num_output_rows < path->num_output_rows * 0.99 ||
-           other_path->num_output_rows > path->num_output_rows * 1.01)) {
+          (other_path->num_output_rows() < path->num_output_rows() * 0.99 ||
+           other_path->num_output_rows() > path->num_output_rows() * 1.01)) {
         if (m_trace != nullptr) {
           *m_trace += " - WARNING: " + PrintAccessPath(*path, *m_graph, "") +
                       " has inconsistent row counts with " +
@@ -4744,19 +4753,7 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
     AccessPath *stream_path = NewStreamingAccessPath(
         thd, path, join, /*temp_table_param=*/nullptr, /*table=*/nullptr,
         /*ref_slice=*/-1);
-    stream_path->num_output_rows = path->num_output_rows;
-    stream_path->cost = path->cost;
-    stream_path->init_cost = path->init_cost;
-    stream_path->init_once_cost =
-        0.0;  // Never recoverable across query blocks.
-    stream_path->num_output_rows_before_filter = stream_path->num_output_rows;
-    stream_path->cost_before_filter = stream_path->cost;
-    stream_path->ordering_state = path->ordering_state;
-    stream_path->safe_for_rowid = path->safe_for_rowid;
-    // Streaming paths are usually added after all filters have been applied, so
-    // we don't expect any delayed predicates. If there are any, we need to copy
-    // them into stream_path.
-    assert(IsEmpty(path->delayed_predicates));
+    EstimateStreamCost(stream_path);
     return stream_path;
   } else {
     // Filesort needs sort by row ID, possibly because large blobs are
@@ -5395,15 +5392,16 @@ void ApplyHavingCondition(THD *thd, Item *having_cond, Query_block *query_block,
     // We don't currently bother with materializing subqueries
     // in HAVING, as they should be rare.
     filter_path.filter().materialize_subqueries = false;
-    filter_path.num_output_rows = root_path->num_output_rows *
-                                  EstimateSelectivity(thd, having_cond, trace);
+    filter_path.set_num_output_rows(
+        root_path->num_output_rows() *
+        EstimateSelectivity(thd, having_cond, trace));
     filter_path.init_cost = root_path->init_cost;
     filter_path.init_once_cost = root_path->init_once_cost;
     filter_path.cost =
-        root_path->cost + EstimateFilterCost(thd, root_path->num_output_rows,
+        root_path->cost + EstimateFilterCost(thd, root_path->num_output_rows(),
                                              having_cond, query_block)
                               .cost_if_not_materialized;
-    filter_path.num_output_rows_before_filter = filter_path.num_output_rows;
+    filter_path.num_output_rows_before_filter = filter_path.num_output_rows();
     filter_path.cost_before_filter = filter_path.cost;
     // TODO(sgunders): Collect and apply functional dependencies from
     // HAVING conditions.
@@ -5560,7 +5558,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             thd, root_path, group_items, grouping.size());
         CopyBasicProperties(*root_path, dedup_path);
         // TODO(sgunders): Model the actual reduction in rows somehow.
-        dedup_path->cost += kAggregateOneRowCost * root_path->num_output_rows;
+        dedup_path->cost += kAggregateOneRowCost * root_path->num_output_rows();
         receiver.ProposeAccessPath(dedup_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
         continue;
@@ -5702,7 +5700,7 @@ static AccessPath *ApplyWindow(THD *thd, AccessPath *root_path, Window *window,
       NewWindowAccessPath(thd, root_path, window, /*temp_table_param=*/nullptr,
                           /*ref_slice=*/-1, window->needs_buffering());
   CopyBasicProperties(*root_path, window_path);
-  window_path->cost += kWindowOneRowCost * window_path->num_output_rows;
+  window_path->cost += kWindowOneRowCost * window_path->num_output_rows();
 
   // NOTE: copy_items = false, because the window iterator does the copying
   // itself.
@@ -6543,7 +6541,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                        RAND_TABLE_BIT)) {
             filter_predicates.SetBit(i);
             FilterCost cost =
-                EstimateFilterCost(thd, root_path->num_output_rows,
+                EstimateFilterCost(thd, root_path->num_output_rows(),
                                    graph.predicates[i].contained_subqueries);
             if (materialize_subqueries) {
               path.cost += cost.cost_if_materialized;
@@ -6551,7 +6549,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
             } else {
               path.cost += cost.cost_if_not_materialized;
             }
-            path.num_output_rows *= graph.predicates[i].selectivity;
+            path.set_num_output_rows(path.num_output_rows() *
+                                     graph.predicates[i].selectivity);
           }
         }
         path.ordering_state = orderings.ApplyFDs(path.ordering_state, fd_set);
@@ -6862,7 +6861,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 #endif
 
   join->needs_finalize = true;
-  join->best_rowcount = lrint(root_path->num_output_rows);
+  join->best_rowcount = lrint(root_path->num_output_rows());
   join->best_read = root_path->cost;
 
   // 0 or 1 rows has a special meaning; it means a _guarantee_ we have no more

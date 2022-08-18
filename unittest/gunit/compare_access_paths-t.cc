@@ -70,7 +70,7 @@ TEST(CompareAccessPathsTest, CompareAccessPaths) {
   a.ordering_state = 0;
   a.safe_for_rowid = AccessPath::Safety::UNSAFE;
   // Numerical cost dimensions (fuzzy comparison).
-  a.num_output_rows = 100.0;
+  a.set_num_output_rows(100.0);
   a.cost = 100.0;
   a.init_cost = 100.0;
   a.init_once_cost = 0.0;

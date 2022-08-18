@@ -1443,7 +1443,7 @@ EXPLAIN
 -> Table scan on dt (rows=4)
     -> Materialize (rows=4)
         -> Sort: f2 (rows=4)
-            -> Table scan on <union temporary> (rows=0)
+            -> Table scan on <union temporary> (rows=4)
                 -> Union materialize with deduplication (rows=4)
                     -> Filter: (t1.f1 > 3) (rows=2)
                         -> Covering index range scan on t1 using f1_2 over (3 < f1) (rows=2)

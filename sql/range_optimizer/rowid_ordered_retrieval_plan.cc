@@ -82,7 +82,7 @@ void trace_basic_info_rowid_intersection(THD *thd, const AccessPath *path,
                                          const RANGE_OPT_PARAM *param,
                                          Opt_trace_object *trace_object) {
   trace_object->add_alnum("type", "index_roworder_intersect")
-      .add("rows", path->num_output_rows)
+      .add("rows", path->num_output_rows())
       .add("cost", path->cost)
       .add("covering", path->rowid_intersection().is_covering)
       .add("clustered_pk_scan",
@@ -681,7 +681,7 @@ static AccessPath *MakeAccessPath(ROR_SCAN_INFO *scan, TABLE *table,
   // TODO(sgunders): The initial cost is high (it needs to read all rows and
   // sort), so we should not have zero init_cost.
   path->cost = scan->index_read_cost.total_cost();
-  path->num_output_rows = scan->records;
+  path->set_num_output_rows(scan->records);
 
   path->index_range_scan().used_key_part = used_key_part;
   path->index_range_scan().ranges = &scan->ranges[0];
@@ -985,7 +985,7 @@ AccessPath *get_best_ror_intersect(
     double best_rows = max(intersect_best->out_rows, 1.0);
     table->quick_condition_rows =
         min<ha_rows>(table->quick_condition_rows, best_rows);
-    path->num_output_rows = best_rows;
+    path->set_num_output_rows(best_rows);
 
     path->rowid_intersection().table = table;
     path->rowid_intersection().children = children;
@@ -998,14 +998,14 @@ AccessPath *get_best_ror_intersect(
     path->rowid_intersection().reuse_handler = reuse_handler;
     path->rowid_intersection().is_covering = intersect_best->is_covering;
 
-    trace_ror.add("rows", path->num_output_rows)
+    trace_ror.add("rows", path->num_output_rows())
         .add("cost", path->cost)
         .add("covering", intersect_best->is_covering)
         .add("chosen", true);
 
     DBUG_PRINT("info", ("Returning non-covering ROR-intersect plan:"
                         "cost %g, records %g",
-                        path->cost, path->num_output_rows));
+                        path->cost, path->num_output_rows()));
     return path;
   } else {
     trace_ror.add("chosen", false)
