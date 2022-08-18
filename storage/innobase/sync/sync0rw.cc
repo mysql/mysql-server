@@ -252,27 +252,22 @@ void rw_lock_create_func(rw_lock_t *lock, IF_DEBUG(latch_level_t level,
  rw-lock is checked to be in the non-locked state. */
 void rw_lock_free_func(rw_lock_t *lock) /*!< in/out: rw-lock */
 {
-  /* We did an in-place new in rw_lock_create_func() */
-  lock->~rw_lock_t();
-}
-
-rw_lock_t::~rw_lock_t() {
   os_rmb;
-  ut_ad(rw_lock_validate(this));
-  ut_a(lock_word == X_LOCK_DECR);
+  ut_ad(rw_lock_validate(lock));
+  ut_a(lock->lock_word == X_LOCK_DECR);
 
   mutex_enter(&rw_lock_list_mutex);
 
-  os_event_destroy(event);
+  os_event_destroy(lock->event);
 
-  os_event_destroy(wait_ex_event);
+  os_event_destroy(lock->wait_ex_event);
 
-  UT_LIST_REMOVE(rw_lock_list, this);
+  UT_LIST_REMOVE(rw_lock_list, lock);
 
   mutex_exit(&rw_lock_list_mutex);
 
-  ut_ad(magic_n == MAGIC_N);
-  ut_d(magic_n = 0);
+  /* We did an in-place new in rw_lock_create_func() */
+  lock->~rw_lock_t();
 }
 
 void rw_lock_s_lock_spin(rw_lock_t *lock, ulint pass, ut::Location location) {

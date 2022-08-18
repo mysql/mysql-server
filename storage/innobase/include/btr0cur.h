@@ -707,21 +707,15 @@ struct btr_cur_t {
   /** Number of matched bytes to the left at the time cursor positioned; only
   used internally in searches: not defined after the search. */
   ulint low_bytes{0};
-  /* Structure for AHI-related fields used in a cursor. */
-  struct {
-    /** AHI prefix used in a hash search if flag is any of BTR_CUR_HASH,
-    BTR_CUR_HASH_FAIL or BTR_CUR_HASH_NOT_ATTEMPTED. The cursor does
-    not fill nor use the `left_side` member and comparisons to other instances
-    should be done with equals_without_left_side(). Ideally we could have a
-    separate class without this field that btr_search_prefix_info_t inherits or
-    composes from, but this would make it larger than 64bits, at least on VC++,
-    even if we inherit from a third (empty) class making all these types
-    non-POD, and thus unable to do lock-free atomic operations. */
-    btr_search_prefix_info_t prefix_info{};
-    /** hash value used in the search if flag is any of BTR_CUR_HASH,
-    BTR_CUR_HASH_FAIL or BTR_CUR_HASH_NOT_ATTEMPTED. */
-    uint64_t ahi_hash_value{0};
-  } ahi;
+  /** Prefix length used in a hash search if flag is any of BTR_CUR_HASH,
+  BTR_CUR_HASH_FAIL or BTR_CUR_HASH_NOT_ATTEMPTED. */
+  ulint n_fields{0};
+  /** Hash prefix bytes if flag is any of BTR_CUR_HASH, BTR_CUR_HASH_FAIL or
+  BTR_CUR_HASH_NOT_ATTEMPTED. */
+  ulint n_bytes{0};
+  /** hash value used in the search if flag is any of BTR_CUR_HASH,
+  BTR_CUR_HASH_FAIL or BTR_CUR_HASH_NOT_ATTEMPTED. */
+  uint64_t hash_value{0};
   /** @} */
 
   /** In estimating the number of rows in range, we store in this array

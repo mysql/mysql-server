@@ -3499,8 +3499,8 @@ static void ibuf_insert_to_index_page(
   /* A change buffer merge must occur before users are granted
   any access to the page. No adaptive hash index entries may
   point to a freshly read page. */
-  ut_ad(!block->ahi.index);
-  block->ahi.assert_empty();
+  ut_ad(!block->index);
+  assert_block_ahi_empty(block);
 
   if (UNIV_UNLIKELY(dict_table_is_comp(index->table) != page_is_comp(page))) {
     ib::warn(ER_IB_MSG_611)

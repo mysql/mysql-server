@@ -4540,10 +4540,10 @@ static void i_s_innodb_buffer_page_get_info(
       block = reinterpret_cast<const buf_block_t *>(bpage);
       frame = block->frame;
       /* Note: this may be a false positive, that
-      is, block->ahi.index will not always be set to
-      nullptr when the last adaptive hash index
+      is, block->index will not always be set to
+      NULL when the last adaptive hash index
       reference is dropped. */
-      page_info->hashed = (block->ahi.index.load() != nullptr);
+      page_info->hashed = (block->index != nullptr);
     } else {
       ut_ad(page_info->zip_ssize);
       frame = bpage->zip.data;

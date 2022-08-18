@@ -1659,33 +1659,8 @@ class buf_page_t {
 #endif /* !UNIV_HOTBACKUP */
 };
 
-/** Structure used by AHI to contain information on record prefixes to be
-considered in hash index subsystem. */
-struct btr_search_prefix_info_t {
-  /** recommended prefix: number of bytes in an incomplete field
-  @see BTR_PAGE_MAX_REC_SIZE */
-  uint32_t n_bytes;
-  /** recommended prefix length for hash search: number of full fields */
-  uint16_t n_fields;
-  /** true or false, depending on whether the leftmost record of several records
-  with the same prefix should be indexed in the hash index */
-  bool left_side;
-
-  bool equals_without_left_side(const btr_search_prefix_info_t &other) const {
-    return n_bytes == other.n_bytes && n_fields == other.n_fields;
-  }
-
-  bool operator==(const btr_search_prefix_info_t &other) const {
-    return n_bytes == other.n_bytes && n_fields == other.n_fields &&
-           left_side == other.left_side;
-  }
-
-  bool operator!=(const btr_search_prefix_info_t &other) const {
-    return !(*this == other);
-  }
-};
-
 /** The buffer control block structure */
+
 struct buf_block_t {
   /** @name General fields */
   /** @{ */
@@ -1718,102 +1693,94 @@ struct buf_block_t {
 
   /** @} */
 
-  /** Structure that holds most AHI-related fields. */
-  struct ahi_t {
-   public:
-    /** Recommended prefix info for hash search. It is atomically copied
-    from the index's current recommendation for the prefix info and should
-    eventually get to the block's actual prefix info used. It is used to decide
-    when the n_hash_helps should be reset. It is modified only while having S-
-    or X- latch on block's lock. */
-    std::atomic<btr_search_prefix_info_t> recommended_prefix_info;
-    /** Prefix info that was used for building hash index. It cannot be modified
-    while there are any record entries added in the AHI. It's invariant that all
-    records added to AHI from this block were folded using this prefix info. It
-    may only be modified when we are holding the appropriate X-latch in
-    btr_search_sys->parts[]->latch. Also, it happens that it is modified
-    to not-empty value only when the block is held in private or the block's
-    lock is S- or X-latched. This implies that the field's non-empty value may
-    be read and use reliably when the appropriate
-    btr_search_sys->parts[]->latch S-latch or X-latch is being held, or
-    the block's lock is X-latched. */
-    std::atomic<btr_search_prefix_info_t> prefix_info;
-    static_assert(decltype(prefix_info)::is_always_lock_free);
+  /** @name Hash search fields (unprotected)
+  NOTE that these fields are NOT protected by any semaphore! */
+  /** @{ */
 
-    /** Index for which the adaptive hash index has been created, or nullptr if
-    the page does not exist in the index. Note that it does not guarantee that
-    the AHI index is complete, though: there may have been hash collisions etc.
-    It may be modified:
-    - to nullptr if btr_search_enabled is false and block's mutex is held and
-    block's state is BUF_BLOCK_FILE_PAGE and btr_search_enabled_mutex is
-    owned, protecting the btr_search_enabled from being changed,
-    - to nullptr if btr_search_enabled is false and block is held in private in
-    BUF_BLOCK_REMOVE_HASH state in buf_LRU_free_page().
-    - to any value under appropriate X-latch in btr_search_sys->parts[]->latch
-    if btr_search_enabled is true (and setting btr_search_enabled to false in
-    turn is protected by having all btr_search_sys->parts[]->latch X-latched).
-    */
-    std::atomic<dict_index_t *> index;
+  /** Counter which controls building of a new hash index for the page */
+  std::atomic<uint32_t> n_hash_helps;
+
+  /** Recommended prefix length for hash search: number of bytes in an
+  incomplete last field */
+  std::atomic<uint32_t> n_bytes;
+
+  /** Recommended prefix length for hash search: number of full fields */
+  std::atomic<uint32_t> n_fields;
+
+  /** true or false, depending on whether the leftmost record of several
+  records with the same prefix should be indexed in the hash index */
+  std::atomic<bool> left_side;
+  /** @} */
+
+  /** @name Hash search fields
+  These 5 fields may only be modified when:
+  we are holding the appropriate x-latch in btr_search_latches[], and
+  one of the following holds:
+  (1) the block state is BUF_BLOCK_FILE_PAGE, and
+  we are holding an s-latch or x-latch on buf_block_t::lock, or
+  (2) buf_block_t::buf_fix_count == 0, or
+  (3) the block state is BUF_BLOCK_REMOVE_HASH.
+
+  An exception to this is when we init or create a page
+  in the buffer pool in buf0buf.cc.
+
+  Another exception for buf_pool_clear_hash_index() is that
+  assigning block->index = NULL (and block->n_pointers = 0)
+  is allowed whenever btr_search_own_all(RW_LOCK_X).
+
+  Another exception is that ha_insert_for_hash_func() may
+  decrement n_pointers without holding the appropriate latch
+  in btr_search_latches[]. Thus, n_pointers must be
+  protected by atomic memory access.
+
+  This implies that the fields may be read without race
+  condition whenever any of the following hold:
+  - the btr_search_latches[] s-latch or x-latch is being held, or
+  - the block state is not BUF_BLOCK_FILE_PAGE or BUF_BLOCK_REMOVE_HASH,
+  and holding some latch prevents the state from changing to that.
+
+  Some use of assert_block_ahi_empty() or assert_block_ahi_valid()
+  is prone to race conditions while buf_pool_clear_hash_index() is
+  executing (the adaptive hash index is being disabled). Such use
+  is explicitly commented. */
+
+  /** @{ */
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-    /** Used in debugging. The number of pointers in the adaptive hash index
-    pointing to this frame; Modified under appropriate X-latch in
-    btr_search_sys->parts[]->latch. */
-    std::atomic<uint16_t> n_pointers;
+  /** used in debugging: the number of pointers in the adaptive hash index
+  pointing to this frame; protected by atomic memory access or
+  btr_search_own_all(). */
+  std::atomic<ulint> n_pointers;
 
-    inline void validate() const {
-      /* These fields are read without holding any AHI latches. Adding or
-      removing a block from AHI requires having only an appropriate AHI part
-      X-latched. If we have at least S-latched the correct AHI part (for which
-      we would need at least S-latch on block for the block's index to not be
-      changed in meantime) this check is certain. If we don't have necessary AHI
-      latches, then:
-      - it can't happen that the check fails while the block is removed from
-      AHI. Both btr_search_drop_page_hash_index() and
-      buf_pool_clear_hash_index() will first make the n_pointers be 0 and then
-      set index to nullptr. As the index is an atomic variable, so if we
-      synchronize with a reset to nullptr which is sequenced after the reset of
-      n_pointers, we should see the n_pointers set to 0 here.
-      - it can happen that the check fails while the block is added to the AHI
-      right after we read the index is nullptr. In such case, if the n_pointers
-      is not 0, we double check the index member. It can still be nullptr, if
-      the block is removed after reading the n_pointers, but that should be near
-      impossible. */
-      ut_a(this->index.load() != nullptr || this->n_pointers.load() == 0 ||
-           this->index.load() != nullptr);
-    }
+#define assert_block_ahi_valid(block) \
+  ut_a((block)->index || (block)->n_pointers.load() == 0)
+#else                                         /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+#define assert_block_ahi_empty(block)         /* nothing */
+#define assert_block_ahi_empty_on_init(block) /* nothing */
+#define assert_block_ahi_valid(block)         /* nothing */
+#endif                                        /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
-    inline void assert_empty() const { ut_a(this->n_pointers.load() == 0); }
+  /** prefix length for hash indexing: number of full fields */
+  uint16_t curr_n_fields;
 
-    inline void assert_empty_on_init() const {
-      UNIV_MEM_VALID(&this->n_pointers, sizeof(this->n_pointers));
-      assert_empty();
-    }
-#else
-    inline void validate() const {}
+  /** number of bytes in hash indexing */
+  uint16_t curr_n_bytes;
 
-    inline void assert_empty() const {}
+  /** true or false in hash indexing */
+  bool curr_left_side;
 
-    inline void assert_empty_on_init() const {}
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-  } ahi;
-
-  /** Counter which controls how many times the current prefix recommendation
-  would help in searches. If it is helpful enough, it will be used as the
-  actual prefix to build hash for this block. It is modified similarly as
-  recommended_prefix_info, that is only while having S- or X- latch on block's
-  lock. Because it is modified concurrently, it may not have fully reliable
-  count, but it is enough for this use case.
-  Mind the n_hash_helps is AHI-related, and should be in the ahi_t struct above,
-  but having it outside causes the made_dirty_with_no_latch to occupy the common
-  8byte aligned 8byte long space, so basically it saves us 8bytes of the object
-  that is used in high volumes. */
-  std::atomic<uint32_t> n_hash_helps;
   /** true if block has been made dirty without acquiring X/SX latch as the
   block belongs to temporary tablespace and block is always accessed by a
   single thread. */
   bool made_dirty_with_no_latch;
 
+  /** Index for which the adaptive hash index has been created, or NULL if
+  the page does not exist in the index. Note that it does not guarantee that
+  the index is complete, though: there may have been hash collisions, record
+  deletions, etc. */
+  dict_index_t *index;
+
+  /** @} */
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
   /** @name Debug fields */
@@ -1981,6 +1948,17 @@ class HazardPointer {
   /** hazard pointer. */
   buf_page_t *m_hp;
 };
+
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+inline void assert_block_ahi_empty(buf_block_t *block) {
+  ut_a((block)->n_pointers.load() == 0);
+}
+
+inline void assert_block_ahi_empty_on_init(buf_block_t *block) {
+  UNIV_MEM_VALID(&block->n_pointers, sizeof(block)->n_pointers);
+  assert_block_ahi_empty(block);
+}
+#endif
 
 /** Class implementing buf_pool->flush_list hazard pointer */
 class FlushHp : public HazardPointer {

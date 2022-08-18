@@ -684,6 +684,7 @@ void btr_cur_search_to_nth_level(
 
   DBUG_TRACE;
 
+  btr_search_t *info;
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
@@ -766,13 +767,15 @@ void btr_cur_search_to_nth_level(
   cursor->flag = BTR_CUR_BINARY;
   cursor->index = index;
 
+  info = btr_search_get_info(index);
+
 #ifdef UNIV_SEARCH_PERF_STAT
   info->n_searches++;
 #endif
   /* Use of AHI is disabled for intrinsic table as these tables re-use
   the index-id and AHI validation is based on index-id. */
   if (rw_lock_get_writer(btr_get_search_latch(index)) == RW_LOCK_NOT_LOCKED &&
-      latch_mode <= BTR_MODIFY_LEAF && index->search_info->last_hash_succ &&
+      latch_mode <= BTR_MODIFY_LEAF && info->last_hash_succ &&
       !index->disable_ahi && !estimate
 #ifdef PAGE_CUR_LE_OR_EXTENDS
       && mode != PAGE_CUR_LE_OR_EXTENDS
@@ -782,7 +785,7 @@ void btr_cur_search_to_nth_level(
       btr_search_enabled below, and btr_search_guess_on_hash()
       will have to check it again. */
       && UNIV_LIKELY(btr_search_enabled) && !modify_external &&
-      btr_search_guess_on_hash(tuple, mode, latch_mode, cursor,
+      btr_search_guess_on_hash(index, info, tuple, mode, latch_mode, cursor,
                                has_search_latch, mtr)) {
 
     /* Search using the hash index succeeded */
@@ -954,10 +957,10 @@ search_loop:
 retry_page_get:
   ut_ad(n_blocks < BTR_MAX_LEVELS);
   tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-  block = buf_page_get_gen(
-      page_id, page_size, rw_latch,
-      (height == ULINT_UNDEFINED ? index->search_info->root_guess : nullptr),
-      fetch, {file, line}, mtr);
+  block =
+      buf_page_get_gen(page_id, page_size, rw_latch,
+                       (height == ULINT_UNDEFINED ? info->root_guess : nullptr),
+                       fetch, {file, line}, mtr);
 
   tree_blocks[n_blocks] = block;
 
@@ -1126,7 +1129,7 @@ retry_page_get:
       rtr_get_mbr_from_tuple(tuple, &cursor->rtr_info->mbr);
     }
 
-    index->search_info->root_guess = block;
+    info->root_guess = block;
   }
 
   if (height == 0) {
@@ -1653,7 +1656,7 @@ retry_page_get:
     btr_search_build_page_hash_index() before building a
     page hash index, while holding search latch. */
     if (btr_search_enabled && !index->disable_ahi) {
-      btr_search_info_update(cursor);
+      btr_search_info_update(index, cursor);
     }
     ut_ad(cursor->up_match != ULINT_UNDEFINED || mode != PAGE_CUR_GE);
     ut_ad(cursor->up_match != ULINT_UNDEFINED || mode != PAGE_CUR_LE);
@@ -3333,6 +3336,7 @@ dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
   rec_t *rec;
   roll_ptr_t roll_ptr = 0;
   bool was_delete_marked;
+  bool is_hashed;
 
   rec = btr_cur_get_rec(cursor);
   index = cursor->index;
@@ -3390,7 +3394,9 @@ dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
   was_delete_marked =
       rec_get_deleted_flag(rec, page_is_comp(buf_block_get_frame(block)));
 
-  if (block->ahi.index.load() != nullptr) {
+  is_hashed = (block->index != nullptr);
+
+  if (is_hashed) {
     /* TO DO: Can we skip this if none of the fields
     index->search_info->curr_n_fields
     are being updated? */
@@ -3405,10 +3411,16 @@ dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
       /* Remove possible hash index pointer to this record */
       btr_search_update_hash_on_delete(cursor);
     }
+
+    rw_lock_x_lock(btr_get_search_latch(index), UT_LOCATION_HERE);
   }
 
-  block->ahi.validate();
+  assert_block_ahi_valid(block);
   row_upd_rec_in_place(rec, index, offsets, update, page_zip);
+
+  if (is_hashed) {
+    rw_lock_x_unlock(btr_get_search_latch(index));
+  }
 
   btr_cur_update_in_place_log(flags, rec, index, update, trx_id, roll_ptr, mtr);
 

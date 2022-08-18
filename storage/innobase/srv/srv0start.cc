@@ -3230,7 +3230,7 @@ void srv_shutdown() {
 
   /* This must be disabled before closing the buffer pool
   and closing the data dictionary.  */
-  btr_search_disable();
+  btr_search_disable(true);
 
   ibuf_close();
   ddl_log_close();

@@ -6074,8 +6074,8 @@ ER_IB_MSG_179
 ER_IB_MSG_180
   eng "%s"
 
-ER_IB_LONG_AHI_DISABLE_WAIT
-  eng "Waited for %u secs for hash index ref_count (%zu) to drop to 0. index: \"%s\" table: \"%s\""
+ER_IB_MSG_181
+  eng "%s"
 
 ER_IB_MSG_182
   eng "%s"

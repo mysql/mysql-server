@@ -648,7 +648,7 @@ rec_t *page_copy_rec_list_end(
     mem_heap_free(heap);
   }
 
-  btr_search_update_hash_on_move(new_block, block, index);
+  btr_search_move_or_delete_hash_entries(new_block, block, index);
 
   return (ret);
 }
@@ -791,7 +791,7 @@ rec_t *page_copy_rec_list_start(
     mem_heap_free(heap);
   }
 
-  btr_search_update_hash_on_move(new_block, block, index);
+  btr_search_move_or_delete_hash_entries(new_block, block, index);
 
   return (ret);
 }

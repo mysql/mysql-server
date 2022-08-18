@@ -1020,7 +1020,7 @@ struct dict_sys_t {
                                on name */
   hash_table_t *table_id_hash; /*!< hash table of the tables, based
                                on id */
-  size_t size;                 /*!< varying space in bytes occupied
+  lint size;                   /*!< varying space in bytes occupied
                                by the data dictionary table and
                                index objects */
   /** Handler to sys_* tables, they're only for upgrade */
