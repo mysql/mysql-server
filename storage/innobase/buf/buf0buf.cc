@@ -1543,6 +1543,15 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
+  /* Try allocating from the buf_pool->free list if it is not empty. This
+  method is executed during withdrawing phase of BufferPool resize only. It is
+  better to not block other user threads as much as possible. So, the main
+  strategy is to passively reserve and use blocks that are already on the free
+  list. Otherwise, if we were to call `buf_LRU_get_free_block` instead of
+  `buf_LRU_get_free_only`, we would have to release the LRU mutex before the
+  call and this would cause a need to break the reallocation loop in
+  `buf_pool_withdraw_blocks`, which would render withdrawing even more
+  inefficient. */
   new_block = buf_LRU_get_free_only(buf_pool);
 
   if (new_block == nullptr) {
@@ -1829,7 +1838,6 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
   buf_block_t *block;
   ulint loop_count = 0;
   ulint i = buf_pool_index(buf_pool);
-  ulint lru_len;
 
   ib::info(ER_IB_MSG_56) << "buffer pool " << i
                          << " : start to withdraw the last "
@@ -1837,8 +1845,6 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
 
   /* Minimize buf_pool->zip_free[i] lists */
   buf_buddy_condense_free(buf_pool);
-
-  lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 
   mutex_enter(&buf_pool->free_list_mutex);
   while (UT_LIST_GET_LEN(buf_pool->withdraw) < buf_pool->withdraw_target) {
@@ -1867,33 +1873,12 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
 
       block = next_block;
     }
-
-    /* reserve free_list length */
-    if (UT_LIST_GET_LEN(buf_pool->withdraw) < buf_pool->withdraw_target) {
-      ulint scan_depth;
-      ulint n_flushed = 0;
-
-      /* cap scan_depth with current LRU size. */
-      scan_depth = std::min(std::max(buf_pool->withdraw_target -
-                                         UT_LIST_GET_LEN(buf_pool->withdraw),
-                                     static_cast<ulint>(srv_LRU_scan_depth)),
-                            lru_len);
-      mutex_exit(&buf_pool->free_list_mutex);
-
-      buf_flush_do_batch(buf_pool, BUF_FLUSH_LRU, scan_depth, 0, &n_flushed);
-      buf_flush_wait_batch_end(buf_pool, BUF_FLUSH_LRU);
-
-      if (n_flushed) {
-        MONITOR_INC_VALUE_CUMULATIVE(MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
-                                     MONITOR_LRU_BATCH_FLUSH_COUNT,
-                                     MONITOR_LRU_BATCH_FLUSH_PAGES, n_flushed);
-      }
-    } else {
-      mutex_exit(&buf_pool->free_list_mutex);
-    }
+    mutex_exit(&buf_pool->free_list_mutex);
 
     /* relocate blocks/buddies in withdrawn area */
     ulint count2 = 0;
+    auto loop_start_time = std::chrono::steady_clock::now();
+    uint32_t remove_loop_count = 0;
 
     mutex_enter(&buf_pool->LRU_list_mutex);
     for (auto bpage : buf_pool->LRU.removable()) {
@@ -1937,6 +1922,16 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
         not reallocated yet */
       } else {
         mutex_exit(block_mutex);
+      }
+
+      if ((remove_loop_count++) % 1000 == 0) {
+        const auto timeout = get_srv_fatal_semaphore_wait_threshold() / 2;
+        const auto time_diff =
+            std::chrono::steady_clock::now() - loop_start_time;
+        if (time_diff > timeout) {
+          /* avoids crash at srv_fatal_semaphore_wait_threshold */
+          break;
+        }
       }
     }
 

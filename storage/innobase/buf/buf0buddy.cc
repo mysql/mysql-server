@@ -715,7 +715,15 @@ bool buf_buddy_realloc(buf_pool_t *buf_pool, void *buf, ulint size) {
   }
 
   if (block == nullptr) {
-    /* Try allocating from the buf_pool->free list. */
+    /* Try allocating from the buf_pool->free list if it is not empty. This
+    method is executed during withdrawing phase of BufferPool resize only. It is
+    better to not block other user threads as much as possible. So, the main
+    strategy is to passively reserve and use blocks that are already on the free
+    list. Otherwise, if we were to call `buf_LRU_get_free_block` instead of
+    `buf_LRU_get_free_only`, we would have to release the LRU mutex before the
+    call and this would cause a need to break the reallocation loop in
+    `buf_pool_withdraw_blocks`, which would render withdrawing even more
+    inefficient. */
     block = buf_LRU_get_free_only(buf_pool);
 
     if (block == nullptr) {
