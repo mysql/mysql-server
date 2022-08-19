@@ -334,13 +334,13 @@ EXPLAIN
     -> Table scan on t1  (cost=0.80 rows=3)
     -> Nested loop inner join  (cost=3.87 rows=27)
         -> Table scan on t2  (cost=0.27 rows=3)
-        -> Constant row from <subquery2>  (cost=0.00..0.00 rows=1)
+        -> Constant row from <subquery2>  (cost=7.98..7.98 rows=1)
             -> Materialize with deduplication  (cost=7.98..7.98 rows=9)
                 -> Left hash join (no condition)  (cost=7.08 rows=9)
                     -> Table scan on t3  (cost=0.80 rows=3)
                     -> Hash
-                        -> Table scan on derived_2_3  (cost=0.85..2.54 rows=3)
-                            -> Materialize  (cost=1.95..3.64 rows=3)
+                        -> Table scan on derived_2_3  (cost=1.95..3.64 rows=3)
+                            -> Materialize  (cost=1.10..1.10 rows=3)
                                 -> Table scan on t4  (cost=0.80 rows=3)
 
 Warnings:

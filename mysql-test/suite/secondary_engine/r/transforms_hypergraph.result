@@ -228,8 +228,8 @@ EXPLAIN
                     -> Left hash join (no condition)  (cost=3.80..5.07 rows=9)
                         -> Table scan on t3  (cost=0.17..0.50 rows=3)
                         -> Hash
-                            -> Table scan on derived_2_3  (cost=0.85..2.54 rows=3)
-                                -> Materialize  (cost=1.65..3.34 rows=3)
+                            -> Table scan on derived_2_3  (cost=1.65..3.34 rows=3)
+                                -> Materialize  (cost=0.80..0.80 rows=3)
                                     -> Table scan on t4  (cost=0.17..0.50 rows=3)
 
 Warnings:
