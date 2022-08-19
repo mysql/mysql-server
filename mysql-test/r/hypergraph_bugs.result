@@ -98,3 +98,14 @@ WHERE (t3.f1 <> 1 OR t2.f1 > t2.f1)) AS dt
 ON (t1.f1 = dt.f1);
 1
 DROP TABLE t1;
+#
+# Bug#34503695:Hypergraph: mysqld crash-signal 11
+#              -CommonSubexpressionElimination
+#
+CREATE TABLE t1 (f1 INTEGER);
+SELECT * FROM t1
+WHERE t1.f1 NOT IN (SELECT t2.f1
+FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+WHERE (t3.f1 <> t2.f1 OR t3.f1 < t2.f1));
+f1
+DROP TABLE t1;

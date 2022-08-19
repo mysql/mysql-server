@@ -85,3 +85,21 @@ FROM t1 LEFT JOIN (SELECT t2.*
                    WHERE (t3.f1 <> 1 OR t2.f1 > t2.f1)) AS dt
 ON (t1.f1 = dt.f1);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34503695:Hypergraph: mysqld crash-signal 11
+--echo #              -CommonSubexpressionElimination
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+# For the NOT IN subquery, hypergraph does re-planning with materialization.
+# This replanning uses the modified where condition from the previous planning.
+# For this case, the where condition is concluded as always false resulting in
+# removal of elements from the OR condition leading to a crash during re-planning.
+# The modified where condition from the first planning should not affect AND/OR
+# structure of the condition.
+SELECT * FROM t1
+WHERE t1.f1 NOT IN (SELECT t2.f1
+                    FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+                    WHERE (t3.f1 <> t2.f1 OR t3.f1 < t2.f1));
+DROP TABLE t1;
