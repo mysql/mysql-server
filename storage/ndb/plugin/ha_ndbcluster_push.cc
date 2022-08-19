@@ -624,7 +624,6 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
   if (!maybe_pushable(m_join_root, PUSHABLE_AS_PARENT)) {
     return false;
   }
-  const uint root_no = m_join_root->get_access_no();
 
   /**
    * Past this point we know at least root to be pushable as parent
@@ -657,7 +656,11 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
     Mem_root_array<int> nest_stack(m_thd_ndb->get_thd()->mem_root);
     int upper = -1;
 
-    for (uint tab_no = root_no; tab_no <= last_table; tab_no++) {
+    /**
+     * Set up the nest structure in m_tables[]. Init even those
+     * before the root (in case root_no > 0)
+     */
+    for (uint tab_no = 0; tab_no <= last_table; tab_no++) {
       AQP::Table_access *table = m_plan.get_table_access(tab_no);
 
       /**
@@ -670,7 +673,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
        * starting at 'first_upper'. 'm_inner_nest' and 'm_upper_nests' are the
        * respective bitmap of tables in these nests.
        */
-      if (tab_no > root_no && table->get_first_inner() == tab_no) {
+      if (tab_no > 0 && table->get_first_inner() == tab_no) {
         // Push the upper nest to return to later
         nest_stack.push_back(upper);
         // Enter new inner nest
@@ -733,29 +736,18 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
          * visited before entering this nest.
          * Continue the inner_ and upper_nests of this upper-table.
          */
-        if (!nest_stack.empty()) {
-          upper = nest_stack.back();
-          nest_stack.pop_back();
-          inner_nest = m_tables[upper].m_inner_nest;
-          inner_nest.add(upper);
-          upper_nests = m_tables[upper].m_upper_nests;
-        } else {  // We returned to an upper level above the root-level
-          inner_nest.clear_all();
-          upper_nests.clear_all();
-        }
+        upper = nest_stack.back();
+        nest_stack.pop_back();
+        inner_nest = m_tables[upper].m_inner_nest;
+        inner_nest.add(upper);
+        upper_nests = m_tables[upper].m_upper_nests;
 
-        /**
-         * Note that we may 'unwind' to a nest level above where we started as
-         * root. m_tables[first_upper] will then not hold the last_inner,
-         * first_upper, so we need to read it from the AQP interface instead.
-         */
-        AQP::Table_access *upper_table = m_plan.get_table_access(first_upper);
-        first_inner = first_upper;  // upper_table->get_first_inner();
-        last_inner = upper_table->get_last_inner();
-        first_upper = upper_table->get_first_upper();
+        first_inner = first_upper;
+        last_inner = m_tables[first_inner].m_last_inner;
+        first_upper = m_tables[first_inner].m_first_upper;
 
       }  // while 'leaving a nest'
-    }    // for tab_no [root_no..last_table]
+    }    // for tab_no [0..last_table]
     assert(upper_nests.is_clear_all());
     assert(nest_stack.size() == 0);
   }
@@ -766,6 +758,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
    */
   const AQP::enum_access_type access_type = m_join_root->get_access_type();
   assert(access_type != AQP::AT_VOID);
+  const uint root_no = m_join_root->get_access_no();
 
   m_fld_refs = 0;
   m_join_scope.add(root_no);
@@ -781,13 +774,16 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
 
   ndb_table_access_map prefix;
   prefix.set_prefix(root_no);
-
   {
     const uint last_table = m_plan.get_access_count() - 1;
     assert(root_no < last_table);
 
     for (uint tab_no = root_no; tab_no <= last_table; tab_no++) {
       AQP::Table_access *table = m_plan.get_table_access(tab_no);
+
+      m_tables[tab_no].m_inner_nest.subtract(prefix);
+      m_tables[tab_no].m_upper_nests.subtract(prefix);
+      m_tables[tab_no].m_sj_nest.subtract(prefix);
 
       /**
        * Push down join of table if supported:
@@ -853,16 +849,9 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
         } else {
           break;
         }
-
-        /**
-         * Note that we may 'unwind' to a nest level above where we started as
-         * root. m_tables[first_upper] will then not hold the last_inner,
-         * first_upper, so we need to read it from the AQP interface instead.
-         */
-        AQP::Table_access *upper_table = m_plan.get_table_access(first_upper);
-        first_inner = first_upper;  // upper_table->get_first_inner();
-        last_inner = upper_table->get_last_inner();
-        first_upper = upper_table->get_first_upper();
+        first_inner = first_upper;
+        last_inner = m_tables[first_inner].m_last_inner;
+        first_upper = m_tables[first_inner].m_first_upper;
 
       }  // while 'leaving a nest'
     }    // for tab_no [root_no..last_table]
