@@ -1406,6 +1406,75 @@ static uint ha_check_and_coalesce_trx_read_only(THD *thd,
 }
 
 /**
+  Determines whether ha_commit_low may invoke commit ordering
+
+  @param[in]  thd  Thread handle.
+  @param[in]  all  Is set in case of explicit commit
+                   (COMMIT statement), or implicit commit
+                   issued by DDL. Is not set when called
+                   at the end of statement, even if
+                   autocommit=1.
+  @retval true ha_commit_low invokes commit order
+  @retval false ha_commit_low does not invoke commit order
+  @note   Result of has_commit_order_manager() is not taken
+          into account here. the calls to
+          Commit_order_manager::wait/wait_and_finish() will be
+          no-op for threads other than replication applier threads.
+  @details Preserve externalization and persistence order for applier
+           threads. The conditions should be understood as follows:
+
+    - When the binlog is enabled and binlog local caches contain transaction
+      information, ordering is done in MYSQL_BIN_LOG::ordered_commit
+      and should be disabled here. Therefore, we have the condition
+      thd->is_current_stmt_binlog_log_replica_updates_disabled(). We also
+      enable commit ordering in case binlogging is enabled in the current
+      call to ha_commit_low (OPT_BIN_LOG bit), but caches are disabled
+      or empty (NDB). Please note that it is important to check
+      opt_bin_log in is_current_stmt_binlog_log_replica_updates_disabled,
+      because of statements such as ALTER TABLE OPTIMIZE PARTITION,
+      where the last call to trans_commit_stmt in the
+      mysql_inplace_alter_table (Implicit_substatement_guard disabled)
+      is not the last call.
+      Moreover, there are also cases in which binlog caches were
+      emptied after thread entered the ordered_commit function in the
+      MYSQL_BIN_LOG. Therefore, condition is checked in commit() function
+      and the result is assigned to the is_low_level_commit_ordering_enabled
+      flag introduced in the THD.
+
+    - This function is usually called once per statement, with
+      all=false.  We should not preserve the commit order when this
+      function is called in that context.  Therefore, we have the
+      condition ending_trans(thd, all).
+
+    - Statements such as ANALYZE/OPTIMIZE/REPAIR TABLE will call
+      ha_commit_low multiple times with all=true from within
+      mysql_admin_table, mysql_recreate_table, and
+      handle_histogram_command. After returning to
+      mysql_execute_command, it will call ha_commit_low one last
+      time.  It is only in this final call that we should preserve
+      the commit order. Therefore, we set the flag
+      thd->is_operating_substatement_implicitly while executing
+      mysql_admin_table, mysql_recreate_table, and
+      handle_histogram_command, clear it when returning from those
+      functions, and check the flag here in ha_commit_low().
+
+    - In all the above cases, we should make the current transaction
+      fail early in case a previous transaction has rolled back.
+      Therefore, we also invoke the commit order manager in case
+      get_rollback_status returns true.
+
+    Note: the calls to Commit_order_manager::wait/wait_and_finish() will be
+          no-op for threads other than replication applier threads.
+*/
+bool is_ha_commit_low_invoking_commit_order(THD *thd, bool all) {
+  return (!thd->is_operating_substatement_implicitly &&
+          !thd->is_operating_gtid_table_implicitly &&
+          (thd->is_current_stmt_binlog_log_replica_updates_disabled() ||
+           thd->is_low_level_commit_ordering_enabled()) &&
+          ending_trans(thd, all));
+}
+
+/**
   The function computes condition to call gtid persistor wrapper,
   and executes it.
   It is invoked at committing a statement or transaction, including XA,
@@ -1456,9 +1525,7 @@ std::pair<int, bool> commit_owned_gtids(THD *thd, bool all) {
     We also skip saving GTID for intermediate commits i.e. when
     thd->is_operating_substatement_implicitly is enabled.
   */
-  if (thd->is_current_stmt_binlog_log_replica_updates_disabled() &&
-      ending_trans(thd, all) && !thd->is_operating_gtid_table_implicitly &&
-      !thd->is_operating_substatement_implicitly) {
+  if (is_ha_commit_low_invoking_commit_order(thd, all)) {
     if (!has_commit_order_manager(thd) &&
         (thd->owned_gtid.sidno > 0 ||
          thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)) {
@@ -1798,45 +1865,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
 
     bool is_applier_wait_enabled = false;
 
-    /*
-      Preserve externalization and persistence order for applier threads.
-
-      The conditions should be understood as follows:
-
-      - When the binlog is enabled, this will be done from
-        MYSQL_BIN_LOG::ordered_commit and should not be done here.
-        Therefore, we have the condition
-        thd->is_current_stmt_binlog_disabled().
-
-      - This function is usually called once per statement, with
-        all=false.  We should not preserve the commit order when this
-        function is called in that context.  Therefore, we have the
-        condition ending_trans(thd, all).
-
-      - Statements such as ANALYZE/OPTIMIZE/REPAIR TABLE will call
-        ha_commit_low multiple times with all=true from within
-        mysql_admin_table, mysql_recreate_table, and
-        handle_histogram_command. After returning to
-        mysql_execute_command, it will call ha_commit_low one last
-        time.  It is only in this final call that we should preserve
-        the commit order. Therefore, we set the flag
-        thd->is_operating_substatement_implicitly while executing
-        mysql_admin_table, mysql_recreate_table, and
-        handle_histogram_command, clear it when returning from those
-        functions, and check the flag here in ha_commit_low().
-
-      - In all the above cases, we should make the current transaction
-        fail early in case a previous transaction has rolled back.
-        Therefore, we also invoke the commit order manager in case
-        get_rollback_status returns true.
-
-      Note: the calls to Commit_order_manager::wait/wait_and_finish() will be
-            no-op for threads other than replication applier threads.
-    */
-    if ((!thd->is_operating_substatement_implicitly &&
-         !thd->is_operating_gtid_table_implicitly &&
-         thd->is_current_stmt_binlog_log_replica_updates_disabled() &&
-         ending_trans(thd, all)) ||
+    if (is_ha_commit_low_invoking_commit_order(thd, all) ||
         Commit_order_manager::get_rollback_status(thd)) {
       if (Commit_order_manager::wait(thd)) {
         error = 1;

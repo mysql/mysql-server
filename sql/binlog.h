@@ -270,6 +270,17 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int new_file_without_locking(
       Format_description_log_event *extra_description_event);
 
+  /**
+    Checks whether binlog caches are disabled (binlog does not cache data) or
+    empty in case binloggging is enabled in the current call to this function.
+    This function may be safely called in case binlogging is disabled.
+    @retval true binlog local caches are empty or disabled and binlogging is
+    enabled
+    @retval false binlog local caches are enabled and contain data or binlogging
+    is disabled
+  */
+  bool is_current_stmt_binlog_enabled_and_caches_empty(const THD *thd) const;
+
  private:
   int new_file_impl(bool need_lock,
                     Format_description_log_event *extra_description_event);
