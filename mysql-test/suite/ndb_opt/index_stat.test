@@ -398,6 +398,87 @@ INSERT INTO test.t1 values (1,1), (2,2);
 #clean up
 DROP TABLE t1;
 
+# Bug#29611297 NDB: INDEX STAT HAS ISSUES WITH ONLINE ALTER TABLE TO/FROM
+# READBACKUP. Online ALTER TABLE statements that resulted in the index
+# version being bumped up left behind orphaned index stats corresponding
+# to the previous index version.
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT,
+  c INT,
+  UNIQUE(c)
+) ENGINE NDB PARTITION BY KEY(a);
+
+--echo Insert 100 rows
+--disable_query_log
+let $i = 100;
+while ($i)
+{
+  dec $i;
+  eval INSERT INTO t1 VALUES($i, $i % 100, $i);
+}
+--enable_query_log
+
+# Trigger index stats creation which creates 1 metadata entry
+# in the head table (exposed to users via the ndbinfo.index_stats
+# table) and n sample table entries per index
+ANALYZE TABLE t1;
+# Uncomment below to check details
+#SELECT * FROM ndbinfo.index_stats;
+SELECT CASE COUNT(*) > 0
+       WHEN 1 THEN 'YES' ELSE 'NO' END
+AS stats_metadata_present FROM ndbinfo.index_stats;
+# 21 samples are expected here
+--exec $NDB_SELECT_COUNT -d mysql ndb_index_stat_sample
+
+# Record the value of 'rows' in the EXPLAIN output for a later check
+--let $query=SELECT * FROM t1 WHERE c > 50
+--let $explain_rows_pre_alter=query_get_value(EXPLAIN $query, rows, 1)
+
+# Online ALTER that creates indexes with new versions
+ALTER TABLE t1 COMMENT="NDB_TABLE=READ_BACKUP=0";
+
+# Trigger index stats creation. The ANALYZE below will clean up
+# samples corresponding to the old index version in the
+# ndb_index_stat_sample table and create new samples for the
+# new index version.
+ANALYZE TABLE t1;
+# Uncomment below to check details
+#SELECT * FROM ndbinfo.index_stats;
+# Check for duplicates
+SELECT COUNT(index_id)
+FROM ndbinfo.index_stats
+GROUP BY index_id
+HAVING COUNT(index_id) > 1;
+# Should still be 21 samples. Was 42 (21 created with
+# <index_id, old index_version> as the key and 21 more
+# with <index_id, new index version>) before the bug fix
+--exec $NDB_SELECT_COUNT -d mysql ndb_index_stat_sample
+
+# Execute the same EXPLAIN as earlier. The expectation is that the 'rows'
+# output is the same from before the ALTER
+--let $explain_rows_post_alter=query_get_value(EXPLAIN $query, rows, 1)
+--expr $explain_rows_change = $explain_rows_post_alter - $explain_rows_pre_alter
+if ($explain_rows_change == 0)
+{
+  --echo EXPLAIN is the same both pre- and post-ALTER
+}
+if ($explain_rows_change != 0)
+{
+  --die EXPLAIN has changed. Pre-ALTER: $explain_rows_pre_alter and post-ALTER: $explain_rows_post_alter
+}
+
+DROP TABLE t1;
+
+# We expect 0 entries in the sample table but "stale" metadata
+# info is still present in the head table
+# Uncomment below to check details
+#SELECT * FROM ndbinfo.index_stats;
+SELECT CASE COUNT(*) > 0
+       WHEN 1 THEN 'YES' ELSE 'NO' END
+AS stats_metadata_present FROM ndbinfo.index_stats;
+--exec $NDB_SELECT_COUNT -d mysql ndb_index_stat_sample
+
 # Suppress errors which can occur when disconnecting + reconnecting
 call mtr.add_suppression("Failed to acquire global schema lock");
 call mtr.add_suppression("Failed to release global schema lock");

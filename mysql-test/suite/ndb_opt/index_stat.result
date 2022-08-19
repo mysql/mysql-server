@@ -592,6 +592,51 @@ CREATE TABLE t1 (id int unsigned NOT NULL auto_increment PRIMARY KEY,
 val int unsigned, UNIQUE (val)) ENGINE=NDBCluster;
 INSERT INTO test.t1 values (1,1), (2,2);
 DROP TABLE t1;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT,
+c INT,
+UNIQUE(c)
+) ENGINE NDB PARTITION BY KEY(a);
+Insert 100 rows
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT CASE COUNT(*) > 0
+WHEN 1 THEN 'YES' ELSE 'NO' END
+AS stats_metadata_present FROM ndbinfo.index_stats;
+stats_metadata_present
+YES
+21 records in table ndb_index_stat_sample
+
+NDBT_ProgramExit: 0 - OK
+
+ALTER TABLE t1 COMMENT="NDB_TABLE=READ_BACKUP=0";
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT COUNT(index_id)
+FROM ndbinfo.index_stats
+GROUP BY index_id
+HAVING COUNT(index_id) > 1;
+COUNT(index_id)
+2
+2
+21 records in table ndb_index_stat_sample
+
+NDBT_ProgramExit: 0 - OK
+
+EXPLAIN is the same both pre- and post-ALTER
+DROP TABLE t1;
+SELECT CASE COUNT(*) > 0
+WHEN 1 THEN 'YES' ELSE 'NO' END
+AS stats_metadata_present FROM ndbinfo.index_stats;
+stats_metadata_present
+YES
+0 records in table ndb_index_stat_sample
+
+NDBT_ProgramExit: 0 - OK
+
 call mtr.add_suppression("Failed to acquire global schema lock");
 call mtr.add_suppression("Failed to release global schema lock");
 set @is_enable = @is_enable_default;
