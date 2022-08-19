@@ -624,10 +624,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
   if (!maybe_pushable(m_join_root, PUSHABLE_AS_PARENT)) {
     return false;
   }
-
   const uint root_no = m_join_root->get_access_no();
-  const AQP::enum_access_type access_type = m_join_root->get_access_type();
-  assert(access_type != AQP::AT_VOID);
 
   /**
    * Past this point we know at least root to be pushable as parent
@@ -635,21 +632,8 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
    */
   DBUG_PRINT("info",
              ("Table %d is pushable as root", m_join_root->get_access_no()));
-  m_fld_refs = 0;
-  m_join_scope.add(root_no);
-  m_internal_op_count = internal_operation_count(access_type);
 
   /**
-   * Tables before 'root', which are in its 'scope', are 'const'
-   */
-  const ndb_table_access_map root_scope =
-      get_table_map(m_join_root->get_tables_in_all_query_scopes());
-  m_const_scope.set_prefix(root_no);
-  m_const_scope.intersect(root_scope);
-
-  /**
-   * Analyze tables below 'm_join_root' as potential members of a pushed
-   * join query starting with root.
    * As part of analyzing the outer join and semi join structure,
    * we use the join- and semi-join-nest structures set up by the optimizer,
    * available through the Abstract Query Plan (AQP) interface.
@@ -658,15 +642,13 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
    */
   {
     const uint last_table = m_plan.get_access_count() - 1;
-    assert(root_no < last_table);
 
     ndb_table_access_map upper_nests;
     ndb_table_access_map inner_nest;
 
     // Keep track of where join-nest and semi_join-nest starts
-    // Note that they might start before 'root', if 'root' is not first.
-    uint first_inner = m_join_root->get_first_inner();
-    int first_sj_inner = m_join_root->get_first_sj_inner();
+    uint first_inner = m_plan.get_table_access(0)->get_first_inner();
+    int first_sj_inner = m_plan.get_table_access(0)->get_first_sj_inner();
 
     /**
      * We use a join-nest stack to keep track of the upper tables
@@ -725,30 +707,9 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
         m_tables[tab_no].m_first_sj_upper = table->get_first_sj_upper();
       }
 
-      /**
-       * Push down join of table if supported:
-       *
-       * Use is_pushable_as_child() to analyze whether this table is
-       * pushable as part of query starting with 'root'. Note that
-       * outer- and semi-joined table scans can not be completely analyzed
-       * by is_pushable_as_child(): Pushability also depends on that all
-       * later tables in the same nest are pushed, and that there are no
-       * unpushed conditions for any (later) tables in this nest.
-       * These extra conditions are later checked by validate_join_nest(),
-       * when the nest is completed. This may cause some tables which passed
-       * the first pushability check, to later fail and be removed. This
-       * also has a cascading effect on any tables depending on those
-       * being removed. (See validate_join_nest() and remove_pushable())
-       */
       if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
         // A pushable table scan, collect in bitmap for later fast checks
         m_scan_operations.add(tab_no);
-      }
-
-      if (table != m_join_root) {  // root, already known pushable
-        // A child candidate to push under 'root'
-        if (is_pushable_as_child(table)) {
-        }
       }
 
       /**
@@ -760,23 +721,6 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
        * Note that the same tab_no may unwind several inner/semi join-nests.
        * ... all having the same 'last_inner' (this tab_no)
        */
-      // First unwind the semi-join nests, if needed
-      int last_sj_inner = table->get_last_sj_inner();
-      while ((int)tab_no == last_sj_inner &&   // Leaving the semi_join nest
-             (int)root_no < first_sj_inner) {  // Is a SJ relative to root
-
-        // Phase 2 of pushability check, see big comment above.
-        validate_join_nest(m_tables[first_sj_inner].m_sj_nest, first_sj_inner,
-                           tab_no, "semi");
-
-        // Possibly more nested sj-nests to unwind, or break out
-        first_sj_inner = m_tables[first_sj_inner].m_first_sj_upper;
-        if (first_sj_inner < 0) break;
-
-        AQP::Table_access *upper_table =
-            m_plan.get_table_access(first_sj_inner);
-        last_sj_inner = upper_table->get_last_sj_inner();
-      }
 
       // Prepare inner/outer join-nest structure for unwind;
       uint last_inner = m_tables[tab_no].m_last_inner;
@@ -784,11 +728,6 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
 
       while (tab_no == last_inner &&  // End of current join-nest, and
              first_upper >= 0) {      // has an embedding upper nest
-        if (first_inner > root_no) {  // Root is outer-joined with nest
-          // Phase 2 of pushability check, see big comment above.
-          validate_join_nest(inner_nest, first_inner, tab_no, "outer");
-        }
-
         /**
          * We leave the current join-nest and unwind to the last 'upper-table'
          * visited before entering this nest.
@@ -818,7 +757,115 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
       }  // while 'leaving a nest'
     }    // for tab_no [root_no..last_table]
     assert(upper_nests.is_clear_all());
-    assert(nest_stack.empty());
+    assert(nest_stack.size() == 0);
+  }
+
+  /**
+   * Analyze tables below 'm_join_root' as potential members of a pushed
+   * join query starting with root.
+   */
+  const AQP::enum_access_type access_type = m_join_root->get_access_type();
+  assert(access_type != AQP::AT_VOID);
+
+  m_fld_refs = 0;
+  m_join_scope.add(root_no);
+  m_internal_op_count = internal_operation_count(access_type);
+
+  /**
+   * Tables before 'root', which are in its 'scope', are 'const'
+   */
+  const ndb_table_access_map root_scope =
+      get_table_map(m_join_root->get_tables_in_all_query_scopes());
+  m_const_scope.set_prefix(root_no);
+  m_const_scope.intersect(root_scope);
+
+  ndb_table_access_map prefix;
+  prefix.set_prefix(root_no);
+
+  {
+    const uint last_table = m_plan.get_access_count() - 1;
+    assert(root_no < last_table);
+
+    for (uint tab_no = root_no; tab_no <= last_table; tab_no++) {
+      AQP::Table_access *table = m_plan.get_table_access(tab_no);
+
+      /**
+       * Push down join of table if supported:
+       *
+       * Use is_pushable_as_child() to analyze whether this table is
+       * pushable as part of query starting with 'root'. Note that
+       * outer- and semi-joined table scans can not be completely analyzed
+       * by is_pushable_as_child(): Pushability also depends on that all
+       * later tables in the same nest are pushed, and that there are no
+       * unpushed conditions for any (later) tables in this nest.
+       * These extra conditions are later checked by validate_join_nest(),
+       * when the nest is completed. This may cause some tables which passed
+       * the first pushability check, to later fail and be removed. This
+       * also has a cascading effect on any tables depending on those
+       * being removed. (See validate_join_nest() and remove_pushable())
+       */
+      if (table != m_join_root) {  // root, already known pushable
+        // A child candidate to push under 'root'
+        if (is_pushable_as_child(table)) {
+        }
+      }
+
+      /**
+       * Leave join-nests when at 'last_inner'
+       *
+       * This table can be the last inner table of join-nest(s).
+       * That will require additional pushability checks of entire nest
+       *
+       * Note that the same tab_no may unwind several inner/semi join-nests.
+       * ... all having the same 'last_inner' (this tab_no)
+       */
+      // First unwind the semi-join nests, if needed
+      int first_sj_inner = table->get_first_sj_inner();
+      int last_sj_inner = table->get_last_sj_inner();
+      while ((int)tab_no == last_sj_inner &&   // Leaving the semi_join nest
+             (int)root_no < first_sj_inner) {  // Is a SJ relative to root
+
+        // Phase 2 of pushability check, see big comment above.
+        validate_join_nest(m_tables[first_sj_inner].m_sj_nest, first_sj_inner,
+                           tab_no, "semi");
+
+        // Possibly more nested sj-nests to unwind, or break out
+        first_sj_inner = m_tables[first_sj_inner].m_first_sj_upper;
+        if (first_sj_inner < 0) break;
+
+        AQP::Table_access *upper_table =
+            m_plan.get_table_access(first_sj_inner);
+        last_sj_inner = upper_table->get_last_sj_inner();
+      }
+
+      // Prepare inner/outer join-nest structure for unwind;
+      uint first_inner = m_tables[tab_no].m_first_inner;
+      uint last_inner = m_tables[tab_no].m_last_inner;
+      int first_upper = m_tables[tab_no].m_first_upper;
+
+      while (tab_no == last_inner &&  // End of current join-nest, and
+             first_upper >= 0) {      // has an embedding upper nest
+
+        if (first_inner > root_no) {  // Root is outer-joined with nest
+          // Phase 2 of pushability check, see big comment above.
+          ndb_table_access_map inner_nest(full_inner_nest(first_inner, tab_no));
+          validate_join_nest(inner_nest, first_inner, tab_no, "outer");
+        } else {
+          break;
+        }
+
+        /**
+         * Note that we may 'unwind' to a nest level above where we started as
+         * root. m_tables[first_upper] will then not hold the last_inner,
+         * first_upper, so we need to read it from the AQP interface instead.
+         */
+        AQP::Table_access *upper_table = m_plan.get_table_access(first_upper);
+        first_inner = first_upper;  // upper_table->get_first_inner();
+        last_inner = upper_table->get_last_inner();
+        first_upper = upper_table->get_first_upper();
+
+      }  // while 'leaving a nest'
+    }    // for tab_no [root_no..last_table]
   }
   assert(m_join_scope.contain(root_no));
   return (m_join_scope.last_table() > root_no);  // Anything pushed?
