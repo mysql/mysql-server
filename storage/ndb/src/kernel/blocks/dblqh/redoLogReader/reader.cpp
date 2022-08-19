@@ -54,12 +54,11 @@
 
 using byte = unsigned char;
 
-void usage(const char * prg);
 static ndb_off_t readFromFile(ndbxfrm_file * xfrm,
                               ndb_off_t word_pos,
                               Uint32 *toPtr,
                               Uint32 sizeInWords);
-[[noreturn]] void doExit();
+[[noreturn]] static void doExit();
 
 static ndb_file file;
 static ndbxfrm_file xfrm;
@@ -573,14 +572,6 @@ ndb_off_t readFromFile(ndbxfrm_file * xfrm,
 // 
 //----------------------------------------------------------------
 
-
-void usage(const char * prg){
-  ndbout << endl << "Usage: ndbd_read_log_reader [OPTIONS]:" << endl << prg 
-	 << " <Binary log file> [-noprint] [-dump] [-twiddle] [-lap] [-nocheck] [--help] " 
-	 <<"[-mbyte <0-15>] [-mbyteheaders] [-pageheaders] [-filedescriptors] [-page <0-31>]  [-pageindex <12-8191>]"
-	 << endl << endl;
-  
-}
 
 std::vector<char*> convert_legacy_options(size_t argc, char** argv)
 {
