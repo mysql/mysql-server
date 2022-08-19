@@ -80,6 +80,7 @@
 #include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
+#include "sql/join_optimizer/secondary_engine_costing_flags.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
@@ -663,6 +664,9 @@ void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
  */
 bool CostingReceiver::FoundSingleNode(int node_idx) {
   if (m_thd->is_error()) return true;
+
+  m_graph->secondary_engine_costing_flags &=
+      ~SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
 
   TABLE *table = m_graph->nodes[node_idx].table;
   TABLE_LIST *tl = table->pos_in_table_list;
@@ -2091,7 +2095,6 @@ void CostingReceiver::ProposeAccessPathForIndex(
 bool CostingReceiver::ProposeTableScan(
     TABLE *table, int node_idx, double force_num_output_rows_after_filter,
     bool is_recursive_reference) {
-  m_graph->query_block_has_multiple_base_tables = false;
   AccessPath path;
   if (is_recursive_reference) {
     path.type = AccessPath::FOLLOW_TAIL;
@@ -2926,6 +2929,9 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
                                         int edge_idx) {
   if (m_thd->is_error()) return true;
 
+  m_graph->secondary_engine_costing_flags |=
+      SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
+
   if (++m_num_seen_subgraph_pairs > m_subgraph_pair_limit &&
       m_subgraph_pair_limit >= 0) {
     // Bail out; we're going to be needing graph simplification,
@@ -3164,8 +3170,6 @@ void CostingReceiver::ProposeHashJoin(
     OrderingSet new_obsolete_orderings, bool rewrite_semi_to_inner,
     bool *wrote_trace) {
   if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) return;
-
-  m_graph->query_block_has_multiple_base_tables = true;
 
   if (Overlaps(left_path->parameter_tables, right) ||
       Overlaps(right_path->parameter_tables, left | RAND_TABLE_BIT)) {
@@ -6451,6 +6455,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         sargable_fulltext_predicates, update_delete_target_tables,
         immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
         /*subgraph_pair_limit=*/-1, secondary_engine_cost_hook, trace);
+    // Reset the secondary engine planning flags
+    graph.secondary_engine_costing_flags = {};
     if (EnumerateAllConnectedPartitions(graph.graph, &receiver)) {
       assert(thd->is_error());
       return nullptr;
@@ -6597,7 +6603,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     if (join->make_sum_func_list(*join->fields, /*before_group_by=*/true))
       return nullptr;
 
-    graph.query_block_has_aggregation_node = true;
+    graph.secondary_engine_costing_flags |=
+        SecondaryEngineCostingFlag::CONTAINS_AGGREGATION_ACCESSPATH;
 
     if (trace != nullptr) {
       *trace += "Applying aggregation for GROUP BY\n";
@@ -6728,8 +6735,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
 
   join->m_windowing_steps = !join->m_windows.is_empty();
-  graph.query_block_has_windowfunc = true;
   if (join->m_windowing_steps) {
+    graph.secondary_engine_costing_flags |=
+        SecondaryEngineCostingFlag::CONTAINS_WINDOW_ACCESSPATH;
     root_candidates = ApplyWindowFunctions(
         thd, receiver, orderings, fd_set, aggregation_is_unordered,
         order_by_ordering_idx, distinct_ordering_idx, graph,
@@ -6742,7 +6750,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       "Applying filter for window function in2exists conditions\n", trace,
       &root_candidates, &receiver);
 
-  graph.query_block_ready_to_handle_distinct_order_by_limit_offset = true;
+  graph.secondary_engine_costing_flags |=
+      SecondaryEngineCostingFlag::HANDLING_DISTINCT_ORDERBY_LIMITOFFSET;
   if (join->select_distinct || join->order.order != nullptr) {
     // UPDATE and DELETE must preserve row IDs through ORDER BY in order to keep
     // track of which rows to update or delete.

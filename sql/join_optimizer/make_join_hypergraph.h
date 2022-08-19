@@ -29,6 +29,7 @@
 #include "map_helpers.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/hypergraph.h"
+#include "sql/join_optimizer/secondary_engine_costing_flags.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_const.h"
 
@@ -77,24 +78,12 @@ struct JoinHypergraph {
 
   hypergraph::Hypergraph graph;
 
-  /// Flag to indicate (mostly for secondary engines) that the partial plans for
-  /// the current query block have the aggregation node present.
-  bool query_block_has_aggregation_node{false};
-
-  /// Flag to indicate (mostly for secondary engines) that the current query
-  /// block contains a WINDOW AccessPath.
-  bool query_block_has_windowfunc{false};
-
-  /// Flag to indicate (mostly for secondary engines) that the partial plans for
-  /// the current query block contains more than one "base" tables. These can
-  /// include derived tables and common table expressions.
-  bool query_block_has_multiple_base_tables{false};
-
-  /// Flag to indicate (mostly for secondary engines) that for the current query
-  /// block all join ordering-related AccessPaths were proposed and the
-  /// secondary engine can handle ORDER BY and / or LIMIT OFFSET clauses when it
-  /// needs to treat them specially.
-  bool query_block_ready_to_handle_distinct_order_by_limit_offset{false};
+  /// Flags set when AccessPaths are proposed to secondary engines for costing.
+  /// The intention of these flags is to avoid traversing the AccessPath tree to
+  /// check for certain criteria.
+  /// TODO (tikoldit) Move to JOIN or Secondary_engine_execution_context, so
+  /// that JoinHypergraph can be immutable during planning
+  SecondaryEngineCostingFlags secondary_engine_costing_flags{};
 
   // Maps table->tableno() to an index in “nodes”, also suitable for
   // a bit index in a NodeMap. This is normally the identity mapping,
