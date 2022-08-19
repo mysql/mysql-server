@@ -8303,7 +8303,7 @@ void Item_ref::print(const THD *thd, String *str,
   if (ref == nullptr)  // Unresolved reference: print reference
     return Item_ident::print(thd, str, query_type);
 
-  if (m_alias_of_expr && (*ref)->type() != Item::CACHE_ITEM &&
+  if (!const_item() && m_alias_of_expr && (*ref)->type() != Item::CACHE_ITEM &&
       ref_type() != VIEW_REF && table_name == nullptr && item_name.ptr()) {
     Simple_cstring str1 = (*ref)->real_item()->item_name;
     append_identifier(thd, str, str1.ptr(), str1.length());
