@@ -13,6 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#ifdef _WIN32_WINNT
+#if (_WIN32_WINNT < 0x0602)
+#undef _WIN32_WINNT
+// We need at least _WIN32_WINNT_WIN8 i.e. 0x0602 for
+// EnumDynamicTimeZoneInformation
+#define _WIN32_WINNT 0x0602
+#endif  // (_WIN32_WINNT < 0x0602)
+#endif  // _WIN32_WINNT
+
 #include <gtest/gtest.h>
 #include <stdlib.h>
 
@@ -53,6 +62,24 @@ class LogTimestampTest : public ::testing::Test {
 TEST_F(LogTimestampTest, iso8601) {
   char time_buff[iso8601_size];
 #ifdef WIN32
+  DYNAMIC_TIME_ZONE_INFORMATION original_dti = {};
+  DWORD original_dti_result = GetDynamicTimeZoneInformation(&original_dti);
+  EXPECT_NE(original_dti_result, TIME_ZONE_ID_INVALID);
+
+  if (original_dti.DaylightDate.wMonth == 0) {
+    /*
+      Current system time zone does not support Daylight savings. If the Windows
+      system time zone has no daylight saving, then attempting to set TZ to a
+      timezone that does have daylight saving will result in localtime_r
+      producing inaccurate results. Skipping the test.
+      Bug#34380460 will be tracking this issue.
+    */
+    GTEST_SKIP()
+        << "Current system time zone does not support Daylight savings. If the "
+           "Windows system time zone has no daylight saving, then attempting "
+           "to set TZ to a timezone that does have daylight saving will result "
+           "in localtime_r producing inaccurate results. Skipping the test. ";
+  }
   char tz[] = "TZ=CET-1CES";
 #else
   char tz[] = "TZ=CET";
