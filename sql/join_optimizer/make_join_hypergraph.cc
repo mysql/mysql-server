@@ -2269,6 +2269,7 @@ bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
       *always_false = true;
       return false;
     } else {
+      if (*it != nullptr) (*it)->update_used_tables();
       ++it;
     }
   }

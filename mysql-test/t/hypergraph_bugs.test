@@ -71,3 +71,17 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 YEAR);
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = 1 AND f1 <> 11;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34504697: Hypergraph: Assertion
+--echo #               `!(used_tabs & (~read_tables & ~filter_for_table))'
+--echo #               failed
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+SELECT 1
+FROM t1 LEFT JOIN (SELECT t2.*
+                   FROM (t1 AS t2 INNER JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+                   WHERE (t3.f1 <> 1 OR t2.f1 > t2.f1)) AS dt
+ON (t1.f1 = dt.f1);
+DROP TABLE t1;

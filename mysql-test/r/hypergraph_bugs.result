@@ -85,3 +85,16 @@ EXPLAIN
     -> Table scan on t1  (cost=0.25..0.25 rows=1)
 
 DROP TABLE t1;
+#
+# Bug#34504697: Hypergraph: Assertion
+#               `!(used_tabs & (~read_tables & ~filter_for_table))'
+#               failed
+#
+CREATE TABLE t1 (f1 INTEGER);
+SELECT 1
+FROM t1 LEFT JOIN (SELECT t2.*
+FROM (t1 AS t2 INNER JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+WHERE (t3.f1 <> 1 OR t2.f1 > t2.f1)) AS dt
+ON (t1.f1 = dt.f1);
+1
+DROP TABLE t1;
