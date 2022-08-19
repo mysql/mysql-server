@@ -213,20 +213,21 @@ int main(int argc, char* argv[])
     return 2;
   }
 
-  if (g_info)
-  {
-    for (int argi = 0; argi < argc; argi++)
-    {
-      dump_info(argv[argi], false);
-    }
-    return 0;
-  }  
-  
+
   if (g_detailed_info)
   {
     for (int argi = 0; argi < argc; argi++)
     {
       dump_info(argv[argi], true);
+    }
+    return 0;
+  }
+
+  if (g_info)
+  {
+    for (int argi = 0; argi < argc; argi++)
+    {
+      dump_info(argv[argi], false);
     }
     return 0;
   }
@@ -277,13 +278,8 @@ int dump_info(const char name[], bool print_header_and_trailer)
     return 1;
   }
   require(r == 0);
-  
-  if(print_header_and_trailer)
-  {
-    header.printf(stdout);
-    trailer.printf(stdout);
-  }
-  
+
+
   Uint32 cipher = 0;
   header.get_encryption_cipher(&cipher);
   bool is_compressed = (header.get_compression_method() != 0);
@@ -292,7 +288,13 @@ int dump_info(const char name[], bool print_header_and_trailer)
          name,
          is_compressed ? "yes" : "no",
          is_encrypted  ? "yes" : "no");
-  
+
+  if(print_header_and_trailer)
+  {
+    header.printf(stdout);
+    trailer.printf(stdout);
+  }
+
   file.close();
   return 0;
 }

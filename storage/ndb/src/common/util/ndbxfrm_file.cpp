@@ -643,8 +643,17 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
     m_file_block_size = 512;
     m_file_format = FF_AZ31;
     m_compressed = true;
+    
+    /*
+     * Set compression flag in ndbxfrm_header object.
+     * From ndxrfrm tool we need to open the file just to read header and
+     * trailer. In that case we have to propagate the compression flag
+     * to the caller. Since, currently, the only way caller have to access
+     * that info is through the ndb_ndbxfrm1::header reference
+     * we are writing there the compression flag.
+     */
+    ndbxfrm_header.set_compression_method(ndb_ndbxfrm1::compression_deflate);
     m_encrypted = false;
-
     *trailer_max_size = 12 + 511;
   }
   else if (ndb_ndbxfrm1::header::detect_header(in, &header_size) == 0)
