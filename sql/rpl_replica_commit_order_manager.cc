@@ -499,7 +499,7 @@ bool Commit_order_manager::visit_lock_graph(
   return false;
 }
 
-bool has_commit_order_manager(THD *thd) {
+bool has_commit_order_manager(const THD *thd) {
   return is_mts_worker(thd) &&
          thd->rli_slave->get_commit_order_manager() != nullptr;
 }

@@ -510,6 +510,6 @@ class Commit_order_lock_graph : public MDL_wait_for_subgraph {
   @retval false  Commit_order_manager object is not initialized
   @retval true   Commit_order_manager object is initialized
 */
-bool has_commit_order_manager(THD *thd);
+bool has_commit_order_manager(const THD *thd);
 
 #endif /*RPL_REPLICA_COMMIT_ORDER_MANAGER*/

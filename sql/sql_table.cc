@@ -13686,8 +13686,13 @@ static bool mysql_inplace_alter_table(
         enum_implicit_substatement_guard_mode ::
             ENABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE;
 
-    /* Disable GTID and SPCO for OPTIMIZE TABLE to avoid deadlock. */
-    if (thd->lex->sql_command == SQLCOM_OPTIMIZE)
+    /* To avoid deadlock, disable GTID and SPCO for the following commands:
+      - OPTIMIZE TABLE
+      - ALTER TABLE OPTIMIZE PARTITION (ALTER_CHANGE_COLUMN && ALTER_RECREATE)
+    */
+    if (thd->lex->sql_command == SQLCOM_OPTIMIZE ||
+        ((alter_info->flags & Alter_info::ALTER_CHANGE_COLUMN) &&
+         (alter_info->flags & Alter_info::ALTER_RECREATE)))
       mode = enum_implicit_substatement_guard_mode ::
           DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE;
 
