@@ -825,8 +825,7 @@ DuktapeStatementReader::server_greeting(bool with_tls) {
       classic_protocol::capabilities::secure_connection |
       // multi_statements (not yet)
       classic_protocol::capabilities::multi_results |
-      // multi_results (not yet)
-      // ps_multi_results (not yet)
+      classic_protocol::capabilities::ps_multi_results |
       classic_protocol::capabilities::plugin_auth |
       classic_protocol::capabilities::connect_attributes |
       classic_protocol::capabilities::client_auth_method_data_varint |
