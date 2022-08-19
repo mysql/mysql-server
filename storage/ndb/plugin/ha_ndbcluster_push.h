@@ -251,8 +251,8 @@ class ndb_pushed_builder_ctx {
   ndb_table_access_map get_table_map(table_map external_map) const;
 
   // get required nest level ancestor
-  struct pushed_tables;
-  ndb_table_access_map required_ancestors(const pushed_tables *table) const;
+  struct pushed_table;
+  ndb_table_access_map required_ancestors(const pushed_table *table) const;
 
   const Thd_ndb *const m_thd_ndb;
 
@@ -282,8 +282,8 @@ class ndb_pushed_builder_ctx {
   // Possibly reused if multiple NdbQuery's are pushed.
   NdbQueryBuilder *m_builder;
 
-  struct pushed_tables {
-    pushed_tables()
+  struct pushed_table {
+    pushed_table()
         : m_inner_nest(),
           m_upper_nests(),
           m_ancestor_nests(),
@@ -474,10 +474,10 @@ class ndb_pushed_builder_ctx {
       return nests;
     }
 
-    bool isOuterJoined(pushed_tables &parent) const {
+    bool isOuterJoined(pushed_table &parent) const {
       return m_first_inner > parent.m_first_inner;
     }
-    bool isInnerJoined(pushed_tables &parent) const {
+    bool isInnerJoined(pushed_table &parent) const {
       return m_first_inner <= parent.m_first_inner;
     }
 

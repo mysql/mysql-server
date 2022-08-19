@@ -467,7 +467,7 @@ ndb_table_access_map ndb_pushed_builder_ctx::get_table_map(
  *  Find the ancestor tables required on nest level
  */
 ndb_table_access_map ndb_pushed_builder_ctx::required_ancestors(
-    const pushed_tables *table) const {
+    const pushed_table *table) const {
   ndb_table_access_map ancestors;
 
   for (uint i = table->m_first_inner; i <= table->m_last_inner; i++) {
@@ -2039,7 +2039,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
   // Find an optimal m_parent to be used when joining the tables
   for (uint tab_no = last_table; tab_no > root_no; tab_no--) {
     if (!m_join_scope.contain(tab_no)) continue;
-    pushed_tables &table = m_tables[tab_no];
+    pushed_table &table = m_tables[tab_no];
 
     /**
      * Calculate the set of possible parents for the table, where:
@@ -2166,7 +2166,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
    */
   for (uint tab_no = root_no + 1; tab_no <= last_table; tab_no++) {
     if (m_join_scope.contain(tab_no)) {
-      pushed_tables &table = m_tables[tab_no];
+      pushed_table &table = m_tables[tab_no];
       const uint parent_no = table.m_parent;
       table.m_ancestors = m_tables[parent_no].m_ancestors;
       table.m_ancestors.add(parent_no);
