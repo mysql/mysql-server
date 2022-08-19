@@ -772,18 +772,12 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
   m_const_scope.set_prefix(root_no);
   m_const_scope.intersect(root_scope);
 
-  ndb_table_access_map prefix;
-  prefix.set_prefix(root_no);
   {
     const uint last_table = m_plan.get_access_count() - 1;
     assert(root_no < last_table);
 
     for (uint tab_no = root_no; tab_no <= last_table; tab_no++) {
       AQP::Table_access *table = m_plan.get_table_access(tab_no);
-
-      m_tables[tab_no].m_inner_nest.subtract(prefix);
-      m_tables[tab_no].m_upper_nests.subtract(prefix);
-      m_tables[tab_no].m_sj_nest.subtract(prefix);
 
       /**
        * Push down join of table if supported:
@@ -1462,6 +1456,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
      */
     ndb_table_access_map outer_join_nests(m_tables[tab_no].embedding_nests());
     outer_join_nests.subtract(full_inner_nest(root_no, tab_no));
+    outer_join_nests.subtract(m_tables[root_no].m_upper_nests);
 
     const char *join_type =
         table->is_anti_joined(m_join_root) ? "anti" : "outer";
