@@ -1660,8 +1660,9 @@ class buf_page_t {
 };
 
 /** Structure used by AHI to contain information on record prefixes to be
-considered in hash index subsystem. */
-struct btr_search_prefix_info_t {
+considered in hash index subsystem. It is meant for using as a single 64bit
+atomic value, thus it needs to be aligned properly. */
+struct alignas(alignof(uint64_t)) btr_search_prefix_info_t {
   /** recommended prefix: number of bytes in an incomplete field
   @see BTR_PAGE_MAX_REC_SIZE */
   uint32_t n_bytes;
