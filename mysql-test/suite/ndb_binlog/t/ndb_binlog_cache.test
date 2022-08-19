@@ -1,0 +1,75 @@
+# This test verifies that NDB Binlog injector events that overflow the
+# cache to disk are instrumented in the performance schema
+# tables. Also verifies that a warning is logged when NDB Binary Log
+# transactions had events that spilled to disk.
+
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+-- let $cache_qry = SELECT COUNT_WRITE FROM performance_schema.file_summary_by_event_name WHERE event_name LIKE "%io_cache%"
+
+SELECT @@global.binlog_cache_size;
+SELECT @@global.binlog_stmt_cache_size;
+SELECT NAME, ENABLED FROM performance_schema.setup_instruments WHERE name LIKE "%file/sql/io_cache%";
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b BLOB, lb LONGBLOB) ENGINE = NDB;
+
+-- echo # Insert small transactions that should NOT
+-- echo # trigger an IO_CACHE overflow
+-- echo # Insert ~2KiB of data per transaction
+
+-- let $before_writes = `$cache_qry`
+
+INSERT INTO t1 VALUES (1, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (2, repeat(0x41, 1024), repeat(0x42, 1024));
+save_master_pos;
+
+-- let $after_writes= `$cache_qry`
+
+-- echo
+-- echo ## Verify there were no IO_CACHE write events
+-- echo
+
+-- let $assert_text= There were 0 writes to IO_CACHE
+-- let $assert_cond= $before_writes = $after_writes
+-- source include/assert.inc
+
+-- echo
+-- echo # Generate larger transactions to force an IO_CACHE
+-- echo # overflow and subsequent write to a temporary file.
+-- echo # Insert ~8KiB of data per transaction.
+
+-- let $before_writes = $after_writes
+
+SET SESSION AUTOCOMMIT=OFF;
+BEGIN;
+INSERT INTO t1 VALUES (3, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (4, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (5, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (6, repeat(0x41, 1024), repeat(0x42, 1024));
+COMMIT;
+
+SET SESSION AUTOCOMMIT=ON;
+INSERT INTO t1 VALUES (7, repeat(0x41, 4096), repeat(0x42, 4096));
+save_master_pos;
+
+-- let $after_writes = `$cache_qry`
+
+-- echo
+-- echo ## Verify IO_CACHE write events and that warnings were logged
+-- echo
+
+-- let $assert_text= There were >0 writes to IO_CACHE
+-- let $assert_cond= $before_writes < $after_writes
+-- source include/assert.inc
+
+-- echo
+-- let $server_num=1.1
+-- let $pattern=%NDB Binlog: Binary log cache data overflowed to disk%
+-- let $limit=1
+-- let $replace_expr=/to disk [0-9]+\ time\(s\)/to disk/
+-- source suite/ndb_rpl/t/show_mysqld_warnings.inc
+
+-- echo
+
+DROP TABLE t1;

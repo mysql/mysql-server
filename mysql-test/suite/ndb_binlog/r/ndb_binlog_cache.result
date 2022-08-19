@@ -1,0 +1,42 @@
+SELECT @@global.binlog_cache_size;
+@@global.binlog_cache_size
+4096
+SELECT @@global.binlog_stmt_cache_size;
+@@global.binlog_stmt_cache_size
+32768
+SELECT NAME, ENABLED FROM performance_schema.setup_instruments WHERE name LIKE "%file/sql/io_cache%";
+NAME	ENABLED
+wait/io/file/sql/io_cache	YES
+CREATE TABLE t1 (a INT PRIMARY KEY, b BLOB, lb LONGBLOB) ENGINE = NDB;
+# Insert small transactions that should NOT
+# trigger an IO_CACHE overflow
+# Insert ~2KiB of data per transaction
+INSERT INTO t1 VALUES (1, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (2, repeat(0x41, 1024), repeat(0x42, 1024));
+
+## Verify there were no IO_CACHE write events
+
+include/assert.inc [There were 0 writes to IO_CACHE]
+
+# Generate larger transactions to force an IO_CACHE
+# overflow and subsequent write to a temporary file.
+# Insert ~8KiB of data per transaction.
+SET SESSION AUTOCOMMIT=OFF;
+BEGIN;
+INSERT INTO t1 VALUES (3, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (4, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (5, repeat(0x41, 1024), repeat(0x42, 1024));
+INSERT INTO t1 VALUES (6, repeat(0x41, 1024), repeat(0x42, 1024));
+COMMIT;
+SET SESSION AUTOCOMMIT=ON;
+INSERT INTO t1 VALUES (7, repeat(0x41, 4096), repeat(0x42, 4096));
+
+## Verify IO_CACHE write events and that warnings were logged
+
+include/assert.inc [There were >0 writes to IO_CACHE]
+
+MySQLD error output for server 1.1 matching pattern %NDB Binlog: Binary log cache data overflowed to disk%
+relevant
+[warning] ndb binlog: binary log cache data overflowed to disk. consider increasing --binlog-cache-size.
+
+DROP TABLE t1;
