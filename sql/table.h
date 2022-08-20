@@ -4414,14 +4414,14 @@ class FRM_context {
   @param[in]  is_fix_view_cols_and_deps Fix view column data, table
                                         and routine dependency.
 
-  @retval TABLE_SHARE  ON SUCCESS
-  @retval NULL         ON FAILURE
+  @retval 0            ON SUCCESS
+  @retval -1           ON FAILURE
+  @retval -2           ON LESS SEVER FAILURE (see read_frm_file)
 */
-bool create_table_share_for_upgrade(THD *thd, const char *path,
-                                    TABLE_SHARE *share,
-                                    FRM_context *frm_context, const char *db,
-                                    const char *table,
-                                    bool is_fix_view_cols_and_deps);
+int create_table_share_for_upgrade(THD *thd, const char *path,
+                                   TABLE_SHARE *share, FRM_context *frm_context,
+                                   const char *db, const char *table,
+                                   bool is_fix_view_cols_and_deps);
 //////////////////////////////////////////////////////////////////////////
 
 /**

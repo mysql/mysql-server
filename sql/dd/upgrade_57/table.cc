@@ -1507,9 +1507,11 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   }
 
   // Create table share for tables and views.
-  if (create_table_share_for_upgrade(thd, path, &share, &frm_context,
-                                     schema_name.c_str(), table_name.c_str(),
-                                     is_fix_view_cols_and_deps)) {
+  int r = create_table_share_for_upgrade(
+      thd, path, &share, &frm_context, schema_name.c_str(), table_name.c_str(),
+      is_fix_view_cols_and_deps);
+  if (r == -2) return false;  // No error, ignoring file
+  if (r != 0) {
     LogErr(ERROR_LEVEL, ER_CANT_CREATE_TABLE_SHARE_FROM_FRM,
            table_name.c_str());
     return true;
