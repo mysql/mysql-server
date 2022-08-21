@@ -161,6 +161,330 @@ class ndb_pushed_join {
   Field *m_referred_fields[MAX_REFERRED_FIELDS];
 };  // class ndb_pushed_join
 
+struct pushed_table {
+  pushed_table()
+      : m_inner_nest(),
+        m_upper_nests(),
+        m_ancestor_nests(),
+        m_first_inner(0),
+        m_last_inner(0),
+        m_first_upper(-1),
+        m_sj_nest(),
+        m_first_sj_upper(-1),
+        m_key_parents(nullptr),
+        m_ancestors(),
+        m_parent(MAX_TABLES),
+        m_op(nullptr) {}
+
+  /**
+   * As part of analyzing the pushability of each table, the 'join-nest'
+   * structure is collected for the tables. The 'map' represent the id
+   * of each table in the 'nests':
+   *
+   * - The inner-nest contain the set of all *preceding* tables which
+   *   this table has some INNER JOIN relation with. Either by the table(s)
+   *   being directly referred by a inner-join condition on this table,
+   *   or indirectly by being inner joined with one of the referred table(s).
+   *
+   *   Note that no result rows from any of the tables in the inner-nest can
+   *   be produced if there is not a match on all join conditions between the
+   *   tables in an inner-nest. (Except NULL complimented rows for
+   *   entire inner-nest if the nest itself is outer joined.
+   *   (-> has an upper-nest - see below.))
+   *
+   * - The upper-nest(s) are the set of tables which the tables in the
+   *   inner-nest are outer joined with as defined by the nesting topology
+   *   of the mysqld provided query-plan. There might be multiple levels
+   *   of upper nesting (or outer joining), where m_upper_nests contain the
+   *   aggregate of these nests as seen from this table. 'm_first_upper'
+   *   can be used to iterate the m_upper_nests one nest at a time.
+   *
+   * - The m_ancestor_nests are the join-nests actually refered from an
+   *   outer joined (nest-of-)tables. It is set up based on the tables/nests
+   *   actally referred from the SPJ-query as built by this join-pushdown
+   *   handler. It will usually be the same as the upper-nests, but it can
+   *   differ in cases where we entirely skip references to a parent nest
+   *   and just refer tables fra its grand-parent nests, or refer 'sideways'
+   *   into sibling nests.
+   *
+   * These two similar, but different, nest maps are required as both the
+   * inner/outer join properties, as well as the out-of-nest references to
+   * ancestor tables impose limitatins on whether a table can be pushed.
+   * Note that the upper_nests are 'static' in the scope up pushdown handler:
+   * They are set up entirely based on the query-plan provided to it.
+   * The ancestor_nests however are build based on the SPJ query build by
+   * this code.
+   *
+   * In the comments for the optimizer code, and this SPJ handler integration
+   * code, we may use nested pairs of parentheses to express the nest
+   * structures, like:
+   * t1, (t2,t3,(t4)), which means:
+   *
+   * - t2 & t3 has the upper nest [t1], thus t2,t3 are outer joined with t1
+   * - t2 & t3 is in same inner nest, thus they are inner joined with each
+   * other.
+   * - t4 has the upper nest [t2,t3], the aggregated upper nests
+   * (m_upper_nests) for t4 will contain [t1,t2,t3]. (and outer joins with
+   * these).
+   *
+   * eg. t3 will have the m_upper_nests=[t1], and m_inner_nest=[t2],
+   * ('self' not included in inner_nest).
+   *
+   * Note that a table will be present in the m_inner_nest and/or m_upper_nest
+   * even if the table is not join-pushed. 'Self' is not represented in
+   * 'm_inner_nest'.
+   */
+  ndb_table_access_map m_inner_nest;
+
+  // Aggregate of the upper-nest, as defined by the query-plan
+  ndb_table_access_map m_upper_nests;
+
+  // The nests actually refered as ancestors, usually same as m_upper_nests.
+  ndb_table_access_map m_ancestor_nests;
+
+  /**
+   * upper_nests / embedding_nests:
+   *
+   * The sum of the inner- and upper-nests is the 'embedding nests'
+   * for the table. The join semantic for the tables in the
+   * embedding nest is such that no result row can be created from
+   * a row from this table without having a set of rows from all preceding
+   * tables in the embedding nest. (Fulfilling any join conditions)
+   *
+   * The 'embedding nests' plays an important role when analyzing a
+   * table for join pushability:
+   *
+   *  - Assume the previous nest structure: t1, (t2,t3,(t4))
+   *  - t2, t3 both refer only t1 in their join conditions.
+   *  - t4 refers both t2 and t3: 't4.a = t2.x and t4.b = t3.y'.
+   *
+   * Thus, the query has the dependency topology:
+   *
+   *                t1
+   *               /  \
+   *              t2  t3  (Not directly pushable, see below)
+   *               \  /
+   *                t4
+   *
+   * The SPJ implementation require the dependency topology for
+   * a SPJ query to be a plain tree topology (implementation legacy).
+   * Thus the query above is not directly pushable.
+   *
+   * We have two mechanisms for helping us in making such queries pushable:
+   *  1) SPJ allows us to refer values from any ancestor tables.
+   *     (grand-(grand-...)parents).
+   *  2) A table is implicitly dependending on any table in the embedding
+   *     nests, even if no join condition is referring that table.
+   *
+   * For the query above we may use this to add an extra dependency from
+   * t3 on t2. Furthermore t3's join condition on t1 is made a grand-parent
+   * reference to t1, via t2:
+   *
+   *                          t1
+   *                         //
+   *                        t2|  <- t1 values passed via t2
+   *                         \\  <- Added extra dependency on t2
+   *    t2 values, via t3 -> |t3
+   *                         //
+   *                        t4   (Has a join condition on t2 & t3)
+   *
+   * Thus we have transformed the query into a pushable query.
+   * The SPJ handler integration, in combination with the SPJ API,
+   * will add such extra parent dependencies where required, and
+   * allowed by checking that references are from within the
+   * embedding_nests().
+   */
+  ndb_table_access_map embedding_nests() const {
+    ndb_table_access_map nests(m_inner_nest);
+    nests.add(m_upper_nests);
+    return nests;
+  }
+
+  /**
+   * ancestor_nests:
+   *
+   * In additions to the above inner- and upper-nest dependencies, there
+   * may be dependencies on tables outside of the set of inner_ & upper_nests.
+   * Such dependencies are caused by explicit references to non-embedded
+   * tables from the join conditions.
+   *
+   * One such case is the nest structure: t1,(t2),(t3),(t4), where t4 has the
+   * same join condition as above: 't4.a = t2.x and t4.b = t3.y'.
+   * (Join condition is referring both the outer joined t2 and t3, while the
+   * 't4.embedding_nest' contains only t1. Thus neither of t2 and t3 referred
+   * in the t4's join condition is in its embedding_nests())
+   *
+   * Note that this is a perfectly legal join condition, possibly a bit
+   * unusual though.
+   *
+   * If we employed the same rewrite as above (Adding a dependency
+   * on (t2) from (t3)) we would effectively also add the extra condition
+   * 't2 IS NOT NULL, which would have changed the semantic of the query.
+   * Thus, pushing this query could have resulted in an incorrect result
+   * set being returned.
+   *
+   *                 t1
+   *                /  \
+   *              (t2)(t3)  --> Can't be made join pushable!
+   *                \  /
+   *                (t4)
+   *
+   * An exception exists to the above: What if t3 already has a join
+   * condition making it dependent on (the outer joined) t2?
+   * Like the join condition: 'on t3.a = t1.x and t3.b = t2.y'.
+   * That would introduce an explicit dependency between t2 and t3,
+   * similar to the one we added in an example further up. For t3 it also
+   * implies ''t2 IS NOT NULL'.  -> Query becomes pushable.
+   *
+   * We handle this by allowing such explicit 'out of nests' references
+   * to become members of the ancestor_nests of the nest tables referring
+   * them. In the case above the 'outer' references to t2 from t3 will
+   * result in t2 being added to the ancestor_nests of t3.
+   * When analyzing t4 pushability, we will find that the parent table t3
+   * already has t2 as part of its ancestor_nests. Thus t4 becomes pushable.
+   *
+   * When we leave the nest containing the table(s) which made the
+   * 'out of nests' references, such added ancestor_nests references will
+   * also go out of scope.
+   */
+  ndb_table_access_map ancestor_nests() const {
+    ndb_table_access_map nests(m_inner_nest);
+    nests.add(m_ancestor_nests);
+    return nests;
+  }
+
+  bool isOuterJoined(pushed_table &parent) const {
+    return m_first_inner > parent.m_first_inner;
+  }
+  bool isInnerJoined(pushed_table &parent) const {
+    return m_first_inner <= parent.m_first_inner;
+  }
+
+  /**
+   * Some additional join_nest structure for navigating the nest hiararcy:
+   */
+  uint m_first_inner;  // The first table represented in current m_inner_nest
+  uint m_last_inner;   // The last table in current m_inner_nest
+  int m_first_upper;   // The first table in the upper_nest of this table.
+
+  /**
+   * A similar, but simpler, nest topology exists for the semi-joins.
+   * Tables in the semi-join nest are semi joined with any tables outside
+   * the sj_nest.
+   *
+   * Note that tables can still be inner- and outer-joined inside the sj_nest.
+   * Unlike the inner_ and upper_nest maps representing these joins, the
+   * sj_nest for a particular table contains all tables in the sj_nest. (Not
+   * only the preceding tables.)
+   */
+  ndb_table_access_map m_sj_nest;
+
+  /**
+   * The semi-join nests may be nested inside each other as well.
+   * In such cases 'm_first_sj_upper' will refer the start of the sj_nest
+   * we are inside.
+   *
+   * Note that for nested sj_nests, the 'upper' 'm_sj_nest' bitmap will also
+   * contain any semi-join'ed tables in sj_nest's inside it - Contrary to
+   * the inner_nest bitmaps which only contain the tables in each inner-nest.
+   */
+  int m_first_sj_upper;
+
+  /**
+   * For each KEY_PART referred in the join conditions, we find the set of
+   * possible parent tables for each non-const_item KEY_PART.
+   * In addition to the parent table directly referred by the join condition,
+   * any tables *in same join nest*, available by usage of
+   * equality sets, are also added as a possible parent.
+   *
+   * The set of 'key_parents[]' are collected when analyzing query for
+   * join pushability, and saved for later usage by ::optimize_query_plan(),
+   * which will select the actual m_parent to be used for each table.
+   */
+  ndb_table_access_map *m_key_parents;
+
+  /**
+   * The m_ancestor map serves two slightly different purposes:
+   *
+   * 1) During ::optimize_query_plan() we may enforce parent
+   *    dependencies on the ancestor tables by setting the ancestors.
+   *    Such enforcement means that no rows from this table will be
+   *    requested until result row(s) are available from all ancestors.
+   *    Normally any parent tables referred by the join conditions are
+   *    added to m_ancestors at this stage.
+   *
+   * 2) After ::optimize_query_plan() m_ancestors will contain all
+   *    ancestor tables reachable through the m_parent chain
+   *
+   * Note that there are mandatory nest level dependencies as well.
+   * The aggregate of all table ancestors in the same nest
+   * are mandatory ancestors for the nest. This also include
+   * other join_nests embedded with this nest. The method
+   * get_nest_ancestors() is provided for collecting such
+   * dependencies.
+   *
+   * There are implementation limitations in the SPJ-API
+   * ::prepareResultSet() which calls for such ancestor dependencies
+   * to be enforced. It requires an outer-joined treeNode to be either
+   * a child or a sibling of the 'first-inner' of the join nest it
+   * is embedded within. (or: The first_upper)
+   *
+   * The MySQL query optimizer may use the equality set to
+   * 'move up' a joined table such that it is not depending on any
+   * tables in its own join nest (inner joined), or on tables from its
+   * upper-nest (outer joined), which breaks the requirement above.
+   * One such case may be the generic join structure:
+   *
+   *    t1 ij t2 oj (t3 oj (t4))
+   *
+   * Assume that we have the join conditions between these tables:
+   *
+   * - t1 ij t2:  t2.b = t1.a
+   * - t2 oj t3:  t3.c = t2.b
+   * - t3 oj t4:  t4.x = t3.c
+   *
+   * Thus t4 has the equality set: t4.x = [t1.a,t2.b,t3.c].
+   * The optimizer may choose to use this to change the t4 join condition
+   * to t4.x = t1.a, resulting in the dependency tree:
+   *
+   *                t1
+   *         (ij)  /  \ (oj)
+   *              t2  (t4))
+   *         (oj) |
+   *             (t3
+   *
+   * Directly transforming this onto a pushed-join queryTree, will break
+   * the ::prepareResultSet(), 'child or sibling'-rule. (t4 is not a child
+   * or sibling of its 'first_upper' t3).
+   * Such cases are resolved by the nest level m_ancestor enforcement:
+   *
+   *    - We have: t3.m_ancestors = [t1,t2]
+   *    - 'first_upper ancestors are enforced on t4:
+   *      -> t4.m_ancestors = [t1,t2]
+   *
+   * Thus, we will enforce the below SPJ-queryTree to be produced:
+   *
+   *                t1
+   *         (ij)  /
+   *              t2
+   *       (oj)  /  \  (oj)
+   *           (t3 (t4))
+   *
+   * (Note also the nest-dependeny-comments above regarding how extra
+   * dependencies between tables in the same inner-nest may be added)
+   */
+  ndb_table_access_map m_ancestors;
+
+  /**
+   * The actual parent as chosen by ::optimize_query_plan()
+   */
+  uint m_parent;
+
+  // The NdbQueryOperationDef produced when pushing this table
+  const NdbQueryOperationDef *m_op;
+
+};  // struct pushed_table
+
 /**
  * Contains the context and helper methods used during ::make_pushed_join().
  *
@@ -251,7 +575,6 @@ class ndb_pushed_builder_ctx {
   ndb_table_access_map get_table_map(table_map external_map) const;
 
   // get required nest level ancestor
-  struct pushed_table;
   ndb_table_access_map required_ancestors(const pushed_table *table) const;
 
   const Thd_ndb *const m_thd_ndb;
@@ -282,329 +605,7 @@ class ndb_pushed_builder_ctx {
   // Possibly reused if multiple NdbQuery's are pushed.
   NdbQueryBuilder *m_builder;
 
-  struct pushed_table {
-    pushed_table()
-        : m_inner_nest(),
-          m_upper_nests(),
-          m_ancestor_nests(),
-          m_first_inner(0),
-          m_last_inner(0),
-          m_first_upper(-1),
-          m_sj_nest(),
-          m_first_sj_upper(-1),
-          m_key_parents(nullptr),
-          m_ancestors(),
-          m_parent(MAX_TABLES),
-          m_op(nullptr) {}
-
-    /**
-     * As part of analyzing the pushability of each table, the 'join-nest'
-     * structure is collected for the tables. The 'map' represent the id
-     * of each table in the 'nests':
-     *
-     * - The inner-nest contain the set of all *preceding* tables which
-     *   this table has some INNER JOIN relation with. Either by the table(s)
-     *   being directly referred by a inner-join condition on this table,
-     *   or indirectly by being inner joined with one of the referred table(s).
-     *
-     *   Note that no result rows from any of the tables in the inner-nest can
-     *   be produced if there is not a match on all join conditions between the
-     *   tables in an inner-nest. (Except NULL complimented rows for
-     *   entire inner-nest if the nest itself is outer joined.
-     *   (-> has an upper-nest - see below.))
-     *
-     * - The upper-nest(s) are the set of tables which the tables in the
-     *   inner-nest are outer joined with as defined by the nesting topology
-     *   of the mysqld provided query-plan. There might be multiple levels
-     *   of upper nesting (or outer joining), where m_upper_nests contain the
-     *   aggregate of these nests as seen from this table. 'm_first_upper'
-     *   can be used to iterate the m_upper_nests one nest at a time.
-     *
-     * - The m_ancestor_nests are the join-nests actually refered from an
-     *   outer joined (nest-of-)tables. It is set up based on the tables/nests
-     *   actally referred from the SPJ-query as built by this join-pushdown
-     *   handler. It will usually be the same as the upper-nests, but it can
-     *   differ in cases where we entirely skip references to a parent nest
-     *   and just refer tables fra its grand-parent nests, or refer 'sideways'
-     *   into sibling nests.
-     *
-     * These two similar, but different, nest maps are required as both the
-     * inner/outer join properties, as well as the out-of-nest references to
-     * ancestor tables impose limitatins on whether a table can be pushed.
-     * Note that the upper_nests are 'static' in the scope up pushdown handler:
-     * They are set up entirely based on the query-plan provided to it.
-     * The ancestor_nests however are build based on the SPJ query build by
-     * this code.
-     *
-     * In the comments for the optimizer code, and this SPJ handler integration
-     * code, we may use nested pairs of parentheses to express the nest
-     * structures, like:
-     * t1, (t2,t3,(t4)), which means:
-     *
-     * - t2 & t3 has the upper nest [t1], thus t2,t3 are outer joined with t1
-     * - t2 & t3 is in same inner nest, thus they are inner joined with each
-     * other.
-     * - t4 has the upper nest [t2,t3], the aggregated upper nests
-     * (m_upper_nests) for t4 will contain [t1,t2,t3]. (and outer joins with
-     * these).
-     *
-     * eg. t3 will have the m_upper_nests=[t1], and m_inner_nest=[t2],
-     * ('self' not included in inner_nest).
-     *
-     * Note that a table will be present in the m_inner_nest and/or m_upper_nest
-     * even if the table is not join-pushed. 'Self' is not represented in
-     * 'm_inner_nest'.
-     */
-    ndb_table_access_map m_inner_nest;
-
-    // Aggregate of the upper-nest, as defined by the query-plan
-    ndb_table_access_map m_upper_nests;
-
-    // The nests actually refered as ancestors, usually same as m_upper_nests.
-    ndb_table_access_map m_ancestor_nests;
-
-    /**
-     * upper_nests / embedding_nests:
-     *
-     * The sum of the inner- and upper-nests is the 'embedding nests'
-     * for the table. The join semantic for the tables in the
-     * embedding nest is such that no result row can be created from
-     * a row from this table without having a set of rows from all preceding
-     * tables in the embedding nest. (Fulfilling any join conditions)
-     *
-     * The 'embedding nests' plays an important role when analyzing a
-     * table for join pushability:
-     *
-     *  - Assume the previous nest structure: t1, (t2,t3,(t4))
-     *  - t2, t3 both refer only t1 in their join conditions.
-     *  - t4 refers both t2 and t3: 't4.a = t2.x and t4.b = t3.y'.
-     *
-     * Thus, the query has the dependency topology:
-     *
-     *                t1
-     *               /  \
-     *              t2  t3  (Not directly pushable, see below)
-     *               \  /
-     *                t4
-     *
-     * The SPJ implementation require the dependency topology for
-     * a SPJ query to be a plain tree topology (implementation legacy).
-     * Thus the query above is not directly pushable.
-     *
-     * We have two mechanisms for helping us in making such queries pushable:
-     *  1) SPJ allows us to refer values from any ancestor tables.
-     *     (grand-(grand-...)parents).
-     *  2) A table is implicitly dependending on any table in the embedding
-     *     nests, even if no join condition is referring that table.
-     *
-     * For the query above we may use this to add an extra dependency from
-     * t3 on t2. Furthermore t3's join condition on t1 is made a grand-parent
-     * reference to t1, via t2:
-     *
-     *                          t1
-     *                         //
-     *                        t2|  <- t1 values passed via t2
-     *                         \\  <- Added extra dependency on t2
-     *    t2 values, via t3 -> |t3
-     *                         //
-     *                        t4   (Has a join condition on t2 & t3)
-     *
-     * Thus we have transformed the query into a pushable query.
-     * The SPJ handler integration, in combination with the SPJ API,
-     * will add such extra parent dependencies where required, and
-     * allowed by checking that references are from within the
-     * embedding_nests().
-     */
-    ndb_table_access_map embedding_nests() const {
-      ndb_table_access_map nests(m_inner_nest);
-      nests.add(m_upper_nests);
-      return nests;
-    }
-
-    /**
-     * ancestor_nests:
-     *
-     * In additions to the above inner- and upper-nest dependencies, there
-     * may be dependencies on tables outside of the set of inner_ & upper_nests.
-     * Such dependencies are caused by explicit references to non-embedded
-     * tables from the join conditions.
-     *
-     * One such case is the nest structure: t1,(t2),(t3),(t4), where t4 has the
-     * same join condition as above: 't4.a = t2.x and t4.b = t3.y'.
-     * (Join condition is referring both the outer joined t2 and t3, while the
-     * 't4.embedding_nest' contains only t1. Thus neither of t2 and t3 referred
-     * in the t4's join condition is in its embedding_nests())
-     *
-     * Note that this is a perfectly legal join condition, possibly a bit
-     * unusual though.
-     *
-     * If we employed the same rewrite as above (Adding a dependency
-     * on (t2) from (t3)) we would effectively also add the extra condition
-     * 't2 IS NOT NULL, which would have changed the semantic of the query.
-     * Thus, pushing this query could have resulted in an incorrect result
-     * set being returned.
-     *
-     *                 t1
-     *                /  \
-     *              (t2)(t3)  --> Can't be made join pushable!
-     *                \  /
-     *                (t4)
-     *
-     * An exception exists to the above: What if t3 already has a join
-     * condition making it dependent on (the outer joined) t2?
-     * Like the join condition: 'on t3.a = t1.x and t3.b = t2.y'.
-     * That would introduce an explicit dependency between t2 and t3,
-     * similar to the one we added in an example further up. For t3 it also
-     * implies ''t2 IS NOT NULL'.  -> Query becomes pushable.
-     *
-     * We handle this by allowing such explicit 'out of nests' references
-     * to become members of the ancestor_nests of the nest tables referring
-     * them. In the case above the 'outer' references to t2 from t3 will
-     * result in t2 being added to the ancestor_nests of t3.
-     * When analyzing t4 pushability, we will find that the parent table t3
-     * already has t2 as part of its ancestor_nests. Thus t4 becomes pushable.
-     *
-     * When we leave the nest containing the table(s) which made the
-     * 'out of nests' references, such added ancestor_nests references will
-     * also go out of scope.
-     */
-    ndb_table_access_map ancestor_nests() const {
-      ndb_table_access_map nests(m_inner_nest);
-      nests.add(m_ancestor_nests);
-      return nests;
-    }
-
-    bool isOuterJoined(pushed_table &parent) const {
-      return m_first_inner > parent.m_first_inner;
-    }
-    bool isInnerJoined(pushed_table &parent) const {
-      return m_first_inner <= parent.m_first_inner;
-    }
-
-    /**
-     * Some additional join_nest structure for navigating the nest hiararcy:
-     */
-    uint m_first_inner;  // The first table represented in current m_inner_nest
-    uint m_last_inner;   // The last table in current m_inner_nest
-    int m_first_upper;   // The first table in the upper_nest of this table.
-
-    /**
-     * A similar, but simpler, nest topology exists for the semi-joins.
-     * Tables in the semi-join nest are semi joined with any tables outside
-     * the sj_nest.
-     *
-     * Note that tables can still be inner- and outer-joined inside the sj_nest.
-     * Unlike the inner_ and upper_nest maps representing these joins, the
-     * sj_nest for a particular table contains all tables in the sj_nest. (Not
-     * only the preceding tables.)
-     */
-    ndb_table_access_map m_sj_nest;
-
-    /**
-     * The semi-join nests may be nested inside each other as well.
-     * In such cases 'm_first_sj_upper' will refer the start of the sj_nest
-     * we are inside.
-     *
-     * Note that for nested sj_nests, the 'upper' 'm_sj_nest' bitmap will also
-     * contain any semi-join'ed tables in sj_nest's inside it - Contrary to
-     * the inner_nest bitmaps which only contain the tables in each inner-nest.
-     */
-    int m_first_sj_upper;
-
-    /**
-     * For each KEY_PART referred in the join conditions, we find the set of
-     * possible parent tables for each non-const_item KEY_PART.
-     * In addition to the parent table directly referred by the join condition,
-     * any tables *in same join nest*, available by usage of
-     * equality sets, are also added as a possible parent.
-     *
-     * The set of 'key_parents[]' are collected when analyzing query for
-     * join pushability, and saved for later usage by ::optimize_query_plan(),
-     * which will select the actual m_parent to be used for each table.
-     */
-    ndb_table_access_map *m_key_parents;
-
-    /**
-     * The m_ancestor map serves two slightly different purposes:
-     *
-     * 1) During ::optimize_query_plan() we may enforce parent
-     *    dependencies on the ancestor tables by setting the ancestors.
-     *    Such enforcement means that no rows from this table will be
-     *    requested until result row(s) are available from all ancestors.
-     *    Normally any parent tables referred by the join conditions are
-     *    added to m_ancestors at this stage.
-     *
-     * 2) After ::optimize_query_plan() m_ancestors will contain all
-     *    ancestor tables reachable through the m_parent chain
-     *
-     * Note that there are mandatory nest level dependencies as well.
-     * The aggregate of all table ancestors in the same nest
-     * are mandatory ancestors for the nest. This also include
-     * other join_nests embedded with this nest. The method
-     * get_nest_ancestors() is provided for collecting such
-     * dependencies.
-     *
-     * There are implementation limitations in the SPJ-API
-     * ::prepareResultSet() which calls for such ancestor dependencies
-     * to be enforced. It requires an outer-joined treeNode to be either
-     * a child or a sibling of the 'first-inner' of the join nest it
-     * is embedded within. (or: The first_upper)
-     *
-     * The MySQL query optimizer may use the equality set to
-     * 'move up' a joined table such that it is not depending on any
-     * tables in its own join nest (inner joined), or on tables from its
-     * upper-nest (outer joined), which breaks the requirement above.
-     * One such case may be the generic join structure:
-     *
-     *    t1 ij t2 oj (t3 oj (t4))
-     *
-     * Assume that we have the join conditions between these tables:
-     *
-     * - t1 ij t2:  t2.b = t1.a
-     * - t2 oj t3:  t3.c = t2.b
-     * - t3 oj t4:  t4.x = t3.c
-     *
-     * Thus t4 has the equality set: t4.x = [t1.a,t2.b,t3.c].
-     * The optimizer may choose to use this to change the t4 join condition
-     * to t4.x = t1.a, resulting in the dependency tree:
-     *
-     *                t1
-     *         (ij)  /  \ (oj)
-     *              t2  (t4))
-     *         (oj) |
-     *             (t3
-     *
-     * Directly transforming this onto a pushed-join queryTree, will break
-     * the ::prepareResultSet(), 'child or sibling'-rule. (t4 is not a child
-     * or sibling of its 'first_upper' t3).
-     * Such cases are resolved by the nest level m_ancestor enforcement:
-     *
-     *    - We have: t3.m_ancestors = [t1,t2]
-     *    - 'first_upper ancestors are enforced on t4:
-     *      -> t4.m_ancestors = [t1,t2]
-     *
-     * Thus, we will enforce the below SPJ-queryTree to be produced:
-     *
-     *                t1
-     *         (ij)  /
-     *              t2
-     *       (oj)  /  \  (oj)
-     *           (t3 (t4))
-     *
-     * (Note also the nest-dependeny-comments above regarding how extra
-     * dependencies between tables in the same inner-nest may be added)
-     */
-    ndb_table_access_map m_ancestors;
-
-    /**
-     * The actual parent as chosen by ::optimize_query_plan()
-     */
-    uint m_parent;
-
-    // The NdbQueryOperationDef produced when pushing this table
-    const NdbQueryOperationDef *m_op;
-
-  } m_tables[MAX_TABLES];
+  pushed_table m_tables[MAX_TABLES];
 
   // Return all tables in the inner nest, including table after
   // this 'tab_no' which are members of the same join-nest.
