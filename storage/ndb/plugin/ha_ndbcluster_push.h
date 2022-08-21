@@ -24,6 +24,7 @@
 
 #include <assert.h>
 
+#include "sql/abstract_query_plan.h"
 #include "sql/sql_bitmap.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
@@ -35,11 +36,6 @@ class NdbQueryOperationDef;
 class NdbQueryOptions;
 class ndb_pushed_builder_ctx;
 struct NdbError;
-
-namespace AQP {
-class Join_plan;
-class Table_access;
-}  // namespace AQP
 
 /**
  * This type is used in conjunction with AQP::Join_plan and represents a set
@@ -163,7 +159,8 @@ class ndb_pushed_join {
 
 struct pushed_table {
   pushed_table()
-      : m_inner_nest(),
+      : m_aqp(nullptr),
+        m_inner_nest(),
         m_upper_nests(),
         m_ancestor_nests(),
         m_first_inner(0),
@@ -175,6 +172,8 @@ struct pushed_table {
         m_ancestors(),
         m_parent(MAX_TABLES),
         m_op(nullptr) {}
+
+  AQP::Table_access *m_aqp;  // Temp only, to ease interface transition
 
   /**
    * As part of analyzing the pushability of each table, the 'join-nest'
@@ -483,6 +482,80 @@ struct pushed_table {
   // The NdbQueryOperationDef produced when pushing this table
   const NdbQueryOperationDef *m_op;
 
+  ////////////////////////
+  // Provide same interface as AQP, such that we can remove
+  // AQP object references from ha_ndbcluster_push code, and instead
+  // call the methods below.
+  // In current version we just pass the call to AQP. Will change in
+  // later patches, and AQP goes entirely away.
+  //
+  AQP::enum_access_type get_access_type() const {
+    return m_aqp->get_access_type();
+  }
+  const char *get_other_access_reason() const {
+    return m_aqp->get_other_access_reason();
+  }
+  uint get_no_of_key_fields() const { return m_aqp->get_no_of_key_fields(); }
+  const Item *get_key_field(uint field_no) const {
+    return m_aqp->get_key_field(field_no);
+  }
+  const KEY_PART_INFO *get_key_part_info(uint field_no) const {
+    return m_aqp->get_key_part_info(field_no);
+  }
+  uint get_access_no() const { return m_aqp->get_access_no(); }
+  int get_index_no() const { return m_aqp->get_index_no(); }
+  const TABLE *get_table() const { return m_aqp->get_table(); }
+  Item_equal *get_item_equal(const Item_field *field_item) const {
+    return m_aqp->get_item_equal(field_item);
+  }
+  table_map get_tables_in_this_query_scope() const {
+    return m_aqp->get_tables_in_this_query_scope();
+  }
+  table_map get_tables_in_all_query_scopes() const {
+    return m_aqp->get_tables_in_all_query_scopes();
+  }
+
+  const char *get_scope_description() const {
+    return m_aqp->get_scope_description();
+  }
+
+  // Need to return rows in index sort order?
+  bool use_order() const { return m_aqp->use_order(); }
+
+  // Get the condition for 'this' table.
+  Item *get_condition() const { return m_aqp->get_condition(); }
+
+  // Do we have some conditions (aka FILTERs) in the AccessPath
+  // between 'this' table and the 'ancestor'
+  bool has_condition_inbetween(const pushed_table *ancestor) const {
+    return m_aqp->has_condition_inbetween(ancestor->m_aqp);
+  }
+
+  int get_first_sj_inner() const { return m_aqp->get_first_sj_inner(); }
+  int get_last_sj_inner() const { return m_aqp->get_last_sj_inner(); }
+  /**
+  int get_first_sj_upper() const {
+    return m_aqp->get_first_sj_upper();
+  }
+  **/
+
+  // Is member of a SEMI-Join_nest, relative to ancestor?
+  bool is_semi_joined(const pushed_table *ancestor) const {
+    return m_aqp->is_semi_joined(ancestor->m_aqp);
+  }
+  // Is member of an ANTI-Join_nest, relative to ancestor?
+  bool is_anti_joined(const pushed_table *ancestor) const {
+    return m_aqp->is_anti_joined(ancestor->m_aqp);
+  }
+
+  /**
+    Getter and setters for an opaque object for each table.
+    Used by the handler's to persist 'pushability-flags' to avoid
+    overhead by recalculating it for each ::engine_push()
+  */
+  uint get_table_properties() const { return m_aqp->get_table_properties(); }
+  void set_table_properties(uint p) { return m_aqp->set_table_properties(p); }
+
 };  // struct pushed_table
 
 /**
@@ -515,7 +588,7 @@ class ndb_pushed_builder_ctx {
   const NdbError &getNdbError() const;
 
  private:
-  // 'pushability' is stored in AQP::Table_access::set_table_properties()
+  // 'pushability' is stored in ::set_table_properties()
   enum join_pushability {
     PUSHABILITY_UNKNOWN = 0x00,  // Initial 'unknown' value, calculate it
     PUSHABILITY_KNOWN = 0x10,
@@ -523,7 +596,7 @@ class ndb_pushed_builder_ctx {
     PUSHABLE_AS_CHILD = 0x02
   };
 
-  bool maybe_pushable(AQP::Table_access *table, join_pushability check);
+  bool maybe_pushable(pushed_table *table, join_pushability check);
 
   int make_pushed_join(const ndb_pushed_join *&pushed_join);
 
@@ -533,42 +606,42 @@ class ndb_pushed_builder_ctx {
    */
   bool is_pushable_with_root();
 
-  bool is_pushable_as_child(AQP::Table_access *table);
+  bool is_pushable_as_child(pushed_table *table);
 
-  bool is_pushable_as_child_scan(const AQP::Table_access *table,
+  bool is_pushable_as_child_scan(const pushed_table *table,
                                  ndb_table_access_map all_key_parents);
 
-  bool is_pushable_within_nest(const AQP::Table_access *table,
+  bool is_pushable_within_nest(const pushed_table *table,
                                ndb_table_access_map nest,
                                const char *nest_type);
 
-  bool set_ancestor_nests(const AQP::Table_access *table,
+  bool set_ancestor_nests(const pushed_table *table,
                           ndb_table_access_map key_parents);
 
   bool is_const_item_pushable(const Item *key_item,
                               const KEY_PART_INFO *key_part);
 
-  bool is_field_item_pushable(AQP::Table_access *table, const Item *key_item,
+  bool is_field_item_pushable(pushed_table *table, const Item *key_item,
                               const KEY_PART_INFO *key_part,
                               ndb_table_access_map &parents);
 
   void validate_join_nest(ndb_table_access_map nest, uint first, uint last,
                           const char *nest_type);
 
-  void remove_pushable(const AQP::Table_access *table);
+  void remove_pushable(const pushed_table *table);
 
   int optimize_query_plan();
 
   int build_query();
 
-  void collect_key_refs(const AQP::Table_access *table,
+  void collect_key_refs(const pushed_table *table,
                         const Item *key_refs[]) const;
 
-  int build_key(const AQP::Table_access *table, const NdbQueryOperand *op_key[],
+  int build_key(const pushed_table *table, const NdbQueryOperand *op_key[],
                 NdbQueryOptions *key_options);
 
   // Get all parent tables referred by key
-  ndb_table_access_map get_all_key_parents(uint tab_no) const;
+  ndb_table_access_map get_all_key_parents(const pushed_table *table) const;
 
   uint get_table_no(const Item *key_item) const;
 
@@ -580,7 +653,7 @@ class ndb_pushed_builder_ctx {
   const Thd_ndb *const m_thd_ndb;
 
   AQP::Join_plan &m_plan;
-  AQP::Table_access *const m_join_root;
+  pushed_table *const m_join_root;
 
   // Scope of tables covered by this pushed join
   ndb_table_access_map m_join_scope;

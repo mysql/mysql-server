@@ -110,8 +110,7 @@ ndb_pushed_join::ndb_pushed_join(const ndb_pushed_builder_ctx &builder,
   assert(builder.m_fld_refs <= MAX_REFERRED_FIELDS);
   ndb_table_access_map searched;
   for (uint tab_no = 0; searched != builder.m_join_scope; tab_no++) {
-    const AQP::Table_access *const join_tab =
-        builder.m_plan.get_table_access(tab_no);
+    const pushed_table *const join_tab = &builder.m_tables[tab_no];
     if (builder.m_join_scope.contain(tab_no)) {
       assert(m_operation_count < MAX_PUSHED_OPERATIONS);
       m_tables[m_operation_count++] = join_tab->get_table();
@@ -322,14 +321,17 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
                                                AQP::Table_access *root)
     : m_thd_ndb(thd_ndb),
       m_plan(plan),
-      m_join_root(root),
+      m_join_root(&m_tables[root->get_access_no()]),
       m_join_scope(),
       m_const_scope(),
       m_scan_operations(),
       m_has_pending_cond(),
       m_internal_op_count(0),
       m_fld_refs(0),
-      m_builder(nullptr) {}
+      m_builder(nullptr) {
+  // Temporary hack to force interfaces to fit.
+  m_tables[root->get_access_no()].m_aqp = root;
+}
 
 ndb_pushed_builder_ctx::~ndb_pushed_builder_ctx() {
   if (m_builder) {
@@ -342,7 +344,7 @@ const NdbError &ndb_pushed_builder_ctx::getNdbError() const {
   return m_builder->getNdbError();
 }
 
-bool ndb_pushed_builder_ctx::maybe_pushable(AQP::Table_access *table,
+bool ndb_pushed_builder_ctx::maybe_pushable(pushed_table *table,
                                             join_pushability check) {
   DBUG_TRACE;
   const TABLE *tab = table->get_table();
@@ -417,7 +419,7 @@ uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
   const table_map bitmap = key_item->used_tables();
 
   for (uint i = 0; i < count; i++) {
-    const TABLE *table = m_plan.get_table_access(i)->get_table();
+    const TABLE *table = m_tables[i].get_table();
     if (table != nullptr && table->pos_in_table_list != nullptr) {
       const table_map map = table->pos_in_table_list->map();
       if (bitmap & map) {
@@ -450,7 +452,7 @@ ndb_table_access_map ndb_pushed_builder_ctx::get_table_map(
   table_map bitmap = (external_map & ~PSEUDO_TABLE_BITS);
 
   for (uint i = 0; bitmap != 0 && i < count; i++) {
-    const TABLE *table = m_plan.get_table_access(i)->get_table();
+    const TABLE *table = m_tables[i].get_table();
     if (table != nullptr && table->pos_in_table_list != nullptr) {
       const table_map map = table->pos_in_table_list->map();
       if (bitmap & map) {
@@ -485,12 +487,11 @@ ndb_table_access_map ndb_pushed_builder_ctx::required_ancestors(
  * each key reference may have multiple alternative parents.
  */
 ndb_table_access_map ndb_pushed_builder_ctx::get_all_key_parents(
-    uint tab_no) const {
+    const pushed_table *table) const {
   ndb_table_access_map all_key_parents;
-  const AQP::Table_access *table = m_plan.get_table_access(tab_no);
   for (uint key_part_no = 0; key_part_no < table->get_no_of_key_fields();
        key_part_no++) {
-    all_key_parents.add(m_tables[tab_no].m_key_parents[key_part_no]);
+    all_key_parents.add(table->m_key_parents[key_part_no]);
   }
   return all_key_parents;
 }
@@ -662,6 +663,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
      */
     for (uint tab_no = 0; tab_no <= last_table; tab_no++) {
       AQP::Table_access *table = m_plan.get_table_access(tab_no);
+      m_tables[tab_no].m_aqp = table;
 
       /**
        * Build join-nest structure for tables:
@@ -777,7 +779,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
     assert(root_no < last_table);
 
     for (uint tab_no = root_no; tab_no <= last_table; tab_no++) {
-      AQP::Table_access *table = m_plan.get_table_access(tab_no);
+      pushed_table *table = &m_tables[tab_no];
 
       /**
        * Push down join of table if supported:
@@ -823,8 +825,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
         first_sj_inner = m_tables[first_sj_inner].m_first_sj_upper;
         if (first_sj_inner < 0) break;
 
-        AQP::Table_access *upper_table =
-            m_plan.get_table_access(first_sj_inner);
+        pushed_table *upper_table = &m_tables[first_sj_inner];
         last_sj_inner = upper_table->get_last_sj_inner();
       }
 
@@ -872,7 +873,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
  * references with another from the COND_EQUAL sets which make
  * it pushable .
  ****************************************************************/
-bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
+bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
   DBUG_TRACE;
   const uint root_no = m_join_root->get_access_no();
   const uint tab_no = table->get_access_no();
@@ -1091,7 +1092,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     // 2) For all possible_ancestor tables, add its ancestors as well:
     for (uint i = tab_no - 1; i > root_no; i--) {
       if (possible_ancestors.contain(i)) {
-        const ndb_table_access_map all_key_parents(get_all_key_parents(i));
+        const ndb_table_access_map all_key_parents(
+            get_all_key_parents(&m_tables[i]));
         possible_ancestors.add(all_key_parents);          // 2a)
         possible_ancestors.add(m_tables[i].m_ancestors);  // 2b)
       }
@@ -1107,7 +1109,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
           !m_scan_operations.contain(i)) {   // 3b) Is a single-row access type
 
         // 3c) All referred key_parents[] are possible_ancestors.
-        const ndb_table_access_map all_key_parents(get_all_key_parents(i));
+        const ndb_table_access_map all_key_parents(
+            get_all_key_parents(&m_tables[i]));
         if (possible_ancestors.contain(all_key_parents)) {
           possible_ancestors.add(i);
         }
@@ -1151,7 +1154,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     if (m_scan_operations.contain(root_no)) {
       for (uint i = 0; i < root_no; i++) {
         if (m_const_scope.contain(i)) {
-          const TABLE *table = m_plan.get_table_access(i)->get_table();
+          const TABLE *table = m_tables[i].get_table();
           const_expr_tables |= table->pos_in_table_list->map();
         }
       }
@@ -1160,7 +1163,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     if (ndbd_support_param_cmp(m_thd_ndb->ndb->getMinDbNodeVersion())) {
       for (uint i = root_no; i < tab_no; i++) {
         if (possible_ancestors.contain(i)) {
-          const TABLE *table = m_plan.get_table_access(i)->get_table();
+          const TABLE *table = m_tables[i].get_table();
           param_expr_tables |= table->pos_in_table_list->map();
         }
       }
@@ -1334,9 +1337,9 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
  * would be sufficient, however we prefer to 'fail fast'.
  *
  ****************************************************************/
-bool ndb_pushed_builder_ctx::is_pushable_within_nest(
-    const AQP::Table_access *table, ndb_table_access_map nest,
-    const char *nest_type) {
+bool ndb_pushed_builder_ctx::is_pushable_within_nest(const pushed_table *table,
+                                                     ndb_table_access_map nest,
+                                                     const char *nest_type) {
   DBUG_TRACE;
 
   const uint tab_no = table->get_access_no();
@@ -1360,8 +1363,7 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
     pending_conditions.intersect(nest);
     // Report the closest violating table, may be multiple.
     const uint violating = pending_conditions.last_table(tab_no);
-    const TABLE *violating_table =
-        m_plan.get_table_access(violating)->get_table();
+    const TABLE *violating_table = m_tables[violating].get_table();
     if (violating_table != nullptr) {
       EXPLAIN_NO_PUSH(
           "Can't push %s joined table '%s' as child of '%s', "
@@ -1398,8 +1400,7 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
     unpushed_tables.subtract(m_join_scope);
     // Report the closest unpushed table, may be multiple.
     const uint violating = unpushed_tables.last_table(tab_no);
-    const TABLE *violating_table =
-        m_plan.get_table_access(violating)->get_table();
+    const TABLE *violating_table = m_tables[violating].get_table();
     if (violating_table != nullptr) {
       EXPLAIN_NO_PUSH(
           "Can't push %s joined table '%s' as child of '%s', "
@@ -1422,7 +1423,7 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
 }
 
 bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
-    const AQP::Table_access *table, const ndb_table_access_map all_parents) {
+    const pushed_table *table, const ndb_table_access_map all_parents) {
   DBUG_TRACE;
 
   const uint root_no = m_join_root->get_access_no();
@@ -1598,7 +1599,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
  *    dependencies.
  ***************************************************************/
 bool ndb_pushed_builder_ctx::set_ancestor_nests(
-    const AQP::Table_access *table, const ndb_table_access_map depend_parents) {
+    const pushed_table *table, const ndb_table_access_map depend_parents) {
   DBUG_TRACE;
 
   const uint tab_no = table->get_access_no();
@@ -1622,7 +1623,7 @@ bool ndb_pushed_builder_ctx::set_ancestor_nests(
 
   // If remaining dependencies are unavailable from parent, we can't push
   if (!m_tables[parent_no].ancestor_nests().contain(dependencies)) {
-    const AQP::Table_access *const parent = m_plan.get_table_access(parent_no);
+    const pushed_table *const parent = &m_tables[parent_no];
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child of '%s', "
         "as it would make the parent table '%s' "
@@ -1716,7 +1717,7 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
         if (!m_join_scope.contain(tab_no)) {
           continue;  // Possibly already removed by remove_pushable()
         }
-        const AQP::Table_access *const table = m_plan.get_table_access(tab_no);
+        const pushed_table *const table = &m_tables[tab_no];
 
         /**
          * Could have checked both reject conditions at once, but would
@@ -1753,7 +1754,7 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
  * being removed, and possible cascade-removed if they can no longer
  * be part of the pushed join without the removed table(s).
  **********************************************************************/
-void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
+void ndb_pushed_builder_ctx::remove_pushable(const pushed_table *table) {
   DBUG_TRACE;
 
   const uint me = table->get_access_no();
@@ -1762,7 +1763,7 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
 
   // Cascade remove of tables depending on 'me'
   for (uint tab_no = me + 1; tab_no < m_plan.get_access_count(); tab_no++) {
-    table = m_plan.get_table_access(tab_no);
+    table = &m_tables[tab_no];
 
     if (m_join_scope.contain(tab_no)) {
       ndb_table_access_map *key_parents = m_tables[tab_no].m_key_parents;
@@ -1814,8 +1815,8 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
  * operation cannot be pushed).
  */
 bool ndb_pushed_builder_ctx::is_field_item_pushable(
-    AQP::Table_access *table, const Item *key_item,
-    const KEY_PART_INFO *key_part, ndb_table_access_map &field_parents) {
+    pushed_table *table, const Item *key_item, const KEY_PART_INFO *key_part,
+    ndb_table_access_map &field_parents) {
   DBUG_TRACE;
   const uint tab_no = table->get_access_no();
   assert(key_item->type() == Item::FIELD_ITEM);
@@ -1966,8 +1967,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
     // Referred table was not in allowed query_scope.
     const char *scope_type;
     if (referred_table_no < tab_no) {
-      AQP::Table_access *referred_table =
-          m_plan.get_table_access(referred_table_no);
+      const pushed_table *referred_table = &m_tables[referred_table_no];
       scope_type = referred_table->get_scope_description();
     } else {
       scope_type = "subquery";
@@ -2061,8 +2061,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
     ndb_table_access_map extend_parents;
     ndb_table_access_map depend_parents;
 
-    for (uint i = 0;
-         i < m_plan.get_table_access(tab_no)->get_no_of_key_fields(); i++) {
+    for (uint i = 0; i < m_tables[tab_no].get_no_of_key_fields(); i++) {
       assert(m_join_scope.contain(key_parents[i]));
       if (!key_parents[i].is_clear_all()) {  // Key refers a parent field
         /**
@@ -2175,7 +2174,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
   return 0;
 }  // ndb_pushed_builder_ctx::optimize_query_plan
 
-void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
+void ndb_pushed_builder_ctx::collect_key_refs(const pushed_table *table,
                                               const Item *key_refs[]) const {
   DBUG_TRACE;
 
@@ -2291,7 +2290,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
  * is_pushable_as_child(). However ::build_key() need to enforce the
  * added dependencies by calling NdbQueryOptions::setParent(). (below)
  */
-int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
+int ndb_pushed_builder_ctx::build_key(const pushed_table *table,
                                       const NdbQueryOperand *op_key[],
                                       NdbQueryOptions *key_options) {
   DBUG_TRACE;
@@ -2420,7 +2419,7 @@ int ndb_pushed_builder_ctx::build_query() {
   for (uint tab_no = root_no; tab_no < m_plan.get_access_count(); tab_no++) {
     if (!m_join_scope.contain(tab_no)) continue;
 
-    const AQP::Table_access *const table = m_plan.get_table_access(tab_no);
+    const pushed_table *const table = &m_tables[tab_no];
     const AQP::enum_access_type access_type = table->get_access_type();
     ha_ndbcluster *handler =
         down_cast<ha_ndbcluster *>(table->get_table()->file);
@@ -2435,8 +2434,7 @@ int ndb_pushed_builder_ctx::build_query() {
     if (table != m_join_root) {
       assert(m_tables[tab_no].m_parent != MAX_TABLES);
       const uint parent_no = m_tables[tab_no].m_parent;
-      const AQP::Table_access *const parent =
-          m_plan.get_table_access(parent_no);
+      const pushed_table *const parent = &m_tables[parent_no];
 
       if (m_tables[tab_no].isInnerJoined(m_tables[parent_no])) {
         // 'tab_no' is inner joined with its parent
