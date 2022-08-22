@@ -572,7 +572,8 @@ class ndb_pushed_builder_ctx {
       const ndb_pushed_builder_ctx &builder_ctx, const NdbQueryDef *query_def);
 
  public:
-  ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb, AQP::Join_plan &plan);
+  ndb_pushed_builder_ctx(const THD *thd, AQP::Join_plan &plan,
+                         AccessPath *path);
 
   ~ndb_pushed_builder_ctx();
 
@@ -584,7 +585,7 @@ class ndb_pushed_builder_ctx {
    *   = 0: A NdbQueryDef has successfully been prepared for execution.
    *   > 0: Returned value is the error code.
    */
-  int make_pushed_join(Thd_ndb *thd_ndb);
+  int make_pushed_join();
 
   const NdbError &getNdbError() const;
 
@@ -651,7 +652,7 @@ class ndb_pushed_builder_ctx {
   // get required nest level ancestor
   ndb_table_access_map required_ancestors(const pushed_table *table) const;
 
-  const Thd_ndb *const m_thd_ndb;
+  const THD *const m_thd;
 
   pushed_table *m_join_root;
 

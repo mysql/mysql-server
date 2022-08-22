@@ -327,9 +327,10 @@ NdbQuery *ndb_pushed_join::make_query_instance(
 
 /////////////////////////////////////////
 
-ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
-                                               AQP::Join_plan &plan)
-    : m_thd_ndb(thd_ndb),
+ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
+                                               AQP::Join_plan &plan,
+                                               AccessPath *root_path)
+    : m_thd(thd),
       m_join_root(nullptr),
       m_join_scope(),
       m_const_scope(),
@@ -339,6 +340,10 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
       m_fld_refs(0),
       m_builder(nullptr),
       m_table_count(0) {
+  // Temporarily set up a AQP::Join_plan as we are not independent
+  // from it yet
+  plan.construct(root_path);
+
   /**
    * Set up the ndb_pushed_builder_ctx, including its m_tables[],
    * from the AQP::Join_plan.
@@ -363,7 +368,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
    * We use a join-nest stack to keep track of the upper tables
    * we 'unwind' to when leaving an outer-joined nest.
    */
-  Mem_root_array<int> nest_stack(m_thd_ndb->get_thd()->mem_root);
+  Mem_root_array<int> nest_stack(m_thd->mem_root);
   int upper = -1;
 
   /**
@@ -671,7 +676,8 @@ int ndb_pushed_builder_ctx::make_pushed_join(
     error = build_query();
     if (unlikely(error)) return error;
 
-    const NdbQueryDef *const query_def = m_builder->prepare(m_thd_ndb->ndb);
+    const NdbQueryDef *const query_def =
+        m_builder->prepare(get_thd_ndb(m_thd)->ndb);
     if (unlikely(query_def == nullptr))
       return -1;  // Get error with ::getNdbError()
 
@@ -684,7 +690,7 @@ int ndb_pushed_builder_ctx::make_pushed_join(
   return 0;
 }  // ndb_pushed_builder_ctx::make_pushed_join()
 
-int ndb_pushed_builder_ctx::make_pushed_join(Thd_ndb *thd_ndb) {
+int ndb_pushed_builder_ctx::make_pushed_join() {
   DBUG_TRACE;
   assert(m_table_count <= MAX_TABLES);
 
@@ -722,7 +728,7 @@ int ndb_pushed_builder_ctx::make_pushed_join(Thd_ndb *thd_ndb) {
       DBUG_PRINT("info", ("Assigned pushed join with %d child operations",
                           pushed_join->get_operation_count() - 1));
 
-      thd_ndb->m_pushed_queries_defined++;
+      get_thd_ndb(m_thd)->m_pushed_queries_defined++;
     }
   }
   return 0;
@@ -997,8 +1003,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
    */
   ndb_table_access_map all_parents;
   ndb_table_access_map depend_parents;
-  ndb_table_access_map *key_parents = new (m_thd_ndb->get_thd()->mem_root)
-      ndb_table_access_map[no_of_key_fields];
+  ndb_table_access_map *key_parents =
+      new (m_thd->mem_root) ndb_table_access_map[no_of_key_fields];
   m_tables[tab_no].m_key_parents = key_parents;
 
   for (uint key_part_no = 0; key_part_no < no_of_key_fields; key_part_no++) {
@@ -1069,7 +1075,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
    */
   const Item *pending_cond = table->get_condition();
   if (pending_cond != nullptr &&
-      m_thd_ndb->get_thd()->optimizer_switch_flag(
+      m_thd->optimizer_switch_flag(
           OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
     /**
      * Calculate full set of possible ancestors for this table in
@@ -1174,8 +1180,9 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
         }
       }
     }
+    const Ndb *ndb = get_thd_ndb(m_thd)->ndb;
     table_map param_expr_tables(0);
-    if (ndbd_support_param_cmp(m_thd_ndb->ndb->getMinDbNodeVersion())) {
+    if (ndbd_support_param_cmp(ndb->getMinDbNodeVersion())) {
       for (uint i = root_no; i < tab_no; i++) {
         if (possible_ancestors.contain(i)) {
           const TABLE *table = m_tables[i].get_table();
@@ -1456,7 +1463,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
      * Online upgrade, check if we are connected to a 'ndb' allowing us to push
      * outer joined scan operation (ver >= 8.0.20), Else we reject pushing.
      */
-    if (unlikely(!NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb))) {
+    const Ndb *ndb = get_thd_ndb(m_thd)->ndb;
+    if (unlikely(!NdbQueryBuilder::outerJoinedScanSupported(ndb))) {
       EXPLAIN_NO_PUSH(
           "Can't push table '%s' as child of '%s', "
           "outer join of scan-child not implemented",
@@ -1549,7 +1557,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
 
   ndb_table_access_map sj_nest(m_tables[tab_no].m_sj_nest);
   if (sj_nest.contain(tab_no)) {
-    if (unlikely(!NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb))) {
+    const Ndb *ndb = get_thd_ndb(m_thd)->ndb;
+    if (unlikely(!NdbQueryBuilder::outerJoinedScanSupported(ndb))) {
       // Semi-join need support by data nodes
       EXPLAIN_NO_PUSH(
           "Can't push table '%s' as child of '%s', "
@@ -1893,10 +1902,9 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
   //    usable by substituting existing 'key_item_field'.
   //    The hypergraph optimizer do not provide a reliable Item_equal.
   //
-  const Item_equal *item_equal =
-      (!m_thd_ndb->get_thd()->lex->using_hypergraph_optimizer)
-          ? table->get_item_equal(key_item_field)
-          : nullptr;
+  const Item_equal *item_equal = (!m_thd->lex->using_hypergraph_optimizer)
+                                     ? table->get_item_equal(key_item_field)
+                                     : nullptr;
   if (item_equal != nullptr) {
     for (const Item_field &substitute_field : item_equal->get_fields()) {
       if (&substitute_field != key_item_field) {
@@ -2205,8 +2213,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const pushed_table *table,
    * those key_fields within the equality set.
    * When using the Hypergraph optimizer we can't use the Item_equal's.
    **/
-  const bool use_item_equal =
-      !m_thd_ndb->get_thd()->lex->using_hypergraph_optimizer;
+  const bool use_item_equal = !m_thd->lex->using_hypergraph_optimizer;
 
   for (uint key_part_no = 0; key_part_no < table->get_no_of_key_fields();
        key_part_no++) {

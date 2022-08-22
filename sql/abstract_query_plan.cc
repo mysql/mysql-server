@@ -316,10 +316,8 @@ static JoinType getHashJoinType(RelationalExpression::Type join_type) {
  * Join_plan is the representation of the 'Abstract Query Plan'
  * It is constructed from an AccessPath
  */
-Join_plan::Join_plan(THD *thd, AccessPath *path, const JOIN *join)
-    : m_thd(thd), m_join(join), m_table_accesses(thd->mem_root) {
-  construct(new (m_thd->mem_root) Query_scope(), path);
-}
+Join_plan::Join_plan(THD *thd, const JOIN *join)
+    : m_thd(thd), m_join(join), m_table_accesses(thd->mem_root) {}
 
 /**
  * Construct the 'Abstract Query Plan', represented as a 'Join_plan'.
@@ -354,6 +352,10 @@ Join_plan::Join_plan(THD *thd, AccessPath *path, const JOIN *join)
  * need to analyze which part of the Join_plan could be part of the same
  * pushed join
  */
+void Join_plan::construct(AccessPath *root_path) {
+  construct(new (m_thd->mem_root) Query_scope(), root_path);
+}
+
 void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
   switch (path->type) {
     // Basic access paths referring a table.

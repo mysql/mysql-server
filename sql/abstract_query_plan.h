@@ -210,7 +210,9 @@ class Join_plan {
   friend class Table_access;
 
  public:
-  explicit Join_plan(THD *thd, AccessPath *plan, const JOIN *join);
+  explicit Join_plan(THD *thd, const JOIN *join);
+
+  void construct(AccessPath *plan);
 
   Table_access *get_table_access(uint access_no);
   uint get_access_count() const;
