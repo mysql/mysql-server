@@ -584,7 +584,7 @@ class ndb_pushed_builder_ctx {
    *   = 0: A NdbQueryDef has successfully been prepared for execution.
    *   > 0: Returned value is the error code.
    */
-  static int make_pushed_join(Thd_ndb *thd_ndb, AQP::Join_plan &plan);
+  int make_pushed_join(Thd_ndb *thd_ndb);
 
   const NdbError &getNdbError() const;
 

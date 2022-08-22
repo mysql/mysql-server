@@ -14516,6 +14516,7 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
 int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
   DBUG_TRACE;
   AQP::Join_plan query_plan(thd, root_path, join);
+  ndb_pushed_builder_ctx pushed_builder(get_thd_ndb(thd), query_plan);
 
   /**
    * Investigate what could be pushed down as entire joins first.
@@ -14524,8 +14525,7 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
    * such join- and condition pushdowns, so they need to be handled together
    */
   if (THDVAR(thd, join_pushdown)) {  // Enabled 'ndb_join_pushdown'
-    const int error =
-        ndb_pushed_builder_ctx::make_pushed_join(get_thd_ndb(thd), query_plan);
+    const int error = pushed_builder.make_pushed_join(get_thd_ndb(thd));
     if (unlikely(error)) {
       return error;
     }

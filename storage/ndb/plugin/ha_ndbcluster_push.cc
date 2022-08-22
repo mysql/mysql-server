@@ -684,16 +684,12 @@ int ndb_pushed_builder_ctx::make_pushed_join(
   return 0;
 }  // ndb_pushed_builder_ctx::make_pushed_join()
 
-int ndb_pushed_builder_ctx::make_pushed_join(Thd_ndb *thd_ndb,
-                                             AQP::Join_plan &plan) {
+int ndb_pushed_builder_ctx::make_pushed_join(Thd_ndb *thd_ndb) {
   DBUG_TRACE;
-  const uint count = plan.get_access_count();
-  assert(count <= MAX_TABLES);
-  assert(count > 0);
+  assert(m_table_count <= MAX_TABLES);
 
-  ndb_pushed_builder_ctx pushed_builder(thd_ndb, plan);
-  for (uint i = 0; i < count - 1; i++) {
-    pushed_table *const join_root = &pushed_builder.m_tables[i];
+  for (uint i = 0; i < m_table_count - 1; i++) {
+    pushed_table *const join_root = &m_tables[i];
 
     if (join_root->get_table() == nullptr ||
         join_root->get_table()->file->member_of_pushed_join()) {
@@ -702,12 +698,13 @@ int ndb_pushed_builder_ctx::make_pushed_join(Thd_ndb *thd_ndb,
     }
 
     // Try to build a pushed_join starting from this 'join_root'
+    prepare(join_root);
+
     const ndb_pushed_join *pushed_join = nullptr;
-    pushed_builder.prepare(join_root);
-    int error = pushed_builder.make_pushed_join(pushed_join);
+    int error = make_pushed_join(pushed_join);
     if (unlikely(error)) {
       if (error < 0) {
-        error = ndb_to_mysql_error(&pushed_builder.getNdbError());
+        error = ndb_to_mysql_error(&getNdbError());
       }
       join_root->get_table()->file->print_error(error, MYF(0));
       return error;
