@@ -572,10 +572,11 @@ class ndb_pushed_builder_ctx {
       const ndb_pushed_builder_ctx &builder_ctx, const NdbQueryDef *query_def);
 
  public:
-  ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb, AQP::Join_plan &plan,
-                         AQP::Table_access *root);
+  ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb, AQP::Join_plan &plan);
 
   ~ndb_pushed_builder_ctx();
+
+  void prepare(pushed_table *join_root);
 
   /**
    * Build the pushed query identified with 'is_pushable_with_root()'.
@@ -653,7 +654,7 @@ class ndb_pushed_builder_ctx {
   const Thd_ndb *const m_thd_ndb;
 
   AQP::Join_plan &m_plan;
-  pushed_table *const m_join_root;
+  pushed_table *m_join_root;
 
   // Scope of tables covered by this pushed join
   ndb_table_access_map m_join_scope;
