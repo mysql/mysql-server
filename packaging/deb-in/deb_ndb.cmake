@@ -163,6 +163,7 @@ Description: nodejs
 /usr/share/man/man1/ndb_print_frag_file.1*
 /usr/share/man/man1/ndb_print_schema_file.1*
 /usr/share/man/man1/ndb_print_sys_file.1*
+/usr/share/man/man1/ndb_redo_log_reader.1*
 /usr/share/man/man1/ndb_restore.1*
 /usr/share/man/man1/ndb_secretsfile_reader.1*
 /usr/share/man/man1/ndb_select_all.1*
@@ -171,6 +172,6 @@ Description: nodejs
 /usr/share/man/man1/ndb_size.pl.1*
 /usr/share/man/man1/ndb_top.1*
 /usr/share/man/man1/ndb_waiter.1*
-/usr/share/man/man1/ndb_redo_log_reader.1*
 /usr/share/man/man1/ndbinfo_select_all.1*
+/usr/share/man/man1/ndbxfrm.1*
 ")

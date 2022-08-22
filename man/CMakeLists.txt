@@ -89,6 +89,7 @@ SET(MAN1_NDB
   ndb_top.1
   ndb_waiter.1
   ndbinfo_select_all.1
+  ndbxfrm.1
 )
 SET(MAN1_ROUTER
   mysqlrouter.1
