@@ -417,6 +417,8 @@ class HARNESS_EXPORT Directory : public Path {
    */
   DirectoryIterator begin();
 
+  DirectoryIterator begin() const { return cbegin(); }
+
   /**
    * Constant iterator to first entry.
    *
@@ -430,6 +432,8 @@ class HARNESS_EXPORT Directory : public Path {
    * @return Returns an iterator pointing *past-the-end* of the entries.
    */
   DirectoryIterator end();
+
+  DirectoryIterator end() const { return cend(); }
 
   /**
    * Constant iterator past-the-end of entries.
