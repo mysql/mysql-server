@@ -61,11 +61,9 @@ typedef void (*init_func_p)(const struct my_option *option, void *variable,
 my_error_reporter my_getopt_error_reporter = &my_message_local;
 
 static bool getopt_compare_strings(const char *, const char *, uint);
-static longlong getopt_ll(const char *arg, const struct my_option *optp,
-                          int *err);
-static ulonglong getopt_ull(const char *, const struct my_option *, int *);
-static double getopt_double(const char *arg, const struct my_option *optp,
-                            int *err);
+static longlong getopt_ll(const char *, bool, const my_option *, int *);
+static ulonglong getopt_ull(const char *, bool, const my_option *, int *);
+static double getopt_double(const char *, bool, const my_option *, int *);
 static void init_variables(const struct my_option *, init_func_p);
 static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
@@ -801,25 +799,32 @@ static int setval(const struct my_option *opts, void *value,
                                    opts->name, argument);
         break;
       case GET_INT:
-        *((int *)value) = (int)getopt_ll(argument, opts, &err);
+        *((int *)value) =
+            (int)getopt_ll(argument, set_maximum_value, opts, &err);
         break;
       case GET_UINT:
-        *((uint *)value) = (uint)getopt_ull(argument, opts, &err);
+        *((uint *)value) =
+            (uint)getopt_ull(argument, set_maximum_value, opts, &err);
         break;
       case GET_LONG:
-        *((long *)value) = (long)getopt_ll(argument, opts, &err);
+        *((long *)value) =
+            (long)getopt_ll(argument, set_maximum_value, opts, &err);
         break;
       case GET_ULONG:
-        *((long *)value) = (long)getopt_ull(argument, opts, &err);
+        *((long *)value) =
+            (long)getopt_ull(argument, set_maximum_value, opts, &err);
         break;
       case GET_LL:
-        *((longlong *)value) = getopt_ll(argument, opts, &err);
+        *((longlong *)value) =
+            getopt_ll(argument, set_maximum_value, opts, &err);
         break;
       case GET_ULL:
-        *((ulonglong *)value) = getopt_ull(argument, opts, &err);
+        *((ulonglong *)value) =
+            getopt_ull(argument, set_maximum_value, opts, &err);
         break;
       case GET_DOUBLE:
-        *((double *)value) = getopt_double(argument, opts, &err);
+        *((double *)value) =
+            getopt_double(argument, set_maximum_value, opts, &err);
         break;
       case GET_STR:
       case GET_PASSWORD:
@@ -1072,9 +1077,13 @@ template ulonglong eval_num_suffix<ulonglong>(const char *, int *,
   In case of an error, set error value in *err.
 */
 
-static longlong getopt_ll(const char *arg, const struct my_option *optp,
-                          int *err) {
+static longlong getopt_ll(const char *arg, bool set_maximum_value,
+                          const my_option *optp, int *err) {
   longlong num = eval_num_suffix<longlong>(arg, err, optp->name);
+  if (set_maximum_value && *err == 0 &&
+      *static_cast<longlong *>(optp->value) > num) {
+    *static_cast<longlong *>(optp->value) = num;
+  }
   return getopt_ll_limit_value(num, optp, nullptr);
 }
 
@@ -1160,8 +1169,8 @@ static inline bool is_negative_num(const char *num) {
   values.
 */
 
-static ulonglong getopt_ull(const char *arg, const struct my_option *optp,
-                            int *err) {
+static ulonglong getopt_ull(const char *arg, bool set_maximum_value,
+                            const my_option *optp, int *err) {
   char buf[255];
   ulonglong num;
 
@@ -1174,6 +1183,10 @@ static ulonglong getopt_ull(const char *arg, const struct my_option *optp,
   } else
     num = eval_num_suffix<ulonglong>(arg, err, optp->name);
 
+  if (set_maximum_value && *err == 0 &&
+      *static_cast<ulonglong *>(optp->value) > num) {
+    *static_cast<ulonglong *>(optp->value) = num;
+  }
   return getopt_ull_limit_value(num, optp, nullptr);
 }
 
@@ -1253,8 +1266,8 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
     EXIT_ARGUMENT_INVALID.  Otherwise err is not touched.
 */
 
-static double getopt_double(const char *arg, const struct my_option *optp,
-                            int *err) {
+static double getopt_double(const char *arg, bool set_maximum_value,
+                            const my_option *optp, int *err) {
   double num;
   int error;
   const char *end = arg + 1000; /* Big enough as *arg is \0 terminated */
@@ -1264,6 +1277,10 @@ static double getopt_double(const char *arg, const struct my_option *optp,
                              optp->name);
     *err = EXIT_ARGUMENT_INVALID;
     return 0.0;
+  }
+  if (set_maximum_value && *err == 0 &&
+      *static_cast<double *>(optp->value) > num) {
+    *static_cast<double *>(optp->value) = num;
   }
   return getopt_double_limit_value(num, optp, nullptr);
 }
