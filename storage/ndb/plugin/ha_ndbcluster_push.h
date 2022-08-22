@@ -653,7 +653,6 @@ class ndb_pushed_builder_ctx {
 
   const Thd_ndb *const m_thd_ndb;
 
-  AQP::Join_plan &m_plan;
   pushed_table *m_join_root;
 
   // Scope of tables covered by this pushed join
@@ -678,6 +677,9 @@ class ndb_pushed_builder_ctx {
   // Handle to the NdbQuery factory.
   // Possibly reused if multiple NdbQuery's are pushed.
   NdbQueryBuilder *m_builder;
+
+  // Number of pushed_tables
+  uint m_table_count;
 
   pushed_table m_tables[MAX_TABLES];
 

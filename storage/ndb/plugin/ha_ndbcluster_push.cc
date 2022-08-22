@@ -330,7 +330,6 @@ NdbQuery *ndb_pushed_join::make_query_instance(
 ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
                                                AQP::Join_plan &plan)
     : m_thd_ndb(thd_ndb),
-      m_plan(plan),
       m_join_root(nullptr),
       m_join_scope(),
       m_const_scope(),
@@ -338,7 +337,8 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
       m_has_pending_cond(),
       m_internal_op_count(0),
       m_fld_refs(0),
-      m_builder(nullptr) {
+      m_builder(nullptr),
+      m_table_count(0) {
   /**
    * Set up the ndb_pushed_builder_ctx, including its m_tables[],
    * from the AQP::Join_plan.
@@ -356,8 +356,8 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
   ndb_table_access_map inner_nest;
 
   // Keep track of where join-nest and semi_join-nest starts
-  uint first_inner = m_plan.get_table_access(0)->get_first_inner();
-  int first_sj_inner = m_plan.get_table_access(0)->get_first_sj_inner();
+  uint first_inner = plan.get_table_access(0)->get_first_inner();
+  int first_sj_inner = plan.get_table_access(0)->get_first_sj_inner();
 
   /**
    * We use a join-nest stack to keep track of the upper tables
@@ -370,9 +370,11 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
    * Set up the nest structure in m_tables[]. Init even those
    * before the root (in case root_no > 0)
    */
-  const uint last_table = m_plan.get_access_count() - 1;
-  for (uint tab_no = 0; tab_no <= last_table; tab_no++) {
-    AQP::Table_access *table = m_plan.get_table_access(tab_no);
+  m_table_count = plan.get_access_count();
+  assert(m_table_count <= MAX_TABLES);
+
+  for (uint tab_no = 0; tab_no < m_table_count; tab_no++) {
+    AQP::Table_access *table = plan.get_table_access(tab_no);
     m_tables[tab_no].m_aqp = table;
 
     /**
@@ -458,7 +460,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
       last_inner = m_tables[first_inner].m_last_inner;
       first_upper = m_tables[first_inner].m_first_upper;
     }  // while 'leaving a nest'
-  }    // for tab_no [0..last_table]
+  }    // for tab_no [0..m_table_count-1]
   assert(upper_nests.is_clear_all());
   assert(nest_stack.size() == 0);
 }
@@ -476,8 +478,7 @@ void ndb_pushed_builder_ctx::prepare(pushed_table *join_root) {
     m_internal_op_count = 0;
     m_fld_refs = 0;
 
-    const uint last_table = m_plan.get_access_count() - 1;
-    for (uint tab_no = 0; tab_no <= last_table; tab_no++) {
+    for (uint tab_no = 0; tab_no < m_table_count; tab_no++) {
       m_tables[tab_no].m_key_parents = nullptr;
       m_tables[tab_no].m_ancestors.clear_all();
       m_tables[tab_no].m_ancestor_nests.clear_all();
@@ -569,10 +570,9 @@ bool ndb_pushed_builder_ctx::maybe_pushable(pushed_table *table,
  */
 uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
   assert(key_item->type() == Item::FIELD_ITEM);
-  const uint count = m_plan.get_access_count();
   const table_map bitmap = key_item->used_tables();
 
-  for (uint i = 0; i < count; i++) {
+  for (uint i = 0; i < m_table_count; i++) {
     const TABLE *table = m_tables[i].get_table();
     if (table != nullptr && table->pos_in_table_list != nullptr) {
       const table_map map = table->pos_in_table_list->map();
@@ -591,10 +591,9 @@ uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
 ndb_table_access_map ndb_pushed_builder_ctx::get_table_map(
     const table_map external_map) const {
   ndb_table_access_map internal_map;
-  const uint count = m_plan.get_access_count();
   table_map bitmap = (external_map & ~PSEUDO_TABLE_BITS);
 
-  for (uint i = 0; bitmap != 0 && i < count; i++) {
+  for (uint i = 0; bitmap != 0 && i < m_table_count; i++) {
     const TABLE *table = m_tables[i].get_table();
     if (table != nullptr && table->pos_in_table_list != nullptr) {
       const table_map map = table->pos_in_table_list->map();
@@ -797,10 +796,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
   m_const_scope.intersect(root_scope);
 
   {
-    const uint last_table = m_plan.get_access_count() - 1;
-    assert(root_no < last_table);
-
-    for (uint tab_no = root_no; tab_no <= last_table; tab_no++) {
+    for (uint tab_no = root_no; tab_no < m_table_count; tab_no++) {
       pushed_table *table = &m_tables[tab_no];
 
       /**
@@ -871,7 +867,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
         first_upper = m_tables[first_inner].m_first_upper;
 
       }  // while 'leaving a nest'
-    }    // for tab_no [root_no..last_table]
+    }    // for tab_no [root_no..m_table_count-1]
   }
   assert(m_join_scope.contain(root_no));
   return (m_join_scope.last_table() > root_no);  // Anything pushed?
@@ -1784,7 +1780,7 @@ void ndb_pushed_builder_ctx::remove_pushable(const pushed_table *table) {
   m_join_scope.clear_bit(me);
 
   // Cascade remove of tables depending on 'me'
-  for (uint tab_no = me + 1; tab_no < m_plan.get_access_count(); tab_no++) {
+  for (uint tab_no = me + 1; tab_no < m_table_count; tab_no++) {
     table = &m_tables[tab_no];
 
     if (m_join_scope.contain(tab_no)) {
@@ -2056,10 +2052,9 @@ bool ndb_pushed_builder_ctx::is_const_item_pushable(
 int ndb_pushed_builder_ctx::optimize_query_plan() {
   DBUG_TRACE;
   const uint root_no = m_join_root->get_access_no();
-  const uint last_table = m_plan.get_access_count() - 1;
 
   // Find an optimal m_parent to be used when joining the tables
-  for (uint tab_no = last_table; tab_no > root_no; tab_no--) {
+  for (uint tab_no = m_table_count - 1; tab_no > root_no; tab_no--) {
     if (!m_join_scope.contain(tab_no)) continue;
     pushed_table &table = m_tables[tab_no];
 
@@ -2185,7 +2180,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
 
   /* Collect the full set of ancestors available through the selected 'm_parent'
    */
-  for (uint tab_no = root_no + 1; tab_no <= last_table; tab_no++) {
+  for (uint tab_no = root_no + 1; tab_no < m_table_count; tab_no++) {
     if (m_join_scope.contain(tab_no)) {
       pushed_table &table = m_tables[tab_no];
       const uint parent_no = table.m_parent;
@@ -2438,7 +2433,7 @@ int ndb_pushed_builder_ctx::build_query() {
     }
   }
 
-  for (uint tab_no = root_no; tab_no < m_plan.get_access_count(); tab_no++) {
+  for (uint tab_no = root_no; tab_no < m_table_count; tab_no++) {
     if (!m_join_scope.contain(tab_no)) continue;
 
     const pushed_table *const table = &m_tables[tab_no];
@@ -2666,8 +2661,6 @@ int ndb_pushed_builder_ctx::build_query() {
     if (unlikely(!query_op)) return -1;
 
     m_tables[tab_no].m_op = query_op;
-  }  // for (join_cnt= m_join_root->get_access_no();
-     // join_cnt<plan.get_access_count(); join_cnt++)
-
+  }
   return 0;
 }  // ndb_pushed_builder_ctx::build_query()
