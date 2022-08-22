@@ -326,10 +326,7 @@ NdbQuery *ndb_pushed_join::make_query_instance(
 }
 
 /////////////////////////////////////////
-
-ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
-                                               AQP::Join_plan &plan,
-                                               AccessPath *root_path)
+ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd)
     : m_thd(thd),
       m_join_root(nullptr),
       m_join_scope(),
@@ -339,7 +336,10 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
       m_internal_op_count(0),
       m_fld_refs(0),
       m_builder(nullptr),
-      m_table_count(0) {
+      m_table_count(0) {}
+
+void ndb_pushed_builder_ctx::setup(AQP::Join_plan &plan,
+                                   AccessPath *root_path) {
   // Temporarily set up a AQP::Join_plan as we are not independent
   // from it yet
   plan.construct(root_path);

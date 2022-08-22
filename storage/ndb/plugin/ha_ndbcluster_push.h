@@ -572,8 +572,8 @@ class ndb_pushed_builder_ctx {
       const ndb_pushed_builder_ctx &builder_ctx, const NdbQueryDef *query_def);
 
  public:
-  ndb_pushed_builder_ctx(const THD *thd, AQP::Join_plan &plan,
-                         AccessPath *path);
+  ndb_pushed_builder_ctx(const THD *thd);
+  void setup(AQP::Join_plan &plan, AccessPath *root_path);
 
   ~ndb_pushed_builder_ctx();
 

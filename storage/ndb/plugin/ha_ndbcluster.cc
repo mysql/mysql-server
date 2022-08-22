@@ -14515,8 +14515,10 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
  */
 int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
   DBUG_TRACE;
-  AQP::Join_plan query_plan(thd, join);
-  ndb_pushed_builder_ctx pushed_builder(thd, query_plan, root_path);
+  ndb_pushed_builder_ctx pushed_builder(thd);
+  AQP::Join_plan query_plan(thd, join, pushed_builder);
+
+  pushed_builder.setup(query_plan, root_path);
 
   /**
    * Investigate what could be pushed down as entire joins first.

@@ -42,6 +42,8 @@ struct AccessPath;
 struct TABLE;
 struct TABLE_REF;
 
+class ndb_pushed_builder_ctx;
+
 /**
   Abstract query plan (AQP) is an interface for examining certain aspects of
   query plans without accessing the AccessPath directly.
@@ -210,7 +212,8 @@ class Join_plan {
   friend class Table_access;
 
  public:
-  explicit Join_plan(THD *thd, const JOIN *join);
+  explicit Join_plan(THD *thd, const JOIN *join,
+                     ndb_pushed_builder_ctx &builder_ctx);
 
   void construct(AccessPath *plan);
 
@@ -222,6 +225,8 @@ class Join_plan {
 
   THD *const m_thd;
   const JOIN *const m_join;
+  ndb_pushed_builder_ctx &m_builder_ctx;
+
   Mem_root_array<Table_access> m_table_accesses;
 
   // No copying.

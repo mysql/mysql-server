@@ -316,8 +316,12 @@ static JoinType getHashJoinType(RelationalExpression::Type join_type) {
  * Join_plan is the representation of the 'Abstract Query Plan'
  * It is constructed from an AccessPath
  */
-Join_plan::Join_plan(THD *thd, const JOIN *join)
-    : m_thd(thd), m_join(join), m_table_accesses(thd->mem_root) {}
+Join_plan::Join_plan(THD *thd, const JOIN *join,
+                     ndb_pushed_builder_ctx &builder_ctx)
+    : m_thd(thd),
+      m_join(join),
+      m_builder_ctx(builder_ctx),
+      m_table_accesses(thd->mem_root) {}
 
 /**
  * Construct the 'Abstract Query Plan', represented as a 'Join_plan'.
