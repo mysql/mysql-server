@@ -927,6 +927,7 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_mandir}/man1/ndb_print_frag_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_schema_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_sys_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_select_all.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_select_count.1*
@@ -934,8 +935,8 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_top.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
 %attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
+%attr(644, root, root) %{_mandir}/man1/ndbxfrm.1*
 %endif #cluster
 
 %files -f devel.list devel
