@@ -53,6 +53,8 @@ typedef unsigned short Uint16;
 typedef   signed int   Int32;
 typedef unsigned int   Uint32;
 
+typedef Int64 ndb_off_t;
+
 #ifndef INT_MIN64
 #define INT_MIN64       (~0x7FFFFFFFFFFFFFFFLL)
 #endif /* !INT_MIN64 */
@@ -64,6 +66,8 @@ typedef unsigned int   Uint32;
 #ifndef UINT_MAX64
 #define UINT_MAX64      ((Uint64)(~0ULL))
 #endif /* !UINT_MAX64 */
+
+#define NDB_OFF_T_MAX INT_MAX64
 
 typedef unsigned int UintR;
 

@@ -69,7 +69,8 @@ int ndb_file::write_forward(const void* buf, ndb_file::size_t count)
   return dwWritten;
 }
 
-int ndb_file::write_pos(const void* buf, ndb_file::size_t count, ndb_file::off_t offset)
+int ndb_file::write_pos(const void* buf, ndb_file::size_t count,
+                        ndb_off_t offset)
 {
   require(check_block_size_and_alignment(buf, count, offset));
   LARGE_INTEGER li;
@@ -164,7 +165,8 @@ int ndb_file::read_backward(void* buf, ndb_file::size_t count) const
   return dwBytesRead;
 }
 
-int ndb_file::read_pos(void* buf, ndb_file::size_t count, ndb_file::off_t offset) const
+int ndb_file::read_pos(void* buf, ndb_file::size_t count,
+                       ndb_off_t offset) const
 {
   require(check_block_size_and_alignment(buf, count, offset));
   LARGE_INTEGER li;
@@ -195,7 +197,7 @@ int ndb_file::read_pos(void* buf, ndb_file::size_t count, ndb_file::off_t offset
   return dwBytesRead;
 }
 
-ndb_file::off_t ndb_file::get_pos() const
+ndb_off_t ndb_file::get_pos() const
 {
   LARGE_INTEGER off;
   off.QuadPart = 0;
@@ -207,7 +209,7 @@ ndb_file::off_t ndb_file::get_pos() const
   return off.QuadPart;
 }
 
-int ndb_file::set_pos(off_t pos) const
+int ndb_file::set_pos(ndb_off_t pos) const
 {
   require(check_block_size_and_alignment(nullptr, 0, pos));
   LARGE_INTEGER off;
@@ -220,7 +222,7 @@ int ndb_file::set_pos(off_t pos) const
   return 0;
 }
 
-ndb_file::off_t ndb_file::get_size() const
+ndb_off_t ndb_file::get_size() const
 {
   LARGE_INTEGER size;
   BOOL ret_code = GetFileSizeEx(m_handle, &size);
@@ -231,15 +233,15 @@ ndb_file::off_t ndb_file::get_size() const
   return size.QuadPart;
 }
 
-int ndb_file::extend(off_t end, extend_flags flags) const
+int ndb_file::extend(ndb_off_t end, extend_flags flags) const
 {
   require(check_block_size_and_alignment(nullptr, end, end));
-  const off_t saved_file_pos = get_pos();
+  const ndb_off_t saved_file_pos = get_pos();
   if (saved_file_pos == -1)
   {
     return -1;
   }
-  const off_t size = get_size();
+  const ndb_off_t size = get_size();
   if (size == -1)
   {
     return -1;
@@ -286,10 +288,10 @@ int ndb_file::extend(off_t end, extend_flags flags) const
   return 0;
 }
 
-int ndb_file::truncate(off_t end) const
+int ndb_file::truncate(ndb_off_t end) const
 {
   require(check_block_size_and_alignment(nullptr, end, end));
-  const off_t size = get_size();
+  const ndb_off_t size = get_size();
   if (size == -1)
   {
     return -1;

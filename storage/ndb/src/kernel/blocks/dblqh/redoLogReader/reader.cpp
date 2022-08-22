@@ -55,7 +55,10 @@
 using byte = unsigned char;
 
 void usage(const char * prg);
-off_t readFromFile(ndbxfrm_file * xfrm, off_t word_pos, Uint32 *toPtr, Uint32 sizeInWords);
+static ndb_off_t readFromFile(ndbxfrm_file * xfrm,
+                              ndb_off_t word_pos,
+                              Uint32 *toPtr,
+                              Uint32 sizeInWords);
 [[noreturn]] void doExit();
 
 static ndb_file file;
@@ -256,7 +259,7 @@ int main(int argc, char** argv)
     }
   }
   
-  off_t tmpFileOffset =
+  ndb_off_t tmpFileOffset =
       startAtMbyte * REDOLOG_PAGESIZE * REDOLOG_PAGES_IN_MBYTE * sizeof(Uint32);
 
   redoLogPage = new Uint32[REDOLOG_PAGESIZE*REDOLOG_PAGES_IN_MBYTE];
@@ -267,7 +270,7 @@ int main(int argc, char** argv)
   for (Uint32 j = startAtMbyte; j < NO_MBYTE_IN_FILE && !lastPage; j++) {
 
     ndbout_c("mb: %d", j);
-    off_t sz = readFromFile(&xfrm, tmpFileOffset, redoLogPage,
+    ndb_off_t sz = readFromFile(&xfrm, tmpFileOffset, redoLogPage,
                             REDOLOG_PAGESIZE * REDOLOG_PAGES_IN_MBYTE);
     tmpFileOffset += sz;
 
@@ -537,8 +540,8 @@ twiddle_32(Uint32 in)
 // 
 //----------------------------------------------------------------
 
-off_t readFromFile(ndbxfrm_file * xfrm,
-                   off_t word_pos,
+ndb_off_t readFromFile(ndbxfrm_file * xfrm,
+                   ndb_off_t word_pos,
                    Uint32 *toPtr,
                    Uint32 sizeInWords)
 {
@@ -549,7 +552,7 @@ off_t readFromFile(ndbxfrm_file * xfrm,
     ndbout << "Error reading file" << endl;
     doExit();
   }
-  off_t noOfReadWords = (it.begin() - (byte*)toPtr) / sizeof(Uint32);
+  ndb_off_t noOfReadWords = (it.begin() - (byte*)toPtr) / sizeof(Uint32);
   if (noOfReadWords == 0)
   {
     ndbout << "Error reading file" << endl;

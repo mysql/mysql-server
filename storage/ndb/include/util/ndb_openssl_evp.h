@@ -54,6 +54,25 @@ public:
   static constexpr size_t KEY_LEN = 32;
   static constexpr size_t IV_LEN = 32;
   /*
+   * The data unit size is the amount of data that is encrypted with the same
+   * key and IV.
+   *
+   * Note that for XTS what we store and call key_iv pair is the two keys, but
+   * when encrypting a data chunk one also use a 16 bit sector number as IV
+   * calculated from the data position.
+   *
+   * The typical data unit size in Ndb is 32768 bytes since that is the typical
+   * page size.
+   *
+   * The choice of UINT32_MAX as max data unit size serves two purposes:
+   *
+   *   - it works also for 32-bit platforms.
+   *   - the data size per key_iv pair fits in a 64-bit signed int also for XTS
+   *     (needs 48 bits). Which simplifies safe calculations in
+   *     get_needed_key_iv_pair_count().
+   */
+  static constexpr size_t MAX_DATA_UNIT_SIZE = UINT32_MAX;
+  /*
    * MAX_KEY_IV_COUNT is 511 to keep ndb_openssl_evp::key256_iv256_set within
    * 32KiB.
    */
@@ -62,11 +81,11 @@ public:
   static constexpr size_t CBC_KEY_LEN = 32;
   static constexpr size_t CBC_IV_LEN = 16;
   static constexpr size_t CBC_BLOCK_LEN = 16;
-  static constexpr size_t XTS_KEY_LEN = 64;
-  static constexpr size_t XTS_IV_LEN = 16;
+  static constexpr size_t XTS_KEYS_LEN = 64;
+  static constexpr size_t XTS_SEQNUM_LEN = 16;
   static constexpr size_t XTS_BLOCK_LEN = 1;
   static constexpr size_t AESKW_EXTRA = 8;
-  static_assert(KEY_LEN + IV_LEN == XTS_KEY_LEN, "xts uses double key length");
+  static_assert(KEY_LEN + IV_LEN == XTS_KEYS_LEN, "xts uses double key length");
   static_assert(KEY_LEN == CBC_KEY_LEN);
   static_assert(CBC_IV_LEN <= IV_LEN);
 
@@ -91,7 +110,7 @@ public:
   int set_aes_256_xts(bool padding, size_t data_unit_size);
 
   // Set CBC or XTS mode first, prior call
-  size_t get_needed_key_iv_pair_count(off_t estimated_data_size) const;
+  size_t get_needed_key_iv_pair_count(ndb_off_t estimated_data_size) const;
   static constexpr size_t get_pbkdf2_max_key_iv_pair_count(
       size_t keying_material_buffer_size);
   static constexpr size_t get_aeskw_max_key_iv_pair_count(
@@ -166,30 +185,32 @@ public:
   void reset();
   int set_context(const ndb_openssl_evp* context);
 
-  int setup_key_iv(off_t input_position, const byte **key, const byte **iv, byte xts_seq_num[16]);
-  int setup_encrypt_key_iv(off_t input_position);
-  int setup_decrypt_key_iv(off_t input_position, const byte* iv_=nullptr);
+  int setup_key_iv(ndb_off_t input_position, const byte **key, const byte **iv,
+                   byte xts_seq_num[16]);
+  int setup_encrypt_key_iv(ndb_off_t input_position);
+  int setup_decrypt_key_iv(ndb_off_t input_position, const byte* iv_=nullptr);
 
-  int encrypt_init(off_t output_position, off_t input_position);
+  int encrypt_init(ndb_off_t output_position, ndb_off_t input_position);
   int encrypt(output_iterator* out, input_iterator* in);
   int encrypt_end();
 
-  int decrypt_init(off_t output_position, off_t input_position);
-  int decrypt_init_reverse(off_t output_position, off_t input_position);
+  int decrypt_init(ndb_off_t output_position, ndb_off_t input_position);
+  int decrypt_init_reverse(ndb_off_t output_position,
+                           ndb_off_t input_position);
   int decrypt(output_iterator* out, input_iterator* in);
   int decrypt_reverse(output_reverse_iterator* out, input_reverse_iterator* in);
   int decrypt_end();
 
-  off_t get_input_position() const { return m_input_position; }
-  off_t get_output_position() const { return m_output_position; }
+  ndb_off_t get_input_position() const { return m_input_position; }
+  ndb_off_t get_output_position() const { return m_output_position; }
 private:
   enum operation_mode { NO_OP, ENCRYPT, DECRYPT };
   operation_mode m_op_mode;
   bool m_reverse;
   bool m_at_padding_end;
 
-  off_t m_input_position;
-  off_t m_output_position;
+  ndb_off_t m_input_position;
+  ndb_off_t m_output_position;
   const ndb_openssl_evp* m_context;
   EVP_CIPHER_CTX *m_evp_context;
   byte m_key_iv[KEY_LEN + IV_LEN];

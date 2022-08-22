@@ -179,8 +179,8 @@ public:
    */
   virtual bool getParams(BaseString &/*config*/) {return false;}
 
-  virtual off_t getCurrentSize() {return -1;}
-  virtual off_t getMaxSize() {return -1;}
+  virtual ndb_off_t getCurrentSize() {return -1;}
+  virtual ndb_off_t getMaxSize() {return -1;}
 
   /** Max length of the header the log. */
   static constexpr Uint32 MAX_HEADER_LENGTH = 128;

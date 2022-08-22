@@ -366,7 +366,7 @@ public:
 
   int set_data_size(Uint64 size);
   int set_data_crc32(long crc32);
-  int set_file_pos(off_t file_pos);
+  int set_file_pos(ndb_off_t file_pos);
   int set_file_block_size(size_t file_block_size);
   int prepare_for_write(Uint32 trailer_size = 0);
   size_t get_size() const;
@@ -382,8 +382,9 @@ public:
 private:
   int prepare_trailer_for_write();
 
-  int write_ndbxfrm1_trailer(byte* buf, size_t* len, off_t file_pos, size_t file_block_size);
-  int read_ndbxfrm1_trailer(const byte* buf, size_t len, off_t file_pos);
+  int write_ndbxfrm1_trailer(byte* buf, size_t* len, ndb_off_t file_pos,
+                             size_t file_block_size);
+  int read_ndbxfrm1_trailer(const byte* buf, size_t len, ndb_off_t file_pos);
   int validate_trailer() const;
 
   struct fixed_trailer
@@ -433,7 +434,7 @@ private:
     struct fixed_trailer m_trailer;
   } m_buffer;
 
-  off_t m_file_pos;
+  ndb_off_t m_file_pos;
   size_t m_file_block_size;
   size_t m_zero_pad_size;
 };

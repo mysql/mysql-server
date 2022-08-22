@@ -193,11 +193,11 @@ int ndbxfrm_file::open(ndb_file &file, const byte *pwd_key,
              ? (ndb_ceil_div(trailer_max_size, m_file_block_size) *
                 m_file_block_size)
              : trailer_max_size);
-    off_t file_size = m_file->get_size();
+    ndb_off_t file_size = m_file->get_size();
     if (file_size == -1) return -1;
-    if ((off_t)trailer_need > file_size) trailer_need = file_size;
+    if ((ndb_off_t)trailer_need > file_size) trailer_need = file_size;
 
-    off_t old_pos = m_file->get_pos();
+    ndb_off_t old_pos = m_file->get_pos();
     if (old_pos == -1) RETURN(-1);
     if (m_file->set_pos(0) == -1) RETURN(-1);
     require(m_file->set_pos(file_size - trailer_need) != -1);
@@ -226,7 +226,7 @@ int ndbxfrm_file::open(ndb_file &file, const byte *pwd_key,
         m_file_format = FF_RAW;
         m_compressed = m_encrypted = false;
         m_file_block_size = 0;
-        off_t file_size = m_file->get_size();
+        ndb_off_t file_size = m_file->get_size();
         if (file_size == -1) return -1;
         m_data_size = m_payload_end = m_file_size = file_size;
         m_payload_start = 0;
@@ -350,9 +350,9 @@ int ndbxfrm_file::create(
     require(data_page_size == m_file_block_size);
 
     ndbxfrm_input_iterator in = m_file_buffer.get_input_iterator();
-    require((off_t)in.size() == m_payload_start);
+    require((ndb_off_t)in.size() == m_payload_start);
     int n = m_file->write_pos(in.cbegin(), in.size(), 0);
-    if (n != (off_t)in.size()) return -1;
+    if (n != (ndb_off_t)in.size()) return -1;
     in.advance(n);
     m_file_buffer.update_read(in);
     m_file_size = m_payload_start + data_size + data_page_size;
@@ -393,9 +393,9 @@ int ndbxfrm_file::create(
     int n = m_file->write_pos(page, out.begin() - out_begin, m_payload_end);
     require(n == (out.begin() - out_begin));
     m_file->set_pos(m_payload_start);
-    off_t file_size = m_file->get_size();
+    ndb_off_t file_size = m_file->get_size();
     if (file_size == -1) return -1;
-    require(off_t(m_data_size) < file_size);
+    require(ndb_off_t(m_data_size) < file_size);
   }
   require(r == 0);
   return r;
@@ -487,8 +487,8 @@ int ndbxfrm_file::close(bool abort)
       int r = write_trailer(&out, &extra);
       if (!was_compressed)
       {
-        off_t file_size = m_file->get_size();
-        require(off_t(m_data_size) <= file_size + off_t{BUFFER_SIZE});
+        ndb_off_t file_size = m_file->get_size();
+        require(ndb_off_t(m_data_size) <= file_size + ndb_off_t{BUFFER_SIZE});
       }
       if (r == -1)
       {
@@ -541,7 +541,7 @@ int ndbxfrm_file::close(bool abort)
 }
 
 int ndbxfrm_file::transform_pages(ndb_openssl_evp::operation *op,
-                                  off_t data_pos,
+                                  ndb_off_t data_pos,
                                   ndbxfrm_output_iterator *out,
                                   ndbxfrm_input_iterator *in)
 {
@@ -581,7 +581,7 @@ int ndbxfrm_file::transform_pages(ndb_openssl_evp::operation *op,
 }
 
 int ndbxfrm_file::untransform_pages(ndb_openssl_evp::operation *op,
-                                    off_t data_pos,
+                                    ndb_off_t data_pos,
                                     ndbxfrm_output_iterator *out,
                                     ndbxfrm_input_iterator *in)
 {
@@ -869,7 +869,7 @@ int ndbxfrm_file::read_trailer(ndbxfrm_input_reverse_iterator *rin,
     {
       require(trailer_size > 0);
 
-      off_t file_size = m_file->get_size();
+      ndb_off_t file_size = m_file->get_size();
       require((uintmax_t)file_size == m_file_size);
       m_payload_end = file_size - tsz;
     }
@@ -895,7 +895,7 @@ int ndbxfrm_file::read_trailer(ndbxfrm_input_reverse_iterator *rin,
   return 0;
 }
 
-int ndbxfrm_file::read_transformed_pages(off_t data_pos,
+int ndbxfrm_file::read_transformed_pages(ndb_off_t data_pos,
                                          ndbxfrm_output_iterator *out)
 {
   if (!is_definite_offset(m_payload_end))
@@ -917,16 +917,16 @@ int ndbxfrm_file::read_transformed_pages(off_t data_pos,
   }
   require(m_file_op == OP_NONE || m_file_op == OP_READ_FORW);
   // todo verify against payload size
-  off_t file_pos = m_payload_start + data_pos;
-  if (file_pos >= (off_t)m_payload_end)
+  ndb_off_t file_pos = m_payload_start + data_pos;
+  if (file_pos >= (ndb_off_t)m_payload_end)
   {
     require(m_payload_end >= m_payload_start);
     require(m_payload_start >= 0);
     out->set_last();
     return 0;
   }
-  off_t read_end = file_pos + out->size();
-  if (read_end > (off_t)m_payload_end) read_end = m_payload_end;
+  ndb_off_t read_end = file_pos + out->size();
+  if (read_end > (ndb_off_t)m_payload_end) read_end = m_payload_end;
   size_t read_size = read_end - file_pos;
   int nb = m_file->read_pos(out->begin(), read_size, file_pos);
   if (nb == -1)
@@ -947,12 +947,12 @@ int ndbxfrm_file::read_transformed_pages(off_t data_pos,
   return 0;
 }
 
-int ndbxfrm_file::write_transformed_pages(off_t data_pos,
+int ndbxfrm_file::write_transformed_pages(ndb_off_t data_pos,
                                           ndbxfrm_input_iterator *in)
 {
   require(m_file_op == OP_NONE || m_file_op == OP_READ_FORW);
 
-  off_t file_pos = m_payload_start + data_pos;
+  ndb_off_t file_pos = m_payload_start + data_pos;
   int nb = m_file->write_pos(in->cbegin(), in->size(), file_pos);
   if (nb == -1)
   {
@@ -1189,7 +1189,7 @@ int ndbxfrm_file::write_trailer(ndbxfrm_output_iterator *out,
                                 ndbxfrm_output_iterator *extra)
 {
   require(m_file_op == OP_NONE || m_file_op == OP_WRITE_FORW);
-  off_t file_pos = m_file->get_pos();
+  ndb_off_t file_pos = m_file->get_pos();
   file_pos += m_file_buffer.read_size();
   bool was_compressed = m_compressed;
   int r = -1;
@@ -1215,8 +1215,9 @@ int ndbxfrm_file::write_trailer(ndbxfrm_output_iterator *out,
     r = ndbxfrm1.write_trailer(out, extra);
     if (!was_compressed)
     {
-      off_t file_size = m_file->get_size();
-      require(off_t(m_data_size) <= file_size + off_t{BUFFER_SIZE} * 2);
+      ndb_off_t file_size = m_file->get_size();
+      require(ndb_off_t(m_data_size) <=
+                file_size + ndb_off_t{BUFFER_SIZE} * 2);
     }
   }
   else if (m_file_format == FF_RAW)
@@ -1731,11 +1732,12 @@ int ndbxfrm_file::read_backward(ndbxfrm_output_reverse_iterator *out)
   return 2;
 }
 
-off_t ndbxfrm_file::move_to_end()
+ndb_off_t ndbxfrm_file::move_to_end()
 {
   require(is_open());
-  off_t file_pos = m_file_block_size > 0
-                       ? ndb_ceil_div(m_payload_end, (off_t)m_file_block_size) *
+  ndb_off_t file_pos = m_file_block_size > 0
+                       ? ndb_ceil_div(m_payload_end,
+                                      (ndb_off_t)m_file_block_size) *
                              m_file_block_size
                        : m_payload_end;
   require(m_file->set_pos(file_pos) == 0);
@@ -1751,7 +1753,7 @@ off_t ndbxfrm_file::move_to_end()
   ndbxfrm_output_reverse_iterator f_out =
       m_file_buffer.get_output_reverse_iterator();
   size_t count = f_out.size();
-  if ((off_t)count > file_pos) count = file_pos;
+  if ((ndb_off_t)count > file_pos) count = file_pos;
   m_file_pos = file_pos;
   r = m_file->read_backward(f_out.begin() - count, count);
   if (r == -1)

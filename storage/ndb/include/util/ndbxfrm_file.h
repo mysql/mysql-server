@@ -254,8 +254,8 @@ class ndbxfrm_file
  public:
   static constexpr size_t BUFFER_SIZE = ndbxfrm_buffer::size();
   static constexpr Uint64 INDEFINITE_SIZE = UINT64_MAX;
-  static constexpr off_t INDEFINITE_OFFSET = -1;
-  static_assert((off_t)INDEFINITE_SIZE == -1);
+  static constexpr ndb_off_t INDEFINITE_OFFSET = -1;
+  static_assert((ndb_off_t)INDEFINITE_SIZE == -1);
   static_assert(UINT64_MAX == Uint64(INDEFINITE_OFFSET));
 
   using byte = unsigned char;
@@ -300,16 +300,16 @@ class ndbxfrm_file
    * is read and one need to skip implicit checksum checks.
    */
   int close(bool abort);
-  off_t get_size() const { return m_data_size; }
-  off_t get_file_size() const { return m_file_size; }
-  off_t get_file_pos() const { return m_file_pos; }
+  ndb_off_t get_size() const { return m_data_size; }
+  ndb_off_t get_file_size() const { return m_file_size; }
+  ndb_off_t get_file_pos() const { return m_file_pos; }
   size_t get_data_block_size() const { return m_data_block_size; }
-  off_t get_data_size() const { return m_data_size; }
-  off_t get_data_pos() const { return m_data_pos; }
-  bool has_definite_data_size() const { return (m_data_size != INDEFINITE_SIZE); }
-  bool has_definite_file_size() const { return (m_file_size != INDEFINITE_SIZE); }
-  static bool is_definite_size(Uint64 size) { return (size != INDEFINITE_SIZE); }
-  static bool is_definite_offset(off_t offset) { return (offset != INDEFINITE_OFFSET); }
+  ndb_off_t get_data_size() const { return m_data_size; }
+  ndb_off_t get_data_pos() const { return m_data_pos; }
+  bool has_definite_data_size() const;
+  bool has_definite_file_size() const;
+  static bool is_definite_size(Uint64 size);
+  static bool is_definite_offset(ndb_off_t offset);
   bool is_compressed() const { return m_compressed; }
   bool is_encrypted() const { return m_encrypted; }
   size_t get_random_access_block_size() const;
@@ -328,27 +328,27 @@ class ndbxfrm_file
    * different approaches, the caller need to provide the transformed buffers.
    */
   int transform_pages(ndb_openssl_evp::operation* op,
-                      off_t data_pos,
+                      ndb_off_t data_pos,
                       ndbxfrm_output_iterator* out,
                       ndbxfrm_input_iterator* in);
   int untransform_pages(ndb_openssl_evp::operation* op,
-                        off_t data_pos,
+                        ndb_off_t data_pos,
                         ndbxfrm_output_iterator* out,
                         ndbxfrm_input_iterator* in);
-  int read_transformed_pages(off_t data_pos, ndbxfrm_output_iterator* out);
-  int write_transformed_pages(off_t data_pos, ndbxfrm_input_iterator* in);
+  int read_transformed_pages(ndb_off_t data_pos, ndbxfrm_output_iterator* out);
+  int write_transformed_pages(ndb_off_t data_pos, ndbxfrm_input_iterator* in);
 
   int write_forward(ndbxfrm_input_iterator* in);
 
   int read_forward(ndbxfrm_output_iterator* out);
   int read_backward(ndbxfrm_output_reverse_iterator* out);
-  off_t move_to_end();
+  ndb_off_t move_to_end();
 
  private:
   // file fixed properties
   ndb_file* m_file;
   size_t m_file_block_size;
-  off_t m_payload_start;
+  ndb_off_t m_payload_start;
   bool m_append;
   bool m_encrypted;
   bool m_compressed;
@@ -367,8 +367,8 @@ class ndbxfrm_file
   Uint32 m_data_crc32;
 
   // file status
-  off_t m_payload_end;
-  off_t m_file_pos;
+  ndb_off_t m_payload_end;
+  ndb_off_t m_file_pos;
   Uint64 m_data_size;
   Uint64 m_file_size;
   Uint64 m_estimated_data_size;
@@ -457,6 +457,26 @@ inline size_t ndbxfrm_file::get_random_access_block_size() const
   size_t alignment = m_file->get_block_size();
   if (alignment > 0) return alignment;
   return 1;
+}
+
+inline bool ndbxfrm_file::has_definite_data_size() const
+{
+  return (m_data_size != INDEFINITE_SIZE);
+}
+
+inline bool ndbxfrm_file::has_definite_file_size() const
+{
+  return (m_file_size != INDEFINITE_SIZE);
+}
+
+inline bool ndbxfrm_file::is_definite_size(Uint64 size)
+{
+  return (size != INDEFINITE_SIZE);
+}
+
+inline bool ndbxfrm_file::is_definite_offset(ndb_off_t offset)
+{
+  return (offset != INDEFINITE_OFFSET);
 }
 
 #endif

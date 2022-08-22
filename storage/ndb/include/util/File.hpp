@@ -59,7 +59,7 @@ public:
    * @param f a pointer to a FILE descriptor.
    * @return the size of the file.
    */
-  static off_t size(FILE* f);
+  static ndb_off_t size(FILE* f);
 
   /**
    * Renames a file.
@@ -198,7 +198,7 @@ public:
    *
    * @return the file size.
    */
-  off_t size() const;
+  ndb_off_t size() const;
 
   /**
    * Returns the filename.

@@ -32,6 +32,7 @@
 #include <cstdio> // fprintf
 #include <cstdint>
 #include <cstdlib> // abort
+#include "ndb_types.h"
 
 #ifndef _WIN32
 #include <errno.h>
@@ -130,9 +131,16 @@ class ndb_file
 public:
   using byte = uint8_t;
   using size_t = uint64_t;
-  using off_t = int64_t;
-
-  static constexpr uint64_t OFF_T_MAX = UINT64_MAX;
+#ifndef _WIN32
+  /*
+   * On POSIX like system some system functions like lseek is sometimes called
+   * with ndb_off_t put takes and returns off_t, make sure off_t is of same
+   * size.
+   *
+   * On Windows off_t is 32-bit and 64-bit alternatives to lseek will be used.
+   */
+  static_assert(sizeof(ndb_off_t) == sizeof(::off_t));
+#endif
 
 #ifndef _WIN32
   using os_handle = int;
@@ -163,8 +171,8 @@ public:
    * extend and truncate may change file pointer.
    * extend may partially succeed.
    */
-  int extend(off_t end, extend_flags flags) const;
-  int truncate(off_t end) const;
+  int extend(ndb_off_t end, extend_flags flags) const;
+  int truncate(ndb_off_t end) const;
 
   /*
    * Reserve disk blocks for entire file.
@@ -190,9 +198,9 @@ public:
 
   bool is_open() const;
 
-  off_t get_pos() const;
-  int set_pos(off_t pos) const;
-  off_t get_size() const;
+  ndb_off_t get_pos() const;
+  int set_pos(ndb_off_t pos) const;
+  ndb_off_t get_size() const;
 
   size_t get_block_size() const;
   size_t get_block_alignment() const;
@@ -217,16 +225,17 @@ public:
    */
   int append(const void* buf, size_t count);
   int write_forward(const void* buf, size_t count);
-  int write_pos(const void* buf, size_t count, off_t offset);
+  int write_pos(const void* buf, size_t count, ndb_off_t offset);
   int read_forward(void* buf, size_t count) const;
   int read_backward(void* buf, size_t count) const;
-  int read_pos(void* buf, size_t count, off_t offset) const;
+  int read_pos(void* buf, size_t count, ndb_off_t offset) const;
 
 private:
   void init(); // reset all data members
   int do_sync() const;
   int detect_direct_io_block_size_and_alignment();
-  bool check_block_size_and_alignment(const void* buf, size_t count, off_t offset) const;
+  bool check_block_size_and_alignment(const void* buf, size_t count,
+                                      ndb_off_t offset) const;
   bool is_regular_file() const;
   int do_sync_after_write(size_t written_bytes);
 
@@ -285,7 +294,9 @@ inline ndb_file::size_t ndb_file::get_block_alignment() const
   return m_block_alignment;
 }
 
-inline bool ndb_file::check_block_size_and_alignment(const void* buf, size_t count, off_t offset) const
+inline bool ndb_file::check_block_size_and_alignment(const void* buf,
+                                                     size_t count,
+                                                     ndb_off_t offset) const
 {
   if (m_block_size == 0) return true;
 

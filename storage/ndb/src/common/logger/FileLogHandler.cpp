@@ -146,7 +146,7 @@ FileLogHandler::isTimeForNewFile()
   return (m_pLogFile->size() >= m_maxFileSize); 
 }
 
-off_t FileLogHandler::getCurrentSize()
+ndb_off_t FileLogHandler::getCurrentSize()
 {
   return m_pLogFile->size();
 }
