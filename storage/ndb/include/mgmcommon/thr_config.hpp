@@ -150,6 +150,7 @@ protected:
     Uint32 & recv_threads);
 
   static unsigned getMaxEntries(Uint32 type);
+  static unsigned getMinEntries(Uint32 type);
   static const char * getEntryName(Uint32 type);
 
 public:
@@ -160,7 +161,7 @@ public:
     unsigned m_max_cnt;
     bool     m_is_exec_thd; /* Is this a non-blocking execution thread type */
     bool     m_is_permanent;/* Is this a fixed thread type */
-    bool     m_mandatory; /* Is this a mandatory thread type in the ThreadConfig string */
+    unsigned m_default_count; /* Default count of threads created implicitly (ignored if thread type set in threadConfig string) */
   };
 };
 
