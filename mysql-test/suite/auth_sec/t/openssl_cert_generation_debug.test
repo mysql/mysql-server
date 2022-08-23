@@ -86,14 +86,14 @@ let debug_pattern= "d,key_file_write_error";
 let error_pattern= Could not write private key file: ;
 --source include/openssl_cert_generation_debug_test.inc
 
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem.temp
 
 let debug_pattern= "d,cert_pub_key_write_error";
 let error_pattern= Could not write public key file: ;
 --source include/openssl_cert_generation_debug_test.inc
 
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem.temp
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem.temp
 
 --echo # 4. Restart the server and cleanup
 
