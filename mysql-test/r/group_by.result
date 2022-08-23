@@ -4414,3 +4414,25 @@ ORDER BY t2.x;
 x
 NULL
 DROP TABLE t1, t2, t3;
+#
+# Bug#34341503: TPC-DS Q18 SF1 result diff old optimizer vs. hypergraph
+#
+CREATE TABLE t1 (
+id INT,
+x INT,
+PRIMARY KEY (id)
+);
+CREATE TABLE t2 (
+id INT
+);
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+INSERT INTO t2 VALUES (1), (2);
+SELECT t1.x
+FROM t1, t2
+WHERE t1.id = t2.id
+GROUP BY t1.x WITH ROLLUP;
+x
+1
+2
+NULL
+DROP TABLE t1, t2;

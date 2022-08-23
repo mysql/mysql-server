@@ -93,6 +93,42 @@ static void ReplaceUpdateValuesWithTempTableFields(
 }
 
 /**
+  Collects the set of items in the item tree that satisfy the following:
+
+  1) Neither the item itself nor any of its descendants have a reference to a
+     ROLLUP expression (item->has_rollup_expr() evaluates to false).
+  2) The item is either the root item or its parent item does not satisfy 1).
+
+  In other words, we do not collect _every_ item without rollup in the tree.
+  Instead we collect the root item of every largest possible subtree where none
+  of the items in the subtree have rollup.
+
+  TODO(tlchrist): Consider merging this function with the logic for adding
+  additional items to temporary tables for full-text aggregation. See
+  CollectItemsToMaterializeForFullTextAggregation().
+
+  @param root  The root item of the tree to search.
+  @param items A collection of items. We add items that satisfy the search
+               criteria to this collection.
+ */
+static void CollectItemsWithoutRollup(Item *root,
+                                      mem_root_deque<Item *> *items) {
+  CompileItem(
+      root,
+      [items](Item *item) {
+        if (item->has_rollup_expr()) {
+          // Skip the item and continue searching down the item tree.
+          return true;
+        } else {
+          // Add the item and terminate the search in this branch.
+          items->push_back(item);
+          return false;
+        }
+      },
+      [](Item *item) { return item; });
+}
+
+/**
   Creates a temporary table with columns matching the SELECT list of the given
   query block. (In FinalizePlanForQueryBlock(), the SELECT list of the
   query block is updated to point to the fields in the temporary table, but not
@@ -113,18 +149,38 @@ static TABLE *CreateTemporaryTableFromSelectList(
     THD *thd, Query_block *query_block, Window *window,
     Temp_table_param **temp_table_param_arg, bool after_aggregation) {
   JOIN *join = query_block->join;
+  mem_root_deque<Item *> *items_to_materialize = join->fields;
+
+  // We always materialize the items in join->fields. In the pre-aggregation
+  // case where we have rollup items in join->fields we additionally add the
+  // non-rollup descendants of rollup items to the list of items to materialize.
+  // We need to do this because rollup items are removed from items_to_copy in
+  // the temporary table and the replacement logic depends on base fields being
+  // included.
+  if (!after_aggregation &&
+      std::any_of(items_to_materialize->cbegin(), items_to_materialize->cend(),
+                  [](const Item *item) { return item->has_rollup_expr(); })) {
+    items_to_materialize =
+        new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
+    for (Item *item : *join->fields) {
+      items_to_materialize->push_back(item);
+      if (item->has_rollup_expr()) {
+        CollectItemsWithoutRollup(item, items_to_materialize);
+      }
+    }
+  }
 
   Temp_table_param *temp_table_param = new (thd->mem_root) Temp_table_param;
   *temp_table_param_arg = temp_table_param;
   assert(!temp_table_param->precomputed_group_by);
   assert(!temp_table_param->skip_create_table);
   temp_table_param->m_window = window;
-  count_field_types(query_block, temp_table_param, *join->fields,
+  count_field_types(query_block, temp_table_param, *items_to_materialize,
                     /*reset_with_sum_func=*/after_aggregation,
                     /*save_sum_fields=*/after_aggregation);
 
   TABLE *temp_table = create_tmp_table(
-      thd, temp_table_param, *join->fields,
+      thd, temp_table_param, *items_to_materialize,
       /*group=*/nullptr, /*distinct=*/false,
       /*save_sum_fields=*/after_aggregation, query_block->active_options(),
       /*rows_limit=*/HA_POS_ERROR, "<temporary>");
