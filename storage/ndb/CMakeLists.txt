@@ -51,6 +51,7 @@ IF(NOT WITHOUT_SERVER)
     plugin/ha_ndb_ddl_fk.cc
     plugin/ha_ndbinfo.cc
     plugin/ha_ndbinfo_sql.cc
+    plugin/ha_query_plan.cc
     plugin/ndb_local_connection.cc
     plugin/ndb_share.cc
     plugin/ndb_thd.cc

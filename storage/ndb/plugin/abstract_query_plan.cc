@@ -877,76 +877,13 @@ const Join_scope *Table_access::get_join_scope() const {
   return m_join_nest->get_join_scope();
 }
 
-const TABLE_REF *Table_access::get_table_ref() const {
-  switch (m_path->type) {
-    case AccessPath::EQ_REF:
-      return m_path->eq_ref().ref;
-    case AccessPath::REF:
-      return m_path->ref().ref;
-    case AccessPath::MRR:
-      return m_path->mrr().ref;
-    case AccessPath::REF_OR_NULL:
-      return m_path->ref_or_null().ref;
-    case AccessPath::FULL_TEXT_SEARCH:
-      return m_path->full_text_search().ref;
-    case AccessPath::CONST_TABLE:
-      return m_path->const_table().ref;
-    case AccessPath::INDEX_SCAN:
-    case AccessPath::INDEX_RANGE_SCAN:
-      // Might be requested, but rejected later
-      return nullptr;
-    default:
-      return nullptr;
-  }
-}
-
-bool Table_access::use_order() const {
-  switch (m_path->type) {
-    // case AccessPath::EQ_REF:
-    //  return m_path->eq_ref().use_order;
-    case AccessPath::REF:
-      return m_path->ref().use_order;
-    case AccessPath::REF_OR_NULL:
-      return m_path->ref_or_null().use_order;
-    case AccessPath::INDEX_SCAN:
-      return m_path->index_scan().use_order;
-    case AccessPath::FULL_TEXT_SEARCH:
-      return m_path->full_text_search().use_order;
-    default:
-      return false;
-  }
-}
-
-/**
-  Get the number of key values for this operation. It is an error
-  to call this method on an operation that is not an index lookup
-  operation.
-*/
-uint Table_access::get_no_of_key_fields() const {
-  const TABLE_REF *ref = get_table_ref();
-  if (ref == nullptr) return 0;
-  return ref->key_parts;
-}
-
-/**
-  Get the field_no'th key values for this operation. It is an error
-  to call this method on an operation that is not an index lookup
-  operation.
-*/
-const Item *Table_access::get_key_field(uint field_no) const {
-  const TABLE_REF *ref = get_table_ref();
-  if (ref == nullptr) return nullptr;
-  assert(field_no < get_no_of_key_fields());
-  return ref->items[field_no];
-}
-
 /**
   Get the field_no'th KEY_PART_INFO for this operation. It is an error
   to call this method on an operation that is not an index lookup
   operation.
 */
 const KEY_PART_INFO *Table_access::get_key_part_info(uint field_no) const {
-  assert(field_no < get_no_of_key_fields());
+  // assert(field_no < get_no_of_key_fields());
   assert(m_index_no >= 0);
   const KEY *key = &m_table->key_info[m_index_no];
   return &key->key_part[field_no];
@@ -956,17 +893,6 @@ const KEY_PART_INFO *Table_access::get_key_part_info(uint field_no) const {
   Get the table that this operation accesses.
 */
 const TABLE *Table_access::get_table() const { return m_table; }
-
-/** Get the Item_equal's set relevant for the specified 'Item_field' */
-Item_equal *Table_access::get_item_equal(const Item_field *item_field) const {
-  assert(item_field->type() == Item::FIELD_ITEM);
-  const TABLE_LIST *const table_ref = m_table->pos_in_table_list;
-  COND_EQUAL *const cond_equal = table_ref->query_block->join->cond_equal;
-  if (cond_equal != nullptr) {
-    return item_field->find_item_equal(cond_equal);
-  }
-  return nullptr;
-}
 
 /**
   Compute the access type and index (if applicable) of this operation.
@@ -1223,11 +1149,6 @@ bool Table_access::has_condition_inbetween(const Table_access *ancestor) const {
   const table_map filtered_tables =
       m_join_nest->get_filtered_tables(ancestor->m_join_nest);
   return (filtered_tables & m_table->pos_in_table_list->map()) != 0;
-}
-
-Item *Table_access::get_condition() const {
-  if (m_filter == nullptr) return nullptr;
-  return m_filter->filter().condition;
 }
 
 }  // namespace AQP

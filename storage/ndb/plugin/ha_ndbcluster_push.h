@@ -190,6 +190,9 @@ struct pushed_table {
   // An optional AccessPath::FILTER in effect for this table
   const AccessPath *m_filter{nullptr};
 
+  /** May store an opaque property / flag */
+  uint m_properties{0};
+
   /**
    * As part of analyzing the pushability of each table, the 'join-nest'
    * structure is collected for the tables. The 'map' represent the id
@@ -508,19 +511,19 @@ struct pushed_table {
   const char *get_other_access_reason() const {
     return m_aqp->get_other_access_reason();
   }
-  uint get_no_of_key_fields() const { return m_aqp->get_no_of_key_fields(); }
-  const Item *get_key_field(uint field_no) const {
-    return m_aqp->get_key_field(field_no);
-  }
+  uint get_no_of_key_fields() const;
+  const Item *get_key_field(uint field_no) const;
+
   const KEY_PART_INFO *get_key_part_info(uint field_no) const {
     return m_aqp->get_key_part_info(field_no);
   }
   uint get_access_no() const { return m_aqp->get_access_no(); }
   int get_index_no() const { return m_aqp->get_index_no(); }
-  const TABLE *get_table() const { return m_aqp->get_table(); }
-  Item_equal *get_item_equal(const Item_field *field_item) const {
-    return m_aqp->get_item_equal(field_item);
-  }
+
+  const TABLE *get_table() const;
+
+  Item_equal *get_item_equal(const Item_field *field_item) const;
+
   table_map get_tables_in_this_query_scope() const {
     return m_aqp->get_tables_in_this_query_scope();
   }
@@ -533,10 +536,10 @@ struct pushed_table {
   }
 
   // Need to return rows in index sort order?
-  bool use_order() const { return m_aqp->use_order(); }
+  bool use_order() const;
 
   // Get the condition for 'this' table.
-  Item *get_condition() const { return m_aqp->get_condition(); }
+  Item *get_condition() const;
 
   // Do we have some conditions (aka FILTERs) in the AccessPath
   // between 'this' table and the 'ancestor'
@@ -566,9 +569,11 @@ struct pushed_table {
     Used by the handler's to persist 'pushability-flags' to avoid
     overhead by recalculating it for each ::engine_push()
   */
-  uint get_table_properties() const { return m_aqp->get_table_properties(); }
-  void set_table_properties(uint p) { return m_aqp->set_table_properties(p); }
+  uint get_table_properties() const { return m_properties; }
+  void set_table_properties(uint val) { m_properties = val; }
 
+ private:
+  const TABLE_REF *get_table_ref() const;
 };  // struct pushed_table
 
 /**

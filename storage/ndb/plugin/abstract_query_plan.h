@@ -121,10 +121,6 @@ class Table_access {
 
   const char *get_other_access_reason() const;
 
-  uint get_no_of_key_fields() const;
-
-  const Item *get_key_field(uint field_no) const;
-
   const KEY_PART_INFO *get_key_part_info(uint field_no) const;
 
   uint get_access_no() const;
@@ -133,18 +129,10 @@ class Table_access {
 
   const TABLE *get_table() const;
 
-  Item_equal *get_item_equal(const Item_field *field_item) const;
-
   table_map get_tables_in_this_query_scope() const;
   table_map get_tables_in_all_query_scopes() const;
 
   const char *get_scope_description() const;
-
-  // Need to return rows in index sort order?
-  bool use_order() const;
-
-  // Get the condition for 'this' table.
-  Item *get_condition() const;
 
   // Do we have some conditions (aka FILTERs) in the AccessPath
   // between 'this' table and the 'ancestor'
@@ -163,14 +151,6 @@ class Table_access {
 
   // Is member of an ANTI-Join_nest, relative to ancestor?
   bool is_anti_joined(const Table_access *ancestor) const;
-
-  /**
-    Getter and setters for an opaque object for each table.
-    Used by the handler's to persist 'pushability-flags' to avoid
-    overhead by recalculating it for each ::engine_push()
-  */
-  uint get_table_properties() const;
-  void set_table_properties(uint);
 
  private:
   Join_nest *const m_join_nest;
@@ -195,11 +175,7 @@ class Table_access {
   /** The index to use for this operation (if applicable )*/
   mutable int m_index_no{-1};
 
-  /** May store an opaque property / flag */
-  uint m_properties{0};
-
   const Join_scope *get_join_scope() const;
-  const TABLE_REF *get_table_ref() const;
 
   void compute_type_and_index() const;
 };  // class Table_access
@@ -283,10 +259,6 @@ inline int Table_access::get_index_no() const {
   (This number will be in the range 0 to Join_plan::get_access_count() - 1.)
 */
 inline uint Table_access::get_access_no() const { return m_tab_no; }
-
-inline uint Table_access::get_table_properties() const { return m_properties; }
-
-inline void Table_access::set_table_properties(uint val) { m_properties = val; }
 
 }  // namespace AQP
 // namespace AQP
