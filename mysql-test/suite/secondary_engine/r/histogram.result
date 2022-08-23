@@ -13,21 +13,21 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
 EXPLAIN
 -> Filter: (t1.x = 1)  (rows=1)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
 EXPLAIN
 -> Filter: (t1.x = 2)  (rows=1)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
 -> Filter: (t1.x = 3)  (rows=1)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
@@ -40,21 +40,21 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
 EXPLAIN
 -> Filter: (t1.x = 1)  (rows=8)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
 EXPLAIN
 -> Filter: (t1.x = 2)  (rows=2)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
 -> Filter: (t1.x = 3)  (rows=1)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
@@ -73,21 +73,21 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
 EXPLAIN
 -> Filter: (t1.x = 1)  (rows=1)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
 EXPLAIN
 -> Filter: (t1.x = 2)  (rows=1)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
 -> Filter: (t1.x = 3)  (rows=1)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
@@ -100,21 +100,21 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
 EXPLAIN
 -> Filter: (t1.x = 1)  (rows=8)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
 EXPLAIN
 -> Filter: (t1.x = 2)  (rows=2)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
 -> Filter: (t1.x = 3)  (rows=1)
-    -> Table scan on t1  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one

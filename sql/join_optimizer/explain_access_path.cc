@@ -912,8 +912,14 @@ static std::unique_ptr<Json_object> SetObjectMembers(
   switch (path->type) {
     case AccessPath::TABLE_SCAN: {
       TABLE *table = path->table_scan().table;
-      description += string("Table scan on ") + table->alias +
-                     table->file->explain_extra();
+      description += string("Table scan on ") + table->alias;
+      if (table->s->is_secondary_engine()) {
+        error |= AddMemberToObject<Json_string>(obj, "secondary_engine",
+                                                table->file->table_type());
+        description +=
+            string(" in secondary engine ") + table->file->table_type();
+      }
+      description += table->file->explain_extra();
 
       error |= AddMemberToObject<Json_string>(obj, "table_name", table->alias);
       error |= AddMemberToObject<Json_string>(obj, "access_type", "table");

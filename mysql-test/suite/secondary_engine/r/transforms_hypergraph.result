@@ -219,18 +219,18 @@ SELECT 1 FROM t AS t3 WHERE a <=>
 );
 EXPLAIN
 -> Left hash join (no condition)  (cost=7.64..8.32 rows=3)
-    -> Table scan on t1  (cost=0.17..0.50 rows=3)
+    -> Table scan on t1 in secondary engine MOCK  (cost=0.17..0.50 rows=3)
     -> Hash
         -> Filter: (t3.a <=> derived_2_3.a)  (cost=7.28..7.28 rows=0.3)
             -> Hash semijoin (no condition)  (cost=6.30..6.98 rows=3)
-                -> Table scan on t2  (cost=0.17..0.50 rows=3)
+                -> Table scan on t2 in secondary engine MOCK  (cost=0.17..0.50 rows=3)
                 -> Hash
                     -> Left hash join (no condition)  (cost=3.80..5.07 rows=9)
-                        -> Table scan on t3  (cost=0.17..0.50 rows=3)
+                        -> Table scan on t3 in secondary engine MOCK  (cost=0.17..0.50 rows=3)
                         -> Hash
                             -> Table scan on derived_2_3  (cost=1.65..3.34 rows=3)
                                 -> Materialize  (cost=0.80..0.80 rows=3)
-                                    -> Table scan on t4  (cost=0.17..0.50 rows=3)
+                                    -> Table scan on t4 in secondary engine MOCK  (cost=0.17..0.50 rows=3)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one

@@ -49,33 +49,58 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-EXPLAIN FORMAT=JSON SELECT * FROM t1;
+EXPLAIN FORMAT=JSON SELECT * FROM t1, t1 t2 WHERE t1.a = t2.a;
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.60"
+      "query_cost": "1.20"
     },
-    "table": {
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 1,
-      "rows_produced_per_join": 1,
-      "filtered": "100.00",
-      "using_secondary_engine": "MOCK",
-      "cost_info": {
-        "read_cost": "0.50",
-        "eval_cost": "0.10",
-        "prefix_cost": "0.60",
-        "data_read_per_join": "8"
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "100.00",
+          "using_secondary_engine": "MOCK",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.60",
+            "data_read_per_join": "8"
+          },
+          "used_columns": [
+            "a"
+          ]
+        }
       },
-      "used_columns": [
-        "a"
-      ]
-    }
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "100.00",
+          "using_join_buffer": "hash join",
+          "using_secondary_engine": "MOCK",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.20",
+            "data_read_per_join": "8"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "attached_condition": "(`test`.`t2`.`a` = `test`.`t1`.`a`)"
+        }
+      }
+    ]
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 DROP TABLE t1;
