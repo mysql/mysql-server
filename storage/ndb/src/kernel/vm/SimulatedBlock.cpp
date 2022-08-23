@@ -4618,7 +4618,7 @@ SimulatedBlock::cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
 {
   const Uint32 typeId = AttributeDescriptor::getType(attrDesc);
   NdbSqlUtil::Cmp *cmp = NdbSqlUtil::getType(typeId).m_cmp;
-  return (*cmp)(cs, s1, s1Len, s2, s1Len);
+  return (*cmp)(cs, s1, s1Len, s2, s2Len);
 }
 
 

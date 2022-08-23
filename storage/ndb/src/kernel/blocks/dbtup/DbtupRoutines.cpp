@@ -1985,11 +1985,6 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
   req_struct->xfrm_flag = tmp;
   
   ndbrequire(req_struct->out_buf_index == attributeHeader.getByteSize());
-  if (unlikely(ahIn.getDataSize() != attributeHeader.getDataSize()))
-  {
-    thrjam(req_struct->jamBuffer);
-    return true;
-  }
 
   if (charsetFlag)
   {
@@ -2013,12 +2008,18 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
    * non-character column. (Little endian format would have required
    * 'cmp_attr' to correctly compare '>' or '<')
    */
-  else if (unlikely(memcmp(&keyReadBuffer[0], 
-                    &updateBuffer[1],
-                    req_struct->out_buf_index) != 0))
-  {
-    thrjam(req_struct->jamBuffer);
-    return true;
+  else {
+    /* Not charset, use binary comparison */
+    if (unlikely(ahIn.getDataSize() != attributeHeader.getDataSize())) {
+      thrjam(req_struct->jamBuffer);
+      return true;
+    }
+
+    if (unlikely(memcmp(&keyReadBuffer[0], &updateBuffer[1],
+                        req_struct->out_buf_index) != 0)) {
+      thrjam(req_struct->jamBuffer);
+      return true;
+    }
   }
   return false;
 }
