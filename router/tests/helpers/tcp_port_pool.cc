@@ -213,8 +213,6 @@ UniqueId::UniqueId(UniqueId &&other) {
 }
 
 uint16_t TcpPortPool::get_next_available() {
-  net::io_context io_ctx;
-
   while (true) {
     if (number_of_ids_used_ % kPortsPerFile == 0) {
       number_of_ids_used_ = 0;
