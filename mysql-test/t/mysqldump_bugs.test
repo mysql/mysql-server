@@ -117,6 +117,22 @@ DROP DATABASE IF EXISTS mysqk;
 DROP DATABASE IF EXISTS mysqll;
 DROP USER view_u1, view_u2@my.oracle.com, event_u1, event_u2@192.1.1.140, trig_u1, trig_u2@xyz.com,
           proc_u1, proc_u2@localhost, func_u1, func_u2, user_not_referenced_as_definer;
+USE test;
+
+--echo #
+--echo # WL#13292: Deprecate legacy connection compression parameters
+--echo #
+
+USE test;
+CREATE TABLE wl13292(a INT PRIMARY KEY);
+
+--echo # exec mysqldump --compress: must have a deprecation warning
+--exec $MYSQL_DUMP --compress --skip-create-options --compact test wl13292 2>&1
+--echo # exec mysqldump --compression-algorithms: must not have a deprecation warning
+--exec $MYSQL_DUMP --compression-algorithms=zlib,uncompressed --skip-create-options --compact test wl13292 2>&1
+
+DROP TABLE wl13292;
+
 
 --echo # End of 8.0 tests
 

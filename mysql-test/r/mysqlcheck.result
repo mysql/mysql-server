@@ -352,5 +352,11 @@ CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
 GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
 mysql.user                                         OK
 DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+#
+# WL#13292: Deprecate legacy connection compression parameters
+#
+# exec mysqlcheck --compress: must have a deprecation warning
+WARNING: --compress is deprecated and will be removed in a future version. Use --compression-algorithms instead.
+# exec mysqlcheck --compression-algorithms: must not have a deprecation warning
 
 End of tests

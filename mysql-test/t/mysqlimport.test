@@ -38,5 +38,20 @@ DROP TABLE mysql.test;
 DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
 --remove_file $MYSQL_TMP_DIR/test.txt
 
+--echo #
+--echo # WL#13292: Deprecate legacy connection compression parameters
+--echo #
+
+CREATE TABLE mysql.test(a INT PRIMARY KEY);
+--exec echo "" > $MYSQL_TMP_DIR/test.txt
+--echo # exec mysqlimport --compress: must have a deprecation warning
+--exec $MYSQL_IMPORT --host=127.0.0.1 -P $MASTER_MYPORT --protocol=TCP --compress --local mysql $MYSQL_TMP_DIR/test.txt 2>&1
+--echo # exec mysqlimport --compression-algorithms: must not have a deprecation warning
+--exec $MYSQL_IMPORT --host=127.0.0.1 -P $MASTER_MYPORT --protocol=TCP --compression-algorithms=zlib,uncompressed --local mysql $MYSQL_TMP_DIR/test.txt 2>&1
+
+--echo # cleanup
+DROP TABLE mysql.test;
+--remove_file $MYSQL_TMP_DIR/test.txt
+
 --echo
 --echo End of tests

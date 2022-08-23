@@ -2286,6 +2286,10 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       warning(CLIENT_WARN_DEPRECATED_MSG("--stop-never-slave-server-id",
                                          "--connection-server-id"));
       break;
+    case 'C':
+      warning(
+          CLIENT_WARN_DEPRECATED_MSG("--compress", "--compression-algorithms"));
+      break;
   }
   if (tty_password) pass = get_tty_password(NullS);
 

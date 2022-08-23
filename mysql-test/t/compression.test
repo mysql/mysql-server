@@ -357,3 +357,26 @@ SELECT @@global.protocol_compression_algorithms;
 
 DROP USER wl12475@localhost;
 DROP DATABASE wl12475;
+
+
+--echo #
+--echo # WL#13292: Deprecate legacy connection compression parameters
+--echo #
+
+CREATE DATABASE wl13292;
+CREATE TABLE wl13292.t1(a INT);
+INSERT INTO wl13292.t1 VALUES (1);
+
+--echo # exec mysqlshow --compress: must have a deprecation warning
+--exec $MYSQL_SHOW --compress wl13292 2>&1
+
+--echo # exec mysqlslap --compress: must have a deprecation warning
+--exec $MYSQL_SLAP --create-schema=test --no-drop --silent --delimiter=";" --query="INSERT INTO wl13292.t1 VALUES (2)" --concurrency=2 --iterations=1 --compress --commit=1 2>&1
+
+--echo # exec mysqtest --compress: must have a deprecation warning
+--exec echo "SELECT 1;" | $MYSQL_TEST --compress 2>&1
+
+DROP DATABASE wl13292;
+
+
+--echo End of 8.0 tests

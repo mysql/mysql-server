@@ -2100,6 +2100,9 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
       opt_binhex = (argument != disabled_my_option);
       opt_binary_as_hex_set_explicitly = true;
       break;
+    case 'C':
+      CLIENT_WARN_DEPRECATED("--compress", "--compression-algorithms");
+      break;
   }
   return false;
 }

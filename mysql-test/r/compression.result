@@ -555,3 +555,26 @@ SELECT @@global.protocol_compression_algorithms;
 zlib,zstd,uncompressed
 DROP USER wl12475@localhost;
 DROP DATABASE wl12475;
+#
+# WL#13292: Deprecate legacy connection compression parameters
+#
+CREATE DATABASE wl13292;
+CREATE TABLE wl13292.t1(a INT);
+INSERT INTO wl13292.t1 VALUES (1);
+# exec mysqlshow --compress: must have a deprecation warning
+WARNING: --compress is deprecated and will be removed in a future version. Use --compression-algorithms instead.
+Database: wl13292
++--------+
+| Tables |
++--------+
+| t1     |
++--------+
+# exec mysqlslap --compress: must have a deprecation warning
+WARNING: --compress is deprecated and will be removed in a future version. Use --compression-algorithms instead.
+# exec mysqtest --compress: must have a deprecation warning
+WARNING: --compress is deprecated and will be removed in a future version. Use --compression-algorithms instead.
+SELECT 1;
+1
+1
+DROP DATABASE wl13292;
+End of 8.0 tests

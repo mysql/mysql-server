@@ -9,3 +9,4 @@ SELECT REPEAT('T', 16777211);
 disconnect con1;
 connection default;
 SET GLOBAL MAX_ALLOWED_PACKET=default;
+WARNING: --compress is deprecated and will be removed in a future version. Use --compression-algorithms instead.

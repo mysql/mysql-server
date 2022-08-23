@@ -28,6 +28,7 @@ mysqld is alive
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqld is alive
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+WARNING: --compress is deprecated and will be removed in a future version. Use --compression-algorithms instead.
 mysqld is alive
 CREATE USER testadmin_user1;
 FLUSH PRIVILEGES;

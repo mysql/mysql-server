@@ -373,6 +373,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case 'I': /* Info */
       usage();
       exit(0);
+    case 'C':
+      CLIENT_WARN_DEPRECATED("--compress", "--compression-algorithms");
+      break;
   }
   return false;
 }

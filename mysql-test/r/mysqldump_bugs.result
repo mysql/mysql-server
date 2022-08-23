@@ -178,4 +178,28 @@ DROP DATABASE IF EXISTS mysqk;
 DROP DATABASE IF EXISTS mysqll;
 DROP USER view_u1, view_u2@my.oracle.com, event_u1, event_u2@192.1.1.140, trig_u1, trig_u2@xyz.com,
 proc_u1, proc_u2@localhost, func_u1, func_u2, user_not_referenced_as_definer;
+USE test;
+#
+# WL#13292: Deprecate legacy connection compression parameters
+#
+USE test;
+CREATE TABLE wl13292(a INT PRIMARY KEY);
+# exec mysqldump --compress: must have a deprecation warning
+WARNING: --compress is deprecated and will be removed in a future version. Use --compression-algorithms instead.
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wl13292` (
+  `a` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+# exec mysqldump --compression-algorithms: must not have a deprecation warning
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wl13292` (
+  `a` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE wl13292;
 # End of 8.0 tests

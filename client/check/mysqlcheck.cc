@@ -363,6 +363,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
       opt_protocol =
           find_type_or_exit(argument, &sql_protocol_typelib, opt->name);
       break;
+    case OPT_COMPRESS:
+      CLIENT_WARN_DEPRECATED("--compress", "--compression-algorithms");
+      break;
   }
 
   if (orig_what_to_do && (what_to_do != orig_what_to_do)) {

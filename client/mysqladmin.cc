@@ -364,6 +364,9 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
     case OPT_ENABLE_CLEARTEXT_PLUGIN:
       using_opt_enable_cleartext_plugin = true;
       break;
+    case 'C':
+      CLIENT_WARN_DEPRECATED("--compress", "--compression-algorithms");
+      break;
   }
   if (error) {
     usage();

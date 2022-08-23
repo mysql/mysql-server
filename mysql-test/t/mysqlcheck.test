@@ -108,5 +108,15 @@ GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
 
 DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
 
+--echo #
+--echo # WL#13292: Deprecate legacy connection compression parameters
+--echo #
+
+--echo # exec mysqlcheck --compress: must have a deprecation warning
+--exec $MYSQL_CHECK --compress --databases test 2>&1
+--echo # exec mysqlcheck --compression-algorithms: must not have a deprecation warning
+--exec $MYSQL_CHECK --compression-algorithms=zlib,uncompressed --databases test 2>&1
+
+
 --echo
 --echo End of tests

@@ -1005,6 +1005,9 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case (int)OPT_LONG_QUERY_TIME:
       long_query_time_opt_provided = true;
       break;
+    case 'C':
+      CLIENT_WARN_DEPRECATED("--compress", "--compression-algorithms");
+      break;
   }
   return false;
 }
