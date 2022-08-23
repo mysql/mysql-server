@@ -24,9 +24,9 @@
 
 #include <assert.h>
 
-#include "sql/abstract_query_plan.h"
 #include "sql/sql_bitmap.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+#include "storage/ndb/plugin/abstract_query_plan.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 
 class NdbTransaction;

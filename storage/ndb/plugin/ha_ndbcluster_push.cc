@@ -32,7 +32,6 @@
 #include "storage/ndb/plugin/ha_ndbcluster_push.h"
 
 #include "my_dbug.h"
-#include "sql/abstract_query_plan.h"
 #include "sql/current_thd.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
@@ -40,6 +39,7 @@
 #include "storage/ndb/include/ndb_version.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 #include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
+#include "storage/ndb/plugin/abstract_query_plan.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_cond.h"
 #include "storage/ndb/plugin/ndb_thd.h"
@@ -338,6 +338,9 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd)
       m_builder(nullptr),
       m_table_count(0) {}
 
+/**
+ * Setup ndb_pushed_builder_ctx from the 'plan'.
+ */
 void ndb_pushed_builder_ctx::setup(AQP::Join_plan &plan,
                                    AccessPath *root_path) {
   // Temporarily set up a AQP::Join_plan as we are not independent

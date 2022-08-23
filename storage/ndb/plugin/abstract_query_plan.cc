@@ -24,12 +24,12 @@
 
 #include <stddef.h>
 
+#include "abstract_query_plan.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "sql/abstract_query_plan.h"
 #include "sql/filesort.h"
 #include "sql/item.h"
 #include "sql/join_optimizer/access_path.h"

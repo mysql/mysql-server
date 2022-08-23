@@ -38,7 +38,6 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "mysql/psi/mysql_thread.h"
-#include "sql/abstract_query_plan.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
@@ -59,6 +58,7 @@
 #include "storage/ndb/include/ndb_version.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 #include "storage/ndb/include/util/SparseBitmask.hpp"
+#include "storage/ndb/plugin/abstract_query_plan.h"
 #include "storage/ndb/plugin/ha_ndb_index_stat.h"
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"
 #include "storage/ndb/plugin/ha_ndbcluster_cond.h"
