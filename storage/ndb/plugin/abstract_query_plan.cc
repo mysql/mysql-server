@@ -24,7 +24,6 @@
 
 #include <stddef.h>
 
-#include "abstract_query_plan.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -36,6 +35,8 @@
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/sql_optimizer.h"
 #include "sql/thr_malloc.h"
+#include "storage/ndb/plugin/abstract_query_plan.h"
+#include "storage/ndb/plugin/ha_ndbcluster_push.h"
 
 namespace AQP {
 
@@ -378,8 +379,13 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
     // INDEX_MERGE is not 'basic' as it also refer indexes,
     // but a 'table' nevertheless.
     case AccessPath::INDEX_MERGE: {
+      const uint tab_no = m_table_accesses.size();
       m_table_accesses.push_back(
           Table_access(this, nest_ctx, path, nest_ctx->m_filter));
+
+      m_builder_ctx.m_tables[tab_no].m_path = path;
+      m_builder_ctx.m_tables[tab_no].m_table = GetBasicTable(path);
+      m_builder_ctx.m_tables[tab_no].m_filter = nest_ctx->m_filter;
       nest_ctx->m_filter = nullptr;  // Transferred to Table_access
       break;
     }
@@ -391,7 +397,11 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
     case AccessPath::ZERO_ROWS_AGGREGATED:
     case AccessPath::MATERIALIZED_TABLE_FUNCTION:
     case AccessPath::UNQUALIFIED_COUNT: {
+      const uint tab_no = m_table_accesses.size();
       m_table_accesses.push_back(Table_access(this, nest_ctx, path, nullptr));
+      m_builder_ctx.m_tables[tab_no].m_path = path;
+      m_builder_ctx.m_tables[tab_no].m_table = nullptr;
+      m_builder_ctx.m_tables[tab_no].m_filter = nullptr;
       break;
     }
     case AccessPath::NESTED_LOOP_JOIN: {

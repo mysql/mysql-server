@@ -175,6 +175,21 @@ struct pushed_table {
 
   AQP::Table_access *m_aqp;  // Temp only, to ease interface transition
 
+  ////////////////// Temp comment, will change //////////
+  // Duplicates some member variables from AQP::Table_access.
+  // As part of merging AQP functionality into this structure,
+  // we will copy over from AQP in first integration step,
+  // later fill in directly from AccessPath when constructed.
+
+  // A 'basic' AccessPath having a table reference
+  const AccessPath *m_path{nullptr};
+
+  // The table accessed by m_path
+  const TABLE *m_table{nullptr};
+
+  // An optional AccessPath::FILTER in effect for this table
+  const AccessPath *m_filter{nullptr};
+
   /**
    * As part of analyzing the pushability of each table, the 'join-nest'
    * structure is collected for the tables. The 'map' represent the id
