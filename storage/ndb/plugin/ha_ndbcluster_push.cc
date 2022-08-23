@@ -69,18 +69,16 @@ static const char *get_referred_table_access_name(
   return field_item->field->table->alias;
 }
 
-static bool ndbcluster_is_lookup_operation(AQP::enum_access_type accessType) {
-  return accessType == AQP::AT_PRIMARY_KEY ||
-         accessType == AQP::AT_UNIQUE_KEY ||
-         accessType == AQP::AT_MULTI_PRIMARY_KEY ||
-         accessType == AQP::AT_MULTI_UNIQUE_KEY;
+static bool ndbcluster_is_lookup_operation(enum_access_type accessType) {
+  return accessType == AT_PRIMARY_KEY || accessType == AT_UNIQUE_KEY ||
+         accessType == AT_MULTI_PRIMARY_KEY ||
+         accessType == AT_MULTI_UNIQUE_KEY;
 }
 
 /* Is some sort of Multi-range-read accessType ? */
-static bool ndbcluster_is_mrr_operation(AQP::enum_access_type accessType) {
-  return accessType == AQP::AT_MULTI_PRIMARY_KEY ||
-         accessType == AQP::AT_MULTI_UNIQUE_KEY ||
-         accessType == AQP::AT_MULTI_MIXED;
+static bool ndbcluster_is_mrr_operation(enum_access_type accessType) {
+  return accessType == AT_MULTI_PRIMARY_KEY ||
+         accessType == AT_MULTI_UNIQUE_KEY || accessType == AT_MULTI_MIXED;
 }
 
 uint ndb_table_access_map::first_table(uint start) const {
@@ -538,20 +536,20 @@ bool ndb_pushed_builder_ctx::maybe_pushable(pushed_table *table,
   pushable = 0;  // Assume not pushable
 
   switch (table->get_access_type()) {
-    case AQP::AT_VOID:
+    case AT_VOID:
       assert(false);
       reason = "UNKNOWN";
       break;
 
-    case AQP::AT_FIXED:
+    case AT_FIXED:
       reason = "optimized away, or const'ified by optimizer";
       break;
 
-    case AQP::AT_UNDECIDED:
+    case AT_UNDECIDED:
       reason = "Access type was not chosen at 'prepare' time";
       break;
 
-    case AQP::AT_OTHER:
+    case AT_OTHER:
       reason = table->get_other_access_reason();
       break;
 
@@ -741,18 +739,18 @@ int ndb_pushed_builder_ctx::make_pushed_join() {
  * Find the number SPJ operations needed to execute a given access type.
  * (Unique index lookups are translated to two single table lookups internally.)
  */
-uint internal_operation_count(AQP::enum_access_type accessType) {
+uint internal_operation_count(enum_access_type accessType) {
   switch (accessType) {
-    case AQP::AT_PRIMARY_KEY:
-    case AQP::AT_ORDERED_INDEX_SCAN:
-    case AQP::AT_MULTI_PRIMARY_KEY:
-    case AQP::AT_MULTI_MIXED:
-    case AQP::AT_TABLE_SCAN:
+    case AT_PRIMARY_KEY:
+    case AT_ORDERED_INDEX_SCAN:
+    case AT_MULTI_PRIMARY_KEY:
+    case AT_MULTI_MIXED:
+    case AT_TABLE_SCAN:
       return 1;
 
       // Unique key lookups is mapped to two primary key lookups internally.
-    case AQP::AT_UNIQUE_KEY:
-    case AQP::AT_MULTI_UNIQUE_KEY:
+    case AT_UNIQUE_KEY:
+    case AT_MULTI_UNIQUE_KEY:
       return 2;
 
     default:
@@ -785,8 +783,8 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
    * Analyze tables below 'm_join_root' as potential members of a pushed
    * join query starting with root.
    */
-  const AQP::enum_access_type access_type = m_join_root->get_access_type();
-  assert(access_type != AQP::AT_VOID);
+  const enum_access_type access_type = m_join_root->get_access_type();
+  assert(access_type != AT_VOID);
   const uint root_no = m_join_root->get_access_no();
 
   m_fld_refs = 0;
@@ -907,7 +905,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
     return false;
   }
 
-  const AQP::enum_access_type access_type = table->get_access_type();
+  const enum_access_type access_type = table->get_access_type();
 
   if (ndbcluster_is_mrr_operation(access_type)) {
     const char *type = table->get_other_access_reason();
@@ -921,7 +919,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
   }
 
   if (!(ndbcluster_is_lookup_operation(access_type) ||
-        access_type == AQP::AT_ORDERED_INDEX_SCAN)) {
+        access_type == AT_ORDERED_INDEX_SCAN)) {
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child, 'type' must be a 'ref' access",
         table->get_table()->alias);
@@ -931,7 +929,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
   }
 
   // There is a limitation in not allowing LOOKUP - (index)SCAN operations
-  if (access_type == AQP::AT_ORDERED_INDEX_SCAN &&
+  if (access_type == AT_ORDERED_INDEX_SCAN &&
       !m_scan_operations.contain(root_no)) {
     EXPLAIN_NO_PUSH(
         "Push of table '%s' as scan-child "
@@ -2444,7 +2442,7 @@ int ndb_pushed_builder_ctx::build_query() {
     if (!m_join_scope.contain(tab_no)) continue;
 
     const pushed_table *const table = &m_tables[tab_no];
-    const AQP::enum_access_type access_type = table->get_access_type();
+    const enum_access_type access_type = table->get_access_type();
     ha_ndbcluster *handler =
         down_cast<ha_ndbcluster *>(table->get_table()->file);
 
@@ -2621,13 +2619,13 @@ int ndb_pushed_builder_ctx::build_query() {
     const NdbQueryOperationDef *query_op = nullptr;
     if (!m_scan_operations.contain(tab_no)) {
       // Primary key access assumed
-      if (access_type == AQP::AT_PRIMARY_KEY ||
-          access_type == AQP::AT_MULTI_PRIMARY_KEY) {
+      if (access_type == AT_PRIMARY_KEY ||
+          access_type == AT_MULTI_PRIMARY_KEY) {
         DBUG_PRINT("info", ("Operation is 'primary-key-lookup'"));
         query_op = m_builder->readTuple(handler->m_table, op_key, &options);
       } else {
-        assert(access_type == AQP::AT_UNIQUE_KEY ||
-               access_type == AQP::AT_MULTI_UNIQUE_KEY);
+        assert(access_type == AT_UNIQUE_KEY ||
+               access_type == AT_MULTI_UNIQUE_KEY);
         DBUG_PRINT("info", ("Operation is 'unique-index-lookup'"));
         const NdbDictionary::Index *const index =
             handler->m_index[table->get_index_no()].unique_index;
@@ -2643,8 +2641,8 @@ int ndb_pushed_builder_ctx::build_query() {
      * the pushed MRR implementation. However, the future plan is to build both
      * RANGE and KEY pushable joins for these.
      */
-    else if (access_type == AQP::AT_ORDERED_INDEX_SCAN ||
-             access_type == AQP::AT_MULTI_MIXED) {
+    else if (access_type == AT_ORDERED_INDEX_SCAN ||
+             access_type == AT_MULTI_MIXED) {
       assert(table->get_index_no() >= 0);
       assert(handler->m_index[table->get_index_no()].index != nullptr);
 
@@ -2658,7 +2656,7 @@ int ndb_pushed_builder_ctx::build_query() {
       query_op =
           m_builder->scanIndex(handler->m_index[table->get_index_no()].index,
                                handler->m_table, &bounds, &options);
-    } else if (access_type == AQP::AT_TABLE_SCAN) {
+    } else if (access_type == AT_TABLE_SCAN) {
       DBUG_PRINT("info", ("Operation is 'table scan'"));
       query_op = m_builder->scanTable(handler->m_table, &options);
     } else {

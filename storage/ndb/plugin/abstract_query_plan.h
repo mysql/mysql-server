@@ -67,7 +67,6 @@ class ndb_pushed_builder_ctx;
   specific logic. As NDB is the only user of it, it should probably be made
   a part of storage/ndb/plugin longer term.
 */
-namespace AQP {
 
 /** The type of a table access operation. */
 enum enum_access_type {
@@ -100,6 +99,8 @@ enum enum_access_type {
    */
   AT_OTHER
 };
+
+namespace AQP {
 
 class Join_plan;
 class Join_nest;

@@ -14555,9 +14555,9 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
       ha_ndbcluster *const ndb_handler = dynamic_cast<ha_ndbcluster *>(ha);
       if (ndb_handler == nullptr) continue;
 
-      const AQP::enum_access_type jt = table.get_access_type();
-      if ((jt == AQP::AT_PRIMARY_KEY || jt == AQP::AT_UNIQUE_KEY ||
-           jt == AQP::AT_OTHER) &&  // CONST or SYSTEM
+      const enum_access_type jt = table.get_access_type();
+      if ((jt == AT_PRIMARY_KEY || jt == AT_UNIQUE_KEY ||
+           jt == AT_OTHER) &&  // CONST or SYSTEM
           !ha->member_of_pushed_join()) {
         /*
           It is of limited value to push a condition to a single row

@@ -489,9 +489,7 @@ struct pushed_table {
   // In current version we just pass the call to AQP. Will change in
   // later patches, and AQP goes entirely away.
   //
-  AQP::enum_access_type get_access_type() const {
-    return m_aqp->get_access_type();
-  }
+  enum_access_type get_access_type() const { return m_aqp->get_access_type(); }
   const char *get_other_access_reason() const {
     return m_aqp->get_other_access_reason();
   }
