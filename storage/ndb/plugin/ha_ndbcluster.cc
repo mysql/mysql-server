@@ -14303,7 +14303,7 @@ static bool has_pushed_members(AccessPath *path, const JOIN *join) {
 /**
  * Check if any tables within the (sub-)path is a member of
  * a pushed join not entirely inside this path.
- * (Check the AQP 'Query_scope')
+ * (Check the 'Query_scope')
  */
 static bool has_pushed_members_outside_of_branch(AccessPath *path,
                                                  const JOIN *join) {
@@ -14410,8 +14410,8 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
        *
        * 1) If pushed, the inner 'HASH-build' branch need to contain all
        *    tables pushed as part of it. Such that the complete pushed join
-       *    is evaluated and written to the chunk files. This is handled by the
-       *    AQP creating a separate HASH-scope for this branch.
+       *    is evaluated and written to the chunk files. This is handled by
+       *    creating a separate HASH-scope for this branch.
        *    (Just assert it below.)
        * 2) If the outer 'probe' branch of the hash join does not contain all
        *    tables pushed as part of it, we disable 'spill_to_disk' as
@@ -14539,16 +14539,15 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
    * a condition could be pushed when not being part of a pushed join.)
    */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
-    const uint count = query_plan.get_access_count();
+    const uint count = pushed_builder.m_table_count;
     for (uint i = 0; i < count; i++) {
-      AQP::Table_access *table_access = query_plan.get_table_access(i);
-      const Item *cond = table_access->get_condition();
+      pushed_table &table = pushed_builder.m_tables[i];
+      const Item *cond = table.get_condition();
       if (cond == nullptr) continue;
 
-      const TABLE *table = table_access->get_table();
-      handler *const ha = table->file;
+      handler *const ha = table.get_table()->file;
       if (ha->member_of_pushed_join() != nullptr &&
-          ha->member_of_pushed_join() != table) {
+          ha->member_of_pushed_join() != table.get_table()) {
         // Condition already pushed as part of pushed join child -> skip
         continue;
       }
@@ -14556,7 +14555,7 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
       ha_ndbcluster *const ndb_handler = dynamic_cast<ha_ndbcluster *>(ha);
       if (ndb_handler == nullptr) continue;
 
-      const AQP::enum_access_type jt = table_access->get_access_type();
+      const AQP::enum_access_type jt = table.get_access_type();
       if ((jt == AQP::AT_PRIMARY_KEY || jt == AQP::AT_UNIQUE_KEY ||
            jt == AQP::AT_OTHER) &&  // CONST or SYSTEM
           !ha->member_of_pushed_join()) {
@@ -14575,8 +14574,9 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
       */
       table_map const_expr_tables(0);
       if (thd->lex->sql_command == SQLCOM_SELECT) {
-        table_map query_scope = table_access->get_tables_in_all_query_scopes();
-        const_expr_tables = (query_scope & ~table->pos_in_table_list->map());
+        table_map query_scope = table.get_tables_in_all_query_scopes();
+        const_expr_tables =
+            (query_scope & ~table.get_table()->pos_in_table_list->map());
       }
       /* Prepare push of condition to handler, possibly leaving a remainder */
       ndb_handler->m_cond.prep_cond_push(cond, const_expr_tables, table_map(0));

@@ -567,9 +567,16 @@ struct pushed_table {
  * Execution plans built for pushed joins are stored inside this builder
  * context.
  */
+
 class ndb_pushed_builder_ctx {
   friend ndb_pushed_join::ndb_pushed_join(
       const ndb_pushed_builder_ctx &builder_ctx, const NdbQueryDef *query_def);
+
+  friend int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path,
+                                       JOIN *join);
+
+  // Intended to be temporary only, remove in later patches
+  friend AQP::Join_plan;
 
  public:
   ndb_pushed_builder_ctx(const THD *thd);
