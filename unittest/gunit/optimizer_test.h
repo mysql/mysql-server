@@ -336,6 +336,8 @@ handlerton *OptimizerTestBase<T>::EnableSecondaryEngine(
   for (const auto &[name, table] : m_fake_tables) {
     table->file->ht = hton;
     static_cast<Fake_TABLE_SHARE *>(table->s)->set_secondary_engine(true);
+    ON_CALL(table->mock_handler, table_type())
+        .WillByDefault(testing::Return("unit test"));
   }
 
   m_thd->lex->m_sql_cmd->use_secondary_storage_engine(hton);
