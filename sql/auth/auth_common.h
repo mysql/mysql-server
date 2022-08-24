@@ -801,7 +801,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access,
                              Field_iterator_table_ref *fields);
 bool check_grant_routine(THD *thd, ulong want_access, TABLE_LIST *procs,
                          bool is_proc, bool no_error);
-bool check_grant_db(THD *thd, const char *db);
+bool check_grant_db(THD *thd, const char *db,
+                    const bool check_table_grant = false);
 bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
                                   bool with_grant);
 void get_privilege_desc(char *to, uint max_length, ulong access);

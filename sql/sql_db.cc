@@ -1442,7 +1442,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   }
 
   if (!force_switch && !(db_access & DB_OP_ACLS) &&
-      check_grant_db(thd, new_db_file_name.str)) {
+      check_grant_db(thd, new_db_file_name.str, true)) {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->priv_host().str, new_db_file_name.str);
     query_logger.general_log_print(

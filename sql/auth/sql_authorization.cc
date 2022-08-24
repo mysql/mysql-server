@@ -4235,11 +4235,14 @@ bool has_any_routine_acl(Security_context *sctx, const LEX_CSTRING &db) {
 
   @param thd The thread handler
   @param db The name of the database
+  @param check_table_grant false by default, Access is granted for "show
+  databases" and "show tables in database" when user has table level grant.
 
   @retval 1 Access is denied
   @retval 0 Otherwise
 */
-bool check_grant_db(THD *thd, const char *db) {
+bool check_grant_db(THD *thd, const char *db,
+                    const bool check_table_grant /* = false */) {
   DBUG_TRACE;
   Security_context *sctx = thd->security_context();
   LEX_CSTRING priv_user = sctx->priv_user();
@@ -4265,7 +4268,8 @@ bool check_grant_db(THD *thd, const char *db) {
     GRANT_TABLE *grant_table = key_and_value.second.get();
     if (grant_table->hash_key.compare(0, key.size(), key) == 0 &&
         grant_table->host.compare_hostname(sctx->host().str, sctx->ip().str) &&
-        ((grant_table->privs | grant_table->cols) & TABLE_OP_ACLS)) {
+        ((grant_table->privs | grant_table->cols) &
+         (check_table_grant ? TABLE_OP_ACLS : TABLE_ACLS))) {
       error = false; /* Found match. */
       DBUG_PRINT("info", ("Detected table level acl in column_priv_hash"));
       break;
