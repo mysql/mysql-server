@@ -251,7 +251,6 @@ class ndb_pushed_builder_ctx {
   struct pushed_tables;
   ndb_table_access_map required_ancestors(const pushed_tables *table) const;
 
- private:
   const Thd_ndb *const m_thd_ndb;
 
   AQP::Join_plan &m_plan;

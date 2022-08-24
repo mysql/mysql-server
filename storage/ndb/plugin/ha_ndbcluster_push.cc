@@ -1137,37 +1137,14 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     const uint first_inner = m_tables[tab_no].m_first_inner;
     // Only interested in the upper-nest-level dependencies:
     depend_parents.intersect(m_tables[first_inner].ancestor_nests());
-
-    // Can these outer parent dependencies co-exists with existing
-    // ancestor dependencies?
-    const ndb_table_access_map ancestors(required_ancestors(&m_tables[tab_no]));
-    if (!depend_parents.is_clear_all() && !ancestors.is_clear_all()) {
-      const ndb_table_access_map ancestor_nests(
-          m_tables[tab_no].ancestor_nests());
-      ndb_table_access_map nest_dependencies(depend_parents);
-      nest_dependencies.add(ancestors);
-
-      uint ancestor_no = first_inner;
-      while (!ancestor_nests.contain(nest_dependencies)) {
-        ancestor_no = nest_dependencies.last_table(ancestor_no - 1);
-        nest_dependencies.clear_bit(ancestor_no);
-
-        // If remaining dependencies are unavailable from parent, we can't push
-        if (!m_tables[ancestor_no].ancestor_nests().contain(
-                nest_dependencies)) {
-          const AQP::Table_access *const parent =
-              m_plan.get_table_access(ancestor_no);
-          EXPLAIN_NO_PUSH(
-              "Can't push table '%s' as child of '%s', "
-              "as it would make the parent table '%s' "
-              "depend on table(s) outside of its join-nest",
-              table->get_table()->alias, m_join_root->get_table()->alias,
-              parent->get_table()->alias);
-          return false;
-        }
-      }
-    }
     m_tables[tab_no].m_ancestors.add(depend_parents);
+
+    // Our ancestor_nests need to cover required parents and ancestors
+    assert(m_tables[tab_no].ancestor_nests().contain(depend_parents));
+    assert(m_tables[tab_no].ancestor_nests().contain(
+        required_ancestors(&m_tables[tab_no])));
+
+    // required_ancestors only cares about tables outside of inner_nest
     assert(!required_ancestors(&m_tables[tab_no]).contain(first_inner));
     assert(!required_ancestors(&m_tables[tab_no])
                 .is_overlapping(m_tables[tab_no].m_inner_nest));
