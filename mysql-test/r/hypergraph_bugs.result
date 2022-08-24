@@ -109,3 +109,16 @@ FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f1))
 WHERE (t3.f1 <> t2.f1 OR t3.f1 < t2.f1));
 f1
 DROP TABLE t1;
+#
+# Bug#34527126: Some rapid tests in MTR fail with hypergraph
+#               when run in --ps-protocol mode
+#
+CREATE TABLE t1(f1 INTEGER);
+PREPARE ps FROM
+"SELECT * FROM (WITH RECURSIVE qn AS (SELECT 1 FROM t1 UNION ALL
+                                      SELECT 1 FROM t1 STRAIGHT_JOIN qn)
+                                     SELECT * FROM qn) AS dt1,
+                                     (SELECT COUNT(*) FROM t1) AS dt2";
+EXECUTE ps;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints
+DROP TABLE t1;

@@ -1707,7 +1707,18 @@ void JOIN::destroy() {
     for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       TABLE *table = tl->table;
       if (table != nullptr) {
-        table->set_keyread(false);
+        // For prepared statements, a derived table's temp table handler
+        // gets cleaned up at the end of prepare and it is setup again
+        // during optimization. However, if optimization for a derived
+        // table query block fails for some reason (E.g. Secondary engine
+        // rejects all the plans), handler is not setup for the rest of
+        // the derived tables. So we need to call set_keyread() only
+        // when handler is initialized.
+        // TODO(Chaithra): This should be moved to a more suitable place,
+        // perhaps TableRowIterator's destructor ?
+        if (table->file != nullptr) {
+          table->set_keyread(false);
+        }
         table->sorting_iterator = nullptr;
         table->duplicate_removal_iterator = nullptr;
       }

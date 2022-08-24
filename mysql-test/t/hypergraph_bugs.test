@@ -103,3 +103,21 @@ WHERE t1.f1 NOT IN (SELECT t2.f1
                     FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f1))
                     WHERE (t3.f1 <> t2.f1 OR t3.f1 < t2.f1));
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34527126: Some rapid tests in MTR fail with hypergraph
+--echo #               when run in --ps-protocol mode
+--echo #
+
+CREATE TABLE t1(f1 INTEGER);
+# The error generated during planning for the first derived query block
+# should not result in an assert failure when the second derived table is
+# cleaned up.
+PREPARE ps FROM
+"SELECT * FROM (WITH RECURSIVE qn AS (SELECT 1 FROM t1 UNION ALL
+                                      SELECT 1 FROM t1 STRAIGHT_JOIN qn)
+                                     SELECT * FROM qn) AS dt1,
+                                     (SELECT COUNT(*) FROM t1) AS dt2";
+--error ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER
+EXECUTE ps;
+DROP TABLE t1;
