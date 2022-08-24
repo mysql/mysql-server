@@ -4736,23 +4736,6 @@ SUM(alias2.col_varchar_nokey)	field2
 0	6
 0	7
 0	9
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'f'
-Warning	1292	Truncated incorrect DOUBLE value: 'e'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'f'
-Warning	1292	Truncated incorrect DOUBLE value: 'y'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'b'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'd'
-Warning	1292	Truncated incorrect DOUBLE value: 'f'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'b'
-Warning	1292	Truncated incorrect DOUBLE value: 'e'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
-Warning	1292	Truncated incorrect DOUBLE value: 'p'
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1

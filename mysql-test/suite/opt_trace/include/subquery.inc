@@ -16,6 +16,7 @@ INSERT INTO t2 VALUES (1,7),(2,7);
 SET @@optimizer_trace_features="greedy_search=off,repeated_subselect=on";
 SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2;
 --echo
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 --echo
 
@@ -23,6 +24,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 SET @@optimizer_trace_features="greedy_search=off,repeated_subselect=off";
 SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2;
 --echo
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 --echo
 
@@ -39,6 +41,7 @@ FROM t1
 WHERE t1.a= (SELECT b FROM t2 LIMIT 1) AND NOT
       t1.a= (SELECT a FROM t2 LIMIT 1) ;
 --echo
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 --echo
 
@@ -47,6 +50,7 @@ SELECT 1 FROM DUAL
 WHERE NOT EXISTS
   (SELECT * FROM t2 WHERE a = 50 AND b = 3);
 --echo
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 --echo
 
@@ -55,6 +59,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 # the subquery does not contain those clauses.
 SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t2 GROUP BY a ORDER BY b);
 --echo
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 --echo
 
@@ -177,6 +182,7 @@ alias1.`col_int_key` not in (214) group by field1,field2,field3,
 field4,field5,field6; 
 
 --replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 select * from information_schema.optimizer_trace;
 set optimizer_switch=@old_opt_switch;
 drop table t1,t2,t3,t4,t5;
@@ -218,6 +224,7 @@ on (table2.`col_varchar_key` = table1.`col_varchar_key` ) ) where (
 table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
 (192,18) order by field1 desc; 
 
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 select * from information_schema.optimizer_trace;
 drop table t1,t2;
 
@@ -246,12 +253,14 @@ explain select * from t2 where (b+0,a+0) in (select a,b from t1 where a=3);
 --echo # Equality-propagation involving outer field => 3rd sj equality is bound.
 explain select * from t2 where (b,a,filler) in (select a,b,a*3 from t1) and filler='abc';
 # Show that LS is possible (even though too costly in the end):
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 --echo # Remove the condition on 'filler' => 3rd sj equality is not bound.
 explain select * from t2 where (b,a,filler) in (select a,b,a*3 from t1);
 # Show that LS is impossible:
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT show_json_object('"searching_loose_scan_index": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -259,6 +268,7 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 explain select * from t2 as t3, t2
 where t2.filler=t3.filler and
       (t2.b,t2.a,t2.filler) in (select a,b,a*3 from t1);
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -268,6 +278,7 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 explain select * from t2 as t3 left join t2 on t2.filler+10=t3.filler+20
 where (t2.b,t2.a,t3.filler+2) in (select a,b,a*3 from t1);
 # Show all LS plans (possible and impossible):
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT show_json_object('"considered_execution_plans": [', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -313,6 +324,7 @@ eval $query;
 let $read_trace=
 select TRACE LIKE '%"index_handles_needed_semijoin_equalities": false%'
 from information_schema.optimizer_trace;
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 eval $read_trace;
 
 # Switch order of indexes:
@@ -336,6 +348,7 @@ EXPLAIN SELECT * FROM t2 AS t3, t2
   WHERE t2.b=t3.b AND  
         (t2.b) IN (SELECT b*3 FROM t1 WHERE a=10);
 
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT TRACE LIKE '%"some_index_part_used": false%'
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -364,6 +377,7 @@ WHERE a IN (
 
 eval explain $query;
 
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT TRACE LIKE '%"index_can_remove_duplicates": false%'
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -384,6 +398,7 @@ alter table t1 drop key a_b, add key a_b_prefix (a,b(2));
 eval explain $query;
 # If we had not detected that key is on prefix, result would be only 1 row:
 eval $query;
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 select TRACE LIKE '%"index_handles_needed_semijoin_equalities": false%'
 from information_schema.optimizer_trace;
 
@@ -396,6 +411,7 @@ set optimizer_prune_level=@old_opt_prune_level;
 --echo # "reusing_tmp_table" and only one "creating_tmp_table".
 with q(a) as (select 1 union all select 2)
 select * from q, q q1 where q.a=1 and q1.a=2;
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 select TRACE from information_schema.optimizer_trace;
 
 --echo # Tracing of repetitions of the recursive member
@@ -406,10 +422,12 @@ with recursive qn(n) as
   (select 1 union all select n+1 from qn where n<4)
 select count(*) from qn;
 eval $query;
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT show_json_object('"join_execution": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET @@optimizer_trace_features="repeated_subselect=off";
 eval $query;
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT show_json_object('"join_execution": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET @@optimizer_trace_features=default;

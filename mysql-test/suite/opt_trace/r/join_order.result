@@ -15,7 +15,7 @@ id	id	id
 2	2	2
 3	3	3
 insert into json_tab
-select json_extract(trace,"$.steps[1].join_optimization.steps[*].join_optimizer[*]") je
+select json_extract(trace,"$.steps[*].join_optimization.steps[*].join_optimizer[*]") je
 from information_schema.optimizer_trace;
 select jt.t from
 json_tab, json_table(json_tab.je, "$[*]" COLUMNS(t text path "$")) as jt
@@ -42,7 +42,7 @@ select * from t1 y1 left join t1 y2 on y1.a=-y2.a
 where y1.b+y2.b = (select max(m1) from x1);
 a	b	a	b
 insert into json_tab
-select json_extract(trace,"$.steps[1].join_optimization.steps[*].join_optimizer[*]") je
+select json_extract(trace,"$.steps[*].join_optimization.steps[*].join_optimizer[*]") je
 from information_schema.optimizer_trace;
 select jt.t from
 json_tab, json_table(json_tab.je, "$[*]" COLUMNS(t text path "$")) as jt
