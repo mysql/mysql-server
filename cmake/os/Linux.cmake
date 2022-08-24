@@ -27,6 +27,10 @@ INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
 
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+  SET(LINUX_ARM 1)
+ENDIF()
+
 # OS display name (version_compile_os etc).
 # Used by the test suite to ignore bugs on some platforms.
 SET(SYSTEM_TYPE "Linux")
