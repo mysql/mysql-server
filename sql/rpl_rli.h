@@ -1138,9 +1138,9 @@ class Relay_log_info : public Rpl_info {
   /*
     This flag is turned ON when the workers array is initialized.
     Before destroying the workers array we check this flag to make sure
-    we are not destroying an uninitialized array. For the purpose of reporting the
-    worker status in performance schema table, we need to preserve the workers
-    array after worker thread was killed. So, we copy this array into
+    we are not destroying an uninitialized array. For the purpose of reporting
+    the worker status in performance schema table, we need to preserve the
+    workers array after worker thread was killed. So, we copy this array into
     workers_copy_pfs array which is used for reporting until next
     init_workers().
   */

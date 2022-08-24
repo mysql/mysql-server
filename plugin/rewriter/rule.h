@@ -67,8 +67,8 @@ class Pattern {
   std::vector<std::string> literals;
 
   /**
-    Loads the pattern. The pattern string is copied in deep-copy way. This is not done in
-    the CTOR because of the memory allocation.
+    Loads the pattern. The pattern string is copied in deep-copy way. This is
+    not done in the CTOR because of the memory allocation.
 
     This function does the following:
     - Parse the pattern string.

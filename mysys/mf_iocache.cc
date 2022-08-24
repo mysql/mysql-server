@@ -35,11 +35,10 @@
   macros for read and writes for faster io.
   Used instead of FILE when reading or writing whole files.
   This code makes mf_rec_cache obsolete (currently only used by ISAM).
-  One can change info->pos_in_file to a higher value to skip bytes in the file if
-  also info->read_pos is set to info->read_end.
-  If called through open_cached_file(), then the temporary file will
-  only be created if a write exceeds the file buffer or if one calls
-  my_b_flush_io_cache().
+  One can change info->pos_in_file to a higher value to skip bytes in the file
+  if also info->read_pos is set to info->read_end. If called through
+  open_cached_file(), then the temporary file will only be created if a write
+  exceeds the file buffer or if one calls my_b_flush_io_cache().
 
   If one uses SEQ_READ_APPEND, then two buffers are allocated, one for
   reading and another for writing.  Reads are first done from disk and

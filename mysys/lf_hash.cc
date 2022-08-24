@@ -476,8 +476,9 @@ static uint cset_hash_sort_adapter(const LF_HASH *hash, const uchar *key,
   See wt_init() for example.
   As an alternative to using the above trick with decreasing
   LF_HASH::element_size, one can provide an "initialize" hook that will finish
-  initialization of an object provided by LF_ALLOCATOR and set the element key from
-  the object passed as parameter to lf_hash_insert instead of doing simple memcpy.
+  initialization of an object provided by LF_ALLOCATOR and set the element key
+  from the object passed as parameter to lf_hash_insert instead of doing simple
+  memcpy.
 */
 void lf_hash_init_impl(LF_HASH *hash, uint element_size, uint flags,
                        uint key_offset, uint key_length,

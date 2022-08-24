@@ -47,8 +47,8 @@ namespace gis {
 /// Map Cartesian geometry to geographic, mapping degrees east = x, degrees
 /// north = y. Do not canonicalize coordinates of poles.
 ///
-/// Used when a SQL function needs to accept Cartesian coordinates as a shorthand
-/// for geographic with some default SRS.
+/// Used when a SQL function needs to accept Cartesian coordinates as a
+/// shorthand for geographic with some default SRS.
 static Geographic_point reinterpret_as_degrees(const Cartesian_point &g) {
   double lon_deg = g.x();
   double lat_deg = g.y();
@@ -65,8 +65,8 @@ static Geographic_point reinterpret_as_degrees(const Cartesian_point &g) {
 /// Map Cartesian geometry to geographic, mapping degrees east = x, degrees
 /// north = y. Do not canonicalize coordinates of poles.
 ///
-/// Used when a SQL function needs to accept Cartesian coordinates as a shorthand
-/// for geographic with some default SRS.
+/// Used when a SQL function needs to accept Cartesian coordinates as a
+/// shorthand for geographic with some default SRS.
 static Geographic_multipoint reinterpret_as_degrees(
     const Cartesian_multipoint &g) {
   Geographic_multipoint dg{};

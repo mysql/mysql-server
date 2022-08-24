@@ -99,7 +99,8 @@ class GraphSimplifier {
     APPLIED_SIMPLIFICATION,
 
     // We applied a simplification, but it was one that was forced upon us;
-    // we intended to apply the opposite, but discovered it would leave the graph
+    // we intended to apply the opposite, but discovered it would leave the
+    // graph
     // in an impossible state. Thus, the graph has been changed, but the actual
     // available join orderings are exactly as they were.
     APPLIED_NOOP,

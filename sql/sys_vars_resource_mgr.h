@@ -40,18 +40,20 @@
   (1) init :
         Creates a copy (memdup()) of global Sys_var_charptr system variable for
         the respective session variable (passed as a  parameter) & inserts it
-        into sysvar_string_alloc_hash (containing the allocated address) to infer
-        that memory has been allocated for the session. init() is called during
-        the initialization of session system variables. (plugin_thdvar_init())
+        into sysvar_string_alloc_hash (containing the allocated address) to
+        infer that memory has been allocated for the session. init() is called
+        during the initialization of session system variables.
+        (plugin_thdvar_init())
   (2) update :
         When the session variable is updated, the old memory is freed and new
         memory is allocated to hold the new value. The corresponding member in
-        sysvar_string_alloc_hash is also updated to hold the new allocated memory
-        address. (Sys_var_charptr::session_update())
+        sysvar_string_alloc_hash is also updated to hold the new allocated
+        memory address.
+        (Sys_var_charptr::session_update())
   (3) deinit :
         Its a one-shot operation to free all the session Sys_var_charptr system
-        variables. It basically traverses down the sysvar_string_alloc_hash
-        hash and calls free() for all the addresses that it holds.
+        variables. It basically traverses down the sysvar_string_alloc_hash hash
+        and calls free() for all the addresses that it holds.
 
   Note, there should always be at most one node per Sys_var_charptr session
   system variable.
