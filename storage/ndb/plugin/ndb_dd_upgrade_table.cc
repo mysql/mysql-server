@@ -317,14 +317,16 @@ bool migrate_table_to_dd(THD *thd, Ndb_dd_client *dd_client,
   (void)mysql_file_close(frm_file, MYF(0));
 
   // Create table share for tables
-  if (create_table_share_for_upgrade(thd, path, &share, &frm_context,
-                                     schema_name.c_str(), table_name.c_str(),
-                                     false)) {
+  int r = create_table_share_for_upgrade(thd, path, &share, &frm_context,
+                                         schema_name.c_str(),
+                                         table_name.c_str(), false);
+  if (r != 0) {
     thd_ndb->push_warning(ER_CANT_CREATE_TABLE_SHARE_FROM_FRM,
                           "Error in creating TABLE_SHARE from %s.frm file",
                           table_name.c_str());
-    ndb_log_error("Error in creating TABLE_SHARE from %s.frm file",
-                  table_name.c_str());
+    if (r == -1)
+      ndb_log_error("Error in creating TABLE_SHARE from %s.frm file",
+                    table_name.c_str());
     // Delete frm file
     mysql_file_delete(key_file_frm, index_file, MYF(0));
     return false;
