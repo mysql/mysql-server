@@ -799,7 +799,8 @@ class Master_info : public Rpl_info {
 
   /**
     Is the replica working in GTID only mode, meaning it does not
-    persist position related information when executing or queueing transactions.
+    persist position related information when executing or queueing
+    transactions.
   */
   bool m_gtid_only_mode;
 

@@ -1169,7 +1169,7 @@ static MY_XPATH_FUNC *my_xpath_function(const char *beg, const char *end) {
   return nullptr;
 }
 
-/* Initialize a lex analyzer token */   
+/* Initialize a lex analyzer token */
 static void my_xpath_lex_init(MY_XPATH_LEX *lex, const char *str,
                               const char *strend) {
   lex->beg = str;

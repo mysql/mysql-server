@@ -107,8 +107,8 @@ class Mysql_protocol : public cs::reader::Reader {
    * If the state object is not provided, a new one will be created, which will
    * also be deleted when this object is destroyed.
    *
-   * @param state Optional parameter. If provided, it will be used as the initial
-   * state while attaching to the stream.
+   * @param state Optional parameter. If provided, it will be used as the
+   * initial state while attaching to the stream.
    *
    * @returns true if there is a failure, false otherwise.
    */

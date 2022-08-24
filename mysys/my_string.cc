@@ -119,8 +119,8 @@ bool dynstr_trunc(DYNAMIC_STRING *str, size_t n) {
 
 /*
   Concatenates any number of strings, escapes any quote in the result, then
-  surrounds the resulting string in another set of quotes which is finally appended
-  to specified DYNAMIC_STRING.  This function is especially useful when
+  surrounds the resulting string in another set of quotes which is finally
+  appended to specified DYNAMIC_STRING.  This function is especially useful when
   building strings to be executed with the system() function.
 
   @param str Dynamic String which will have additional strings appended.

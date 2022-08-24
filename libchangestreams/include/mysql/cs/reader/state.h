@@ -43,8 +43,8 @@ class State {
   /**
    * @brief The set of gtids handled in this stream.
    *
-   * This set is updated every time a transaction identifier event comes down the
-   * stream. The identifier is added to the stream.
+   * This set is updated every time a transaction identifier event comes down
+   * the stream. The identifier is added to the stream.
    */
   binary_log::gtids::Gtid_set m_gtid_set;
 
