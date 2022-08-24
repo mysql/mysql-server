@@ -64,7 +64,7 @@ bool printRESTORE_LCP_CONF(FILE* output,
                            Uint32 len,
                            Uint16 /*receiverBlockNo*/)
 {
-  if (len < RestoreLcpReq::SignalLength)
+  if (len < RestoreLcpConf::SignalLength)
   {
     assert(false);
     return false;
