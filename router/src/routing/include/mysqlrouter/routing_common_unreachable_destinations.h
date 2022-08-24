@@ -82,6 +82,14 @@ class RoutingCommonUnreachableDestinations {
       const mysql_harness::TCPAddress &dest);
 
   /**
+   * Remove unreachable destination candidate from quarantine.
+   *
+   * @param[in] dest Unreachable destination candidate address.
+   */
+  void remove_destination_candidate_from_quarantine(
+      const mysql_harness::TCPAddress &dest);
+
+  /**
    * Query the quarantined destination candidates set and check if the given
    * destination candidate is quarantined.
    *
@@ -177,11 +185,17 @@ class RoutingCommonUnreachableDestinations {
    */
   struct Unreachable_destination_candidate {
     Unreachable_destination_candidate(
-        mysql_harness::TCPAddress addr, net::steady_timer timer,
-        std::vector<std::string> referencing_instances)
-        : address_{std::move(addr)},
-          timer_{std::move(timer)},
-          referencing_routing_instances_{std::move(referencing_instances)} {}
+        net::io_context *io_ctx, const mysql_harness::TCPAddress &addr,
+        std::vector<std::string> referencing_instances,
+        std::chrono::seconds quarantine_interval,
+        std::function<void()> on_delete, std::function<void()> on_connect_ok)
+        : io_ctx_{io_ctx},
+          address_{addr},
+          referencing_routing_instances_{std::move(referencing_instances)},
+          quarantine_interval_{quarantine_interval},
+          timer_{*io_ctx},
+          on_delete_{on_delete},
+          on_connect_ok_{on_connect_ok} {}
 
     ~Unreachable_destination_candidate();
 
@@ -189,26 +203,68 @@ class RoutingCommonUnreachableDestinations {
         default;
     Unreachable_destination_candidate &operator=(
         Unreachable_destination_candidate &&) = default;
+
     Unreachable_destination_candidate(
         const Unreachable_destination_candidate &) = delete;
     Unreachable_destination_candidate &operator=(
         const Unreachable_destination_candidate &) = delete;
 
+    stdx::expected<void, std::error_code> connect();
+
+    stdx::expected<void, std::error_code> resolve();
+    stdx::expected<void, std::error_code> init_endpoint();
+    stdx::expected<void, std::error_code> next_endpoint();
+    stdx::expected<void, std::error_code> connect_init();
+    stdx::expected<void, std::error_code> try_connect();
+    stdx::expected<void, std::error_code> connect_finish();
+    stdx::expected<void, std::error_code> connected();
+
+    RoutingCommonUnreachableDestinations *destinations_;
+    net::io_context *io_ctx_;
     mysql_harness::TCPAddress address_;
-    net::steady_timer timer_;
     std::vector<std::string> referencing_routing_instances_;
+    std::chrono::seconds quarantine_interval_;
+    net::steady_timer timer_;
+
+    using server_protocol_type = net::ip::tcp;
+
+    net::ip::tcp::resolver::results_type endpoints_;
+    net::ip::tcp::resolver::results_type::iterator endpoints_it_;
+    server_protocol_type::socket server_sock_{*io_ctx_};
+    server_protocol_type::endpoint server_endpoint_;
+
+    bool connect_timed_out_{false};
+    bool connected_{false};
+
+    enum class Function {
+      kInitDestination,
+      kConnectFinish,
+    };
+
+    Function func_{Function::kInitDestination};
+
+    std::error_code last_ec_{
+        make_error_code(std::errc::no_such_file_or_directory)};
+
+    std::function<void()> on_delete_;
+    std::function<void()> on_connect_ok_;
   };
 
   std::chrono::milliseconds kQuarantinedConnectTimeout{1000};
   std::chrono::seconds quarantine_interval_{1};
   net::io_context &io_ctx_ = IoComponent::get_instance().io_context();
   std::mutex quarantine_mutex_;
-  std::vector<Unreachable_destination_candidate>
+  std::vector<std::shared_ptr<Unreachable_destination_candidate>>
       quarantined_destination_candidates_;
   std::mutex unreachable_destinations_init_mutex_;
   std::mutex routing_instances_mutex_;
   std::vector<std::string> routing_instances_;
   std::atomic<bool> stopped_{false};
+
+  /** number of quarantined destinations */
+  std::atomic<size_t> quarantined_dest_counter_{0};
+  std::condition_variable quarantine_empty_cond_;
+  std::mutex quarantine_empty_cond_m_;
 };
 
 #endif  // MYSQLROUTER_ROUTING_COMMON_UNREACHABLE_DESTINATIONS_INCLUDED
