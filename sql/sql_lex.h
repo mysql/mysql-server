@@ -1880,7 +1880,7 @@ class Query_block : public Query_term {
   void remove_hidden_fields();
   /// Creates a clone for the given expression by re-parsing the
   /// expression. Used in condition pushdown to derived tables.
-  Item *clone_expression(THD *thd, Item *item, bool is_system_view);
+  Item *clone_expression(THD *thd, Item *item);
   /// Returns an expression from the select list of the query block
   /// using the field's index in a derived table.
   Item *get_derived_expr(uint expr_index);
