@@ -2415,6 +2415,8 @@ ulint ibuf_merge_in_background(bool full) {
     +1 is to avoid division by zero. */
     if (ibuf->size > ibuf->max_size / 2) {
       ulint diff = ibuf->size - ibuf->max_size / 2;
+      /* limits to around 100% value, for shrinking max_size case */
+      diff = std::min(diff, ibuf->max_size);
       n_pages += PCT_IO((diff * 100) / (ibuf->max_size + 1));
     }
 
