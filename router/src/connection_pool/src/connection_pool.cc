@@ -24,8 +24,6 @@
 
 #include "mysqlrouter/connection_pool.h"
 
-#include <iostream>
-
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/socket.h"
 
@@ -37,7 +35,7 @@ void PooledConnection::async_recv_message() {
 
   conn_->async_recv(recv_buf_, [this](std::error_code ec, size_t /* recved */) {
     if (ec) {
-      if (ec == net::stream_errc::eof) {
+      if (ec == make_error_condition(net::stream_errc::eof)) {
         // cancel the timer and let that close the connection.
         idle_timer_.cancel();
 

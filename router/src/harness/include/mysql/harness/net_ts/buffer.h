@@ -30,6 +30,7 @@
 #include <limits>     // std::numeric_limits
 #include <stdexcept>  // length_error
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <type_traits>
 #include <utility>
@@ -69,6 +70,28 @@ inline const std::error_category &stream_category() noexcept {
           return "unknown";
       }
     }
+
+    bool equivalent(int mycode,
+                    const std::error_condition &other) const noexcept override {
+      if (*this == other.category() ||
+          std::string_view(name()) ==
+              std::string_view(other.category().name())) {
+        return mycode == other.value();
+      }
+
+      return false;
+    }
+
+    bool equivalent(const std::error_code &other,
+                    int mycode) const noexcept override {
+      if (*this == other.category() ||
+          std::string_view(name()) ==
+              std::string_view(other.category().name())) {
+        return mycode == other.value();
+      }
+
+      return false;
+    }
   };
 
   static stream_category_impl instance;
@@ -76,6 +99,10 @@ inline const std::error_category &stream_category() noexcept {
 }
 
 inline std::error_code make_error_code(net::stream_errc e) noexcept {
+  return {static_cast<int>(e), net::stream_category()};
+}
+
+inline std::error_condition make_error_condition(net::stream_errc e) noexcept {
   return {static_cast<int>(e), net::stream_category()};
 }
 
