@@ -1920,7 +1920,11 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
       file.erase(file.size() - 4, 4);
       // Construct the schema name from its canonical format.
       filename_to_tablename(dbname, schema_name, sizeof(schema_name));
-      filename_to_tablename(file.c_str(), table_name, sizeof(table_name));
+
+      bool has_invalid_name = false;
+      filename_to_tablename(file.c_str(), table_name, sizeof(table_name), false,
+                            &has_invalid_name);
+      if (has_invalid_name) error = true;
 
       /*
         Check that schema- and table names do not break the selected l_c_t_n

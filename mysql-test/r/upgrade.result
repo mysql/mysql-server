@@ -66,3 +66,14 @@ ERROR 42000: Unknown database '#mysql50#.'
 USE `#mysql50#../blablabla`;
 ERROR 42000: Unknown database '#mysql50#../blablabla'
 # End of 5.1 tests
+#
+# Bug#34066605: LOST+Found directory exists after upgrade to 8.0
+#
+# Copy the zipped 5.7 data directory and unzip it.
+# Shutdown the server
+# Start the server with the 5.7 data directory
+# Check for errors in the error log.
+Pattern "\[ERROR\] .* Invalid \(old\?\) table or database name \'table\!t1\'" found
+Pattern "\[ERROR\] .* Invalid \(old\?\) table or database name \'table_t2@%&!\'" found
+Pattern "\[ERROR\] .* Invalid \(old\?\) table or database name \'lost\+found\'" found
+# restart:
