@@ -2188,6 +2188,7 @@ bool CostingReceiver::ProposeTableScan(
     // TODO(sgunders): We don't need to allocate materialize_path on the
     // MEM_ROOT.
     AccessPath *materialize_path;
+    const char *always_empty_cause = nullptr;
     if (tl->is_table_function()) {
       materialize_path = NewMaterializedTableFunctionAccessPath(
           m_thd, table, tl->table_function, stable_path);
@@ -2211,6 +2212,22 @@ bool CostingReceiver::ProposeTableScan(
         materialize_path->parameter_tables |= RAND_TABLE_BIT;
       }
     } else {
+      // If the derived table is known to be always empty, we may be able to
+      // optimize away parts of the outer query block too.
+      if (const AccessPath *derived_table_path =
+              tl->derived_query_expression()->root_access_path();
+          derived_table_path != nullptr &&
+          derived_table_path->type == AccessPath::ZERO_ROWS) {
+        always_empty_cause = derived_table_path->zero_rows().cause;
+      }
+
+      if (always_empty_cause != nullptr &&
+          !IsBitSet(tl->tableno(), m_graph->tables_inner_to_outer_or_anti)) {
+        // The entire query block can be optimized away. Stop planning.
+        m_query_block->join->zero_result_cause = always_empty_cause;
+        return true;
+      }
+
       bool rematerialize = Overlaps(tl->derived_query_expression()->uncacheable,
                                     UNCACHEABLE_DEPENDENT);
       if (tl->common_table_expr()) {
@@ -2238,6 +2255,16 @@ bool CostingReceiver::ProposeTableScan(
     stable_path->delayed_predicates.Clear();
     path = *materialize_path;
     assert(path.cost >= 0.0);
+
+    if (always_empty_cause != nullptr) {
+      // The entire query block cannot be optimized away, only the inner block
+      // for the derived table. But the materialization step is unnecessary, so
+      // return a ZERO_ROWS path directly for the derived table. This also
+      // allows subtrees of this query block to be removed (if the derived table
+      // is inner-joined to some other tables).
+      path = *NewZeroRowsAccessPath(
+          m_thd, new (m_thd->mem_root) AccessPath(path), always_empty_cause);
+    }
   }
   assert(path.cost >= 0.0);
 

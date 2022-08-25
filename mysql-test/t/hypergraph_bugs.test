@@ -1,5 +1,6 @@
 --source include/have_hypergraph.inc
 --source include/have_optimizer_trace.inc
+--source include/elide_costs.inc
 
 # This should have been a unit test. But unit tests do not have framework
 # for prepared statements yet. So we are adding this.
@@ -121,3 +122,53 @@ PREPARE ps FROM
 --error ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER
 EXECUTE ps;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34494877: WL#14449: Offload issue: RapidException (3):
+--echo #               rpdrqctr_transcode.c:1447 @ rpdoqc_
+--echo #
+
+CREATE TABLE t(x INT, y INT);
+INSERT INTO t VALUES (1, 10), (2, 20), (3, 30);
+ANALYZE TABLE t;
+
+# Expect the entire query to be optimized away. It used to produce a
+# join between t and a temporary table containing the result of a
+# "Zero rows" plan.
+let $query =
+SELECT * FROM
+  t RIGHT JOIN
+  (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+  ON t.x = dt.m;
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+# Similar to the above, but the query cannot be entirely optimized
+# away, since the outer table isn't empty. It used to add a
+# materialization step on top of the zero rows plan for the derived
+# table. Now it should just have zero rows directly on the inner side
+# of the join.
+let $query =
+SELECT * FROM
+  t LEFT JOIN
+  (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+  ON t.x = dt.m;
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+# Similar case, where the query cannot be entirely optimized away.
+# Verify that the entire inner side of the outer join is optimized
+# away. Only t1 should be accessed.
+let $query =
+SELECT * FROM
+  t AS t1 LEFT JOIN
+  (t AS t2
+   INNER JOIN (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+   ON t2.x = dt.m)
+  ON t1.x = t2.y;
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+DROP TABLE t;
