@@ -67,3 +67,79 @@ USE `#mysql50#../blablabla`;
 
 --echo # End of 5.1 tests
 
+--echo #
+--echo # Bug#34066605: LOST+Found directory exists after upgrade to 8.0
+--echo #
+
+######################################################################
+# 5.7:
+# In Data directory:
+# mkdir lost+found
+#
+# mysql> show databases;
+# +---------------------+
+# | Database            |
+# +---------------------+
+# | information_schema  |
+# | #mysql50#lost+found |
+# | mysql               |
+# | performance_schema  |
+# | sys                 |
+# | test                |
+# +---------------------+
+# 6 rows in set (0.00 sec)
+#
+# mysql> create table test.`#mysql50#table!t1` (c1 INT);
+# Query OK, 0 rows affected (0.04 sec)
+#
+# mysql> create table test.`#mysql50#table_t2@%&!` (c1 INT);
+# Query OK, 0 rows affected (0.04 sec)
+#
+# mysql> show tables;
+# +-----------------------+
+# | Tables_in_test        |
+# +-----------------------+
+# | #mysql50#table!t1     |
+# | #mysql50#table_t2@%&! |
+# +-----------------------+
+# 2 rows in set (0.00 sec)
+#
+# Contents of datadir:
+# Database dirname: lost+found
+# Table filenames: table!t1.frm(/.ibd), table_t2@%&!.frm(/.ibd)
+#
+# zip -r data_50740_invalid_filenames.zip data_50740_invalid_filenames
+#
+########################################################################
+
+--echo # Copy the zipped 5.7 data directory and unzip it.
+--copy_file $MYSQLTEST_VARDIR/std_data/data_50740_invalid_filenames.zip $MYSQL_TMP_DIR/data_50740_invalid_filenames.zip
+--file_exists $MYSQL_TMP_DIR/data_50740_invalid_filenames.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_50740_invalid_filenames.zip -d $MYSQL_TMP_DIR
+
+let DATADIR= $MYSQL_TMP_DIR/data_50740_invalid_filenames;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/data_50740_invalid_filenames/error.log;
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--echo # Start the server with the 5.7 data directory
+--error 1,3
+--exec $MYSQLD_CMD --datadir=$DATADIR --log-error=$MYSQLD_LOG
+
+--echo # Check for errors in the error log.
+--let SEARCH_FILE    = $MYSQLD_LOG
+--let SEARCH_PATTERN = \[ERROR\] .* Invalid \(old\?\) table or database name \'table\!t1\'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN = \[ERROR\] .* Invalid \(old\?\) table or database name \'table_t2@%&!\'
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN = \[ERROR\] .* Invalid \(old\?\) table or database name \'lost\+found\'
+--source include/search_pattern.inc
+
+# Cleanup
+--force-rmdir $DATADIR
+--remove_file $MYSQL_TMP_DIR/data_50740_invalid_filenames.zip
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc

@@ -107,7 +107,8 @@ handlerton *get_viable_handlerton_for_create(THD *thd, const char *table_name,
                                              const HA_CREATE_INFO &ci);
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
-                             bool stay_quiet = false);
+                             bool stay_quiet = false,
+                             bool *has_errors = nullptr);
 size_t tablename_to_filename(const char *from, char *to, size_t to_length);
 size_t build_table_filename(char *buff, size_t bufflen, const char *db,
                             const char *table, const char *ext, uint flags,

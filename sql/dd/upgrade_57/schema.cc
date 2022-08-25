@@ -139,7 +139,12 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Construct the schema name from its canonical format.
-  filename_to_tablename(dbname, schema_name, sizeof(schema_name));
+  bool has_invalid_name = false;
+  filename_to_tablename(dbname, schema_name, sizeof(schema_name), false,
+                        &has_invalid_name);
+
+  // If the filename of the database is invalid, stop the upgrade.
+  if (has_invalid_name) return true;
 
   dbopt_file_name.str = dbopt_path_buff;
   dbopt_file_name.length = build_table_filename(dbopt_path_buff, FN_REFLEN - 1,

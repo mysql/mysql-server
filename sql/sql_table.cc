@@ -764,18 +764,21 @@ size_t explain_filename(THD *thd, const char *from, char *to, size_t to_length,
       from                      The file name in my_charset_filename.
       to                OUT     The table name in system_charset_info.
       to_length                 The size of the table name buffer.
+      stay_quiet                Silence the errors.
+      has_errors        OUT     True, if there are errors.
 
   RETURN
     Table name length.
 */
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
-                             bool stay_quiet) {
+                             bool stay_quiet, bool *has_errors) {
   uint errors;
   size_t res;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("from '%s'", from));
 
+  if (has_errors != nullptr) *has_errors = false;
   if (strlen(from) >= tmp_file_prefix_length &&
       !memcmp(from, tmp_file_prefix, tmp_file_prefix_length)) {
     /* Temporary table name. */
@@ -785,6 +788,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                      to_length, &errors);
     if (errors)  // Old 5.0 name
     {
+      if (has_errors != nullptr) *has_errors = true;
       if (!stay_quiet) {
         LogErr(ERROR_LEVEL, ER_INVALID_OR_OLD_TABLE_OR_DB_NAME, from);
       }
