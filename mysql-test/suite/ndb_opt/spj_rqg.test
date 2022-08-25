@@ -3120,6 +3120,121 @@ eval explain format=tree $query;
 eval $query;
 
 
+--echo ##################
+--echo # Bug#34486874 Error 4829:
+--echo #      'FirstInner/Upper has to be an ancestor or a sibling'
+--echo ##################
+
+#  Join plan is: (Tables renamed acording to join order)
+#    t0, t1, (t2, t3, t4), (t5)
+#
+#  - t5 is joined with both t3 and t1
+#  - t5 refers t3 as first parent (Note: t3 not in t5's upper nests)
+#  - The remaining t5 parent 't1' is recorded as an required ancestor of t3
+#    -- t1 was not recorded as an nest ancestor in the first_inner-table t2 !!
+#
+#  - t4 required dependencies are then collected by adding ancestors
+#    - Add t4.ancestors.
+#    - Add further ancestors noted in the first_inner-table t2
+#       -- as t1 was not recorded above, it is missed out from
+#          required t4 dependencies
+#  -> t0 is set up as the t4 parent, instead of t1.
+#
+#  - t3 is later joined with t1, which is set as parent
+#
+#  There is a requirement that all out-of-nest dependencies has
+#  to be resolved such they all join with a common upper-parent,
+#  which was broken by the above.
+#
+#   -> Error 4829 ....
+#
+let $query=
+SELECT
+  table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
+FROM (j AS table1
+  JOIN w AS table2 ON table1.col_int = table2.col_int AND
+                      table1.col_int_key = table2.col_int_key AND
+                      table1.col_int_unique = table2.col_int_unique
+  JOIN n AS table3 ON table2.pk = table3.col_int_key
+  RIGHT JOIN c AS table4
+    JOIN g AS table5 ON table4.col_int_key = table5.col_int_key
+  ON table2.pk = table5.col_int_key)
+  LEFT JOIN s AS table6 ON table1.col_int_key = table6.col_int_key AND
+                           table5.col_int_unique = table6.col_int_unique;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+###########
+# Another query challenging the fix for the same bug#
+#
+let $query=
+SELECT
+  table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
+FROM d AS table1
+  LEFT JOIN v AS table2
+    INNER JOIN q AS table3 ON table2.col_int_key = table3.col_int_key AND
+                              table2.col_int_unique = table3.col_int_unique
+  ON table1.col_int_key = table2.col_int_key AND
+     table1.col_int_unique = table2.col_int_unique
+  RIGHT JOIN p AS table4
+    RIGHT JOIN q AS table5 ON table4.col_int_key = table5.col_int_key AND
+                              table4.col_int_unique = table5.col_int_unique OR
+                             table4.pk = table5.col_int_key
+  ON table1.col_int_key = table5.col_int_key AND
+     table1.col_int_unique = table5.col_int_unique;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+#########
+# Guard against regression introduced in one of the attempted patch:
+#  -> Got error 4806 'Multiple 'parents' specified in linkedValues
+#
+let $query=
+SELECT
+  table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
+FROM j AS table1
+  JOIN j AS table2 ON table1.col_int_key = table2.col_int_key
+  LEFT JOIN w AS table3 ON table2.pk = table3.col_int_key
+  LEFT JOIN w AS table4
+    JOIN x AS table5 ON table4.col_int_unique = table5.pk
+  ON table1.col_int = table5.col_int AND
+     table3.col_int_key = table4.col_int_key AND
+     table1.col_int_unique = table5.col_int_unique;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+########
+# Yet another regression guard
+let $query=
+SELECT
+  table1.pk, table2.pk, table3.pk, table4.pk
+FROM y AS table1
+  RIGHT JOIN n AS table2
+    JOIN w AS table3 ON table2.col_int = table3.col_int AND
+                        table2.col_int_key = table3.col_int_key AND
+                        table2.col_int_unique = table3.col_int_unique
+  ON table1.col_int = table3.col_int_unique
+  INNER JOIN l AS table4 ON table4.col_int IS NULL OR
+                            table1.col_int_unique = table4.col_int_key;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
 ######################################################
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 

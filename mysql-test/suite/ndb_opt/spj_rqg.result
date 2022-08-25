@@ -1518,7 +1518,7 @@ EXPLAIN
         -> Nested loop inner join
             -> Index lookup on table4 using ix1 (col_int=table2.col_int_unique)
             -> Filter: (table5.col_int_key = table2.col_int_unique)
-                -> Single-row index lookup on table5 using ix1 (col_int_unique=table1.col_int_key), child of table2 in pushed join
+                -> Single-row index lookup on table5 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join
 
 Warnings:
 Note	1003	Can't push outer joined table 'table4' as child of 'table1', join-nest containing the table has pending unpushed_conditions
@@ -4316,6 +4316,409 @@ pk
 1
 23
 26
+##################
+# Bug#34486874 Error 4829:
+#      'FirstInner/Upper has to be an ancestor or a sibling'
+##################
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
+FROM (j AS table1
+JOIN w AS table2 ON table1.col_int = table2.col_int AND
+table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table2.col_int_unique
+JOIN n AS table3 ON table2.pk = table3.col_int_key
+RIGHT JOIN c AS table4
+JOIN g AS table5 ON table4.col_int_key = table5.col_int_key
+ON table2.pk = table5.col_int_key)
+LEFT JOIN s AS table6 ON table1.col_int_key = table6.col_int_key AND
+table5.col_int_unique = table6.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Nested loop inner join
+            -> Table scan on table4, activating pushed join of 6 tables, with pushed condition: (table4.col_int_key is not null)
+            -> Index lookup on table5 using col_int_key (col_int_key=table4.col_int_key), child of table4 in pushed join
+        -> Nested loop inner join
+            -> Nested loop inner join
+                -> Single-row index lookup on table2 using PRIMARY (pk=table4.col_int_key), child of table5 in pushed join
+                -> Single-row index lookup on table1 using ix3 (col_int=table2.col_int, col_int_key=table2.col_int_key, col_int_unique=table2.col_int_unique), child of table2 in pushed join
+            -> Index lookup on table3 using col_int_key (col_int_key=table4.col_int_key), child of table5 in pushed join
+    -> Single-row index lookup on table6 using ix2 (col_int_key=table1.col_int_key, col_int_unique=table5.col_int_unique), child of table1 in pushed join
+
+SELECT
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
+FROM (j AS table1
+JOIN w AS table2 ON table1.col_int = table2.col_int AND
+table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table2.col_int_unique
+JOIN n AS table3 ON table2.pk = table3.col_int_key
+RIGHT JOIN c AS table4
+JOIN g AS table5 ON table4.col_int_key = table5.col_int_key
+ON table2.pk = table5.col_int_key)
+LEFT JOIN s AS table6 ON table1.col_int_key = table6.col_int_key AND
+table5.col_int_unique = table6.col_int_unique;
+pk	pk	pk	pk	pk	pk
+NULL	NULL	NULL	1	16	NULL
+NULL	NULL	NULL	1	17	NULL
+NULL	NULL	NULL	1	19	NULL
+NULL	NULL	NULL	1	3	NULL
+NULL	NULL	NULL	1	4	NULL
+NULL	NULL	NULL	1	6	NULL
+NULL	NULL	NULL	1	8	NULL
+NULL	NULL	NULL	2	16	NULL
+NULL	NULL	NULL	2	17	NULL
+NULL	NULL	NULL	2	19	NULL
+NULL	NULL	NULL	2	3	NULL
+NULL	NULL	NULL	2	4	NULL
+NULL	NULL	NULL	2	6	NULL
+NULL	NULL	NULL	2	8	NULL
+NULL	NULL	NULL	3	11	NULL
+NULL	NULL	NULL	3	7	NULL
+NULL	NULL	NULL	4	13	NULL
+NULL	NULL	NULL	4	14	NULL
+NULL	NULL	NULL	4	18	NULL
+NULL	NULL	NULL	4	5	NULL
+NULL	NULL	NULL	4	9	NULL
+NULL	NULL	NULL	5	16	NULL
+NULL	NULL	NULL	5	17	NULL
+NULL	NULL	NULL	5	19	NULL
+NULL	NULL	NULL	5	3	NULL
+NULL	NULL	NULL	5	4	NULL
+NULL	NULL	NULL	5	6	NULL
+NULL	NULL	NULL	5	8	NULL
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
+FROM d AS table1
+LEFT JOIN v AS table2
+INNER JOIN q AS table3 ON table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique
+ON table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table2.col_int_unique
+RIGHT JOIN p AS table4
+RIGHT JOIN q AS table5 ON table4.col_int_key = table5.col_int_key AND
+table4.col_int_unique = table5.col_int_unique OR
+table4.pk = table5.col_int_key
+ON table1.col_int_key = table5.col_int_key AND
+table1.col_int_unique = table5.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Table scan on table5, activating pushed join of 4 tables
+        -> Index range scan on table4 (re-planned for each iteration), with pushed condition: (((table4.col_int_unique = table5.col_int_unique) and (table4.col_int_key = table5.col_int_key)) or (table4.pk = table5.col_int_key))
+    -> Nested loop left join
+        -> Single-row index lookup on table1 using ix1 (col_int_unique=table5.col_int_unique), child of table5 in pushed join, with pushed condition: (table1.col_int_key = table5.col_int_key)
+        -> Nested loop inner join
+            -> Single-row index lookup on table3 using ix2 (col_int_key=table1.col_int_key, col_int_unique=table1.col_int_unique), child of table1 in pushed join, with pushed condition: ((table3.col_int_unique = table5.col_int_unique) and (table3.col_int_key = table5.col_int_key))
+            -> Index lookup on table2 using col_int_key (col_int_key=table5.col_int_key), child of table1 in pushed join, with pushed condition: (table2.col_int_unique = table5.col_int_unique)
+
+Warnings:
+Note	1003	Table 'table4' is not pushable: Access type was not chosen at 'prepare' time
+SELECT
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
+FROM d AS table1
+LEFT JOIN v AS table2
+INNER JOIN q AS table3 ON table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique
+ON table1.col_int_key = table2.col_int_key AND
+table1.col_int_unique = table2.col_int_unique
+RIGHT JOIN p AS table4
+RIGHT JOIN q AS table5 ON table4.col_int_key = table5.col_int_key AND
+table4.col_int_unique = table5.col_int_unique OR
+table4.pk = table5.col_int_key
+ON table1.col_int_key = table5.col_int_key AND
+table1.col_int_unique = table5.col_int_unique;
+pk	pk	pk	pk	pk
+6	NULL	NULL	2	9
+NULL	NULL	NULL	1	11
+NULL	NULL	NULL	1	19
+NULL	NULL	NULL	1	2
+NULL	NULL	NULL	1	3
+NULL	NULL	NULL	1	4
+NULL	NULL	NULL	2	15
+NULL	NULL	NULL	2	18
+NULL	NULL	NULL	2	23
+NULL	NULL	NULL	2	5
+NULL	NULL	NULL	2	7
+NULL	NULL	NULL	3	1
+NULL	NULL	NULL	3	12
+NULL	NULL	NULL	3	13
+NULL	NULL	NULL	3	16
+NULL	NULL	NULL	3	17
+NULL	NULL	NULL	3	20
+NULL	NULL	NULL	3	22
+NULL	NULL	NULL	6	17
+NULL	NULL	NULL	8	25
+NULL	NULL	NULL	NULL	10
+NULL	NULL	NULL	NULL	14
+NULL	NULL	NULL	NULL	21
+NULL	NULL	NULL	NULL	24
+NULL	NULL	NULL	NULL	6
+NULL	NULL	NULL	NULL	8
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
+FROM j AS table1
+JOIN j AS table2 ON table1.col_int_key = table2.col_int_key
+LEFT JOIN w AS table3 ON table2.pk = table3.col_int_key
+LEFT JOIN w AS table4
+JOIN x AS table5 ON table4.col_int_unique = table5.pk
+ON table1.col_int = table5.col_int AND
+table3.col_int_key = table4.col_int_key AND
+table1.col_int_unique = table5.col_int_unique;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Nested loop inner join
+            -> Table scan on table1, activating pushed join of 5 tables, with pushed condition: (table1.col_int_key is not null)
+            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+        -> Index lookup on table3 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join
+    -> Nested loop inner join
+        -> Index lookup on table4 using col_int_key (col_int_key=table3.col_int_key), child of table3 in pushed join
+        -> Single-row index lookup on table5 using PRIMARY (col_int=table1.col_int, pk=table4.col_int_unique), child of table4 in pushed join, with pushed condition: (table5.col_int_unique = table1.col_int_unique)
+
+SELECT
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk
+FROM j AS table1
+JOIN j AS table2 ON table1.col_int_key = table2.col_int_key
+LEFT JOIN w AS table3 ON table2.pk = table3.col_int_key
+LEFT JOIN w AS table4
+JOIN x AS table5 ON table4.col_int_unique = table5.pk
+ON table1.col_int = table5.col_int AND
+table3.col_int_key = table4.col_int_key AND
+table1.col_int_unique = table5.col_int_unique;
+pk	pk	pk	pk	pk
+1	1	1	NULL	NULL
+1	1	12	NULL	NULL
+1	1	14	NULL	NULL
+1	1	15	NULL	NULL
+1	1	16	NULL	NULL
+1	1	18	NULL	NULL
+1	1	22	NULL	NULL
+1	1	24	NULL	NULL
+1	1	29	NULL	NULL
+1	1	9	NULL	NULL
+1	18	NULL	NULL	NULL
+1	19	NULL	NULL	NULL
+1	4	NULL	NULL	NULL
+1	7	NULL	NULL	NULL
+10	10	NULL	NULL	NULL
+10	12	NULL	NULL	NULL
+10	2	11	NULL	NULL
+10	2	13	NULL	NULL
+10	2	2	NULL	NULL
+10	2	27	NULL	NULL
+10	2	30	NULL	NULL
+10	2	6	NULL	NULL
+10	3	17	NULL	NULL
+10	3	20	NULL	NULL
+10	3	21	NULL	NULL
+10	3	26	NULL	NULL
+10	3	28	NULL	NULL
+10	3	3	NULL	NULL
+10	3	5	NULL	NULL
+10	5	NULL	NULL	NULL
+11	11	NULL	NULL	NULL
+11	14	NULL	NULL	NULL
+11	17	NULL	NULL	NULL
+11	21	NULL	NULL	NULL
+12	10	NULL	NULL	NULL
+12	12	NULL	NULL	NULL
+12	2	11	NULL	NULL
+12	2	13	NULL	NULL
+12	2	2	NULL	NULL
+12	2	27	NULL	NULL
+12	2	30	NULL	NULL
+12	2	6	NULL	NULL
+12	3	17	NULL	NULL
+12	3	20	NULL	NULL
+12	3	21	NULL	NULL
+12	3	26	NULL	NULL
+12	3	28	NULL	NULL
+12	3	3	NULL	NULL
+12	3	5	NULL	NULL
+12	5	NULL	NULL	NULL
+13	13	NULL	NULL	NULL
+13	15	NULL	NULL	NULL
+13	20	NULL	NULL	NULL
+13	6	NULL	NULL	NULL
+13	8	NULL	NULL	NULL
+13	9	NULL	NULL	NULL
+14	11	NULL	NULL	NULL
+14	14	NULL	NULL	NULL
+14	17	NULL	NULL	NULL
+14	21	NULL	NULL	NULL
+15	13	NULL	NULL	NULL
+15	15	NULL	NULL	NULL
+15	20	NULL	NULL	NULL
+15	6	NULL	NULL	NULL
+15	8	NULL	NULL	NULL
+15	9	NULL	NULL	NULL
+17	11	NULL	NULL	NULL
+17	14	NULL	NULL	NULL
+17	17	NULL	NULL	NULL
+17	21	NULL	NULL	NULL
+18	1	1	NULL	NULL
+18	1	12	NULL	NULL
+18	1	14	NULL	NULL
+18	1	15	NULL	NULL
+18	1	16	NULL	NULL
+18	1	18	NULL	NULL
+18	1	22	NULL	NULL
+18	1	24	NULL	NULL
+18	1	29	NULL	NULL
+18	1	9	NULL	NULL
+18	18	NULL	NULL	NULL
+18	19	NULL	NULL	NULL
+18	4	NULL	NULL	NULL
+18	7	NULL	NULL	NULL
+19	1	1	NULL	NULL
+19	1	12	NULL	NULL
+19	1	14	NULL	NULL
+19	1	15	NULL	NULL
+19	1	16	NULL	NULL
+19	1	18	NULL	NULL
+19	1	22	NULL	NULL
+19	1	24	NULL	NULL
+19	1	29	NULL	NULL
+19	1	9	NULL	NULL
+19	18	NULL	NULL	NULL
+19	19	NULL	NULL	NULL
+19	4	NULL	NULL	NULL
+19	7	NULL	NULL	NULL
+2	10	NULL	NULL	NULL
+2	12	NULL	NULL	NULL
+2	2	11	NULL	NULL
+2	2	13	NULL	NULL
+2	2	2	NULL	NULL
+2	2	27	NULL	NULL
+2	2	30	NULL	NULL
+2	2	6	NULL	NULL
+2	3	17	NULL	NULL
+2	3	20	NULL	NULL
+2	3	21	NULL	NULL
+2	3	26	NULL	NULL
+2	3	28	NULL	NULL
+2	3	3	NULL	NULL
+2	3	5	NULL	NULL
+2	5	NULL	NULL	NULL
+20	13	NULL	NULL	NULL
+20	15	NULL	NULL	NULL
+20	20	NULL	NULL	NULL
+20	6	NULL	NULL	NULL
+20	8	NULL	NULL	NULL
+20	9	NULL	NULL	NULL
+21	11	NULL	NULL	NULL
+21	14	NULL	NULL	NULL
+21	17	NULL	NULL	NULL
+21	21	NULL	NULL	NULL
+3	10	NULL	NULL	NULL
+3	12	NULL	NULL	NULL
+3	2	11	NULL	NULL
+3	2	13	NULL	NULL
+3	2	2	NULL	NULL
+3	2	27	NULL	NULL
+3	2	30	NULL	NULL
+3	2	6	NULL	NULL
+3	3	17	NULL	NULL
+3	3	20	NULL	NULL
+3	3	21	NULL	NULL
+3	3	26	NULL	NULL
+3	3	28	NULL	NULL
+3	3	3	NULL	NULL
+3	3	5	NULL	NULL
+3	5	NULL	NULL	NULL
+4	1	1	NULL	NULL
+4	1	12	NULL	NULL
+4	1	14	NULL	NULL
+4	1	15	NULL	NULL
+4	1	16	NULL	NULL
+4	1	18	NULL	NULL
+4	1	22	NULL	NULL
+4	1	24	NULL	NULL
+4	1	29	NULL	NULL
+4	1	9	NULL	NULL
+4	18	NULL	NULL	NULL
+4	19	NULL	NULL	NULL
+4	4	NULL	NULL	NULL
+4	7	NULL	NULL	NULL
+5	10	NULL	NULL	NULL
+5	12	NULL	NULL	NULL
+5	2	11	NULL	NULL
+5	2	13	NULL	NULL
+5	2	2	NULL	NULL
+5	2	27	NULL	NULL
+5	2	30	NULL	NULL
+5	2	6	NULL	NULL
+5	3	17	NULL	NULL
+5	3	20	NULL	NULL
+5	3	21	NULL	NULL
+5	3	26	NULL	NULL
+5	3	28	NULL	NULL
+5	3	3	NULL	NULL
+5	3	5	NULL	NULL
+5	5	NULL	NULL	NULL
+6	13	NULL	NULL	NULL
+6	15	NULL	NULL	NULL
+6	20	NULL	NULL	NULL
+6	6	NULL	NULL	NULL
+6	8	NULL	NULL	NULL
+6	9	NULL	NULL	NULL
+7	1	1	NULL	NULL
+7	1	12	NULL	NULL
+7	1	14	NULL	NULL
+7	1	15	NULL	NULL
+7	1	16	NULL	NULL
+7	1	18	NULL	NULL
+7	1	22	NULL	NULL
+7	1	24	NULL	NULL
+7	1	29	NULL	NULL
+7	1	9	NULL	NULL
+7	18	NULL	NULL	NULL
+7	19	NULL	NULL	NULL
+7	4	NULL	NULL	NULL
+7	7	NULL	NULL	NULL
+8	13	NULL	NULL	NULL
+8	15	NULL	NULL	NULL
+8	20	NULL	NULL	NULL
+8	6	NULL	NULL	NULL
+8	8	NULL	NULL	NULL
+8	9	NULL	NULL	NULL
+9	13	NULL	NULL	NULL
+9	15	NULL	NULL	NULL
+9	20	NULL	NULL	NULL
+9	6	NULL	NULL	NULL
+9	8	NULL	NULL	NULL
+9	9	NULL	NULL	NULL
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM y AS table1
+RIGHT JOIN n AS table2
+JOIN w AS table3 ON table2.col_int = table3.col_int AND
+table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique
+ON table1.col_int = table3.col_int_unique
+INNER JOIN l AS table4 ON table4.col_int IS NULL OR
+table1.col_int_unique = table4.col_int_key;
+EXPLAIN
+-> Nested loop inner join
+    -> Filter: (table1.col_int_unique is not null)
+        -> Nested loop left join
+            -> Nested loop inner join
+                -> Table scan on table2, activating pushed join of 4 tables, with pushed condition: (table2.col_int_key is not null)
+                -> Index lookup on table3 using col_int_key (col_int_key=table2.col_int_key), child of table2 in pushed join, with pushed condition: ((table3.col_int_unique = table2.col_int_unique) and (table3.col_int = table2.col_int))
+            -> Index lookup on table1 using PRIMARY (col_int=table2.col_int_unique), child of table2 in pushed join
+    -> Index lookup on table4 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join
+
+SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM y AS table1
+RIGHT JOIN n AS table2
+JOIN w AS table3 ON table2.col_int = table3.col_int AND
+table2.col_int_key = table3.col_int_key AND
+table2.col_int_unique = table3.col_int_unique
+ON table1.col_int = table3.col_int_unique
+INNER JOIN l AS table4 ON table4.col_int IS NULL OR
+table1.col_int_unique = table4.col_int_key;
+pk	pk	pk	pk
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 ##################
 #

@@ -218,8 +218,8 @@ class ndb_pushed_builder_ctx {
                                ndb_table_access_map nest,
                                const char *nest_type);
 
-  bool is_outer_nests_referable(const AQP::Table_access *table,
-                                ndb_table_access_map key_parents);
+  bool set_ancestor_nests(const AQP::Table_access *table,
+                          ndb_table_access_map key_parents);
 
   bool is_const_item_pushable(const Item *key_item,
                               const KEY_PART_INFO *key_part);
@@ -247,7 +247,10 @@ class ndb_pushed_builder_ctx {
 
   ndb_table_access_map get_table_map(table_map external_map) const;
 
- private:
+  // get required nest level ancestor
+  struct pushed_tables;
+  ndb_table_access_map required_ancestors(const pushed_tables *table) const;
+
   const Thd_ndb *const m_thd_ndb;
 
   AQP::Join_plan &m_plan;
@@ -280,6 +283,7 @@ class ndb_pushed_builder_ctx {
     pushed_tables()
         : m_inner_nest(),
           m_upper_nests(),
+          m_ancestor_nests(),
           m_first_inner(0),
           m_last_inner(0),
           m_first_upper(-1),
@@ -307,9 +311,27 @@ class ndb_pushed_builder_ctx {
      *   (-> has an upper-nest - see below.))
      *
      * - The upper-nest(s) are the set of tables which the tables in the
-     *   inner-nest are outer joined with. There might be multiple levels
+     *   inner-nest are outer joined with as defined by the nesting topology
+     *   of the mysqld provided query-plan. There might be multiple levels
      *   of upper nesting (or outer joining), where m_upper_nests contain the
-     *   aggregate of these nests as seen from this table.
+     *   aggregate of these nests as seen from this table. 'm_first_upper'
+     *   can be used to iterate the m_upper_nests one nest at a time.
+     *
+     * - The m_ancestor_nests are the join-nests actually refered from an
+     *   outer joined (nest-of-)tables. It is set up based on the tables/nests
+     *   actally referred from the SPJ-query as built by this join-pushdown
+     *   handler. It will usually be the same as the upper-nests, but it can
+     *   differ in cases where we entirely skip references to a parent nest
+     *   and just refer tables fra its grand-parent nests, or refer 'sideways'
+     *   into sibling nests.
+     *
+     * These two similar, but different, nest maps are required as both the
+     * inner/outer join properties, as well as the out-of-nest references to
+     * ancestor tables impose limitatins on whether a table can be pushed.
+     * Note that the upper_nests are 'static' in the scope up pushdown handler:
+     * They are set up entirely based on the query-plan provided to it.
+     * The ancestor_nests however are build based on the SPJ query build by
+     * this code.
      *
      * In the comments for the optimizer code, and this SPJ handler integration
      * code, we may use nested pairs of parentheses to express the nest
@@ -331,9 +353,16 @@ class ndb_pushed_builder_ctx {
      * 'm_inner_nest'.
      */
     ndb_table_access_map m_inner_nest;
+
+    // Aggregate of the upper-nest, as defined by the query-plan
     ndb_table_access_map m_upper_nests;
 
+    // The nests actually refered as ancestors, usually same as m_upper_nests.
+    ndb_table_access_map m_ancestor_nests;
+
     /**
+     * upper_nests / embedding_nests:
+     *
      * The sum of the inner- and upper-nests is the 'embedding nests'
      * for the table. The join semantic for the tables in the
      * embedding nest is such that no result row can be created from
@@ -390,6 +419,8 @@ class ndb_pushed_builder_ctx {
     }
 
     /**
+     * ancestor_nests:
+     *
      * In additions to the above inner- and upper-nest dependencies, there
      * may be dependencies on tables outside of the set of inner_ & upper_nests.
      * Such dependencies are caused by explicit references to non-embedded
@@ -424,16 +455,21 @@ class ndb_pushed_builder_ctx {
      * implies ''t2 IS NOT NULL'.  -> Query becomes pushable.
      *
      * We handle this by allowing such explicit 'out of nests' references
-     * to become members of the upper_nests of the nest tables referring them.
-     * In the case above the 'outer' references to t2 from t3 will result in
-     * t2 being added to the upper_nests of t3. When analyzing t4 pushability,
-     * we will find that the parent table t3 already has t2 as part of its
-     * embedding_nests. Thus t4 becomes pushable.
+     * to become members of the ancestor_nests of the nest tables referring
+     * them. In the case above the 'outer' references to t2 from t3 will
+     * result in t2 being added to the ancestor_nests of t3.
+     * When analyzing t4 pushability, we will find that the parent table t3
+     * already has t2 as part of its ancestor_nests. Thus t4 becomes pushable.
      *
      * When we leave the nest containing the table(s) which made the
-     * 'out of nests' references, such added upper_nests references will
+     * 'out of nests' references, such added ancestor_nests references will
      * also go out of scope.
      */
+    ndb_table_access_map ancestor_nests() const {
+      ndb_table_access_map nests(m_inner_nest);
+      nests.add(m_ancestor_nests);
+      return nests;
+    }
 
     bool isOuterJoined(pushed_tables &parent) const {
       return m_first_inner > parent.m_first_inner;
@@ -498,12 +534,12 @@ class ndb_pushed_builder_ctx {
      * 2) After ::optimize_query_plan() m_ancestors will contain all
      *    ancestor tables reachable through the m_parent chain
      *
-     * Note that we use mechanism 1) on nest level as well:
-     * The 'first_inner' in each join_nest hold the mandatory ancestor
-     * dependencies for all tables in this nest. This also include
-     * other join_nests embedded with this nest, such that the
-     * first_inner of a nest also depends on all tables in the
-     * first_upper (the 'first_inner' in the upper_nest).
+     * Note that there are mandatory nest level dependencies as well.
+     * The aggregate of all table ancestors in the same nest
+     * are mandatory ancestors for the nest. This also include
+     * other join_nests embedded with this nest. The method
+     * get_nest_ancestors() is provided for collecting such
+     * dependencies.
      *
      * There are implementation limitations in the SPJ-API
      * ::prepareResultSet() which calls for such ancestor dependencies
