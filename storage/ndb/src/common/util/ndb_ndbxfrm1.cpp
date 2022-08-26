@@ -143,7 +143,7 @@ int ndb_ndbxfrm1::header::read_header(ndbxfrm_input_iterator* in)
   if (fixed_header_size > header_size)
     RETURN(-1);
   Uint32 copy_size = fixed_header_size;
-  while (copy_size > 0 && p[copy_size - 1] != 0)
+  while (copy_size > 0 && p[copy_size - 1] == 0)
   {
     copy_size--;
   }
@@ -969,6 +969,9 @@ int ndb_ndbxfrm1::trailer::fixed_trailer::toggle_endian()
     RETURN(-1);
   toggle_endian64(&m_flags);
   toggle_endian64(&m_data_size);
+  static_assert(sizeof(ndb_ndbxfrm1::trailer::fixed_trailer) == 56,
+   "Remember update ndb_ndbxfrm1::trailer::fixed_trailer::toggle_endian() when "
+   "adding new fields.");
   return 0;
 }
 
@@ -1023,6 +1026,10 @@ int ndb_ndbxfrm1::header::fixed_header::toggle_endian()
   toggle_endian32(&m_encrypt_krm_keying_material_count);
   toggle_endian32(&m_encrypt_key_data_unit_size);
   toggle_endian32(&m_encrypt_krm_keying_material_position_in_octets);
+  toggle_endian32(&m_encrypt_krm_key_count);
+  static_assert(sizeof(ndb_ndbxfrm1::header::fixed_header) == 160,
+   "Remember update ndb_ndbxfrm1::header::fixed_header::toggle_endian() when "
+   "adding new fields.");
   return 0;
 }
 
@@ -1081,7 +1088,7 @@ int ndb_ndbxfrm1::trailer::read_trailer(ndbxfrm_input_reverse_iterator* in)
 
   Uint32 copy_size = fixed_trailer_size - sizeof(fixed_trailer::magic);
   const byte* pt = reinterpret_cast<const byte*>(trailerp);
-  while (copy_size > 0 && pt[copy_size - 1] != 0)
+  while (copy_size > 0 && pt[copy_size - 1] == 0)
   {
     copy_size--;
   }

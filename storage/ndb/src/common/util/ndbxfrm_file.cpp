@@ -1208,7 +1208,10 @@ int ndbxfrm_file::write_trailer(ndbxfrm_output_iterator *out,
   {
     ndb_ndbxfrm1::trailer ndbxfrm1;
     require(ndbxfrm1.set_data_size(m_data_size) == 0);
-    require(ndbxfrm1.set_data_crc32(m_crc32) == 0);
+    if (m_file_op == OP_WRITE_FORW)
+    {
+      require(ndbxfrm1.set_data_crc32(m_crc32) == 0);
+    }
     require(ndbxfrm1.set_file_pos(file_pos) == 0);
     require(ndbxfrm1.set_file_block_size(m_file_block_size) == 0);
     require(ndbxfrm1.prepare_for_write() == 0);

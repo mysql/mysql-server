@@ -25,6 +25,7 @@
 #define NDBCNTR_C
 #include "Ndbcntr.hpp"
 
+#include "config.h" // WORDS_BIGENDIAN
 #include <cstring>
 #include <ndb_limits.h>
 #include <ndb_version.h>
@@ -84,6 +85,7 @@
 #include "../backup/BackupFormat.hpp"
 
 #include <NdbGetRUsage.h>
+#include "util/ndb_ndbxfrm1.h" // ndb_ndbxfrm1::toggle_endian
 #include <EventLogger.hpp>
 
 #define JAM_FILE_ID 458
@@ -6447,8 +6449,13 @@ void Ndbcntr::write_secretsfile(Signal *signal)
   Uint32 cnt=0;
   memcpy(&c_secretsfile.m_data[cnt], "NDBSCRT1", 8);
   cnt += ndb_ceil_div<Uint32>(8, sizeof(Uint32));
+  auto key_len_le = globalData.nodeMasterKeyLength;
+#ifdef WORDS_BIGENDIAN
+  // key length should be stored in little endian
+  ndb_ndbxfrm1::toggle_endian32(&key_len_le);
+#endif
   memcpy(&c_secretsfile.m_data[cnt],
-         &globalData.nodeMasterKeyLength,
+         &key_len_le,
          sizeof(globalData.nodeMasterKeyLength));
   cnt += ndb_ceil_div<Uint32>(sizeof(globalData.nodeMasterKeyLength),sizeof(Uint32));
 
@@ -6553,6 +6560,10 @@ void Ndbcntr::read_secretsfile_data(Signal *signal)
   cnt += sizeof(magic);
   Uint32 key_len;
   memcpy(&key_len, ptr+cnt, sizeof(key_len));
+#ifdef WORDS_BIGENDIAN
+  // key length is always stored in little endian
+  ndb_ndbxfrm1::toggle_endian32(&key_len);
+#endif
   assert(key_len == c_nodeMasterKeyLength);
   cnt += sizeof(key_len);
   memset(globalData.nodeMasterKey, 0, MAX_NODE_MASTER_KEY_LENGTH);
