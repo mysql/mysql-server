@@ -644,10 +644,11 @@ cached and reused for many recs which don't contain NULLs.
                        the call.
                        This function will fill all the other elements. */
 inline void rec_init_fixed_offsets(const dict_index_t *index, ulint *offsets) {
+  ut_ad(!index->has_instant_cols_or_row_versions());
+
   rec_offs_make_valid(nullptr, index, offsets);
   rec_offs_base(offsets)[0] =
-      (REC_N_NEW_EXTRA_BYTES +
-       UT_BITS_IN_BYTES(index->get_instant_nullable())) |
+      (REC_N_NEW_EXTRA_BYTES + UT_BITS_IN_BYTES(index->n_nullable)) |
       REC_OFFS_COMPACT;
   const auto n_fields = rec_offs_n_fields(offsets);
   auto field_end = rec_offs_base(offsets) + 1;
@@ -781,13 +782,13 @@ static inline uint16_t rec_init_null_and_len_temp(const rec_t *rec,
     ret = non_default_fields;
   } else if (index->table->has_instant_cols()) {
     /* Row inserted before first INSTANT ADD COLUMN in V1 */
-    *n_null = index->get_instant_nullable();
+    *n_null = index->get_nullable_before_instant_add_drop();
     non_default_fields = index->get_instant_fields();
     ret = non_default_fields;
   } else {
     /* Row inserted before first INSTANT ADD/DROP in V2 */
     ut_ad(row_version == 0);
-    *n_null = index->get_nullable_in_version(row_version);
+    *n_null = index->get_nullable_before_instant_add_drop();
     ret = (uint16_t)row_version;
   }
 
@@ -888,13 +889,13 @@ static inline uint16_t rec_init_null_and_len_comp(const rec_t *rec,
     ret = non_default_fields;
   } else if (index->table->has_instant_cols()) {
     /* Row inserted before first INSTANT ADD COLUMN in V1 */
-    *n_null = index->get_instant_nullable();
+    *n_null = index->get_nullable_before_instant_add_drop();
     non_default_fields = index->get_instant_fields();
     ret = non_default_fields;
   } else { /* Not an INSTANT upgraded table */
     /* Row inserted before first INSTANT ADD/DROP in V2 */
     ut_ad(row_version == 0);
-    *n_null = index->get_nullable_in_version(row_version);
+    *n_null = index->get_nullable_before_instant_add_drop();
     ret = (uint16_t)row_version;
   }
 

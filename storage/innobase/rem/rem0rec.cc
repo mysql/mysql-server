@@ -314,11 +314,7 @@ bool is_store_version(const dict_index_t *index, size_t n_tuple_fields) {
         break;
       case REC_STATUS_NODE_PTR:
         ut_ad(!temp && n_fields > 0);
-        if (index->has_row_versions()) {
-          n_null = index->get_nullable_in_version(0);
-        } else if (index->has_instant_cols()) {
-          n_null = index->get_instant_nullable();
-        }
+        n_null = index->get_nullable_before_instant_add_drop();
         break;
       case REC_STATUS_INFIMUM:
       case REC_STATUS_SUPREMUM:
@@ -770,11 +766,7 @@ static inline bool rec_convert_dtuple_to_rec_comp(
               static_cast<ulint>(
                   dict_index_get_n_unique_in_tree_nonleaf(index) + 1));
         n_node_ptr_field = n_fields - 1;
-        if (index->has_row_versions()) {
-          n_null = index->get_nullable_in_version(0);
-        } else if (index->has_instant_cols()) {
-          n_null = index->get_instant_nullable();
-        }
+        n_null = index->get_nullable_before_instant_add_drop();
         break;
       case REC_STATUS_INFIMUM:
       case REC_STATUS_SUPREMUM:
