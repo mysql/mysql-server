@@ -371,7 +371,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
   assert(m_table_count <= MAX_TABLES);
 
   for (uint tab_no = 0; tab_no < m_table_count; tab_no++) {
-    pushed_table *table = &m_tables[tab_no];
+    pushed_table *const table = &m_tables[tab_no];
 
     /**
      * Build join-nest structure for tables:
@@ -392,11 +392,11 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
       inner_nest.clear_all();
       first_inner = tab_no;
     }
-    m_tables[tab_no].m_first_inner = first_inner;
-    m_tables[tab_no].m_last_inner = table->get_last_inner();
-    m_tables[tab_no].m_first_upper = table->get_first_upper();
-    m_tables[tab_no].m_upper_nests = upper_nests;
-    m_tables[tab_no].m_inner_nest = inner_nest;
+    table->m_first_inner = first_inner;
+    table->m_last_inner = table->get_last_inner();
+    table->m_first_upper = table->get_first_upper();
+    table->m_upper_nests = upper_nests;
+    table->m_inner_nest = inner_nest;
     inner_nest.add(tab_no);
     // In case next tab_no will start a new inner nest
     upper = tab_no;
@@ -416,11 +416,11 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
       const int last_sj_inner = table->get_last_sj_inner();
       const ndb_table_map sj_nest =
           get_tables_in_range(first_sj_inner, last_sj_inner);
-      m_tables[tab_no].m_sj_nest = sj_nest;
-      m_tables[tab_no].m_first_sj_upper = table->get_first_sj_upper();
+      table->m_sj_nest = sj_nest;
+      table->m_first_sj_upper = table->get_first_sj_upper();
     }
 
-    if (!ndbcluster_is_lookup_operation(m_tables[tab_no].get_access_type())) {
+    if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
       // A pushable table scan, collect in bitmap for later fast checks
       m_scan_operations.add(tab_no);
     }
@@ -436,8 +436,8 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
      */
 
     // Prepare inner/outer join-nest structure for unwind;
-    uint last_inner = m_tables[tab_no].m_last_inner;
-    int first_upper = m_tables[tab_no].m_first_upper;
+    uint last_inner = table->m_last_inner;
+    int first_upper = table->m_first_upper;
 
     while (tab_no == last_inner &&  // End of current join-nest, and
            first_upper >= 0) {      // has an embedding upper nest
@@ -475,11 +475,12 @@ void ndb_pushed_builder_ctx::prepare(pushed_table *join_root) {
     m_fld_refs = 0;
 
     for (uint tab_no = 0; tab_no < m_table_count; tab_no++) {
-      m_tables[tab_no].m_key_parents = nullptr;
-      m_tables[tab_no].m_ancestors.clear_all();
-      m_tables[tab_no].m_ancestor_nests.clear_all();
-      m_tables[tab_no].m_parent = MAX_TABLES;
-      m_tables[tab_no].m_op = nullptr;
+      pushed_table *const table = &m_tables[tab_no];
+      table->m_key_parents = nullptr;
+      table->m_ancestors.clear_all();
+      table->m_ancestor_nests.clear_all();
+      table->m_parent = MAX_TABLES;
+      table->m_op = nullptr;
     }
   }
 }
@@ -791,7 +792,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
 
   {
     for (uint tab_no = root_no; tab_no < m_table_count; tab_no++) {
-      pushed_table *table = &m_tables[tab_no];
+      pushed_table *const table = &m_tables[tab_no];
 
       /**
        * Push down join of table if supported:
@@ -842,9 +843,9 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
       }
 
       // Prepare inner/outer join-nest structure for unwind;
-      uint first_inner = m_tables[tab_no].m_first_inner;
-      uint last_inner = m_tables[tab_no].m_last_inner;
-      int first_upper = m_tables[tab_no].m_first_upper;
+      uint first_inner = table->m_first_inner;
+      uint last_inner = table->m_last_inner;
+      int first_upper = table->m_first_upper;
 
       while (tab_no == last_inner &&  // End of current join-nest, and
              first_upper >= 0) {      // has an embedding upper nest
@@ -996,7 +997,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
   ndb_table_map depend_parents;
   ndb_table_map *key_parents =
       new (m_thd->mem_root) ndb_table_map[no_of_key_fields];
-  m_tables[tab_no].m_key_parents = key_parents;
+  table->m_key_parents = key_parents;
 
   for (uint key_part_no = 0; key_part_no < no_of_key_fields; key_part_no++) {
     const Item *const key_item = table->get_key_field(key_part_no);
@@ -1099,7 +1100,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
 
     // 1) Start with all parent candidates for this 'table'
     ndb_table_map possible_ancestors(all_parents);
-    possible_ancestors.add(required_ancestors(&m_tables[tab_no]));
+    possible_ancestors.add(required_ancestors(table));
 
     // 2) For all possible_ancestor tables, add its ancestors as well:
     for (uint i = tab_no - 1; i > root_no; i--) {
@@ -1111,7 +1112,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
     }
 
     // 3) Add tables requiring existing ancestors as its own ancestors:
-    const ndb_table_map ancestor_nests(m_tables[tab_no].ancestor_nests());
+    const ndb_table_map ancestor_nests(table->ancestor_nests());
     for (uint i = root_no + 1; i < tab_no; i++) {
       if (m_join_scope.contain(i) &&         // Table is pushed
           !possible_ancestors.contain(i) &&  // Not already an ancestor
@@ -1197,7 +1198,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
       table_map used_tables(handler->m_cond.m_pushed_cond->used_tables());
       used_tables &= param_expr_tables;
       const ndb_table_map parents_of_condition(get_table_map(used_tables));
-      m_tables[tab_no].m_ancestors.add(parents_of_condition);
+      table->m_ancestors.add(parents_of_condition);
       all_parents.add(parents_of_condition);
       depend_parents.add(parents_of_condition);
     }
@@ -1230,20 +1231,18 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
    * by required_ancestors(), and later used to enforce
    * ::optimize_query_plan() to use these tables as (grand-)parents
    */
-  const uint first_inner = m_tables[tab_no].m_first_inner;
+  const uint first_inner = table->m_first_inner;
   // Only interested in the upper-nest-level dependencies:
   depend_parents.intersect(m_tables[first_inner].ancestor_nests());
-  m_tables[tab_no].m_ancestors.add(depend_parents);
+  table->m_ancestors.add(depend_parents);
 
   // Our ancestor_nests need to cover required parents and ancestors
-  assert(m_tables[tab_no].ancestor_nests().contain(depend_parents));
-  assert(m_tables[tab_no].ancestor_nests().contain(
-      required_ancestors(&m_tables[tab_no])));
+  assert(table->ancestor_nests().contain(depend_parents));
+  assert(table->ancestor_nests().contain(required_ancestors(table)));
 
   // required_ancestors only cares about tables outside of inner_nest
-  assert(!required_ancestors(&m_tables[tab_no]).contain(first_inner));
-  assert(!required_ancestors(&m_tables[tab_no])
-              .is_overlapping(m_tables[tab_no].m_inner_nest));
+  assert(!required_ancestors(table).contain(first_inner));
+  assert(!required_ancestors(table).is_overlapping(table->m_inner_nest));
 
   m_join_scope.add(tab_no);
   return true;
@@ -1439,7 +1438,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
   const uint tab_no = table->get_table_no();
   assert(m_scan_operations.contain(tab_no));
 
-  if (m_tables[tab_no].isOuterJoined(m_tables[root_no])) {
+  if (table->isOuterJoined(*m_join_root)) {
     /**
      * Is an outer join relative to root. Even if tab_no is inner_joined with
      * another parent than 'root', any restrictions on scan operations still
@@ -1465,9 +1464,9 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
      * unpushed conditions and tables. These are the tables we check
      * the above 1b,1c,2b and 2c cases against.
      */
-    ndb_table_map outer_join_nests(m_tables[tab_no].embedding_nests());
+    ndb_table_map outer_join_nests(table->embedding_nests());
     outer_join_nests.subtract(full_inner_nest(root_no, tab_no));
-    outer_join_nests.subtract(m_tables[root_no].m_upper_nests);
+    outer_join_nests.subtract(m_join_root->m_upper_nests);
 
     const char *join_type =
         table->is_anti_joined(m_join_root) ? "anti" : "outer";
@@ -1478,7 +1477,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     /**
      * 3) Check if any tables outside of the embedding nest are referred.
      */
-    const ndb_table_map embedding_nests(m_tables[tab_no].embedding_nests());
+    const ndb_table_map embedding_nests(table->embedding_nests());
     if (unlikely(!embedding_nests.contain(all_parents))) {           // 3)
       if (unlikely(!embedding_nests.contain(m_has_pending_cond))) {  // 3a)
         EXPLAIN_NO_PUSH(
@@ -1541,7 +1540,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
    * INNER JOIN wrt. that other table. (Which is pushable)
    */
 
-  ndb_table_map sj_nest(m_tables[tab_no].m_sj_nest);
+  ndb_table_map sj_nest(table->m_sj_nest);
   if (sj_nest.contain(tab_no)) {
     const Ndb *ndb = get_thd_ndb(m_thd)->ndb;
     if (unlikely(!NdbQueryBuilder::outerJoinedScanSupported(ndb))) {
@@ -1552,7 +1551,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
           table->get_table()->alias, m_join_root->get_table()->alias);
       return false;
     }
-    sj_nest.intersect(m_tables[tab_no].embedding_nests());
+    sj_nest.intersect(table->embedding_nests());
     if (!is_pushable_within_nest(table, sj_nest, "semi")) {
       return false;
     }
@@ -1609,17 +1608,17 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
  *    dependencies.
  ***************************************************************/
 bool ndb_pushed_builder_ctx::set_ancestor_nests(
-    const pushed_table *table, const ndb_table_map depend_parents) {
+    pushed_table *table, const ndb_table_map depend_parents) {
   DBUG_TRACE;
 
   const uint tab_no = table->get_table_no();
-  const uint first_inner = m_tables[tab_no].m_first_inner;
+  const uint first_inner = table->m_first_inner;
 
   /**
    * Include nest-level ancestor dependencies already enforced.
    */
   ndb_table_map dependencies(depend_parents);
-  dependencies.add(required_ancestors(&m_tables[tab_no]));
+  dependencies.add(required_ancestors(table));
 
   /**
    * Check that all parents we depend on are available from within the
@@ -1630,10 +1629,10 @@ bool ndb_pushed_builder_ctx::set_ancestor_nests(
    */
   const uint parent_no = dependencies.last_table(tab_no - 1);
   dependencies.clear_bit(parent_no);
+  const pushed_table *const parent = &m_tables[parent_no];
 
   // If remaining dependencies are unavailable from parent, we can't push
-  if (!m_tables[parent_no].ancestor_nests().contain(dependencies)) {
-    const pushed_table *const parent = &m_tables[parent_no];
+  if (!parent->ancestor_nests().contain(dependencies)) {
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child of '%s', "
         "as it would make the parent table '%s' "
@@ -1648,7 +1647,7 @@ bool ndb_pushed_builder_ctx::set_ancestor_nests(
    * part of the set of later referrable ancestor_nests.
    */
   if (parent_no >= first_inner) {  // Inner joined with parent
-    m_tables[tab_no].m_ancestor_nests = m_tables[first_inner].m_ancestor_nests;
+    table->m_ancestor_nests = m_tables[first_inner].m_ancestor_nests;
   } else {  // Outer joins with parent
     /**
      * Referring an outer-joined parent: We verified above above that all
@@ -1656,9 +1655,9 @@ bool ndb_pushed_builder_ctx::set_ancestor_nests(
      * selected parent - which also becomes ancestors of this table,
      * including all tables in the parent inner-nest.
      */
-    ndb_table_map ancestor_nests(m_tables[parent_no].m_ancestor_nests);
+    ndb_table_map ancestor_nests(parent->m_ancestor_nests);
     ancestor_nests.add(full_inner_nest(parent_no, tab_no));
-    m_tables[tab_no].m_ancestor_nests = ancestor_nests;
+    table->m_ancestor_nests = ancestor_nests;
     m_tables[first_inner].m_ancestor_nests = ancestor_nests;
   }
   return true;
@@ -1727,7 +1726,7 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_map inner_nest,
         if (!m_join_scope.contain(tab_no)) {
           continue;  // Possibly already removed by remove_pushable()
         }
-        const pushed_table *const table = &m_tables[tab_no];
+        pushed_table *const table = &m_tables[tab_no];
 
         /**
          * Could have checked both reject conditions at once, but would
@@ -1764,7 +1763,7 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_map inner_nest,
  * being removed, and possible cascade-removed if they can no longer
  * be part of the pushed join without the removed table(s).
  **********************************************************************/
-void ndb_pushed_builder_ctx::remove_pushable(const pushed_table *table) {
+void ndb_pushed_builder_ctx::remove_pushable(const pushed_table *const table) {
   DBUG_TRACE;
 
   const uint me = table->get_table_no();
@@ -1773,12 +1772,11 @@ void ndb_pushed_builder_ctx::remove_pushable(const pushed_table *table) {
 
   // Cascade remove of tables depending on 'me'
   for (uint tab_no = me + 1; tab_no < m_table_count; tab_no++) {
-    table = &m_tables[tab_no];
+    pushed_table *other_table = &m_tables[tab_no];
 
     if (m_join_scope.contain(tab_no)) {
-      ndb_table_map *key_parents = m_tables[tab_no].m_key_parents;
-
-      for (uint i = 0; i < table->get_no_of_key_fields(); i++) {
+      ndb_table_map *key_parents = other_table->m_key_parents;
+      for (uint i = 0; i < other_table->get_no_of_key_fields(); i++) {
         if (!key_parents[i].is_clear_all()) {
           // Was referring some parent field(s) (not const, or params)
           // Remove parent references not in join_scope any more
@@ -1796,7 +1794,7 @@ void ndb_pushed_builder_ctx::remove_pushable(const pushed_table *table) {
     if (m_join_scope.contain(tab_no)) {
       // Check if parents referred from pushed condition are still pushed.
       ha_ndbcluster *handler =
-          down_cast<ha_ndbcluster *>(table->get_table()->file);
+          down_cast<ha_ndbcluster *>(other_table->get_table()->file);
       if (handler->m_cond.m_pushed_cond != nullptr) {
         table_map used_tables(handler->m_cond.m_pushed_cond->used_tables());
         ndb_table_map parents_of_condition = get_table_map(used_tables);
@@ -2068,7 +2066,7 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
     ndb_table_map extend_parents;
     ndb_table_map depend_parents;
 
-    for (uint i = 0; i < m_tables[tab_no].get_no_of_key_fields(); i++) {
+    for (uint i = 0; i < table.get_no_of_key_fields(); i++) {
       assert(m_join_scope.contain(key_parents[i]));
       if (!key_parents[i].is_clear_all()) {  // Key refers a parent field
         /**
@@ -2185,9 +2183,8 @@ void ndb_pushed_builder_ctx::collect_key_refs(const pushed_table *table,
                                               const Item *key_refs[]) const {
   DBUG_TRACE;
 
-  const uint tab_no = table->get_table_no();
-  const uint parent_no = m_tables[tab_no].m_parent;
-  const ndb_table_map ancestors = m_tables[tab_no].m_ancestors;
+  const uint parent_no = table->m_parent;
+  const ndb_table_map ancestors(table->m_ancestors);
 
   assert(m_join_scope.contain(ancestors));
   assert(ancestors.contain(parent_no));
@@ -2392,8 +2389,7 @@ int ndb_pushed_builder_ctx::build_key(const pushed_table *table,
     op_key[key_fields] = nullptr;
 
     // Might have to explicit set the designated parent.
-    const uint tab_no = table->get_table_no();
-    const uint parent_no = m_tables[tab_no].m_parent;
+    const uint parent_no = table->m_parent;
     if (!referred_parents.contain(parent_no)) {
       // Add the parent as a new dependency
       assert(m_tables[parent_no].m_op != nullptr);
@@ -2425,7 +2421,7 @@ int ndb_pushed_builder_ctx::build_query() {
   for (uint tab_no = root_no; tab_no < m_table_count; tab_no++) {
     if (!m_join_scope.contain(tab_no)) continue;
 
-    const pushed_table *const table = &m_tables[tab_no];
+    pushed_table *const table = &m_tables[tab_no];
     const enum_access_type access_type = table->get_access_type();
     ha_ndbcluster *handler =
         down_cast<ha_ndbcluster *>(table->get_table()->file);
@@ -2438,11 +2434,11 @@ int ndb_pushed_builder_ctx::build_query() {
     }
 
     if (table != m_join_root) {
-      assert(m_tables[tab_no].m_parent != MAX_TABLES);
-      const uint parent_no = m_tables[tab_no].m_parent;
+      assert(table->m_parent != MAX_TABLES);
+      const uint parent_no = table->m_parent;
       const pushed_table *const parent = &m_tables[parent_no];
 
-      if (m_tables[tab_no].isInnerJoined(m_tables[parent_no])) {
+      if (table->isInnerJoined(*parent)) {
         // 'tab_no' is inner joined with its parent
         options.setMatchType(NdbQueryOptions::MatchNonNull);
       }
@@ -2457,10 +2453,9 @@ int ndb_pushed_builder_ctx::build_query() {
           // 'Having no unpushed conditions' is only a restriction for scans:
           assert(!table->has_condition_inbetween(m_join_root));
           assert(!table->has_condition_inbetween(parent));
-          assert(
-              !m_has_pending_cond.is_overlapping(m_tables[tab_no].m_sj_nest));
+          assert(!m_has_pending_cond.is_overlapping(table->m_sj_nest));
           // As well as: 'All tables in this sj_nest are pushed'
-          assert(m_join_scope.contain(m_tables[tab_no].m_sj_nest));
+          assert(m_join_scope.contain(table->m_sj_nest));
         }
         options.setMatchType(NdbQueryOptions::MatchFirst);
       }
@@ -2468,9 +2463,9 @@ int ndb_pushed_builder_ctx::build_query() {
       if (table->is_anti_joined(parent)) {
         // An antijoin is a variant of outer join, returning only a
         // 'firstMatch' or the NULL-extended outer rows
-        assert(m_tables[tab_no].isOuterJoined(m_tables[parent_no]));
+        assert(table->isOuterJoined(*parent));
         const ndb_table_map antijoin_scope(
-            get_tables_in_range(tab_no, m_tables[tab_no].m_last_inner));
+            get_tables_in_range(tab_no, table->m_last_inner));
 
         /**
          * From SPJ point of view, antijoin is a normal outer join. So once
@@ -2491,7 +2486,7 @@ int ndb_pushed_builder_ctx::build_query() {
          */
         if (m_join_scope.contain(antijoin_scope) &&
             !m_has_pending_cond.is_overlapping(antijoin_scope)) {
-          const uint first_upper = m_tables[tab_no].m_first_upper;
+          const uint first_upper = table->m_first_upper;
           ndb_table_map upper_nest(full_inner_nest(first_upper, tab_no));
           upper_nest.intersect(m_join_scope);
 
@@ -2542,18 +2537,18 @@ int ndb_pushed_builder_ctx::build_query() {
        * Below we add these nest dependencies even when not strictly required.
        * The API will just ignore such redundant nest dependencies.
        */
-      if (m_tables[tab_no].isOuterJoined(m_tables[parent_no])) {
-        ndb_table_map inner_nest(m_tables[tab_no].m_inner_nest);
+      if (table->isOuterJoined(*parent)) {
+        ndb_table_map inner_nest(table->m_inner_nest);
         inner_nest.intersect(m_join_scope);
         if (!inner_nest.is_clear_all()) {
           // Table not first in its join_nest, set firstInner which it
           // depends on
           const uint real_first_inner =
-              inner_nest.first_table(m_tables[tab_no].m_first_inner);
+              inner_nest.first_table(table->m_first_inner);
           options.setFirstInnerJoin(m_tables[real_first_inner].m_op);
 
-        } else if (m_tables[tab_no].m_first_upper >= 0) {
-          const uint first_upper = m_tables[tab_no].m_first_upper;
+        } else if (table->m_first_upper >= 0) {
+          const uint first_upper = table->m_first_upper;
           ndb_table_map upper_nest(full_inner_nest(first_upper, tab_no));
           upper_nest.intersect(m_join_scope);
           if (!upper_nest.is_clear_all()) {
@@ -2649,7 +2644,7 @@ int ndb_pushed_builder_ctx::build_query() {
 
     if (unlikely(!query_op)) return -1;
 
-    m_tables[tab_no].m_op = query_op;
+    table->m_op = query_op;
   }
   return 0;
 }  // ndb_pushed_builder_ctx::build_query()

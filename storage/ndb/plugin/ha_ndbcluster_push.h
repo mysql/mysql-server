@@ -385,10 +385,10 @@ struct pushed_table {
     return nests;
   }
 
-  bool isOuterJoined(pushed_table &parent) const {
+  bool isOuterJoined(const pushed_table &parent) const {
     return m_first_inner > parent.m_first_inner;
   }
-  bool isInnerJoined(pushed_table &parent) const {
+  bool isInnerJoined(const pushed_table &parent) const {
     return m_first_inner <= parent.m_first_inner;
   }
 
@@ -689,7 +689,7 @@ class ndb_pushed_builder_ctx {
   bool is_pushable_within_nest(const pushed_table *table, ndb_table_map nest,
                                const char *nest_type);
 
-  bool set_ancestor_nests(const pushed_table *table, ndb_table_map key_parents);
+  bool set_ancestor_nests(pushed_table *table, ndb_table_map key_parents);
 
   bool is_const_item_pushable(const Item *key_item,
                               const KEY_PART_INFO *key_part);
