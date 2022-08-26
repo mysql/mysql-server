@@ -1510,18 +1510,15 @@ table2.col_int_unique = table4.col_int
 ON table1.col_int_key = table2.col_int_key;
 EXPLAIN
 -> Nested loop left join
-    -> Table scan on table1, activating pushed join of 4 tables
+    -> Table scan on table1, activating pushed join of 5 tables
     -> Nested loop left join
         -> Nested loop inner join
             -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
             -> Index lookup on table3 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join
         -> Nested loop inner join
-            -> Index lookup on table4 using ix1 (col_int=table2.col_int_unique)
-            -> Filter: (table5.col_int_key = table2.col_int_unique)
-                -> Single-row index lookup on table5 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join
+            -> Index lookup on table4 using ix1 (col_int=table2.col_int_unique), child of table2 in pushed join
+            -> Single-row index lookup on table5 using ix1 (col_int_unique=table1.col_int_key), child of table2 in pushed join, with pushed condition: (table5.col_int_key = table2.col_int_unique)
 
-Warnings:
-Note	1003	Can't push outer joined table 'table4' as child of 'table1', join-nest containing the table has pending unpushed_conditions
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM b AS table1
@@ -4719,6 +4716,252 @@ ON table1.col_int = table3.col_int_unique
 INNER JOIN l AS table4 ON table4.col_int IS NULL OR
 table1.col_int_unique = table4.col_int_key;
 pk	pk	pk	pk
+##################
+#
+# Bug#34508948 Allow more conditions to be pushed down
+#
+##################
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM p AS table1
+JOIN g AS table2 ON table2.col_int_unique = table1.col_int_unique
+JOIN n AS table3 ON table3.col_int_key = table1.col_int
+WHERE table3.pk = 8 OR table3.col_varchar_256_key = table2.col_varchar_256;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: ((table1.col_int_unique is not null) and (table1.col_int is not null))
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join
+    -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int), child of table2 in pushed join, with pushed condition: ((table3.pk = 8) or (table3.col_varchar_256_key = table2.col_varchar_256))
+
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM p AS table1
+JOIN g AS table2 ON table2.col_int_unique = table1.col_int_unique
+JOIN n AS table3 ON table3.col_int_key = table1.col_int
+WHERE table3.pk = 8 OR table3.col_varchar_256_key = table2.col_varchar_256;
+pk	pk	pk
+16	1	8
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM p AS table1
+JOIN g AS table2 ON table2.col_int_key = table1.col_int_key
+JOIN n AS table3 ON table3.col_int_key = table1.col_int
+WHERE table3.pk = 8 OR table3.col_varchar_256_key = table2.col_varchar_256;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: ((table1.col_int_key is not null) and (table1.col_int is not null))
+        -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+    -> Filter: ((table3.pk = 8) or (table3.col_varchar_256_key = table2.col_varchar_256))
+        -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
+
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM p AS table1
+JOIN g AS table2 ON table2.col_int_key = table1.col_int_key
+JOIN n AS table3 ON table3.col_int_key = table1.col_int
+WHERE table3.pk = 8 OR table3.col_varchar_256_key = table2.col_varchar_256;
+pk	pk	pk
+1	16	8
+1	17	8
+1	19	8
+1	3	8
+1	4	8
+1	6	8
+1	8	8
+11	13	8
+11	14	8
+11	18	8
+11	5	8
+11	9	8
+13	16	8
+13	17	8
+13	19	8
+13	3	8
+13	4	8
+13	6	8
+13	8	8
+14	11	8
+14	7	8
+16	13	8
+16	14	8
+16	18	8
+16	5	8
+16	9	8
+6	13	8
+6	14	8
+6	18	8
+6	5	8
+6	9	8
+7	11	8
+7	7	8
+8	11	8
+8	7	8
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM p AS table1
+LEFT JOIN g AS table2 ON table2.col_int_unique = table1.col_int_unique
+JOIN n AS table3 ON table3.col_int_key = table1.col_int
+WHERE table3.pk = 8 OR table3.col_varchar_256_key = table2.col_varchar_256;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop left join
+        -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int is not null)
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join
+    -> Filter: ((table3.pk = 8) or (table3.col_varchar_256_key = table2.col_varchar_256))
+        -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
+
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM p AS table1
+LEFT JOIN g AS table2 ON table2.col_int_unique = table1.col_int_unique
+JOIN n AS table3 ON table3.col_int_key = table1.col_int
+WHERE table3.pk = 8 OR table3.col_varchar_256_key = table2.col_varchar_256;
+pk	pk	pk
+1	NULL	8
+11	NULL	8
+13	NULL	8
+14	NULL	8
+16	1	8
+6	NULL	8
+7	NULL	8
+8	NULL	8
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM c AS table1
+RIGHT JOIN a AS table2
+RIGHT JOIN d AS table3 ON table2.pk = table3.col_int
+RIGHT JOIN d AS table4 ON table3.col_int_key = table4.col_int_key AND
+table2.col_int_unique = table4.col_int_unique
+ON table1.pk = table2.col_int_unique
+WHERE table1.col_int_unique > 9;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Index range scan on table1 using ix1 over (9 < col_int_unique), activating pushed join of 4 tables, with pushed condition: ((table1.col_int_unique > 9) and (table1.pk is not null))
+            -> Single-row index lookup on table4 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table4 in pushed join
+    -> Index lookup on table3 using col_int_key (col_int_key=table4.col_int_key), child of table2 in pushed join, with pushed condition: (table3.col_int = table2.pk)
+
+SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM c AS table1
+RIGHT JOIN a AS table2
+RIGHT JOIN d AS table3 ON table2.pk = table3.col_int
+RIGHT JOIN d AS table4 ON table3.col_int_key = table4.col_int_key AND
+table2.col_int_unique = table4.col_int_unique
+ON table1.pk = table2.col_int_unique
+WHERE table1.col_int_unique > 9;
+pk	pk	pk	pk
+explain format=tree SELECT table3.col_char_16_unique AS field1
+FROM d AS table1
+JOIN m AS table2 ON table1.col_int_unique = table2.pk
+JOIN m AS table3 ON table1.pk = table3.col_int_unique
+RIGHT JOIN j AS table4 ON table3.col_int_key = table4.col_int AND
+table2.col_int_unique = table4.col_int_key
+WHERE table2.col_int = 76;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Index lookup on table2 using ix3 (col_int=76), activating pushed join of 4 tables, with pushed condition: (table2.col_int_unique is not null)
+            -> Single-row index lookup on table1 using ix1 (col_int_unique=table2.pk), child of table2 in pushed join
+        -> Index lookup on table4 using col_int_key (col_int_key=table2.col_int_unique), child of table1 in pushed join
+    -> Index lookup on table3 using col_int_key (col_int_key=table4.col_int), child of table4 in pushed join, with pushed condition: (table3.col_int_unique = table1.pk)
+
+SELECT table3.col_char_16_unique AS field1
+FROM d AS table1
+JOIN m AS table2 ON table1.col_int_unique = table2.pk
+JOIN m AS table3 ON table1.pk = table3.col_int_unique
+RIGHT JOIN j AS table4 ON table3.col_int_key = table4.col_int AND
+table2.col_int_unique = table4.col_int_key
+WHERE table2.col_int = 76;
+field1
+explain format=tree SELECT
+table2.col_int_key AS field1
+FROM d AS table1
+JOIN f AS table2
+LEFT JOIN m AS table3
+RIGHT JOIN e AS table4 ON table3.col_int_key = table4.col_int_unique
+ON table2.pk = table3.col_int
+ON table1.col_int_unique = table2.col_int_key
+JOIN h AS table5 ON table4.col_int_key = table5.col_int_key AND
+table2.col_int_unique = table5.col_int_unique;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Nested loop inner join
+                -> Table scan on table1, activating pushed join of 5 tables, with pushed condition: (table1.col_int_unique is not null)
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join, with pushed condition: (table2.col_int_unique is not null)
+            -> Single-row index lookup on table5 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join
+        -> Index lookup on table3 using ix3 (col_int=table2.pk), child of table5 in pushed join
+    -> Single-row index lookup on table4 using ix1 (col_int_unique=table3.col_int_key), child of table3 in pushed join, with pushed condition: (table4.col_int_key = table5.col_int_key)
+
+SELECT
+table2.col_int_key AS field1
+FROM d AS table1
+JOIN f AS table2
+LEFT JOIN m AS table3
+RIGHT JOIN e AS table4 ON table3.col_int_key = table4.col_int_unique
+ON table2.pk = table3.col_int
+ON table1.col_int_unique = table2.col_int_key
+JOIN h AS table5 ON table4.col_int_key = table5.col_int_key AND
+table2.col_int_unique = table5.col_int_unique;
+field1
+explain format=tree SELECT
+#table2.col_char_16_unique AS field1
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
+FROM a AS table1
+JOIN k AS table2 ON table1.col_int_unique = table2.col_int
+RIGHT JOIN r AS table3 ON table1.col_varchar_10_key = table3.col_varchar_10_key
+RIGHT JOIN w AS table4
+JOIN l AS table5
+RIGHT JOIN v AS table6 ON table5.col_varchar_10_unique = table6.col_varchar_10_unique
+ON table4.pk = table6.col_int_unique
+ON table2.col_int_key = table5.col_int_key AND
+table3.col_int_unique = table4.col_int_unique
+WHERE table4.pk >= 3;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Nested loop left join
+            -> Table scan on table6, activating pushed join of 3 tables, with pushed condition: ((table6.col_int_unique >= 3) and (table6.col_int_unique is not null))
+            -> Single-row index lookup on table5 using col_varchar_10_unique (col_varchar_10_unique=table6.col_varchar_10_unique), child of table6 in pushed join
+        -> Single-row index lookup on table4 using PRIMARY (pk=table6.col_int_unique), child of table6 in pushed join
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Index lookup on table2 using col_int_key (col_int_key=table5.col_int_key), activating pushed join of 3 tables
+            -> Single-row index lookup on table1 using ix1 (col_int_unique=table2.col_int), child of table2 in pushed join
+        -> Index lookup on table3 using col_varchar_10_key (col_varchar_10_key=table1.col_varchar_10_key), child of table1 in pushed join, with pushed condition: (table3.col_int_unique = table4.col_int_unique)
+
+Warnings:
+Note	1003	Can't push outer joined table 'table3' as child of 'table6', table condition can not be fully evaluated by pushed join
+Note	1003	Can't push outer joined table 'table2' as child of 'table6', some tables in embedding join-nest(s) are not part of pushed join
+SELECT
+#table2.col_char_16_unique AS field1
+table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
+FROM a AS table1
+JOIN k AS table2 ON table1.col_int_unique = table2.col_int
+RIGHT JOIN r AS table3 ON table1.col_varchar_10_key = table3.col_varchar_10_key
+RIGHT JOIN w AS table4
+JOIN l AS table5
+RIGHT JOIN v AS table6 ON table5.col_varchar_10_unique = table6.col_varchar_10_unique
+ON table4.pk = table6.col_int_unique
+ON table2.col_int_key = table5.col_int_key AND
+table3.col_int_unique = table4.col_int_unique
+WHERE table4.pk >= 3;
+pk	pk	pk	pk	pk	pk
+NULL	NULL	NULL	19	NULL	8
+NULL	NULL	NULL	25	NULL	5
+NULL	NULL	NULL	26	NULL	2
+NULL	NULL	NULL	3	NULL	1
+NULL	NULL	NULL	30	NULL	24
+NULL	NULL	NULL	4	NULL	22
+NULL	NULL	NULL	8	NULL	20
+NULL	NULL	NULL	9	NULL	21
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 ##################
 #
