@@ -46,14 +46,14 @@ struct TABLE_REF;
  */
 typedef Bitmap<(MAX_TABLES > 64 ? MAX_TABLES : 64)> table_bitmap;
 
-class ndb_table_access_map : public table_bitmap {
+class ndb_table_map : public table_bitmap {
  public:
-  explicit ndb_table_access_map() : table_bitmap() {}
+  explicit ndb_table_map() : table_bitmap() {}
 
-  void add(const ndb_table_access_map &table_map) { merge(table_map); }
+  void add(const ndb_table_map &table_map) { merge(table_map); }
   void add(uint table_no) { set_bit(table_no); }
 
-  bool contain(const ndb_table_access_map &table_map) const {
+  bool contain(const ndb_table_map &table_map) const {
     return table_map.is_subset(*this);
   }
   bool contain(uint table_no) const { return is_set(table_no); }
@@ -61,7 +61,7 @@ class ndb_table_access_map : public table_bitmap {
   uint first_table(uint start = 0) const;
   uint last_table(uint start = MAX_TABLES) const;
 
-};  // class ndb_table_access_map
+};  // class ndb_table_map
 
 /** This class represents a prepared pushed (N-way) join operation.
  *
@@ -266,13 +266,13 @@ struct pushed_table {
    * even if the table is not join-pushed. 'Self' is not represented in
    * 'm_inner_nest'.
    */
-  ndb_table_access_map m_inner_nest;
+  ndb_table_map m_inner_nest;
 
   // Aggregate of the upper-nest, as defined by the query-plan
-  ndb_table_access_map m_upper_nests;
+  ndb_table_map m_upper_nests;
 
   // The nests actually refered as ancestors, usually same as m_upper_nests.
-  ndb_table_access_map m_ancestor_nests;
+  ndb_table_map m_ancestor_nests;
 
   /**
    * upper_nests / embedding_nests:
@@ -326,8 +326,8 @@ struct pushed_table {
    * allowed by checking that references are from within the
    * embedding_nests().
    */
-  ndb_table_access_map embedding_nests() const {
-    ndb_table_access_map nests(m_inner_nest);
+  ndb_table_map embedding_nests() const {
+    ndb_table_map nests(m_inner_nest);
     nests.add(m_upper_nests);
     return nests;
   }
@@ -379,8 +379,8 @@ struct pushed_table {
    * 'out of nests' references, such added ancestor_nests references will
    * also go out of scope.
    */
-  ndb_table_access_map ancestor_nests() const {
-    ndb_table_access_map nests(m_inner_nest);
+  ndb_table_map ancestor_nests() const {
+    ndb_table_map nests(m_inner_nest);
     nests.add(m_ancestor_nests);
     return nests;
   }
@@ -409,7 +409,7 @@ struct pushed_table {
    * sj_nest for a particular table contains all tables in the sj_nest. (Not
    * only the preceding tables.)
    */
-  ndb_table_access_map m_sj_nest;
+  ndb_table_map m_sj_nest;
 
   /**
    * The semi-join nests may be nested inside each other as well.
@@ -433,7 +433,7 @@ struct pushed_table {
    * join pushability, and saved for later usage by ::optimize_query_plan(),
    * which will select the actual m_parent to be used for each table.
    */
-  ndb_table_access_map *m_key_parents;
+  ndb_table_map *m_key_parents;
 
   /**
    * The m_ancestor map serves two slightly different purposes:
@@ -505,7 +505,7 @@ struct pushed_table {
    * (Note also the nest-dependeny-comments above regarding how extra
    * dependencies between tables in the same inner-nest may be added)
    */
-  ndb_table_access_map m_ancestors;
+  ndb_table_map m_ancestors;
 
   /**
    * The actual parent as chosen by ::optimize_query_plan()
@@ -540,7 +540,7 @@ struct pushed_table {
   /**
     Get the number of this table in ndb_pushed_builder_ctx::m_tables[].
   */
-  uint get_access_no() const { return m_tab_no; }
+  uint get_table_no() const { return m_tab_no; }
 
   /**
     @return The number of the index to use for this access operation (
@@ -684,23 +684,21 @@ class ndb_pushed_builder_ctx {
   bool is_pushable_as_child(pushed_table *table);
 
   bool is_pushable_as_child_scan(const pushed_table *table,
-                                 ndb_table_access_map all_key_parents);
+                                 ndb_table_map all_key_parents);
 
-  bool is_pushable_within_nest(const pushed_table *table,
-                               ndb_table_access_map nest,
+  bool is_pushable_within_nest(const pushed_table *table, ndb_table_map nest,
                                const char *nest_type);
 
-  bool set_ancestor_nests(const pushed_table *table,
-                          ndb_table_access_map key_parents);
+  bool set_ancestor_nests(const pushed_table *table, ndb_table_map key_parents);
 
   bool is_const_item_pushable(const Item *key_item,
                               const KEY_PART_INFO *key_part);
 
   bool is_field_item_pushable(pushed_table *table, const Item *key_item,
                               const KEY_PART_INFO *key_part,
-                              ndb_table_access_map &parents);
+                              ndb_table_map &parents);
 
-  void validate_join_nest(ndb_table_access_map nest, uint first, uint last,
+  void validate_join_nest(ndb_table_map nest, uint first, uint last,
                           const char *nest_type);
 
   void remove_pushable(const pushed_table *table);
@@ -716,14 +714,14 @@ class ndb_pushed_builder_ctx {
                 NdbQueryOptions *key_options);
 
   // Get all parent tables referred by key
-  ndb_table_access_map get_all_key_parents(const pushed_table *table) const;
+  ndb_table_map get_all_key_parents(const pushed_table *table) const;
 
   uint get_table_no(const Item *key_item) const;
 
-  ndb_table_access_map get_table_map(table_map external_map) const;
+  ndb_table_map get_table_map(table_map external_map) const;
 
   // get required nest level ancestor
-  ndb_table_access_map required_ancestors(const pushed_table *table) const;
+  ndb_table_map required_ancestors(const pushed_table *table) const;
 
   const THD *const m_thd;
   const JOIN *const m_join;
@@ -731,17 +729,17 @@ class ndb_pushed_builder_ctx {
   pushed_table *m_join_root;
 
   // Scope of tables covered by this pushed join
-  ndb_table_access_map m_join_scope;
+  ndb_table_map m_join_scope;
 
   // Scope of tables evaluated prior to 'm_join_root'
   // These are effectively const or params wrt. the pushed join
-  ndb_table_access_map m_const_scope;
+  ndb_table_map m_const_scope;
 
   // Set of tables in join scope requiring (index-)scan access
-  ndb_table_access_map m_scan_operations;
+  ndb_table_map m_scan_operations;
 
   // Tables in this join-scope having remaining conditions not being pushed
-  ndb_table_access_map m_has_pending_cond;
+  ndb_table_map m_has_pending_cond;
 
   // Number of internal operations used so far (unique lookups count as two).
   uint m_internal_op_count;
@@ -760,8 +758,8 @@ class ndb_pushed_builder_ctx {
 
   // Return all tables in the inner nest, including table after
   // this 'tab_no' which are members of the same join-nest.
-  ndb_table_access_map full_inner_nest(uint tab_no, uint last) const {
-    ndb_table_access_map nest(m_tables[tab_no].m_inner_nest);
+  ndb_table_map full_inner_nest(uint tab_no, uint last) const {
+    ndb_table_map nest(m_tables[tab_no].m_inner_nest);
     nest.add(tab_no);
     const uint first_inner = m_tables[tab_no].m_first_inner;
     for (uint i = tab_no + 1; i <= last; i++) {
