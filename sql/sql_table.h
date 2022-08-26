@@ -35,7 +35,9 @@
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysqld_error.h"
 #include "sql/dd/string_type.h"
+#include "sql/handler.h"
 #include "sql/mdl.h"
 
 class Alter_info;
@@ -148,6 +150,57 @@ class Foreign_key_parents_invalidator {
   const Parent_map &parents() const { return m_parent_map; }
   bool is_empty() const { return m_parent_map.empty(); }
   void clear() { m_parent_map.clear(); }
+};
+
+/**
+  Auxiliary class implementing RAII principle for getting permission for/
+  notification about finished DDL statements from interested storage engines.
+
+  @see handlerton::ha_notify_table_ddl for details.
+*/
+class Table_ddl_hton_notification_guard {
+ public:
+  Table_ddl_hton_notification_guard(
+      THD *thd, const MDL_key *key, ha_ddl_type ddl_type,
+      const char *old_db_name = nullptr, const char *old_table_name = nullptr,
+      const char *new_db_name = nullptr,
+      const char *new_table_name = nullptr) noexcept
+      : m_hton_notified(false),
+        m_thd(thd),
+        m_key(*key),
+        m_ddl_type(ddl_type),
+        m_old_db_name(old_db_name),
+        m_old_table_name(old_table_name),
+        m_new_db_name(new_db_name),
+        m_new_table_name(new_table_name) {}
+
+  [[nodiscard]] bool notify() noexcept {
+    if (!ha_notify_table_ddl(m_thd, &m_key, HA_NOTIFY_PRE_EVENT, m_ddl_type,
+                             m_old_db_name, m_old_table_name, m_new_db_name,
+                             m_new_table_name)) {
+      m_hton_notified = true;
+      return false;
+    }
+    my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+    return true;
+  }
+
+  ~Table_ddl_hton_notification_guard() {
+    if (m_hton_notified)
+      (void)ha_notify_table_ddl(m_thd, &m_key, HA_NOTIFY_POST_EVENT, m_ddl_type,
+                                m_old_db_name, m_old_table_name, m_new_db_name,
+                                m_new_table_name);
+  }
+
+ private:
+  bool m_hton_notified;
+  THD *m_thd;
+  const MDL_key m_key;
+  const ha_ddl_type m_ddl_type;
+  const char *m_old_db_name;
+  const char *m_old_table_name;
+  const char *m_new_db_name;
+  const char *m_new_table_name;
 };
 
 /*

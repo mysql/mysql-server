@@ -494,6 +494,11 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
 
   if (lock_table(thd, table_ref)) return;
 
+  Table_ddl_hton_notification_guard notification_guard{
+      thd, &table_ref->mdl_request.key, ha_ddl_type::HA_TRUNCATE_DDL};
+
+  if (notification_guard.notify()) return;
+
   dd::Table *table_def = nullptr;
   if (thd->dd_client()->acquire_for_modification(
           table_ref->db, table_ref->table_name, &table_def)) {
@@ -507,12 +512,16 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
   assert(table_def != nullptr);
 
   if (table_def->options().exists("secondary_engine")) {
-    /* Truncate operation is not allowed for tables with secondary engine
-     * since it's not currently supported by change propagation
-     */
-    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
-    return;
+    LEX_CSTRING secondary_engine;
+    table_def->options().get("secondary_engine", &secondary_engine,
+                             thd->mem_root);
+
+    if (!ha_secondary_engine_supports_ddl(thd, secondary_engine)) {
+      my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+      return;
+    }
   }
+
   if (dd::table_storage_engine(thd, table_def, &hton)) {
     return;
   }
