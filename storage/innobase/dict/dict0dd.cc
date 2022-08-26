@@ -1664,9 +1664,9 @@ bool is_dropped(const Alter_inplace_info *ha_alter_info,
 
 void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
                            dd::Table &new_table, const dd::Table &old_table,
-                           dict_table_t *dict_table) {
+                           dict_table_t *old_dict_table) {
   bool first_row_version = false;
-  if (dict_table && !dict_table->has_row_versions()) {
+  if (old_dict_table && !old_dict_table->has_row_versions()) {
     first_row_version = true;
   }
 
@@ -1684,13 +1684,11 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
 
     dd::Column *new_col = nullptr;
     std::string new_name;
-    IF_DEBUG(bool renamed = false;)
 
     /* Skip the dropped column */
     if (is_dropped(ha_alter_info, old_col->name().c_str())) {
       continue;
     } else if (is_renamed(ha_alter_info, old_col->name().c_str(), new_name)) {
-      IF_DEBUG(renamed = true;)
       new_col = const_cast<dd::Column *>(
           dd_find_column(&new_table, new_name.c_str()));
     } else {
@@ -1708,14 +1706,11 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
     }
 
     /* If this is first time table is getting row version, add physical pos */
-    if (dict_table && !new_col->is_virtual() && first_row_version) {
-      dict_col_t *col = dict_table->get_col_by_name(new_col->name().c_str());
-      if (col == nullptr) {
-        ut_ad(renamed);
-        col = dict_table->get_col_by_name(old_col->name().c_str());
-      }
-
-      ut_ad(col != nullptr);
+    if (old_dict_table && !new_col->is_virtual() && first_row_version) {
+      /* Even the renamed column would have same phy_pos as old column */
+      dict_col_t *col =
+          old_dict_table->get_col_by_name(old_col->name().c_str());
+      ut_a(col != nullptr);
       new_col->se_private_data().set(s, col->get_phy_pos());
     }
   }
