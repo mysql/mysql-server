@@ -41,7 +41,6 @@ IF(NOT WITHOUT_SERVER)
   # Add the ndbcluster plugin
   #
   SET(NDBCLUSTER_SOURCES
-    plugin/abstract_query_plan.cc
     plugin/ha_ndbcluster.cc
     plugin/ha_ndbcluster_cond.cc
     plugin/ha_ndbcluster_push.cc
