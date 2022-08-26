@@ -76,7 +76,7 @@ namespace {
 
 RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const mem_root_deque<Table_ref *> &join_list);
-bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
+bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
                               Mem_root_array<Item *> *conditions,
                               bool *always_false);
 
@@ -311,8 +311,8 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
                                                   join->tables_in_subtree);
       ExtractConditions(join_cond, &join->join_conditions);
       bool always_false = false;
-      EarlyNormalizeConditions(thd, join->tables_in_subtree,
-                               &join->join_conditions, &always_false);
+      EarlyNormalizeConditions(thd, join, &join->join_conditions,
+                               &always_false);
       ReorderConditions(&join->join_conditions);
     }
     ret = join;
@@ -2083,10 +2083,9 @@ void ExtractCycleMultipleEqualitiesFromJoinConditions(
 }
 
 /**
-  Find constant expressions in join conditions, and add caches around them.
-
   Similar to work done in JOIN::finalize_table_conditions() in the old
-  optimizer. Non-join predicates are done near the end in MakeJoinHypergraph().
+  optimizer. Non-join predicates are done near the start in
+  MakeJoinHypergraph().
  */
 bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
   if (expr->type == RelationalExpression::TABLE) {
@@ -2094,8 +2093,9 @@ bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
   }
   assert(expr->equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
-  if (CanonicalizeConditions(thd, expr->tables_in_subtree,
-                             &expr->join_conditions)) {
+  if (CanonicalizeConditions(
+          thd, GetVisibleTables(expr->left) | GetVisibleTables(expr->right),
+          &expr->join_conditions)) {
     return true;
   }
 
@@ -2211,7 +2211,7 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
   Do some equality and constant propagation, conversion/folding work needed
   for correctness and performance.
  */
-bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
+bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
                               Mem_root_array<Item *> *conditions,
                               bool *always_false) {
   CSEConditions(thd, conditions);
@@ -2238,6 +2238,20 @@ bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
     const bool is_filter =
         !AreMultipleBitsSet((*it)->used_tables() & ~PSEUDO_TABLE_BITS);
     if (is_filter || !is_function_of_type(*it, Item_func::MULT_EQUAL_FUNC)) {
+      table_map tables_in_subtree = TablesBetween(0, MAX_TABLES);
+      // If this is a degenerate join condition i.e. all fields in the
+      // join condition come from the same side of the join, we need to
+      // find replacements if any from the same side so that the condition
+      // continues to be pushable to that side.
+      if (join != nullptr) {
+        tables_in_subtree =
+            IsSubset((*it)->used_tables(), join->left->tables_in_subtree)
+                ? join->left->tables_in_subtree
+                : (IsSubset((*it)->used_tables(),
+                            join->right->tables_in_subtree)
+                       ? join->right->tables_in_subtree
+                       : join->tables_in_subtree);
+      }
       *it = CompileItem(
           *it, [](Item *) { return true; },
           [tables_in_subtree, is_filter](Item *item) -> Item * {
@@ -3311,7 +3325,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
       Mem_root_array<Item *> where_conditions(thd->mem_root);
       ExtractConditions(where_cond, &where_conditions);
 
-      if (EarlyNormalizeConditions(thd, tables_in_tree, &where_conditions,
+      if (EarlyNormalizeConditions(thd, /*join=*/nullptr, &where_conditions,
                                    where_is_always_false)) {
         return true;
       }
@@ -3375,8 +3389,8 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     Item *where_cond = EarlyExpandMultipleEquals(join->where_cond,
                                                  /*tables_in_subtree=*/~0);
     ExtractConditions(where_cond, &where_conditions);
-    if (EarlyNormalizeConditions(thd, TablesBetween(0, MAX_TABLES),
-                                 &where_conditions, where_is_always_false)) {
+    if (EarlyNormalizeConditions(thd, /*join=*/nullptr, &where_conditions,
+                                 where_is_always_false)) {
       return true;
     }
     ReorderConditions(&where_conditions);
@@ -3389,7 +3403,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     // don't need to worry about it.
     UnflattenInnerJoins(root);
 
-    if (CanonicalizeConditions(thd, /*tables_in_subtree=*/~0,
+    if (CanonicalizeConditions(thd, GetVisibleTables(root),
                                &where_conditions)) {
       return true;
     }
@@ -3534,15 +3548,6 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     pred.selectivity = EstimateSelectivity(thd, condition, trace);
     pred.functional_dependencies_idx.init(thd->mem_root);
     graph->predicates.push_back(std::move(pred));
-  }
-
-  // Cache constant expressions in predicates. (We did join conditions earlier.)
-  for (Predicate &predicate : graph->predicates) {
-    predicate.condition =
-        CanonicalizeCondition(predicate.condition, /*allowed_tables=*/~0);
-    if (predicate.condition == nullptr) {
-      return true;
-    }
   }
 
   // Sort the predicates so that filters created from them later automatically

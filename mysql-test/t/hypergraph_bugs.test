@@ -172,3 +172,19 @@ SELECT * FROM
 --eval $query
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#34534373: Heatwave offload issue - Sees inner tables of
+--echo #               a semijoin when it should not
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+# The condition t2.f1 = t3.f1+1 should be placed as a join condition
+# for the semijoin and not on the outer join.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=tree
+ SELECT 1
+ FROM t1 LEFT JOIN (SELECT * FROM t1 AS t2
+                    WHERE f1 IN (SELECT f1+1 FROM t1 AS t3)) AS dt
+ ON t1.f1=dt.f1;
+DROP TABLE t1;

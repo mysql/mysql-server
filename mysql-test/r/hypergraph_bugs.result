@@ -181,3 +181,23 @@ x	y	x	y	m
 2	20	NULL	NULL	NULL
 3	30	NULL	NULL	NULL
 DROP TABLE t;
+#
+# Bug#34534373: Heatwave offload issue - Sees inner tables of
+#               a semijoin when it should not
+#
+CREATE TABLE t1 (f1 INTEGER);
+EXPLAIN FORMAT=tree
+SELECT 1
+FROM t1 LEFT JOIN (SELECT * FROM t1 AS t2
+WHERE f1 IN (SELECT f1+1 FROM t1 AS t3)) AS dt
+ON t1.f1=dt.f1;
+EXPLAIN
+-> Nested loop left join  (rows=1)
+    -> Table scan on t1  (rows=1)
+    -> Filter: (t1.f1 = t2.f1)  (rows=0.01)
+        -> Nested loop semijoin  (rows=0.1)
+            -> Table scan on t2  (rows=1)
+            -> Filter: (t2.f1 = (t3.f1 + 1))  (rows=0.1)
+                -> Table scan on t3  (rows=1)
+
+DROP TABLE t1;

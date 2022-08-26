@@ -218,20 +218,56 @@ SELECT 1 FROM t AS t3 WHERE a <=>
 (SELECT a FROM t AS t4)
 );
 EXPLAIN
--> Left hash join (no condition)  (cost=7.64..8.32 rows=3)
-    -> Table scan on t1 in secondary engine MOCK  (cost=0.17..0.50 rows=3)
+-> Left hash join (no condition)  (rows=3)
+    -> Table scan on t1 in secondary engine MOCK  (rows=3)
     -> Hash
-        -> Filter: (t3.a <=> derived_2_3.a)  (cost=7.28..7.28 rows=0.3)
-            -> Hash semijoin (no condition)  (cost=6.30..6.98 rows=3)
-                -> Table scan on t2 in secondary engine MOCK  (cost=0.17..0.50 rows=3)
+        -> Filter: (t3.a <=> derived_2_3.a)  (rows=0.3)
+            -> Hash semijoin (no condition)  (rows=3)
+                -> Table scan on t2 in secondary engine MOCK  (rows=3)
                 -> Hash
-                    -> Left hash join (no condition)  (cost=3.80..5.07 rows=9)
-                        -> Table scan on t3 in secondary engine MOCK  (cost=0.17..0.50 rows=3)
+                    -> Left hash join (no condition)  (rows=9)
+                        -> Table scan on t3 in secondary engine MOCK  (rows=3)
                         -> Hash
-                            -> Table scan on derived_2_3  (cost=1.65..3.34 rows=3)
-                                -> Materialize  (cost=0.80..0.80 rows=3)
-                                    -> Table scan on t4 in secondary engine MOCK  (cost=0.17..0.50 rows=3)
+                            -> Table scan on derived_2_3  (rows=3)
+                                -> Materialize  (rows=3)
+                                    -> Table scan on t4 in secondary engine MOCK  (rows=3)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 DROP TABLE t;
+#
+# Bug#34534373: Heatwave offload issue - Sees inner tables
+#               of a semijoin when it should not
+#
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+set optimizer_switch="subquery_to_derived=on";
+EXPLAIN FORMAT=TREE
+SELECT 1
+FROM (t1 JOIN t1 AS t2
+ON t2.f1 = t1.f2 AND t1.f1 IN (SELECT f1 FROM t1 AS t3))
+WHERE (SELECT SUM(f2) FROM t1 AS t4) IS NULL
+AND t1.f1 = t2.f1 OR t2.f2 <= 0;
+EXPLAIN
+-> Filter: (((derived_1_3.`SUM(f2)` is null) and ((t1.f1 = t1.f2) and (t1.f1 = t2.f1))) or (t2.f2 <= 0))  (rows=0.01)
+    -> Left hash join (no condition)  (rows=0.01)
+        -> Hash semijoin (t1.f1 = t3.f1), extra conditions: (((t1.f1 = t1.f2) and ((t1.f1 = t3.f1) and (t3.f1 = t2.f1))) or (t2.f2 <= 0))  (rows=0.01)
+            -> Inner hash join (t2.f1 = t1.f2), extra conditions: ((t1.f1 = t1.f2) or (t2.f2 <= 0))  (rows=0.1)
+                -> Table scan on t1 in secondary engine MOCK  (rows=1)
+                -> Hash
+                    -> Table scan on t2 in secondary engine MOCK  (rows=1)
+            -> Hash
+                -> Table scan on t3 in secondary engine MOCK  (rows=1)
+        -> Hash
+            -> Table scan on derived_1_3  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Aggregate: sum(t4.f2)  (rows=1)
+                        -> Table scan on t4 in secondary engine MOCK  (rows=1)
+
+Warnings:
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+DROP TABLE t1;
+set optimizer_switch="subquery_to_derived=off";

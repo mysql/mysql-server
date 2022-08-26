@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 --disable_query_log
 eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
 --enable_query_log
@@ -140,6 +142,7 @@ ANALYZE TABLE t;
 # optimizer. With the hypergraph optimizer, expect no join conditions
 # in the outer join, and instead have a filter with the t3.a=t4.a
 # condition.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
 SELECT 1
 FROM t AS t1 LEFT JOIN t AS t2
@@ -149,6 +152,29 @@ FROM t AS t1 LEFT JOIN t AS t2
   );
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#34534373: Heatwave offload issue - Sees inner tables
+--echo #               of a semijoin when it should not
+--echo #
+
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+set optimizer_switch="subquery_to_derived=on";
+--replace_regex $elide_costs
+# For the condition that is placed on top of the left join,
+# hypergraph should not find field replacements from table
+# "t3" through multiple equalities. This table is not visible
+# outside of the semijoin.
+EXPLAIN FORMAT=TREE
+SELECT 1
+ FROM (t1 JOIN t1 AS t2
+       ON t2.f1 = t1.f2 AND t1.f1 IN (SELECT f1 FROM t1 AS t3))
+ WHERE (SELECT SUM(f2) FROM t1 AS t4) IS NULL
+        AND t1.f1 = t2.f1 OR t2.f2 <= 0;
+DROP TABLE t1;
+set optimizer_switch="subquery_to_derived=off";
 
 --disable_query_log
 UNINSTALL PLUGIN mock;
