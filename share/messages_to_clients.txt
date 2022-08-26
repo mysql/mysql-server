@@ -9830,6 +9830,9 @@ ER_INTERSECT_ALL_MAX_DUPLICATES_EXCEEDED
 ER_TP_QUERY_THRS_PER_GRP_EXCEEDS_TXN_THR_LIMIT
   eng "Query threads count(%u) exceeds transaction threads limit(%u) per group. Please use query threads count per group smaller or equal to max transaction threads limit per group"
 
+ER_WARN_DEPRECATED_CLIENT_NO_SCHEMA_OPTION
+  eng "The client is using a deprecated CLIENT_NO_SCHEMA client option. CLIENT_NO_SCHEMA will be removed in a future release."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

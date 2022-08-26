@@ -244,7 +244,9 @@
   @sa REFRESH_READ_LOCK, handle_reload_request, close_cached_tables
 */
 #define REFRESH_FAST 32768
-#define REFRESH_USER_RESOURCES 0x80000L   /** FLUSH RESOURCES. @sa ::reset_mqh */
+#define REFRESH_USER_RESOURCES                                                 \
+  0x80000L                                /** FLUSH RESOURCES. @sa ::reset_mqh \
+                                           */
 #define REFRESH_FOR_EXPORT 0x100000L      /** FLUSH TABLES ... FOR EXPORT */
 #define REFRESH_OPTIMIZER_COSTS 0x200000L /** FLUSH OPTIMIZER_COSTS */
 #define REFRESH_PERSIST 0x400000L         /** RESET PERSIST */
@@ -322,7 +324,8 @@
   @sa send_client_reply_packet()
 */
 #define CLIENT_CONNECT_WITH_DB 8
-#define CLIENT_NO_SCHEMA 16 /**< Don't allow database.table.column */
+#define CLIENT_NO_SCHEMA \
+  16 /**< DEPRECATED: Don't allow database.table.column */
 /**
   Compression protocol supported.
 

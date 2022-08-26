@@ -23283,6 +23283,32 @@ static void test_bug33535746() {
   myquery(rc);
 }
 
+static void test_wl13128() {
+  DBUG_TRACE;
+  myheader("test_wl13128");
+
+  MYSQL *lmysql;
+  int rc;
+
+  lmysql = mysql_client_init(nullptr);
+  DIE_UNLESS(lmysql);
+
+  if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, CLIENT_NO_SCHEMA)) {
+    fprintf(stderr, "Failed to connect to the database\n");
+    DIE_UNLESS(0);
+  }
+
+  rc = mysql_query(lmysql, "SELECT 1");
+  myquery(rc);
+
+  mysql_free_result(mysql_store_result(lmysql));
+
+  DIE_UNLESS(1 == mysql_warning_count(lmysql));
+
+  mysql_close(lmysql);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -23596,6 +23622,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13075", test_wl13075},
     {"test_bug34007830", test_bug34007830},
     {"test_bug33535746", test_bug33535746},
+    {"test_wl13128", test_wl13128},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

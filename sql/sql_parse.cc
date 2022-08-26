@@ -3044,6 +3044,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
     res_grp_name[0] = '\0';
   }
 
+  if (unlikely(thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))) {
+    push_warning(thd, ER_WARN_DEPRECATED_CLIENT_NO_SCHEMA_OPTION);
+  }
+
   if (unlikely(thd->slave_thread)) {
     if (!check_database_filters(thd, thd->db().str, lex->sql_command)) {
       binlog_gtid_end_transaction(thd);

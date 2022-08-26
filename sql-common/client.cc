@@ -6140,6 +6140,11 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
   else
     ctx.passwd = passwd;
   ctx.unix_socket = unix_socket;
+  if (0 != (client_flag & CLIENT_NO_SCHEMA)) {
+    fprintf(stderr,
+            "WARNING: CLIENT_NO_SCHEMA is deprecated and will be removed in a "
+            "future version.\n");
+  }
   mysql->options.client_flag |= client_flag;
   ctx.client_flag = mysql->options.client_flag;
   ctx.ssl_state = SSL_NONE;
