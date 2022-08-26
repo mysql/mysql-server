@@ -8,9 +8,8 @@
 --disable_query_log
 call mtr.add_suppression("Flagged corruption of.* in table .* in CHECK TABLE");
 call mtr.add_suppression("Skip re-populating collations and*");
-call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
-call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 --enable_query_log
+--source include/add_mtr_suppression_for_innodb_readonly.inc
 
 set names utf8;
 
@@ -33,9 +32,7 @@ INSERT INTO t SELECT 0,b,c+1,z+1 FROM t;
 select count(*) from t;
 
 # restart server with read only
-SET GLOBAL innodb_fast_shutdown=0;
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 # This will flag all secondary indexes corrupted. It should just mark
 # in-memory metadata as corrupted, as this is a read-only server

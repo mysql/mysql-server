@@ -2126,66 +2126,35 @@ dberr_t srv_start(bool create_new_db) {
 
     log_sys->m_allow_checkpoints.store(true, std::memory_order_release);
 
-    bool log_downsize_requested =
-        log_sys->m_capacity.target_physical_capacity() <
-        log_sys->m_capacity.current_physical_capacity();
-
-    DBUG_EXECUTE_IF("log_force_resize", log_downsize_requested = true;);
-
-    const bool need_to_recreate_log_files =
-        log_upgrade || (log_downsize_requested && !srv_force_recovery &&
-                        !recv_sys->found_corrupt_log);
-
-    if (need_to_recreate_log_files) {
+    if (log_upgrade) {
       /* Prepare to replace the redo log files. */
+      ut_a(!srv_read_only_mode);
 
-      if (log_upgrade) {
-        ut_a(!srv_read_only_mode);
+      if (recv_sys->is_cloned_db) {
+        ib::error(ER_IB_MSG_LOG_UPGRADE_CLONED_DB,
+                  ulong{to_int(log_sys->m_format)});
+        return srv_init_abort(DB_ERROR);
+      }
 
-        if (recv_sys->is_cloned_db) {
-          ib::error(ER_IB_MSG_LOG_UPGRADE_CLONED_DB,
-                    ulong{to_int(log_sys->m_format)});
-          return srv_init_abort(DB_ERROR);
-        }
+      /* For non-empty redo log, upgrade is rejected, so there is even
+      no attempt to parse it, so no way to discover it's corrupted. */
+      if (recv_sys->found_corrupt_log) {
+        ib::error(ER_IB_MSG_LOG_UPGRADE_CORRUPTION__UNEXPECTED,
+                  ulong{to_int(log_sys->m_format)});
+        ut_d(ut_error);
+        ut_o(return srv_init_abort(DB_ERROR));
+      }
 
-        /* For non-empty redo log, upgrade is rejected, so there is even
-        no attempt to parse it, so no way to discover it's corrupted. */
-        if (recv_sys->found_corrupt_log) {
-          ib::error(ER_IB_MSG_LOG_UPGRADE_CORRUPTION__UNEXPECTED,
-                    ulong{to_int(log_sys->m_format)});
-          ut_d(ut_error);
-          ut_o(return srv_init_abort(DB_ERROR));
-        }
-
-        /* For non-empty redo log, upgrade is rejected, so there is even
-        no way to reconstruct non empty srv_dict_metadata. */
-        if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
-          ib::error(ER_IB_MSG_LOG_UPGRADE_NON_PERSISTED_DD_METADATA__UNEXPECTED,
-                    ulong{to_int(log_sys->m_format)});
-          ut_d(ut_error);
-          ut_o(return srv_init_abort(DB_ERROR));
-        }
-
-      } else {
-        ut_a(srv_force_recovery == 0);
-        if (srv_read_only_mode) {
-          const os_offset_t min_capacity_in_M =
-              log_sys->m_capacity.current_physical_capacity() / (1024 * 1024UL);
-          ib::error(ER_IB_MSG_LOG_FILES_RESIZE_ON_START_IN_READ_ONLY_MODE,
-                    ulonglong{min_capacity_in_M});
-          return srv_init_abort(DB_ERROR);
-        }
+      /* For non-empty redo log, upgrade is rejected, so there is even
+      no way to reconstruct non empty srv_dict_metadata. */
+      if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
+        ib::error(ER_IB_MSG_LOG_UPGRADE_NON_PERSISTED_DD_METADATA__UNEXPECTED,
+                  ulong{to_int(log_sys->m_format)});
+        ut_d(ut_error);
+        ut_o(return srv_init_abort(DB_ERROR));
       }
 
       buf_pool_wait_for_no_pending_io_reads();
-
-      if (redo_writes_allowed) {
-        /* Create checkpoint to ensure that the checkpoint header is flushed
-        to the newest redo log file, before log_files_remove() is called,
-        because otherwise crash after the first file removal could lead to
-        the state without a checkpoint. */
-        log_make_empty_and_stop_background_threads(*log_sys);
-      }
 
       flushed_lsn = log_sys->flushed_to_disk_lsn.load();
 
@@ -2218,13 +2187,8 @@ dberr_t srv_start(bool create_new_db) {
 
       if (flushed_lsn < log_get_lsn(*log_sys) ||
           buf_pool_get_oldest_modification_lwm() != 0) {
-        if (log_upgrade) {
-          ib::error(ER_IB_MSG_LOG_UPGRADE_FLUSH_FAILED__UNEXPECTED,
-                    ulong{to_int(log_sys->m_format)});
-        } else {
-          ib::error(ER_IB_MSG_LOG_FILES_RESIZE_ON_START_FAILED__UNEXPECTED,
-                    ulong{to_int(log_sys->m_format)});
-        }
+        ib::error(ER_IB_MSG_LOG_UPGRADE_FLUSH_FAILED__UNEXPECTED,
+                  ulong{to_int(log_sys->m_format)});
         ut_d(ut_error);
         ut_o(return srv_init_abort(DB_ERROR));
       }

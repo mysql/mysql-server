@@ -242,6 +242,7 @@ use test;
 select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 "testing temp-table creation in --innodb_read_only mode"
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 use test;
 show tables;

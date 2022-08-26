@@ -3,11 +3,8 @@
 
 call mtr.add_suppression("Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
 
---disable_query_log
-call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
-call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
---enable_query_log
+# Suppress the known warnings in the read-only-mode
+--source include/add_mtr_suppression_for_innodb_readonly.inc
 
 CREATE TABLE t1(
         a INT AUTO_INCREMENT PRIMARY KEY,

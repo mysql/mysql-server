@@ -4726,6 +4726,10 @@ static void innodb_redo_log_capacity_init() {
     }
   }
 
+  if (capacity_set && srv_read_only_mode) {
+    ib::warn(ER_IB_WRN_IGNORE_REDO_LOG_CAPACITY);
+  }
+
   ut_a(LOG_CAPACITY_MIN <= srv_redo_log_capacity_used);
   ut_a(srv_redo_log_capacity_used <= LOG_CAPACITY_MAX);
   ut_a(srv_redo_log_capacity_used % MB == 0);
