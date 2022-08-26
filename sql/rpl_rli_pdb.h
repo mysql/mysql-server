@@ -919,6 +919,11 @@ class Slave_worker : public Relay_log_info {
   bool write_info(Rpl_info_handler *to) override;
   std::atomic<bool> m_commit_order_deadlock;
 
+  /// This flag indicates whether positions were already modified during the
+  /// event processing, if yes, positions are not updated in the
+  /// slave_worker_ends_group function
+  bool m_flag_positions_committed = false;
+
   Slave_worker &operator=(const Slave_worker &info);
   Slave_worker(const Slave_worker &info);
   bool worker_sleep(ulong seconds);
