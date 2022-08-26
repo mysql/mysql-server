@@ -75,6 +75,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
 #include "sql/current_thd.h"                              // current_thd
+#include "sql/debug_sync.h"                               // DEBUG_SYNC
 #include "sql/derror.h"                                   // ER_THD
 #include "sql/hostname_cache.h"  // Host_errors, inc_host_errors
 #include "sql/log.h"             // query_logger
@@ -3796,6 +3797,14 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   static_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH, "");
   assert(command == COM_CONNECT || command == COM_CHANGE_USER);
 
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
+  DBUG_EXECUTE_IF("before_server_mpvio_initialize", {
+    DBUG_SET("+d,wait_until_thread_kill");
+    const char act[] = "now SIGNAL acl_auth_reached";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   server_mpvio_initialize(thd, &mpvio, &charset_adapter);
   /*
     Clear thd->db as it points to something, that will be freed when
@@ -3822,6 +3831,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                                      mpvio.protocol->get_packet_length())) {
       login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
+      mysql_mutex_unlock(&thd->LOCK_thd_data);
       goto end;
     }
 
@@ -3858,12 +3868,21 @@ int acl_authenticate(THD *thd, enum_server_command command) {
     res = do_multi_factor_auth(thd, &mpvio);
   }
 
+  DBUG_EXECUTE_IF("before_server_mpvio_update_thd", {
+    DBUG_SET("+d,wait_until_thread_kill");
+    const char act[] = "now SIGNAL acl_auth_reached";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   server_mpvio_update_thd(thd, &mpvio);
 
   check_and_update_password_lock_state(mpvio, thd, res);
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_connection_type)(thd->get_vio_type());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+
   {
     Security_context *sctx = thd->security_context();
     const ACL_USER *acl_user = mpvio.acl_user;
@@ -4064,11 +4083,20 @@ int acl_authenticate(THD *thd, enum_server_command command) {
         goto end;
       }
 
-      if (opt_require_secure_transport &&
+      mysql_mutex_lock(&thd->LOCK_thd_data);
+      DBUG_EXECUTE_IF("before_secure_transport_check", {
+        DBUG_SET("+d,wait_until_thread_kill");
+        const char act[] = "now SIGNAL acl_auth_reached";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+
+      if (opt_require_secure_transport && thd->active_vio != nullptr &&
           !is_secure_transport(thd->active_vio->type)) {
+        mysql_mutex_unlock(&thd->LOCK_thd_data);
         my_error(ER_SECURE_TRANSPORT_REQUIRED, MYF(0));
         goto end;
       }
+      mysql_mutex_unlock(&thd->LOCK_thd_data);
 
       /* checking password_time_expire for connecting user */
       password_time_expired = check_password_lifetime(thd, mpvio.acl_user);
@@ -4151,6 +4179,11 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       goto end;
     }
 
+    DBUG_EXECUTE_IF("wait_until_thread_kill", {
+      DBUG_SET("-d,wait_until_thread_kill");
+      const char act[] = "now WAIT_FOR killed";
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    });
     /*
       This is the default access rights for the current database.  It's
       set to 0 here because we don't have an active database yet (and we
