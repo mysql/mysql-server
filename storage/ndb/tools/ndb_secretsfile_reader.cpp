@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "config.h" // WORDS_BIGENDIAN
 #include "util/require.h"
 #include <stdio.h>
 #include <string.h>
@@ -32,6 +33,7 @@
 #include "util/ndb_opts.h"
 #include "util/ndbxfrm_iterator.h"
 #include "util/ndbxfrm_file.h"
+#include "util/ndb_ndbxfrm1.h" // ndb_ndbxfrm1::toggle_endian
 #include "util/ndb_openssl_evp.h"
 
 using byte = unsigned char;
@@ -179,6 +181,10 @@ int read_secrets_file(const char filename[])
 
   Uint32 key_len;
   memcpy(&key_len, &buffer[8], 4);
+#ifdef WORDS_BIGENDIAN
+  // key length is always stored in little endian
+  ndb_ndbxfrm1::toggle_endian32(&key_len);
+#endif
   if(bytes_available < key_len)
   {
     fprintf(stderr, "Error: Failed to read secrets file, "
