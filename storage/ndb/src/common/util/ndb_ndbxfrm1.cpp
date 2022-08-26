@@ -143,7 +143,7 @@ int ndb_ndbxfrm1::header::read_header(ndbxfrm_input_iterator* in)
   if (fixed_header_size > header_size)
     RETURN(-1);
   Uint32 copy_size = fixed_header_size;
-  while (copy_size > 0 && p[copy_size - 1] != 0)
+  while (copy_size > 0 && p[copy_size - 1] == 0)
   {
     copy_size--;
   }
@@ -1088,7 +1088,7 @@ int ndb_ndbxfrm1::trailer::read_trailer(ndbxfrm_input_reverse_iterator* in)
 
   Uint32 copy_size = fixed_trailer_size - sizeof(fixed_trailer::magic);
   const byte* pt = reinterpret_cast<const byte*>(trailerp);
-  while (copy_size > 0 && pt[copy_size - 1] != 0)
+  while (copy_size > 0 && pt[copy_size - 1] == 0)
   {
     copy_size--;
   }
