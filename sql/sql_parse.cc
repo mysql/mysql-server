@@ -2458,6 +2458,7 @@ done:
   thd->set_proc_info(nullptr);
   thd->lex->sql_command = SQLCOM_END;
 
+  DEBUG_SYNC(thd, "processlist_wait");
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi = nullptr;
