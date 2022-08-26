@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
 
   if (argc != 2)
   {
-    fprintf(stderr, "Error: Need one source file and one destination file.");
+    fprintf(stderr, "Error: Need one source file and one destination file.\n");
     return 1;
   }
 
@@ -353,6 +353,7 @@ int copy_file(const char src[], const char dst[])
   r = src_xfrm.open(src_file, src_pwd_key, src_pwd_key_len);
   if (r == -1)
   {
+    fprintf(stderr, "Error: Can not read file %s, bad password or key?\n", src);
     src_file.close();
     dst_file.close();
     dst_file.remove(dst);
@@ -385,6 +386,7 @@ int copy_file(const char src[], const char dst[])
                       true);
   if (r != 0)
   {
+    fprintf(stderr, "Error: Can not initialize file %s.\n", dst);
     src_xfrm.close(false);
     src_file.close();
     dst_file.close();
@@ -418,7 +420,7 @@ int copy_file(const char src[], const char dst[])
     {
       if (src_xfrm.is_encrypted())
       {
-         fprintf(stderr, "Error: Can not read file %s, bad password?\n", src);
+         fprintf(stderr, "Error: Can not read file %s, bad password or key?\n", src);
       }
       else
       {
