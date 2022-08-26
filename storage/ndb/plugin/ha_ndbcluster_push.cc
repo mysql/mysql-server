@@ -39,7 +39,6 @@
 #include "storage/ndb/include/ndb_version.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 #include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
-#include "storage/ndb/plugin/abstract_query_plan.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_cond.h"
 #include "storage/ndb/plugin/ndb_thd.h"
@@ -324,8 +323,11 @@ NdbQuery *ndb_pushed_join::make_query_instance(
 }
 
 /////////////////////////////////////////
-ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd)
+ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
+                                               const AccessPath *root_path,
+                                               const JOIN *join)
     : m_thd(thd),
+      m_join(join),
       m_join_root(nullptr),
       m_join_scope(),
       m_const_scope(),
@@ -334,36 +336,25 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd)
       m_internal_op_count(0),
       m_fld_refs(0),
       m_builder(nullptr),
-      m_table_count(0) {}
-
-/**
- * Setup ndb_pushed_builder_ctx from the 'plan'.
- */
-void ndb_pushed_builder_ctx::setup(AQP::Join_plan &plan,
-                                   AccessPath *root_path) {
-  // Temporarily set up a AQP::Join_plan as we are not independent
-  // from it yet
-  plan.construct(root_path);
-
+      m_table_count(0) {
   /**
    * Set up the ndb_pushed_builder_ctx, including its m_tables[],
-   * from the AQP::Join_plan.
-   * In addition the ndb_pushed_builder_ctx need a 'prepare' with the
-   * root we will try to build a pushed join with. Note that the same
-   * ndb_pushed_builder_ctx might be reused when trying to build
-   * with different roots.
-   *
-   * The ndb_pushed_builder_ctx and AQP parltly overlaps, in that they
-   * both maintain tabular info about join- and semi-join-nest structures
-   * set up by the optimizer. We intend to fuse these structures together
-   * ove rthe next patches
+   * from the AccessPath describing the 'query plan'.
+   */
+  construct(root_path);
+
+  /**
+   * In addition to the structures set up below, the ndb_pushed_builder_ctx
+   * need a later 'prepare' with the root we will try to build a pushed join
+   * with. Note that the same ndb_pushed_builder_ctx might be reused when
+   * trying to push with different roots.
    */
   ndb_table_access_map upper_nests;
   ndb_table_access_map inner_nest;
 
   // Keep track of where join-nest and semi_join-nest starts
-  uint first_inner = plan.get_table_access(0)->get_first_inner();
-  int first_sj_inner = plan.get_table_access(0)->get_first_sj_inner();
+  uint first_inner = m_tables[0].get_first_inner();
+  int first_sj_inner = m_tables[0].get_first_sj_inner();
 
   /**
    * We use a join-nest stack to keep track of the upper tables
@@ -376,17 +367,16 @@ void ndb_pushed_builder_ctx::setup(AQP::Join_plan &plan,
    * Set up the nest structure in m_tables[]. Init even those
    * before the root (in case root_no > 0)
    */
-  m_table_count = plan.get_access_count();
+  assert(m_table_count > 0);
   assert(m_table_count <= MAX_TABLES);
 
   for (uint tab_no = 0; tab_no < m_table_count; tab_no++) {
-    AQP::Table_access *table = plan.get_table_access(tab_no);
-    m_tables[tab_no].m_aqp = table;
+    pushed_table *table = &m_tables[tab_no];
 
     /**
      * Build join-nest structure for tables:
      *
-     * Collect the inner/outer join-nest structure from the AQP.
+     * Collect the inner/outer join-nest structure from the m_tables[].
      * All tables between first/last_inner, and having the same 'first_inner',
      * are members of the same join-nest, thus they are inner joined with each
      * other. Furthermore, they are outer-joined with any tables in the nest

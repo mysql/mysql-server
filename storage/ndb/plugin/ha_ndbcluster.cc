@@ -58,7 +58,6 @@
 #include "storage/ndb/include/ndb_version.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 #include "storage/ndb/include/util/SparseBitmask.hpp"
-#include "storage/ndb/plugin/abstract_query_plan.h"
 #include "storage/ndb/plugin/ha_ndb_index_stat.h"
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"
 #include "storage/ndb/plugin/ha_ndbcluster_cond.h"
@@ -14440,8 +14439,8 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
 #ifndef NDEBUG
       // Below, debug only: Assert Query_scope containment.
       // For some operations this is stricter than what was set up by
-      // Join_plan::construct(), where only a Join_scope was constructed.
-      // (See further below)
+      // ndb_pushed_builder_ctx::construct(), where only a Join_scope was
+      // constructed. (See further below)
       case AccessPath::AGGREGATE: {
         assert(!has_pushed_members_outside_of_branch(subpath->aggregate().child,
                                                      join));
@@ -14473,9 +14472,9 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
 
       /////////////////
       // For asserts below we only constructed a Join_scope in
-      // Join_plan::construct(), thus we do allow 'upper' references
-      // '..OutsideOfBranch'. Never seen it being taken advantage of though,
-      // it seems to always behave as if a Query_scope was constructed.
+      // ndb_pushed_builder_ctx::construct(), thus we do allow 'upper'
+      // references '..OutsideOfBranch'. Never seen it being taken advantage of
+      // though. It seems to always behave as if a Query_scope was constructed.
       // Would like to investigate, and add as testcase, if any of the
       // (too strict) asserts are hit below.
       case AccessPath::SORT: {
@@ -14515,10 +14514,7 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
  */
 int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
   DBUG_TRACE;
-  ndb_pushed_builder_ctx pushed_builder(thd);
-  AQP::Join_plan query_plan(thd, join, pushed_builder);
-
-  pushed_builder.setup(query_plan, root_path);
+  ndb_pushed_builder_ctx pushed_builder(thd, root_path, join);
 
   /**
    * Investigate what could be pushed down as entire joins first.

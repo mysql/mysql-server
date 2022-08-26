@@ -26,9 +26,9 @@
 
 #include "sql/sql_bitmap.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
-#include "storage/ndb/plugin/abstract_query_plan.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 
+class Item_equal;
 class NdbTransaction;
 class NdbQueryBuilder;
 class NdbQueryOperand;
@@ -36,10 +36,11 @@ class NdbQueryOperationDef;
 class NdbQueryOptions;
 class ndb_pushed_builder_ctx;
 struct NdbError;
+struct TABLE_REF;
 
 /**
- * This type is used in conjunction with AQP::Join_plan and represents a set
- * of the table access operations of the join plan.
+ * This type is used in conjunction with the 'pushed_table' objects and
+ * represents a set of the ndb_pushed_builder_ctx::m_tables[].
  * Had to subclass Bitmap as the default Bitmap<64> c'tor didn't initialize its
  * map.
  */
@@ -189,10 +190,12 @@ enum enum_access_type {
   AT_OTHER
 };
 
+class Join_nest;
+class Join_scope;  // 'is a' Join_nest as well.
+
 struct pushed_table {
   pushed_table()
-      : m_aqp(nullptr),
-        m_inner_nest(),
+      : m_inner_nest(),
         m_upper_nests(),
         m_ancestor_nests(),
         m_first_inner(0),
@@ -204,32 +207,6 @@ struct pushed_table {
         m_ancestors(),
         m_parent(MAX_TABLES),
         m_op(nullptr) {}
-
-  AQP::Table_access *m_aqp;  // Temp only, to ease interface transition
-
-  // The table number within ndb_pushed_builder_ctx::m_tables[]
-  uint m_tab_no;
-
-  // A 'basic' AccessPath having a table reference
-  const AccessPath *m_path{nullptr};
-
-  // The table accessed by m_path
-  const TABLE *m_table{nullptr};
-
-  // An optional AccessPath::FILTER in effect for this table
-  const AccessPath *m_filter{nullptr};
-
-  /** The access type used for this table. */
-  enum_access_type m_access_type{AT_VOID};
-
-  /** The reason for getting m_access_type==AT_OTHER. Used for EXPLAIN. */
-  const char *m_other_access_reason{nullptr};
-
-  /** The index to use for this operation (if applicable )*/
-  int m_index_no{-1};
-
-  /** May store an opaque property / flag */
-  uint m_properties{0};
 
   /**
    * As part of analyzing the pushability of each table, the 'join-nest'
@@ -538,13 +515,11 @@ struct pushed_table {
   // The NdbQueryOperationDef produced when pushing this table
   const NdbQueryOperationDef *m_op;
 
-  ////////////////////////
-  // Provide same interface as AQP, such that we can remove
-  // AQP object references from ha_ndbcluster_push code, and instead
-  // call the methods below.
-  // In current version we just pass the call to AQP. Will change in
-  // later patches, and AQP goes entirely away.
-  //
+  /********
+   * The interface for accessing the query plan collected from AccessPath.
+   * This used to be known as the AbstractQueryPlan (AQP), but is now an
+   * integrated part of the join-pushdown-handler.
+   */
 
   /** Get the access type of this operation.*/
   enum_access_type get_access_type() const { return m_access_type; }
@@ -577,16 +552,10 @@ struct pushed_table {
 
   Item_equal *get_item_equal(const Item_field *field_item) const;
 
-  table_map get_tables_in_this_query_scope() const {
-    return m_aqp->get_tables_in_this_query_scope();
-  }
-  table_map get_tables_in_all_query_scopes() const {
-    return m_aqp->get_tables_in_all_query_scopes();
-  }
+  table_map get_tables_in_this_query_scope() const;
+  table_map get_tables_in_all_query_scopes() const;
 
-  const char *get_scope_description() const {
-    return m_aqp->get_scope_description();
-  }
+  const char *get_scope_description() const;
 
   // Need to return rows in index sort order?
   bool use_order() const;
@@ -596,26 +565,21 @@ struct pushed_table {
 
   // Do we have some conditions (aka FILTERs) in the AccessPath
   // between 'this' table and the 'ancestor'
-  bool has_condition_inbetween(const pushed_table *ancestor) const {
-    return m_aqp->has_condition_inbetween(ancestor->m_aqp);
-  }
+  bool has_condition_inbetween(const pushed_table *ancestor) const;
 
-  int get_first_sj_inner() const { return m_aqp->get_first_sj_inner(); }
-  int get_last_sj_inner() const { return m_aqp->get_last_sj_inner(); }
-  /**
-  int get_first_sj_upper() const {
-    return m_aqp->get_first_sj_upper();
-  }
-  **/
+  uint get_first_inner() const;
+  uint get_last_inner() const;
+  int get_first_upper() const;
+
+  int get_first_sj_inner() const;
+  int get_last_sj_inner() const;
+  int get_first_sj_upper() const;
 
   // Is member of a SEMI-Join_nest, relative to ancestor?
-  bool is_semi_joined(const pushed_table *ancestor) const {
-    return m_aqp->is_semi_joined(ancestor->m_aqp);
-  }
+  bool is_semi_joined(const pushed_table *ancestor) const;
+
   // Is member of an ANTI-Join_nest, relative to ancestor?
-  bool is_anti_joined(const pushed_table *ancestor) const {
-    return m_aqp->is_anti_joined(ancestor->m_aqp);
-  }
+  bool is_anti_joined(const pushed_table *ancestor) const;
 
   /**
     Getter and setters for an opaque object for each table.
@@ -625,17 +589,47 @@ struct pushed_table {
   uint get_table_properties() const { return m_properties; }
   void set_table_properties(uint val) { m_properties = val; }
 
+ private:
+  friend ndb_pushed_builder_ctx;
+
+  Join_nest *m_join_nest{nullptr};
+
+  // The table number within ndb_pushed_builder_ctx::m_tables[]
+  uint m_tab_no;
+
+  // A 'basic' AccessPath having a table reference
+  const AccessPath *m_path{nullptr};
+
+  // The table accessed by m_path
+  const TABLE *m_table{nullptr};
+
+  // An optional AccessPath::FILTER in effect for this table
+  const AccessPath *m_filter{nullptr};
+
+  /** The access type used for this table. */
+  enum_access_type m_access_type{AT_VOID};
+
+  /** The reason for getting m_access_type==AT_OTHER. Used for EXPLAIN. */
+  const char *m_other_access_reason{nullptr};
+
+  /** The index to use for this operation (if applicable )*/
+  int m_index_no{-1};
+
+  /** May store an opaque property / flag */
+  uint m_properties{0};
+
+  const Join_scope *get_join_scope() const;
+  const TABLE_REF *get_table_ref() const;
+
   void compute_type_and_index();
 
- private:
-  const TABLE_REF *get_table_ref() const;
 };  // struct pushed_table
 
 /**
  * Contains the context and helper methods used during ::make_pushed_join().
  *
- * Interacts with the AQP which provides interface to the query prepared by
- * the mysqld optimizer.
+ * Collect the query-plan from the AccessPath constructed by the mysql optimizer
+ * and provide a more tabel focused representation of the query.
  *
  * Execution plans built for pushed joins are stored inside this builder
  * context.
@@ -648,13 +642,9 @@ class ndb_pushed_builder_ctx {
   friend int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path,
                                        JOIN *join);
 
-  // Intended to be temporary only, remove in later patches
-  friend AQP::Join_plan;
-
  public:
-  ndb_pushed_builder_ctx(const THD *thd);
-  void setup(AQP::Join_plan &plan, AccessPath *root_path);
-
+  ndb_pushed_builder_ctx(const THD *thd, const AccessPath *root_path,
+                         const JOIN *join);
   ~ndb_pushed_builder_ctx();
 
   void prepare(pushed_table *join_root);
@@ -677,6 +667,9 @@ class ndb_pushed_builder_ctx {
     PUSHABLE_AS_PARENT = 0x01,
     PUSHABLE_AS_CHILD = 0x02
   };
+
+  void construct(const AccessPath *plan);
+  void construct(Join_nest *nest_ctx, const AccessPath *plan);
 
   bool maybe_pushable(pushed_table *table, join_pushability check);
 
@@ -733,6 +726,7 @@ class ndb_pushed_builder_ctx {
   ndb_table_access_map required_ancestors(const pushed_table *table) const;
 
   const THD *const m_thd;
+  const JOIN *const m_join;
 
   pushed_table *m_join_root;
 

@@ -35,14 +35,10 @@
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/sql_optimizer.h"
 #include "sql/thr_malloc.h"
-#include "storage/ndb/plugin/abstract_query_plan.h"
 #include "storage/ndb/plugin/ha_ndbcluster_push.h"
-
-namespace AQP {
 
 class Join_scope;
 class Query_scope;
-class Table_access;
 
 //////////////////////////////////////////////////////////////////////////
 /////////////////// Implements new AccessPath based AQP //////////////////
@@ -132,7 +128,7 @@ class Join_nest {
   Join_scope *const m_upper_join_scope{nullptr};
 
  private:
-  friend class Join_plan;
+  friend class ndb_pushed_builder_ctx;
 
   // Get the upper'most Join_nest, while still being within 'this' nest
   // (Ignores redundant INNER / SEMI nests)
@@ -150,7 +146,7 @@ class Join_nest {
   int m_last_inner{-1};         // The last table in this Join_nest
 
   /** An optional FILTER on the join_nest */
-  AccessPath *m_filter{nullptr};
+  const AccessPath *m_filter{nullptr};
 };
 
 /**
@@ -208,7 +204,8 @@ class Join_scope : public Join_nest {
   }
 
  private:
-  friend class Table_access;
+  friend struct pushed_table;
+  friend class ndb_pushed_builder_ctx;
 
   // Get all tables in this Join_scope as well as in upper scopes.
   table_map get_all_tables_map() const { return m_table_map | m_all_upper_map; }
@@ -314,17 +311,6 @@ static JoinType getHashJoinType(RelationalExpression::Type join_type) {
 }
 
 /**
- * Join_plan is the representation of the 'Abstract Query Plan'
- * It is constructed from an AccessPath
- */
-Join_plan::Join_plan(THD *thd, const JOIN *join,
-                     ndb_pushed_builder_ctx &builder_ctx)
-    : m_thd(thd),
-      m_join(join),
-      m_builder_ctx(builder_ctx),
-      m_table_accesses(thd->mem_root) {}
-
-/**
  * Construct the 'Abstract Query Plan', represented as a 'Join_plan'.
  *
  * In its current implementation it is more a representation of how
@@ -357,11 +343,12 @@ Join_plan::Join_plan(THD *thd, const JOIN *join,
  * need to analyze which part of the Join_plan could be part of the same
  * pushed join
  */
-void Join_plan::construct(AccessPath *root_path) {
+void ndb_pushed_builder_ctx::construct(const AccessPath *root_path) {
   construct(new (m_thd->mem_root) Query_scope(), root_path);
 }
 
-void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
+void ndb_pushed_builder_ctx::construct(Join_nest *nest_ctx,
+                                       const AccessPath *path) {
   switch (path->type) {
     // Basic access paths referring a table.
     case AccessPath::TABLE_SCAN:
@@ -379,30 +366,36 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
     // INDEX_MERGE is not 'basic' as it also refer indexes,
     // but a 'table' nevertheless.
     case AccessPath::INDEX_MERGE: {
-      const uint tab_no = m_table_accesses.size();
-      m_table_accesses.push_back(Table_access(nest_ctx, path));
-      m_builder_ctx.m_tables[tab_no].m_tab_no = tab_no;
-      m_builder_ctx.m_tables[tab_no].m_path = path;
-      m_builder_ctx.m_tables[tab_no].m_table = GetBasicTable(path);
-      m_builder_ctx.m_tables[tab_no].m_filter = nest_ctx->m_filter;
-      m_builder_ctx.m_tables[tab_no].compute_type_and_index();
+      const uint tab_no = m_table_count++;
+      TABLE *const table = GetBasicTable(path);
+      if (likely(table != nullptr)) {
+        const table_map map = table->pos_in_table_list->map();
+        Join_scope *join_scope = nest_ctx->get_join_scope();
+        join_scope->m_table_map |= map;
+      }
+      m_tables[tab_no].m_join_nest = nest_ctx;
+      m_tables[tab_no].m_tab_no = tab_no;
+      m_tables[tab_no].m_path = path;
+      m_tables[tab_no].m_table = table;
+      m_tables[tab_no].m_filter = nest_ctx->m_filter;
+      m_tables[tab_no].compute_type_and_index();
       nest_ctx->m_filter = nullptr;  // Transferred to Table_access
       break;
     }
-    // Basic access paths that don't correspond to a specific table
-    // Create a Table_access anyway for completnes
+    // Basic access paths that don't correspond to a specific table.
+    // Create a 'table' anyway for completeness.
     case AccessPath::TABLE_VALUE_CONSTRUCTOR:
     case AccessPath::FAKE_SINGLE_ROW:
     case AccessPath::ZERO_ROWS:
     case AccessPath::ZERO_ROWS_AGGREGATED:
     case AccessPath::MATERIALIZED_TABLE_FUNCTION:
     case AccessPath::UNQUALIFIED_COUNT: {
-      const uint tab_no = m_table_accesses.size();
-      m_table_accesses.push_back(Table_access(nest_ctx, path));
-      m_builder_ctx.m_tables[tab_no].m_tab_no = tab_no;
-      m_builder_ctx.m_tables[tab_no].m_path = path;
-      m_builder_ctx.m_tables[tab_no].m_table = nullptr;
-      m_builder_ctx.m_tables[tab_no].m_filter = nullptr;
+      const uint tab_no = m_table_count++;
+      m_tables[tab_no].m_join_nest = nest_ctx;
+      m_tables[tab_no].m_tab_no = tab_no;
+      m_tables[tab_no].m_path = path;
+      m_tables[tab_no].m_table = nullptr;
+      m_tables[tab_no].m_filter = nullptr;
       break;
     }
     case AccessPath::NESTED_LOOP_JOIN: {
@@ -716,7 +709,7 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
       assert(false);  // Detect unhandled AccessPath-type
       break;
   }
-  const uint last_table = get_access_count() - 1;
+  const uint last_table = m_table_count - 1;
   nest_ctx->m_last_inner = last_table;
 
   // In case this is the last table in this nest before returning to upper-nest,
@@ -860,33 +853,25 @@ table_map Join_nest::get_filtered_tables(const Join_nest *ancestor) const {
 }
 
 ///////////////////////////////
-Table_access::Table_access(Join_nest *join_nest, AccessPath *path)
-    : m_join_nest(join_nest), m_table(GetBasicTable(path)) {
-  if (likely(m_table != nullptr)) {
-    const table_map map = m_table->pos_in_table_list->map();
-    Join_scope *join_scope = m_join_nest->get_join_scope();
-    join_scope->m_table_map |= map;
-  }
-}
 
-const Join_scope *Table_access::get_join_scope() const {
+const Join_scope *pushed_table::get_join_scope() const {
   return m_join_nest->get_join_scope();
 }
 
 // All tables in 'this' Join_scope, as well as any 'upper' scopes embedding it.
-table_map Table_access::get_tables_in_all_query_scopes() const {
+table_map pushed_table::get_tables_in_all_query_scopes() const {
   const Join_scope *join_scope = get_join_scope();
   return join_scope->get_all_tables_map();
 }
 
 // The upper Join_scopes, limited to those within current 'Query_scope'
-table_map Table_access::get_tables_in_this_query_scope() const {
+table_map pushed_table::get_tables_in_this_query_scope() const {
   const Join_scope *join_scope = get_join_scope();
   const Query_scope *query_scope = join_scope->get_query_scope();
   return join_scope->get_all_tables_map() & ~query_scope->m_all_upper_map;
 }
 
-const char *Table_access::get_scope_description() const {
+const char *pushed_table::get_scope_description() const {
   const Join_scope *join_scope = get_join_scope();
   return join_scope->m_descr;
 }
@@ -898,13 +883,13 @@ const char *Table_access::get_scope_description() const {
  * The first_upper reference to this range is '0'.
  * Note, that first_upper of the uppermost nest is still negative.
  */
-uint Table_access::get_first_inner() const {
+uint pushed_table::get_first_inner() const {
   return m_join_nest->get_first_inner();
 }
-uint Table_access::get_last_inner() const {
+uint pushed_table::get_last_inner() const {
   return m_join_nest->get_last_inner();
 }
-int Table_access::get_first_upper() const {
+int pushed_table::get_first_upper() const {
   return m_join_nest->get_first_upper();
 }
 
@@ -912,29 +897,26 @@ int Table_access::get_first_upper() const {
  * Returns the first/last table in a semi-join nest.
  * Returns <0 if table is not part of a semi-join nest.
  */
-int Table_access::get_first_sj_inner() const {
+int pushed_table::get_first_sj_inner() const {
   return m_join_nest->get_first_sj_inner();
 }
-int Table_access::get_last_sj_inner() const {
+int pushed_table::get_last_sj_inner() const {
   return m_join_nest->get_last_sj_inner();
 }
-int Table_access::get_first_sj_upper() const {
+int pushed_table::get_first_sj_upper() const {
   return m_join_nest->get_first_sj_upper();
 }
 
-bool Table_access::is_semi_joined(const Table_access *ancestor) const {
+bool pushed_table::is_semi_joined(const pushed_table *ancestor) const {
   return m_join_nest->is_semi_joined(ancestor->m_join_nest);
 }
 
-bool Table_access::is_anti_joined(const Table_access *ancestor) const {
+bool pushed_table::is_anti_joined(const pushed_table *ancestor) const {
   return m_join_nest->is_anti_joined(ancestor->m_join_nest);
 }
 
-bool Table_access::has_condition_inbetween(const Table_access *ancestor) const {
+bool pushed_table::has_condition_inbetween(const pushed_table *ancestor) const {
   const table_map filtered_tables =
       m_join_nest->get_filtered_tables(ancestor->m_join_nest);
   return (filtered_tables & m_table->pos_in_table_list->map()) != 0;
 }
-
-}  // namespace AQP
-// namespace AQP
