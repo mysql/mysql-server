@@ -1016,9 +1016,10 @@ SET GLOBAL innodb_strict_mode=default;
 
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-let $restart_parameters = restart: --innodb_read_only --innodb-directories=$MYSQL_TMP_DIR;
---source include/restart_mysqld.inc
+let $do_not_echo_parameters = 1;
+let $extra_restart_parameters = --innodb-directories=$MYSQL_TMP_DIR;
+--source include/restart_innodb_read_only.inc
+let $do_not_echo_parameters =;
 --error ER_READ_ONLY_MODE
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
 SHOW WARNINGS;
@@ -1199,9 +1200,6 @@ DROP TABLESPACE s1;
 SET GLOBAL innodb_file_per_table= DEFAULT;
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\].* Skip re-populating collations and character sets tables in InnoDB read-only mode");
-call mtr.add_suppression("\\[Warning\\].* Skip updating information_schema metadata in InnoDB read-only mode");
-call mtr.add_suppression("\\[Warning\\].* Skipped updating resource group metadata in InnoDB read only mode");
 call mtr.add_suppression("\\[Warning\\].* '.*tablespace.ibd' is a directory, can't delete!");
 call mtr.add_suppression("\\[Warning\\].* Can't create test file");
 call mtr.add_suppression("\\[ERROR\\].* File .* 'delete' returned OS error .*");

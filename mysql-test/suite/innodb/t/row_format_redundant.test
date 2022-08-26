@@ -39,12 +39,8 @@ row_format=redundant;
 insert into t3 values(444, 'dddd', 'bbbbb', 'aaaaa');
 insert into t3 values(555, 'eeee', 'ccccc', 'aaaaa');
 
-# Suppress warning regarding re-populating charsets and collations.
---disable_query_log
-CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
-CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
---enable_query_log
+# Suppress the known warnings in the read-only-mode
+--source include/add_mtr_suppression_for_innodb_readonly.inc
 
 # read-only restart requires the change buffer to be empty; therefore we
 # do a slow shutdown.

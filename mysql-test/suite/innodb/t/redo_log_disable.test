@@ -126,13 +126,7 @@ SET GLOBAL innodb_fast_shutdown = 2;
 SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
 
 --echo #3C. Check shutdown and restart with innodb-read-only
-
---disable_query_log
-call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
-call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
-call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode");
---enable_query_log
-
+--source include/add_mtr_suppression_for_innodb_readonly.inc
 --let $restart_parameters = restart: --innodb-read-only
 --source include/restart_mysqld.inc
 
