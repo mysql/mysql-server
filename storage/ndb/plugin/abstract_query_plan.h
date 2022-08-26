@@ -68,38 +68,6 @@ class ndb_pushed_builder_ctx;
   a part of storage/ndb/plugin longer term.
 */
 
-/** The type of a table access operation. */
-enum enum_access_type {
-  /** For default initialization.*/
-  AT_VOID,
-  /** Value has already been fetched / determined by optimizer.*/
-  AT_FIXED,
-  /** Do a lookup of a single primary key.*/
-  AT_PRIMARY_KEY,
-  /** Do a lookup of a single unique index key.*/
-  AT_UNIQUE_KEY,
-  /** Scan an ordered index with a single upper and lower bound pair.*/
-  AT_ORDERED_INDEX_SCAN,
-  /** Do a multi range read for a set of primary keys.*/
-  AT_MULTI_PRIMARY_KEY,
-  /** Do a multi range read for a set of unique index keys.*/
-  AT_MULTI_UNIQUE_KEY,
-  /**
-    Do a multi range read for a mix of ranges (for which there is an
-    ordered index), and either primary keys or unique index keys.
-  */
-  AT_MULTI_MIXED,
-  /** Scan a table. (No index is assumed to be used.) */
-  AT_TABLE_SCAN,
-  /** Access method will not be chosen before the execution phase.*/
-  AT_UNDECIDED,
-  /**
-    The access method has properties that prevents it from being pushed to a
-    storage engine.
-   */
-  AT_OTHER
-};
-
 namespace AQP {
 
 class Join_plan;
@@ -114,20 +82,7 @@ class Join_scope;  // 'is a' Join_nest as well.
  */
 class Table_access {
  public:
-  Table_access(Join_plan *plan, Join_nest *join_nest, AccessPath *table,
-               AccessPath *filter);
-
-  enum_access_type get_access_type() const;
-
-  const char *get_other_access_reason() const;
-
-  const KEY_PART_INFO *get_key_part_info(uint field_no) const;
-
-  uint get_access_no() const;
-
-  int get_index_no() const;
-
-  const TABLE *get_table() const;
+  Table_access(Join_nest *join_nest, AccessPath *path);
 
   table_map get_tables_in_this_query_scope() const;
   table_map get_tables_in_all_query_scopes() const;
@@ -155,29 +110,9 @@ class Table_access {
  private:
   Join_nest *const m_join_nest;
 
-  const uint m_tab_no;
-
-  /** Describes an AccessPath referring a TABLE* type */
-  const AccessPath *const m_path;
-  const TABLE *const m_table{nullptr};  // The TABLE accessed by m_path
-
-  /** An optional AccessPath::FILTER in effect for this table */
-  AccessPath *const m_filter;
-
-  /** The access type used for this table */
-  mutable enum_access_type m_access_type{AT_VOID};
-
-  /**
-    The reason for getting m_access_type==AT_OTHER. Used for EXPLAIN.
-  */
-  mutable const char *m_other_access_reason{nullptr};
-
-  /** The index to use for this operation (if applicable )*/
-  mutable int m_index_no{-1};
+  const TABLE *const m_table{nullptr};  // The TABLE* being accessed
 
   const Join_scope *get_join_scope() const;
-
-  void compute_type_and_index() const;
 };  // class Table_access
 
 /**
@@ -227,38 +162,6 @@ inline uint Join_plan::get_access_count() const {
 inline Table_access *Join_plan::get_table_access(uint access_no) {
   return (&m_table_accesses[access_no]);
 }
-
-/** Get the type of this operation.*/
-inline enum_access_type Table_access::get_access_type() const {
-  if (m_access_type == AT_VOID) compute_type_and_index();
-  return m_access_type;
-}
-
-/**
-  Get a description of the reason for getting access_type==AT_OTHER. To be
-  used for informational messages.
-  @return A string that should be assumed to have the same life time as the
-  Table_access object.
-*/
-inline const char *Table_access::get_other_access_reason() const {
-  if (m_access_type == AT_VOID) compute_type_and_index();
-  return m_other_access_reason;
-}
-
-/**
-  @return The number of the index to use for this access operation (
-  or -1 for non-index operations).
-*/
-inline int Table_access::get_index_no() const {
-  if (m_access_type == AT_VOID) compute_type_and_index();
-  return m_index_no;
-}
-
-/**
-  Get the number of this Table_access within the enclosing Join_plan.
-  (This number will be in the range 0 to Join_plan::get_access_count() - 1.)
-*/
-inline uint Table_access::get_access_no() const { return m_tab_no; }
 
 }  // namespace AQP
 // namespace AQP

@@ -157,6 +157,38 @@ class ndb_pushed_join {
   Field *m_referred_fields[MAX_REFERRED_FIELDS];
 };  // class ndb_pushed_join
 
+/** The type of a table access operation. */
+enum enum_access_type {
+  /** For default initialization.*/
+  AT_VOID,
+  /** Value has already been fetched / determined by optimizer.*/
+  AT_FIXED,
+  /** Do a lookup of a single primary key.*/
+  AT_PRIMARY_KEY,
+  /** Do a lookup of a single unique index key.*/
+  AT_UNIQUE_KEY,
+  /** Scan an ordered index with a single upper and lower bound pair.*/
+  AT_ORDERED_INDEX_SCAN,
+  /** Do a multi range read for a set of primary keys.*/
+  AT_MULTI_PRIMARY_KEY,
+  /** Do a multi range read for a set of unique index keys.*/
+  AT_MULTI_UNIQUE_KEY,
+  /**
+    Do a multi range read for a mix of ranges (for which there is an
+    ordered index), and either primary keys or unique index keys.
+  */
+  AT_MULTI_MIXED,
+  /** Scan a table. (No index is assumed to be used.) */
+  AT_TABLE_SCAN,
+  /** Access method will not be chosen before the execution phase.*/
+  AT_UNDECIDED,
+  /**
+    The access method has properties that prevents it from being pushed to a
+    storage engine.
+   */
+  AT_OTHER
+};
+
 struct pushed_table {
   pushed_table()
       : m_aqp(nullptr),
@@ -175,11 +207,8 @@ struct pushed_table {
 
   AQP::Table_access *m_aqp;  // Temp only, to ease interface transition
 
-  ////////////////// Temp comment, will change //////////
-  // Duplicates some member variables from AQP::Table_access.
-  // As part of merging AQP functionality into this structure,
-  // we will copy over from AQP in first integration step,
-  // later fill in directly from AccessPath when constructed.
+  // The table number within ndb_pushed_builder_ctx::m_tables[]
+  uint m_tab_no;
 
   // A 'basic' AccessPath having a table reference
   const AccessPath *m_path{nullptr};
@@ -189,6 +218,15 @@ struct pushed_table {
 
   // An optional AccessPath::FILTER in effect for this table
   const AccessPath *m_filter{nullptr};
+
+  /** The access type used for this table. */
+  enum_access_type m_access_type{AT_VOID};
+
+  /** The reason for getting m_access_type==AT_OTHER. Used for EXPLAIN. */
+  const char *m_other_access_reason{nullptr};
+
+  /** The index to use for this operation (if applicable )*/
+  int m_index_no{-1};
 
   /** May store an opaque property / flag */
   uint m_properties{0};
@@ -507,20 +545,35 @@ struct pushed_table {
   // In current version we just pass the call to AQP. Will change in
   // later patches, and AQP goes entirely away.
   //
-  enum_access_type get_access_type() const { return m_aqp->get_access_type(); }
-  const char *get_other_access_reason() const {
-    return m_aqp->get_other_access_reason();
-  }
+
+  /** Get the access type of this operation.*/
+  enum_access_type get_access_type() const { return m_access_type; }
+
+  /**
+    Get a description of the reason for getting access_type==AT_OTHER. To be
+    used for informational messages.
+    @return A string that should be assumed to have the same life time as
+    this pushed_table object.
+  */
+  const char *get_other_access_reason() const { return m_other_access_reason; }
+
   uint get_no_of_key_fields() const;
   const Item *get_key_field(uint field_no) const;
 
-  const KEY_PART_INFO *get_key_part_info(uint field_no) const {
-    return m_aqp->get_key_part_info(field_no);
-  }
-  uint get_access_no() const { return m_aqp->get_access_no(); }
-  int get_index_no() const { return m_aqp->get_index_no(); }
+  const KEY_PART_INFO *get_key_part_info(uint field_no) const;
 
-  const TABLE *get_table() const;
+  /**
+    Get the number of this table in ndb_pushed_builder_ctx::m_tables[].
+  */
+  uint get_access_no() const { return m_tab_no; }
+
+  /**
+    @return The number of the index to use for this access operation (
+    or -1 for non-index operations).
+  */
+  int get_index_no() const { return m_index_no; }
+
+  const TABLE *get_table() const { return m_table; }
 
   Item_equal *get_item_equal(const Item_field *field_item) const;
 
@@ -571,6 +624,8 @@ struct pushed_table {
   */
   uint get_table_properties() const { return m_properties; }
   void set_table_properties(uint val) { m_properties = val; }
+
+  void compute_type_and_index();
 
  private:
   const TABLE_REF *get_table_ref() const;

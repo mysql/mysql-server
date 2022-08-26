@@ -430,7 +430,7 @@ void ndb_pushed_builder_ctx::setup(AQP::Join_plan &plan,
       m_tables[tab_no].m_first_sj_upper = table->get_first_sj_upper();
     }
 
-    if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
+    if (!ndbcluster_is_lookup_operation(m_tables[tab_no].get_access_type())) {
       // A pushable table scan, collect in bitmap for later fast checks
       m_scan_operations.add(tab_no);
     }
