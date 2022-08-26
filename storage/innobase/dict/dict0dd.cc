@@ -1978,7 +1978,15 @@ void dd_drop_instant_columns(
 
 #ifdef UNIV_DEBUG
   auto validate_column = [&](Field *column) {
-    if (dd_find_column(new_dd_table, column->field_name) == nullptr) {
+    /* Valid cases are :
+    1. Column is not present in the new table definition
+    2. Column is present but it is a virtual column being added
+    2. Column is present but it is a stored column being added
+    3. Column is present and is not being added, it is a renamed column */
+
+    auto dd_col = dd_find_column(new_dd_table, column->field_name);
+    /* Virtual columns are not part of cols_to_add so they are checked here. */
+    if (dd_col == nullptr || dd_col->is_virtual()) {
       return true;
     }
 
