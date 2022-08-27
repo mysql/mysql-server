@@ -75,6 +75,7 @@
 #include <NdbHW.hpp>
 #include "portlib/mt-asm.h"
 
+
 struct CHARSET_INFO;
 
 
@@ -491,7 +492,6 @@ protected:
   typedef void (SimulatedBlock::* ExecFunction)(Signal* signal);
   void addRecSignalImpl(GlobalSignalNumber g, ExecFunction fun, bool f =false);
   void installSimulatedBlockFunctions();
-  ExecFunction theExecArray[MAX_GSN+1];
   void handle_execute_error(GlobalSignalNumber gsn);
 
   void initCommon();
@@ -505,8 +505,20 @@ protected:
                               ExecFunction f,
                               BlockReference ref,
                               Uint32 len);
+/*
+  Signal scope management, see signal classes for declarations
+*/
+  struct FunctionAndScope {
+    ExecFunction m_execFunction;
+    SignalScope m_signalScope;
+  };
+  FunctionAndScope theSignalHandlerArray[MAX_GSN+1];
 
-public:
+  void addSignalScopeImpl(GlobalSignalNumber gsn, SignalScope scope);
+  void checkSignalSender(GlobalSignalNumber gsn, Signal *signal, SignalScope scope);
+  [[noreturn]] void handle_sender_error(GlobalSignalNumber gsn, Signal *signal, SignalScope scope);
+
+ public:
   typedef void (SimulatedBlock::* CallbackFunction)(Signal*,
 						    Uint32 callbackData,
 						    Uint32 returnCode);
@@ -525,7 +537,7 @@ public:
 
   ExecFunction getExecuteFunction(GlobalSignalNumber gsn)
   {
-    return theExecArray[gsn];
+    return theSignalHandlerArray[gsn].m_execFunction;
   }
  
   SimulatedBlock* getInstance(Uint32 instanceNumber) {
@@ -2272,13 +2284,15 @@ void
 SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
                                 Signal *signal)
 {
-  ExecFunction f = theExecArray[gsn];
+  FunctionAndScope& fas = theSignalHandlerArray[gsn];
   if (unlikely(gsn > MAX_GSN))
   {
     handle_execute_error(gsn);
     return;
   }
-  executeFunction(gsn, signal, f);
+  // No need to check signal scope here since signals are always local
+  // checkSignalSender(gsn, signal, fas.m_signalScope);
+  executeFunction(gsn, signal, fas.m_execFunction);
 }
 
 inline
@@ -2286,13 +2300,14 @@ void
 SimulatedBlock::executeFunction_async(GlobalSignalNumber gsn,
                                       Signal *signal)
 {
-  ExecFunction f = theExecArray[gsn];
+  FunctionAndScope& fas = theSignalHandlerArray[gsn];
   if (unlikely(gsn > MAX_GSN))
   {
     handle_execute_error(gsn);
     return;
   }
-  executeFunction(gsn, signal, f);
+  checkSignalSender(gsn, signal, fas.m_signalScope);
+  executeFunction(gsn, signal, fas.m_execFunction);
 }
 
 inline
@@ -2311,6 +2326,49 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
   signal->setLength(len);
   signal->header.theSendersBlockRef = ref;
   executeFunction(gsn, signal, f);
+}
+
+inline
+void
+SimulatedBlock::checkSignalSender(GlobalSignalNumber gsn,
+                                  Signal *signal,
+                                  SignalScope scope)
+{
+  // Signals with no restriction on scope do not need to be checked
+  if (scope == SignalScope::External)
+    return;
+
+  BlockReference ref = (signal->senderBlockRef());
+  const Uint32 nodeId = refToNode(ref);
+  // Avoid any overhead since local signals are always allowed
+  if (likely(nodeId == theNodeId))
+    return;
+
+  // Check if signal is allowed to be received
+  switch (scope)
+  {
+  case SignalScope::Local:
+  {
+    handle_sender_error(gsn, signal, scope);
+    break;
+  }
+  case SignalScope::Remote:
+  {
+    const NodeInfo::NodeType nodeType = getNodeInfo(nodeId).getType();
+    if (unlikely(nodeType != NodeInfo::DB))
+      handle_sender_error(gsn, signal, scope);
+    break;
+  }
+  case SignalScope::Management:
+  {
+    const NodeInfo::NodeType nodeType = getNodeInfo(nodeId).getType();
+    if  (nodeType != NodeInfo::DB && nodeType != NodeInfo::MGM)
+      handle_sender_error(gsn, signal, scope);
+    break;
+  }
+  case SignalScope::External:
+    break;
+  }
 }
 
 inline 
@@ -2638,7 +2696,7 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
     handle_execute_error(gsn);
     return;
   }
-  ExecFunction f = rec_block->theExecArray[gsn];
+  ExecFunction f = rec_block->theSignalHandlerArray[gsn].m_execFunction;
   signal->header.theSendersBlockRef = ref;
   /**
    * In this function we only allow function calls within the same thread.
@@ -2747,15 +2805,23 @@ SimulatedBlock::check_sections(Signal25* signal,
   } \
 public:\
 private: \
-  void addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force = false)
+
+/*
+  Define addRecSignal as a macro that, for the passed specific signal (represented by the
+  GlobalSignalNumber), setup the receiver function and fetch the signal scope for the specific
+  signal. The signal scope defines what runtime checks we should do when the signal is received.
+  The signal scopes are defined together with the signal definitions (usually as signal classes).
+ */
+#define addRecSignal(gsn,f,...) \
+  do{ \
+      static_assert(gsn > 0 && gsn < MAX_GSN + 1); \
+      addRecSignalImpl(gsn, (ExecFunction)f, ## __VA_ARGS__); \
+      addSignalScopeImpl(gsn, signal_property<gsn>::scope); \
+    }while(false)
 
 #define BLOCK_CONSTRUCTOR(BLOCK) do { SimulatedBlock::initCommon(); } while(0)
 
-#define BLOCK_FUNCTIONS(BLOCK) \
-void \
-BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
-  addRecSignalImpl(gsn, (ExecFunction)f, force);\
-}
+#define BLOCK_FUNCTIONS(BLOCK) // empty
 
 #ifdef ERROR_INSERT
 #define RSS_AP_SNAPSHOT(x) Uint32 rss_##x

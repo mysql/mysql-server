@@ -28,6 +28,7 @@
 #include <ndb_global.h>
 #include <kernel/ndb_limits.h>
 #include <kernel/kernel_types.h>
+#include <kernel/GlobalSignalNumbers.h>
 
 #define JAM_FILE_ID 61
 
@@ -364,6 +365,69 @@ GSN_PRINT_SIGNATURE(printISOLATE_ORD);
 
 GSN_PRINT_SIGNATURE(printPROCESSINFO_REP);
 GSN_PRINT_SIGNATURE(printTRP_KEEP_ALIVE);
+
+  /**
+     Signal scope monitoring
+
+     Any signal can be received via any connected transporter.
+     Signals are sent between all node types (API, MGMD, Data nodes).
+     By adding checks to the data nodes about where signals were received from,
+     we can improve the robustness and security of the system.
+     The main goal is to ensure that only allowed cluster nodes can send certain signals.
+     To achieve this we distinguish between remote and local signals and add checks when
+     particular signals are received.
+
+     The signals can be defined with the following signal sending scopes:
+
+     Local:
+     This signal should only be received from blocks on the same data node, this can be
+     effectively checked.
+     Any such signal received from another node will cause an error (normally controlled
+     restart of the receiving node).
+
+     Remote:
+     This specifies a signal can be received from any data node. Any such signal received
+     from an API/MGM node will cause an error (normally controlled restart of the receiving node).
+
+     Management:
+     This specifies a signal can only be received from an MGM node or a data node, but not an
+     API node.
+     Any such signal sent from an API node will cause an error (normally controlled restart of
+     the receiving node).
+
+     External:
+     This specifies the signal can be received from any node. This has the same semantics as if
+     the signal has no scope defined. It is primarily for documenting the signal.
+
+     The signal scope is defined in conjunction with setting up signal handler functions
+     for a block during node startup. This is done by the addRecSignal calls.
+
+     The signal scope for individual signals are defined together with the signal classes.
+     Signals without specific classes have their signal scope defined below.
+
+     The format is as follows:
+
+     DECLARE_SIGNAL_SCOPE(GlobalSignalNumber, SignalScope)
+
+     For example, after definition of class FailRep
+
+     DECLARE_SIGNAL_SCOPE(GSN_FAIL_REP, Remote);
+  */
+enum SignalScope { Local, Remote, Management, External };
+
+template<GlobalSignalNumber GSN> struct signal_property
+{
+  static constexpr SignalScope scope = External; // Default value if there is no GSN-specific specialisation is External
+};
+
+// Macro to define a template specialisation for a specific GSN
+#define DECLARE_SIGNAL_SCOPE(gsn, theScope) template<> struct signal_property<gsn> { static constexpr SignalScope scope = theScope; }
+
+/*
+ Define all generic signal scopes for signals with no
+ unique signal classes below. All other signal scopes are defined
+ with the respective signal classes.
+*/
 
 #undef JAM_FILE_ID
 

@@ -49,5 +49,32 @@
 --echo Check backup ok
 --exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
 
+--echo Setup error insert so that backup fails due to illegal signal
+--echo a) Error insert causes Backup 1 to set (restrict) signal scope
+--echo b) Backup 1 is run (succesfully) setting signal scope for BACKUP_REQ
+--echo c) Backup 2 is run subject to signal scope, and causes crash
+--echo    in master data node when BACKUP_REQ is received from MGMD.
+--echo    The expectation is:
+--echo    - The master node will fail
+--echo    - Other nodes will be unaffected
+
+--exec $NDB_MGM -e "ALL ERROR 10054"
+--echo Run a backup (and set up error insert)
+--exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--echo Start backup again, that will fail due to node failure
+--error 255
+--exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--echo Check that node failure was controlled (e.g. node recovers)
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
+--echo Node recovered, ok
+--echo Clear error
+--exec $NDB_MGM -e "ALL ERROR 0"
+
+--echo Check backup ok
+--exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
+
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

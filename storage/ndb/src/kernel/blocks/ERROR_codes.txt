@@ -30,7 +30,7 @@ Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8120
 Next CMVMI 9000
-Next BACKUP 10054
+Next BACKUP 10055
 Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13054
@@ -648,6 +648,7 @@ Backup Stuff:
        master so that master waits to receive the duplicate REF
 10052: Same as 10051 for START_BACKUP_REQ
 10053: Same as 10051 for STOP_BACKUP_REQ
+10054: Illegal signal received (signal scope test)
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 

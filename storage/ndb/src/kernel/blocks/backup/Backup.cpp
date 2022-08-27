@@ -4381,6 +4381,15 @@ Backup::execBACKUP_REQ(Signal* signal)
 {
   jamEntry();
   BackupReq * req = (BackupReq*)signal->getDataPtr();
+
+  if (ERROR_INSERTED(10054) && (getOwnNodeId() == getMasterNodeId()))
+  {
+    // Don't allow this signal to be sent from any other node,
+    // only from the same local node
+    // BACKUP_REQ is sent bt MGMD to Master so this will cause
+    // a node failure
+    addSignalScopeImpl(GSN_BACKUP_REQ, Local);
+  }
   
   const Uint32 senderData = req->senderData;
   const BlockReference senderRef = signal->senderBlockRef();

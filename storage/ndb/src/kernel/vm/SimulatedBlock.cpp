@@ -128,8 +128,10 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   clearTimes();
 #endif
 
-  for(GlobalSignalNumber i = 0; i<=MAX_GSN; i++)
-    theExecArray[i] = 0;
+  for(GlobalSignalNumber i = 0; i<=MAX_GSN; i++){
+    theSignalHandlerArray[i].m_execFunction = nullptr;
+    theSignalHandlerArray[i].m_signalScope = SignalScope::External;
+  }
 
   installSimulatedBlockFunctions();
 
@@ -218,50 +220,64 @@ SimulatedBlock::~SimulatedBlock()
 
 void 
 SimulatedBlock::installSimulatedBlockFunctions(){
-  ExecFunction * a = theExecArray;
-  a[GSN_NODE_STATE_REP] = &SimulatedBlock::execNODE_STATE_REP;
-  a[GSN_CHANGE_NODE_STATE_REQ] = &SimulatedBlock::execCHANGE_NODE_STATE_REQ;
-  a[GSN_NDB_TAMPER] = &SimulatedBlock::execNDB_TAMPER;
-  a[GSN_SIGNAL_DROPPED_REP] = &SimulatedBlock::execSIGNAL_DROPPED_REP;
-  a[GSN_CONTINUE_FRAGMENTED]= &SimulatedBlock::execCONTINUE_FRAGMENTED;
-  a[GSN_STOP_FOR_CRASH]= &SimulatedBlock::execSTOP_FOR_CRASH;
-  a[GSN_UTIL_CREATE_LOCK_REF]   = &SimulatedBlock::execUTIL_CREATE_LOCK_REF;
-  a[GSN_UTIL_CREATE_LOCK_CONF]  = &SimulatedBlock::execUTIL_CREATE_LOCK_CONF;
-  a[GSN_UTIL_DESTROY_LOCK_REF]  = &SimulatedBlock::execUTIL_DESTORY_LOCK_REF;
-  a[GSN_UTIL_DESTROY_LOCK_CONF] = &SimulatedBlock::execUTIL_DESTORY_LOCK_CONF;
-  a[GSN_UTIL_LOCK_REF]    = &SimulatedBlock::execUTIL_LOCK_REF;
-  a[GSN_UTIL_LOCK_CONF]   = &SimulatedBlock::execUTIL_LOCK_CONF;
-  a[GSN_UTIL_UNLOCK_REF]  = &SimulatedBlock::execUTIL_UNLOCK_REF;
-  a[GSN_UTIL_UNLOCK_CONF] = &SimulatedBlock::execUTIL_UNLOCK_CONF;
-  a[GSN_FSOPENREF]    = &SimulatedBlock::execFSOPENREF;
-  a[GSN_FSCLOSEREF]   = &SimulatedBlock::execFSCLOSEREF;
-  a[GSN_FSWRITEREF]   = &SimulatedBlock::execFSWRITEREF;
-  a[GSN_FSREADREF]    = &SimulatedBlock::execFSREADREF;
-  a[GSN_FSREMOVEREF]  = &SimulatedBlock::execFSREMOVEREF;
-  a[GSN_FSSYNCREF]    = &SimulatedBlock::execFSSYNCREF;
-  a[GSN_FSAPPENDREF]  = &SimulatedBlock::execFSAPPENDREF;
-  a[GSN_NODE_START_REP] = &SimulatedBlock::execNODE_START_REP;
-  a[GSN_API_START_REP] = &SimulatedBlock::execAPI_START_REP;
-  a[GSN_SEND_PACKED] = &SimulatedBlock::execSEND_PACKED;
-  a[GSN_CALLBACK_CONF] = &SimulatedBlock::execCALLBACK_CONF;
-  a[GSN_SYNC_THREAD_REQ] = &SimulatedBlock::execSYNC_THREAD_REQ;
-  a[GSN_SYNC_THREAD_CONF] = &SimulatedBlock::execSYNC_THREAD_CONF;
-  a[GSN_LOCAL_ROUTE_ORD] = &SimulatedBlock::execLOCAL_ROUTE_ORD;
-  a[GSN_SYNC_REQ] = &SimulatedBlock::execSYNC_REQ;
-  a[GSN_SYNC_PATH_REQ] = &SimulatedBlock::execSYNC_PATH_REQ;
-  a[GSN_SYNC_PATH_CONF] = &SimulatedBlock::execSYNC_PATH_CONF;
+  FunctionAndScope* a = theSignalHandlerArray;
+  a[GSN_NODE_STATE_REP].m_execFunction = &SimulatedBlock::execNODE_STATE_REP;
+  a[GSN_CHANGE_NODE_STATE_REQ].m_execFunction = &SimulatedBlock::execCHANGE_NODE_STATE_REQ;
+  a[GSN_NDB_TAMPER].m_execFunction = &SimulatedBlock::execNDB_TAMPER;
+  a[GSN_SIGNAL_DROPPED_REP].m_execFunction = &SimulatedBlock::execSIGNAL_DROPPED_REP;
+  a[GSN_CONTINUE_FRAGMENTED].m_execFunction = &SimulatedBlock::execCONTINUE_FRAGMENTED;
+  a[GSN_STOP_FOR_CRASH].m_execFunction = &SimulatedBlock::execSTOP_FOR_CRASH;
+  a[GSN_UTIL_CREATE_LOCK_REF].m_execFunction  = &SimulatedBlock::execUTIL_CREATE_LOCK_REF;
+  a[GSN_UTIL_CREATE_LOCK_CONF].m_execFunction = &SimulatedBlock::execUTIL_CREATE_LOCK_CONF;
+  a[GSN_UTIL_DESTROY_LOCK_REF].m_execFunction = &SimulatedBlock::execUTIL_DESTORY_LOCK_REF;
+  a[GSN_UTIL_DESTROY_LOCK_CONF].m_execFunction = &SimulatedBlock::execUTIL_DESTORY_LOCK_CONF;
+  a[GSN_UTIL_LOCK_REF].m_execFunction = &SimulatedBlock::execUTIL_LOCK_REF;
+  a[GSN_UTIL_LOCK_CONF].m_execFunction = &SimulatedBlock::execUTIL_LOCK_CONF;
+  a[GSN_UTIL_UNLOCK_REF].m_execFunction = &SimulatedBlock::execUTIL_UNLOCK_REF;
+  a[GSN_UTIL_UNLOCK_CONF].m_execFunction = &SimulatedBlock::execUTIL_UNLOCK_CONF;
+  a[GSN_FSOPENREF].m_execFunction = &SimulatedBlock::execFSOPENREF;
+  a[GSN_FSCLOSEREF].m_execFunction = &SimulatedBlock::execFSCLOSEREF;
+  a[GSN_FSWRITEREF].m_execFunction = &SimulatedBlock::execFSWRITEREF;
+  a[GSN_FSREADREF].m_execFunction = &SimulatedBlock::execFSREADREF;
+  a[GSN_FSREMOVEREF].m_execFunction = &SimulatedBlock::execFSREMOVEREF;
+  a[GSN_FSSYNCREF].m_execFunction = &SimulatedBlock::execFSSYNCREF;
+  a[GSN_FSAPPENDREF].m_execFunction = &SimulatedBlock::execFSAPPENDREF;
+  a[GSN_NODE_START_REP].m_execFunction = &SimulatedBlock::execNODE_START_REP;
+  a[GSN_API_START_REP].m_execFunction = &SimulatedBlock::execAPI_START_REP;
+  a[GSN_SEND_PACKED].m_execFunction = &SimulatedBlock::execSEND_PACKED;
+  a[GSN_CALLBACK_CONF].m_execFunction = &SimulatedBlock::execCALLBACK_CONF;
+  a[GSN_SYNC_THREAD_REQ].m_execFunction = &SimulatedBlock::execSYNC_THREAD_REQ;
+  a[GSN_SYNC_THREAD_CONF].m_execFunction = &SimulatedBlock::execSYNC_THREAD_CONF;
+  a[GSN_LOCAL_ROUTE_ORD].m_execFunction = &SimulatedBlock::execLOCAL_ROUTE_ORD;
+  a[GSN_SYNC_REQ].m_execFunction = &SimulatedBlock::execSYNC_REQ;
+  a[GSN_SYNC_PATH_REQ].m_execFunction = &SimulatedBlock::execSYNC_PATH_REQ;
+  a[GSN_SYNC_PATH_CONF].m_execFunction = &SimulatedBlock::execSYNC_PATH_CONF;
 }
 
 void
 SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn, 
 				 ExecFunction f, bool force){
-  if(gsn > MAX_GSN || (!force &&  theExecArray[gsn] != 0)){
+  if(gsn > MAX_GSN ||
+     (!force &&  theSignalHandlerArray[gsn].m_execFunction != nullptr)){
     char errorMsg[255];
     BaseString::snprintf(errorMsg, 255, 
  	     "GSN %d(%d))", gsn, MAX_GSN); 
     ERROR_SET(fatal, NDBD_EXIT_ILLEGAL_SIGNAL, errorMsg, errorMsg);
   }
-  theExecArray[gsn] = f;
+  theSignalHandlerArray[gsn].m_execFunction = f;
+}
+
+void
+SimulatedBlock::addSignalScopeImpl(GlobalSignalNumber gsn,
+                                   SignalScope scope){
+  FunctionAndScope& fas = theSignalHandlerArray[gsn];
+
+  if (!(scope == SignalScope::Local || scope == SignalScope::Remote || scope == SignalScope::Management || scope == SignalScope::External)){
+    warningEvent("SimulatedBlock::addSignalScopeImpl, incorrect use, SignalScope out of range %u", scope);
+    require(false);
+  }
+  // If scope is defined multiple times we assume the most restrictive
+  fas.m_signalScope = MIN(fas.m_signalScope, scope);
 }
 
 void
@@ -2714,11 +2730,49 @@ SimulatedBlock::handle_execute_error(GlobalSignalNumber gsn)
     BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d too high)", gsn);
     ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
   }
-  if (!(theExecArray[gsn] != 0)) {
+  if (!(theSignalHandlerArray[gsn].m_execFunction != nullptr)) {
     BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
     ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
   }
   ndbabort();
+}
+
+ATTRIBUTE_NOINLINE
+void
+SimulatedBlock::handle_sender_error(GlobalSignalNumber gsn, Signal *signal, SignalScope scope)
+{
+  const BlockReference ref = (signal->senderBlockRef());
+  Uint32 nodeId = refToNode(ref);
+  char errorMsg[255];
+    switch (scope)
+    {
+    case SignalScope::Local:
+    {
+      CRASH_INSERTION(10054);
+      BaseString::snprintf(errorMsg, 255, "Illegal signal %s received for SignalScope::Local (GSN %d from node %d, block 0x%X to 0x%X)", getSignalName(gsn), gsn, nodeId, refToMain(ref), refToMain(reference()));
+      ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, getBlockName(number()));
+      break;
+    }
+    case SignalScope::Remote:
+    {
+      BaseString::snprintf(errorMsg, 255, "Illegal signal %s received for SignalScope::Remote (GSN %d from node %d, block 0x%X to 0x%X)", getSignalName(gsn), gsn, nodeId, refToMain(ref), refToMain(reference()));
+      ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, getBlockName(number()));
+      break;
+    }
+    case SignalScope::Management:
+    {
+      BaseString::snprintf(errorMsg, 255, "Illegal signal %s received for SignalScope::Management (GSN %d from API node %d, block 0x%X to 0x%X)", getSignalName(gsn), gsn, nodeId, refToMain(ref), refToMain(reference()));
+      ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, getBlockName(number()));
+      break;
+    }
+    case SignalScope::External:
+      // Should not be reachable
+      ndbassert(false);
+      BaseString::snprintf(errorMsg, 255, "Illegal signal %s eceived for SignalScope::External (GSN %d from API node %d, block 0x%X to 0x%X)", getSignalName(gsn), gsn, nodeId, refToMain(ref), refToMain(reference()));
+      ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, getBlockName(number()));
+      break;
+    }
+   ndbabort();
 }
 
 // MT LQH callback CONF via signal
