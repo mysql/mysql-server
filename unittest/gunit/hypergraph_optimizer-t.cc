@@ -2666,6 +2666,64 @@ TEST_F(HypergraphOptimizerTest, StraightJoinWithMoreTables) {
   EXPECT_EQ(m_fake_tables["t1"], t1->table_scan().table);
 }
 
+TEST_F(HypergraphOptimizerTest, StraightJoinNotAssociative) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 STRAIGHT_JOIN t2 STRAIGHT_JOIN t3 "
+      "STRAIGHT_JOIN t4 WHERE t3.y=t4.y AND t1.x=t2.x",
+      /*nullable=*/true);
+
+  // For secondary engine straight joins are not associative.
+  m_initializer.thd()->set_secondary_engine_optimization(
+      Secondary_engine_optimization::SECONDARY);
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The expected order would be
+  // ((t1 HJ t2 ON t1.x = t2.x) HJ t3) HJ t4 ON t3.y = t4.y
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN,
+            root->hash_join().join_predicate->expr->type);
+  RelationalExpression *expr1 = root->hash_join().join_predicate->expr;
+  ASSERT_EQ(1, expr1->equijoin_conditions.size());
+  EXPECT_EQ("(t3.y = t4.y)", ItemToString(expr1->equijoin_conditions[0]));
+
+  AccessPath *t4 = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t4->type);
+  EXPECT_EQ(m_fake_tables["t4"], t4->table_scan().table);
+
+  AccessPath *t1t2t3 = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::HASH_JOIN, t1t2t3->type);
+  RelationalExpression *expr2 = t1t2t3->hash_join().join_predicate->expr;
+  EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN, expr2->type);
+
+  AccessPath *t3 = t1t2t3->hash_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t3->type);
+  EXPECT_EQ(m_fake_tables["t3"], t3->table_scan().table);
+
+  AccessPath *t1t2 = t1t2t3->hash_join().outer;
+  ASSERT_EQ(AccessPath::HASH_JOIN, t1t2->type);
+  RelationalExpression *expr3 = t1t2->hash_join().join_predicate->expr;
+  EXPECT_EQ(RelationalExpression::STRAIGHT_INNER_JOIN, expr3->type);
+  ASSERT_EQ(1, expr3->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t2.x)", ItemToString(expr3->equijoin_conditions[0]));
+
+  AccessPath *t2 = t1t2->hash_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
+  EXPECT_EQ(m_fake_tables["t2"], t2->table_scan().table);
+
+  AccessPath *t1 = t1t2->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
+  EXPECT_EQ(m_fake_tables["t1"], t1->table_scan().table);
+}
+
 TEST_F(HypergraphOptimizerTest, NullSafeEqualHashJoin) {
   Query_block *query_block =
       ParseAndResolve("SELECT 1 FROM t1, t2 WHERE t1.x <=> t2.x",

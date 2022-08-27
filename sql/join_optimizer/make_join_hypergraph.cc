@@ -720,6 +720,15 @@ bool OperatorsAreAssociative(const RelationalExpression &a,
            IsNullRejecting(b, b.left->tables_in_subtree);
   }
 
+  // Secondary engine does not want us to treat STRAIGHT_JOINs as
+  // associative.
+  if ((current_thd->secondary_engine_optimization() ==
+       Secondary_engine_optimization::SECONDARY) &&
+      (a.type == RelationalExpression::STRAIGHT_INNER_JOIN ||
+       b.type == RelationalExpression::STRAIGHT_INNER_JOIN)) {
+    return false;
+  }
+
   // For the operations we support, it can be collapsed into this simple
   // condition. (Cartesian products and inner joins are treated the same.)
   return IsInnerJoin(a.type) && b.type != RelationalExpression::FULL_OUTER_JOIN;
