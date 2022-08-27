@@ -126,6 +126,41 @@ enum srv_checksum_algorithm_t {
                                         when reading */
 };
 
+/** Buffer pool resize status code and progress are tracked using these
+atomic variables to ensure thread synchronization between
+innodb_buffer_pool_size_update (raising srv_buf_resize_event) and
+buf_resize_thread (handling srv_buf_resize_event) */
+extern std::atomic_uint32_t buf_pool_resize_status_code;
+extern std::atomic_uint32_t buf_pool_resize_status_progress;
+
+/** Enumerate possible status codes during buffer pool resize. This is used
+to identify the resize status using the corresponding code. */
+enum buf_pool_resize_status_code_t {
+  /** Resize completed or Resize not in progress*/
+  BUF_POOL_RESIZE_COMPLETE = 0,
+
+  /** Resize started */
+  BUF_POOL_RESIZE_START = 1,
+
+  /** Disabling Adaptive Hash Index */
+  BUF_POOL_RESIZE_DISABLE_AHI = 2,
+
+  /** Withdrawing blocks */
+  BUF_POOL_RESIZE_WITHDRAW_BLOCKS = 3,
+
+  /** Acquiring global lock */
+  BUF_POOL_RESIZE_GLOBAL_LOCK = 4,
+
+  /** Resizing pool */
+  BUF_POOL_RESIZE_IN_PROGRESS = 5,
+
+  /** Resizing hash */
+  BUF_POOL_RESIZE_HASH = 6,
+
+  /** Resizing failed */
+  BUF_POOL_RESIZE_FAILED = 7
+};
+
 inline bool is_checksum_strict(srv_checksum_algorithm_t algo) {
   return (algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 ||
           algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB ||

@@ -1131,6 +1131,12 @@ static SHOW_VAR innodb_status_variables[] = {
     {"buffer_pool_resize_status",
      (char *)&export_vars.innodb_buffer_pool_resize_status, SHOW_CHAR,
      SHOW_SCOPE_GLOBAL},
+    {"buffer_pool_resize_status_code",
+     (char *)&export_vars.innodb_buffer_pool_resize_status_code, SHOW_INT,
+     SHOW_SCOPE_GLOBAL},
+    {"buffer_pool_resize_status_progress",
+     (char *)&export_vars.innodb_buffer_pool_resize_status_progress, SHOW_INT,
+     SHOW_SCOPE_GLOBAL},
     {"buffer_pool_pages_data",
      (char *)&export_vars.innodb_buffer_pool_pages_data, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
@@ -20404,10 +20410,7 @@ static bool innodb_buffer_pool_size_validate(THD *thd,
                                              longlong buffer_pool_size,
                                              ulint &aligned_buffer_pool_size) {
   os_rmb;
-  if (srv_buf_pool_old_size != srv_buf_pool_size) {
-    push_warning(thd, ER_BUFPOOL_RESIZE_INPROGRESS);
-    return false;
-  }
+  ut_ad(srv_buf_pool_old_size == srv_buf_pool_size);
 
   if (srv_buf_pool_instances > 1 &&
       buffer_pool_size < BUF_POOL_SIZE_THRESHOLD) {
@@ -20499,19 +20502,37 @@ static void innodb_buffer_pool_size_update(THD *thd, SYS_VAR *, void *var_ptr,
                                            const void *save) {
   longlong requested_buffer_pool_size = *static_cast<const longlong *>(save);
   ulint aligned_buffer_pool_size = 0u;
-  if (innodb_buffer_pool_size_validate(thd, requested_buffer_pool_size,
-                                       aligned_buffer_pool_size)) {
+
+  /* Since this function can be called at any time, we must allow change
+in status code only if no other resize is in progress */
+  if (buf_pool_resize_status_code.load() == BUF_POOL_RESIZE_COMPLETE ||
+      buf_pool_resize_status_code.load() == BUF_POOL_RESIZE_FAILED) {
+    /* No other resize is in progress */
     snprintf(export_vars.innodb_buffer_pool_resize_status,
              sizeof(export_vars.innodb_buffer_pool_resize_status),
              "Requested to resize buffer pool.");
+    buf_pool_resize_status_code.store(BUF_POOL_RESIZE_START);
+    buf_pool_resize_status_progress.store(0);
 
-    os_event_set(srv_buf_resize_event);
+    if (innodb_buffer_pool_size_validate(thd, requested_buffer_pool_size,
+                                         aligned_buffer_pool_size)) {
+      os_event_set(srv_buf_resize_event);
 
-    ib::info(ER_IB_MSG_573)
-        << export_vars.innodb_buffer_pool_resize_status
-        << " (new size: " << aligned_buffer_pool_size << " bytes)";
+      ib::info(ER_IB_MSG_573)
+          << export_vars.innodb_buffer_pool_resize_status
+          << " (new size: " << aligned_buffer_pool_size << " bytes)";
 
-    *static_cast<longlong *>(var_ptr) = aligned_buffer_pool_size;
+      *static_cast<longlong *>(var_ptr) = aligned_buffer_pool_size;
+    } else {
+      snprintf(export_vars.innodb_buffer_pool_resize_status,
+               sizeof(export_vars.innodb_buffer_pool_resize_status),
+               "Failed to validate requested buffer pool size.");
+      buf_pool_resize_status_code.store(BUF_POOL_RESIZE_FAILED);
+      buf_pool_resize_status_progress.store(100);
+    }
+  } else {
+    /* Resize operation is in progress */
+    push_warning(thd, ER_BUFPOOL_RESIZE_INPROGRESS);
   }
 }
 

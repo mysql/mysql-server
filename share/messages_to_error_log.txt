@@ -11931,6 +11931,15 @@ ER_THREAD_POOL_SYSVAR_CHANGE
 ER_STACK_BACKTRACE
   eng "%s"
 
+ER_IB_MSG_BUF_POOL_RESIZE_COMPLETE_CUR_CODE
+  eng "Status code %u: Completed"
+
+ER_IB_MSG_BUF_POOL_RESIZE_PROGRESS_UPDATE
+  eng "Status code %u: %u%% complete"
+
+ER_IB_MSG_BUF_POOL_RESIZE_CODE_STATUS
+  eng "Status code %u: %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -304,6 +304,10 @@ buf_pool_t *buf_pool_ptr;
 /** true when resizing buffer pool is in the critical path. */
 volatile bool buf_pool_resizing;
 
+/** Atomic variables to track resize status code and progress */
+std::atomic_uint32_t buf_pool_resize_status_code = {0};
+std::atomic_uint32_t buf_pool_resize_status_progress = {0};
+
 /** Map of buffer pool chunks by its first frame address
 This is newly made by initialization of buffer pool and buf_resize_thread.
 Note: mutex protection is required when creating multiple buffer pools
@@ -1655,15 +1659,25 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
   return (true); /* free_list was enough */
 }
 
-static void buf_resize_status(const char *fmt, ...)
-    MY_ATTRIBUTE((format(printf, 1, 2)));
+static void buf_resize_status(buf_pool_resize_status_code_t status,
+                              const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 2, 3)));
+
+static void buf_resize_status_progress_reset();
+
+static void buf_resize_status_progress_update(uint current_step,
+                                              uint total_steps);
 
 /** Sets the global variable that feeds MySQL's innodb_buffer_pool_resize_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3).
+@param[in]      status  status code
 @param[in]      fmt     format
 @param[in]      ...     extra parameters according to fmt */
-static void buf_resize_status(const char *fmt, ...) {
+static void buf_resize_status(buf_pool_resize_status_code_t status,
+                              const char *fmt, ...) {
+  buf_pool_resize_status_code.store(status);
+
   va_list ap;
 
   va_start(ap, fmt);
@@ -1673,7 +1687,95 @@ static void buf_resize_status(const char *fmt, ...) {
 
   va_end(ap);
 
-  ib::info(ER_IB_MSG_55) << export_vars.innodb_buffer_pool_resize_status;
+  ib::info(ER_IB_MSG_BUF_POOL_RESIZE_CODE_STATUS,
+           uint{buf_pool_resize_status_code.load()},
+           export_vars.innodb_buffer_pool_resize_status);
+}
+
+#ifdef UNIV_DEBUG
+void buf_pool_resize_wait_for_test() {
+  bool should_wait_for_test = true;
+  while (should_wait_for_test) {
+    should_wait_for_test = false;
+    switch (buf_pool_resize_status_code.load()) {
+      case BUF_POOL_RESIZE_COMPLETE:
+        DBUG_EXECUTE_IF(
+            "ib_buf_pool_resize_complete_status_code",
+            should_wait_for_test = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+        break;
+      case BUF_POOL_RESIZE_START:
+        DBUG_EXECUTE_IF(
+            "ib_buf_pool_resize_start_status_code", should_wait_for_test = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+        break;
+      case BUF_POOL_RESIZE_DISABLE_AHI:
+        DBUG_EXECUTE_IF(
+            "ib_buf_pool_resize_disable_ahi_status_code",
+            should_wait_for_test = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+        break;
+      case BUF_POOL_RESIZE_WITHDRAW_BLOCKS:
+        DBUG_EXECUTE_IF(
+            "ib_buf_pool_resize_withdraw_blocks_status_code",
+            should_wait_for_test = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+        break;
+      case BUF_POOL_RESIZE_GLOBAL_LOCK:
+        DBUG_EXECUTE_IF(
+            "ib_buf_pool_resize_global_lock_status_code",
+            should_wait_for_test = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+        break;
+      case BUF_POOL_RESIZE_IN_PROGRESS:
+        DBUG_EXECUTE_IF(
+            "ib_buf_pool_resize_in_progress_status_code",
+            should_wait_for_test = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+        break;
+      case BUF_POOL_RESIZE_HASH:
+        DBUG_EXECUTE_IF(
+            "ib_buf_pool_resize_hash_status_code", should_wait_for_test = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+        break;
+      case BUF_POOL_RESIZE_FAILED:
+        DBUG_EXECUTE_IF(
+            "ib_buf_pool_resize_failed_status_code",
+            should_wait_for_test = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+        break;
+    }
+  }
+}
+#endif
+
+/** Reset progress in current status code. This indicates beginning of a new
+status code */
+static void buf_resize_status_progress_reset() {
+  // Ensure that pervious status code is completed (100) or skipped (0)
+  ut_ad(buf_pool_resize_status_progress.load() == 100 ||
+        buf_pool_resize_status_progress.load() == 0);
+#ifdef UNIV_DEBUG
+  buf_pool_resize_wait_for_test();
+#endif
+  buf_pool_resize_status_progress.store(0);
+
+  ib::info(ER_IB_MSG_BUF_POOL_RESIZE_COMPLETE_CUR_CODE,
+           uint{buf_pool_resize_status_code.load()});
+}
+
+/** Update progress in current status code.
+@param[in]    current_step    current step that is complete.
+@param[in]    total_steps     steps to complete before moving to next status
+code */
+static void buf_resize_status_progress_update(uint current_step,
+                                              uint total_steps) {
+  ut_ad(current_step <= total_steps);
+
+  buf_pool_resize_status_progress.store((current_step * 100 / total_steps));
+  ib::info(ER_IB_MSG_BUF_POOL_RESIZE_PROGRESS_UPDATE,
+           uint{buf_pool_resize_status_code.load()},
+           uint{buf_pool_resize_status_progress.load()});
 }
 
 /** Determines if a block is intended to be withdrawn. The caller must ensure
@@ -1843,6 +1945,7 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
     mutex_enter(&buf_pool->free_list_mutex);
 
     buf_resize_status(
+        BUF_POOL_RESIZE_WITHDRAW_BLOCKS,
         "buffer pool " ULINTPF " : withdrawing blocks. (%zu/" ULINTPF ")", i,
         UT_LIST_GET_LEN(buf_pool->withdraw), buf_pool->withdraw_target);
 
@@ -2039,6 +2142,7 @@ static void buf_pool_resize() {
   new_instance_size /= UNIV_PAGE_SIZE;
 
   buf_resize_status(
+      BUF_POOL_RESIZE_START,
       "Resizing buffer pool from " ULINTPF " to " ULINTPF " (unit=%llu).",
       srv_buf_pool_old_size, srv_buf_pool_size, srv_buf_pool_chunk_unit);
 
@@ -2062,11 +2166,14 @@ static void buf_pool_resize() {
     ut_ad(srv_buf_pool_chunk_unit % UNIV_PAGE_SIZE == 0);
     buf_pool->n_chunks_new =
         new_instance_size * UNIV_PAGE_SIZE / srv_buf_pool_chunk_unit;
+    buf_resize_status_progress_update(i + 1, srv_buf_pool_instances);
 
     os_wmb;
   }
 
-  buf_resize_status("Disabling adaptive hash index.");
+  buf_resize_status_progress_reset();
+  buf_resize_status(BUF_POOL_RESIZE_DISABLE_AHI,
+                    "Disabling adaptive hash index.");
 
   /* disable AHI if needed */
   const bool btr_search_was_enabled = btr_search_disable();
@@ -2092,9 +2199,12 @@ static void buf_pool_resize() {
       ut_ad(buf_pool->withdraw_target == 0);
       buf_pool->withdraw_target = withdraw_target;
     }
+    buf_resize_status_progress_update(i + 1, srv_buf_pool_instances);
   }
 
-  buf_resize_status("Withdrawing blocks to be shrunken.");
+  buf_resize_status_progress_reset();
+  buf_resize_status(BUF_POOL_RESIZE_WITHDRAW_BLOCKS,
+                    "Withdrawing blocks to be shrunken.");
 
   auto withdraw_start_time = std::chrono::system_clock::now();
   std::chrono::minutes message_interval{1};
@@ -2108,6 +2218,9 @@ withdraw_retry:
     buf_pool = buf_pool_from_array(i);
     if (buf_pool->curr_size < buf_pool->old_size) {
       should_retry_withdraw |= buf_pool_withdraw_blocks(buf_pool);
+    }
+    if (!should_retry_withdraw) {
+      buf_resize_status_progress_update(i + 1, srv_buf_pool_instances);
     }
   }
 
@@ -2181,7 +2294,9 @@ withdraw_retry:
     goto withdraw_retry;
   }
 
-  buf_resize_status("Latching whole of buffer pool.");
+  buf_resize_status_progress_reset();
+  buf_resize_status(BUF_POOL_RESIZE_GLOBAL_LOCK,
+                    "Latching whole of buffer pool.");
 
 #ifdef UNIV_DEBUG
   {
@@ -2212,42 +2327,52 @@ withdraw_retry:
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     mutex_enter(&(buf_pool_from_array(i)->chunks_mutex));
   }
+  buf_resize_status_progress_update(1, 7);
 
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     mutex_enter(&(buf_pool_from_array(i)->LRU_list_mutex));
   }
+  buf_resize_status_progress_update(2, 7);
 
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     hash_lock_x_all(buf_pool_from_array(i)->page_hash);
   }
+  buf_resize_status_progress_update(3, 7);
 
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     mutex_enter(&(buf_pool_from_array(i)->zip_free_mutex));
   }
+  buf_resize_status_progress_update(4, 7);
 
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     mutex_enter(&(buf_pool_from_array(i)->free_list_mutex));
   }
+  buf_resize_status_progress_update(5, 7);
 
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     mutex_enter(&(buf_pool_from_array(i)->zip_hash_mutex));
   }
+  buf_resize_status_progress_update(6, 7);
 
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     mutex_enter(&(buf_pool_from_array(i)->flush_state_mutex));
   }
+  buf_resize_status_progress_update(7, 7);
 
   ut::delete_(buf_chunk_map_reg);
   buf_chunk_map_reg =
       ut::new_withkey<buf_pool_chunk_map_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
+  buf_resize_status_progress_reset();
+  buf_resize_status(BUF_POOL_RESIZE_IN_PROGRESS, "Starting pool resize");
   /* add/delete chunks */
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
     buf_chunk_t *chunk;
     buf_chunk_t *echunk;
 
-    buf_resize_status("buffer pool " ULINTPF
+    buf_resize_status(BUF_POOL_RESIZE_IN_PROGRESS,
+                      "buffer pool " ULINTPF
                       " :"
                       " resizing with chunks " ULINTPF " to " ULINTPF ".",
                       i, buf_pool->n_chunks, buf_pool->n_chunks_new);
@@ -2377,6 +2502,7 @@ withdraw_retry:
       ut::free(buf_pool->chunks_old);
       buf_pool->chunks_old = nullptr;
     }
+    buf_resize_status_progress_update(i + 1, srv_buf_pool_instances);
   }
 
   /* set instance sizes */
@@ -2406,7 +2532,8 @@ withdraw_retry:
   /* Normalize page_hash and zip_hash,
   if the new size is too different */
   if (!warning && new_size_too_diff) {
-    buf_resize_status("Resizing hash tables.");
+    buf_resize_status_progress_reset();
+    buf_resize_status(BUF_POOL_RESIZE_HASH, "Resizing hash tables.");
 
     for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
       buf_pool_t *buf_pool = buf_pool_from_array(i);
@@ -2415,6 +2542,7 @@ withdraw_retry:
 
       ib::info(ER_IB_MSG_67)
           << "buffer pool " << i << " : hash tables were resized.";
+      buf_resize_status_progress_update(i + 1, srv_buf_pool_instances);
     }
   }
 
@@ -2436,7 +2564,7 @@ withdraw_retry:
   if (!warning && new_size_too_diff) {
     srv_buf_pool_base_size = srv_buf_pool_size;
 
-    buf_resize_status("Resizing also other hash tables.");
+    buf_resize_status(BUF_POOL_RESIZE_HASH, "Resizing also other hash tables.");
 
     /* normalize lock_sys */
     srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
@@ -2473,12 +2601,17 @@ withdraw_retry:
 
   ut_sprintf_timestamp(now);
   if (!warning) {
-    buf_resize_status("Completed resizing buffer pool at %s.", now);
+    buf_resize_status_progress_reset();
+    buf_resize_status(BUF_POOL_RESIZE_COMPLETE,
+                      "Completed resizing buffer pool at %s.", now);
+    buf_resize_status_progress_update(1, 1);
   } else {
-    buf_resize_status(
-        "Resizing buffer pool failed,"
-        " finished resizing at %s.",
-        now);
+    buf_resize_status_progress_reset();
+    buf_resize_status(BUF_POOL_RESIZE_FAILED,
+                      "Resizing buffer pool failed,"
+                      " finished resizing at %s.",
+                      now);
+    buf_resize_status_progress_update(1, 1);
   }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -2504,7 +2637,9 @@ void buf_resize_thread() {
       std::ostringstream sout;
       sout << "Size did not change (old size = new size = " << srv_buf_pool_size
            << ". Nothing to do.";
-      buf_resize_status("%s", sout.str().c_str());
+      buf_resize_status_progress_update(1, 1);
+      buf_resize_status_progress_reset();
+      buf_resize_status(BUF_POOL_RESIZE_COMPLETE, "%s", sout.str().c_str());
 
       /* nothing to do */
       continue;
