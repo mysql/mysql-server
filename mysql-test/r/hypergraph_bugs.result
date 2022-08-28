@@ -85,3 +85,100 @@ EXPLAIN
     -> Table scan on t1  (cost=0.25..0.25 rows=1)
 
 DROP TABLE t1;
+#
+# Bug#34504697: Hypergraph: Assertion
+#               `!(used_tabs & (~read_tables & ~filter_for_table))'
+#               failed
+#
+CREATE TABLE t1 (f1 INTEGER);
+SELECT 1
+FROM t1 LEFT JOIN (SELECT t2.*
+FROM (t1 AS t2 INNER JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+WHERE (t3.f1 <> 1 OR t2.f1 > t2.f1)) AS dt
+ON (t1.f1 = dt.f1);
+1
+DROP TABLE t1;
+#
+# Bug#34503695:Hypergraph: mysqld crash-signal 11
+#              -CommonSubexpressionElimination
+#
+CREATE TABLE t1 (f1 INTEGER);
+SELECT * FROM t1
+WHERE t1.f1 NOT IN (SELECT t2.f1
+FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+WHERE (t3.f1 <> t2.f1 OR t3.f1 < t2.f1));
+f1
+DROP TABLE t1;
+#
+# Bug#34527126: Some rapid tests in MTR fail with hypergraph
+#               when run in --ps-protocol mode
+#
+CREATE TABLE t1(f1 INTEGER);
+PREPARE ps FROM
+"SELECT * FROM (WITH RECURSIVE qn AS (SELECT 1 FROM t1 UNION ALL
+                                      SELECT 1 FROM t1 STRAIGHT_JOIN qn)
+                                     SELECT * FROM qn) AS dt1,
+                                     (SELECT COUNT(*) FROM t1) AS dt2";
+EXECUTE ps;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints
+DROP TABLE t1;
+#
+# Bug#34494877: WL#14449: Offload issue: RapidException (3):
+#               rpdrqctr_transcode.c:1447 @ rpdoqc_
+#
+CREATE TABLE t(x INT, y INT);
+INSERT INTO t VALUES (1, 10), (2, 20), (3, 30);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM
+t RIGHT JOIN
+(SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t.x = dt.m;
+EXPLAIN
+-> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
+
+SELECT * FROM
+t RIGHT JOIN
+(SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t.x = dt.m;
+x	y	m
+EXPLAIN FORMAT=TREE SELECT * FROM
+t LEFT JOIN
+(SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t.x = dt.m;
+EXPLAIN
+-> Nested loop left join  (rows=3)
+    -> Table scan on t  (rows=3)
+    -> Zero rows (Impossible WHERE)  (rows=0)
+
+SELECT * FROM
+t LEFT JOIN
+(SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t.x = dt.m;
+x	y	m
+1	10	NULL
+2	20	NULL
+3	30	NULL
+EXPLAIN FORMAT=TREE SELECT * FROM
+t AS t1 LEFT JOIN
+(t AS t2
+INNER JOIN (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t2.x = dt.m)
+ON t1.x = t2.y;
+EXPLAIN
+-> Nested loop left join  (rows=3)
+    -> Table scan on t1  (rows=3)
+    -> Zero rows (impossible WHERE)  (rows=0)
+
+SELECT * FROM
+t AS t1 LEFT JOIN
+(t AS t2
+INNER JOIN (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+ON t2.x = dt.m)
+ON t1.x = t2.y;
+x	y	x	y	m
+1	10	NULL	NULL	NULL
+2	20	NULL	NULL	NULL
+3	30	NULL	NULL	NULL
+DROP TABLE t;

@@ -1766,6 +1766,14 @@ void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
                              const Mem_root_array<Predicate> &predicates,
                              unsigned num_where_predicates);
 
+/**
+  Extracts the Item expression from the given “filter_predicates” corresponding
+  to the given “mask”.
+ */
+Item *ConditionFromFilterPredicates(const Mem_root_array<Predicate> &predicates,
+                                    OverflowBitset mask,
+                                    int num_where_predicates);
+
 /// Like ExpandFilterAccessPaths(), but expands only the single access path
 /// at “path”.
 void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,

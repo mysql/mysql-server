@@ -77,7 +77,8 @@ namespace {
 RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const mem_root_deque<TABLE_LIST *> &join_list);
 bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
-                              Mem_root_array<Item *> *conditions);
+                              Mem_root_array<Item *> *conditions,
+                              bool *always_false);
 
 inline bool IsMultipleEquals(Item *cond) {
   return cond->type() == Item::FUNC_ITEM &&
@@ -310,8 +311,9 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
       Item *join_cond = EarlyExpandMultipleEquals(tl->join_cond_optim(),
                                                   join->tables_in_subtree);
       ExtractConditions(join_cond, &join->join_conditions);
+      bool always_false = false;
       EarlyNormalizeConditions(thd, join->tables_in_subtree,
-                               &join->join_conditions);
+                               &join->join_conditions, &always_false);
       ReorderConditions(&join->join_conditions);
     }
     ret = join;
@@ -716,6 +718,15 @@ bool OperatorsAreAssociative(const RelationalExpression &a,
     // on all tables in e2.
     return IsNullRejecting(a, a.right->tables_in_subtree) &&
            IsNullRejecting(b, b.left->tables_in_subtree);
+  }
+
+  // Secondary engine does not want us to treat STRAIGHT_JOINs as
+  // associative.
+  if ((current_thd->secondary_engine_optimization() ==
+       Secondary_engine_optimization::SECONDARY) &&
+      (a.type == RelationalExpression::STRAIGHT_INNER_JOIN ||
+       b.type == RelationalExpression::STRAIGHT_INNER_JOIN)) {
+    return false;
   }
 
   // For the operations we support, it can be collapsed into this simple
@@ -2206,7 +2217,8 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
   for correctness and performance.
  */
 bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
-                              Mem_root_array<Item *> *conditions) {
+                              Mem_root_array<Item *> *conditions,
+                              bool *always_false) {
   CSEConditions(thd, conditions);
   for (auto it = conditions->begin(); it != conditions->end();) {
     /**
@@ -2262,9 +2274,11 @@ bool EarlyNormalizeConditions(THD *thd, table_map tables_in_subtree,
       it = conditions->erase(it);
     } else if (res == Item::COND_FALSE) {
       conditions->clear();
-      conditions->push_back(new Item_int(0));
+      conditions->push_back(new Item_func_false);
+      *always_false = true;
       return false;
     } else {
+      if (*it != nullptr) (*it)->update_used_tables();
       ++it;
     }
   }
@@ -3232,11 +3246,40 @@ void CompleteFullMeshForMultipleEqualities(
   }
 }
 
+/**
+  Returns a map of all tables that are on the inner side of some outer join or
+  antijoin.
+ */
+table_map GetTablesInnerToOuterJoinOrAntiJoin(
+    const RelationalExpression *expr) {
+  switch (expr->type) {
+    case RelationalExpression::INNER_JOIN:
+    case RelationalExpression::SEMIJOIN:
+    case RelationalExpression::STRAIGHT_INNER_JOIN:
+      return GetTablesInnerToOuterJoinOrAntiJoin(expr->left) |
+             GetTablesInnerToOuterJoinOrAntiJoin(expr->right);
+    case RelationalExpression::LEFT_JOIN:
+    case RelationalExpression::ANTIJOIN:
+      return GetTablesInnerToOuterJoinOrAntiJoin(expr->left) |
+             expr->right->tables_in_subtree;
+    case RelationalExpression::FULL_OUTER_JOIN:
+      return expr->tables_in_subtree;
+    case RelationalExpression::MULTI_INNER_JOIN:
+      assert(false);  // Should have been unflattened by now.
+      return 0;
+    case RelationalExpression::TABLE:
+      return 0;
+  }
+  assert(false);
+  return 0;
+}
+
 }  // namespace
 
 const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
 
-bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
+bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
+                        bool *where_is_always_false) {
   const Query_block *query_block = graph->query_block();
   const JOIN *join = graph->join();
 
@@ -3288,7 +3331,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
                                                  /*tables_in_subtree=*/~0);
     ExtractConditions(where_cond, &where_conditions);
     if (EarlyNormalizeConditions(thd, TablesBetween(0, MAX_TABLES),
-                                 &where_conditions)) {
+                                 &where_conditions, where_is_always_false)) {
       return true;
     }
     ReorderConditions(&where_conditions);
@@ -3388,6 +3431,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   // Now that we have the hypergraph construction done, it no longer hurts
   // to remove impossible conditions.
   ClearImpossibleJoinConditions(root);
+
+  graph->tables_inner_to_outer_or_anti =
+      GetTablesInnerToOuterJoinOrAntiJoin(root);
 
   // Add cycles.
   size_t old_graph_edges = graph->graph.edges.size();

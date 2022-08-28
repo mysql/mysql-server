@@ -110,6 +110,7 @@ eval CREATE TABLE where_subselect_19379 $query;
 eval SELECT * FROM where_subselect_19379 WHERE (field1, field2) NOT IN
 ($query); 
 
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 select * from information_schema.OPTIMIZER_TRACE;
 
 drop table t1,t2,t3,t4,where_subselect_19379;
@@ -152,6 +153,7 @@ WHERE field1 IN
  )
 ;
 
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 DROP TABLE where_subselect_19033,t1,t2;
@@ -240,6 +242,7 @@ CREATE TABLE where_subselect_20070
     JOIN t1 AS table2
     ON table2 .col_int_key = table1 .col_int_key;
 
+--sorted_result
 SELECT *
 FROM where_subselect_20070
 WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
@@ -252,6 +255,7 @@ WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
     ON table2 .col_int_key = table1 .col_int_key
 );
 
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 select * from information_schema.optimizer_trace;
 
 DROP TABLE where_subselect_20070,t1;
@@ -264,6 +268,7 @@ CREATE TABLE t1
  (a INT,b INT,c INT, KEY(a),KEY (a,c)) ENGINE=INNODB;
 SELECT 1 FROM t1 WHERE 1 LIKE
  (SELECT a FROM t1 WHERE a = 1 ORDER BY c);
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DROP TABLE t1;
 
@@ -278,6 +283,7 @@ if ($support_native_partitioning)
   --ERROR ER_SUBQUERY_NO_1_ROW
   SELECT  1 FROM t1 ,t1 w
    WHERE t1.a <=> (SELECT 22 FROM t1 GROUP BY (SELECT 1 FROM t1));
+  --skip_if_hypergraph  # Does not support the same optimizer trace.
   SELECT TRACE LIKE "%select had some error%" FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
   DROP TABLE t1;
 }
@@ -530,6 +536,7 @@ ANALYZE TABLE t1;
 
 EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1;
 --replace_regex $elide_trace_costs
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DROP TABLE t1;
 
@@ -561,6 +568,7 @@ WHERE alias2.c IN (
 --echo # Prove that the predicate from the WHERE clause of the CTE
 --echo # is decorrelated:
 
+--skip_if_hypergraph  # Does not support the same optimizer trace.
 SELECT json_extract(trace,'$**.decorrelated_predicates')
 FROM information_schema.optimizer_trace;
 

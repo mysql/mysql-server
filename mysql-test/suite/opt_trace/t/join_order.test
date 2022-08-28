@@ -13,7 +13,7 @@ SET optimizer_trace="enabled=on,one_line=off";
 
 create table json_tab(je json);
 let $insert_stmt = insert into json_tab
-  select json_extract(trace,"$.steps[1].join_optimization.steps[*].join_optimizer[*]") je
+  select json_extract(trace,"$.steps[*].join_optimization.steps[*].join_optimizer[*]") je
          from information_schema.optimizer_trace;
 let $select_stmt = select jt.t from
   json_tab, json_table(json_tab.je, "$[*]" COLUMNS(t text path "$")) as jt

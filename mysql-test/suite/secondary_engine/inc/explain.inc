@@ -18,7 +18,7 @@ ANALYZE TABLE t1;
 # As an exception, the traditional format is allowed with hypergraph
 # when using a secondary engine. It does not show the full plan.
 EXPLAIN SELECT * FROM t1;
-EXPLAIN FORMAT=JSON SELECT * FROM t1;
+EXPLAIN FORMAT=JSON SELECT * FROM t1, t1 t2 WHERE t1.a = t2.a;
 DROP TABLE t1;
 
 --disable_query_log

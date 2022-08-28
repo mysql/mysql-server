@@ -921,9 +921,11 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
 
   @param thd    Thread handle.
   @param conds  Condition; may be nullptr.
+  @param copy   true if a copy of the new condition needs to be returned
+                (used in case of hypergraph optimizer).
   @returns      new condition
  */
-Item *remove_in2exists_conds(THD *thd, Item *conds);
+Item *remove_in2exists_conds(THD *thd, Item *conds, bool copy);
 
 /// Returns whether the Item is an IN-subselect.
 bool IsItemInSubSelect(Item *item);

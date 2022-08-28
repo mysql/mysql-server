@@ -28,16 +28,41 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	NONE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Using secondary engine MOCK. Use EXPLAIN FORMAT=TREE to show the plan.
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-EXPLAIN FORMAT=JSON SELECT * FROM t1;
+EXPLAIN FORMAT=JSON SELECT * FROM t1, t1 t2 WHERE t1.a = t2.a;
 EXPLAIN
 {
-  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`",
-  "operation": "Table scan on t1",
-  "table_name": "t1",
-  "access_type": "table",
-  "estimated_rows": 1.0,
-  "estimated_total_cost": 0.5,
-  "estimated_first_row_cost": 0.5
+  "query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2` where multiple equal(`test`.`t1`.`a`, `test`.`t2`.`a`)",
+  "inputs": [
+    {
+      "operation": "Table scan on t1 in secondary engine MOCK",
+      "table_name": "t1",
+      "access_type": "table",
+      "estimated_rows": 1.0,
+      "secondary_engine": "MOCK",
+      "estimated_total_cost": 0.5,
+      "estimated_first_row_cost": 0.5
+    },
+    {
+      "heading": "Hash",
+      "operation": "Table scan on t2 in secondary engine MOCK",
+      "table_name": "t2",
+      "access_type": "table",
+      "estimated_rows": 1.0,
+      "secondary_engine": "MOCK",
+      "estimated_total_cost": 0.5,
+      "estimated_first_row_cost": 0.5
+    }
+  ],
+  "join_type": "inner join",
+  "operation": "Inner hash join (t1.a = t2.a)",
+  "access_type": "join",
+  "estimated_rows": 0.10000000149011612,
+  "hash_condition": [
+    "(t1.a = t2.a)"
+  ],
+  "join_algorithm": "hash",
+  "estimated_total_cost": 1.2070000001043084,
+  "estimated_first_row_cost": 1.2070000001043084
 }
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one

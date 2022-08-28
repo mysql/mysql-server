@@ -330,18 +330,6 @@ bool Sql_cmd_dml::prepare(THD *thd) {
   assert(!lex->unit->is_prepared() && !lex->unit->is_optimized() &&
          !lex->unit->is_executed());
 
-  lex->using_hypergraph_optimizer =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
-      (lex->sql_command == SQLCOM_SELECT || lex->sql_command == SQLCOM_DO ||
-       lex->sql_command == SQLCOM_CALL ||
-       lex->sql_command == SQLCOM_INSERT_SELECT ||
-       lex->sql_command == SQLCOM_REPLACE_SELECT ||
-       lex->sql_command == SQLCOM_INSERT ||
-       lex->sql_command == SQLCOM_DELETE_MULTI ||
-       lex->sql_command == SQLCOM_DELETE ||
-       lex->sql_command == SQLCOM_UPDATE_MULTI ||
-       lex->sql_command == SQLCOM_UPDATE);
-
   /*
     Constant folding could cause warnings during preparation. Make
     sure they are promoted to errors when strict mode is enabled.
@@ -382,6 +370,18 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 #ifndef NDEBUG
   if (sql_command_code() == SQLCOM_SELECT) DEBUG_SYNC(thd, "after_table_open");
 #endif
+
+  lex->using_hypergraph_optimizer =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
+      (lex->sql_command == SQLCOM_SELECT || lex->sql_command == SQLCOM_DO ||
+       lex->sql_command == SQLCOM_CALL ||
+       lex->sql_command == SQLCOM_INSERT_SELECT ||
+       lex->sql_command == SQLCOM_REPLACE_SELECT ||
+       lex->sql_command == SQLCOM_INSERT ||
+       lex->sql_command == SQLCOM_DELETE_MULTI ||
+       lex->sql_command == SQLCOM_DELETE ||
+       lex->sql_command == SQLCOM_UPDATE_MULTI ||
+       lex->sql_command == SQLCOM_UPDATE);
 
   if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     goto err; /* purecov: inspected */
@@ -1707,7 +1707,18 @@ void JOIN::destroy() {
     for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       TABLE *table = tl->table;
       if (table != nullptr) {
-        table->set_keyread(false);
+        // For prepared statements, a derived table's temp table handler
+        // gets cleaned up at the end of prepare and it is setup again
+        // during optimization. However, if optimization for a derived
+        // table query block fails for some reason (E.g. Secondary engine
+        // rejects all the plans), handler is not setup for the rest of
+        // the derived tables. So we need to call set_keyread() only
+        // when handler is initialized.
+        // TODO(Chaithra): This should be moved to a more suitable place,
+        // perhaps TableRowIterator's destructor ?
+        if (table->file != nullptr) {
+          table->set_keyread(false);
+        }
         table->sorting_iterator = nullptr;
         table->duplicate_removal_iterator = nullptr;
       }

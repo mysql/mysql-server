@@ -80,6 +80,7 @@
 #include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
+#include "sql/join_optimizer/secondary_engine_costing_flags.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
@@ -163,7 +164,7 @@ AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
 class CostingReceiver {
  public:
   CostingReceiver(
-      THD *thd, Query_block *query_block, const JoinHypergraph &graph,
+      THD *thd, Query_block *query_block, JoinHypergraph &graph,
       const LogicalOrderings *orderings,
       const Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
       const Mem_root_array<ActiveIndexInfo> *active_indexes,
@@ -313,7 +314,7 @@ class CostingReceiver {
   int m_num_seen_subgraph_pairs = 0;
 
   /// The graph we are running over.
-  const JoinHypergraph *m_graph;
+  JoinHypergraph *m_graph;
 
   /// Whether we have applied clamping due to a multi-column EQ_REF at any
   /// point. There is a known issue (see bug #33550360) where this can cause
@@ -664,6 +665,9 @@ void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
 bool CostingReceiver::FoundSingleNode(int node_idx) {
   if (m_thd->is_error()) return true;
 
+  m_graph->secondary_engine_costing_flags &=
+      ~SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
+
   TABLE *table = m_graph->nodes[node_idx].table;
   TABLE_LIST *tl = table->pos_in_table_list;
 
@@ -701,10 +705,16 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
         return true;
       }
       if (impossible) {
+        const char *const cause = "WHERE condition is always false";
+        if (!IsBitSet(tl->tableno(), m_graph->tables_inner_to_outer_or_anti)) {
+          // The entire top-level join is going to be empty, so we can abort the
+          // planning and return a zero rows plan.
+          m_query_block->join->zero_result_cause = cause;
+          return true;
+        }
         AccessPath *table_path =
             NewTableScanAccessPath(m_thd, table, /*count_examined_rows=*/false);
-        AccessPath *zero_path = NewZeroRowsAccessPath(
-            m_thd, table_path, "Impossible WHERE condition");
+        AccessPath *zero_path = NewZeroRowsAccessPath(m_thd, table_path, cause);
 
         // We need to get the set of functional dependencies right,
         // even though we don't need to actually apply any filters.
@@ -2178,6 +2188,7 @@ bool CostingReceiver::ProposeTableScan(
     // TODO(sgunders): We don't need to allocate materialize_path on the
     // MEM_ROOT.
     AccessPath *materialize_path;
+    const char *always_empty_cause = nullptr;
     if (tl->is_table_function()) {
       materialize_path = NewMaterializedTableFunctionAccessPath(
           m_thd, table, tl->table_function, stable_path);
@@ -2201,6 +2212,22 @@ bool CostingReceiver::ProposeTableScan(
         materialize_path->parameter_tables |= RAND_TABLE_BIT;
       }
     } else {
+      // If the derived table is known to be always empty, we may be able to
+      // optimize away parts of the outer query block too.
+      if (const AccessPath *derived_table_path =
+              tl->derived_query_expression()->root_access_path();
+          derived_table_path != nullptr &&
+          derived_table_path->type == AccessPath::ZERO_ROWS) {
+        always_empty_cause = derived_table_path->zero_rows().cause;
+      }
+
+      if (always_empty_cause != nullptr &&
+          !IsBitSet(tl->tableno(), m_graph->tables_inner_to_outer_or_anti)) {
+        // The entire query block can be optimized away. Stop planning.
+        m_query_block->join->zero_result_cause = always_empty_cause;
+        return true;
+      }
+
       bool rematerialize = Overlaps(tl->derived_query_expression()->uncacheable,
                                     UNCACHEABLE_DEPENDENT);
       if (tl->common_table_expr()) {
@@ -2228,6 +2255,16 @@ bool CostingReceiver::ProposeTableScan(
     stable_path->delayed_predicates.Clear();
     path = *materialize_path;
     assert(path.cost >= 0.0);
+
+    if (always_empty_cause != nullptr) {
+      // The entire query block cannot be optimized away, only the inner block
+      // for the derived table. But the materialization step is unnecessary, so
+      // return a ZERO_ROWS path directly for the derived table. This also
+      // allows subtrees of this query block to be removed (if the derived table
+      // is inner-joined to some other tables).
+      path = *NewZeroRowsAccessPath(
+          m_thd, new (m_thd->mem_root) AccessPath(path), always_empty_cause);
+    }
   }
   assert(path.cost >= 0.0);
 
@@ -2925,6 +2962,9 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
                                         int edge_idx) {
   if (m_thd->is_error()) return true;
 
+  m_graph->secondary_engine_costing_flags |=
+      SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
+
   if (++m_num_seen_subgraph_pairs > m_subgraph_pair_limit &&
       m_subgraph_pair_limit >= 0) {
     // Bail out; we're going to be needing graph simplification,
@@ -3047,15 +3087,12 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       // For inner joins and full outer joins, the order does not matter.
       // In lieu of a more precise cost model, always keep the one that hashes
       // the fewest amount of rows. (This has lower initial cost, and the same
-      // cost.) When cost estimates are supplied by the secondary engine,
-      // explore both orders, since the secondary engine might unilaterally
-      // decide to prefer or reject one particular order. (TODO: Remove this,
-      // as the only relevant secondary engine does its own flipping.)
+      // cost.)
       //
       // Finally, if either of the sides are parameterized on something
       // external, flipping the order will not necessarily be allowed (and would
       // cause us to not give a hash join for these tables at all).
-      if (is_commutative && m_secondary_engine_cost_hook == nullptr &&
+      if (is_commutative &&
           !Overlaps(left_path->parameter_tables | right_path->parameter_tables,
                     RAND_TABLE_BIT)) {
         if (left_path->num_output_rows() < right_path->num_output_rows()) {
@@ -5291,6 +5328,19 @@ bool HasEqRefWithCache(AccessPath *path) {
 }
 
 /**
+  Creates a ZERO_ROWS access path for an always empty join result, or a
+  ZERO_ROWS_AGGREGATED in case of an implicitly grouped query. The zero rows
+  path is wrapped in FILTER (for HAVING) or LIMIT_OFFSET paths as needed, as
+  well as UPDATE_ROWS/DELETE_ROWS paths for UPDATE/DELETE statements.
+ */
+AccessPath *CreateZeroRowsForEmptyJoin(JOIN *join, const char *cause) {
+  join->zero_result_cause = cause;
+  join->needs_finalize = true;
+  join->create_access_paths_for_zero_rows();
+  return join->root_access_path();
+}
+
+/**
   Creates an AGGREGATE AccessPath, possibly with an intermediary STREAM node if
   one is needed.
 
@@ -6326,9 +6376,20 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
   // Convert the join structures into a hypergraph.
   JoinHypergraph graph(thd->mem_root, query_block);
-  if (MakeJoinHypergraph(thd, trace, &graph)) {
+  bool where_is_always_false = false;
+  if (MakeJoinHypergraph(thd, trace, &graph, &where_is_always_false)) {
     return nullptr;
   }
+
+  if (where_is_always_false) {
+    if (trace != nullptr) {
+      *trace +=
+          "Skipping join order optimization because an always false condition "
+          "was found in the WHERE clause.\n";
+    }
+    return CreateZeroRowsForEmptyJoin(join, "WHERE condition is always false");
+  }
+
   FindSargablePredicates(thd, trace, &graph);
 
   // Now that we have all join conditions, cache some properties
@@ -6422,7 +6483,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       thd->variables.optimizer_max_subgraph_pairs, secondary_engine_cost_hook,
       trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
-      !thd->is_error()) {
+      !thd->is_error() && join->zero_result_cause == nullptr) {
     SimplifyQueryGraph(thd, thd->variables.optimizer_max_subgraph_pairs, &graph,
                        trace);
 
@@ -6451,12 +6512,21 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         sargable_fulltext_predicates, update_delete_target_tables,
         immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
         /*subgraph_pair_limit=*/-1, secondary_engine_cost_hook, trace);
-    if (EnumerateAllConnectedPartitions(graph.graph, &receiver)) {
-      assert(thd->is_error());
+    // Reset the secondary engine planning flags
+    graph.secondary_engine_costing_flags = {};
+    if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
+        thd->is_error()) {
       return nullptr;
     }
   }
   if (thd->is_error()) return nullptr;
+
+  if (join->zero_result_cause != nullptr) {
+    if (trace != nullptr) {
+      *trace += "The join returns zero rows. Final cost is 0.0.\n";
+    }
+    return CreateZeroRowsForEmptyJoin(join, join->zero_result_cause);
+  }
 
   // Get the root candidates. If there is a secondary engine cost hook, there
   // may be no candidates, as the hook may have rejected so many access paths
@@ -6483,16 +6553,14 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
   // If we know the result will be empty, there is no point in adding paths for
   // filters, aggregation, windowing and sorting on top of it further down. Just
-  // remove the empty result directly.
-  if (receiver.always_empty() && !join->send_row_on_empty_set() &&
-      update_delete_target_tables == 0) {
+  // return the empty result directly.
+  if (receiver.always_empty()) {
     for (AccessPath *root_path : root_candidates) {
       if (root_path->type == AccessPath::ZERO_ROWS) {
         if (trace != nullptr) {
-          *trace += "The query returns zero rows. Final cost is 0.0.\n";
+          *trace += "The join returns zero rows. Final cost is 0.0.\n";
         }
-        join->needs_finalize = true;
-        return root_path;
+        return CreateZeroRowsForEmptyJoin(join, root_path->zero_rows().cause);
       }
     }
   }
@@ -6596,6 +6664,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   if (query_block->is_grouped()) {
     if (join->make_sum_func_list(*join->fields, /*before_group_by=*/true))
       return nullptr;
+
+    graph.secondary_engine_costing_flags |=
+        SecondaryEngineCostingFlag::CONTAINS_AGGREGATION_ACCESSPATH;
 
     if (trace != nullptr) {
       *trace += "Applying aggregation for GROUP BY\n";
@@ -6727,6 +6798,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
   join->m_windowing_steps = !join->m_windows.is_empty();
   if (join->m_windowing_steps) {
+    graph.secondary_engine_costing_flags |=
+        SecondaryEngineCostingFlag::CONTAINS_WINDOW_ACCESSPATH;
     root_candidates = ApplyWindowFunctions(
         thd, receiver, orderings, fd_set, aggregation_is_unordered,
         order_by_ordering_idx, distinct_ordering_idx, graph,
@@ -6739,6 +6812,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       "Applying filter for window function in2exists conditions\n", trace,
       &root_candidates, &receiver);
 
+  graph.secondary_engine_costing_flags |=
+      SecondaryEngineCostingFlag::HANDLING_DISTINCT_ORDERBY_LIMITOFFSET;
   if (join->select_distinct || join->order.order != nullptr) {
     // UPDATE and DELETE must preserve row IDs through ORDER BY in order to keep
     // track of which rows to update or delete.

@@ -400,7 +400,7 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
   return false;
 }
 
-Item *remove_in2exists_conds(THD *thd, Item *conds) {
+Item *remove_in2exists_conds(THD *thd, Item *conds, bool copy) {
   if (conds == nullptr || conds->created_by_in2exists()) {
     return nullptr;
   }
@@ -432,7 +432,7 @@ Item *remove_in2exists_conds(THD *thd, Item *conds) {
   Item_cond_and *item_and = new Item_cond_and(new_conds);
   item_and->quick_fix_field();
   item_and->update_used_tables();
-  return item_and;
+  return copy ? item_and->copy_andor_structure(thd) : item_and;
 }
 
 bool Item_in_subselect::finalize_materialization_transform(THD *thd,
@@ -456,9 +456,11 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
 
   // This part is not relevant for the hypergraph optimizer.
   if (join->where_cond)
-    join->where_cond = remove_in2exists_conds(thd, join->where_cond);
+    join->where_cond =
+        remove_in2exists_conds(thd, join->where_cond, /*copy=*/false);
   if (join->having_cond)
-    join->having_cond = remove_in2exists_conds(thd, join->having_cond);
+    join->having_cond =
+        remove_in2exists_conds(thd, join->having_cond, /*copy=*/false);
 
   // This part is only relevant for the hypergraph optimizer.
   unit->change_to_access_path_without_in2exists(thd);

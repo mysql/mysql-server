@@ -552,8 +552,16 @@ bool JOIN::optimize(bool finalize_access_paths) {
   if (thd->is_error()) return true;
 
   if (thd->lex->using_hypergraph_optimizer) {
-    Item *where_cond_no_in2exists = remove_in2exists_conds(thd, where_cond);
-    Item *having_cond_no_in2exists = remove_in2exists_conds(thd, having_cond);
+    // Get the WHERE and HAVING clauses with the IN-to-EXISTS predicates
+    // removed, so that we can plan both with and without the IN-to-EXISTS
+    // conversion. We need to make a copy of the AND/OR structure because
+    // remove_eq_cond() may leave some items in a degenerate state if the
+    // entire condition can be removed, and this would cause problems in
+    // the replanning, if the same structure was used again.
+    Item *where_cond_no_in2exists =
+        remove_in2exists_conds(thd, where_cond, /*copy=*/true);
+    Item *having_cond_no_in2exists =
+        remove_in2exists_conds(thd, having_cond, /*copy=*/true);
 
     std::string trace_str;
     std::string *trace_ptr = thd->opt_trace.is_started() ? &trace_str : nullptr;

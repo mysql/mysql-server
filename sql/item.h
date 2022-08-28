@@ -7025,7 +7025,6 @@ void convert_and_print(const String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
 
 std::string ItemToString(const Item *item);
-void ExtractConditions(Item *condition, std::vector<Item *> *condition_parts);
 
 inline size_t CountVisibleFields(const mem_root_deque<Item *> &fields) {
   return std::count_if(fields.begin(), fields.end(),

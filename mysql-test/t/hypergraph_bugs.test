@@ -1,5 +1,6 @@
 --source include/have_hypergraph.inc
 --source include/have_optimizer_trace.inc
+--source include/elide_costs.inc
 
 # This should have been a unit test. But unit tests do not have framework
 # for prepared statements yet. So we are adding this.
@@ -71,3 +72,103 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 YEAR);
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = 1 AND f1 <> 11;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34504697: Hypergraph: Assertion
+--echo #               `!(used_tabs & (~read_tables & ~filter_for_table))'
+--echo #               failed
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+SELECT 1
+FROM t1 LEFT JOIN (SELECT t2.*
+                   FROM (t1 AS t2 INNER JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+                   WHERE (t3.f1 <> 1 OR t2.f1 > t2.f1)) AS dt
+ON (t1.f1 = dt.f1);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#34503695:Hypergraph: mysqld crash-signal 11
+--echo #              -CommonSubexpressionElimination
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+# For the NOT IN subquery, hypergraph does re-planning with materialization.
+# This replanning uses the modified where condition from the previous planning.
+# For this case, the where condition is concluded as always false resulting in
+# removal of elements from the OR condition leading to a crash during re-planning.
+# The modified where condition from the first planning should not affect AND/OR
+# structure of the condition.
+SELECT * FROM t1
+WHERE t1.f1 NOT IN (SELECT t2.f1
+                    FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f1))
+                    WHERE (t3.f1 <> t2.f1 OR t3.f1 < t2.f1));
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#34527126: Some rapid tests in MTR fail with hypergraph
+--echo #               when run in --ps-protocol mode
+--echo #
+
+CREATE TABLE t1(f1 INTEGER);
+# The error generated during planning for the first derived query block
+# should not result in an assert failure when the second derived table is
+# cleaned up.
+PREPARE ps FROM
+"SELECT * FROM (WITH RECURSIVE qn AS (SELECT 1 FROM t1 UNION ALL
+                                      SELECT 1 FROM t1 STRAIGHT_JOIN qn)
+                                     SELECT * FROM qn) AS dt1,
+                                     (SELECT COUNT(*) FROM t1) AS dt2";
+--error ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER
+EXECUTE ps;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#34494877: WL#14449: Offload issue: RapidException (3):
+--echo #               rpdrqctr_transcode.c:1447 @ rpdoqc_
+--echo #
+
+CREATE TABLE t(x INT, y INT);
+INSERT INTO t VALUES (1, 10), (2, 20), (3, 30);
+ANALYZE TABLE t;
+
+# Expect the entire query to be optimized away. It used to produce a
+# join between t and a temporary table containing the result of a
+# "Zero rows" plan.
+let $query =
+SELECT * FROM
+  t RIGHT JOIN
+  (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+  ON t.x = dt.m;
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+# Similar to the above, but the query cannot be entirely optimized
+# away, since the outer table isn't empty. It used to add a
+# materialization step on top of the zero rows plan for the derived
+# table. Now it should just have zero rows directly on the inner side
+# of the join.
+let $query =
+SELECT * FROM
+  t LEFT JOIN
+  (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+  ON t.x = dt.m;
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+# Similar case, where the query cannot be entirely optimized away.
+# Verify that the entire inner side of the outer join is optimized
+# away. Only t1 should be accessed.
+let $query =
+SELECT * FROM
+  t AS t1 LEFT JOIN
+  (t AS t2
+   INNER JOIN (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
+   ON t2.x = dt.m)
+  ON t1.x = t2.y;
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+DROP TABLE t;

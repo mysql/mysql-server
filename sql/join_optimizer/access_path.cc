@@ -1297,9 +1297,9 @@ static void MoveFilterPredicatesIntoHashJoinCondition(
       thd->mem_root, path->filter_predicates, std::move(moved_predicates));
 }
 
-static Item *ConditionFromFilterPredicates(
-    const Mem_root_array<Predicate> &predicates, OverflowBitset mask,
-    int num_where_predicates) {
+Item *ConditionFromFilterPredicates(const Mem_root_array<Predicate> &predicates,
+                                    OverflowBitset mask,
+                                    int num_where_predicates) {
   List<Item> items;
   for (int pred_idx : BitsSetIn(mask)) {
     if (pred_idx >= num_where_predicates) break;
