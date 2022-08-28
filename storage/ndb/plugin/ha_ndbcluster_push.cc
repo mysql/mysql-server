@@ -786,7 +786,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
    * Tables before 'root', which are in its 'scope', are 'const'
    */
   const ndb_table_map root_scope =
-      get_table_map(m_join_root->get_tables_in_all_query_scopes());
+      m_join_root->get_tables_in_all_query_scopes();
   m_const_scope.set_prefix(root_no);
   m_const_scope.intersect(root_scope);
 
@@ -952,8 +952,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
     return false;
   }
 
-  const ndb_table_map query_scope =
-      get_table_map(table->get_tables_in_this_query_scope());
+  const ndb_table_map query_scope = table->get_tables_in_this_query_scope();
   if (!query_scope.contain(root_no)) {
     const char *scope_type = m_join_root->get_scope_description();
     EXPLAIN_NO_PUSH(
@@ -1967,7 +1966,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
    *    Thus, we could not push the tables referring it either.
    */
   const ndb_table_map all_query_scopes =
-      get_table_map(table->get_tables_in_all_query_scopes());
+      table->get_tables_in_all_query_scopes();
 
   if (!all_query_scopes.contain(referred_table_no)) {
     // Referred table was not in allowed query_scope.

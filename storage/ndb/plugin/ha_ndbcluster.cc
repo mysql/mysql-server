@@ -14536,8 +14536,8 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
    */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
     const uint count = pushed_builder.m_table_count;
-    for (uint i = 0; i < count; i++) {
-      pushed_table &table = pushed_builder.m_tables[i];
+    for (uint tab_no = 0; tab_no < count; tab_no++) {
+      pushed_table &table = pushed_builder.m_tables[tab_no];
       const Item *cond = table.get_condition();
       if (cond == nullptr) continue;
 
@@ -14570,9 +14570,13 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
       */
       table_map const_expr_tables(0);
       if (thd->lex->sql_command == SQLCOM_SELECT) {
-        table_map query_scope = table.get_tables_in_all_query_scopes();
-        const_expr_tables =
-            (query_scope & ~table.get_table()->pos_in_table_list->map());
+        ndb_table_map query_scope = table.get_tables_in_all_query_scopes();
+        for (uint i = 0; i < tab_no; i++) {
+          if (query_scope.contain(i)) {
+            const TABLE *const_table = pushed_builder.m_tables[i].get_table();
+            const_expr_tables |= const_table->pos_in_table_list->map();
+          }
+        }
       }
       /* Prepare push of condition to handler, possibly leaving a remainder */
       ndb_handler->m_cond.prep_cond_push(cond, const_expr_tables, table_map(0));

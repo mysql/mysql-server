@@ -208,7 +208,11 @@ class Join_scope : public Join_nest {
   friend class ndb_pushed_builder_ctx;
 
   // Get all tables in this Join_scope as well as in upper scopes.
-  table_map get_all_tables_map() const { return m_table_map | m_all_upper_map; }
+  ndb_table_map get_all_tables_map() const {
+    ndb_table_map map(m_table_map);
+    map.add(m_all_upper_map);
+    return map;
+  }
 
   // Used only to provide useful explain info
   const char *m_descr{"query"};
@@ -221,10 +225,10 @@ class Join_scope : public Join_nest {
   // m_all_upper_map are the tables in upper-scope(s) available when
   // constructed. Tables added to upper scopes later, are not available from
   // this scope!
-  const table_map m_all_upper_map{0};
+  const ndb_table_map m_all_upper_map;
 
   // Tables in this Join_scope, not including upper- or sub-scopes.
-  table_map m_table_map{0};
+  ndb_table_map m_table_map;
 };
 
 /**
@@ -372,10 +376,10 @@ void ndb_pushed_builder_ctx::construct(Join_nest *nest_ctx,
     case AccessPath::INDEX_MERGE: {
       const uint tab_no = m_table_count++;
       TABLE *const table = GetBasicTable(path);
+      assert(table != nullptr);
       if (likely(table != nullptr)) {
-        const table_map map = table->pos_in_table_list->map();
         Join_scope *join_scope = nest_ctx->get_join_scope();
-        join_scope->m_table_map |= map;
+        join_scope->m_table_map.add(tab_no);
       }
       m_tables[tab_no].m_join_nest = nest_ctx;
       m_tables[tab_no].m_tab_no = tab_no;
@@ -1145,16 +1149,18 @@ const Join_scope *pushed_table::get_join_scope() const {
 }
 
 // All tables in 'this' Join_scope, as well as any 'upper' scopes embedding it.
-table_map pushed_table::get_tables_in_all_query_scopes() const {
+ndb_table_map pushed_table::get_tables_in_all_query_scopes() const {
   const Join_scope *join_scope = get_join_scope();
   return join_scope->get_all_tables_map();
 }
 
 // The upper Join_scopes, limited to those within current 'Query_scope'
-table_map pushed_table::get_tables_in_this_query_scope() const {
+ndb_table_map pushed_table::get_tables_in_this_query_scope() const {
   const Join_scope *join_scope = get_join_scope();
   const Query_scope *query_scope = join_scope->get_query_scope();
-  return join_scope->get_all_tables_map() & ~query_scope->m_all_upper_map;
+  ndb_table_map map(join_scope->get_all_tables_map());
+  map.subtract(query_scope->m_all_upper_map);
+  return map;
 }
 
 const char *pushed_table::get_scope_description() const {

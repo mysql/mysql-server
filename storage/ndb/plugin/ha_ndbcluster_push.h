@@ -552,8 +552,8 @@ struct pushed_table {
 
   Item_equal *get_item_equal(const Item_field *field_item) const;
 
-  table_map get_tables_in_this_query_scope() const;
-  table_map get_tables_in_all_query_scopes() const;
+  ndb_table_map get_tables_in_this_query_scope() const;
+  ndb_table_map get_tables_in_all_query_scopes() const;
 
   const char *get_scope_description() const;
 
