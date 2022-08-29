@@ -383,15 +383,16 @@ void ndb_pushed_builder_ctx::construct(Join_nest *nest_ctx,
     // INDEX_MERGE is not 'basic' as it also refer indexes,
     // but a 'table' nevertheless.
     case AccessPath::INDEX_MERGE: {
+      // Add tab_no as member to Join_nest and Join_scope
       const uint tab_no = m_table_count++;
+      Join_nest *join_nest = nest_ctx->get_inner_nest();
+      join_nest->m_inner_map.add(tab_no);
+      Join_scope *join_scope = nest_ctx->get_join_scope();
+      join_scope->m_scope_map.add(tab_no);
+
+      // Fill in m_tables[]
       TABLE *const table = GetBasicTable(path);
       assert(table != nullptr);
-      if (likely(table != nullptr)) {
-        Join_nest *join_nest = nest_ctx->get_inner_nest();
-        join_nest->m_inner_map.add(tab_no);
-        Join_scope *join_scope = nest_ctx->get_join_scope();
-        join_scope->m_scope_map.add(tab_no);
-      }
       m_tables[tab_no].m_join_nest = nest_ctx;
       m_tables[tab_no].m_tab_no = tab_no;
       m_tables[tab_no].m_path = path;
@@ -409,7 +410,14 @@ void ndb_pushed_builder_ctx::construct(Join_nest *nest_ctx,
     case AccessPath::ZERO_ROWS_AGGREGATED:
     case AccessPath::MATERIALIZED_TABLE_FUNCTION:
     case AccessPath::UNQUALIFIED_COUNT: {
+      // Add tab_no as member to Join_nest and Join_scope
       const uint tab_no = m_table_count++;
+      Join_nest *join_nest = nest_ctx->get_inner_nest();
+      join_nest->m_inner_map.add(tab_no);
+      Join_scope *join_scope = nest_ctx->get_join_scope();
+      join_scope->m_scope_map.add(tab_no);
+
+      // Fill in m_tables[], note that there is no 'table'
       m_tables[tab_no].m_join_nest = nest_ctx;
       m_tables[tab_no].m_tab_no = tab_no;
       m_tables[tab_no].m_path = path;

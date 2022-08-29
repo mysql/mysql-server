@@ -14574,7 +14574,10 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
         for (uint i = 0; i < tab_no; i++) {
           if (query_scope.contain(i)) {
             const TABLE *const_table = pushed_builder.m_tables[i].get_table();
-            const_expr_tables |= const_table->pos_in_table_list->map();
+            if (const_table != nullptr &&
+                const_table->pos_in_table_list != nullptr) {
+              const_expr_tables |= const_table->pos_in_table_list->map();
+            }
           }
         }
       }

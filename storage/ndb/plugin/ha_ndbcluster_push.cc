@@ -1164,7 +1164,9 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
       for (uint i = 0; i < root_no; i++) {
         if (m_const_scope.contain(i)) {
           const TABLE *table = m_tables[i].get_table();
-          const_expr_tables |= table->pos_in_table_list->map();
+          if (table != nullptr && table->pos_in_table_list != nullptr) {
+            const_expr_tables |= table->pos_in_table_list->map();
+          }
         }
       }
     }
