@@ -1,7 +1,6 @@
 --source include/have_optimizer_trace.inc
 --source include/have_hypergraph.inc # join_order is shown only in hypergraph
 --source include/no_cursor_protocol.inc
---source include/no_ps_protocol.inc
 --source include/no_sp_protocol.inc
 
 --echo #
