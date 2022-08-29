@@ -779,6 +779,9 @@ MaterializeIterator<Profiler>::MaterializeIterator(
       m_reject_multiple_rows(path_params->reject_multiple_rows),
       m_limit_rows(path_params->limit_rows),
       m_invalidators(thd->mem_root) {
+  assert(m_limit_rows == HA_POS_ERROR /* EXCEPT, INTERCEPT */ ||
+         path_params->table->is_union_or_table());
+
   if (m_ref_slice != -1) {
     assert(m_join != nullptr);
   }
@@ -911,7 +914,6 @@ bool MaterializeIterator<Profiler>::Init() {
     // We didn't open the index, so we don't need to close it.
     end_unique_index.commit();
   }
-
   ha_rows stored_rows = 0;
 
   if (m_query_expression != nullptr && m_query_expression->is_recursive()) {
@@ -920,11 +922,14 @@ bool MaterializeIterator<Profiler>::Init() {
     for (const materialize_iterator::QueryBlock &query_block :
          m_query_blocks_to_materialize) {
       if (MaterializeQueryBlock(query_block, &stored_rows)) return true;
-      if (m_reject_multiple_rows && stored_rows > 1) {
-        my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
-        return true;
-      } else if (stored_rows >= m_limit_rows) {
-        break;
+      if (table()->is_union_or_table()) {
+        // For INTERSECT and EXCEPT, this is done in TableScanIterator
+        if (m_reject_multiple_rows && stored_rows > 1) {
+          my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
+          return true;
+        } else if (stored_rows >= m_limit_rows) {
+          break;
+        }
       }
     }
   }
@@ -1102,6 +1107,51 @@ bool MaterializeIterator<Profiler>::MaterializeQueryBlock(
   Opt_trace_object trace_exec(trace, "materialize");
   trace_exec.add_select_number(query_block.select_number);
   Opt_trace_array trace_steps(trace, "steps");
+  TABLE *const t = table();
+  // The next two declarations are for read_counter: used to implement
+  // INTERSECT and EXCEPT.
+  uchar *const set_counter_0 =
+      t->set_counter() != nullptr ? t->set_counter()->field_ptr() : nullptr;
+  uchar *const set_counter_1 = t->set_counter() != nullptr
+                                   ? set_counter_0 + t->s->rec_buff_length
+                                   : nullptr;
+  /**
+    Read the value of TABLE::m_set_counter from record[1]. The value can be
+    found there after a call to check_unique_constraint if the row was
+    found. Note that m_set_counter a priori points to record[0], which is
+    used when writing and updating the counter.
+   */
+  auto read_counter = [t, set_counter_0, set_counter_1]() -> ulonglong {
+    assert(t->record[1] - t->record[0] == set_counter_1 - set_counter_0);
+    t->set_counter()->set_field_ptr(set_counter_1);
+    ulonglong cnt = static_cast<ulonglong>(t->set_counter()->val_int());
+    t->set_counter()->set_field_ptr(set_counter_0);
+    return cnt;
+  };
+
+  auto spill_to_disk_and_retry_update_row = [t, this](THD *thd,
+                                                      int error) -> int {
+    bool dummy;
+    if (create_ondisk_from_heap(thd, t, error,
+                                /*insert_last_record=*/false,
+                                /*ignore_last_dup=*/true, &dummy))
+      return true; /* purecov: inspected */
+    // Table's engine changed; index is not initialized anymore.
+    if (t->file->ha_index_init(0, /*sorted*/ false)) return true;
+
+    // Inform each reader that the table has changed under their feet,
+    // so they'll need to reposition themselves.
+    for (const materialize_iterator::QueryBlock &query_b :
+         m_query_blocks_to_materialize) {
+      if (query_b.is_recursive_reference) {
+        query_b.recursive_reader->RepositionCursorAfterSpillToDisk();
+      }
+    }
+    // re-try update: 1. reposition to same row
+    error = check_unique_constraint(t);
+    assert(error == 0);
+    return t->file->ha_update_row(t->record[1], t->record[0]);
+  };
 
   JOIN *join = query_block.join;
   if (join != nullptr) {
@@ -1122,7 +1172,14 @@ bool MaterializeIterator<Profiler>::MaterializeQueryBlock(
   }
 
   PFSBatchMode pfs_batch_mode(query_block.subquery_iterator.get());
-  while (*stored_rows < m_limit_rows) {
+  const bool is_union_or_table = table()->is_union_or_table();
+
+  while (true) {
+    // For EXCEPT and INTERSECT we test LIMIT in ScanTableIterator
+    assert(is_union_or_table || m_limit_rows == HA_POS_ERROR);
+
+    if (*stored_rows >= m_limit_rows) break;
+
     int error = query_block.subquery_iterator->Read();
     if (error > 0 || thd()->is_error())
       return true;
@@ -1138,27 +1195,195 @@ bool MaterializeIterator<Profiler>::MaterializeQueryBlock(
       if (copy_funcs(query_block.temp_table_param, thd())) return true;
     }
 
-    if (query_block.disable_deduplication_by_hash_field) {
-      assert(doing_hash_deduplication());
-    } else if (!check_unique_constraint(table())) {
-      continue;
+    if (is_union_or_table) {
+      if (query_block.disable_deduplication_by_hash_field) {
+        assert(doing_hash_deduplication());
+      } else if (!check_unique_constraint(t)) {
+        continue;
+      }
+    } else if (query_block.m_operand_idx == 0) {
+      //
+      // Left side of INTERSECT, EXCEPT
+      //
+      if (t->is_except()) {
+        //
+        // EXCEPT                After we finish reading the left side, each
+        //                       row's counter contains the number of duplicates
+        //                       seen of that row.
+        if (check_unique_constraint(t)) {
+          // counter := 1
+          t->set_counter()->store(1, true);
+          // next, go on to write the row
+        } else {
+          // counter := counter + 1
+          t->set_counter()->store(read_counter() + 1, true);
+          error = t->file->ha_update_row(t->record[1], t->record[0]);
+          if (!t->file->is_ignorable_error(error) &&
+              spill_to_disk_and_retry_update_row(thd(), error))
+            return true;
+          continue;
+        }
+      } else {
+        assert(t->is_intersect());
+        if (t->is_distinct()) {
+          //
+          // INTERSECT DISTINCT  After we finish reading the left side, each
+          //                     row's counter contains N - 1, i.e. the number
+          //                     of operands intersected.
+          if (check_unique_constraint(t)) {
+            // counter := no_of_operands - 1
+            t->set_counter()->store(query_block.m_total_operands - 1, true);
+            // next, go on to write the row
+          } else {
+            // We have already written this row and initialized its counter.
+            continue;
+          }
+        } else {
+          //
+          // INTERSECT ALL       In left pass we establish initial count of
+          //                     each row in subcounter 0. In right block we
+          //                     increment subcounter 1 (up to initial count),
+          //                     on final read we use min(subcounter 0,
+          //                     subcounter 1) as the intersection
+          //                     result. NOTE: this only works correctly if we
+          //                     only ever have two blocks for INTERSECT ALL:
+          //                     so they should not have been merged
+          if (check_unique_constraint(t)) {
+            HalfCounter c(0);
+            // left side counter := 1
+            c[0] = 1;
+            t->set_counter()->store(c.value(), true);
+            // go on to write the row
+          } else {
+            HalfCounter c(read_counter());
+            if (static_cast<uint64_t>(c[0]) + 1 >
+                std::numeric_limits<uint32_t>::max()) {
+              my_error(ER_INTERSECT_ALL_MAX_DUPLICATES_EXCEEDED, MYF(0));
+              return true;
+            }
+            // left side counter := left side counter + 1
+            c[0]++;
+            t->set_counter()->store(c.value(), true);
+            error = t->file->ha_update_row(t->record[1], t->record[0]);
+            if (!t->file->is_ignorable_error(error) &&
+                spill_to_disk_and_retry_update_row(thd(), error))
+              return true;
+            continue;
+          }
+        }
+      }
+    } else {
+      //
+      // Right side of INTERSECT, EXCEPT
+      //
+      if (t->is_except()) {
+        //
+        // EXCEPT                After this right side has been processed, the
+        //                       counter contains the number of duplicates not
+        //                       yet matched (and thus removed) by this right
+        //                       side or any previous right side(s).
+        if (check_unique_constraint(t)) {
+          // row doesn't have a counter-part in left side, so we can ignore it
+          continue;
+        }
+        ulonglong cnt = read_counter();
+        if (cnt > 0) {
+          if (query_block.m_operand_idx < query_block.m_first_distinct)
+            // counter := counter - 1
+            t->set_counter()->store(cnt - 1, true);
+          else
+            t->set_counter()->store(0, true);
+          error = t->file->ha_update_row(t->record[1], t->record[0]);
+          if (!t->file->is_ignorable_error(error) &&
+              spill_to_disk_and_retry_update_row(thd(), error))
+            return true;
+        }
+      } else {
+        assert(t->is_intersect());
+        //
+        // INTERSECT  - right side(s)
+        //
+        if (t->is_distinct()) {
+          //
+          // INTERSECT DISTINCT  After this right side, each row's counter
+          //                     either wasn't seen by this block (and is thus
+          //                     still left undecremented), or we see it, in
+          //                     which the counter is decremented once to
+          //                     indicated that it was matched by this right
+          //                     side and thus is still a candidate for the
+          //                     final inclusion, pending outcome of any
+          //                     further right side operands. The number of
+          //                     the present set operand (materialized block
+          //                     number) is used for this purpose.
+          //
+          if (check_unique_constraint(t)) {
+            // row doesn't have a counter-part in left side, so we can ignore it
+            continue;
+          }
+          // we found a left side candidate, now check its counter to see if
+          // it has already been matched with this right side row or not. If
+          // so, decrement to indicate is has been matched by this operand. If
+          // the row was missing in a previous right side operand, we will
+          // also skip it here, since its counter is too high, and we will
+          // leave it behind.
+          ulonglong cnt = read_counter();
+          if (cnt == query_block.m_total_operands - query_block.m_operand_idx) {
+            // counter -:= 1
+            cnt = cnt - 1;
+            t->set_counter()->store(cnt, true);
+            error = t->file->ha_update_row(t->record[1], t->record[0]);
+            if (!t->file->is_ignorable_error(error) &&
+                spill_to_disk_and_retry_update_row(thd(), error))
+              return true;
+          }
+        } else {
+          assert(query_block.m_operand_idx <= 1);
+          //
+          // INTERSECT ALL       At the end of the (single) right side pass,
+          //                     we have two counters for each row: in one,
+          //                     the number of duplicates seen on the left
+          //                     side, and in the other, the number of times
+          //                     this row was matched on the right side (we do
+          //                     not increment it past the number seen on the
+          //                     left side, since we can maximally get that
+          //                     number of duplicates for the operation).
+          if (check_unique_constraint(t))
+            // row doesn't have a counter-part in left side, so we can ignore it
+            continue;
+          // we found a left side candidate
+          HalfCounter c(read_counter());
+          const uint32_t left_side = c[0];
+          if (c[1] + 1 <= left_side) {
+            // right side counter = right side counter + 1
+            c[1]++;
+            t->set_counter()->store(c.value(), true);
+            error = t->file->ha_update_row(t->record[1], t->record[0]);
+            if (!t->file->is_ignorable_error(error) &&
+                spill_to_disk_and_retry_update_row(thd(), error))
+              return true;
+          }  // else: already matched all occurences from left side table
+        }
+      }
+      continue;  // right hand side of EXCEPT or INTERSECT, never write
     }
 
-    error = table()->file->ha_write_row(table()->record[0]);
+    error = t->file->ha_write_row(t->record[0]);
     if (error == 0) {
       ++*stored_rows;
       continue;
     }
     // create_ondisk_from_heap will generate error if needed.
-    if (!table()->file->is_ignorable_error(error)) {
+    if (!t->file->is_ignorable_error(error)) {
       bool is_duplicate;
-      if (create_ondisk_from_heap(thd(), table(), error,
+      if (create_ondisk_from_heap(thd(), t, error,
                                   /*insert_last_record=*/true,
                                   /*ignore_last_dup=*/true, &is_duplicate))
         return true; /* purecov: inspected */
       // Table's engine changed; index is not initialized anymore.
-      if (table()->hash_field) table()->file->ha_index_init(0, false);
-      if (!is_duplicate) ++*stored_rows;
+      if (t->hash_field) t->file->ha_index_init(0, false);
+      if (!is_duplicate &&
+          (t->is_union_or_table() || query_block.m_operand_idx == 0))
+        ++*stored_rows;
 
       // Inform each reader that the table has changed under their feet,
       // so they'll need to reposition themselves.

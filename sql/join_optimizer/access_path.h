@@ -40,6 +40,7 @@
 #include "sql/mem_root_array.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
+#include "sql/table.h"
 
 template <class T>
 class Bounds_checked_array;
@@ -1555,7 +1556,12 @@ inline AccessPath *NewMaterializeAccessPath(
   param->unit = unit;
   param->ref_slice = ref_slice;
   param->rematerialize = rematerialize;
-  param->limit_rows = limit_rows;
+  param->limit_rows = (table == nullptr || table->is_union_or_table()
+                           ? limit_rows
+                           :
+                           // INTERSECT, EXCEPT: Enforced by TableScanIterator,
+                           // see its constructor
+                           HA_POS_ERROR);
   param->reject_multiple_rows = reject_multiple_rows;
 
 #ifndef NDEBUG

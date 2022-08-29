@@ -154,6 +154,9 @@ class Query_result {
   */
   virtual bool is_interceptor() const { return false; }
 
+  /// Only overridden (and non-empty) for Query_result_union, q.v.
+  virtual void set_limit(ha_rows) {}
+
   /// @returns server side cursor, if associated with query result
   virtual Server_side_cursor *cursor() const {
     assert(false);

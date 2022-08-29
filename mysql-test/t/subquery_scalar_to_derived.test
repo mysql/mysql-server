@@ -115,6 +115,57 @@ let $query = SELECT * FROM t1
 eval $query;
 eval explain $query;
 
+--echo # Should work, {2} \ {1} == {2}
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 EXCEPT SELECT 1);
+eval $query;
+eval explain $query;
+
+--echo # Should fail, {2} U {3} \ {1} == {2, 3}
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 3 EXCEPT SELECT 1);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+--echo # Should return no rows, since the intersection is the empty set
+--echo # {2} ∩ {1} == {}
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 INTERSECT SELECT 1);
+eval $query;
+eval explain $query;
+
+--echo # Should return no rows, since the result is the empty set
+--echo # {2} \ {2} == {}
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 EXCEPT SELECT 2);
+eval $query;
+eval explain $query;
+
+--echo # This should give one row: {2} ∩ {2} == {2}
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 INTERSECT SELECT 2);
+eval $query;
+eval explain $query;
+
+--echo # This should give one row: {2} ∩ {2} == {2}
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 INTERSECT ALL SELECT 2);
+eval $query;
+eval explain $query;
+
+--echo # This should remove the duplicate: {1, 1} ∩ALL {1} == {1}, so ok
+let $query = SELECT * FROM t1
+             WHERE t1.a > ((SELECT COUNT(a) AS cnt FROM t2 GROUP BY a LIMIT 2) INTERSECT ALL SELECT 1);
+eval $query;
+eval explain $query;
+
+--echo # ditto
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 GROUP BY a  INTERSECT ALL SELECT 1);
+eval $query;
+eval explain $query;
+
 --echo # Empty scalar subquery
 let $query = SELECT * FROM t1
              WHERE t1.a > (SELECT a from t1 WHERE false);
