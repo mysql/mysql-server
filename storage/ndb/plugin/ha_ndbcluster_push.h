@@ -202,7 +202,10 @@ struct pushed_table {
         m_last_inner(0),
         m_first_upper(-1),
         m_sj_nest(),
+        m_first_sj_inner(-1),
+        m_last_sj_inner(-1),
         m_first_sj_upper(-1),
+        m_first_anti_inner(-1),
         m_key_parents(nullptr),
         m_ancestors(),
         m_parent(MAX_TABLES),
@@ -411,6 +414,9 @@ struct pushed_table {
    */
   ndb_table_map m_sj_nest;
 
+  int m_first_sj_inner;  // The first table in m_sj_nest
+  int m_last_sj_inner;   // The last table in m_sj_nest
+
   /**
    * The semi-join nests may be nested inside each other as well.
    * In such cases 'm_first_sj_upper' will refer the start of the sj_nest
@@ -421,6 +427,14 @@ struct pushed_table {
    * the inner_nest bitmaps which only contain the tables in each inner-nest.
    */
   int m_first_sj_upper;
+
+  /**
+   * The first table in an ANTI-join nest, iff we are member of such a nest.
+   * This table is ANTI-joined with any ancestor tables with
+   * 'tab_no < first_anti_inner.
+   * Note that an ANTI-join is an OUTER join as well.
+   */
+  int m_first_anti_inner;
 
   /**
    * For each KEY_PART referred in the join conditions, we find the set of
@@ -581,6 +595,8 @@ struct pushed_table {
   int get_first_sj_inner() const;
   int get_last_sj_inner() const;
   int get_first_sj_upper() const;
+
+  int get_first_anti_inner() const;
 
   // Is member of a SEMI-Join_nest, relative to ancestor?
   bool is_semi_joined(const pushed_table *ancestor) const;

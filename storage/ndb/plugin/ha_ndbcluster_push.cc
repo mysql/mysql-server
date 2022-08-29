@@ -342,9 +342,6 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
    */
   construct(root_path);
 
-  // Keep track of where semi_join-nest starts (for now ... )
-  int first_sj_inner = m_tables[0].get_first_sj_inner();
-
   /**
    * Set up the nest structure in m_tables[]. Init even those
    * before the root (in case root_no > 0)
@@ -399,14 +396,18 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
      * found. In a sj_nest however, matches in sub-sj_nests as well are
      * needed in order for rows in the upper sj_nest to exists as well.
      */
-    if (table->get_first_sj_inner() >= 0) {  // Is in a sj_nest
-      first_sj_inner = table->get_first_sj_inner();
-      const int last_sj_inner = table->get_last_sj_inner();
+    table->m_first_sj_inner = table->get_first_sj_inner();
+    table->m_last_sj_inner = table->get_last_sj_inner();
+    table->m_first_sj_upper = table->get_first_sj_upper();
+
+    if (table->m_first_sj_inner >= 0) {  // Is in a sj_nest
       const ndb_table_map sj_nest =
-          get_tables_in_range(first_sj_inner, last_sj_inner);
+          get_tables_in_range(table->m_first_sj_inner, table->m_last_sj_inner);
       table->m_sj_nest = sj_nest;
-      table->m_first_sj_upper = table->get_first_sj_upper();
     }
+
+    // There may be anti_join_nest as well:
+    table->m_first_anti_inner = table->get_first_anti_inner();
 
     if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
       // A pushable table scan, collect in bitmap for later fast checks
@@ -417,7 +418,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
 
 /**
  * Prepare the ndb_pushed_builder_ctx for a specific root.
- * Reset it for reuse in case it was alredy used for another root-
+ * Reset it for reuse in case it was alredy used for another root.
  */
 void ndb_pushed_builder_ctx::prepare(pushed_table *join_root) {
   m_join_root = join_root;
@@ -779,8 +780,8 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
        * ... all having the same 'last_inner' (this tab_no)
        */
       // First unwind the semi-join nests, if needed
-      int first_sj_inner = table->get_first_sj_inner();
-      int last_sj_inner = table->get_last_sj_inner();
+      int first_sj_inner = table->m_first_sj_inner;
+      int last_sj_inner = table->m_last_sj_inner;
       while ((int)tab_no == last_sj_inner &&   // Leaving the semi_join nest
              (int)root_no < first_sj_inner) {  // Is a SJ relative to root
 
@@ -793,7 +794,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
         if (first_sj_inner < 0) break;
 
         pushed_table *upper_table = &m_tables[first_sj_inner];
-        last_sj_inner = upper_table->get_last_sj_inner();
+        last_sj_inner = upper_table->m_last_sj_inner;
       }
 
       // Prepare inner/outer join-nest structure for unwind;
@@ -896,7 +897,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
     return false;
   }
 
-  if (table->use_order() && table->get_first_sj_inner() != (int)tab_no) {
+  if (table->use_order() && table->m_first_sj_inner != (int)tab_no) {
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child, can't provide rows in index order",
         table->get_table()->alias);

@@ -106,6 +106,11 @@ class Join_nest {
   int get_first_sj_inner() const;
   int get_last_sj_inner() const;
 
+  // Get [first..last] table in a set of ANTI-joined tables.
+  // Note that an ANTI-join is an OUTER-join as well, the opposite is not true.
+  int get_first_anti_inner() const;
+  // int get_last_anti_inner() const;  // Not needed
+
   // If the INNER/SJ tables are nested, get the 'first' table in embedding nest
   int get_first_upper() const;
   int get_first_sj_upper() const;
@@ -136,6 +141,7 @@ class Join_nest {
   Join_nest *get_inner_nest();
   const Join_nest *get_inner_nest() const;
   const Join_nest *get_semi_nest() const;
+  const Join_nest *get_anti_nest() const;
 
   const JoinType m_type{JoinType::INNER};
 
@@ -971,11 +977,27 @@ Join_nest *Join_nest::get_inner_nest() {
   }
   return nest;
 }
+
+/**
+ * Get enclosing SEMI- or ANTI-join nest, or nullptr
+ * if no such nests exists.
+ */
 const Join_nest *Join_nest::get_semi_nest() const {
   // Sufficient that any ancestor-nest is a SEMI join
   const Join_nest *nest = this;
   do {
     if (nest->get_JoinType() == JoinType::SEMI) {
+      return nest;
+    }
+    nest = nest->m_upper_nest;
+  } while (nest != nullptr);
+  return nest;
+}
+const Join_nest *Join_nest::get_anti_nest() const {
+  // Sufficient that any ancestor-nest is an ANTI join
+  const Join_nest *nest = this;
+  do {
+    if (nest->get_JoinType() == JoinType::ANTI) {
       return nest;
     }
     nest = nest->m_upper_nest;
@@ -1022,6 +1044,15 @@ int Join_nest::get_first_sj_upper() const {
   // A SJ nest will have at least an inner-nest as 'upper'
   assert(nest->m_upper_nest != nullptr);
   return nest->m_upper_nest->get_first_sj_inner();
+}
+
+/**
+ * Returns the first table in this anti-join nest.
+ * Returns <0 if table is not part of an anti-join nest.
+ */
+int Join_nest::get_first_anti_inner() const {
+  const Join_nest *nest = get_anti_nest();
+  return (nest != nullptr) ? nest->m_first_inner : -1;
 }
 
 /**
@@ -1241,6 +1272,14 @@ int pushed_table::get_last_sj_inner() const {
 }
 int pushed_table::get_first_sj_upper() const {
   return m_join_nest->get_first_sj_upper();
+}
+
+/**
+ * Returns the first table in an anti-join nest.
+ * Returns <0 if table is not part of an anti-join nest.
+ */
+int pushed_table::get_first_anti_inner() const {
+  return m_join_nest->get_first_anti_inner();
 }
 
 bool pushed_table::is_semi_joined(const pushed_table *ancestor) const {
