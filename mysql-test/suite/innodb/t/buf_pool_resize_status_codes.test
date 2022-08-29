@@ -1,0 +1,255 @@
+--echo #######################################################################
+--echo # Innodb Buffer Pool Resize Status Codes
+--echo #
+--echo # Print status codes that can be seen when resize is in progress. We
+--echo # have a debug variable for each status code. The resize thread will
+--echo # wait on the debug variable corresponding to the current status code.
+--echo # This will allow the test to synchronize with the resize thread.
+--echo #######################################################################
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo #######################################################################
+--echo # Set all the debug variables and unset them after the query
+--echo #######################################################################
+--disable_query_log
+SET @prev_size = @@innodb_buffer_pool_size;
+
+SET GLOBAL debug = "+d,ib_buf_pool_resize_complete_status_code";
+SET GLOBAL debug = "+d,ib_buf_pool_resize_start_status_code";
+SET GLOBAL debug = "+d,ib_buf_pool_resize_disable_ahi_status_code";
+SET GLOBAL debug = "+d,ib_buf_pool_resize_withdraw_blocks_status_code";
+SET GLOBAL debug = "+d,ib_buf_pool_resize_global_lock_status_code";
+SET GLOBAL debug = "+d,ib_buf_pool_resize_in_progress_status_code";
+SET GLOBAL debug = "+d,ib_buf_pool_resize_hash_status_code";
+SET GLOBAL debug = "+d,ib_buf_pool_resize_failed_status_code";
+--enable_query_log
+
+--echo #######################################################################
+--echo # Query status code when no resize is in progress:
+--echo #######################################################################
+SELECT variable_name, variable_value FROM
+  performance_schema.global_status WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status%';
+
+--echo #######################################################################
+--echo # Trigger the resize operation to 4 times chunk size
+--echo #######################################################################
+SET GLOBAL innodb_buffer_pool_size = @prev_size + 4 * 25165824;
+
+--echo #######################################################################
+--echo # BUF_POOL_RESIZE_START (1)
+--echo #######################################################################
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 1 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 100 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_progress';
+--source include/wait_condition.inc
+
+SELECT variable_name, variable_value FROM
+  performance_schema.global_status WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status%';
+
+SET GLOBAL debug = "-d,ib_buf_pool_resize_start_status_code";
+
+--echo #######################################################################
+--echo # BUF_POOL_RESIZE_DISABLE_AHI (2)
+--echo #######################################################################
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 2 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 100 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_progress';
+--source include/wait_condition.inc
+
+SELECT variable_name, variable_value FROM
+  performance_schema.global_status WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status%';
+
+SET GLOBAL debug = "-d,ib_buf_pool_resize_disable_ahi_status_code";
+
+--echo #######################################################################
+--echo # BUF_POOL_RESIZE_WITHDRAW_BLOCKS (3)
+--echo #######################################################################
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 3 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 100 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_progress';
+--source include/wait_condition.inc
+
+SELECT variable_name, variable_value FROM
+  performance_schema.global_status WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status%';
+
+SET GLOBAL debug = "-d,ib_buf_pool_resize_withdraw_blocks_status_code";
+
+--echo #######################################################################
+--echo # BUF_POOL_RESIZE_GLOBAL_LOCK (4)
+--echo #######################################################################
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 4 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 100 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_progress';
+--source include/wait_condition.inc
+
+SELECT variable_name, variable_value FROM
+  performance_schema.global_status WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status%';
+
+SET GLOBAL debug = "-d,ib_buf_pool_resize_global_lock_status_code";
+
+--echo #######################################################################
+--echo # BUF_POOL_RESIZE_IN_PROGRESS (5)
+--echo #######################################################################
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 5 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 100 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_progress';
+--source include/wait_condition.inc
+
+SELECT variable_name, variable_value FROM
+  performance_schema.global_status WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status%';
+
+SET GLOBAL debug = "-d,ib_buf_pool_resize_in_progress_status_code";
+
+--echo #######################################################################
+--echo # BUF_POOL_RESIZE_HASH (6)
+--echo #######################################################################
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 6 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 100 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_progress';
+--source include/wait_condition.inc
+
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 31) = "Resizing also other hash tables"
+  FROM performance_schema.global_status WHERE LOWER(variable_name)
+  LIKE 'innodb_buffer_pool_resize_status';
+--source include/wait_condition.inc
+
+SELECT variable_name, variable_value FROM
+  performance_schema.global_status WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status%';
+
+SET GLOBAL debug = "-d,ib_buf_pool_resize_hash_status_code";
+
+--echo #######################################################################
+--echo # BUF_POOL_RESIZE_COMPLETE (0) (exclude message as it has timestamp)
+--echo #######################################################################
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 0 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 100 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_progress';
+--source include/wait_condition.inc
+
+SELECT variable_name, variable_value FROM
+  performance_schema.global_status WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_%';
+
+SET GLOBAL debug = "-d,ib_buf_pool_resize_complete_status_code";
+
+--echo #######################################################################
+--echo # Trigger a resize that will fail
+--echo #######################################################################
+LET $restart_parameters = restart: --innodb-buffer-pool-instances=2
+  --innodb-buffer-pool-size=1G;
+--source include/restart_mysqld.inc
+SET GLOBAL innodb_buffer_pool_size = @prev_size + 4 * 25165824;
+
+--echo #######################################################################
+--echo # BUF_POOL_RESIZE_FAILED (7)
+--echo #######################################################################
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 7 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_code';
+--source include/wait_condition.inc
+
+LET $wait_timeout = 60;
+LET $wait_condition =
+  SELECT variable_value = 100 FROM performance_schema.global_status
+  WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status_progress';
+--source include/wait_condition.inc
+
+SELECT variable_name, variable_value FROM
+  performance_schema.global_status WHERE LOWER(variable_name) LIKE
+  'innodb_buffer_pool_resize_status%';
+
+SET GLOBAL debug = "-d,ib_buf_pool_resize_failed_status_code";
+
+--echo #######################################################################
+--echo # CLEAN UP
+--echo #######################################################################
+--disable_query_log
+SET GLOBAL debug = "-d,ib_buf_pool_resize_complete_status_code";
+SET GLOBAL debug = "-d,ib_buf_pool_resize_start_status_code";
+SET GLOBAL debug = "-d,ib_buf_pool_resize_disable_ahi_status_code";
+SET GLOBAL debug = "-d,ib_buf_pool_resize_withdraw_blocks_status_code";
+SET GLOBAL debug = "-d,ib_buf_pool_resize_global_lock_status_code";
+SET GLOBAL debug = "-d,ib_buf_pool_resize_in_progress_status_code";
+SET GLOBAL debug = "-d,ib_buf_pool_resize_hash_status_code";
+SET GLOBAL debug = "-d,ib_buf_pool_resize_failed_status_code";
+--echo # Reset back to previous state
+LET $restart_parameters = restart;
+--source include/restart_mysqld.inc
+--enable_query_log

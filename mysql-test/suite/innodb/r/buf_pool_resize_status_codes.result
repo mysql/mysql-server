@@ -1,0 +1,125 @@
+#######################################################################
+# Innodb Buffer Pool Resize Status Codes
+#
+# Print status codes that can be seen when resize is in progress. We
+# have a debug variable for each status code. The resize thread will
+# wait on the debug variable corresponding to the current status code.
+# This will allow the test to synchronize with the resize thread.
+#######################################################################
+#######################################################################
+# Set all the debug variables and unset them after the query
+#######################################################################
+#######################################################################
+# Query status code when no resize is in progress:
+#######################################################################
+SELECT variable_name, variable_value FROM
+performance_schema.global_status WHERE LOWER(variable_name) LIKE
+'innodb_buffer_pool_resize_status%';
+variable_name	variable_value
+Innodb_buffer_pool_resize_status	
+Innodb_buffer_pool_resize_status_code	0
+Innodb_buffer_pool_resize_status_progress	0
+#######################################################################
+# Trigger the resize operation to 4 times chunk size
+#######################################################################
+SET GLOBAL innodb_buffer_pool_size = @prev_size + 4 * 25165824;
+#######################################################################
+# BUF_POOL_RESIZE_START (1)
+#######################################################################
+SELECT variable_name, variable_value FROM
+performance_schema.global_status WHERE LOWER(variable_name) LIKE
+'innodb_buffer_pool_resize_status%';
+variable_name	variable_value
+Innodb_buffer_pool_resize_status	Resizing buffer pool from 25165824 to 125829120 (unit=25165824).
+Innodb_buffer_pool_resize_status_code	1
+Innodb_buffer_pool_resize_status_progress	100
+SET GLOBAL debug = "-d,ib_buf_pool_resize_start_status_code";
+#######################################################################
+# BUF_POOL_RESIZE_DISABLE_AHI (2)
+#######################################################################
+SELECT variable_name, variable_value FROM
+performance_schema.global_status WHERE LOWER(variable_name) LIKE
+'innodb_buffer_pool_resize_status%';
+variable_name	variable_value
+Innodb_buffer_pool_resize_status	Disabling adaptive hash index.
+Innodb_buffer_pool_resize_status_code	2
+Innodb_buffer_pool_resize_status_progress	100
+SET GLOBAL debug = "-d,ib_buf_pool_resize_disable_ahi_status_code";
+#######################################################################
+# BUF_POOL_RESIZE_WITHDRAW_BLOCKS (3)
+#######################################################################
+SELECT variable_name, variable_value FROM
+performance_schema.global_status WHERE LOWER(variable_name) LIKE
+'innodb_buffer_pool_resize_status%';
+variable_name	variable_value
+Innodb_buffer_pool_resize_status	Withdrawing blocks to be shrunken.
+Innodb_buffer_pool_resize_status_code	3
+Innodb_buffer_pool_resize_status_progress	100
+SET GLOBAL debug = "-d,ib_buf_pool_resize_withdraw_blocks_status_code";
+#######################################################################
+# BUF_POOL_RESIZE_GLOBAL_LOCK (4)
+#######################################################################
+SELECT variable_name, variable_value FROM
+performance_schema.global_status WHERE LOWER(variable_name) LIKE
+'innodb_buffer_pool_resize_status%';
+variable_name	variable_value
+Innodb_buffer_pool_resize_status	Latching whole of buffer pool.
+Innodb_buffer_pool_resize_status_code	4
+Innodb_buffer_pool_resize_status_progress	100
+SET GLOBAL debug = "-d,ib_buf_pool_resize_global_lock_status_code";
+#######################################################################
+# BUF_POOL_RESIZE_IN_PROGRESS (5)
+#######################################################################
+SELECT variable_name, variable_value FROM
+performance_schema.global_status WHERE LOWER(variable_name) LIKE
+'innodb_buffer_pool_resize_status%';
+variable_name	variable_value
+Innodb_buffer_pool_resize_status	buffer pool 0 : resizing with chunks 1 to 5.
+Innodb_buffer_pool_resize_status_code	5
+Innodb_buffer_pool_resize_status_progress	100
+SET GLOBAL debug = "-d,ib_buf_pool_resize_in_progress_status_code";
+#######################################################################
+# BUF_POOL_RESIZE_HASH (6)
+#######################################################################
+SELECT variable_name, variable_value FROM
+performance_schema.global_status WHERE LOWER(variable_name) LIKE
+'innodb_buffer_pool_resize_status%';
+variable_name	variable_value
+Innodb_buffer_pool_resize_status	Resizing also other hash tables.
+Innodb_buffer_pool_resize_status_code	6
+Innodb_buffer_pool_resize_status_progress	100
+SET GLOBAL debug = "-d,ib_buf_pool_resize_hash_status_code";
+#######################################################################
+# BUF_POOL_RESIZE_COMPLETE (0) (exclude message as it has timestamp)
+#######################################################################
+SELECT variable_name, variable_value FROM
+performance_schema.global_status WHERE LOWER(variable_name) LIKE
+'innodb_buffer_pool_resize_status_%';
+variable_name	variable_value
+Innodb_buffer_pool_resize_status_code	0
+Innodb_buffer_pool_resize_status_progress	100
+SET GLOBAL debug = "-d,ib_buf_pool_resize_complete_status_code";
+#######################################################################
+# Trigger a resize that will fail
+#######################################################################
+# restart: --innodb-buffer-pool-instances=2 --innodb-buffer-pool-size=1G
+SET GLOBAL innodb_buffer_pool_size = @prev_size + 4 * 25165824;
+Warnings:
+Warning	1292	Truncated incorrect innodb_buffer_pool_size value: '0'
+Warning	1210	Cannot update innodb_buffer_pool_size to less than 1GB if innodb_buffer_pool_instances > 1.
+#######################################################################
+# BUF_POOL_RESIZE_FAILED (7)
+#######################################################################
+SELECT variable_name, variable_value FROM
+performance_schema.global_status WHERE LOWER(variable_name) LIKE
+'innodb_buffer_pool_resize_status%';
+variable_name	variable_value
+Innodb_buffer_pool_resize_status	Failed to validate requested buffer pool size.
+Innodb_buffer_pool_resize_status_code	7
+Innodb_buffer_pool_resize_status_progress	100
+SET GLOBAL debug = "-d,ib_buf_pool_resize_failed_status_code";
+#######################################################################
+# CLEAN UP
+#######################################################################
+# Reset back to previous state
+# restart
