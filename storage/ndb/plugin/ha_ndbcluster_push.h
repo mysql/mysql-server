@@ -388,11 +388,29 @@ struct pushed_table {
     return nests;
   }
 
-  bool isOuterJoined(const pushed_table &parent) const {
-    return m_first_inner > parent.m_first_inner;
+  /**
+   * Joined tables are collected in 'nests of tables' being INNER,
+   * OUTER, ANTI or SEMI joined (the JoinType). All tables in the same
+   * nest are joined with the specific JoinType relative to any ancestors
+   * outside of its nest. As tables are collected and enumerated left deep,
+   * we can easily check the Join properties (-> 'nest membership') by
+   * comparing 'm_tab_no' and the 'first_inner' table in the specific nest.
+   */
+  bool isInnerJoined(const pushed_table &ancestor) const {
+    assert(ancestor.m_tab_no <= m_tab_no);  // Is an ancestor
+    return m_first_inner <= ancestor.m_tab_no;
   }
-  bool isInnerJoined(const pushed_table &parent) const {
-    return m_first_inner <= parent.m_first_inner;
+  bool isOuterJoined(const pushed_table &ancestor) const {
+    assert(ancestor.m_tab_no <= m_tab_no);  // Is an ancestor
+    return m_first_inner > ancestor.m_tab_no;
+  }
+  bool isSemiJoined(const pushed_table &ancestor) const {
+    assert(ancestor.m_tab_no <= m_tab_no);  // Is an ancestor
+    return m_first_sj_inner > static_cast<int>(ancestor.m_tab_no);
+  }
+  bool isAntiJoined(const pushed_table &ancestor) const {
+    assert(ancestor.m_tab_no <= m_tab_no);  // Is an ancestor
+    return m_first_anti_inner > static_cast<int>(ancestor.m_tab_no);
   }
 
   /**
@@ -597,12 +615,6 @@ struct pushed_table {
   int get_first_sj_upper() const;
 
   int get_first_anti_inner() const;
-
-  // Is member of a SEMI-Join_nest, relative to ancestor?
-  bool is_semi_joined(const pushed_table *ancestor) const;
-
-  // Is member of an ANTI-Join_nest, relative to ancestor?
-  bool is_anti_joined(const pushed_table *ancestor) const;
 
   /**
     Getter and setters for an opaque object for each table.

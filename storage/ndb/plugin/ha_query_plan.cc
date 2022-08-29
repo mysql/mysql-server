@@ -115,10 +115,6 @@ class Join_nest {
   int get_first_upper() const;
   int get_first_sj_upper() const;
 
-  // Check if 'this' nest is ANTI/SEMI-joined with ancestor nest
-  bool is_anti_joined(const Join_nest *ancestor) const;
-  bool is_semi_joined(const Join_nest *ancestor) const;
-
   // Get a bitmap of tables affected by filter conditions attached to
   // Join_nest(s) between 'this' nest and the specified ancestor nest
   table_map get_filtered_tables(const Join_nest *ancestor) const;
@@ -1056,43 +1052,6 @@ int Join_nest::get_first_anti_inner() const {
 }
 
 /**
- * Is this Join_nest (and all its tables) ANTI-joined relative
- * to the ancestor nest?
- */
-bool Join_nest::is_anti_joined(const Join_nest *ancestor) const {
-  const Join_nest *nest = this;
-  const uint ancestor_first_inner = ancestor->m_first_inner;
-  assert(this->m_first_inner >= ancestor_first_inner);
-
-  while (nest->m_first_inner > ancestor_first_inner) {
-    if (nest->get_JoinType() == JoinType::ANTI) {
-      return true;
-    }
-    nest = nest->m_upper_nest;
-  }
-  return false;
-}
-
-/**
- * Is this Join_nest (and all its tables) SEMI-joined relative
- * to the ancestor nest?
- */
-bool Join_nest::is_semi_joined(const Join_nest *ancestor) const {
-  // Sufficient that any ancestor-nest is a SEMI join
-  const Join_nest *nest = this;
-  const uint ancestor_first_inner = ancestor->m_first_inner;
-  assert(this->m_first_inner >= ancestor_first_inner);
-
-  while (nest->m_first_inner > ancestor_first_inner) {
-    if (nest->get_JoinType() == JoinType::SEMI) {
-      return true;
-    }
-    nest = nest->m_upper_nest;
-  }
-  return false;
-}
-
-/**
  * Get a bitmap of all tables between this nest and ancestor nest
  * affected by FILTER(s)
  */
@@ -1280,14 +1239,6 @@ int pushed_table::get_first_sj_upper() const {
  */
 int pushed_table::get_first_anti_inner() const {
   return m_join_nest->get_first_anti_inner();
-}
-
-bool pushed_table::is_semi_joined(const pushed_table *ancestor) const {
-  return m_join_nest->is_semi_joined(ancestor->m_join_nest);
-}
-
-bool pushed_table::is_anti_joined(const pushed_table *ancestor) const {
-  return m_join_nest->is_anti_joined(ancestor->m_join_nest);
 }
 
 bool pushed_table::has_condition_inbetween(const pushed_table *ancestor) const {

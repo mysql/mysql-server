@@ -786,6 +786,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
              (int)root_no < first_sj_inner) {  // Is a SJ relative to root
 
         // Phase 2 of pushability check, see big comment above.
+        assert(m_tables[first_sj_inner].isSemiJoined(*m_join_root));
         validate_join_nest(m_tables[first_sj_inner].m_sj_nest, first_sj_inner,
                            tab_no, "semi");
 
@@ -807,6 +808,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
 
         if (first_inner > root_no) {  // Root is outer-joined with nest
           // Phase 2 of pushability check, see big comment above.
+          assert(m_tables[first_inner].isOuterJoined(*m_join_root));
           ndb_table_map inner_nest(m_tables[first_inner].get_full_inner_nest());
           validate_join_nest(inner_nest, first_inner, tab_no, "outer");
         } else {
@@ -1425,7 +1427,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     outer_join_nests.subtract(m_join_root->m_upper_nests);
 
     const char *join_type =
-        table->is_anti_joined(m_join_root) ? "anti" : "outer";
+        table->isAntiJoined(*m_join_root) ? "anti" : "outer";
     if (!is_pushable_within_nest(table, outer_join_nests, join_type)) {
       return false;
     }
@@ -1602,7 +1604,7 @@ bool ndb_pushed_builder_ctx::set_ancestor_nests(
    * Allow all tables in the referred parents nest to become
    * part of the set of later referrable ancestor_nests.
    */
-  if (parent_no >= first_inner) {  // Inner joined with parent
+  if (table->isInnerJoined(*parent)) {
     table->m_ancestor_nests = m_tables[first_inner].m_ancestor_nests;
   } else {  // Outer joins with parent
     /**
@@ -1611,6 +1613,7 @@ bool ndb_pushed_builder_ctx::set_ancestor_nests(
      * selected parent - which also becomes ancestors of this table,
      * including all tables in the parent inner-nest.
      */
+    assert(table->isOuterJoined(*parent));
     ndb_table_map ancestor_nests(parent->m_ancestor_nests);
     ancestor_nests.add(parent->get_inner_nest(tab_no));
     table->m_ancestor_nests = ancestor_nests;
@@ -2399,7 +2402,7 @@ int ndb_pushed_builder_ctx::build_query() {
         options.setMatchType(NdbQueryOptions::MatchNonNull);
       }
 
-      if (table->is_semi_joined(m_join_root)) {
+      if (table->isSemiJoined(*m_join_root)) {
         /**
          * We already concluded in is_pushable_as_child() that the semi-join
          * was pushable, we can't undo that now! However, we do assert some of
@@ -2416,7 +2419,7 @@ int ndb_pushed_builder_ctx::build_query() {
         options.setMatchType(NdbQueryOptions::MatchFirst);
       }
 
-      if (table->is_anti_joined(parent)) {
+      if (table->isAntiJoined(*parent)) {
         // An antijoin is a variant of outer join, returning only a
         // 'firstMatch' or the NULL-extended outer rows
         assert(table->isOuterJoined(*parent));
