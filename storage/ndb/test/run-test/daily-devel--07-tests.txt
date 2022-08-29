@@ -257,6 +257,6 @@ args: -n BranchNonZeroLabel T6 T16
 max-time: 180
 
 cmd: testBasic
-args : -n AbortIgnoreError
+args : -n AbortIgnoreError T2 T3 D1
 max-time: 360
 
