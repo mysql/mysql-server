@@ -33,7 +33,6 @@
 
 #include "my_dbug.h"
 #include "sql/current_thd.h"
-#include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "storage/ndb/include/ndb_version.h"
@@ -343,25 +342,8 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
    */
   construct(root_path);
 
-  /**
-   * In addition to the structures set up below, the ndb_pushed_builder_ctx
-   * need a later 'prepare' with the root we will try to build a pushed join
-   * with. Note that the same ndb_pushed_builder_ctx might be reused when
-   * trying to push with different roots.
-   */
-  ndb_table_map upper_nests;
-  ndb_table_map inner_nest;
-
-  // Keep track of where join-nest and semi_join-nest starts
-  uint first_inner = m_tables[0].get_first_inner();
+  // Keep track of where semi_join-nest starts (for now ... )
   int first_sj_inner = m_tables[0].get_first_sj_inner();
-
-  /**
-   * We use a join-nest stack to keep track of the upper tables
-   * we 'unwind' to when leaving an outer-joined nest.
-   */
-  Mem_root_array<int> nest_stack(m_thd->mem_root);
-  int upper = -1;
 
   /**
    * Set up the nest structure in m_tables[]. Init even those
@@ -370,6 +352,12 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
   assert(m_table_count > 0);
   assert(m_table_count <= MAX_TABLES);
 
+  /**
+   * In addition to the structures set up below, the ndb_pushed_builder_ctx
+   * need a later 'prepare' with the root we will try to build a pushed join
+   * with. Note that the same ndb_pushed_builder_ctx might be reused when
+   * trying to push with different roots.
+   */
   for (uint tab_no = 0; tab_no < m_table_count; tab_no++) {
     pushed_table *const table = &m_tables[tab_no];
 
@@ -383,23 +371,23 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
      * starting at 'first_upper'. 'm_inner_nest' and 'm_upper_nests' are the
      * respective bitmap of tables in these nests.
      */
-    if (tab_no > 0 && table->get_first_inner() == tab_no) {
-      // Push the upper nest to return to later
-      nest_stack.push_back(upper);
-      // Enter new inner nest
-      upper_nests = m_tables[first_inner].m_upper_nests;
-      upper_nests.add(inner_nest);
-      inner_nest.clear_all();
-      first_inner = tab_no;
-    }
-    table->m_first_inner = first_inner;
+    table->m_first_inner = table->get_first_inner();
     table->m_last_inner = table->get_last_inner();
     table->m_first_upper = table->get_first_upper();
-    table->m_upper_nests = upper_nests;
-    table->m_inner_nest = inner_nest;
-    inner_nest.add(tab_no);
-    // In case next tab_no will start a new inner nest
-    upper = tab_no;
+
+    // By convention m_inner_nest contain only tables prior to this 'tab_no'
+    table->m_inner_nest = table->get_inner_nest(tab_no);
+
+    // Set up the nested set of m_upper_nests.
+    if (tab_no != table->m_first_inner) {
+      table->m_upper_nests = m_tables[table->m_first_inner].m_upper_nests;
+    } else if (tab_no > 0) {
+      // upper_nest = upper->upper_nest + upper->inner_nest
+      assert(table->m_first_upper >= 0);
+      pushed_table *const first_upper_table = &m_tables[table->m_first_upper];
+      table->m_upper_nests = first_upper_table->m_upper_nests;
+      table->m_upper_nests.add(first_upper_table->get_inner_nest(tab_no));
+    }
 
     /**
      * Collect similar (simpler) info for semi_join nests.
@@ -424,41 +412,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
       // A pushable table scan, collect in bitmap for later fast checks
       m_scan_operations.add(tab_no);
     }
-
-    /**
-     * Leave join-nests when at 'last_inner'
-     *
-     * This table can be the last inner table of join-nest(s).
-     * That will require additional pushability checks of entire nest
-     *
-     * Note that the same tab_no may unwind several inner/semi join-nests.
-     * ... all having the same 'last_inner' (this tab_no)
-     */
-
-    // Prepare inner/outer join-nest structure for unwind;
-    uint last_inner = table->m_last_inner;
-    int first_upper = table->m_first_upper;
-
-    while (tab_no == last_inner &&  // End of current join-nest, and
-           first_upper >= 0) {      // has an embedding upper nest
-      /**
-       * We leave the current join-nest and unwind to the last 'upper-table'
-       * visited before entering this nest.
-       * Continue the inner_ and upper_nests of this upper-table.
-       */
-      upper = nest_stack.back();
-      nest_stack.pop_back();
-      inner_nest = m_tables[upper].m_inner_nest;
-      inner_nest.add(upper);
-      upper_nests = m_tables[upper].m_upper_nests;
-
-      first_inner = first_upper;
-      last_inner = m_tables[first_inner].m_last_inner;
-      first_upper = m_tables[first_inner].m_first_upper;
-    }  // while 'leaving a nest'
-  }    // for tab_no [0..m_table_count-1]
-  assert(upper_nests.is_clear_all());
-  assert(nest_stack.size() == 0);
+  }  // for tab_no [0..m_table_count-1]
 }
 
 /**
