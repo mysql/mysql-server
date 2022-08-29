@@ -128,10 +128,12 @@ class Join_nest {
   Join_scope *const m_upper_join_scope{nullptr};
 
  private:
+  friend struct pushed_table;
   friend class ndb_pushed_builder_ctx;
 
   // Get the upper'most Join_nest, while still being within 'this' nest
   // (Ignores redundant INNER / SEMI nests)
+  Join_nest *get_inner_nest();
   const Join_nest *get_inner_nest() const;
   const Join_nest *get_semi_nest() const;
 
@@ -144,6 +146,13 @@ class Join_nest {
    */
   const uint m_first_inner{0};  // The first table represented in this Join_nest
   int m_last_inner{-1};         // The last table in this Join_nest
+
+  /**
+   * Map of all tables contained in this Join_nest. If there are multiple nested
+   * inner-nests, only the upper most of these, as returned by get_inner_nest()
+   * will maintain the inner_map of the nests.
+   */
+  ndb_table_map m_inner_map;
 
   /** An optional FILTER on the join_nest */
   const AccessPath *m_filter{nullptr};
@@ -209,7 +218,7 @@ class Join_scope : public Join_nest {
 
   // Get all tables in this Join_scope as well as in upper scopes.
   ndb_table_map get_all_tables_map() const {
-    ndb_table_map map(m_table_map);
+    ndb_table_map map(m_scope_map);
     map.add(m_all_upper_map);
     return map;
   }
@@ -228,7 +237,7 @@ class Join_scope : public Join_nest {
   const ndb_table_map m_all_upper_map;
 
   // Tables in this Join_scope, not including upper- or sub-scopes.
-  ndb_table_map m_table_map;
+  ndb_table_map m_scope_map;
 };
 
 /**
@@ -378,8 +387,10 @@ void ndb_pushed_builder_ctx::construct(Join_nest *nest_ctx,
       TABLE *const table = GetBasicTable(path);
       assert(table != nullptr);
       if (likely(table != nullptr)) {
+        Join_nest *join_nest = nest_ctx->get_inner_nest();
+        join_nest->m_inner_map.add(tab_no);
         Join_scope *join_scope = nest_ctx->get_join_scope();
-        join_scope->m_table_map.add(tab_no);
+        join_scope->m_scope_map.add(tab_no);
       }
       m_tables[tab_no].m_join_nest = nest_ctx;
       m_tables[tab_no].m_tab_no = tab_no;
@@ -943,6 +954,15 @@ const Join_nest *Join_nest::get_inner_nest() const {
   }
   return nest;
 }
+Join_nest *Join_nest::get_inner_nest() {
+  Join_nest *nest = this;
+  while (nest->m_upper_nest != nullptr &&
+         (nest->get_JoinType() == JoinType::INNER ||
+          nest->get_JoinType() == JoinType::SEMI)) {
+    nest = nest->m_upper_nest;
+  }
+  return nest;
+}
 const Join_nest *Join_nest::get_semi_nest() const {
   // Sufficient that any ancestor-nest is a SEMI join
   const Join_nest *nest = this;
@@ -1166,6 +1186,22 @@ ndb_table_map pushed_table::get_tables_in_this_query_scope() const {
 const char *pushed_table::get_scope_description() const {
   const Join_scope *join_scope = get_join_scope();
   return join_scope->m_descr;
+}
+
+// Get map of tables in the inner nest, prior to 'last',
+// which this table is a member of
+ndb_table_map pushed_table::get_inner_nest(uint last) const {
+  ndb_table_map nest(get_full_inner_nest());
+  ndb_table_map prefix;
+  prefix.set_prefix(last);
+  nest.intersect(prefix);
+  return nest;
+}
+
+// Get map of all tables in the join_nest this table is a member of.
+ndb_table_map pushed_table::get_full_inner_nest() const {
+  Join_nest *inner_nest = m_join_nest->get_inner_nest();
+  return inner_nest->m_inner_map;
 }
 
 /**

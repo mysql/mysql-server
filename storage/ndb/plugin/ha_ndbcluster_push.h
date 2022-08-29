@@ -502,7 +502,7 @@ struct pushed_table {
    *       (oj)  /  \  (oj)
    *           (t3 (t4))
    *
-   * (Note also the nest-dependeny-comments above regarding how extra
+   * (Note also the nest-dependency-comments above regarding how extra
    * dependencies between tables in the same inner-nest may be added)
    */
   ndb_table_map m_ancestors;
@@ -566,6 +566,13 @@ struct pushed_table {
   // Do we have some conditions (aka FILTERs) in the AccessPath
   // between 'this' table and the 'ancestor'
   bool has_condition_inbetween(const pushed_table *ancestor) const;
+
+  // Get map of tables in the inner nest, prior to 'last',
+  // which 'this' is a member of
+  ndb_table_map get_inner_nest(uint last) const;
+
+  // Get map of all tables in the inner nest which 'this' is a member of
+  ndb_table_map get_full_inner_nest() const;
 
   uint get_first_inner() const;
   uint get_last_inner() const;
@@ -755,21 +762,5 @@ class ndb_pushed_builder_ctx {
   uint m_table_count;
 
   pushed_table m_tables[MAX_TABLES];
-
-  // Return all tables in the inner nest, including table after
-  // this 'tab_no' which are members of the same join-nest.
-  ndb_table_map full_inner_nest(uint tab_no, uint last) const {
-    ndb_table_map nest(m_tables[tab_no].m_inner_nest);
-    nest.add(tab_no);
-    const uint first_inner = m_tables[tab_no].m_first_inner;
-    for (uint i = tab_no + 1; i <= last; i++) {
-      if (m_tables[i].m_first_inner == i) {  // Start of embedded nest?
-        i = m_tables[i].m_last_inner;        // Skip embedded nest
-      } else if (m_tables[i].m_first_inner == first_inner) {
-        nest.add(i);  // Include member of this nest
-      }
-    }
-    return nest;
-  }
 
 };  // class ndb_pushed_builder_ctx

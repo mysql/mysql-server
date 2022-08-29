@@ -852,7 +852,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
 
         if (first_inner > root_no) {  // Root is outer-joined with nest
           // Phase 2 of pushability check, see big comment above.
-          ndb_table_map inner_nest(full_inner_nest(first_inner, tab_no));
+          ndb_table_map inner_nest(m_tables[first_inner].get_full_inner_nest());
           validate_join_nest(inner_nest, first_inner, tab_no, "outer");
         } else {
           break;
@@ -1464,7 +1464,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
      * the above 1b,1c,2b and 2c cases against.
      */
     ndb_table_map outer_join_nests(table->embedding_nests());
-    outer_join_nests.subtract(full_inner_nest(root_no, tab_no));
+    outer_join_nests.subtract(m_join_root->get_full_inner_nest());
     outer_join_nests.subtract(m_join_root->m_upper_nests);
 
     const char *join_type =
@@ -1655,7 +1655,7 @@ bool ndb_pushed_builder_ctx::set_ancestor_nests(
      * including all tables in the parent inner-nest.
      */
     ndb_table_map ancestor_nests(parent->m_ancestor_nests);
-    ancestor_nests.add(full_inner_nest(parent_no, tab_no));
+    ancestor_nests.add(parent->get_inner_nest(tab_no));
     table->m_ancestor_nests = ancestor_nests;
     m_tables[first_inner].m_ancestor_nests = ancestor_nests;
   }
@@ -2486,7 +2486,8 @@ int ndb_pushed_builder_ctx::build_query() {
         if (m_join_scope.contain(antijoin_scope) &&
             !m_has_pending_cond.is_overlapping(antijoin_scope)) {
           const uint first_upper = table->m_first_upper;
-          ndb_table_map upper_nest(full_inner_nest(first_upper, tab_no));
+          ndb_table_map upper_nest(
+              m_tables[first_upper].get_inner_nest(tab_no));
           upper_nest.intersect(m_join_scope);
 
           if (upper_nest.contain(parent_no)) {
@@ -2548,7 +2549,8 @@ int ndb_pushed_builder_ctx::build_query() {
 
         } else if (table->m_first_upper >= 0) {
           const uint first_upper = table->m_first_upper;
-          ndb_table_map upper_nest(full_inner_nest(first_upper, tab_no));
+          ndb_table_map upper_nest(
+              m_tables[first_upper].get_inner_nest(tab_no));
           upper_nest.intersect(m_join_scope);
           if (!upper_nest.is_clear_all()) {
             // There is an upper nest which we outer join with
