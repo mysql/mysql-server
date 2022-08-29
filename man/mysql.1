@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2022
+.\"      Date: 08/29/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -246,7 +246,7 @@ displays binary data using hexadecimal notation (0x\fIvalue\fR)\&. This occurs w
 when enabled affects display of all binary strings, including those returned by functions such as
 CHAR()
 and
-UNHEX()\&. The following example demonistrates this using the ASCII code for
+UNHEX()\&. The following example demonstrates this using the ASCII code for
 A
 (65 decimal, 41 hexadecimal):
 .sp
@@ -963,7 +963,7 @@ ALTER USER \fIuser\fR \fIfactor\fR FINISH REGISTRATION SET CHALLENGE_RESPONSE AS
 .\}
 .sp
 The statement completes the registration and sends the following information to the server as part of the
-\fIauth_string\fR: athenticator data, an optional attestation certificate in X\&.509 format, and a signature\&.
+\fIauth_string\fR: authenticator data, an optional attestation certificate in X\&.509 format, and a signature\&.
 .sp
 The initiate and registration steps must be performed in a single connection, as the challenge received by the client during the initiate step is saved to the client connection handler\&. Registration would fail if the registration step was performed by a different connection\&. The
 \fB\-\-fido\-register\-factor\fR
@@ -4474,7 +4474,7 @@ file:
 .\}
 .nf
 [mysql]
-default\-character\-set=utf8mb4
+default\-character\-set=utf8mb4   # or utf8mb3
 .fi
 .if n \{\
 .RE
