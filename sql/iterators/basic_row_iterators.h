@@ -51,13 +51,21 @@ struct TABLE;
 
   This is the most basic access method of a table using rnd_init,
   ha_rnd_next and rnd_end. No indexes are used.
- */
+*/
 class TableScanIterator final : public TableRowIterator {
  public:
-  // “expected_rows” is used for scaling the record buffer.
-  // If zero or less, no record buffer will be set up.
-  //
-  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  /**
+    @param thd     session context
+    @param table   table to be scanned. Notice that table may be a temporary
+                   table that represents a set operation (UNION, INTERSECT or
+                   EXCEPT). For the latter two, the counter field must be
+                   interpreted by TableScanIterator::Read in order to give the
+                   correct result set, but this is invisible to the consumer.
+    @param expected_rows is used for scaling the record buffer.
+                   If zero or less, no record buffer will be set up.
+    @param examined_rows if not nullptr, is incremented for each successful
+                   Read().
+  */
   TableScanIterator(THD *thd, TABLE *table, double expected_rows,
                     ha_rows *examined_rows);
   ~TableScanIterator() override;
@@ -69,6 +77,22 @@ class TableScanIterator final : public TableRowIterator {
   uchar *const m_record;
   const double m_expected_rows;
   ha_rows *const m_examined_rows;
+  /// Used to keep track of how many more duplicates of the last read row that
+  /// remains to be written to the next stage: used for EXCEPT and INTERSECT
+  /// computation: we only ever materialize one row even if there are
+  /// duplicates of it, but with a counter, cf TABLE::m_set_counter. When we
+  /// start scanning we must produce as many duplicates as ALL semantics
+  /// mandate, so we initialize m_examined_rows based on TABLE::m_set_counter
+  /// and decrement for each row we emit, so as to produce the correct number
+  /// of duplicates for the next stage.
+  ulonglong m_remaining_dups{0};
+  /// Used for EXCEPT and INTERSECT only: we cannot enforce limit during
+  /// materialization as for UNION and single table, so we have to do it during
+  /// the scan.
+  const ha_rows m_limit_rows;
+  /// Used for EXCEPT and INTERSECT only: rows scanned so far, see also
+  /// m_limit_rows.
+  ha_rows m_stored_rows{0};
 };
 
 /** Perform a full index scan along an index. */
@@ -498,6 +522,34 @@ class TableValueConstructorIterator final : public RowIterator {
   /// be output, this contains Item_values_column objects. In this case, each
   /// call to Read() will replace its current reference with the next row.
   mem_root_deque<Item *> *const m_output_refs;
+};
+
+/**
+  Auxiliary class to squeeze two 32 bits integers into a 64 bits one, cf.
+  logic of INTERSECT ALL in
+  MaterializeIterator<Profiler>::MaterializeQueryBlock.
+  For INTERSECT ALL we need two counters: the number of duplicates in the left
+  operand, and the number of matches seen (so far) from the right operand.
+  Instead of adding another field to the temporary table, we subdivide the
+  64 bits counter we already have. This imposes an implementation restriction
+  on INTERSECT ALL: the resulting table must have <= uint32::max duplicates of
+  any row.
+ */
+class HalfCounter {
+  union {
+    /// [0]: # of duplicates on left side of INTERSECT ALL
+    /// [1]: # of duplicates on right side of INTERSECT ALL. Always <= [0].
+    uint32_t m_value[2];
+    uint64_t m_value64;
+  } data;
+
+ public:
+  HalfCounter(uint64_t packed) { data.m_value64 = packed; }
+  uint64_t value() const { return data.m_value64; }
+  uint32_t &operator[](size_t idx) {
+    assert(idx == 0 || idx == 1);
+    return data.m_value[idx];
+  }
 };
 
 #endif  // SQL_ITERATORS_BASIC_ROW_ITERATORS_H_

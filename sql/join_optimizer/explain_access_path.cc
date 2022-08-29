@@ -324,16 +324,16 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
     }
   }();
 
-  const bool is_union = param->query_blocks.size() > 1;
+  const bool is_set_operation = param->query_blocks.size() > 1;
   string str;
-
+  const bool doing_dedup = MaterializeIsDoingDeduplication(param->table);
   if (param->cte != nullptr) {
     error |= AddMemberToObject<Json_boolean>(obj, "cte", true);
     if (param->cte->recursive) {
       error |= AddMemberToObject<Json_boolean>(obj, "recursive", true);
       str = "Materialize recursive CTE " + to_string(param->cte->name);
     } else {
-      if (is_union) {
+      if (is_set_operation) {
         str = "Materialize union CTE " + to_string(param->cte->name);
         error |= AddMemberToObject<Json_boolean>(obj, "union", true);
       } else {
@@ -347,20 +347,43 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
         }
       }
     }
-  } else if (is_union) {
-    error |= AddMemberToObject<Json_boolean>(obj, "union", true);
-    str = "Union materialize";
+  } else if (is_set_operation) {
+    if (param->table->is_union_or_table()) {
+      if (doing_dedup) {
+        str = "Union materialize";
+      } else {
+        str = "Union all materialize";
+      }
+      error |= AddMemberToObject<Json_boolean>(obj, "union", true);
+    } else {
+      if (param->table->is_except()) {
+        if (param->table->is_distinct()) {
+          str = "Except materialize";
+        } else {
+          str = "Except all materialize";
+        }
+        error |= AddMemberToObject<Json_boolean>(obj, "except", true);
+      } else {
+        if (param->table->is_distinct()) {
+          str = "Intersect materialize";
+        } else {
+          str = "Intersect all materialize";
+        }
+        error |= AddMemberToObject<Json_boolean>(obj, "intersect", true);
+      }
+    }
   } else if (param->rematerialize) {
     error |= AddMemberToObject<Json_boolean>(obj, "temp_table", true);
     str = "Temporary table";
   } else {
     str = "Materialize";
   }
-
-  if (MaterializeIsDoingDeduplication(param->table)) {
+  const bool union_dedup = param->table->is_union_or_table() && doing_dedup;
+  if (union_dedup ||
+      (!param->table->is_union_or_table() && param->table->is_distinct())) {
     error |= AddMemberToObject<Json_boolean>(obj, "deduplication", true);
     str += " with deduplication";
-  }
+  }  // else: do not print deduplication for intersect, except
 
   if (param->invalidators != nullptr) {
     std::unique_ptr<Json_array> cache_invalidators(new (std::nothrow)
@@ -424,6 +447,16 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
     string this_heading = heading;
 
     if (query_block.disable_deduplication_by_hash_field) {
+      if (this_heading.empty()) {
+        this_heading = "Disable deduplication";
+      } else {
+        this_heading += ", disable deduplication";
+      }
+    }
+    if (!param->table->is_union_or_table() &&
+        (param->table->is_except() && param->table->is_distinct()) &&
+        query_block.m_operand_idx > 0 &&
+        (query_block.m_operand_idx < query_block.m_first_distinct)) {
       if (this_heading.empty()) {
         this_heading = "Disable deduplication";
       } else {

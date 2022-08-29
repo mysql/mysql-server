@@ -75,6 +75,16 @@ class Query_result_union : public Query_result_interceptor {
     return tmp_table_param.hidden_field_count;
   }
   bool skip_create_table() const { return tmp_table_param.skip_create_table; }
+
+  /// Set an effective LIMIT for the number of rows coming out of a materialized
+  /// temporary table used for implementing INTERSECT or EXCEPT: informs
+  /// TableScanIterator::TableScanIterator how many rows to read from the
+  /// materialized table. For UNION and simple tables the limitation is enforced
+  /// earlier, at materialize time, but this is not possible for INTERSECT and
+  /// EXCEPT due to the use of cardinality counters.
+  ///
+  /// @param limit_rows the effective limit, or HA_POS_ERROR if none.
+  void set_limit(ha_rows limit_rows) override;
 };
 
 #endif /* SQL_UNION_INCLUDED */

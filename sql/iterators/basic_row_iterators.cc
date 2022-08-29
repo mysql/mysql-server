@@ -179,7 +179,9 @@ TableScanIterator::TableScanIterator(THD *thd, TABLE *table,
     : TableRowIterator(thd, table),
       m_record(table->record[0]),
       m_expected_rows(expected_rows),
-      m_examined_rows(examined_rows) {}
+      m_examined_rows(examined_rows),
+      m_limit_rows(table->set_counter() != nullptr ? table->m_limit_rows
+                                                   : HA_POS_ERROR) {}
 
 TableScanIterator::~TableScanIterator() {
   if (table()->file != nullptr) {
@@ -206,21 +208,69 @@ bool TableScanIterator::Init() {
     return true; /* purecov: inspected */
   }
 
+  m_stored_rows = 0;
+
   return false;
 }
 
 int TableScanIterator::Read() {
   int tmp;
-  while ((tmp = table()->file->ha_rnd_next(m_record))) {
-    /*
-      ha_rnd_next can return RECORD_DELETED for MyISAM when one thread is
-      reading and another deleting without locks.
-    */
-    if (tmp == HA_ERR_RECORD_DELETED && !thd()->killed) continue;
-    return HandleError(tmp);
-  }
-  if (m_examined_rows != nullptr) {
-    ++*m_examined_rows;
+  if (table()->is_union_or_table()) {
+    while ((tmp = table()->file->ha_rnd_next(m_record))) {
+      /*
+       ha_rnd_next can return RECORD_DELETED for MyISAM when one thread is
+       reading and another deleting without locks.
+       */
+      if (tmp == HA_ERR_RECORD_DELETED && !thd()->killed) continue;
+      return HandleError(tmp);
+    }
+    if (m_examined_rows != nullptr) {
+      ++*m_examined_rows;
+    }
+  } else {
+    while (true) {
+      if (m_remaining_dups == 0) {  // always initially
+        while ((tmp = table()->file->ha_rnd_next(m_record))) {
+          if (tmp == HA_ERR_RECORD_DELETED && !thd()->killed) continue;
+          return HandleError(tmp);
+        }
+        if (m_examined_rows != nullptr) {
+          ++*m_examined_rows;
+        }
+
+        // Filter out rows not qualifying for INTERSECT, EXCEPT by reading
+        // the counter.
+        const ulonglong cnt =
+            static_cast<ulonglong>(table()->set_counter()->val_int());
+        if (table()->is_except()) {
+          if (table()->is_distinct()) {
+            // EXCEPT DISTINCT: any counter value larger than one yields
+            // exactly one row
+            if (cnt >= 1) break;
+          } else {
+            // EXCEPT ALL: we use m_remaining_dups to yield as many rows
+            // as found in the counter.
+            m_remaining_dups = cnt;
+          }
+        } else {
+          // INTERSECT
+          if (table()->is_distinct()) {
+            if (cnt == 0) break;
+          } else {
+            HalfCounter c(cnt);
+            // Use min(left side counter, right side counter)
+            m_remaining_dups = std::min(c[0], c[1]);
+          }
+        }
+      } else {
+        --m_remaining_dups;  // return the same row once more.
+        break;
+      }
+      // Skipping this row
+    }
+    if (++m_stored_rows > m_limit_rows) {
+      return HandleError(HA_ERR_END_OF_FILE);
+    }
   }
   return 0;
 }

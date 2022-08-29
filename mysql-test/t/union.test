@@ -28,7 +28,7 @@ select a,b from t1 union select a,b from t1;
 --sorted_result
 select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 group by b;
 
-# Test alternate syntax for unions 
+# Test alternate syntax for unions
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1);
 --replace_column 10 # 11 #
@@ -46,7 +46,7 @@ select                      a,b from t1  union all select a,b from t2) q;
 select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
 select found_rows();
 --replace_column 10 # 11 #
-explain 
+explain
   select * from t1 where a in
     (select a from t1 union select a from t1 order by (select a))
   union select * from t1 order by (select a);
@@ -122,6 +122,8 @@ insert into t2 values (11),(12),(13),(14),(15);
 (select * from t1 limit 2) union (select * from t2 limit 20,3);
 set SQL_SELECT_LIMIT=2;
 (select * from t1 limit 1) union (select * from t2 limit 3);
+(select * from t1 limit 3) intersect (select * from t1 limit 3);
+(select * from t1 limit 4) except (select * from t1 limit 1);
 set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
 
@@ -508,7 +510,7 @@ select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
 show status like 'Slow_queries';
 # additional test for examined rows
 flush status;
-select a from t1 where b not in (1,2,3) union select a from t1 where b not in (4,5,6); 
+select a from t1 where b not in (1,2,3) union select a from t1 where b not in (4,5,6);
 --skip_if_hypergraph  # Depends on the query plan; all queries use table scans.
 show status like 'Slow_queries';
 drop table t1;
@@ -724,8 +726,8 @@ drop table t1, t2, t3, t4;
 #
 # Bug #2435 UNION with parentheses not supported
 #
-create table t1 (a int not null, b char (10) not null); 
-insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c'); 
+create table t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 select * from ((select * from t1 limit 1)) a;
 select * from ((select * from t1 limit 1) union (select * from t1 limit 1)) a;
 select * from ((select * from t1 limit 1) union (select * from t1 limit 1) union (select * from t1 limit 1)) a;
@@ -773,7 +775,7 @@ create table t2 select a from t1 union select b from t1;
 show columns from t2;
 drop table t2, t1;
 
-# 
+#
 # Bug #14216: UNION + DECIMAL wrong values in result
 #
 create table t1 (f1 decimal(60,25), f2 decimal(60,25));
@@ -949,7 +951,7 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (3),(1),(2),(4),(1);
 
 SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a) AS test;
---error 1054 
+--error 1054
 SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY c) AS test;
 
 DROP TABLE t1;
@@ -973,29 +975,29 @@ INSERT INTO t1 VALUES (10), (20);
 CREATE TABLE t2 (b int);
 INSERT INTO t2 VALUES (10), (50), (50);
 
-SELECT a,1 FROM t1 
+SELECT a,1 FROM t1
 UNION
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP
 ORDER BY a;
 
-SELECT a,1 FROM t1 
+SELECT a,1 FROM t1
 UNION
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP
 ORDER BY a DESC;
 
-SELECT a,1 FROM t1 
+SELECT a,1 FROM t1
 UNION
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP
 ORDER BY a ASC LIMIT 3;
 
-SELECT a,1 FROM t1 
-UNION ALL 
+SELECT a,1 FROM t1
+UNION ALL
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP
 ORDER BY a DESC;
 
 --error ER_BAD_FIELD_ERROR
 SELECT a,1 FROM t1
-UNION 
+UNION
 (SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a);
 
 --error ER_PARSE_ERROR
@@ -1024,7 +1026,7 @@ DESC t4;
 CREATE TABLE t5 SELECT NULL UNION SELECT NULL;
 DESC t5;
 
-CREATE TABLE t6 
+CREATE TABLE t6
 SELECT * FROM (SELECT * FROM (SELECT NULL)a) b UNION SELECT a FROM t1;
 DESC t6;
 
@@ -1058,7 +1060,7 @@ DROP TABLE t1;
 
 --echo End of 5.0 tests
 -- echo #
--- echo # Bug#32858: Error: "Incorrect usage of UNION and INTO" does not take 
+-- echo # Bug#32858: Error: "Incorrect usage of UNION and INTO" does not take
 -- echo # subselects into account
 -- echo #
 CREATE TABLE t1 (a INT);
@@ -1101,10 +1103,10 @@ SELECT ( SELECT a UNION SELECT a ) INTO DUMPFILE 'union.out.file4' FROM t1;
 DROP TABLE t1;
 remove_files_wildcard $MYSQLTEST_VARDIR/mysqld.1/data/test union.out.fil*;
 
---echo # 
---echo # Bug #49734: Crash on EXPLAIN UNION ... ORDER BY 
+--echo #
+--echo # Bug #49734: Crash on EXPLAIN UNION ... ORDER BY
 --echo #   <any non-const-function>
---echo # 
+--echo #
 
 CREATE TABLE t1 (a VARCHAR(10), FULLTEXT KEY a (a));
 INSERT INTO t1 VALUES (1),(2);
@@ -1202,7 +1204,7 @@ eval prepare stmt1 from '$my_stmt';
 --echo End of 5.1 tests
 
 --echo #
---echo # Bug#57986 ORDER BY clause is not used after a UNION, 
+--echo # Bug#57986 ORDER BY clause is not used after a UNION,
 --echo #           if embedded in a SELECT
 --echo #
 
@@ -1240,7 +1242,7 @@ SELECT c1, c2 FROM (
 SELECT c1, c2 FROM (
   SELECT c1, c2 FROM t1
   UNION
-  SELECT c1, c2 FROM t2 
+  SELECT c1, c2 FROM t2
   ORDER BY c2 DESC, c1 DESC LIMIT 1
 ) AS res;
 
@@ -1256,7 +1258,7 @@ SELECT c1, c2 FROM (
 DROP TABLE t1, t2;
 
 --echo #
---echo # Bug #58970 Problem Subquery (without referencing a table) 
+--echo # Bug #58970 Problem Subquery (without referencing a table)
 --echo #            and Order By
 --echo #
 
@@ -1341,7 +1343,7 @@ DROP TABLE t1, t2;
 
 CREATE TABLE t1 (a INT);
 
---error ER_DUP_FIELDNAME 
+--error ER_DUP_FIELDNAME
 CREATE TABLE t2 SELECT a, a FROM t1 UNION ALL SELECT a, a FROM t1;
 
 DROP TABLE t1;
@@ -1363,7 +1365,7 @@ INSERT INTO t2 VALUES (1);
 
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t2 UNION ALL SELECT * FROM t1) q;
-SELECT SQL_CALC_FOUND_ROWS * FROM t2 UNION ALL SELECT * FROM t1; 
+SELECT SQL_CALC_FOUND_ROWS * FROM t2 UNION ALL SELECT * FROM t1;
 SELECT FOUND_ROWS();
 
 SELECT COUNT(*) FROM (
@@ -1863,8 +1865,8 @@ DROP TABLE t1;
 
 DROP TABLE geometries;
 
---echo # 
---echo # Bug#20456178 ASSERTION FAILED: 
+--echo #
+--echo # Bug#20456178 ASSERTION FAILED:
 --echo #     (ENUM_SET_TYPELIB && GET_REAL_TYPE(ITEM) == MYSQL_TYPE_NULL)
 
 CREATE TABLE t1(a INT) engine=innodb;

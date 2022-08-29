@@ -422,4 +422,38 @@ while ($1)
 --echo # This query has max nesting and should work
 eval EXPLAIN FORMAT=json $query;
 
+--echo #
+--echo # INTERSECT operator
+--echo #
+let $query = SELECT * FROM r INTERSECT SELECT * FROM s;
+
+eval EXPLAIN FORMAT = json $query;
+
+let $query = SELECT * FROM r INTERSECT ALL SELECT * FROM s;
+eval EXPLAIN FORMAT = json $query;
+
+--echo #
+--echo # EXCEPT operator
+--echo #
+let $query = SELECT * FROM r EXCEPT SELECT * FROM s;
+
+eval EXPLAIN FORMAT = json $query;
+
+let $query = SELECT * FROM r EXCEPT ALL SELECT * FROM s;
+eval EXPLAIN FORMAT = json $query;
+
 DROP TABLE r, s, t;
+
+--echo #
+--echo # Bug#34463119 WL#349 Assertion `current_context->type == CTX_JOIN || ..
+--echo #              at opt_explain_json.cc
+--echo #
+CREATE TABLE t(pk int NOT NULL AUTO_INCREMENT, PRIMARY KEY (pk));
+
+EXPLAIN FORMAT=JSON
+SELECT * FROM (SELECT * FROM t) AS alias1
+              JOIN
+              t AS alias2
+WHERE alias1.pk NOT IN (SELECT 2 INTERSECT SELECT 1) AND
+      alias1.pk = 105;
+DROP TABLE t;

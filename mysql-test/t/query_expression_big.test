@@ -1,0 +1,53 @@
+--source include/not_windows.inc
+--source include/big_test.inc
+
+--echo # We will run tests of non-trivial size to exercise the temporary table
+--echo # overflow to disk functionality used by INTERSECT and EXCEPT logic
+--echo # occuring both when writing the initial temporary result table as well
+--echo # as when updating it when modifying counters, cf.
+--echo # MaterializeIterator::MaterializeQueryBlock. We measure the time
+--echo # needed for execution given four different setting for the internal
+--echo # temporary tables and check their relative ranking to assert that
+--echo # spill to disk actually happened.
+--echo #
+--echo # We have four scenarios we exercise:
+--echo # 1. internal_tmp_mem_storage_engine == TempTable with default settings
+--echo #    Here we see spill to disk when doing the updating.
+--echo # 2. internal_tmp_mem_storage_engine == HEAP
+--echo #    Here there is no spill to disk so quite fast.
+--echo # 3. internal_tmp_mem_storage_engine == TempTable with a small setting
+--echo #    Here we see spill to disk when writing the initial tmp table. This case
+--echo #    is expected to be slower than case 1, since more less work is
+--echo #    before we need to move to the slower disk based storage (well, InnoDB,
+--echo #    what actually goes to disk is another matter...)
+--echo # 4. internal_tmp_mem_storage_engine == TempTable with a large setting
+--echo #    Here there is no spill to disk so quite fast.
+
+CREATE TABLE t(i INT, d DATE, c VARCHAR(60) CHARSET latin1) ENGINE=innodb;
+
+set @@cte_max_recursion_depth = 100000;
+INSERT INTO t
+   WITH RECURSIVE cte AS (
+      SELECT 0 AS i, '2022-04-30' AS d, 'abracadabra' as c
+      UNION
+      SELECT 1 AS i, '2022-04-30' AS d, 'rabarbra' as c
+      UNION
+      SELECT i+2, d, c FROM cte
+      WHERE i+2 < 65536
+   )
+   SELECT i,d,c FROM cte;
+
+set @@cte_max_recursion_depth = default;
+
+# insert one duplicate of each row
+INSERT INTO t select i, d, c FROM  t;
+
+SELECT COUNT(*) FROM t;
+
+let $query = SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
+--source include/query_expression_big.inc
+let $query = SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
+--source include/query_expression_big.inc
+
+DROP TABLE t;
+
