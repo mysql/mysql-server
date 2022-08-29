@@ -537,7 +537,6 @@ dberr_t log_files_write_first_data_block_low(log_t &log,
 
   std::memcpy(log.buf + block_lsn % log.buf_size, block,
               OS_FILE_LOG_BLOCK_SIZE);
-  ut_d(log.first_block_is_correct_for_lsn = checkpoint_lsn);
 
   /* Write the first empty log block to the file. */
   const os_offset_t block_offset = Log_file::offset(block_lsn, file_start_lsn);

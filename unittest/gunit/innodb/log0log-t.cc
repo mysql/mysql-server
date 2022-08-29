@@ -202,7 +202,7 @@ static bool log_test_init() {
 
   fil_open_system_tablespace_files();
 
-  err = log_start(log, flushed_lsn, flushed_lsn, nullptr);
+  err = log_start(log, flushed_lsn, flushed_lsn);
   ut_a(err == DB_SUCCESS);
 
   log_start_background_threads(log);

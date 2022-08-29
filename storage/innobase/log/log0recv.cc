@@ -397,7 +397,7 @@ void recv_sys_create() {
 
   recv_sys = static_cast<recv_sys_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*recv_sys)));
-
+  ut_a(recv_sys->last_block_first_mtr_boundary == 0);
   mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
   mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
@@ -464,13 +464,11 @@ static void recv_sys_finish() {
   }
 
   ut::free(recv_sys->buf);
-  ut::aligned_free(recv_sys->last_block);
   ut::delete_(recv_sys->metadata_recover);
 
   recv_sys->buf = nullptr;
   recv_sys->spaces = nullptr;
   recv_sys->metadata_recover = nullptr;
-  recv_sys->last_block = nullptr;
 }
 
 /** Release recovery system mutexes. */
@@ -624,9 +622,6 @@ void recv_sys_init() {
   recv_sys->apply_log_recs = false;
   recv_sys->apply_batch_on = false;
   recv_sys->is_cloned_db = false;
-
-  recv_sys->last_block = static_cast<byte *>(
-      ut::aligned_alloc(OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE));
 
   recv_sys->found_corrupt_log = false;
   recv_sys->found_corrupt_fs = false;
@@ -984,18 +979,9 @@ static dberr_t recv_log_recover_pre_8_0_30(log_t &log) {
   recv_sys->previous_recovered_lsn = checkpoint_lsn;
   recv_sys->checkpoint_lsn = checkpoint_lsn;
   recv_sys->scanned_lsn = checkpoint_lsn;
-  recv_sys->last_block_first_rec_group = 0;
+  recv_sys->last_block_first_mtr_boundary = 0;
 
-  ut_d(log.first_block_is_correct_for_lsn = checkpoint_lsn);
-
-  /* We are not going to rewrite the block, but just in case we prefer to
-  have first_rec_group which points on checkpoint_lsn (instead of pointing
-  on mini-transactions from earlier formats). This is extra safety if one
-  day this block would become rewritten because of some new bug (using new
-  format). */
-  log_block_set_first_rec_group(buf, checkpoint_lsn % OS_FILE_LOG_BLOCK_SIZE);
-
-  return log_start(log, checkpoint_lsn, checkpoint_lsn, nullptr);
+  return log_start(log, checkpoint_lsn, checkpoint_lsn);
 }
 
 /** Describes location of a single checkpoint. */
@@ -3029,8 +3015,7 @@ static void recv_track_changes_of_recovered_lsn() {
   if (old_block != new_block) {
     ut_a(new_block > old_block);
 
-    recv_sys->last_block_first_rec_group =
-        recv_sys->recovered_lsn % OS_FILE_LOG_BLOCK_SIZE;
+    recv_sys->last_block_first_mtr_boundary = recv_sys->recovered_lsn;
   }
 
   recv_sys->previous_recovered_lsn = recv_sys->recovered_lsn;
@@ -3768,7 +3753,7 @@ static dberr_t recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
   /* We have to trust that the first_rec_group in the first block is
   correct as we can't start parsing earlier to check it ourselves. */
   recv_sys->previous_recovered_lsn = checkpoint_lsn;
-  recv_sys->last_block_first_rec_group = 0;
+  recv_sys->last_block_first_mtr_boundary = 0;
 
   recv_sys->scanned_epoch_no = 0;
   recv_previous_parsed_rec_type = MLOG_SINGLE_REC_FLAG;
@@ -4020,62 +4005,11 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     return DB_ERROR;
   }
 
-  /* Read the last recovered log block. */
-  lsn_t start_lsn;
-  lsn_t end_lsn;
-
-  start_lsn = ut_uint64_align_down(recovered_lsn, OS_FILE_LOG_BLOCK_SIZE);
-
-  end_lsn = ut_uint64_align_up(recovered_lsn, OS_FILE_LOG_BLOCK_SIZE);
-
-  ut_a(start_lsn < end_lsn);
-  ut_a(start_lsn % log.buf_size + OS_FILE_LOG_BLOCK_SIZE <= log.buf_size);
-
-  const lsn_t recv_read_log_seg_ended_at_lsn =
-      recv_read_log_seg(log, recv_sys->last_block, start_lsn, end_lsn);
-
-  ut_a(recv_read_log_seg_ended_at_lsn == end_lsn);
-
-  if (recv_sys->last_block_first_rec_group != 0 &&
-      log_block_get_first_rec_group(recv_sys->last_block) !=
-          recv_sys->last_block_first_rec_group) {
-    /* We must not start with invalid first_rec_group in the first block,
-    because if we crashed, we could be unable to recover. We do NOT have
-    guarantee that the first_rec_group was correct because recovery did
-    not report error. The first_rec_group was used only to locate the
-    beginning of the log for recovery. For later blocks it was not used.
-    It might be corrupted on disk and stay unnoticed if checksums for
-    log blocks are disabled. In such case it would be better to repair
-    it now instead of relying on the broken value and risking data loss.
-    We emit warning to notice user about the situation. We repair that
-    only in the log buffer. */
-
-    ib::warn(ER_IB_RECV_FIRST_REC_GROUP_INVALID,
-             uint(log_block_get_first_rec_group(recv_sys->last_block)),
-             uint(recv_sys->last_block_first_rec_group));
-
-    log_block_set_first_rec_group(recv_sys->last_block,
-                                  recv_sys->last_block_first_rec_group);
-
-  } else if (log_block_get_first_rec_group(recv_sys->last_block) == 0) {
-    /* Again, if it was zero, for any reason, we prefer to fix it
-    before starting (we emit warning). */
-
-    ib::warn(ER_IB_RECV_FIRST_REC_GROUP_INVALID, uint(0),
-             uint(recovered_lsn % OS_FILE_LOG_BLOCK_SIZE));
-
-    log_block_set_first_rec_group(recv_sys->last_block,
-                                  recovered_lsn % OS_FILE_LOG_BLOCK_SIZE);
-  }
-
-  ut_d(log.first_block_is_correct_for_lsn = recovered_lsn);
-
   /* Disallow checkpoints until recovery is finished, and changes gathered
   in recv_sys->recovered_metadata (srv_dict_metadata) are transferred to
   dict_table_t objects (happens in srv0start.cc). */
 
-  err = log_start(log, checkpoint_lsn, recovered_lsn, recv_sys->last_block,
-                  false);
+  err = log_start(log, checkpoint_lsn, recovered_lsn, false);
   if (err != DB_SUCCESS) {
     return err;
   }

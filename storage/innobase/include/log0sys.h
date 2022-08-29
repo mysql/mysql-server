@@ -562,12 +562,6 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   We check for this in functions that write to the redo log. */
   bool disable_redo_writes;
 
-  /** DEBUG only - if we copied or initialized the first block in buffer,
-  this is set to lsn for which we did that. We later ensure that we start
-  the redo log at the same lsn. Else it is zero and we would crash when
-  trying to start redo then. */
-  lsn_t first_block_is_correct_for_lsn;
-
 #endif /* UNIV_DEBUG */
 
   /** @} */

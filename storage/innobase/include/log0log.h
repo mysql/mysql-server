@@ -246,13 +246,9 @@ must be set for that block before log_start is called.
 @param[in,out]  log                redo log
 @param[in]      checkpoint_lsn     checkpoint lsn
 @param[in]      start_lsn          current lsn to start at
-@param[in]      first_block        data block (with start_lsn)
-                                   to copy into the log buffer;
-                                   nullptr if no reason to copy
 @param[in]      allow_checkpoints  true iff allows writing newer checkpoints
 @return DB_SUCCESS or error */
 dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
-                  byte first_block[OS_FILE_LOG_BLOCK_SIZE],
                   bool allow_checkpoints = true);
 
 /** Close the log system and free all the related memory. */

@@ -1888,7 +1888,7 @@ dberr_t srv_start(bool create_new_db) {
 
     ut_a(new_files_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
 
-    err = log_start(*log_sys, new_files_lsn, new_files_lsn, nullptr);
+    err = log_start(*log_sys, new_files_lsn, new_files_lsn);
 
     if (err != DB_SUCCESS) {
       return srv_init_abort(err);
@@ -2262,7 +2262,7 @@ dberr_t srv_start(bool create_new_db) {
 
       fil_open_system_tablespace_files();
 
-      err = log_start(*log_sys, flushed_lsn, flushed_lsn, nullptr);
+      err = log_start(*log_sys, flushed_lsn, flushed_lsn);
 
       if (err != DB_SUCCESS) {
         return srv_init_abort(err);

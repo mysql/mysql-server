@@ -547,9 +547,6 @@ struct recv_sys_t {
   /** This is true when a log rec application batch is running */
   bool apply_batch_on;
 
-  /** Possible incomplete last recovered log block */
-  byte *last_block;
-
   /** Buffer for parsing log records */
   byte *buf;
 
@@ -591,7 +588,7 @@ struct recv_sys_t {
   /** Tracks what should be the proper value of first_rec_group field in the
   header of the block to which recovered_lsn belongs. It might be also zero,
   in which case it means we do not know. */
-  uint32_t last_block_first_rec_group;
+  lsn_t last_block_first_mtr_boundary{};
 
   /** Set when finding a corrupt log block or record, or there
   is a log parsing buffer overflow */
