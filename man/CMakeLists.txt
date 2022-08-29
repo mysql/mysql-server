@@ -81,6 +81,7 @@ SET(MAN1_NDB
   ndb_print_sys_file.1
   ndb_redo_log_reader.1
   ndb_restore.1
+  ndb_secretsfile_reader.1
   ndb_select_all.1
   ndb_select_count.1
   ndb_show_tables.1

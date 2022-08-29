@@ -2,12 +2,12 @@
 .\"     Title: ndb_print_backup_file
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2022
+.\"      Date: 08/29/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_PRINT_BACKUP_FILE" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_PRINT_BACKUP_FILE" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -74,7 +74,29 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
+lB l l
 lB l l.
+T{
+.PP
+\fB--backup-key=key\fR,
+.PP
+\fB \fR\fB-K password\fR\fB \fR
+T}:T{
+Use this password to decrypt file
+T}:T{
+.PP
+ADDED: NDB 8.0.31
+T}
+T{
+.PP
+\fB \fR\fB--backup-key-from-stdin\fR\fB \fR
+T}:T{
+Get decryption key in a secure fashion from STDIN
+T}:T{
+.PP
+ADDED: NDB 8.0.31
+T}
 T{
 .PP
 \fB--backup-password=password\fR,
@@ -345,6 +367,66 @@ Prior to NDB 8\&.0\&.24,
 supported only the
 \fB\-P\fR
 option\&. Beginning with NDB 8\&.0\&.24, the program supports a number of options, which are described in the following list\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-backup\-key\fR,
+\fB\-K\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--backup-key=key
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+.TE
+.sp 1
+Specify the key needed to decrypt an encrypted backup\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-backup\-key\-from\-stdin\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--backup-key-from-stdin
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+.TE
+.sp 1
+Allow input of the decryption key from standard input, similar to entering a password after invoking
+\fBmysql\fR
+\fB\-\-password\fR
+with no password supplied\&.
+.RE
 .sp
 .RS 4
 .ie n \{\

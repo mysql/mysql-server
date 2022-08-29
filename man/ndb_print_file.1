@@ -2,12 +2,12 @@
 .\"     Title: ndb_print_file
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2022
+.\"      Date: 08/29/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_PRINT_FILE" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_PRINT_FILE" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -60,7 +60,107 @@ NDB
 utilities that are intended to be run on a management server host or to connect to a management server)
 \fBndb_print_file\fR
 must be run on an NDB Cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
-Additional Options
+Options.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&23.40.\ \&Command\-line options used with the program ndb_print_file
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
+T{
+.PP
+\fB--file-key=hex_data\fR,
+.PP
+\fB \fR\fB-K hex_data\fR\fB \fR
+T}:T{
+Supply encryption key using stdin, tty, or my.cnf file
+T}:T{
+.PP
+ADDED: NDB 8.0.31
+T}
+T{
+.PP
+\fB \fR\fB--file-key-from-stdin\fR\fB \fR
+T}:T{
+Supply encryption key using stdin
+T}:T{
+.PP
+ADDED: NDB 8.0.31
+T}
+T{
+.PP
+\fB--help\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit; same as --usage
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--quiet\fR,
+.PP
+\fB \fR\fB-q\fR\fB \fR
+T}:T{
+Reduce verbosity of output
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--usage\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit; same as --help
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--verbose\fR,
+.PP
+\fB \fR\fB-v\fR\fB \fR
+T}:T{
+Increase verbosity of output
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--version\fR,
+.PP
+\fB \fR\fB-V\fR\fB \fR
+T}:T{
+Display version information and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+.TE
+.sp 1
 .PP
 \fBndb_print_file\fR
 supports the following options:
@@ -73,7 +173,29 @@ supports the following options:
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-v\fR: Make output verbose\&.
+\fB\-\-file\-key\fR,
+\fB\-K\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--file-key=hex_data
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+.TE
+.sp 1
+Supply file system encryption or decryption key from
+stdin,
+tty, or a
+my\&.cnf
+file\&.
 .RE
 .sp
 .RS 4
@@ -84,7 +206,43 @@ supports the following options:
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-q\fR: Suppress output (quiet mode)\&.
+\fB\-\-file\-key\-from\-stdin\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--file-key-from-stdin
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+T{
+Valid Values
+T}:T{
+TRUE
+T}
+.TE
+.sp 1
+Supply file system encryption or decryption key from
+stdin\&.
 .RE
 .sp
 .RS 4
@@ -97,7 +255,110 @@ supports the following options:
 .\}
 \fB\-\-help\fR,
 \fB\-h\fR,
-\fB\-?\fR: Print help message\&.
+\fB\-?\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
+Print help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-quiet\fR,
+\fB\-q\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--quiet
+T}
+.TE
+.sp 1
+Suppress output (quiet mode)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-usage\fR,
+\fB\-?\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--usage
+T}
+.TE
+.sp 1
+Print help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-verbose\fR,
+\fB\-v\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--verbose
+T}
+.TE
+.sp 1
+Make output verbose\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-version\fR,
+\fB\-v\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
+Print version information and exit\&.
 .RE
 .PP
 For more information, see

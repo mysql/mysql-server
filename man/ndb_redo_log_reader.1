@@ -2,12 +2,12 @@
 .\"     Title: ndb_redo_log_reader
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2022
+.\"      Date: 08/29/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_REDO_LOG_READER" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_REDO_LOG_READER" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -53,7 +53,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.40.\ \&Command\-line options used with the program ndb_redo_log_reader
+.B Table\ \&23.41.\ \&Command\-line options used with the program ndb_redo_log_reader
 .TS
 allbox tab(:);
 lB lB lB.
@@ -76,6 +76,8 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
+lB l l
 lB l l.
 T{
 .PP
@@ -85,6 +87,26 @@ Print dump info
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--file-key=key\fR,
+.PP
+\fB \fR\fB-K key\fR\fB \fR
+T}:T{
+Supply decryption key
+T}:T{
+.PP
+ADDED: NDB 8.0.31
+T}
+T{
+.PP
+\fB \fR\fB--file-key-from-stdin\fR\fB \fR
+T}:T{
+Supply decryption key using stdin
+T}:T{
+.PP
+ADDED: NDB 8.0.31
 T}
 T{
 .PP
@@ -236,6 +258,68 @@ T}
 .TE
 .sp 1
 Print dump info\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-file\-key\fR,
+\fB\-K\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--file-key=key
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+.TE
+.sp 1
+Supply file decryption key using
+stdin,
+tty, or a
+my\&.cnf
+file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-file\-key\-from\-stdin\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--file-key-from-stdin
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+.TE
+.sp 1
+Supply file decryption key using
+stdin\&.
 .RE
 .sp
 .RS 4

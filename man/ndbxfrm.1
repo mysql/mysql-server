@@ -2,12 +2,12 @@
 .\"     Title: ndbxfrm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2022
+.\"      Date: 08/29/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBXFRM" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBXFRM" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -42,7 +42,7 @@ utility, introduced in NDB 8\&.0\&.22, can be used to decompress, decrypt, and o
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.51.\ \&Command\-line options used with the program ndbxfrm
+.B Table\ \&23.52.\ \&Command\-line options used with the program ndbxfrm
 .TS
 allbox tab(:);
 lB lB lB.
@@ -71,6 +71,10 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
+lB l l
+lB l l
+lB l l
 lB l l.
 T{
 .PP
@@ -82,6 +86,24 @@ Compress file
 T}:T{
 .PP
 ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB \fR\fB--decrypt-key=key\fR\fB \fR
+T}:T{
+Supply file decryption key
+T}:T{
+.PP
+ADDED: NDB 8.0.31
+T}
+T{
+.PP
+\fB \fR\fB--decrypt-key-from-stdin\fR\fB \fR
+T}:T{
+Supply file decryption key from stdin
+T}:T{
+.PP
+ADDED: NDB 8.0.31
 T}
 T{
 .PP
@@ -157,6 +179,24 @@ Number of iterations used in key definition
 T}:T{
 .PP
 ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB \fR\fB--encrypt-key=key\fR\fB \fR
+T}:T{
+Use this key to encrypt file
+T}:T{
+.PP
+ADDED: NDB 8.0.31
+T}
+T{
+.PP
+\fB \fR\fB--encrypt-key-from-stdin\fR\fB \fR
+T}:T{
+Use key supplied from stdin to encrypt file
+T}:T{
+.PP
+ADDED: NDB 8.0.31
 T}
 T{
 .PP
@@ -280,6 +320,22 @@ Options
 .\}
 \fB\-\-compress\fR,
 \fB\-c\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--compress
+T}
+T{
+Introduced
+T}:T{
+8.0.22-ndb-8.0.22
+T}
+.TE
+.sp 1
 Compresses the input file, using the same compression method as is used for compressing NDB Cluster backups, and writes the output to an output file\&. To decompress a compressed
 NDB
 backup file that is not encrypted, it is necessary only to invoke
@@ -295,10 +351,133 @@ using the names of the compressed file and an output file (with no options requi
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-decrypt\-key=\fR\fB\fIkey\fR\fR,
+\fB\-K\fR
+\fIkey\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--decrypt-key=key
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+.TE
+.sp 1
+Decrypts a file encrypted by
+NDB
+using the supplied key\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option cannot be used together with
+\fB\-\-decrypt\-password\fR\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-decrypt\-key\-from\-stdin\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--decrypt-key-from-stdin
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+.TE
+.sp 1
+Decrypts a file encrypted by
+NDB
+using the key supplied from
+stdin\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-decrypt\-password=\fR\fB\fIpassword\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--decrypt-password=password
+T}
+T{
+Introduced
+T}:T{
+8.0.22-ndb-8.0.22
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 Decrypts a file encrypted by
 NDB
 using the password supplied\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option cannot be used together with
+\fB\-\-decrypt\-key\fR\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -310,6 +489,22 @@ using the password supplied\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-decrypt\-password\-from\-stdin[=TRUE|FALSE]\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--decrypt-password-from-stdin
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
 Decrypts a file encrypted by
 NDB, using a password supplied from standard input\&. This is similar to entering a password after invoking
 \fBmysql\fR
@@ -428,6 +623,46 @@ Also read groups with concat(group, suffix)\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-encrypt\-block\-size=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--encrypt-block-size=#
+T}
+T{
+Introduced
+T}:T{
+8.0.29-ndb-8.0.29
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+2147483647
+T}
+.TE
+.sp 1
 Size of input data chunks that are encrypted as a unit\&. Used with XTS; set to
 0
 (the default) for CBC mode\&.
@@ -442,6 +677,46 @@ Size of input data chunks that are encrypted as a unit\&. Used with XTS; set to
 .IP \(bu 2.3
 .\}
 \fB\-\-encrypt\-cipher=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--encrypt-cipher=#
+T}
+T{
+Introduced
+T}:T{
+8.0.29-ndb-8.0.29
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+1
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+2147483647
+T}
+.TE
+.sp 1
 Cipher used for encryption\&. Set to
 1
 for CBC mode (the default), or
@@ -459,6 +734,46 @@ for XTS\&.
 .\}
 \fB\-\-encrypt\-kdf\-iter\-count=\fR\fB\fI#\fR\fR,
 \fB\-k \fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--encrypt-kdf-iter-count=#
+T}
+T{
+Introduced
+T}:T{
+8.0.22-ndb-8.0.22
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+0
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+2147483647
+T}
+.TE
+.sp 1
 When encrypting a file, specifies the number of iterations to use for the encryption key\&. Requires the
 \fB\-\-encrypt\-password\fR
 option\&.
@@ -472,7 +787,108 @@ option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-encrypt\-key=\fR\fB\fIkey\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--encrypt-key=key
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+.TE
+.sp 1
+Encrypts a file using the supplied key\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option cannot be used together with
+\fB\-\-encrypt\-password\fR\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-encrypt\-key\-from\-stdin\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--encrypt-key-from-stdin
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+.TE
+.sp 1
+Encrypt a file using the key supplied from
+stdin\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-encrypt\-password=\fR\fB\fIpassword\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--encrypt-password=password
+T}
+T{
+Introduced
+T}:T{
+8.0.22-ndb-8.0.22
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
 Encrypts the backup file using the password supplied by the option\&. The password must meet the requirements listed here:
 .sp
 .RS 4
@@ -515,6 +931,23 @@ Is no more than 256 characters in length
 .\}
 Is enclosed by single or double quotation marks
 .RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option cannot be used together with
+\fB\-\-encrypt\-key\fR\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -526,6 +959,22 @@ Is enclosed by single or double quotation marks
 .IP \(bu 2.3
 .\}
 \fB\-\-encrypt\-password\-from\-stdin[=TRUE|FALSE]\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--encrypt-password-from-stdin
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+.TE
+.sp 1
 Encrypts a file using a password supplied from standard input\&. This is similar to entering a password is entered after invoking
 \fBmysql\fR
 \fB\-\-password\fR
@@ -542,6 +991,22 @@ with no password following the option\&.
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+T{
+Introduced
+T}:T{
+8.0.22-ndb-8.0.22
+T}
+.TE
+.sp 1
 Prints usage information for the program\&.
 .RE
 .sp
@@ -555,6 +1020,22 @@ Prints usage information for the program\&.
 .\}
 \fB\-\-info\fR,
 \fB\-i\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--info
+T}
+T{
+Introduced
+T}:T{
+8.0.22-ndb-8.0.22
+T}
+.TE
+.sp 1
 Prints the following information about one or more input files:
 .sp
 .RS 4
@@ -698,6 +1179,22 @@ Print program argument list and exit\&.
 .\}
 \fB\-\-usage\fR,
 \fB\-?\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--usage
+T}
+T{
+Introduced
+T}:T{
+8.0.22-ndb-8.0.22
+T}
+.TE
+.sp 1
 Synonym for
 \fB\-\-help\fR\&.
 .RE
@@ -712,6 +1209,22 @@ Synonym for
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+T{
+Introduced
+T}:T{
+8.0.22-ndb-8.0.22
+T}
+.TE
+.sp 1
 Prints out version information\&.
 .RE
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2022
+.\"      Date: 08/29/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_RESTORE" "1" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,7 +77,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.41.\ \&Command\-line options used with the program ndb_restore
+.B Table\ \&23.42.\ \&Command\-line options used with the program ndb_restore
 .TS
 allbox tab(:);
 lB lB lB.
@@ -937,7 +937,7 @@ T}
 When this option is set to
 1,
 \fBndb_restore\fR
-allows the primary keys in a table definition to differ from that of the same table in the backup\&. This may be desirable when backing up and restoring between different schema versions with primary key changes on one or more tables, and it appears that performing the restore operation using ndb_restore is simpler or mor efficient than issuing many
+allows the primary keys in a table definition to differ from that of the same table in the backup\&. This may be desirable when backing up and restoring between different schema versions with primary key changes on one or more tables, and it appears that performing the restore operation using ndb_restore is simpler or more efficient than issuing many
 ALTER TABLE
 statements after restoring table schemas and data\&.
 .sp
@@ -1170,7 +1170,8 @@ and
 \fBndb_restore\fR
 must be run twice\(emonce for each storage node in the cluster where the backup was taken\&. However,
 \fBndb_restore\fR
-cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&.
+cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&. See
+Section\ \&23.3.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, for more information\&.
 .if n \{\
 .sp
 .\}
@@ -1188,9 +1189,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.27 to a cluster running NDB Cluster 7\&.4\&.37, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.0\&.30 to a cluster running NDB Cluster 7\&.6\&.26, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.27 distribution\&.
+that comes with the NDB Cluster 7\&.6\&.26 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1245,7 +1246,7 @@ This option specifies a password to be used when decrypting an encrypted backup 
 \fB\-\-decrypt\fR
 option\&. This must be the same password that was used to encrypt the backup\&.
 .sp
-The password can be up to 256 characters in length, and must be enclosed by single or double quotation marks\&. It can contain any of the ASCII characters having character codes 32, 35, 38, 40\-91, 93, 95, and 97\-126; in other words, it can use any printable ASCII characters except for
+The password must be 1 to 256 characters in length, and must be enclosed by single or double quotation marks\&. It can contain any of the ASCII characters having character codes 32, 35, 38, 40\-91, 93, 95, and 97\-126; in other words, it can use any printable ASCII characters except for
 !,
 \*(Aq,
 ",
@@ -1945,7 +1946,7 @@ is used, only those databases or tables named by the option are excluded; all ot
 .sp
 This table shows several invocations of
 \fBndb_restore\fR
-usng
+using
 \fB\-\-exclude\-*\fR
 options (other options possibly required have been omitted for clarity), and the effects these options have on restoring from an NDB Cluster backup:
 .sp
@@ -1953,7 +1954,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.42.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&23.43.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -2461,7 +2462,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.43.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&23.44.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -3722,7 +3723,7 @@ BuildIndexThreads
 data node configuration parameter; this parameter has no effect on dropping and rebuilding of indexes by
 \fBndb_restore\fR, which is performed online\&.
 .sp
-Rebuilding of unique indexes uses disk write bandwidth for redo logging and local checkpointing\&. An insufficient amount of this bandwith can lead to redo buffer overload or log overload errors\&. In such cases you can run
+Rebuilding of unique indexes uses disk write bandwidth for redo logging and local checkpointing\&. An insufficient amount of this bandwidth can lead to redo buffer overload or log overload errors\&. In such cases you can run
 \fBndb_restore\fR
 \fB\-\-rebuild\-indexes\fR
 again; the process resumes at the point where the error occurred\&. You can also do this when you have encountered temporary errors\&. You can repeat execution of
@@ -4042,7 +4043,7 @@ T}
 .TE
 .sp 1
 \fBndb_restore\fR
-does not by default restore distributed MySQL privilege tables created in releases of NDB Cluster prior to version 8\&.0, which does not support distrubuted privileges as implemented in NDB 7\&.6 and earlier\&. This option causes
+does not by default restore distributed MySQL privilege tables created in releases of NDB Cluster prior to version 8\&.0, which does not support distributed privileges as implemented in NDB 7\&.6 and earlier\&. This option causes
 \fBndb_restore\fR
 to restore them\&.
 .sp
@@ -4508,7 +4509,7 @@ also be used\&.
 .sp
 If the
 ndb_apply_status
-table from the backeup already contains a row with
+table from the backup already contains a row with
 server_id = 0,
 \fBndb_restore\fR
 \fB\-\-with\-apply\-status\fR
@@ -4853,7 +4854,7 @@ in the
 client; this must be done prior to taking the backup\&. See
 Section\ \&2.11.5, \(lqPreparing Your Installation for Upgrade\(rq, for more information\&.
 .sp
-You also also restore such tables using a dump created with
+You also restore such tables using a dump created with
 \fBmysqldump\fR\&.
 .RE
 .sp

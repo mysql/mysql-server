@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgmd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2022
+.\"      Date: 08/29/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_MGMD" "8" "06/04/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_MGMD" "8" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -758,7 +758,14 @@ was started with the
 \fB\-\-reload\fR
 or
 \fB\-\-initial\fR
-option, or because the management server could not find any configuration cache\&.
+option, or because the management server could not find any configuration cache\&. Beginning with NDB 8\&.0\&.26,
+\fBndb_mgmd\fR
+refuses to start if
+\fB\-\-config\-file\fR
+is specified without either of
+\fB\-\-initial\fR
+or
+\fB\-\-reload\fR\&.
 .sp
 The
 \fB\-\-config\-file\fR
@@ -1781,7 +1788,7 @@ When
 \fB\-\-reload\fR
 is used, the management server must be able to communicate with data nodes and any other management servers in the cluster before it attempts to read the global configuration file; otherwise, the management server fails to start\&. This can happen due to changes in the networking environment, such as new IP addresses for nodes or an altered firewall configuration\&. In such cases, you must use
 \fB\-\-initial\fR
-instead to force the exsiting cached configuration to be discarded and reloaded from the file\&. See
+instead to force the existing cached configuration to be discarded and reloaded from the file\&. See
 Section\ \&23.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
 .RE
 .sp
@@ -1793,7 +1800,7 @@ Section\ \&23.6.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for a
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-remove{=name]\fR
+\fB\-\-remove[=name]\fR
 .TS
 allbox tab(:);
 lB l
