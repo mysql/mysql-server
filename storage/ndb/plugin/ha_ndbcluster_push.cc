@@ -793,31 +793,23 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
         // Possibly more nested sj-nests to unwind, or break out
         first_sj_inner = m_tables[first_sj_inner].m_first_sj_upper;
         if (first_sj_inner < 0) break;
-
-        pushed_table *upper_table = &m_tables[first_sj_inner];
-        last_sj_inner = upper_table->m_last_sj_inner;
+        last_sj_inner = m_tables[first_sj_inner].m_last_sj_inner;
       }
 
       // Prepare inner/outer join-nest structure for unwind;
       uint first_inner = table->m_first_inner;
       uint last_inner = table->m_last_inner;
-      int first_upper = table->m_first_upper;
 
-      while (tab_no == last_inner &&  // End of current join-nest, and
-             first_upper >= 0) {      // has an embedding upper nest
+      while (tab_no == last_inner &&   // End of current join-nest, and
+             first_inner > root_no) {  // has an embedding upper nest
 
-        if (first_inner > root_no) {  // Root is outer-joined with nest
-          // Phase 2 of pushability check, see big comment above.
-          assert(m_tables[first_inner].isOuterJoined(*m_join_root));
-          ndb_table_map inner_nest(m_tables[first_inner].get_full_inner_nest());
-          validate_join_nest(inner_nest, first_inner, tab_no, "outer");
-        } else {
-          break;
-        }
-        first_inner = first_upper;
+        // Phase 2 of pushability check, see big comment above.
+        assert(m_tables[first_inner].isOuterJoined(*m_join_root));
+        ndb_table_map inner_nest(m_tables[first_inner].get_full_inner_nest());
+        validate_join_nest(inner_nest, first_inner, tab_no, "outer");
+
+        first_inner = m_tables[first_inner].m_first_upper;
         last_inner = m_tables[first_inner].m_last_inner;
-        first_upper = m_tables[first_inner].m_first_upper;
-
       }  // while 'leaving a nest'
     }    // for tab_no [root_no..m_table_count-1]
   }
