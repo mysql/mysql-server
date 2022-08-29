@@ -2798,13 +2798,11 @@ SimulatedBlock::check_sections(Signal25* signal,
  */
 
 #define BLOCK_DEFINES(BLOCK) \
-  typedef void (BLOCK::* ExecSignalLocal) (Signal* signal); \
   typedef void (BLOCK::* BlockCallback)(Signal*, Uint32 callb, Uint32 retCode); \
   inline CallbackFunction safe_cast(BlockCallback f){ \
     return static_cast<CallbackFunction>(f); \
   } \
-public:\
-private: \
+  typedef void (BLOCK::* ExecSignalLocal) (Signal* signal)
 
 /*
   Define addRecSignal as a macro that, for the passed specific signal (represented by the
