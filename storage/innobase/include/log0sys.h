@@ -577,7 +577,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** Mutex which protects fields: available_for_checkpoint_lsn,
   requested_checkpoint_lsn. It also synchronizes updates of:
-  free_check_limit_sn, concurrency_margin, dict_persist_margin.
+  free_check_limit_lsn, concurrency_margin, dict_persist_margin.
   It protects reads and writes of m_writer_inside_extra_margin.
   It also protects the srv_checkpoint_disabled (together with the
   checkpointer_mutex). */
@@ -628,8 +628,8 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   This is never set from true to false after log_start(). */
   std::atomic_bool m_allow_checkpoints;
 
-  /** Maximum sn up to which there is free space in the redo log.
-  Threads check this limit and compare to current log.sn, when they
+  /** Maximum lsn up to which there is free space in the redo log.
+  Threads check this limit and compare to current lsn, when they
   are outside mini-transactions and hold no latches. The formula used
   to compute the limitation takes into account maximum size of mtr and
   thread concurrency to include proper margins and avoid issues with
@@ -641,9 +641,9 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   Updated by: log_writer (after pausing/resuming user threads)
   Updated by: DD (after update of dict_persist_margin)
   Protected by (updates only): limits_mutex. */
-  atomic_sn_t free_check_limit_sn;
+  atomic_lsn_t free_check_limit_lsn;
 
-  /** Margin used in calculation of @see free_check_limit_sn.
+  /** Margin used in calculation of @see free_check_limit_lsn.
   Protected by (updates only): limits_mutex. */
   atomic_sn_t concurrency_margin;
 
@@ -652,7 +652,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   Protected by (updates only): limits_mutex. */
   std::atomic<bool> concurrency_margin_is_safe;
 
-  /** Margin used in calculation of @see free_check_limit_sn.
+  /** Margin used in calculation of @see free_check_limit_lsn.
   Read by: page_cleaners, log_checkpointer
   Updated by: DD
   Protected by (updates only): limits_mutex. */
