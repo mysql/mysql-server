@@ -736,7 +736,10 @@ class MysqlClient {
           return *this;
         }
 
-        bool operator!=(const Iterator &other) const { return m_ != other.m_; }
+        bool operator==(const Iterator &other) const { return m_ == other.m_; }
+        bool operator!=(const Iterator &other) const {
+          return !(*this == other);
+        }
 
         reference operator*() { return res_; }
         pointer operator->() { return &res_; }
