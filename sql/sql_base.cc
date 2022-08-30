@@ -8415,14 +8415,17 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
                       table_ref_2->alias));
 
   /*
-    Hidden columns for functional indexes don't participate in NATURAL /
-    USING JOIN and invisible columns don't participate in NATURAL JOIN.
+    Some hidden columns cannot be participants in NATURAL JOIN / JOIN USING:
+    - No system-generated hidden columns (columns defined for functional
+      indexes or used as keys for materialized derived tables) can be used.
+    - User-defined hidden columns (invisible columns) can be used in JOIN
+      USING .
     (we need to go through get_or_create_column_ref() before calling
      this method).
   */
   auto is_non_participant_column = [using_fields](Field *field) {
     return (field != nullptr &&
-            (field->is_field_for_functional_index() ||
+            (field->is_hidden_by_system() ||
              ((using_fields == nullptr) && field->is_hidden_by_user())));
   };
 
