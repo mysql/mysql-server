@@ -1510,9 +1510,6 @@ static dberr_t srv_init_abort_low(bool create_new_db,
 dberr_t srv_start(bool create_new_db) {
   lsn_t flushed_lsn;
 
-  /* just for assertions */
-  lsn_t previous_lsn;
-
   page_no_t sum_of_data_file_sizes;
   page_no_t tablespace_size_in_header;
   dberr_t err;
@@ -1937,25 +1934,6 @@ dberr_t srv_start(bool create_new_db) {
     }
 
     srv_create_sdi_indexes();
-
-    buf_pool_wait_for_no_pending_io_reads();
-
-    previous_lsn = log_get_lsn(*log_sys);
-
-    log_stop_background_threads(*log_sys);
-
-    buf_flush_sync_all_buf_pools();
-
-    flushed_lsn = log_get_lsn(*log_sys);
-
-    ut_a(flushed_lsn == previous_lsn);
-
-    err = fil_write_flushed_lsn(flushed_lsn);
-    ut_a(err == DB_SUCCESS);
-
-    log_start_background_threads(*log_sys);
-
-    ut_a(buf_are_flush_lists_empty_validate());
 
     /* We always create the legacy double write buffer to preserve the
     expected page ordering of the system tablespace.
