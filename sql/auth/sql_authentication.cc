@@ -3478,6 +3478,8 @@ static int do_multi_factor_auth(THD *thd, MPVIO_EXT *mpvio) {
       mpvio->auth_info.current_auth_factor = 1;
     else if (af->get_factor() == nthfactor::THIRD_FACTOR)
       mpvio->auth_info.current_auth_factor = 2;
+    /* reset cached_client_reply for 2nd and 3rd factors */
+    mpvio->cached_client_reply.pkt = nullptr;
     plugin_ref plugin = my_plugin_lock_by_name(thd, af->plugin_name(),
                                                MYSQL_AUTHENTICATION_PLUGIN);
     if (plugin) {
