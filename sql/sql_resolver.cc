@@ -972,8 +972,9 @@ bool Item_in_subselect::subquery_allows_materialization(
     // Subq-mat cannot handle 'outer_expr > {ANY|ALL}(subq)'...
     cause = "not an IN predicate";
   } else if (query_block->is_part_of_set_operation()) {
-    // Subquery must be a single query specification clause (not a UNION)
-    cause = "in UNION";
+    // Subquery must be a single query specification clause (not a UNION,
+    // INTERSECT or EXCEPT).
+    cause = "in UNION, INTERSECT or EXCEPT";
   } else if (!query_block->master_query_expression()
                   ->first_query_block()
                   ->leaf_tables) {
@@ -6562,7 +6563,11 @@ bool Query_block::replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
   if (!(*expr)->has_subquery()) return false;
 
   Item_singlerow_subselect::Scalar_subquery_replacement info(
-      subquery->item, *tr->table->field, this, subquery->m_add_coalesce);
+      subquery->item,
+      // make sure to not replace with one of the hidden fields, if present,
+      // e.g. for INTERSECT:
+      tr->table->field[tr->table->hidden_field_count], this,
+      subquery->m_add_coalesce);
 
   // ROLLUP wrappers might have been added to the expression at this point. Take
   // care to transform the inner item and keep the rollup wrappers as is.

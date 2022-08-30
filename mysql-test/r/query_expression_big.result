@@ -1,0 +1,173 @@
+# We will run tests of non-trivial size to exercise the temporary table
+# overflow to disk functionality used by INTERSECT and EXCEPT logic
+# occuring both when writing the initial temporary result table as well
+# as when updating it when modifying counters, cf.
+# MaterializeIterator::MaterializeQueryBlock. We measure the time
+# needed for execution given four different setting for the internal
+# temporary tables and check their relative ranking to assert that
+# spill to disk actually happened.
+#
+# We have four scenarios we exercise:
+# 1. internal_tmp_mem_storage_engine == TempTable with default settings
+#    Here we see spill to disk when doing the updating.
+# 2. internal_tmp_mem_storage_engine == HEAP
+#    Here there is no spill to disk so quite fast.
+# 3. internal_tmp_mem_storage_engine == TempTable with a small setting
+#    Here we see spill to disk when writing the initial tmp table. This case
+#    is expected to be slower than case 1, since more less work is
+#    before we need to move to the slower disk based storage (well, InnoDB,
+#    what actually goes to disk is another matter...)
+# 4. internal_tmp_mem_storage_engine == TempTable with a large setting
+#    Here there is no spill to disk so quite fast.
+CREATE TABLE t(i INT, d DATE, c VARCHAR(60) CHARSET latin1) ENGINE=innodb;
+set @@cte_max_recursion_depth = 100000;
+INSERT INTO t
+WITH RECURSIVE cte AS (
+SELECT 0 AS i, '2022-04-30' AS d, 'abracadabra' as c
+UNION
+SELECT 1 AS i, '2022-04-30' AS d, 'rabarbra' as c
+UNION
+SELECT i+2, d, c FROM cte
+WHERE i+2 < 65536
+)
+SELECT i,d,c FROM cte;
+set @@cte_max_recursion_depth = default;
+INSERT INTO t select i, d, c FROM  t;
+SELECT COUNT(*) FROM t;
+COUNT(*)
+131072
+CREATE TABLE timings(id INT AUTO_INCREMENT PRIMARY KEY, t FLOAT);
+# This will spill to disk with default TempTable size while
+# reading right table. 3rd fastest.
+SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
+COUNT(*)
+65536
+EXPLAIN FORMAT=tree SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Table scan on derived  (...)
+        -> Intersect materialize with deduplication  (...)
+            -> Table scan on t  (...)
+            -> Table scan on t  (...)
+
+EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived
+# Should not spill to disk. Fastest or 2nd fastest.
+set internal_tmp_mem_storage_engine = MEMORY;
+SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
+COUNT(*)
+65536
+EXPLAIN FORMAT=tree SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Table scan on derived  (...)
+        -> Intersect materialize with deduplication  (...)
+            -> Table scan on t  (...)
+            -> Table scan on t  (...)
+
+SET internal_tmp_mem_storage_engine = MEMORY;            EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived
+# This will spill to disk while reading left table. Slowest.
+set internal_tmp_mem_storage_engine = default;
+set max_heap_table_size=1024*2014;
+set tmp_table_size = @@max_heap_table_size;
+SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
+COUNT(*)
+65536
+EXPLAIN FORMAT=tree SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Table scan on derived  (...)
+        -> Intersect materialize with deduplication  (...)
+            -> Table scan on t  (...)
+            -> Table scan on t  (...)
+
+set max_heap_table_size=1024*2014;            set tmp_table_size = @@max_heap_table_size;            EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived
+# Should not spill to disk. 2nd fastest or fastest.
+set max_heap_table_size=1024*2014*1024;
+set tmp_table_size = @@max_heap_table_size;
+SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
+COUNT(*)
+65536
+EXPLAIN FORMAT=tree SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Table scan on derived  (...)
+        -> Intersect materialize with deduplication  (...)
+            -> Table scan on t  (...)
+            -> Table scan on t  (...)
+
+set max_heap_table_size=1024*2014*1024;            set tmp_table_size = @@max_heap_table_size;            EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived
+SELECT id FROM timings ORDER BY t LIMIT 2 OFFSET 2;
+id
+1
+3
+set tmp_table_size = default;
+set internal_tmp_mem_storage_engine = default;
+DROP TABLE timings;
+CREATE TABLE timings(id INT AUTO_INCREMENT PRIMARY KEY, t FLOAT);
+# This will spill to disk with default TempTable size while
+# reading right table. 3rd fastest.
+SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
+COUNT(*)
+0
+EXPLAIN FORMAT=tree SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Table scan on derived  (...)
+        -> Except materialize with deduplication  (...)
+            -> Table scan on t  (...)
+            -> Table scan on t  (...)
+
+EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived
+# Should not spill to disk. Fastest or 2nd fastest.
+set internal_tmp_mem_storage_engine = MEMORY;
+SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
+COUNT(*)
+0
+EXPLAIN FORMAT=tree SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Table scan on derived  (...)
+        -> Except materialize with deduplication  (...)
+            -> Table scan on t  (...)
+            -> Table scan on t  (...)
+
+SET internal_tmp_mem_storage_engine = MEMORY;            EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived
+# This will spill to disk while reading left table. Slowest.
+set internal_tmp_mem_storage_engine = default;
+set max_heap_table_size=1024*2014;
+set tmp_table_size = @@max_heap_table_size;
+SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
+COUNT(*)
+0
+EXPLAIN FORMAT=tree SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Table scan on derived  (...)
+        -> Except materialize with deduplication  (...)
+            -> Table scan on t  (...)
+            -> Table scan on t  (...)
+
+set max_heap_table_size=1024*2014;            set tmp_table_size = @@max_heap_table_size;            EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived
+# Should not spill to disk. 2nd fastest or fastest.
+set max_heap_table_size=1024*2014*1024;
+set tmp_table_size = @@max_heap_table_size;
+SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
+COUNT(*)
+0
+EXPLAIN FORMAT=tree SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
+EXPLAIN
+-> Aggregate: count(0)  (...)
+    -> Table scan on derived  (...)
+        -> Except materialize with deduplication  (...)
+            -> Table scan on t  (...)
+            -> Table scan on t  (...)
+
+set max_heap_table_size=1024*2014*1024;            set tmp_table_size = @@max_heap_table_size;            EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived
+SELECT id FROM timings ORDER BY t LIMIT 2 OFFSET 2;
+id
+1
+3
+set tmp_table_size = default;
+set internal_tmp_mem_storage_engine = default;
+DROP TABLE timings;
+DROP TABLE t;

@@ -125,7 +125,7 @@ found_rows()
 8
 Warnings:
 Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
-explain 
+explain
 select * from t1 where a in
 (select a from t1 union select a from t1 order by (select a))
 union select * from t1 order by (select a);
@@ -224,6 +224,14 @@ set SQL_SELECT_LIMIT=2;
 a
 1
 11
+(select * from t1 limit 3) intersect (select * from t1 limit 3);
+a
+1
+2
+(select * from t1 limit 4) except (select * from t1 limit 1);
+a
+2
+3
 set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
 CREATE TABLE t1 (
@@ -1615,7 +1623,7 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (10), (20);
 CREATE TABLE t2 (b int);
 INSERT INTO t2 VALUES (10), (50), (50);
-SELECT a,1 FROM t1 
+SELECT a,1 FROM t1
 UNION
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP
 ORDER BY a;
@@ -1624,7 +1632,7 @@ NULL	3
 10	1
 20	1
 50	2
-SELECT a,1 FROM t1 
+SELECT a,1 FROM t1
 UNION
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP
 ORDER BY a DESC;
@@ -1633,7 +1641,7 @@ a	1
 20	1
 10	1
 NULL	3
-SELECT a,1 FROM t1 
+SELECT a,1 FROM t1
 UNION
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP
 ORDER BY a ASC LIMIT 3;
@@ -1641,8 +1649,8 @@ a	1
 NULL	3
 10	1
 20	1
-SELECT a,1 FROM t1 
-UNION ALL 
+SELECT a,1 FROM t1
+UNION ALL
 SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP
 ORDER BY a DESC;
 a	1
@@ -1652,7 +1660,7 @@ a	1
 10	1
 NULL	3
 SELECT a,1 FROM t1
-UNION 
+UNION
 (SELECT b, COUNT(*) FROM t2 GROUP BY b WITH ROLLUP ORDER BY a);
 ERROR 42S22: Unknown column 'a' in 'order clause'
 SELECT a,1 FROM t1
@@ -1681,7 +1689,7 @@ CREATE TABLE t5 SELECT NULL UNION SELECT NULL;
 DESC t5;
 Field	Type	Null	Key	Default	Extra
 NULL	binary(0)	YES		NULL	
-CREATE TABLE t6 
+CREATE TABLE t6
 SELECT * FROM (SELECT * FROM (SELECT NULL)a) b UNION SELECT a FROM t1;
 DESC t6;
 Field	Type	Null	Key	Default	Extra
@@ -1722,7 +1730,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /*
 DROP TABLE t1;
 End of 5.0 tests
 #
-# Bug#32858: Error: "Incorrect usage of UNION and INTO" does not take 
+# Bug#32858: Error: "Incorrect usage of UNION and INTO" does not take
 # subselects into account
 #
 CREATE TABLE t1 (a INT);
@@ -1763,10 +1771,10 @@ SELECT ( SELECT a UNION SELECT a ) INTO @v FROM t1;
 SELECT ( SELECT a UNION SELECT a ) INTO OUTFILE  'union.out.file3' FROM t1;
 SELECT ( SELECT a UNION SELECT a ) INTO DUMPFILE 'union.out.file4' FROM t1;
 DROP TABLE t1;
-# 
-# Bug #49734: Crash on EXPLAIN UNION ... ORDER BY 
+#
+# Bug #49734: Crash on EXPLAIN UNION ... ORDER BY
 #   <any non-const-function>
-# 
+#
 CREATE TABLE t1 (a VARCHAR(10), FULLTEXT KEY a (a));
 INSERT INTO t1 VALUES (1),(2);
 CREATE TABLE t2 (b INT);
@@ -1872,7 +1880,7 @@ order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
 ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION, EXCEPT or INTERSECT
 End of 5.1 tests
 #
-# Bug#57986 ORDER BY clause is not used after a UNION, 
+# Bug#57986 ORDER BY clause is not used after a UNION,
 #           if embedded in a SELECT
 #
 CREATE TABLE t1 (c1 VARCHAR(10) NOT NULL, c2 INT NOT NULL);
@@ -1955,7 +1963,7 @@ t2a	3
 SELECT c1, c2 FROM (
 SELECT c1, c2 FROM t1
 UNION
-SELECT c1, c2 FROM t2 
+SELECT c1, c2 FROM t2
 ORDER BY c2 DESC, c1 DESC LIMIT 1
 ) AS res;
 c1	c2
@@ -1972,7 +1980,7 @@ c1	c2
 t1a	3
 DROP TABLE t1, t2;
 #
-# Bug #58970 Problem Subquery (without referencing a table) 
+# Bug #58970 Problem Subquery (without referencing a table)
 #            and Order By
 #
 SELECT(SELECT 0 AS a UNION SELECT 1 AS a ORDER BY a ASC  LIMIT 1) AS dev;
@@ -2751,8 +2759,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 DROP TABLE geometries;
-# 
-# Bug#20456178 ASSERTION FAILED: 
+#
+# Bug#20456178 ASSERTION FAILED:
 #     (ENUM_SET_TYPELIB && GET_REAL_TYPE(ITEM) == MYSQL_TYPE_NULL)
 CREATE TABLE t1(a INT) engine=innodb;
 CREATE TABLE t2(a SET('a'))engine=innodb;
@@ -3582,7 +3590,7 @@ SELECT * FROM t ORDER BY a;
 EXPLAIN
 -> Sort: a  (rows=14)
     -> Table scan on <union temporary>  (rows=14)
-        -> Union materialize  (rows=14)
+        -> Union all materialize  (rows=14)
             -> Table scan on r  (rows=4)
             -> Table scan on s  (rows=5)
             -> Table scan on t  (rows=5)
@@ -3725,7 +3733,7 @@ EXPLAIN
 -> Limit: 11 row(s)  (rows=11)
     -> Sort: a, limit input to 11 row(s) per chunk  (rows=11)
         -> Table scan on <union temporary>  (rows=14)
-            -> Union materialize  (rows=14)
+            -> Union all materialize  (rows=14)
                 -> Table scan on r  (rows=4)
                 -> Table scan on s  (rows=5)
                 -> Table scan on t  (rows=5)
@@ -3985,7 +3993,7 @@ EXPLAIN
 -> Limit: 3 row(s)  (rows=3)
     -> Sort: a, limit input to 3 row(s) per chunk  (rows=3)
         -> Table scan on <union temporary>  (rows=4)
-            -> Union materialize  (rows=4)
+            -> Union all materialize  (rows=4)
                 -> Limit: 2 row(s)  (rows=2)
                     -> Sort: a, limit input to 2 row(s) per chunk  (rows=2)
                         -> Table scan on <result temporary>  (rows=3)
@@ -4864,7 +4872,7 @@ EXPLAIN
                                         -> Limit: 10 row(s)  (rows=9)
                                             -> Sort: a, limit input to 10 row(s) per chunk  (rows=9)
                                                 -> Table scan on <union temporary>  (rows=9)
-                                                    -> Union materialize  (rows=9)
+                                                    -> Union all materialize  (rows=9)
                                                         -> Table scan on r  (rows=4)
                                                         -> Table scan on s  (rows=5)
                                 -> Limit: 3 row(s)  (rows=3)
@@ -4931,7 +4939,7 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)
                 -> Table scan on <union temporary>  (rows=9)
-                    -> Union materialize  (rows=9)
+                    -> Union all materialize  (rows=9)
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
     -> Stream results  (rows=1)
@@ -4962,7 +4970,7 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)
                 -> Table scan on <union temporary>  (rows=9)
-                    -> Union materialize  (rows=9)
+                    -> Union all materialize  (rows=9)
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
@@ -4979,14 +4987,14 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)
                 -> Table scan on <union temporary>  (rows=9)
-                    -> Union materialize  (rows=9)
+                    -> Union all materialize  (rows=9)
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
     -> Stream results  (rows=1)
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)
                 -> Table scan on <union temporary>  (rows=9)
-                    -> Union materialize  (rows=9)
+                    -> Union all materialize  (rows=9)
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
@@ -5008,7 +5016,7 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)
                 -> Table scan on <union temporary>  (rows=9)
-                    -> Union materialize  (rows=9)
+                    -> Union all materialize  (rows=9)
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
 
@@ -5024,7 +5032,7 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)
                 -> Table scan on <union temporary>  (rows=9)
-                    -> Union materialize  (rows=9)
+                    -> Union all materialize  (rows=9)
                         -> Table scan on r  (rows=4)
                         -> Table scan on s  (rows=5)
         -> Limit: 1 row(s)  (rows=1)

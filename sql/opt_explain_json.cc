@@ -505,7 +505,9 @@ class subquery_ctx : virtual public context, public qep_row {
  public:
   void set_child(context *child) override {
     assert(subquery == nullptr);
-    assert(child->type == CTX_JOIN || child->type == CTX_UNION);
+    assert(child->type == CTX_JOIN || child->type == CTX_UNION ||
+           child->type == CTX_INTERSECT || child->type == CTX_EXCEPT ||
+           child->type == CTX_UNARY);
     subquery = child;
   }
 
@@ -2000,7 +2002,9 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
              current_context->type == CTX_SIMPLE_GROUP_BY ||
              current_context->type == CTX_SIMPLE_ORDER_BY ||
              current_context->type == CTX_SIMPLE_DISTINCT ||
-             current_context->type == CTX_UNION_RESULT);
+             current_context->type == CTX_UNION_RESULT ||
+             current_context->type == CTX_INTERSECT_RESULT ||
+             current_context->type == CTX_EXCEPT_RESULT);
       joinable_ctx *ctx = new (*THR_MALLOC) message_ctx(current_context);
       if (ctx == nullptr || current_context->add_join_tab(ctx)) return true;
       current_context = ctx;

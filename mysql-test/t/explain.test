@@ -561,6 +561,8 @@ DROP TABLE t1;
 --echo # WL#11350
 --echo #
 
+--source include/elide_costs.inc
+
 CREATE TABLE r(a INT);
 INSERT INTO r VALUES (1), (2), (-1), (-2);
 CREATE TABLE s(a INT);
@@ -606,5 +608,41 @@ while ($1)
 
 --echo # This query has max nesting and should work
 eval EXPLAIN $query;
+
+--echo #
+--echo # INTERSECT operator
+--echo #
+let $query = SELECT * FROM r INTERSECT SELECT * FROM s;
+
+eval EXPLAIN $query;
+--echo # For comparison
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN format=tree $query;
+
+let $query = SELECT * FROM r INTERSECT ALL SELECT * FROM s;
+eval EXPLAIN $query;
+--echo # For comparison
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN format=tree $query;
+
+--echo #
+--echo # EXCEPT operator
+--echo #
+let $query = SELECT * FROM r EXCEPT SELECT * FROM s;
+
+eval EXPLAIN $query;
+--echo # For comparison
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN format=tree $query;
+
+let $query = SELECT * FROM r EXCEPT ALL SELECT * FROM s;
+eval EXPLAIN $query;
+--echo # For comparison
+--replace_regex $elide_costs
+--skip_if_hypergraph
+eval EXPLAIN format=tree $query;
 
 DROP TABLE r, s, t;

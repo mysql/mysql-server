@@ -63,6 +63,7 @@
 #include "typelib.h"
 
 class Field;
+class Field_longlong;
 
 namespace histograms {
 class Histogram;
@@ -1496,6 +1497,77 @@ struct TABLE {
   Field **gen_def_fields_ptr{nullptr};
   /// Field used by unique constraint
   Field *hash_field{nullptr};
+  // ----------------------------------------------------------------------
+  // The next few members are used if this (temporary) file is used solely for
+  // the materialization/computation of an INTERSECT or EXCEPT set operation
+  // (in addition to hash_field above used to detect duplicate rows).  For
+  // INTERSECT and EXCEPT, we always use the hash field and compute the shape
+  // of the result set using m_set_counter. The latter is a hidden field
+  // located between the hash field and the row proper, only present for
+  // INTERSECT or EXCEPT materialized in a temporary result table.  The
+  // materialized table has no duplicate rows, relying instead of the embedded
+  // counter to produce the correct number of duplicates with ALL semantics. If
+  // we have distinct semantics, we squash duplicates. This all happens in the
+  // reading step of the tmp table (TableScanIterator::Read),
+  // cf. m_last_operation_is_distinct. For explanation if the logic of the set
+  // counter, see MaterializeIterator<Profiler>::MaterializeQueryBlock.
+  //
+
+  /// A priori unlimited. We pass this on to TableScanIterator at construction
+  /// time, q.v., to limit the number of rows out of an EXCEPT or INTERSECT.
+  /// For these set operations, we do not know enough to enforce the limit at
+  /// materialize time (as for UNION): only when reading the rows with
+  /// TableScanIterator do we check the counters.
+  /// @todo: Ideally, this limit should be communicated to TableScanIterator in
+  /// some other way.
+  ha_rows m_limit_rows{HA_POS_ERROR};
+
+ private:
+  /// The set counter. It points to the field in the materialized table
+  /// holding the counter used to compute INTERSECT and EXCEPT, in record[0].
+  /// For EXCEPT [DISTINCT | ALL] and INTERSECT DISTINCT this is a simple 64
+  /// bits counter. For INTERSECT ALL, it is subdivided into two sub counters
+  /// cf. class HalfCounter, cf. MaterializeQueryBlock. See set_counter().
+  Field_longlong *m_set_counter{nullptr};
+
+  /// True if we have EXCEPT, else we have INTERSECT. See is_except() and
+  /// is_intersect().
+  bool m_except{false};
+
+  /// If m_set_counter is set: true if last block has DISTINCT semantics,
+  /// either because it is marked as such, or because we have computed this
+  /// to give an equivalent answer. If false, we have ALL semantics.
+  /// It will be true if any DISTINCT is given in the merged N-ary set
+  /// operation. See is_distinct().
+  bool m_last_operation_is_distinct{false};
+
+ public:
+  /// Test if this tmp table stores the result of a UNION set operation or
+  /// a single table.
+  /// @return true if so, else false.
+  bool is_union_or_table() const { return m_set_counter == nullptr; }
+  bool is_intersect() const { return m_set_counter != nullptr && !m_except; }
+  bool is_except() const { return m_set_counter != nullptr && m_except; }
+  bool is_distinct() const { return m_last_operation_is_distinct; }
+  /**
+    Initialize the set counter field pointer and the type of set operation
+    other than UNION.
+    @param set_counter the field in the materialized table that holds the
+                       counter we use to compute intersect or except
+    @param is_except   if true, EXCEPT, else INTERSECT
+  */
+  void set_set_counter(Field_longlong *set_counter, bool is_except) {
+    m_set_counter = set_counter;
+    m_except = is_except;
+  }
+
+  void set_distinct(bool distinct) { m_last_operation_is_distinct = distinct; }
+
+  Field_longlong *set_counter() { return m_set_counter; }
+  //
+  // end of INTERSECT and EXCEPT specific members
+  // ----------------------------------------------------------------------
+
   Field *fts_doc_id_field{nullptr}; /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */

@@ -766,7 +766,9 @@ eval $query;
 
 DROP TABLE t1;
 
-# Tests for WL#13730 - Condition pushdown to derived table with unions
+# Tests for WL#13730 - Condition pushdown to derived table with unions.
+# WL#349 adds INTERSECT and EXCEPT: added some tests also for those
+# set operators.
 
 #setup tables
 CREATE TABLE t0 (
@@ -807,12 +809,49 @@ eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
 
+# Same, with INTERSECT
+let query = SELECT *
+            FROM (SELECT f1, f2 FROM t1
+                  INTERSECT
+                  SELECT f1, f2 FROM t2) as dt
+            WHERE f1 > 2;
+--replace_regex / \(cost=[0-9. ]*/(/
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+--sorted_result
+eval $query;
+
+# Same, with EXCEPT
+let query = SELECT *
+            FROM (SELECT f1, f2 FROM t1
+                  EXCEPT
+                  SELECT f1, f2 FROM t2) as dt
+            WHERE f1 > 2;
+--replace_regex / \(cost=[0-9. ]*/(/
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+--sorted_result
+eval $query;
+
 # Test with nested derived tables
 let query = SELECT *
             FROM (SELECT * FROM (SELECT * FROM t1
                                  UNION
                                  SELECT * FROM t1) as dt1
                   UNION
+                  SELECT * FROM t2) as dt2
+            WHERE (f1+f2) > 22;
+--replace_regex / \(cost=[0-9. ]*/(/
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+# Same, with INTERSECT
+let query = SELECT *
+            FROM (SELECT * FROM (SELECT * FROM t1
+                                 INTERSECT
+                                 SELECT * FROM t1) as dt1
+                  INTERSECT
                   SELECT * FROM t2) as dt2
             WHERE (f1+f2) > 22;
 --replace_regex / \(cost=[0-9. ]*/(/
@@ -835,6 +874,16 @@ eval $query;
 let query = SELECT i, j
             FROM (SELECT f1+f2 as i, f2+f3 as j FROM t1
                   UNION
+                  SELECT f1 as l, f2+f3 as m FROM t2) as dt
+            WHERE i > 30 and i+j > 300;
+--replace_regex / \(cost=[0-9. ]*/(/
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+
+# Same, with INTERSECT
+let query = SELECT i, j
+            FROM (SELECT f1+f2 as i, f2+f3 as j FROM t1
+                  INTERSECT
                   SELECT f1 as l, f2+f3 as m FROM t2) as dt
             WHERE i > 30 and i+j > 300;
 --replace_regex / \(cost=[0-9. ]*/(/
@@ -902,6 +951,20 @@ let query = SELECT *
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
+
+# Same, with INTERSECT
+let query = SELECT *
+            FROM (SELECT f1, f2, SUM(f2) OVER(PARTITION BY f1,f2)
+                  FROM t1 GROUP BY f1, f2
+                  INTERSECT ALL
+                  SELECT f1, f2, SUM(f2) OVER(PARTITION BY f1,f2)
+                  FROM t2 GROUP BY f1,f2) as dt
+            WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
+--replace_regex / \(cost=[0-9. ]*/(/
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
 set sql_mode=default;
 
 # Test with parameters. Pushdown is allowed for conditions having
@@ -953,6 +1016,16 @@ eval EXPLAIN FORMAT=tree $query;
 let query = SELECT *
             FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
                   UNION ALL
+                  SELECT f1, f2 FROM t1) as dt
+            WHERE f1 > 3*RAND() AND f1 < 10;
+--replace_regex / \(cost=[0-9. ]*/(/
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+
+# Same, with INTERSECT
+let query = SELECT *
+            FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
+                  INTERSECT ALL
                   SELECT f1, f2 FROM t1) as dt
             WHERE f1 > 3*RAND() AND f1 < 10;
 --replace_regex / \(cost=[0-9. ]*/(/
@@ -1068,6 +1141,17 @@ eval $query;
 let query = SELECT *
             FROM t1 JOIN (SELECT f1, f2 FROM t1
                           UNION SELECT f1, f2 FROM t1) as dt USING (f2)
+            WHERE dt.f1 > 31 and t1.f2  > 40;
+--replace_regex / \(cost=[0-9. ]*/(/
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXPLAIN FORMAT=tree $query;
+--sorted_result
+eval $query;
+
+# Same, with INTERSECT
+let query = SELECT *
+            FROM t1 JOIN (SELECT f1, f2 FROM t1
+                          EXCEPT SELECT f1, f2 FROM t1) as dt USING (f2)
             WHERE dt.f1 > 31 and t1.f2  > 40;
 --replace_regex / \(cost=[0-9. ]*/(/
 --skip_if_hypergraph  # Depends on the query plan.
