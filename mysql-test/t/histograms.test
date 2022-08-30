@@ -2266,6 +2266,10 @@ CREATE TABLE ten_thousand (x INT);
 INSERT INTO ten_thousand SELECT 100*h1.x + h0.x AS v
 FROM hundred AS h1, hundred AS h0 ORDER BY v;
 
+ANALYZE TABLE ten;
+ANALYZE TABLE hundred;
+ANALYZE TABLE ten_thousand;
+
 # The default selectivity used for equality predicates is 0.1.
 EXPLAIN SELECT * FROM ten WHERE x = -1;
 EXPLAIN SELECT * FROM hundred WHERE x = -1;

@@ -3900,6 +3900,15 @@ FROM ten AS ten1, ten AS ten0 ORDER BY v;
 CREATE TABLE ten_thousand (x INT);
 INSERT INTO ten_thousand SELECT 100*h1.x + h0.x AS v
 FROM hundred AS h1, hundred AS h0 ORDER BY v;
+ANALYZE TABLE ten;
+Table	Op	Msg_type	Msg_text
+test.ten	analyze	status	OK
+ANALYZE TABLE hundred;
+Table	Op	Msg_type	Msg_text
+test.hundred	analyze	status	OK
+ANALYZE TABLE ten_thousand;
+Table	Op	Msg_type	Msg_text
+test.ten_thousand	analyze	status	OK
 EXPLAIN SELECT * FROM ten WHERE x = -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ten	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
@@ -3912,7 +3921,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`hundred`.`x` AS `x` from `test`.`hundred` where (`test`.`hundred`.`x` = <cache>(-(1)))
 EXPLAIN SELECT * FROM ten_thousand WHERE x = -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ten_thousand	NULL	ALL	NULL	NULL	NULL	NULL	10000	10.00	Using where
+1	SIMPLE	ten_thousand	NULL	ALL	NULL	NULL	NULL	NULL	9980	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ten_thousand`.`x` AS `x` from `test`.`ten_thousand` where (`test`.`ten_thousand`.`x` = <cache>(-(1)))
 ANALYZE TABLE ten UPDATE HISTOGRAM ON x;
