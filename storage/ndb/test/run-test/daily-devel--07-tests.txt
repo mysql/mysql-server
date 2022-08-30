@@ -226,6 +226,6 @@ args : -bug 27772916 -skip p
 max-time: 120
 
 cmd: testBasic
-args : -n AbortIgnoreError
+args : -n AbortIgnoreError T2 T3 D1
 max-time: 360
 
