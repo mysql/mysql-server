@@ -3505,6 +3505,11 @@ CREATE TABLE s(a INT);
 INSERT INTO s VALUES (1), (10), (20), (-10), (-20);
 CREATE TABLE t(a INT);
 INSERT INTO t VALUES (10), (100), (200), (-100), (-200);
+ANALYZE TABLE r, s, t;
+Table	Op	Msg_type	Msg_text
+test.r	analyze	status	OK
+test.s	analyze	status	OK
+test.t	analyze	status	OK
 # UNION ALL
 SELECT * FROM r UNION ALL
 SELECT * FROM s UNION ALL
