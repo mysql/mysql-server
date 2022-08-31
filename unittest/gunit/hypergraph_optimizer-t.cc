@@ -2320,6 +2320,28 @@ TEST_F(HypergraphOptimizerTest, InnerNestloopShouldBeLeftDeep) {
   // We don't verify the plan in itself.
 }
 
+TEST_F(HypergraphOptimizerTest, CombineFilters) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x = 1 HAVING RAND() > 0.5", /*nullable=*/true);
+  ASSERT_NE(nullptr, query_block);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // We should see a single filter which combines the WHERE clause and the
+  // HAVING clause. Not two filters stacked on top of each other.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ(AccessPath::TABLE_SCAN, root->filter().child->type);
+
+  EXPECT_EQ("((t1.x = 1) and (rand() > 0.5))",
+            ItemToString(root->filter().condition));
+}
+
 TEST_F(HypergraphOptimizerTest, InsertCastsInSelectExpressions) {
   Mock_field_datetime t1_x;
   Mock_field_long t1_y(/*is_unsigned=*/false);
