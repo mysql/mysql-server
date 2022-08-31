@@ -234,8 +234,9 @@ static inline void lf_hash_put_pins(LF_PINS *pins) { lf_pinbox_put_pins(pins); }
 
 static inline void lf_hash_search_unpin(LF_PINS *pins) { lf_unpin(pins, 2); }
 
-typedef int lf_hash_match_func(const uchar *el);
+typedef int lf_hash_match_func(const uchar *el, void *arg);
 void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
-                           lf_hash_match_func *match, uint rand_val);
+                           lf_hash_match_func *match, uint rand_val,
+                           void *match_arg);
 
 #endif

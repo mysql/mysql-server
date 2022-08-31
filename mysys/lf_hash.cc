@@ -228,6 +228,7 @@ retry:
   @param cursor        Cursor to be position.
   @param pins          LF_PINS for the calling thread to be used during
                        search for pinning result.
+  @param match_arg     Argument passed to match function.
 
   @retval 0 - not found
   @retval 1 - found
@@ -235,7 +236,7 @@ retry:
 
 static int my_lfind_match(std::atomic<LF_SLIST *> *head, uint32 first_hashnr,
                           uint32 last_hashnr, lf_hash_match_func *match,
-                          CURSOR *cursor, LF_PINS *pins) {
+                          CURSOR *cursor, LF_PINS *pins, void *match_arg) {
   uint32 cur_hashnr;
   LF_SLIST *link;
 
@@ -269,7 +270,7 @@ retry:
 
         if (cur_hashnr & 1) {
           /* Normal node. Check if element matches condition. */
-          if ((*match)((uchar *)(cursor->curr + 1))) {
+          if ((*match)((uchar *)(cursor->curr + 1), match_arg)) {
             return 1;
           }
         } else {
@@ -716,6 +717,7 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key,
   @param rand_val  Random value to be used for selecting hash
                    bucket from which search in sort-ordered
                    list needs to be started.
+  @param match_arg Argument passed to match function.
 
   @retval A pointer to a random element matching condition.
   @retval NULL         - if nothing is found
@@ -731,7 +733,8 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key,
 */
 
 void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
-                           lf_hash_match_func *match, uint rand_val) {
+                           lf_hash_match_func *match, uint rand_val,
+                           void *match_arg) {
   /* Convert random value to valid hash value. */
   uint hashnr = (rand_val & INT_MAX32);
   uint bucket;
@@ -765,7 +768,8 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
     looking for elements with inversed hash value greater or equal than
     inversed value of our random hash.
   */
-  res = my_lfind_match(el, rev_hashnr | 1, UINT_MAX32, match, &cursor, pins);
+  res = my_lfind_match(el, rev_hashnr | 1, UINT_MAX32, match, &cursor, pins,
+                       match_arg);
 
   if (!res && hashnr != 0) {
     /*
@@ -783,7 +787,7 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
     if (unlikely(!el)) {
       return MY_LF_ERRPTR;
     }
-    res = my_lfind_match(el, 1, rev_hashnr, match, &cursor, pins);
+    res = my_lfind_match(el, 1, rev_hashnr, match, &cursor, pins, match_arg);
   }
 
   if (res) {

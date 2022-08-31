@@ -94,7 +94,7 @@ Sql_string I_S_CONNECTION_CONTROL_FAILED_ATTEMPTS_USERHOST(
 
   @returns 1 to indicate that entry is a match
 */
-int match_all_entries(const uchar *) { return 1; }
+int match_all_entries(const uchar *, void *) { return 1; }
 
 /**
   Callback function for LF hash to get key information
@@ -275,7 +275,7 @@ void Connection_delay_event::reset_all() {
   do {
     /* match anything */
     searched_entry = reinterpret_cast<Connection_event_record **>(
-        lf_hash_random_match(&m_entries, pins, match_all_entries, 0));
+        lf_hash_random_match(&m_entries, pins, match_all_entries, 0, nullptr));
 
     if (searched_entry != nullptr && searched_entry != MY_LF_ERRPTR &&
         (*searched_entry) &&
@@ -306,7 +306,8 @@ void set_connection_delay_IS_table(TABLE *t) { connection_delay_IS_table = t; }
     @retval 1 Error
 */
 
-int connection_delay_IS_table_writer(const uchar *ptr) {
+int connection_delay_IS_table_writer(const uchar *ptr,
+                                     void *arg [[maybe_unused]]) {
   /* Always return "no match" so that we go through all entries */
   THD *thd = current_thd;
   const Connection_event_record *const *entry;
@@ -340,7 +341,7 @@ void Connection_delay_event::fill_IS_table(TABLE_LIST *tables) {
     key =
         lf_hash_random_match(&m_entries, pins,
                              /* Functor: match anything and store the fields */
-                             connection_delay_IS_table_writer, 0);
+                             connection_delay_IS_table_writer, 0, nullptr);
     /* Always unpin after lf_hash_random_match() */
     lf_hash_search_unpin(pins);
   } while (key != nullptr);
