@@ -1603,6 +1603,26 @@ eval explain format=tree $query;
 --sorted_result
 eval $query;
 
+
+# Bug#34551085:
+#    Hypergraph optimizer may create redundant AcccessPath::FILTER's
+#
+# Check that redundant AccessPath::FILTERs are not created.
+# (Would have prevented condition pushdowns of topmost FILTER)
+#
+let $query=
+SELECT
+  table1.pk, table2.pk
+FROM i AS table1
+  JOIN d AS table2 ON table1.pk = table2.col_int
+WHERE table1.col_int_key BETWEEN 5 AND 5+4;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
 set optimizer_switch='hypergraph_optimizer=default';
 
 ######################################################
