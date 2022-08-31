@@ -120,23 +120,33 @@ EXPLAIN SELECT * FROM r INTERSECT ALL SELECT * FROM s;
 EXPLAIN SELECT * FROM r UNION DISTINCT SELECT * FROM s;
 EXPLAIN SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s;
 EXPLAIN SELECT * FROM r INTERSECT DISTINCT SELECT * FROM s;
-
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT = json SELECT * FROM r UNION ALL SELECT * FROM s;
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT = json SELECT * FROM r EXCEPT ALL SELECT * FROM s;
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT = json SELECT * FROM r INTERSECT ALL SELECT * FROM s;
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT = json SELECT * FROM r UNION DISTINCT SELECT * FROM s;
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT = json SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s;
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT = json SELECT * FROM r INTERSECT DISTINCT SELECT * FROM s;
 # Bug#34455923
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT=json SELECT * FROM (SELECT 1 INTERSECT SELECT 2) AS dt;
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT=json SELECT * FROM (SELECT 1 EXCEPT SELECT 2) AS dt;
 
 EXPLAIN (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT SELECT * FROM t;
 EXPLAIN (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT
         (SELECT * FROM t INTERSECT DISTINCT SELECT * FROM t);
 
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT = json
    (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT SELECT * FROM t;
+
+--skip_if_hypergraph  # Different JSON for hypergraph
 EXPLAIN FORMAT = json
    (SELECT * FROM r EXCEPT DISTINCT SELECT * FROM s) UNION DISTINCT
    (SELECT * FROM t INTERSECT DISTINCT SELECT * FROM t);
@@ -650,13 +660,17 @@ DROP TABLE t1, t2;
 --echo #
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1), (1), (2), (3), (2), (3), (3); # 7 rows
+ANALYZE TABLE t1;
 
+--skip_if_hypergraph  # Different plan
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 UNION     (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 
+--skip_if_hypergraph  # Different plan
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 INTERSECT (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 
+--skip_if_hypergraph  # Different plan
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 EXCEPT    (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 
