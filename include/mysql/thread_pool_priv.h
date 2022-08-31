@@ -108,7 +108,7 @@ THD *thd_get_current_thd();
 void thd_lock_data(THD *thd);
 void thd_unlock_data(THD *thd);
 bool thd_is_transaction_active(THD *thd);
-bool thd_in_multi_stmt_transaction_mode(const THD *);
+bool thd_in_active_multi_stmt_transaction(const THD *);
 int thd_connection_has_data(THD *thd);
 void thd_set_net_read_write(THD *thd, uint val);
 uint thd_get_net_read_write(THD *thd);
