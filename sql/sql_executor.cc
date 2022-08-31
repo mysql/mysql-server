@@ -304,9 +304,7 @@ err:
 */
 
 bool has_rollup_result(Item *item) {
-  while (item->type() == Item::REF_ITEM) {
-    item = *((down_cast<Item_ref *>(item))->ref);
-  }
+  item = item->real_item();
 
   if (is_rollup_group_wrapper(item) &&
       down_cast<Item_rollup_group_item *>(item)->rollup_null()) {

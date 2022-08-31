@@ -1951,13 +1951,13 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
     */
     Item *selected = select->base_ref_items[0];
     if (selected->type() == SUM_FUNC_ITEM) {
-      Item_sum *selected_sum = static_cast<Item_sum *>(selected);
+      Item_sum *selected_sum = down_cast<Item_sum *>(selected);
       if (!selected_sum->referenced_by[0])
-        selected_sum->referenced_by[0] = ref_null->ref;
+        selected_sum->referenced_by[0] = ref_null->ref_pointer();
       else {
         // Slot 0 already occupied, use 1.
         assert(!selected_sum->referenced_by[1]);
-        selected_sum->referenced_by[1] = ref_null->ref;
+        selected_sum->referenced_by[1] = ref_null->ref_pointer();
       }
     }
     if (!abort_on_null && left_expr->is_nullable()) {
@@ -2676,38 +2676,26 @@ bool Item_subselect::subq_opt_away_processor(uchar *) {
    point (root) of the removal and cleanup.
  */
 bool Item_subselect::clean_up_after_removal(uchar *arg) {
-  /*
-    When removing a constant condition, it may reference a subselect
-    in the SELECT list via an alias.
-    In that case, do not remove this subselect.
-  */
-  Query_block *const root =
-      pointer_cast<Cleanup_after_removal_context *>(arg)->get_root();
+  Cleanup_after_removal_context *const ctx =
+      pointer_cast<Cleanup_after_removal_context *>(arg);
 
-  if ((root->resolve_place != Query_block::RESOLVE_SELECT_LIST) &&
-      root->is_in_select_list(this)) {
+  // Check whether this item should be removed
+  if (ctx->is_stopped(this)) return false;
+
+  // Remove item on upward traversal, not downward:
+  if (marker == MARKER_NONE) {
+    marker = MARKER_TRAVERSAL;
     return false;
   }
-
-  Query_block *sl = unit->outer_query_block();
+  assert(marker == MARKER_TRAVERSAL);
+  marker = MARKER_NONE;
 
   // Notify flatten_subqueries() that subquery has been removed.
   notify_removal();
 
-  /*
-    While traversing the item tree with Item::walk(), Item_refs may
-    point to Item_subselects at different positions in the query. We
-    should only exclude units that are descendants of the starting
-    point for the walk.
+  // Remove the underlying query expression
+  unit->exclude_tree();
 
-    Traverse the tree towards the root. Afterwards, we have:
-    1) sl == root: unit is a descendant of the starting point, or
-    2) sl == NULL: unit is not a descendant of the starting point
-  */
-  while (sl != root && sl != nullptr) sl = sl->outer_query_block();
-  if (sl == root) {
-    unit->exclude_tree();
-  }
   return false;
 }
 

@@ -93,6 +93,9 @@
 using std::max;
 using std::min;
 
+static const enum_walk walk_options =
+    enum_walk::PREFIX | enum_walk::POSTFIX | enum_walk::SUBQUERY;
+
 static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
 static longlong get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
                                const Item *warn_item, bool *is_null);
@@ -2153,9 +2156,8 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **) {
   return false;
 }
 
-bool Item_in_optimizer::fix_fields(THD *thd, Item **ref) {
-  assert(fixed == 0);
-  if (fix_left(thd, ref)) return true;
+bool Item_in_optimizer::fix_fields(THD *thd, Item **) {
+  assert(!fixed);
   if (args[0]->is_nullable()) set_nullable(true);
 
   if (!args[1]->fixed && args[1]->fix_fields(thd, args + 1)) return true;
@@ -5566,32 +5568,8 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     /*
       Make a note if the expression has been created by IN to EXISTS
       transformation. If so we cannot remove the entire condition.
-      We also cannot remove if the expression has a Item_view_ref.
-      For Ex:
-      SELECT 1 FROM (SELECT (SELECT a FROM t1) as b FROM t1) as dt
-      WHERE (FALSE AND b = 1) OR ( b = 2 );
-      The false condition in the WHERE triggers removal of 'b'.
-      But 'b' is referenced again. Removing a subquery which is
-      part of a projection list is forbidden for the same reason.
-      However for the above case when derived table "dt" gets merged
-      with the outer query block, "b" will not be part of the projection
-      list of the outer query block. So the check fails.
-      We add a check here for Item_view_refs as only in such a case
-      the original expression of an alias might not be part of
-      projection list.
      */
-    bool view_ref_with_subquery = false;
-    if (item->has_subquery()) {
-      WalkItem(item, enum_walk::PREFIX | enum_walk::SUBQUERY,
-               [&view_ref_with_subquery](Item *inner_item) {
-                 if (inner_item->type() == Item::REF_ITEM &&
-                     down_cast<Item_ref *>(inner_item)->ref_type() ==
-                         Item_ref::VIEW_REF)
-                   view_ref_with_subquery = true;
-                 return false;
-               });
-    }
-    if (item->created_by_in2exists() || view_ref_with_subquery) {
+    if (item->created_by_in2exists()) {
       remove_condition = false;
       can_remove_cond = false;
     }
@@ -5630,7 +5608,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
         continue;
       }
       Cleanup_after_removal_context ctx(select);
-      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+      item->walk(&Item::clean_up_after_removal, walk_options,
                  pointer_cast<uchar *>(&ctx));
       li.remove();
       continue;
@@ -5660,7 +5638,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     li.rewind();
     while ((item = li++)) {
       Cleanup_after_removal_context ctx(select);
-      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+      item->walk(&Item::clean_up_after_removal, walk_options,
                  pointer_cast<uchar *>(&ctx));
       li.remove();
     }
@@ -7498,12 +7476,12 @@ bool Item_eq_base::contains_only_equi_join_condition() const {
   // engine. So for now, we reject these.
   if (left_arg->type() == Item::REF_ITEM &&
       down_cast<Item_ref *>(left_arg)->ref_type() == Item_ref::VIEW_REF &&
-      (*(down_cast<Item_ref *>(left_arg)->ref))->used_tables() == 0)
+      down_cast<Item_ref *>(left_arg)->ref_item()->used_tables() == 0)
     return false;
 
   if (right_arg->type() == Item::REF_ITEM &&
       down_cast<Item_ref *>(right_arg)->ref_type() == Item_ref::VIEW_REF &&
-      (*(down_cast<Item_ref *>(right_arg)->ref))->used_tables() == 0)
+      down_cast<Item_ref *>(right_arg)->ref_item()->used_tables() == 0)
     return false;
 
   return true;

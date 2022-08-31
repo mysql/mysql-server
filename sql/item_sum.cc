@@ -515,8 +515,20 @@ bool Item_sum::resolve_type(THD *thd) {
   @see Item_cond::fix_fields()
   @see Item_cond::remove_const_cond()
  */
-bool Item_sum::clean_up_after_removal(uchar *arg [[maybe_unused]]) {
-  assert(arg != nullptr);
+bool Item_sum::clean_up_after_removal(uchar *arg) {
+  Cleanup_after_removal_context *const ctx =
+      pointer_cast<Cleanup_after_removal_context *>(arg);
+
+  if (ctx->is_stopped(this)) return false;
+
+  // Remove item on upward traversal, not downward:
+  if (marker == MARKER_NONE) {
+    marker = MARKER_TRAVERSAL;
+    return false;
+  }
+  assert(marker == MARKER_TRAVERSAL);
+  marker = MARKER_NONE;
+
   /*
     Don't do anything if
     1) this is an unresolved item (This may happen if an
@@ -6181,9 +6193,7 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
 longlong Item_func_grouping::val_int() {
   longlong result = 0;
   for (uint i = 0; i < arg_count; i++) {
-    Item *real_item = args[i];
-    while (real_item->type() == REF_ITEM)
-      real_item = *((down_cast<Item_ref *>(real_item))->ref);
+    Item *real_item = args[i]->real_item();
     if (has_rollup_result(real_item)) {
       result += 1ULL << (arg_count - (i + 1));
     }

@@ -115,6 +115,9 @@
 
 using std::function;
 
+static const enum_walk walk_options =
+    enum_walk::PREFIX | enum_walk::POSTFIX | enum_walk::SUBQUERY;
+
 static bool simplify_const_condition(THD *thd, Item **cond,
                                      bool remove_cond = true,
                                      bool *ret_cond_value = nullptr);
@@ -277,6 +280,10 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
                    insert_field_list, &fields, base_ref_items))
     return true;
 
+  // Ensure that all selected expressions have a positive reference count
+  for (auto it : fields) {
+    it->increment_ref_count();
+  }
   resolve_place = RESOLVE_NONE;
 
   const nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
@@ -3217,35 +3224,17 @@ bool Query_block::convert_subquery_to_semijoin(
   nested_join->sj_outer_exprs.clear();
   nested_join->sj_inner_exprs.clear();
 
-  if (subq_pred->substype() == Item_subselect::IN_SUBS)
+  if (subq_pred->substype() == Item_subselect::IN_SUBS) {
     build_sj_exprs(thd, &nested_join->sj_outer_exprs,
                    &nested_join->sj_inner_exprs, subq_pred, subq_query_block);
-  else {  // this is EXISTS
+  } else {  // this is EXISTS
     // Expressions from the SELECT list will not be used; unlike in the case of
     // IN, they are not part of sj_inner_exprs.
     // @todo in WL#6570, move this to resolve_subquery().
-    bool view_ref_with_subquery = false;
-    // Do not remove an item of type Item_view_ref. Refer to
-    // the comments in Item_cond::fix_fields on the removal of
-    // Item_view_ref type.
     for (Item *item : subq_query_block->visible_fields()) {
-      if (item->has_subquery()) {
-        WalkItem(item, enum_walk::PREFIX,
-                 [&view_ref_with_subquery](Item *inner_item) {
-                   if (inner_item->type() == Item::REF_ITEM &&
-                       down_cast<Item_ref *>(inner_item)->ref_type() ==
-                           Item_ref::VIEW_REF) {
-                     view_ref_with_subquery = true;
-                     return true;
-                   }
-                   return false;
-                 });
-      }
-      if (!view_ref_with_subquery) {
-        Item::Cleanup_after_removal_context ctx(this);
-        item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
-                   pointer_cast<uchar *>(&ctx));
-      }
+      Item::Cleanup_after_removal_context ctx(this);
+      item->walk(&Item::clean_up_after_removal, walk_options,
+                 pointer_cast<uchar *>(&ctx));
     }
   }
 
@@ -3910,8 +3899,8 @@ bool Query_block::flatten_subqueries(THD *thd) {
     if (!cond_value) {
       // Unlink and delete this subquery's query expression
       Item::Cleanup_after_removal_context ctx(this);
-      subq_item->walk(&Item::clean_up_after_removal,
-                      enum_walk::SUBQUERY_POSTFIX, pointer_cast<uchar *>(&ctx));
+      subq_item->walk(&Item::clean_up_after_removal, walk_options,
+                      pointer_cast<uchar *>(&ctx));
     }
 
     if (subq_item->strategy == Subquery_strategy::SEMIJOIN)
@@ -3997,16 +3986,6 @@ bool Query_block::flatten_subqueries(THD *thd) {
   }
 
   sj_candidates->clear();
-  return false;
-}
-
-bool Query_block::is_in_select_list(Item *cand) {
-  for (Item *item : visible_fields()) {
-    // Use a walker to detect if cand is present in this select item
-    if (item->walk(&Item::find_item_processor, enum_walk::SUBQUERY_POSTFIX,
-                   pointer_cast<uchar *>(cand)))
-      return true;
-  }
   return false;
 }
 
@@ -4163,8 +4142,7 @@ void Query_block::remove_redundant_subquery_clauses(
     for (ORDER *g = group_list.first; g != nullptr; g = g->next) {
       if (g->is_item_original()) {
         Item::Cleanup_after_removal_context ctx(this);
-        (*g->item)->walk(&Item::clean_up_after_removal,
-                         enum_walk::SUBQUERY_POSTFIX,
+        (*g->item)->walk(&Item::clean_up_after_removal, walk_options,
                          pointer_cast<uchar *>(&ctx));
       }
     }
@@ -4211,24 +4189,9 @@ void Query_block::empty_order_list(Query_block *sl) {
     return;
   }
   for (ORDER *o = order_list.first; o != nullptr; o = o->next) {
-    /*
-      Do not remove an order_item of type Item_view_ref. Refer to
-      the comments in Item_cond::fix_fields on the removal of
-      Item_view_ref type.
-    */
-    if (o->is_item_original() &&
-        (!o->item[0]->has_subquery() ||
-         !WalkItem(o->item[0], enum_walk::PREFIX, [](Item *inner_item) {
-           if (inner_item->type() == Item::REF_ITEM &&
-               down_cast<Item_ref *>(inner_item)->ref_type() ==
-                   Item_ref::VIEW_REF) {
-             return true;
-           }
-           return false;
-         }))) {
+    if (o->is_item_original()) {
       Item::Cleanup_after_removal_context ctx(sl);
-      (*o->item)->walk(&Item::clean_up_after_removal,
-                       enum_walk::SUBQUERY_POSTFIX,
+      (*o->item)->walk(&Item::clean_up_after_removal, walk_options,
                        pointer_cast<uchar *>(&ctx));
     }
   }
@@ -4354,8 +4317,8 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
              */
              ((*select_item)->type() == Item::REF_ITEM &&
               view_ref->type() == Item::REF_ITEM &&
-              ((Item_ref *)(*select_item))->ref ==
-                  ((Item_ref *)view_ref)->ref))) {
+              down_cast<Item_ref *>(*select_item)->ref_pointer() ==
+                  down_cast<Item_ref *>(view_ref)->ref_pointer()))) {
       /*
         If there is no such field in the FROM clause, or it is the same field
         as the one found in the SELECT clause, then use the Item created for
@@ -4375,7 +4338,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
             thd->lex->current_query_block());
 
         (*order->item)
-            ->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+            ->walk(&Item::clean_up_after_removal, walk_options,
                    pointer_cast<uchar *>(&ctx));
       }
       order->item = &ref_item_array[counter];
@@ -4416,7 +4379,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
         ((Item_ref *)item)->ref_type() == Item_ref::VIEW_REF) {
       Item_view_ref *item_ref = down_cast<Item_view_ref *>(item);
       if (item_ref->cached_table->is_merged() &&
-          order_item->eq(*item_ref->ref, false)) {
+          order_item->eq(item_ref->ref_item(), false)) {
         order->item = &ref_item_array[counter];
         order->in_field_list = true;
         return false;
@@ -5262,7 +5225,7 @@ void Query_block::delete_unused_merged_columns(
 
         if (!item->is_derived_used()) {
           Item::Cleanup_after_removal_context ctx(this);
-          item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+          item->walk(&Item::clean_up_after_removal, walk_options,
                      pointer_cast<uchar *>(&ctx));
           transl->item = nullptr;
         }
@@ -5511,7 +5474,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
       subs_query_block->base_ref_items[i] = constant;
       // Expressions from the SELECT list will not be used; unlike in the case
       // of IN, they are not part of sj_inner_exprs.
-      inner->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+      inner->walk(&Item::clean_up_after_removal, walk_options,
                   pointer_cast<uchar *>(&ctx));
     }
     subs_query_block->select_list_tables = 0;

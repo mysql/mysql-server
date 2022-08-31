@@ -177,7 +177,7 @@ bool Window::check_window_functions1(THD *thd, Query_block *select) {
 }
 
 static Item_cache *make_result_item(Item *value) {
-  Item *order_expr = *down_cast<Item_ref *>(value)->ref;
+  Item *order_expr = down_cast<Item_ref *>(value)->ref_item();
   Item_cache *result = nullptr;
   Item_result result_type = order_expr->result_type();
 

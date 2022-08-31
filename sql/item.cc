@@ -2059,10 +2059,7 @@ class Item_aggregate_ref : public Item_ref {
 
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override {
-    if (ref)
-      (*ref)->print(thd, str, query_type);
-    else
-      Item_ident::print(thd, str, query_type);
+    ref_item()->print(thd, str, query_type);
   }
   Ref_Type ref_type() const override { return AGGREGATE_REF; }
 
@@ -2076,8 +2073,9 @@ class Item_aggregate_ref : public Item_ref {
   */
   bool update_aggr_refs(uchar *arg) override {
     auto *info = pointer_cast<Item::Aggregate_ref_update *>(arg);
-    if (*ref != info->m_target) return false;
-    ref = info->m_owner->add_hidden_item(info->m_target);
+    if (ref_item() != info->m_target) return false;
+    m_ref_item = info->m_owner->add_hidden_item(info->m_target);
+    link_referenced_item();
     return false;
   }
 };
@@ -5507,11 +5505,10 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     mark_as_dependent(thd, last_checked_context->query_block,
                       context->query_block, this, (Item_ident *)*reference);
     if (last_checked_context->query_block->having_fix_field) {
-      Item_ref *rf;
-      rf = new Item_ref(context,
-                        (cached_table->db[0] ? cached_table->db : nullptr),
-                        cached_table->alias, field_name);
-      if (!rf) return -1;
+      Item_ref *rf = new Item_ref(
+          context, cached_table->db[0] ? cached_table->db : nullptr,
+          cached_table->alias, field_name);
+      if (rf == nullptr) return -1;
       *reference = rf;
       // WL#6570 remove-after-qa
       assert(thd->stmt_arena->is_regular() || !thd->lex->is_exec_started());
@@ -5520,7 +5517,9 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
         during fix_fields() => we can use rf after fix_fields()
       */
       assert(!rf->fixed);  // Assured by Item_ref()
-      if (rf->fix_fields(thd, reference) || rf->check_cols(1)) return -1;
+      if (rf->fix_fields(thd, reference) || (*reference)->check_cols(1)) {
+        return -1;
+      }
       return 0;
     }
   }
@@ -7890,19 +7889,44 @@ Item_ref::Item_ref(Name_resolution_context *context_arg, Item **item,
                    const char *db_name_arg, const char *table_name_arg,
                    const char *field_name_arg, bool alias_of_expr_arg)
     : Item_ident(context_arg, db_name_arg, table_name_arg, field_name_arg),
-      ref(item) {
+      m_ref_item(item) {
   m_alias_of_expr = alias_of_expr_arg;
   /*
     This constructor used to create some internals references over fixed items
   */
-  if (ref && *ref && (*ref)->fixed) set_properties();
+  if (m_ref_item != nullptr && ref_item() != nullptr) {
+    ref_item()->increment_ref_count();
+    if (ref_item()->fixed) {
+      set_properties();
+    }
+  }
 }
 
 Item_ref::Item_ref(Name_resolution_context *context_arg, Item **item,
                    const char *field_name_arg)
-    : Item_ident(context_arg, "", "", field_name_arg), ref(item) {
-  assert(ref && *ref);
-  if ((*ref)->fixed) set_properties();
+    : Item_ident(context_arg, "", "", field_name_arg), m_ref_item(item) {
+  assert(m_ref_item != nullptr && ref_item() != nullptr);
+  ref_item()->increment_ref_count();
+  if (ref_item()->fixed) set_properties();
+}
+
+bool Item_ref::clean_up_after_removal(uchar *arg) {
+  Cleanup_after_removal_context *const ctx =
+      pointer_cast<Cleanup_after_removal_context *>(arg);
+
+  if (ctx->is_stopped(this)) return false;
+
+  // Exit if second visit to this object:
+  if (m_unlinked) return false;
+
+  if (ref_item()->decrement_ref_count() > 0) {
+    ctx->stop_at(this);
+  }
+
+  // Ensure the count is not decremented twice:
+  m_unlinked = true;
+
+  return false;
 }
 
 /**
@@ -7954,8 +7978,8 @@ Item_ref::Item_ref(Name_resolution_context *context_arg, Item **item,
     clauses, and then we search the FROM clause.
 
   @param[in]     thd        current thread
-  @param[in,out] reference  view column if this item was resolved to a
-    view column
+  @param[in,out] reference  view column if this item was resolved to
+                            a view column
 
   @todo
     Here we could first find the field anyway, and then test this
@@ -7963,36 +7987,32 @@ Item_ref::Item_ref(Name_resolution_context *context_arg, Item **item,
     ER_WRONG_FIELD_WITH_GROUP, instead of the less informative
     ER_BAD_FIELD_ERROR which we produce now.
 
-  @retval
-    true  if error
-  @retval
-    false on success
+  @returns false on success, true on error
 */
 
 bool Item_ref::fix_fields(THD *thd, Item **reference) {
   DBUG_TRACE;
-  assert(fixed == 0);
+  assert(!fixed);
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
 
-  if (!ref || ref == not_found_item) {
+  if (m_ref_item == nullptr || m_ref_item == not_found_item) {
     assert(context->query_block == thd->lex->current_query_block());
-    if (!(ref =
-              resolve_ref_in_select_and_group(thd, this, context->query_block)))
+    m_ref_item =
+        resolve_ref_in_select_and_group(thd, this, context->query_block);
+    if (m_ref_item == nullptr) {
       goto error; /* Some error occurred (e.g. ambiguous names). */
-
-    if (ref == not_found_item) /* This reference was not resolved. */
+    }
+    if (m_ref_item == not_found_item) /* This reference was not resolved. */
     {
       Name_resolution_context *last_checked_context = context;
       Name_resolution_context *outer_context = context->outer_context;
-      Field *from_field;
-      ref = nullptr;
+      m_ref_item = nullptr;
 
-      if (!outer_context) {
+      if (outer_context == nullptr) {
         /* The current reference cannot be resolved in this query. */
-        my_error(ER_BAD_FIELD_ERROR, MYF(0), this->full_name(),
-                 current_thd->where);
+        my_error(ER_BAD_FIELD_ERROR, MYF(0), this->full_name(), thd->where);
         goto error;
       }
 
@@ -8004,7 +8024,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
         subselects may contain columns with the same names. The subselects are
         searched starting from the innermost.
       */
-      from_field = not_found_field;
+      Field *from_field = not_found_field;
 
       Query_block *cur_query_block = context->query_block;
 
@@ -8016,7 +8036,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
 
         // See comments and similar loop in Item_field::fix_outer_field()
         while (true) {
-          if (!cur_query_block) goto loop;
+          if (cur_query_block == nullptr) goto loop;
           assert(cur_query_block != select);
           cur_query_expression = cur_query_block->master_query_expression();
           if (cur_query_expression->outer_query_block() == select) break;
@@ -8032,11 +8052,14 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
         /* Search in the SELECT and GROUP lists of the outer select. */
         if (select_alias_referencable(place) &&
             outer_context->resolve_in_select_list) {
-          if (!(ref = resolve_ref_in_select_and_group(thd, this, select)))
+          m_ref_item = resolve_ref_in_select_and_group(thd, this, select);
+          if (m_ref_item == nullptr) {
             goto error; /* Some error occurred (e.g. ambiguous names). */
-          if (ref != not_found_item) {
-            assert((*ref)->fixed);
-            cur_query_expression->accumulate_used_tables((*ref)->used_tables());
+          }
+          if (m_ref_item != not_found_item) {
+            assert(ref_item()->fixed);
+            cur_query_expression->accumulate_used_tables(
+                ref_item()->used_tables());
             break;
           }
           /*
@@ -8044,7 +8067,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
             this item with another item and still use this item in some
             other place of the parse tree.
           */
-          ref = nullptr;
+          m_ref_item = nullptr;
         }
 
         /*
@@ -8071,7 +8094,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
               thd, this, outer_context->first_name_resolution_table,
               outer_context->last_name_resolution_table, reference,
               IGNORE_EXCEPT_NON_UNIQUE, thd->want_privilege, true);
-          if (!from_field) goto error;
+          if (from_field == nullptr) goto error;
           if (from_field == view_ref_found) {
             Item::Type refer_type = (*reference)->type();
             cur_query_expression->accumulate_used_tables(
@@ -8151,14 +8174,13 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
                   int8(last_checked_context->query_block->nest_level));
         return false;
       }
-      if (ref == nullptr) {
+      if (m_ref_item == nullptr) {
         /* The item was not a table field and not a reference */
-        my_error(ER_BAD_FIELD_ERROR, MYF(0), this->full_name(),
-                 current_thd->where);
+        my_error(ER_BAD_FIELD_ERROR, MYF(0), this->full_name(), thd->where);
         goto error;
       }
       /* Should be checked in resolve_ref_in_select_and_group(). */
-      assert((*ref)->fixed);
+      assert(ref_item()->fixed);
       mark_as_dependent(thd, last_checked_context->query_block,
                         context->query_block, this, this);
       /*
@@ -8176,7 +8198,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
   }
 
   // The reference should be fixed at this point.
-  assert((*ref)->fixed);
+  link_referenced_item();
+  assert(ref_item()->fixed);
 
   /*
     Reject invalid references to aggregates.
@@ -8192,7 +8215,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
     the query block where the aggregation happens, since grouping
     happens before aggregation.
   */
-  if (((*ref)->has_aggregation() &&
+  if ((ref_item()->has_aggregation() &&
        !thd->lex->current_query_block()->having_fix_field) ||  // 1
       walk(&Item::has_aggregate_ref_in_group_by,               // 2
            enum_walk::SUBQUERY_POSTFIX, nullptr)) {
@@ -8203,7 +8226,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
 
   set_properties();
 
-  if ((*ref)->check_cols(1)) goto error;
+  if (ref_item()->check_cols(1)) goto error;
   return false;
 
 error:
@@ -8213,20 +8236,20 @@ error:
 void Item_ref::set_properties() {
   DBUG_TRACE;
 
-  set_data_type((*ref)->data_type());
-  max_length = (*ref)->max_length;
-  set_nullable((*ref)->is_nullable());
-  decimals = (*ref)->decimals;
-  collation.set((*ref)->collation);
+  set_data_type(ref_item()->data_type());
+  max_length = ref_item()->max_length;
+  set_nullable(ref_item()->is_nullable());
+  decimals = ref_item()->decimals;
+  collation.set(ref_item()->collation);
   /*
     We have to remember if we refer to a sum function, to ensure that
     split_sum_func() doesn't try to change the reference.
   */
-  set_accum_properties(*ref);
-  unsigned_flag = (*ref)->unsigned_flag;
+  set_accum_properties(ref_item());
+  unsigned_flag = ref_item()->unsigned_flag;
   fixed = true;
-  if ((*ref)->type() == FIELD_ITEM &&
-      ((Item_ident *)(*ref))->is_alias_of_expr())
+  if (ref_item()->type() == FIELD_ITEM &&
+      down_cast<Item_ident *>(ref_item())->is_alias_of_expr())
     set_alias_of_expr();
 }
 
@@ -8247,17 +8270,17 @@ void Item_ref::cleanup() {
 */
 
 Item *Item_ref::transform(Item_transformer transformer, uchar *arg) {
-  assert((*ref) != nullptr);
+  assert(ref_item() != nullptr);
 
   /* Transform the object we are referencing. */
-  Item *new_item = (*ref)->transform(transformer, arg);
+  Item *new_item = ref_item()->transform(transformer, arg);
   if (new_item == nullptr) return nullptr;
 
   /*
     If the object is transformed into a new object, discard the Item_ref
     object and return the new object as result.
   */
-  if (new_item != *ref) return new_item;
+  if (new_item != ref_item()) return new_item;
 
   /* Transform the item ref object. */
   Item *transformed_item = (this->*transformer)(arg);
@@ -8280,117 +8303,119 @@ Item *Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
                         Item_transformer transformer, uchar *arg_t) {
   if (!(this->*analyzer)(arg_p)) return this;
 
-  assert((*ref) != nullptr);
-  Item *new_item = (*ref)->compile(analyzer, arg_p, transformer, arg_t);
+  assert(ref_item() != nullptr);
+  Item *new_item = ref_item()->compile(analyzer, arg_p, transformer, arg_t);
   if (new_item == nullptr) return nullptr;
 
   /*
     If the object is compiled into a new object, discard the Item_ref
     object and return the new object as result.
   */
-  if (new_item != *ref) return new_item;
+  if (new_item != ref_item()) return new_item;
 
   return (this->*transformer)(arg_t);
 }
 
 void Item_ref::print(const THD *thd, String *str,
                      enum_query_type query_type) const {
-  if (ref == nullptr)  // Unresolved reference: print reference
+  if (m_ref_item == nullptr)  // Unresolved reference: print reference
     return Item_ident::print(thd, str, query_type);
 
-  if (!const_item() && m_alias_of_expr && (*ref)->type() != Item::CACHE_ITEM &&
-      ref_type() != VIEW_REF && table_name == nullptr && item_name.ptr()) {
-    Simple_cstring str1 = (*ref)->real_item()->item_name;
+  if (!const_item() && m_alias_of_expr &&
+      ref_item()->type() != Item::CACHE_ITEM && ref_type() != VIEW_REF &&
+      table_name == nullptr && item_name.ptr()) {
+    Simple_cstring str1 = ref_item()->real_item()->item_name;
     append_identifier(thd, str, str1.ptr(), str1.length());
-  } else
-    (*ref)->print(thd, str, query_type);
+  } else {
+    ref_item()->print(thd, str, query_type);
+  }
 }
 
 bool Item_ref::send(Protocol *prot, String *tmp) {
-  return (*ref)->send(prot, tmp);
+  return ref_item()->send(prot, tmp);
 }
 
 double Item_ref::val_real() {
   assert(fixed);
-  double tmp = (*ref)->val_real();
-  null_value = (*ref)->null_value;
+  double tmp = ref_item()->val_real();
+  null_value = ref_item()->null_value;
   return tmp;
 }
 
 longlong Item_ref::val_int() {
   assert(fixed);
-  longlong tmp = (*ref)->val_int();
-  null_value = (*ref)->null_value;
+  longlong tmp = ref_item()->val_int();
+  null_value = ref_item()->null_value;
   return tmp;
 }
 
 longlong Item_ref::val_time_temporal() {
   assert(fixed);
-  assert((*ref)->is_temporal() || (*ref)->is_null());
-  longlong tmp = (*ref)->val_time_temporal();
-  null_value = (*ref)->null_value;
+  assert(ref_item()->is_temporal() || ref_item()->is_null());
+  longlong tmp = ref_item()->val_time_temporal();
+  null_value = ref_item()->null_value;
   return tmp;
 }
 
 longlong Item_ref::val_date_temporal() {
   assert(fixed);
-  assert((*ref)->is_temporal());
-  longlong tmp = (*ref)->val_date_temporal();
-  null_value = (*ref)->null_value;
+  assert(ref_item()->is_temporal());
+  longlong tmp = ref_item()->val_date_temporal();
+  null_value = ref_item()->null_value;
   return tmp;
 }
 
 bool Item_ref::val_bool() {
   assert(fixed);
-  bool tmp = (*ref)->val_bool();
-  null_value = (*ref)->null_value;
+  bool tmp = ref_item()->val_bool();
+  null_value = ref_item()->null_value;
   return tmp;
 }
 
 String *Item_ref::val_str(String *tmp) {
   assert(fixed);
-  tmp = (*ref)->val_str(tmp);
-  null_value = (*ref)->null_value;
+  tmp = ref_item()->val_str(tmp);
+  null_value = ref_item()->null_value;
   return tmp;
 }
 
 bool Item_ref::val_json(Json_wrapper *result) {
   assert(fixed);
-  bool ok = (*ref)->val_json(result);
-  null_value = (*ref)->null_value;
+  bool ok = ref_item()->val_json(result);
+  null_value = ref_item()->null_value;
   return ok;
 }
 
 bool Item_ref::is_null() {
   assert(fixed);
-  bool tmp = (*ref)->is_null();
-  null_value = (*ref)->null_value;
+  bool tmp = ref_item()->is_null();
+  null_value = ref_item()->null_value;
   return tmp;
 }
 
 bool Item_ref::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   assert(fixed);
-  bool result = (*ref)->get_date(ltime, fuzzydate);
-  null_value = (*ref)->null_value;
+  bool result = ref_item()->get_date(ltime, fuzzydate);
+  null_value = ref_item()->null_value;
   return result;
 }
 
 my_decimal *Item_ref::val_decimal(my_decimal *decimal_value) {
-  my_decimal *val = (*ref)->val_decimal(decimal_value);
-  null_value = (*ref)->null_value;
+  my_decimal *val = ref_item()->val_decimal(decimal_value);
+  null_value = ref_item()->null_value;
   return val;
 }
 
 type_conversion_status Item_ref::save_in_field_inner(Field *to,
                                                      bool no_conversions) {
   type_conversion_status res;
-  res = (*ref)->save_in_field(to, no_conversions);
-  null_value = (*ref)->null_value;
+  res = ref_item()->save_in_field(to, no_conversions);
+  null_value = ref_item()->null_value;
   return res;
 }
 
 void Item_ref::make_field(Send_field *field) {
-  (*ref)->make_field(field);
+  ref_item()->make_field(field);
   /* Non-zero in case of a view */
   if (item_name.is_set()) field->col_name = item_name.ptr();
   if (table_name) field->table_name = table_name;
@@ -8408,7 +8433,7 @@ void Item_ref::make_field(Send_field *field) {
 Item *Item_ref::get_tmp_table_item(THD *thd) {
   DBUG_TRACE;
   if (!result_field) {
-    Item *result = (*ref)->get_tmp_table_item(thd);
+    Item *result = ref_item()->get_tmp_table_item(thd);
     return result;
   }
 
@@ -8428,8 +8453,9 @@ Item *Item_ref::get_tmp_table_item(THD *thd) {
 void Item_ref_null_helper::print(const THD *thd, String *str,
                                  enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("<ref_null_helper>("));
-  if (ref)
-    (*ref)->print(thd, str, query_type);
+  assert(m_ref_item != nullptr);
+  if (m_ref_item != nullptr)
+    ref_item()->print(thd, str, query_type);
   else
     str->append('?');
   str->append(')');
@@ -8456,18 +8482,21 @@ bool Item_ref::collect_item_field_or_ref_processor(uchar *arg) {
 */
 
 bool Item_view_ref::fix_fields(THD *thd, Item **reference) {
-  assert(*ref);  // view field reference must be defined
+  assert(ref_item() != nullptr);  // view field reference must be defined
 
-  // (*ref)->check_cols() will be made in Item_ref::fix_fields
-  if ((*ref)->fixed) {
+  // ref_item()->check_cols() will be made in Item_ref::fix_fields
+  if (ref_item()->fixed) {
     /*
       Underlying Item_field objects may be shared. Make sure that the use
       is marked regardless of how many ref items that point to this field.
     */
     Mark_field mf(thd->mark_used_columns);
-    (*ref)->walk(&Item::mark_field_in_map, enum_walk::POSTFIX, (uchar *)&mf);
+    ref_item()->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
+                     pointer_cast<uchar *>(&mf));
   } else {
-    if ((*ref)->fix_fields(thd, ref)) return true; /* purecov: inspected */
+    if (ref_item()->fix_fields(thd, reference)) {
+      return true; /* purecov: inspected */
+    }
   }
   if (super::fix_fields(thd, reference)) return true;
 
@@ -8502,15 +8531,17 @@ bool Item_view_ref::fix_fields(THD *thd, Item **reference) {
 
 bool Item_outer_ref::fix_fields(THD *thd, Item **reference) {
   /* outer_ref->check_cols() will be made in Item_ref::fix_fields */
-  if ((*ref) && !(*ref)->fixed && ((*ref)->fix_fields(thd, reference)))
+  if (ref_item() != nullptr && !ref_item()->fixed &&
+      ref_item()->fix_fields(thd, reference)) {
     return true;
+  }
   if (super::fix_fields(thd, reference)) return true;
-  if (!outer_ref) outer_ref = *ref;
-  if ((*ref)->type() == Item::FIELD_ITEM)
-    table_name = ((Item_field *)outer_ref)->table_name;
+  if (outer_ref == nullptr) outer_ref = ref_item();
+  if (ref_item()->type() == Item::FIELD_ITEM)
+    table_name = down_cast<Item_field *>(outer_ref)->table_name;
 
   Item *item = outer_ref;
-  Item **item_ref = ref;
+  Item **item_ref = ref_pointer();
 
   /*
     TODO: this field item already might be present in the select list.
@@ -8541,7 +8572,8 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference) {
       new Item_ref(context, item_ref, db_name, table_name, field_name);
   if (new_ref == nullptr) return true; /* purecov: inspected */
   outer_ref = new_ref;
-  ref = &outer_ref;
+  m_ref_item = &outer_ref;
+  link_referenced_item();
 
   qualifying->select_list_tables |= item->used_tables();
 
@@ -8552,9 +8584,9 @@ void Item_outer_ref::fix_after_pullout(Query_block *parent_query_block,
                                        Query_block *removed_query_block) {
   /*
     If this assertion holds, we need not call fix_after_pullout() on both
-    *ref and outer_ref, and Item_ref::fix_after_pullout() is sufficient.
+    ref_item() and outer_ref, and Item_ref::fix_after_pullout() is sufficient.
   */
-  assert(*ref == outer_ref);
+  assert(ref_item() == outer_ref);
 
   Item_ref::fix_after_pullout(parent_query_block, removed_query_block);
 }
@@ -8567,7 +8599,7 @@ Item *Item_outer_ref::replace_outer_ref(uchar *arg) {
 
 void Item_ref::fix_after_pullout(Query_block *parent_query_block,
                                  Query_block *removed_query_block) {
-  (*ref)->fix_after_pullout(parent_query_block, removed_query_block);
+  ref_item()->fix_after_pullout(parent_query_block, removed_query_block);
 
   Item_ident::fix_after_pullout(parent_query_block, removed_query_block);
 }
@@ -8592,8 +8624,8 @@ bool Item_view_ref::eq(const Item *item, bool) const {
   if (item->type() == REF_ITEM) {
     const Item_ref *item_ref = down_cast<const Item_ref *>(item);
     if (item_ref->ref_type() == VIEW_REF) {
-      Item *item_ref_ref = *(item_ref->ref);
-      return ((*ref)->real_item() == item_ref_ref->real_item());
+      Item *item_ref_ref = item_ref->ref_item();
+      return (ref_item()->real_item() == item_ref_ref->real_item());
     }
   }
   return false;
@@ -8650,7 +8682,7 @@ bool Item_view_ref::val_json(Json_wrapper *wr) {
 bool Item_view_ref::is_null() {
   if (has_null_row()) return true;
 
-  return (*ref)->is_null();
+  return ref_item()->is_null();
 }
 
 bool Item_view_ref::send(Protocol *prot, String *tmp) {
@@ -8740,7 +8772,7 @@ Item *Item_view_ref::replace_view_refs_with_clone(uchar *arg) {
   // block, the context to resolve the field will be different than
   // the derived table context (dt1).
   return dti->m_derived_query_block->outer_query_block()->clone_expression(
-      current_thd, *ref);
+      current_thd, ref_item());
 }
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res) {

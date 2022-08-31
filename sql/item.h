@@ -736,14 +736,14 @@ typedef void (*Cond_traverser)(const Item *item, void *arg);
 */
 class Item_tree_walker {
  protected:
-  Item_tree_walker() : stopped_at_item(nullptr) {}
+  Item_tree_walker() {}
   ~Item_tree_walker() { assert(!stopped_at_item); }
   Item_tree_walker(const Item_tree_walker &) = delete;
   Item_tree_walker &operator=(const Item_tree_walker &) = delete;
 
   /// Stops walking children of this item
   void stop_at(const Item *i) {
-    assert(!stopped_at_item);
+    assert(stopped_at_item == nullptr);
     stopped_at_item = i;
   }
 
@@ -752,7 +752,7 @@ class Item_tree_walker {
    walk for next items.
    */
   bool is_stopped(const Item *i) {
-    if (stopped_at_item) {
+    if (stopped_at_item != nullptr) {
       /*
        Walking was disabled for a tree part rooted a one ancestor of 'i' or
        rooted at 'i'.
@@ -772,7 +772,7 @@ class Item_tree_walker {
   }
 
  private:
-  const Item *stopped_at_item;
+  const Item *stopped_at_item{nullptr};
 };
 
 /**
@@ -2684,7 +2684,7 @@ class Item : public Parse_tree_node {
      Context object for (functions that override)
      Item::clean_up_after_removal().
    */
-  class Cleanup_after_removal_context final {
+  class Cleanup_after_removal_context final : public Item_tree_walker {
    public:
     Cleanup_after_removal_context(Query_block *root) : m_root(root) {
       assert(root != nullptr);
@@ -2699,6 +2699,10 @@ class Item : public Parse_tree_node {
       that was removed.
     */
     Query_block *const m_root;
+
+    friend class Item_sum;
+    friend class Item_subselect;
+    friend class Item_ref;
   };
   /**
      Clean up after removing the item from the item tree.
@@ -3173,6 +3177,15 @@ class Item : public Parse_tree_node {
   */
   bool is_blob_field() const;
 
+  /// Increment reference count
+  void increment_ref_count() { ++m_ref_count; }
+
+  /// Decrement reference count
+  uint decrement_ref_count() {
+    assert(m_ref_count > 0);
+    return --m_ref_count;
+  }
+
  protected:
   /// Set accumulated properties for an Item
   void set_accum_properties(const Item *item) {
@@ -3356,6 +3369,8 @@ class Item : public Parse_tree_node {
     /// When pushing conditions down to derived table: it says a condition
     /// contains only derived table's columns.
     MARKER_COND_DERIVED_TABLE = 7,
+    /// Used during traversal to avoid deleting an item twice.
+    MARKER_TRAVERSAL = 8,
     /// When pushing index conditions: it says whether a condition uses only
     /// indexed columns.
     MARKER_ICP_COND_USES_INDEX_ONLY = 10 };
@@ -3377,6 +3392,11 @@ class Item : public Parse_tree_node {
   item_marker marker;
   Item_result cmp_context;  ///< Comparison context
  private:
+  /**
+    Number of references to this item from Item_ref objects. Used during
+    resolving to manage proper deletion of item sub-trees.
+  */
+  uint m_ref_count{0};
   const bool is_parser_item;  ///< true if allocated directly by parser
   int8 is_expensive_cache;    ///< Cache of result of is_expensive()
   uint8 m_data_type;          ///< Data type assigned to Item
@@ -5645,19 +5665,22 @@ class Item_ref : public Item_ident {
   bool pusheddown_depended_from{false};
 
  private:
+  /// True if referenced item has been unlinked, used during item tree removal
+  bool m_unlinked{false};
+
   Field *result_field{nullptr}; /* Save result here */
- public:
-  Item **ref;
+
+ protected:
+  /// Indirect pointer to the referenced item.
+  Item **m_ref_item{nullptr};
 
  public:
   Item_ref(Name_resolution_context *context_arg, const char *db_name_arg,
            const char *table_name_arg, const char *field_name_arg)
-      : Item_ident(context_arg, db_name_arg, table_name_arg, field_name_arg),
-        ref(nullptr) {}
+      : Item_ident(context_arg, db_name_arg, table_name_arg, field_name_arg) {}
   Item_ref(const POS &pos, const char *db_name_arg, const char *table_name_arg,
            const char *field_name_arg)
-      : Item_ident(pos, db_name_arg, table_name_arg, field_name_arg),
-        ref(nullptr) {}
+      : Item_ident(pos, db_name_arg, table_name_arg, field_name_arg) {}
 
   /*
     This constructor is used in two scenarios:
@@ -5683,11 +5706,22 @@ class Item_ref : public Item_ident {
   Item_ref(THD *thd, Item_ref *item)
       : Item_ident(thd, item),
         result_field(item->result_field),
-        ref(item->ref) {}
+        m_ref_item(item->m_ref_item) {}
+
+  /// @returns the item referenced by this object
+  Item *ref_item() const { return *m_ref_item; }
+
+  /// @returns the pointer to the item referenced by this object
+  Item **ref_pointer() const { return m_ref_item; }
+
+  void link_referenced_item() { ref_item()->increment_ref_count(); }
+
   enum Type type() const override { return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override {
     const Item *it = item->real_item();
-    return ref && (*ref)->eq(it, binary_cmp);
+    // May search for a referenced item that is not yet resolved:
+    if (m_ref_item == nullptr) return false;
+    return ref_item()->eq(it, binary_cmp);
   }
   double val_real() override;
   longlong val_int() override;
@@ -5705,29 +5739,31 @@ class Item_ref : public Item_ident {
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
 
-  Item_result result_type() const override { return (*ref)->result_type(); }
-  TYPELIB *get_typelib() const override { return (*ref)->get_typelib(); }
+  Item_result result_type() const override { return ref_item()->result_type(); }
+
+  TYPELIB *get_typelib() const override { return ref_item()->get_typelib(); }
 
   Field *get_tmp_table_field() override {
-    return result_field ? result_field : (*ref)->get_tmp_table_field();
+    return result_field != nullptr ? result_field
+                                   : ref_item()->get_tmp_table_field();
   }
   Item *get_tmp_table_item(THD *thd) override;
   table_map used_tables() const override {
     if (depended_from != nullptr) return OUTER_REF_TABLE_BIT;
-    const table_map map = (*ref)->used_tables();
+    const table_map map = ref_item()->used_tables();
     if (map != 0) return map;
     // rollup constant: ensure it is non-constant by returning RAND_TABLE_BIT
     if (has_rollup_expr()) return RAND_TABLE_BIT;
     return 0;
   }
   void update_used_tables() override {
-    if (!depended_from) (*ref)->update_used_tables();
+    if (depended_from != nullptr) ref_item()->update_used_tables();
     /*
       Reset all flags except rollup, since we do not mark the rollup expression
       itself.
     */
     m_accum_properties &= PROP_ROLLUP_EXPR;
-    add_accum_properties(*ref);
+    add_accum_properties(ref_item());
   }
 
   table_map not_null_tables() const override {
@@ -5737,20 +5773,28 @@ class Item_ref : public Item_ident {
       field in a subquery belongs to an outer merged view), so we first test
       ours:
     */
-    return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->not_null_tables();
+    return depended_from != nullptr ? OUTER_REF_TABLE_BIT
+                                    : ref_item()->not_null_tables();
   }
   void set_result_field(Field *field) override { result_field = field; }
   bool is_result_field() const override { return true; }
   Field *get_result_field() const override { return result_field; }
-  Item *real_item() override { return ref ? (*ref)->real_item() : this; }
+  Item *real_item() override {
+    // May look into unresolved Item_ref objects
+    if (m_ref_item == nullptr) return this;
+    return ref_item()->real_item();
+  }
   const Item *real_item() const override {
-    return ref ? (*ref)->real_item() : this;
+    // May look into unresolved Item_ref objects
+    if (m_ref_item == nullptr) return this;
+    return ref_item()->real_item();
   }
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
+    // Unresolved items may have m_ref_item = nullptr
     return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
-           // For having clauses 'ref' will consistently =NULL.
-           (ref != nullptr ? (*ref)->walk(processor, walk, arg) : false) ||
+           (m_ref_item != nullptr ? ref_item()->walk(processor, walk, arg)
+                                  : false) ||
            ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
   }
   Item *transform(Item_transformer, uchar *arg) override;
@@ -5758,9 +5802,9 @@ class Item_ref : public Item_ident {
                 Item_transformer transformer, uchar *arg_t) override;
   void traverse_cond(Cond_traverser traverser, void *arg,
                      traverse_order order) override {
-    assert((*ref) != nullptr);
+    assert(ref_item() != nullptr);
     if (order == PREFIX) (*traverser)(this, arg);
-    (*ref)->traverse_cond(traverser, arg, order);
+    ref_item()->traverse_cond(traverser, arg, order);
     if (order == POSTFIX) (*traverser)(this, arg);
   }
   bool explain_subquery_checker(uchar **) override {
@@ -5772,55 +5816,56 @@ class Item_ref : public Item_ident {
     */
     return false;
   }
+  bool clean_up_after_removal(uchar *arg) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   void cleanup() override;
   Item_field *field_for_view_update() override {
-    return (*ref)->field_for_view_update();
+    return ref_item()->field_for_view_update();
   }
   virtual Ref_Type ref_type() const { return REF; }
 
   // Row emulation: forwarding of ROW-related calls to ref
   uint cols() const override {
-    return ref && result_type() == ROW_RESULT ? (*ref)->cols() : 1;
+    assert(m_ref_item != nullptr);
+    return result_type() == ROW_RESULT ? ref_item()->cols() : 1;
   }
   Item *element_index(uint i) override {
-    return ref && result_type() == ROW_RESULT ? (*ref)->element_index(i) : this;
+    assert(m_ref_item != nullptr);
+    return result_type() == ROW_RESULT ? ref_item()->element_index(i) : this;
   }
   Item **addr(uint i) override {
-    return ref && result_type() == ROW_RESULT ? (*ref)->addr(i) : nullptr;
+    assert(m_ref_item != nullptr);
+    return result_type() == ROW_RESULT ? ref_item()->addr(i) : nullptr;
   }
   bool check_cols(uint c) override {
-    return ref && result_type() == ROW_RESULT ? (*ref)->check_cols(c)
-                                              : Item::check_cols(c);
+    assert(m_ref_item != nullptr);
+    return result_type() == ROW_RESULT ? ref_item()->check_cols(c)
+                                       : Item::check_cols(c);
   }
   bool null_inside() override {
-    return ref && result_type() == ROW_RESULT ? (*ref)->null_inside() : false;
+    assert(m_ref_item != nullptr);
+    return result_type() == ROW_RESULT ? ref_item()->null_inside() : false;
   }
   void bring_value() override {
-    if (ref && result_type() == ROW_RESULT) (*ref)->bring_value();
+    assert(m_ref_item != nullptr);
+    if (result_type() == ROW_RESULT) ref_item()->bring_value();
   }
   bool get_time(MYSQL_TIME *ltime) override {
     assert(fixed);
-    return (*ref)->get_time(ltime);
+    return ref_item()->get_time(ltime);
   }
 
-  /**
-    @todo Consider re-implementing this for Item_view_ref, as it
-          may return NULL even if it wraps a constant value, if one the
-          inner side of an outer join.
-  */
-  bool basic_const_item() const override {
-    return ref && (*ref)->basic_const_item();
-  }
+  bool basic_const_item() const override { return false; }
+
   bool is_outer_field() const override {
     assert(fixed);
-    assert(ref);
-    return (*ref)->is_outer_field();
+    assert(ref_item());
+    return ref_item()->is_outer_field();
   }
 
   bool created_by_in2exists() const override {
-    return (*ref)->created_by_in2exists();
+    return ref_item()->created_by_in2exists();
   }
 
   bool repoint_const_outer_ref(uchar *arg) override;
@@ -5832,16 +5877,16 @@ class Item_ref : public Item_ident {
     return true;
   }
   Item_result cast_to_int_type() const override {
-    return (*ref)->cast_to_int_type();
+    return ref_item()->cast_to_int_type();
   }
   bool is_valid_for_pushdown(uchar *arg) override {
-    return (*ref)->is_valid_for_pushdown(arg);
+    return ref_item()->is_valid_for_pushdown(arg);
   }
   bool check_column_in_window_functions(uchar *arg) override {
-    return (*ref)->check_column_in_window_functions(arg);
+    return ref_item()->check_column_in_window_functions(arg);
   }
   bool check_column_in_group_by(uchar *arg) override {
-    return (*ref)->check_column_in_group_by(arg);
+    return ref_item()->check_column_in_group_by(arg);
   }
   bool collect_item_field_or_ref_processor(uchar *arg) override;
 };
@@ -5905,10 +5950,10 @@ class Item_view_ref final : public Item_ref {
   table_map used_tables() const override {
     if (depended_from != nullptr) return OUTER_REF_TABLE_BIT;
 
-    table_map inner_map = (*ref)->used_tables();
+    table_map inner_map = ref_item()->used_tables();
     return !(inner_map & ~INNER_TABLE_BIT) && first_inner_table != nullptr
-               ? (*ref)->real_item()->type() == FIELD_ITEM
-                     ? down_cast<Item_field *>((*ref)->real_item())
+               ? ref_item()->real_item()->type() == FIELD_ITEM
+                     ? down_cast<Item_field *>(ref_item()->real_item())
                            ->table_ref->map()
                      : first_inner_table->map()
                : inner_map;
@@ -5931,9 +5976,9 @@ class Item_view_ref final : public Item_ref {
     */
     auto mark_field = (Mark_field *)arg;
     if (mark_field->mark != MARK_COLUMNS_NONE)
-      // Set the same flag for all the objects that *ref depends on.
-      (*ref)->walk(&Item::propagate_set_derived_used,
-                   enum_walk::SUBQUERY_POSTFIX, nullptr);
+      // Set the same flag for all the objects that ref_item() depends on.
+      ref_item()->walk(&Item::propagate_set_derived_used,
+                       enum_walk::SUBQUERY_POSTFIX, nullptr);
     return get_result_field()
                ? Item::mark_field_in_map(mark_field, get_result_field())
                : false;
@@ -6004,7 +6049,8 @@ class Item_outer_ref final : public Item_ref {
         outer_ref(ident_arg),
         in_sum_func(nullptr),
         found_in_select_list(false) {
-    ref = &outer_ref;
+    m_ref_item = &outer_ref;
+    link_referenced_item();
     set_properties();
     fixed = false;
   }
@@ -6022,7 +6068,7 @@ class Item_outer_ref final : public Item_ref {
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
   table_map used_tables() const override {
-    return (*ref)->used_tables() == 0 ? 0 : OUTER_REF_TABLE_BIT;
+    return ref_item()->used_tables() == 0 ? 0 : OUTER_REF_TABLE_BIT;
   }
   table_map not_null_tables() const override { return 0; }
 
@@ -6065,7 +6111,7 @@ class Item_ref_null_helper final : public Item_ref {
   */
   table_map used_tables() const override {
     return (depended_from ? OUTER_REF_TABLE_BIT
-                          : (*ref)->used_tables() | RAND_TABLE_BIT);
+                          : ref_item()->used_tables() | RAND_TABLE_BIT);
   }
 };
 

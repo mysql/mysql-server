@@ -1352,8 +1352,6 @@ class Query_block : public Query_term {
   /// @returns true if query block is a recursive member of a recursive unit
   bool is_recursive() const { return recursive_reference != nullptr; }
 
-  bool is_in_select_list(Item *i);
-
   /**
     Finds a group expression matching the given item, or nullptr if
     none. When there are multiple candidates, ones that match in name are
