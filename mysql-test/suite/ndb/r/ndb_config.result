@@ -104,3 +104,5 @@ Nodegroup,0,(null)
 NoOfReplicas,1,2
 ThreadConfig,,(null)
 
+== 31 == ndb_config --config-binary-file=ndb_3_config.bin.1 --system
+3

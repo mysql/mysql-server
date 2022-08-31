@@ -134,3 +134,8 @@ echo == 30 ==;
 exec $NDB_CONFIG_EXE --defaults-group-suffix=.bug56185
   --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf
   --mycnf --diff-default --type=DB --rows="\n";
+
+echo == 31 == ndb_config --config-binary-file=ndb_3_config.bin.1 --system;
+exec $NDB_CONFIG
+  --config-binary-file=$MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/ndb_3_config.bin.1
+  --system --query=PrimaryMGMNode;

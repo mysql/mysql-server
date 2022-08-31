@@ -81,6 +81,7 @@ public:
   /**
    * Get config from file
    */
+  static ndb_mgm::config_ptr getConfig(const char * file, BaseString& err);
   ndb_mgm::config_ptr getConfig(const char * file);
 
   /**

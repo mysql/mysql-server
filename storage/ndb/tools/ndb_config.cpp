@@ -82,6 +82,8 @@
 #include "NdbToolsProgramExitCodes.hpp"
 #include <inttypes.h>
 #include "util/cstrbuf.h"
+#include "mgmcommon/ConfigRetriever.hpp"
+#include "mgmcommon/Config.hpp"
 
 #include "my_alloc.h"
 
@@ -97,6 +99,7 @@ static const char * g_type = 0;
 static const char * g_host = 0;
 static const char * g_field_delimiter=",";
 static const char * g_row_delimiter=" ";
+static const char * g_config_binary_file = nullptr;
 static const char * g_config_file = 0;
 static int g_mycnf = 0;
 static int g_configinfo = 0;
@@ -143,6 +146,10 @@ static struct my_option my_long_options[] =
     0, 0, 0, nullptr, 0, nullptr},
   { "rows", 'r', "Row separator",
     &g_row_delimiter, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
+  { "config-binary-file", NDB_OPT_NOSHORT,
+    "Binary config file (i.e. ndb_1_config.bin.2)",
+    &g_config_binary_file, nullptr, nullptr, GET_STR, REQUIRED_ARG,
     0, 0, 0, nullptr, 0, nullptr},
   { "config-file", NDB_OPT_NOSHORT, "Path to config.ini",
     &g_config_file, nullptr, nullptr, GET_STR, REQUIRED_ARG,
@@ -274,11 +281,23 @@ static int print_diff(int section, const ndb_mgm_configuration_iterator&);
 static ndb_mgm_configuration* fetch_configuration(int from_node);
 static ndb_mgm_configuration* load_configuration();
 
+static ndb_mgm_configuration* load_binary_config(const char* config_name)
+{
+  BaseString err;
+  ndb_mgm::config_ptr config =
+      ConfigRetriever::getConfig(config_name, err);
+  if (config) return config.release();
+  fprintf(stderr, "Error: %s\n", err.c_str());
+  return nullptr;
+}
+
 static ndb_mgm::config_ptr get_config()
 {
   ndb_mgm_configuration* conf;
   if (g_config_file || g_mycnf)
     conf = load_configuration();
+  else if (g_config_binary_file)
+    conf = load_binary_config(g_config_binary_file);
   else
     conf = fetch_configuration(g_config_from_node);
   return ndb_mgm::config_ptr(conf);
