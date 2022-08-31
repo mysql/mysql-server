@@ -1359,6 +1359,7 @@ void MysqlRoutingXConnection::client_cap_set() {
 
   bool msg_is_broken{false};
   bool switch_to_tls{false};
+  bool has_cap_compression{false};
   if (!msg->has_capabilities()) {
     msg_is_broken = true;
   } else {
@@ -1378,6 +1379,8 @@ void MysqlRoutingXConnection::client_cap_set() {
         } else {
           switch_to_tls = cap.value().scalar().v_bool();
         }
+      } else if (cap.name() == "compression") {
+        has_cap_compression = true;
       } else {
 #ifdef DEBUG_IO
         std::cerr << __LINE__ << ": " << cap.name() << "\n";
@@ -1394,6 +1397,20 @@ void MysqlRoutingXConnection::client_cap_set() {
 
     encode_error_packet(out_buf, 5001, "Capability prepare failed for \'tls\'",
                         "HY000", Mysqlx::Error::ERROR);
+
+    return async_send_client_buffer(net::buffer(out_buf),
+                                    Function::kClientRecvCmd);
+  }
+
+  if (has_cap_compression) {
+    discard_current_msg(src_channel, src_protocol);
+
+    std::vector<uint8_t> out_buf;
+
+    encode_error_packet(
+        out_buf, ER_X_CAPABILITY_COMPRESSION_INVALID_ALGORITHM,
+        "Invalid or unsupported value for \'compression.algorithm\'", "HY000",
+        Mysqlx::Error::ERROR);
 
     return async_send_client_buffer(net::buffer(out_buf),
                                     Function::kClientRecvCmd);

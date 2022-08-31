@@ -40,13 +40,12 @@
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/string_utils.h"  // split_string
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlxclient.h"
 #include "mysqlxclient/xerror.h"
 #include "mysqlxclient/xsession.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
 #include "router/src/routing/src/ssl_mode.h"
 #include "router_component_test.h"  // ProcessManager
-
-#include "mysqlxclient.h"
 
 using namespace std::string_literals;
 using namespace std::chrono_literals;
@@ -2189,6 +2188,119 @@ TEST_P(SplicerParamTest, xproto) {
 
       EXPECT_EQ(field, std::string(15 * 1024 * 1024, 'a'));
     }
+  }
+}
+
+/**
+ * compression should fail, if not passthrough.
+ */
+TEST_P(SplicerParamTest, xproto_compression) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+  const auto server_port_x = port_pool_.get_next_available();
+
+  const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
+
+  auto mock_server_cmdline_args =
+      mysql_server_mock_cmdline_args(mock_file, server_port, 0,  // http_port
+                                     server_port_x);
+
+  // enable SSL support on the mock-server.
+  if (GetParam().mock_ssl_mode != mysql_ssl_mode::SSL_MODE_DISABLED) {
+    std::initializer_list<std::pair<const char *, const char *>> mock_opts = {
+        {"--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
+        {"--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
+        {"--ssl-mode", "PREFERRED"}};
+
+    for (const auto &arg : mock_opts) {
+      mock_server_cmdline_args.emplace_back(arg.first);
+      mock_server_cmdline_args.emplace_back(arg.second);
+    }
+  }
+
+  launch_mysql_server_mock(mock_server_cmdline_args, server_port);
+
+  const std::string destination(mock_server_host_ + ":" +
+                                std::to_string(server_port_x));
+  const std::string mock_username = "someuser";
+  const std::string mock_password = "somepass";
+
+  auto config = mysql_harness::join(
+      std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
+          "routing",
+          {
+              {"bind_port", std::to_string(router_port)},
+              {"destinations", destination},
+              {"routing_strategy", "round-robin"},
+              {"client_ssl_key", valid_ssl_key_},
+              {"client_ssl_cert", valid_ssl_cert_},
+              {"client_ssl_mode",
+               ssl_mode_to_string(GetParam().client_ssl_mode)},
+              {"server_ssl_mode",
+               ssl_mode_to_string(GetParam().server_ssl_mode)},
+              {"protocol", "x"},
+          })},
+      "");
+  auto conf_file = create_config_file(conf_dir_.name(), config);
+
+  launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
+
+  auto sess = xcl::create_session();
+  ASSERT_THAT(
+      sess->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
+                             mysqlrouter::MySQLSession::ssl_mode_to_string(
+                                 GetParam().my_ssl_mode)),
+      ::testing::Truly([](const xcl::XError &xerr) { return !xerr; }));
+
+  // use a auth-method that works over plaintext, server-side channels
+  if (GetParam().client_ssl_mode == SslMode::kPreferred &&
+      GetParam().server_ssl_mode == SslMode::kDisabled &&
+      GetParam().my_ssl_mode != SSL_MODE_DISABLED) {
+    // client is TLS and will default to PLAIN auth, but it will fail on the
+    // server side as the server's connection plaintext (and PLAIN is only
+    // allowed over secure channels).
+    sess->set_mysql_option(xcl::XSession::Mysqlx_option::Authentication_method,
+                           "MYSQL41");
+  }
+
+  SCOPED_TRACE("// check the compression capability is announced properly.");
+  {
+    auto &xproto = sess->get_protocol();
+    auto &xconn = xproto.get_connection();
+
+    const auto connect_err =
+        xconn.connect(router_host_, router_port, xcl::Internet_protocol::Any);
+
+    ASSERT_EQ(connect_err.error(), 0) << connect_err.what();
+
+    // try to set the compression capability.
+    {
+      Mysqlx::Connection::CapabilitiesSet caps;
+
+      auto *cap = caps.mutable_capabilities()->add_capabilities();
+      cap->mutable_name()->assign("compression");
+      auto *cap_value = cap->mutable_value();
+      cap_value->set_type(Mysqlx::Datatypes::Any_Type::Any_Type_OBJECT);
+      auto *cap_value_obj = cap_value->mutable_obj();
+      {
+        auto *cap_value_obj_fld = cap_value_obj->add_fld();
+        cap_value_obj_fld->mutable_key()->assign("algorithm");
+        auto *fld_value = cap_value_obj_fld->mutable_value();
+        fld_value->set_type(Mysqlx::Datatypes::Any_Type::Any_Type_SCALAR);
+        auto *fld_scalar = fld_value->mutable_scalar();
+        fld_scalar->set_type(
+            Mysqlx::Datatypes::Scalar_Type::Scalar_Type_V_STRING);
+        fld_scalar->mutable_v_string()->mutable_value()->assign(
+            "deflate_stream");
+      }
+
+      auto xerr = xproto.execute_set_capability(caps);
+      // Invalid or unsupported value for 'compression.algorithm'
+      EXPECT_EQ(xerr.error(), 5175) << xerr.what();
+    }
+
+    xconn.close();
   }
 }
 
