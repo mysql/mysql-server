@@ -1,3 +1,5 @@
+Node 1: SINGLE USER MODE
+Node 2: SINGLE USER MODE
 create table t1 (a int key, b int unique, c int) engine ndb;
 ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 show warnings;
@@ -132,10 +134,14 @@ update t1 set b=b+100;
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
 update t1 set b=b+100 where a > 7;
 ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+Node 1: STARTED
+Node 2: STARTED
 BEGIN;
 update t1 set b=b+100 where a=1;
 BEGIN;
 update t1 set b=b+100 where a=2;
+Node 1: SINGLE USER MODE
+Node 2: SINGLE USER MODE
 update t1 set b=b+100 where a=3;
 COMMIT;
 update t1 set b=b+100 where a=4;
@@ -143,5 +149,7 @@ ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user 
 ROLLBACK;
 create table t2 (a int) engine myisam;
 alter table t2 add column (b int);
+Node 1: STARTED
+Node 2: STARTED
 drop table t2;
 drop table t1;

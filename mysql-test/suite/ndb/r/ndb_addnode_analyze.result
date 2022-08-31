@@ -31,6 +31,8 @@ test.t_new	analyze	status	OK
 Restart data nodes, checking that ANALYZE TABLE
 succeeds in all intermediate states
 Restart node 1
+Node 1: NOT_STARTED
+Node 1: STARTED
 Restart finished
 Analyze the tables
 analyze table test.t_orig;
@@ -40,6 +42,8 @@ analyze table test.t_new;
 Table	Op	Msg_type	Msg_text
 test.t_new	analyze	status	OK
 Restart node 2
+Node 2: NOT_STARTED
+Node 2: STARTED
 Restart finished
 Analyze the tables
 analyze table test.t_orig;
@@ -49,6 +53,8 @@ analyze table test.t_new;
 Table	Op	Msg_type	Msg_text
 test.t_new	analyze	status	OK
 Restart node 3
+Node 3: NOT_STARTED
+Node 3: STARTED
 Restart finished
 Analyze the tables
 analyze table test.t_orig;
@@ -58,6 +64,8 @@ analyze table test.t_new;
 Table	Op	Msg_type	Msg_text
 test.t_new	analyze	status	OK
 Restart node 4
+Node 4: NOT_STARTED
+Node 4: STARTED
 Restart finished
 Analyze the tables
 analyze table test.t_orig;

@@ -85,7 +85,7 @@ let $wait_condition = select count(*) = 2
 --echo # Start all data nodes again.
 --exec $NDB_MGM --execute "2 start"
 --exec $NDB_MGM --execute "4 start"
---exec $NDB_WAITER --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --wait-nodes=2,4
 
 --echo # Check that there are again 4 connections from second mysqld
 connection server1;
@@ -97,5 +97,3 @@ let $wait_condition = select count(*) = 4
 # But since mtr often runs in overloaded hosts a longer timeout (6s) is used.
 let $wait_timeout = 6;
 --source include/wait_condition.inc
-
---remove_file $NDB_TOOLS_OUTPUT

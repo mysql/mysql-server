@@ -9,6 +9,8 @@ set @save_debug = @@session.debug;
 SET SESSION debug="+d,sleep_in_ndbinit";
 INSERT INTO t1 VALUES (9410, 9412, NULL, '9412');;
 # Restarting one node
+Node 1: STARTED
+Node 2: STARTED
 SET SESSION debug=@save_debug;
 select * from t1 order by pk1;
 pk1	attr1	attr2	attr3

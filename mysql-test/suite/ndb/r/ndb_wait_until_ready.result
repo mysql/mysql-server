@@ -14,4 +14,6 @@ Database node 2 is being started.
 
 Database node 4 is being started.
 
+Node 2: STARTED
+Node 4: STARTED
 # Check that there are again 4 connections from second mysqld

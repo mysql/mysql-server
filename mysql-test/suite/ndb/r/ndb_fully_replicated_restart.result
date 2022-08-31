@@ -191,6 +191,7 @@ a	b	c	LENGTH(d)
 9	row 9	19	3500
 rollback;
 "Stop node 1"
+Node 1: NOT_STARTED
 begin;
 select a,b,c,LENGTH(d) from t1 where a = 7;
 a	b	c	LENGTH(d)
@@ -240,6 +241,10 @@ a	b	c	LENGTH(d)
 9	row 9	19	3500
 rollback;
 "Start node 1"
+Node 1: STARTED
+Node 2: STARTED
+Node 3: STARTED
+Node 4: STARTED
 begin;
 select a,b,c,LENGTH(d) from t1 where a = 7;
 a	b	c	LENGTH(d)
@@ -319,6 +324,14 @@ insert into t1 values
 (8, "row 8", 8, REPEAT("qubit#8",500)),
 (9, "row 9", 9, REPEAT("qubit#9",500));
 "Restart cluster"
+Node 1: NOT_STARTED
+Node 2: NOT_STARTED
+Node 3: NOT_STARTED
+Node 4: NOT_STARTED
+Node 1: STARTED
+Node 2: STARTED
+Node 3: STARTED
+Node 4: STARTED
 "Wait reconnect"
 begin;
 select a,b,c,LENGTH(d) from t1 where a = 7;

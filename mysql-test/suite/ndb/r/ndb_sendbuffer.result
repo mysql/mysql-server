@@ -1,5 +1,8 @@
 Testing for bug#24444908 / bug#25128512
 Restart node 1 while other node(s) keps try sending to it
 Wait for node 1 to go down.
+Node 1: NO_CONTACT
 Waiting for node 1 to get started again
+Node 1: STARTED
+Node 2: STARTED
 End of test for bug#24444908 / bug#25128512

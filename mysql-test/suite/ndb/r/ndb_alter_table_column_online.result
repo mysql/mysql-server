@@ -87,6 +87,8 @@ a	d	e	t	extra2	extra1
 3	3	3	Three	XXXX	YYYY
 4	4	4	Four	XXXX	YYYY
 5	5	5	Five	XXXX	YYYY
+Node 1: STARTED
+Node 2: STARTED
 SELECT * FROM t1 ORDER BY a;
 a	d	e	t	extra2	extra1
 1	1	1	One	XXXX	YYYY

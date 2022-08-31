@@ -45,9 +45,9 @@ INSERT INTO t2 VALUES (1, 1);
 # Restart node 1
 #
 --exec $NDB_MGM -e "1 RESTART -n"
---exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
+--exec $NDB_WAITER --nowait-nodes=2 --not-started
 --exec $NDB_MGM -e "1 START"
---exec $NDB_WAITER  > /dev/null
+--exec $NDB_WAITER
 
 # Check that the metadata is still present
 SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
@@ -66,9 +66,9 @@ SELECT * FROM t2;
 # Restart node 1 --initial
 #
 --exec $NDB_MGM -e "1 RESTART -n -I"
---exec $NDB_WAITER --nowait-nodes=2 --not-started  > /dev/null
+--exec $NDB_WAITER --nowait-nodes=2 --not-started
 --exec $NDB_MGM -e "1 START"
---exec $NDB_WAITER  > /dev/null
+--exec $NDB_WAITER
 
 # Check that the metadata is still present
 SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
@@ -87,9 +87,9 @@ SELECT * FROM t2;
 # Restart all
 #
 --exec $NDB_MGM -e "ALL RESTART -N"
---exec $NDB_WAITER --not-started > /dev/null
+--exec $NDB_WAITER --not-started
 --exec $NDB_MGM -e "ALL START"
---exec $NDB_WAITER > /dev/null
+--exec $NDB_WAITER
 
 # Wait for mysqld to reconnect
 --source include/ndb_not_readonly.inc
@@ -128,9 +128,9 @@ SELECT * FROM t2 ORDER BY a;
 #
 
 --exec $NDB_MGM -e "ALL RESTART -N -I"
---exec $NDB_WAITER --not-started > /dev/null
+--exec $NDB_WAITER --not-started
 --exec $NDB_MGM -e "ALL START"
---exec $NDB_WAITER > /dev/null
+--exec $NDB_WAITER
 
 # Wait for mysqld to reconnect
 --source include/ndb_not_readonly.inc

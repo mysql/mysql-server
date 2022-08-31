@@ -53,7 +53,7 @@ if ($restart_type == 'SR')
   --exec $NDB_MGM --execute "all restart" >> $NDB_TOOLS_OUTPUT
 
   --echo Wait for SR to complete
-  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER
 }
 
 if ($restart_type == 'NR')
@@ -64,19 +64,19 @@ if ($restart_type == 'NR')
 
   --echo Node 1
   --exec $NDB_MGM --execute "1 restart" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER
 
   --echo Node 2
   --exec $NDB_MGM --execute "2 restart" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER
 
   --echo Node 3
   --exec $NDB_MGM --execute "3 restart" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER
 
   --echo Node 4
   --exec $NDB_MGM --execute "4 restart" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER
 }
 
 if ($restart_type == 'SRTO')
@@ -86,7 +86,7 @@ if ($restart_type == 'SRTO')
   --echo Node 1 restart -n
   --exec $NDB_MGM --execute "1 restart -n" >> $NDB_TOOLS_OUTPUT
   --echo Wait for Node 1 to enter NOSTART state
-  --exec $NDB_WAITER --not-started --wait-nodes=1 >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --not-started --wait-nodes=1
 
   --echo Now make some change and trigger some LCP action
   # Potentially improve this to ensure LCPs complete
@@ -101,13 +101,13 @@ if ($restart_type == 'SRTO')
   --exec $NDB_MGM --execute "ALL restart -n" >> $NDB_TOOLS_OUTPUT
 
   --echo Wait for them to come down
-  --exec $NDB_WAITER --not-started >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --not-started
 
   --echo Now start-em up
   --exec $NDB_MGM --execute "all start" >> $NDB_TOOLS_OUTPUT
 
   --echo Wait for SR to complete
-  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER
 }
 
 

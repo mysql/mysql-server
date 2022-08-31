@@ -79,9 +79,9 @@ while ($cnt)
   }
   --echo Restart node $nid
   --exec $NDB_MGM --execute "$nid restart -n" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER --wait-nodes=$nid --not-started >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --wait-nodes=$nid --not-started
   --exec $NDB_MGM --execute "$nid start" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER --wait-nodes=$nid >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --wait-nodes=$nid
   --echo Restart finished
 
   --echo Analyze the tables

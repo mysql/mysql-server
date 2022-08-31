@@ -83,7 +83,7 @@ SELECT * FROM t1 ORDER BY a;
 # Restart cluster nodes
 --exec $NDB_MGM -e "all restart" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to start
---exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER
 
 #
 # Wait until the connection to the
