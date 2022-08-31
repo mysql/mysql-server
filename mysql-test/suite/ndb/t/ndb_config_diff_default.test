@@ -1,0 +1,26 @@
+source include/have_ndb.inc;
+
+let $MGMPORT_REGEX = `select concat('/',substring_index(@@ndb_connectstring,':',-1),'/<MGM-PORT>/')`;
+let $DYNPORT_REGEX = /42949([0-5][0-9]|6[0-6])[0-9][0-9][0-9]/<DYNAMIC-PORT>/;
+disable_query_log;
+eval select '$MYSQLTEST_VARDIR' into @vardir;
+enable_query_log;
+let $VARDIR_REGEX = `select concat('/', replace(@vardir, '/', '.'), '/MYSQLTEST_VARDIR/')`;
+let $SHMKEY2_REGEX = /ShmKey,[0-9]*,/ShmKey,<SHM-KEY>,/;
+let $MGMPORT_VARDIR_REGEX = $MGMPORT_REGEX $VARDIR_REGEX;
+let $MGM_DYN_PORT_SHMKEY2_REGEX = $MGMPORT_REGEX $DYNPORT_REGEX $SHMKEY2_REGEX;
+
+echo;
+echo exec NDB_CONFIG --rows="\n" --system --diff-default;
+replace_regex /MC_[0-9]*/MC_<SYSTEM-GENERATION-TIME>/;
+exec $NDB_CONFIG --rows="\n" --system --diff-default;
+
+echo;
+echo exec NDB_CONFIG --rows="\n" --nodes --type=MGM --diff-default;
+replace_regex $MGMPORT_VARDIR_REGEX;
+exec $NDB_CONFIG --rows="\n" --nodes --type=MGM --diff-default;
+
+echo;
+echo exec NDB_CONFIG --rows="\n" --connections --diff-default;
+replace_regex $MGM_DYN_PORT_SHMKEY2_REGEX;
+exec $NDB_CONFIG --rows="\n" --connections --diff-default;

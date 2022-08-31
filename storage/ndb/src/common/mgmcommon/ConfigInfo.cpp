@@ -25,7 +25,7 @@
 #include "util/require.h"
 #include <ndb_global.h>
 #include <cstring>
-
+#include <optional>
 #include <time.h>
 
 #include "ConfigInfo.hpp"
@@ -6993,5 +6993,82 @@ static bool saveSectionsInConfigValues(
   return true;
 }
 
+std::optional<BaseString> ConfigInfo::normalizeParamValue(
+    const ConfigInfo::ParamInfo& pinfo, const char* str)
+{
+  switch (pinfo._type)
+  {
+  case ConfigInfo::CI_BOOL:
+  {
+    bool tmp_bool;
+    // convertStringToBool also handles numeric 0 and 1
+    if (!InitConfigFileParser::convertStringToBool(str, tmp_bool))
+      return {};
+    if (tmp_bool) return {"1"};
+    else return {"0"};
+  }
+  case ConfigInfo::CI_INT:
+  case ConfigInfo::CI_INT64:
+  {
+    Uint64 tmp_uint64;
+    if (!InitConfigFileParser::convertStringToUint64(str, tmp_uint64))
+      return {};
+    char suffix[2] = { '\0', '\0' };
+    if (tmp_uint64 == 0) { /* no suffix */ }
+    else if (tmp_uint64 % (1024 * 1024 * 1024) == 0)
+    {
+      suffix[0] = 'G';
+      tmp_uint64 /= (1024 * 1024 * 1024);
+    }
+    else if (tmp_uint64 % (1024 * 1024) == 0)
+    {
+      suffix[0] = 'M';
+      tmp_uint64 /= (1024 * 1024);
+    }
+    else if (tmp_uint64 % 1024 == 0)
+    {
+      suffix[0] = 'K';
+      tmp_uint64 /= 1024;
+    }
+    BaseString ret;
+    ret.assfmt("%ju%s", uintmax_t{tmp_uint64}, suffix);
+    return {ret};
+  }
+  case ConfigInfo::CI_BITMASK:
+  case ConfigInfo::CI_STRING:
+  {
+    return {str};
+  }
+  case ConfigInfo::CI_ENUM:
+  {
+    Uint64 tmp_uint64;
+    if (!InitConfigFileParser::convertStringToUint64(str, tmp_uint64))
+    {
+      bool found = false;
+      for (const ConfigInfo::Typelib* entry = ConfigInfo::getTypelibPtr(pinfo);
+           entry->name != nullptr; entry++)
+      {
+        if (native_strcasecmp(entry->name, str) == 0)
+        {
+          found = true;
+          tmp_uint64 = entry->value;
+          break;
+        }
+      }
+      if (!found) return {};
+    }
+    for (const ConfigInfo::Typelib* entry = ConfigInfo::getTypelibPtr(pinfo);
+         entry->name != nullptr; entry++)
+    {
+      if (tmp_uint64 == entry->value)
+        return {entry->name};
+    }
+    return {};
+  }
+  case ConfigInfo::CI_SECTION:
+  default:
+    return {};
+  }
+}
 
 template class Vector<ConfigInfo::ConfigRuleSection>;
