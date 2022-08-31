@@ -276,6 +276,15 @@ class Acceptor {
     }
   }
 
+  template <typename S>
+  void graceful_shutdown(S &sock) {
+    sock->shutdown(net::socket_base::shutdown_send);
+    // we want to capture the socket shared_ptr by value to make sure it lives
+    // when the async handler gets executed
+    sock->async_wait(net::socket_base::wait_read,
+                     [=](auto /*ec*/) { sock->close(); });
+  }
+
   void operator()(std::error_code ec) {
     waitable_([this, ec](auto &) {
       if (ec) {
@@ -320,14 +329,15 @@ class Acceptor {
           }
 
           // accepted
-          auto sock = std::move(sock_res.value());
+          auto sock =
+              std::make_shared<socket_type>(std::move(sock_res.value()));
 
 #if 0 && defined(SO_INCOMING_CPU)
         // try to run the socket-io on the CPU which also handles the kernels
         // socket-RX queue
         net::socket_option::integer<SOL_SOCKET, SO_INCOMING_CPU>
             incoming_cpu_opt;
-        const auto incoming_cpu_res = sock.get_option(incoming_cpu_opt);
+        const auto incoming_cpu_res = sock->get_option(incoming_cpu_opt);
         if (incoming_cpu_res) {
           auto affine_cpu = incoming_cpu_opt.value();
           if (affine_cpu >= 0) {
@@ -341,8 +351,8 @@ class Acceptor {
               if (affinity.any() && affinity.test(affine_cpu)) {
                 // replace the io-context of the socket
                 sock =
-                    socket_type(io_thread.context(), client_endpoint.protocol(),
-                                sock.release().value());
+                    std::make_shared<socket_type>(socket_type(io_thread.context(), 
+                                client_endpoint.protocol(), sock->release().value()));
                 break;
               }
             }
@@ -362,7 +372,7 @@ class Acceptor {
             if (std::is_same<client_protocol_type, net::ip::tcp>::value) {
               log_debug("[%s] fd=%d connection accepted at %s",
                         r_->get_context().get_name().c_str(),
-                        sock.native_handle(),
+                        sock->native_handle(),
                         r_->get_context().get_bind_address().str().c_str());
 #ifdef NET_TS_HAS_UNIX_SOCKET
             } else if (std::is_same<client_protocol_type,
@@ -377,10 +387,10 @@ class Acceptor {
             //
             // if we can't get the PID, we'll just show a simpler errormsg
 
-            if (0 == unix_getpeercred(sock, peer_pid, peer_uid)) {
+            if (0 == unix_getpeercred(*sock, peer_pid, peer_uid)) {
               log_debug(
                   "[%s] fd=%d connection accepted at %s from (pid=%d, uid=%d)",
-                  r_->get_context().get_name().c_str(), sock.native_handle(),
+                  r_->get_context().get_name().c_str(), sock->native_handle(),
                   r_->get_context().get_bind_named_socket().str().c_str(),
                   peer_pid, peer_uid);
             } else
@@ -388,7 +398,7 @@ class Acceptor {
 #endif
               log_debug(
                   "[%s] fd=%d connection accepted at %s",
-                  r_->get_context().get_name().c_str(), sock.native_handle(),
+                  r_->get_context().get_name().c_str(), sock->native_handle(),
                   r_->get_context().get_bind_named_socket().str().c_str());
 #endif
             }
@@ -407,20 +417,20 @@ class Acceptor {
             if (!encode_res) {
               log_debug("[%s] fd=%d encode error: %s",
                         r_->get_context().get_name().c_str(),
-                        sock.native_handle(),
+                        sock->native_handle(),
                         encode_res.error().message().c_str());
             } else {
-              auto write_res = net::write(sock, net::buffer(error_frame));
+              auto write_res = net::write(*sock, net::buffer(error_frame));
               if (!write_res) {
                 log_debug("[%s] fd=%d write error: %s",
                           r_->get_context().get_name().c_str(),
-                          sock.native_handle(),
+                          sock->native_handle(),
                           write_res.error().message().c_str());
               }
             }
 
             // log_info("%s", msg.c_str());
-            sock.close();
+            graceful_shutdown(sock);
           } else {
             const auto current_total_connections =
                 routing_component.current_total_connections();
@@ -444,20 +454,18 @@ class Acceptor {
               if (!encode_res) {
                 log_debug("[%s] fd=%d encode error: %s",
                           r_->get_context().get_name().c_str(),
-                          sock.native_handle(),
+                          sock->native_handle(),
                           encode_res.error().message().c_str());
               } else {
-                auto write_res = net::write(sock, net::buffer(error_frame));
+                auto write_res = net::write(*sock, net::buffer(error_frame));
                 if (!write_res) {
                   log_debug("[%s] fd=%d write error: %s",
                             r_->get_context().get_name().c_str(),
-                            sock.native_handle(),
+                            sock->native_handle(),
                             write_res.error().message().c_str());
                 }
               }
-
-              sock.close();  // no shutdown() before close()
-
+              graceful_shutdown(sock);
               if (max_route_connections_limit_reached) {
                 log_warning(
                     "[%s] reached max active connections for route (%d max=%d)",
@@ -472,9 +480,9 @@ class Acceptor {
               }
             } else {
               if (std::is_same_v<Protocol, net::ip::tcp>) {
-                sock.set_option(net::ip::tcp::no_delay{true});
+                sock->set_option(net::ip::tcp::no_delay{true});
               }
-              r_->create_connection<client_protocol_type>(std::move(sock),
+              r_->create_connection<client_protocol_type>(std::move(*sock),
                                                           client_endpoint);
             }
           }
