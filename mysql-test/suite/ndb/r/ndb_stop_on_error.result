@@ -112,6 +112,8 @@ INSERT INTO t1 VALUES
 "Sleep 10s so that LCP can complete"
 "Insert ERROR command to crash nodes with SEGV"
 "Wait till nodes started"
+Node 1: STARTED
+Node 2: STARTED
 pk	attr1	attr2	attr3
 0	0	[NULL]	"0"
 1	1	1	"1"

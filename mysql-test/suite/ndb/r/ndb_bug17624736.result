@@ -26,6 +26,10 @@ a	b
 1	10
 2	10
 # run restart skip indexes
+Node 1: NOT_STARTED
+Node 2: NOT_STARTED
+Node 1: STARTED
+Node 2: STARTED
 Expect neither fk or indexes since restart was without indexes
 type	name
 # run backup

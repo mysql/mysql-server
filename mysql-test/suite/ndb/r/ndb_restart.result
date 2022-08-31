@@ -27,8 +27,11 @@ STORAGE DISK;
 INSERT INTO t2 VALUES (1, 1);
 Node 1 is being restarted
 
+Node 1: NOT_STARTED
 Database node 1 is being started.
 
+Node 1: STARTED
+Node 2: STARTED
 SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
 FROM INFORMATION_SCHEMA.FILES
 WHERE ENGINE = "NDBCLUSTER";
@@ -52,8 +55,11 @@ a	b
 2	3
 Node 1 is being restarted
 
+Node 1: NOT_STARTED
 Database node 1 is being started.
 
+Node 1: STARTED
+Node 2: STARTED
 SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
 FROM INFORMATION_SCHEMA.FILES
 WHERE ENGINE = "NDBCLUSTER";
@@ -81,9 +87,13 @@ Executing RESTART on all nodes.
 Starting shutdown. This may take a while. Please wait...
 All DB nodes are being restarted.
 
+Node 1: NOT_STARTED
+Node 2: NOT_STARTED
 NDB Cluster is being started.
 NDB Cluster is being started.
 
+Node 1: STARTED
+Node 2: STARTED
 # verify that the mysqld detected the restart
 include/assert_grep.inc [Detect normal restart in MySQL Server 1]
 include/assert_grep.inc [Detect normal restart in MySQL Server 2]
@@ -116,9 +126,13 @@ Executing RESTART on all nodes.
 Starting shutdown. This may take a while. Please wait...
 All DB nodes are being restarted.
 
+Node 1: NOT_STARTED
+Node 2: NOT_STARTED
 NDB Cluster is being started.
 NDB Cluster is being started.
 
+Node 1: STARTED
+Node 2: STARTED
 # verify that the mysqld detected the initial restart
 include/assert_grep.inc [Detect initial restart in MySQL Server 1]
 include/assert_grep.inc [Detect initial restart in MySQL Server 2]

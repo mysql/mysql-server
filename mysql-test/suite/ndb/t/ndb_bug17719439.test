@@ -31,7 +31,7 @@ SET SESSION debug="+d,sleep_in_ndbinit";
 connection con1;
 --echo # Restarting one node
 --exec $NDB_MGM -e "1 restart -a" >> $NDB_TOOLS_OUTPUT
---exec $NDB_WAITER  >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER
 connection con2;
 --reap
 SET SESSION debug=@save_debug;

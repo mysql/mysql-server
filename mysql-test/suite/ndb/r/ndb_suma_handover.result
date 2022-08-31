@@ -2,16 +2,22 @@ Node 2 is being restarted
 
 Node 4 is being restarted
 
+Node 2: NOT_STARTED
+Node 4: NOT_STARTED
 
 NDB Cluster is being started.
 NDB Cluster is being started.
 NDB Cluster is being started.
 NDB Cluster is being started.
 
+Node 2: STARTED
+Node 4: STARTED
 Node 2 is being restarted
 
 Node 4 is being restarted
 
+Node 2: NOT_STARTED
+Node 4: NOT_STARTED
 
 
 NDB Cluster is being started.
@@ -19,3 +25,5 @@ NDB Cluster is being started.
 NDB Cluster is being started.
 NDB Cluster is being started.
 
+Node 2: STARTED
+Node 4: STARTED

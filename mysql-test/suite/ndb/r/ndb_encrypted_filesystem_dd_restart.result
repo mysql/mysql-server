@@ -140,33 +140,48 @@ COUNT(*)
 501
 Node 2 is being restarted
 
+Node 2: NOT_STARTED
 Database node 2 is being started.
 
+Node 1: STARTED
+Node 2: STARTED
 Node 2 is being restarted
 
+Node 2: NOT_STARTED
 Database node 2 is being started.
 
+Node 1: STARTED
+Node 2: STARTED
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 501
 Node 1 is being restarted
 
+Node 1: NOT_STARTED
 Database node 1 is being started.
 
+Node 1: STARTED
+Node 2: STARTED
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 501
 Node 1 is being restarted
 
+Node 1: NOT_STARTED
 Database node 1 is being started.
 
+Node 1: STARTED
+Node 2: STARTED
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 501
 Node 2 is being restarted
 
+Node 2: NOT_STARTED
 Database node 2 is being started.
 
+Node 1: STARTED
+Node 2: STARTED
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 501

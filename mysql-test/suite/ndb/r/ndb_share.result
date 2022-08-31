@@ -293,6 +293,10 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine=ndbcluster;
 create table t2 (a int) engine=ndbcluster;
+Node 1: NOT_STARTED
+Node 2: NOT_STARTED
+Node 1: STARTED
+Node 2: STARTED
 select * from t1 /* force discovery */;
 a
 select * from t2 /* force discovery */;
@@ -316,6 +320,10 @@ set global ndb_dbg_check_shares=1;
 set global ndb_dbg_check_shares=1;
 create table t1 (a int) engine=ndbcluster;
 create table t2 (a int) engine=ndbcluster;
+Node 1: NOT_STARTED
+Node 2: NOT_STARTED
+Node 1: STARTED
+Node 2: STARTED
 select * from t1 /* force discovery */;
 ERROR 42S02: Table 'test.t1' doesn't exist
 select * from t2 /* force discovery */;

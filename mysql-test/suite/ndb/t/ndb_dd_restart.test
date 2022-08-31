@@ -159,18 +159,18 @@ SELECT COUNT(*) FROM t1;
 #
 
 --exec $NDB_MGM -e "2 restart -n -i"
---exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
+--exec $NDB_WAITER --nowait-nodes=1 --not-started
 --exec $NDB_MGM -e "2 start"
---exec $NDB_WAITER > /dev/null
+--exec $NDB_WAITER
 
 #
 # Restart slave (node 2)
 #
 
 --exec $NDB_MGM -e "2 restart -n"
---exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
+--exec $NDB_WAITER --nowait-nodes=1 --not-started
 --exec $NDB_MGM -e "2 start"
---exec $NDB_WAITER > /dev/null
+--exec $NDB_WAITER
 
 SELECT COUNT(*) FROM t1;
 
@@ -180,9 +180,9 @@ SELECT COUNT(*) FROM t1;
 #
 
 --exec $NDB_MGM -e "1 restart -n"
---exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
+--exec $NDB_WAITER --nowait-nodes=2 --not-started
 --exec $NDB_MGM -e "1 start"
---exec $NDB_WAITER > /dev/null
+--exec $NDB_WAITER
 
 SELECT COUNT(*) FROM t1;
 
@@ -191,9 +191,9 @@ SELECT COUNT(*) FROM t1;
 #
 
 --exec $NDB_MGM -e "1 restart -n -i"
---exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
+--exec $NDB_WAITER --nowait-nodes=2 --not-started
 --exec $NDB_MGM -e "1 start"
---exec $NDB_WAITER > /dev/null
+--exec $NDB_WAITER
 
 SELECT COUNT(*) FROM t1;
 
@@ -202,9 +202,9 @@ SELECT COUNT(*) FROM t1;
 #
 
 --exec $NDB_MGM -e "2 restart -n -i"
---exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
+--exec $NDB_WAITER --nowait-nodes=1 --not-started
 --exec $NDB_MGM -e "2 start"
---exec $NDB_WAITER > /dev/null
+--exec $NDB_WAITER
 
 SELECT COUNT(*) FROM t1;
 

@@ -60,10 +60,13 @@ Number of rows before node restart
 # Sleep until LCP (hopefully) has completed
 # Restarting node 1 with nostart...
 # Wait for node to reach not-started state...
+Node 1: NOT_STARTED
 # Insert error to invalidate the latest LCP, so that the undo
 # records till the LCP start of the previous LCP are applied
 # Start node 1..
 # Wait for node 1 to start...
+Node 1: STARTED
+Node 2: STARTED
 # Node 1 started
 # Clear error inserts
 # Check that existent data is still there

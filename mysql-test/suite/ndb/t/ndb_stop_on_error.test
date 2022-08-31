@@ -138,7 +138,7 @@ sleep 10;
 --exec $NDB_MGM -e "all error 9006" >> $NDB_TOOLS_OUTPUT
 
 --echo "Wait till nodes started"
---exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER
 
 --exec $NDB_SELECT_ALL -d mysqltest t1 -o PRIMARY
 

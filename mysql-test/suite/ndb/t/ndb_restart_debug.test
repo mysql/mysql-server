@@ -11,7 +11,7 @@ call mtr.add_suppression("Could not acquire global schema lock");
 # Test reconnect after slow system restart
 #
 --exec $NDB_MGM -e "ALL RESTART -N" >> $NDB_TOOLS_OUTPUT
---exec $NDB_WAITER --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started
 # Cause system restart to stall on late stages
 --exec $NDB_MGM -e "ALL ERROR 13053" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_MGM -e "ALL START" >> $NDB_TOOLS_OUTPUT

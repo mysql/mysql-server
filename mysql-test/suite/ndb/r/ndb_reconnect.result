@@ -12,10 +12,14 @@ a	b	c
 select * from t1;
 a	b	c
 1	row 1	2
+Node 1: NOT_STARTED
+Node 2: NOT_STARTED
 select * from t1;
 ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
 select * from t1;
 ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+Node 1: STARTED
+Node 2: STARTED
 select a,b,c from t1;
 a	b	c
 1	row 1	2
@@ -40,6 +44,8 @@ create table t2(a int, b varchar(10), c date) engine=myisam;
 CREATE TRIGGER trg2 BEFORE UPDATE ON t2 FOR EACH ROW BEGIN
 SET new.c = '1901-01-01 01:01:01';
 End //
+Node 1: STARTED
+Node 2: STARTED
 create table t1(a int, b varchar(10), c date) engine=ndb;
 CREATE TRIGGER trg1 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN
 SET new.c = '1902-02-02 02:02:02';

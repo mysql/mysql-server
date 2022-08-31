@@ -9,7 +9,7 @@ create table t1(x int primary key) engine=ndbcluster;
 
 # Stop node 2 so it is possible to use 95% of data memory
 --exec $NDB_MGM -e "2 restart -n"
---exec $NDB_WAITER --not-started --wait-nodes=2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started --wait-nodes=2
 
 # Avoid problem with too large transactions.
 set ndb_use_transactions=0;
@@ -35,10 +35,9 @@ show warnings;
 
 # Start node 2, during restart it can use all data memory (100%).
 --exec $NDB_MGM -e "2 start"
---exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER
 
 # Now after restart node 2 have no usable memory free.
 delete from t1;
 
 drop table t1;
---remove_file $NDB_TOOLS_OUTPUT

@@ -30,10 +30,10 @@
 --exec $NDB_MGM -e "all dump 2355 1" >> $NDB_TOOLS_OUTPUT
 
 --echo Wait for node 1 to go down.
---exec $NDB_WAITER --wait-nodes=1 --no-contact >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --wait-nodes=1 --no-contact
 
 --echo Waiting for node 1 to get started again
---exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER
 
 --echo End of test for bug#24444908 / bug#25128512
 --remove_file $NDB_TOOLS_OUTPUT

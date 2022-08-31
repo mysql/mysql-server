@@ -10,21 +10,21 @@ call mtr.add_suppression("cluster disconnect An incident event has been written"
 # Restart half cluster, but without starting nodes
 --exec $NDB_MGM -e "2 restart -n"
 --exec $NDB_MGM -e "4 restart -n"
---exec $NDB_WAITER --not-started --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started --wait-nodes=2,4
 
 # Discard one CONNECT_REP in QMGR from an API node
 --exec $NDB_MGM -e "2 error 941"
 
 # Start cluster
 --exec $NDB_MGM -e "all start"
---exec $NDB_WAITER --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --wait-nodes=2,4
 
 # TODO : Check for Binlog gap? Increase in connection count in SHOW ENGINE NDB STATUS?
 
 # Restart half cluster, but without starting nodes
 --exec $NDB_MGM -e "2 restart -n"
 --exec $NDB_MGM -e "4 restart -n"
---exec $NDB_WAITER --not-started --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started --wait-nodes=2,4
 
 # Now discard one CONNECT_REP, and cause disconnect part to fail
 --exec $NDB_MGM -e "2 error 941"
@@ -32,5 +32,4 @@ call mtr.add_suppression("cluster disconnect An incident event has been written"
 
 # Start cluster, should cause node 2 to fail
 --exec $NDB_MGM -e "all start"
---exec $NDB_WAITER --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
---remove_file $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --wait-nodes=2,4

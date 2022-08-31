@@ -174,7 +174,7 @@ sleep 10;
 --exec $NDB_MGM -e "1 RESTART -n" >> $NDB_TOOLS_OUTPUT
 
 --echo # Wait for node to reach not-started state...
---exec $NDB_WAITER --not-started --wait-nodes=1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started --wait-nodes=1
 
 --echo # Insert error to invalidate the latest LCP, so that the undo
 --echo # records till the LCP start of the previous LCP are applied
@@ -184,7 +184,7 @@ sleep 10;
 --exec $NDB_MGM -e "1 START" >> $NDB_TOOLS_OUTPUT
 
 --echo # Wait for node 1 to start...
---exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER
 --echo # Node 1 started
 
 --echo # Clear error inserts
