@@ -1,0 +1,293 @@
+select * from t0 order by id;
+id	val
+3	3
+4	4
+5	5
+6	6
+8	8
+9	9
+10	12345
+select * from t1 order by val;
+val
+2
+4
+5
+8
+9
+11
+select * from t2 order by id;
+id
+3
+4
+5
+6
+8
+9
+10
+select * from t3 order by id;
+id	val
+3	33
+4	6
+5	5
+6	4
+8	2
+9	1
+10	NULL
+select * from t4 order by id;
+id	val
+3	11001
+4	44
+5	11001
+6	11001
+8	11001
+9	11001
+10	11001
+select id, sha1(val) from t5 order by id;
+id	sha1(val)
+3	7b48e60fd747fc37363da73d3140ba0a41ae862a
+4	ea7dffff542a062f6e41c69afac9576d7e97634c
+5	266d8973914802f093f698a58224566ca2a664bc
+6	4a8284d4be6c4c063a910760610c8754ca1234a3
+8	d8ff0788ec90b18f9d51ecad46274e75aaf4b99f
+9	139101d8480a9a68e4e1256ed300aad365725fbc
+10	NULL
+select * from t6 order by id;
+id	val
+3	3
+4	4
+5	5
+6	66
+8	8
+9	9
+10	NULL
+select * from t7 order by id;
+id	val1	val2
+4	6	6
+5	5	5
+8	2	2
+9	1	1
+select id, sha1(val) from t8 order by id;
+id	sha1(val)
+3	e315b8015984d48b3d1777787d8b629bd77454cf
+4	946a83f98e3f05c3d94f0c7f2e7131324245797c
+5	66f223928b25272f115396aa099fb38efbfe3885
+6	125d03fac5bb972ef45466e36d25fd219bf09b36
+8	61984ed58e8de9ab388e62b54ced499e7336e82e
+9	ac1bc0da10ddfceab57a04d09524ffde6eb83cf9
+10	NULL
+select count(*) from t9;
+count(*)
+7
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int NOT NULL,
+  `val` int DEFAULT '11001',
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t4 (id) values (-1);
+select * from t4 where id = -1;
+id	val
+-1	11001
+drop tables t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+flush tables;
+select * from t0 order by id;
+id	val
+3	3
+4	4
+5	5
+6	6
+8	8
+9	9
+10	NULL
+select * from t1 order by val;
+val
+1
+2
+4
+5
+8
+9
+select * from t2 order by id;
+id
+3
+4
+5
+6
+8
+9
+10
+select * from t3 order by id;
+id	val
+3	7
+4	6
+5	5
+6	4
+8	2
+9	1
+10	NULL
+select * from t4 order by id;
+id	val
+3	11001
+4	11001
+5	11001
+6	11001
+8	11001
+9	11001
+10	11001
+select id, sha1(val) from t5 order by id;
+id	sha1(val)
+3	7b48e60fd747fc37363da73d3140ba0a41ae862a
+4	ea7dffff542a062f6e41c69afac9576d7e97634c
+5	8a96558c6361531c5f387582e5f6cd732332262b
+6	4a8284d4be6c4c063a910760610c8754ca1234a3
+8	d8ff0788ec90b18f9d51ecad46274e75aaf4b99f
+9	139101d8480a9a68e4e1256ed300aad365725fbc
+10	NULL
+select * from t6 order by id;
+id	val
+3	3
+4	4
+5	5
+6	6
+8	8
+9	9
+10	NULL
+select * from t7 order by id;
+id	val1	val2
+4	6	6
+5	5	5
+8	2	2
+9	1	1
+select id, sha1(val) from t8 order by id;
+id	sha1(val)
+3	e315b8015984d48b3d1777787d8b629bd77454cf
+4	946a83f98e3f05c3d94f0c7f2e7131324245797c
+5	66f223928b25272f115396aa099fb38efbfe3885
+6	125d03fac5bb972ef45466e36d25fd219bf09b36
+8	f8f5538687ac9a4294a44de553d46dd798524504
+9	ac1bc0da10ddfceab57a04d09524ffde6eb83cf9
+10	NULL
+select count(*) from t9;
+count(*)
+7
+drop tables t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+flush tables;
+select * from t0 order by id;
+id	val
+7	7
+8	8
+9	9
+select * from t1 order by val;
+val
+2
+6
+9
+select * from t2 order by id;
+id
+7
+8
+9
+22
+select * from t3 order by id;
+id	val
+7	3
+8	2
+9	1
+select * from t4 order by id;
+id	val
+7	11001
+8	11001
+9	11001
+select id, sha1(val) from t5 order by id;
+id	sha1(val)
+7	c1bd312a4dd67884e66d15671d38c854e99c8021
+8	d8ff0788ec90b18f9d51ecad46274e75aaf4b99f
+9	139101d8480a9a68e4e1256ed300aad365725fbc
+select * from t6 order by id;
+id	val
+7	7
+8	8
+9	9
+select * from t7 order by id;
+id	val1	val2
+3	7	7
+4	6	6
+6	4	4
+7	77	3
+9	1	1
+10	10	NULL
+select id, sha1(val) from t8 order by id;
+id	sha1(val)
+7	cf47dcc87c1ca726f74a86a4aac57d453703facc
+8	61984ed58e8de9ab388e62b54ced499e7336e82e
+9	ac1bc0da10ddfceab57a04d09524ffde6eb83cf9
+select count(*) from t9;
+count(*)
+3
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int NOT NULL,
+  `val` int DEFAULT '11001',
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t4 (id) values (-1);
+select * from t4 where id = -1;
+id	val
+-1	11001
+drop tables t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+flush tables;
+select * from t0 order by id;
+id	val
+7	7
+8	8
+9	9
+select * from t1 order by val;
+val
+2
+6
+9
+select * from t2 order by id;
+id
+7
+8
+9
+select * from t3 order by id;
+id	val
+7	3
+8	2
+9	1
+select * from t4 order by id;
+id	val
+7	11001
+8	11001
+9	11001
+select id, sha1(val) from t5 order by id;
+id	sha1(val)
+7	c1bd312a4dd67884e66d15671d38c854e99c8021
+8	d8ff0788ec90b18f9d51ecad46274e75aaf4b99f
+9	139101d8480a9a68e4e1256ed300aad365725fbc
+select * from t6 order by id;
+id	val
+7	7
+8	8
+9	9
+select * from t7 order by id;
+id	val1	val2
+3	7	7
+4	6	6
+6	4	4
+7	3	3
+9	1	1
+10	10	NULL
+select id, sha1(val) from t8 order by id;
+id	sha1(val)
+7	cf47dcc87c1ca726f74a86a4aac57d453703facc
+8	f8f5538687ac9a4294a44de553d46dd798524504
+9	ac1bc0da10ddfceab57a04d09524ffde6eb83cf9
+select count(*) from t9;
+count(*)
+3
+drop tables t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+flush tables;

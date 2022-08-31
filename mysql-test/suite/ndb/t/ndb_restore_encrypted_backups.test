@@ -1,0 +1,85 @@
+-- source include/have_ndb.inc
+
+let $NDB_SAVED_BACKUPS=$MYSQL_TEST_DIR/suite/ndb/backups;
+
+# snapshotend with redo log from little endian system
+--exec $NDB_RESTORE -b 1 -n 1 -m $NDB_SAVED_BACKUPS/encrypted_le/BACKUP-1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -r $NDB_SAVED_BACKUPS/encrypted_le/BACKUP-1 >> $NDB_TOOLS_OUTPUT
+
+select * from t0 order by id;
+select * from t1 order by val;
+select * from t2 order by id;
+select * from t3 order by id;
+select * from t4 order by id;
+select id, sha1(val) from t5 order by id;
+select * from t6 order by id;
+select * from t7 order by id;
+select id, sha1(val) from t8 order by id;
+select count(*) from t9;
+
+show create table t4;
+insert into t4 (id) values (-1);
+select * from t4 where id = -1;
+
+drop tables t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+flush tables;
+
+# snapshotstart with undo log from little endian system
+--exec $NDB_RESTORE -b 2 -n 1 -m $NDB_SAVED_BACKUPS/encrypted_le/BACKUP-2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 2 -n 1 -p 1 -r $NDB_SAVED_BACKUPS/encrypted_le/BACKUP-2 >> $NDB_TOOLS_OUTPUT
+
+select * from t0 order by id;
+select * from t1 order by val;
+select * from t2 order by id;
+select * from t3 order by id;
+select * from t4 order by id;
+select id, sha1(val) from t5 order by id;
+select * from t6 order by id;
+select * from t7 order by id;
+select id, sha1(val) from t8 order by id;
+select count(*) from t9;
+
+drop tables t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+flush tables;
+
+# snapshotend with redo log from big endian system
+--exec $NDB_RESTORE -b 1 -n 1 -m $NDB_SAVED_BACKUPS/encrypted_be/BACKUP-1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -r $NDB_SAVED_BACKUPS/encrypted_be/BACKUP-1 >> $NDB_TOOLS_OUTPUT
+
+select * from t0 order by id;
+select * from t1 order by val;
+select * from t2 order by id;
+select * from t3 order by id;
+select * from t4 order by id;
+select id, sha1(val) from t5 order by id;
+select * from t6 order by id;
+select * from t7 order by id;
+select id, sha1(val) from t8 order by id;
+select count(*) from t9;
+
+show create table t4;
+insert into t4 (id) values (-1);
+select * from t4 where id = -1;
+
+drop tables t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+flush tables;
+
+# snapshotstart with undo log from big endian system
+--exec $NDB_RESTORE -b 2 -n 1 -m $NDB_SAVED_BACKUPS/encrypted_be/BACKUP-2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 2 -n 1 -p 1 -r $NDB_SAVED_BACKUPS/encrypted_be/BACKUP-2 >> $NDB_TOOLS_OUTPUT
+
+select * from t0 order by id;
+select * from t1 order by val;
+select * from t2 order by id;
+select * from t3 order by id;
+select * from t4 order by id;
+select id, sha1(val) from t5 order by id;
+select * from t6 order by id;
+select * from t7 order by id;
+select id, sha1(val) from t8 order by id;
+select count(*) from t9;
+
+drop tables t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+flush tables;
+
+remove_file $NDB_TOOLS_OUTPUT;
