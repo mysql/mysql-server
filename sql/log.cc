@@ -60,10 +60,6 @@ static int   log_syslog_facility= 0;
 static char *log_syslog_ident   = NULL;
 static bool  log_syslog_enabled = false;
 
-
-/* 26 for regular timestamp, plus 7 (".123456") when using micro-seconds */
-static const int iso8601_size= 33;
-
 enum enum_slow_query_log_table_field
 {
   SQLT_FIELD_START_TIME = 0,
@@ -467,7 +463,7 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
   @return          length of timestamp (excluding \0)
 */
 
-static int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
+int make_iso8601_timestamp(char *buf, ulonglong utime)
 {
   struct tm  my_tm;
   char       tzinfo[7]="Z";  // max 6 chars plus \0
@@ -486,16 +482,24 @@ static int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
   {
     localtime_r(&seconds, &my_tm);
 
-#ifdef __FreeBSD__
+#ifdef HAVE_TM_GMTOFF
     /*
       The field tm_gmtoff is the offset (in seconds) of the time represented
       from UTC, with positive values indicating east of the Prime Meridian.
+      Originally a BSDism, this is also supported in glibc, so this should
+      cover the majority of our platforms.
     */
     long tim= -my_tm.tm_gmtoff;
-#elif _WIN32
-    long tim = _timezone;
 #else
-    long tim= timezone; // seconds West of UTC.
+    /*
+       Work this out "manually".
+    */
+    struct tm my_gm;
+    long tim, gm;
+    gmtime_r(&seconds, &my_gm);
+    gm = (my_gm.tm_sec + 60 * (my_gm.tm_min + 60 * my_gm.tm_hour));
+    tim = (my_tm.tm_sec + 60 * (my_tm.tm_min + 60 * my_tm.tm_hour));
+    tim = gm - tim;
 #endif
     char dir= '-';
 

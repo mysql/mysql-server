@@ -254,7 +254,7 @@ public:
   virtual Item *create_native(THD *thd, LEX_STRING name,
                               PT_item_list *item_list)
   {
-    Item *func= NULL, *p1, *p2, *p3;
+    Item *func= NULL, *p1= NULL, *p2= NULL, *p3= NULL, *p4= NULL, *p5= NULL, *p6= NULL;
     int arg_count= 0;
 
     if (item_list != NULL)
@@ -277,6 +277,36 @@ public:
         func= create_aes(thd, p1, p2, p3);
         break;
       }
+    case 4:
+      {
+        p1= item_list->pop_front();
+        p2= item_list->pop_front();
+        p3= item_list->pop_front();
+        p4= item_list->pop_front();
+        func= create_aes(thd, p1, p2, p3, p4);
+        break;
+      }
+    case 5:
+      {
+        p1= item_list->pop_front();
+        p2= item_list->pop_front();
+        p3= item_list->pop_front();
+        p4= item_list->pop_front();
+        p5= item_list->pop_front();
+        func= create_aes(thd, p1, p2, p3, p4, p5);
+        break;
+      }
+    case 6:
+      {
+        p1= item_list->pop_front();
+        p2= item_list->pop_front();
+        p3= item_list->pop_front();
+        p4= item_list->pop_front();
+        p5= item_list->pop_front();
+        p6= item_list->pop_front();
+        func= create_aes(thd, p1, p2, p3, p4, p5, p6);
+        break;
+      }
     default:
       {
         my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
@@ -288,6 +318,9 @@ public:
   }
   virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2)= 0;
   virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3)= 0;
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3, Item *arg4)= 0;
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3, Item *arg4, Item *arg5)= 0;
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3, Item *arg4, Item *arg5, Item *arg6)= 0;
 protected:
   Create_func_aes_base()
   {}
@@ -307,6 +340,18 @@ public:
   virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3)
   {
     return new (thd->mem_root) Item_func_aes_encrypt(POS(), arg1, arg2, arg3);
+  }
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3, Item *arg4)
+  {
+    return new (thd->mem_root) Item_func_aes_encrypt(POS(), arg1, arg2, arg3, arg4);
+  }
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3, Item *arg4, Item *arg5)
+  {
+    return new (thd->mem_root) Item_func_aes_encrypt(POS(), arg1, arg2, arg3, arg4, arg5);
+  }
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3, Item *arg4, Item *arg5, Item *arg6)
+  {
+    return new (thd->mem_root) Item_func_aes_encrypt(POS(), arg1, arg2, arg3, arg4, arg5, arg6 );
   }
 
   static Create_func_aes_encrypt s_singleton;
@@ -328,7 +373,18 @@ public:
   {
     return new (thd->mem_root) Item_func_aes_decrypt(POS(), arg1, arg2, arg3);
   }
-
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3, Item *arg4)
+  {
+    return new (thd->mem_root) Item_func_aes_decrypt(POS(), arg1, arg2, arg3, arg4);
+  }
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3, Item *arg4, Item *arg5)
+  {
+    return new (thd->mem_root) Item_func_aes_decrypt(POS(), arg1, arg2, arg3, arg4, arg5);
+  }
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3, Item *arg4, Item *arg5, Item *arg6)
+  {
+    return new (thd->mem_root) Item_func_aes_decrypt(POS(), arg1, arg2, arg3, arg4, arg5, arg6 );
+  }
   static Create_func_aes_decrypt s_singleton;
 
 protected:

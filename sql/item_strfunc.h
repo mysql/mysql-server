@@ -64,7 +64,9 @@ public:
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e)
     :Item_func(pos, a, b, c, d, e)
   {decimals=NOT_FIXED_DEC; }
-
+  Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e, Item* f)
+    :Item_func(pos, a, b, c, d, e, f)
+  {decimals=NOT_FIXED_DEC; }
   Item_str_func(List<Item> &list) :Item_func(list) {decimals=NOT_FIXED_DEC; }
   Item_str_func(const POS &pos, PT_item_list *opt_list)
     :Item_func(pos, opt_list)
@@ -185,7 +187,15 @@ public:
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c)
     :Item_str_func(pos, a, b, c)
   {}
-
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
+    :Item_str_func(pos, a, b, c, d, e)
+  {}
+  Item_func_aes_encrypt(const POS& pos, Item* a, Item* b, Item* c, Item* d, Item* e, Item* f)
+    :Item_str_func(pos, a, b, c, d, e, f)
+  {}
   virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
   void fix_length_and_dec();
@@ -202,7 +212,15 @@ public:
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c)
     :Item_str_func(pos, a, b, c)
   {}
-
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
+    :Item_str_func(pos, a, b, c, d, e)
+  {}
+  Item_func_aes_decrypt(const POS& pos, Item* a, Item* b, Item* c, Item* d, Item* e, Item* f)
+    :Item_str_func(pos, a, b, c, d, e, f)
+  {}
   virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
   void fix_length_and_dec();

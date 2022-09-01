@@ -371,6 +371,12 @@ dict_table_analyze_index_lock(
 void
 dict_table_analyze_index_unlock(
 	dict_table_t*	table);
+#ifdef UNIV_DEBUG
+/** Validate no active background threads to cause purge or rollback
+operations. */
+void
+dict_validate_no_purge_rollback_threads();
+#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Adds system columns to a table object. */

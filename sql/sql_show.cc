@@ -1062,14 +1062,13 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     my_casedn_str(files_charset_info, dbname);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (sctx->check_access(DB_ACLS))
-    db_access=DB_ACLS;
+  if (sctx->check_access(DB_OP_ACLS))
+    db_access = DB_OP_ACLS;
   else
     db_access= (acl_get(sctx->host().str, sctx->ip().str,
                         sctx->priv_user().str, dbname, 0) |
                 sctx->master_access());
-  if (!(db_access & DB_ACLS) && check_grant_db(thd,dbname))
-  {
+  if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname, true)) {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user().str, sctx->host_or_ip().str, dbname);
     query_logger.general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
@@ -4726,12 +4725,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     assert(db_name->length <= NAME_LEN);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (!(check_access(thd, SELECT_ACL, db_name->str,
-                       &thd->col_access, NULL, 0, 1) ||
+    if (!(check_access(thd, SELECT_ACL, db_name->str, &thd->col_access, NULL, 0,
+                       1) ||
           (!thd->col_access && check_grant_db(thd, db_name->str))) ||
-        sctx->check_access(DB_ACLS | SHOW_DB_ACL, true) ||
-        acl_get(sctx->host().str, sctx->ip().str,
-                sctx->priv_user().str, db_name->str, 0))
+        sctx->check_access(DB_OP_ACLS | SHOW_DB_ACL, true) ||
+        acl_get(sctx->host().str, sctx->ip().str, sctx->priv_user().str,
+                db_name->str, 0))
 #endif
     {
       List<LEX_STRING> table_names;
@@ -4927,10 +4926,10 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
       continue;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (sctx->check_access(DB_ACLS | SHOW_DB_ACL, true) ||
-	acl_get(sctx->host().str, sctx->ip().str,
-                sctx->priv_user().str, db_name->str, 0) ||
-                !check_grant_db(thd, db_name->str))
+    if (sctx->check_access(DB_OP_ACLS | SHOW_DB_ACL, true) ||
+        acl_get(sctx->host().str, sctx->ip().str, sctx->priv_user().str,
+                db_name->str, 0) ||
+        !check_grant_db(thd, db_name->str))
 #endif
     {
       load_db_opt_by_name(thd, db_name->str, &create);

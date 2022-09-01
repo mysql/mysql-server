@@ -46,4 +46,24 @@ DROP DATABASE B32067013;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug32067013.dump
 
 
+--echo #
+--echo # Bug#33866103 : MYSQLPUMP [ERROR] (1356) WITH VIEW CONTAINING FROM SUBQUERY - REGRESSION
+--echo #
+
+CREATE DATABASE db1;
+
+CREATE TABLE db1.t1 (c1 int);
+CREATE TABLE db1.t2 (c1 int);
+
+USE db1;
+
+CREATE VIEW db1.v12 AS (SELECT * FROM (SELECT * FROM db1.t1 UNION SELECT * FROM db1.t2) AS t12);
+
+--exec $MYSQL_PUMP -u root --result-file=$MYSQLTEST_VARDIR/tmp/bug33866103.sql
+
+--remove_file $MYSQLTEST_VARDIR/tmp/bug33866103.sql
+
+DROP DATABASE db1;
+
+
 --echo # End of 5.7 tests

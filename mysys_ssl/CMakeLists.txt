@@ -38,6 +38,7 @@ SET(MYSYS_SSL_SOURCES
     mf_tempdir.cc
     my_default.cc
     my_getopt.cc
+    my_kdf.cc
     my_aes.cc
     my_sha1.cc
     my_md5.cc

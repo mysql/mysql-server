@@ -68,3 +68,12 @@ trx_roll_check_undo_rec_ordering(
 }
 #endif /* UNIV_DEBUG */
 
+/*******************************************************************//**
+Waits for rollback after recovery end. */
+UNIV_INLINE
+void
+trx_rollback_or_clean_wait() {
+	while (trx_rollback_or_clean_is_active) {
+		os_thread_sleep(100000);
+	}
+}

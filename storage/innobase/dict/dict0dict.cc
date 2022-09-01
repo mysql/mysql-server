@@ -92,6 +92,9 @@ ib_warn_row_too_big(const dict_table_t*	table);
 #include "sync0sync.h"
 #include "trx0undo.h"
 #include "ut0new.h"
+#ifdef UNIV_DEBUG
+#include "trx0purge.h"
+#endif /* !UNIV_DEBUG */
 
 #include <vector>
 #include <algorithm>
@@ -7188,3 +7191,17 @@ uint32_t dict_vcol_base_is_foreign_key(dict_v_col_t *vcol,
 	}
 	return foreign_col_count;
 }
+
+#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_DEBUG
+/** Validate no active background threads to cause purge or rollback
+operations. */
+void
+dict_validate_no_purge_rollback_threads() {
+	/* No concurrent background threads to access to the table */
+	ut_ad(trx_purge_state() == PURGE_STATE_STOP
+	      || trx_purge_state() == PURGE_STATE_DISABLED);
+	ut_ad(!trx_rollback_or_clean_is_active);
+}
+#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
