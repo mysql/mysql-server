@@ -2063,16 +2063,6 @@ GRANT REFERENCES ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
---echo # -- Check that global GRANT OPTION allows SHOW CREATE TABLE.
---echo # -- 
-
---echo
-GRANT GRANT OPTION ON mysqltest_db1.* TO mysqltest_u1@localhost;
-
---source include/bug38347.inc
-
---echo
---echo # -- 
 --echo # -- Check that global CREATE VIEW allows SHOW CREATE TABLE.
 --echo # -- 
 
@@ -2178,16 +2168,6 @@ GRANT INDEX ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
 
 --echo
 GRANT REFERENCES ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
-
---source include/bug38347.inc
-
---echo
---echo # -- 
---echo # -- Check that table-level GRANT OPTION allows SHOW CREATE TABLE.
---echo # -- 
-
---echo
-GRANT GRANT OPTION ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
 
 --source include/bug38347.inc
 

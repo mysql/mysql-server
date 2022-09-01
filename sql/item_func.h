@@ -189,7 +189,28 @@ public:
     else
       arg_count= 0; // OOM
   }
-
+  Item_func(Item *a,Item *b,Item *c,Item *d,Item* e,Item* f):
+    allowed_arg_cols(1), arg_count(6)
+  {
+    if ((args= (Item**) sql_alloc(sizeof(Item*)*6)))
+    {
+      args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e; args[5]= f;
+      with_sum_func= a->with_sum_func || b->with_sum_func ||
+      c->with_sum_func || d->with_sum_func || e->with_sum_func || f->with_sum_func;
+    }
+    else
+      arg_count= 0; // OOM
+  }
+  Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e, Item* f)
+    : super(pos), allowed_arg_cols(1), arg_count(6)
+  {
+    if ((args= (Item**) sql_alloc(sizeof(Item*)*6)))
+    {
+      args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;args[5]= f;
+    }
+    else
+      arg_count= 0; // OOM
+  }
   Item_func(List<Item> &list);
   Item_func(const POS &pos, PT_item_list *opt_list);
 

@@ -2250,32 +2250,6 @@ Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
 
 # -- 
-# -- Check that global GRANT OPTION allows SHOW CREATE TABLE.
-# -- 
-
-GRANT GRANT OPTION ON mysqltest_db1.* TO mysqltest_u1@localhost;
-
-SHOW GRANTS FOR mysqltest_u1@localhost;
-Grants for mysqltest_u1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
-GRANT USAGE ON `mysqltest_db1`.* TO 'mysqltest_u1'@'localhost' WITH GRANT OPTION
-
-# connection: con1 (mysqltest_u1@mysqltest_db1)
-
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-
-# connection: default
-
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
-SHOW GRANTS FOR mysqltest_u1@localhost;
-Grants for mysqltest_u1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
-
-# -- 
 # -- Check that global CREATE VIEW allows SHOW CREATE TABLE.
 # -- 
 
@@ -2545,32 +2519,6 @@ SHOW GRANTS FOR mysqltest_u1@localhost;
 Grants for mysqltest_u1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
 GRANT REFERENCES ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost'
-
-# connection: con1 (mysqltest_u1@mysqltest_db1)
-
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-
-# connection: default
-
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
-SHOW GRANTS FOR mysqltest_u1@localhost;
-Grants for mysqltest_u1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
-
-# -- 
-# -- Check that table-level GRANT OPTION allows SHOW CREATE TABLE.
-# -- 
-
-GRANT GRANT OPTION ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
-
-SHOW GRANTS FOR mysqltest_u1@localhost;
-Grants for mysqltest_u1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_u1'@'localhost'
-GRANT USAGE ON `mysqltest_db1`.`t1` TO 'mysqltest_u1'@'localhost' WITH GRANT OPTION
 
 # connection: con1 (mysqltest_u1@mysqltest_db1)
 

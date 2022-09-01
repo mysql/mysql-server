@@ -1936,6 +1936,7 @@ done:
   thd->proc_info= 0;
   thd->lex->sql_command= SQLCOM_END;
 
+  DEBUG_SYNC(thd, "processlist_wait");
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
@@ -3573,9 +3574,8 @@ end_with_restore_list:
         */
         DBUG_PRINT("debug", ("first_table->grant.privilege: %lx",
                              first_table->grant.privilege));
-        if (check_some_access(thd, SHOW_CREATE_TABLE_ACLS, first_table) ||
-            (first_table->grant.privilege & SHOW_CREATE_TABLE_ACLS) == 0)
-        {
+        if (check_some_access(thd, TABLE_OP_ACLS, first_table) ||
+            (first_table->grant.privilege & TABLE_OP_ACLS) == 0) {
           my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                    "SHOW", thd->security_context()->priv_user().str,
                    thd->security_context()->host_or_ip().str,
@@ -4050,9 +4050,9 @@ end_with_restore_list:
       if (lex->type == TYPE_ENUM_PROCEDURE ||
           lex->type == TYPE_ENUM_FUNCTION)
       {
-        uint grants= lex->all_privileges 
-		   ? (PROC_ACLS & ~GRANT_ACL) | (lex->grant & GRANT_ACL)
-		   : lex->grant;
+        uint grants = lex->all_privileges
+                          ? (PROC_OP_ACLS) | (lex->grant & GRANT_ACL)
+                          : lex->grant;
         if (check_grant_routine(thd, grants | GRANT_ACL, all_tables,
                                 lex->type == TYPE_ENUM_PROCEDURE, 0))
 	  goto error;

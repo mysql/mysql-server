@@ -66,42 +66,80 @@
 */
 
 #define NO_ACCESS       (1L << 30)
-#define DB_ACLS \
-(UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
- GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | \
- LOCK_TABLES_ACL | EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | \
- CREATE_PROC_ACL | ALTER_PROC_ACL | EVENT_ACL | TRIGGER_ACL)
 
-#define TABLE_ACLS \
-(SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
- GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | \
- SHOW_VIEW_ACL | TRIGGER_ACL)
+/**
+  Privileges to perform database related operations.
+  Use this macro over DB_ACLS unless there is real need to use
+  additional privileges present in the DB_ACLS
+*/
+#define DB_OP_ACLS                                                             \
+  (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
+   REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | LOCK_TABLES_ACL | \
+   EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL |           \
+   ALTER_PROC_ACL | EVENT_ACL | TRIGGER_ACL)
 
-#define COL_ACLS \
-(SELECT_ACL | INSERT_ACL | UPDATE_ACL | REFERENCES_ACL)
+/**
+  Privileges to perform table related operations.
+  Use this macro over TABLE_ACLS unless there is real need to use
+  additional privileges present in the TABLE_ACLS
+*/
+#define TABLE_OP_ACLS                                                          \
+  (SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
+   REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |  \
+   TRIGGER_ACL)
 
-#define PROC_ACLS \
-(ALTER_PROC_ACL | EXECUTE_ACL | GRANT_ACL)
+/**
+  Privileges to modify or execute stored procedures.
+  Use this macro over PROC_ACLS unless there is real need to use
+  additional privileges present in the PROC_ACLS
+*/
+#define PROC_OP_ACLS (ALTER_PROC_ACL | EXECUTE_ACL)
 
-#define SHOW_PROC_ACLS \
-(ALTER_PROC_ACL | EXECUTE_ACL | CREATE_PROC_ACL)
+/**
+  Represents all privileges which could be granted to users at DB-level. It
+  essentially represents all the privileges present in the mysql.db table.
+*/
+#define DB_ACLS (DB_OP_ACLS | GRANT_ACL)
 
-#define GLOBAL_ACLS \
-(SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
- RELOAD_ACL | SHUTDOWN_ACL | PROCESS_ACL | FILE_ACL | GRANT_ACL | \
- REFERENCES_ACL | INDEX_ACL | ALTER_ACL | SHOW_DB_ACL | SUPER_ACL | \
- CREATE_TMP_ACL | LOCK_TABLES_ACL | REPL_SLAVE_ACL | REPL_CLIENT_ACL | \
- EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL | \
- ALTER_PROC_ACL | CREATE_USER_ACL | EVENT_ACL | TRIGGER_ACL | \
- CREATE_TABLESPACE_ACL)
+/**
+  Represents all privileges which could be granted to users at table-level. It
+  essentially represents all the privileges present in the mysql.tables_priv
+  table.
+*/
+#define TABLE_ACLS (TABLE_OP_ACLS | GRANT_ACL)
 
-#define DEFAULT_CREATE_PROC_ACLS \
-(ALTER_PROC_ACL | EXECUTE_ACL)
+/**
+  Represents all privileges which could be granted to users at column-level. It
+  essentially represents all the privileges present in the columns_priv table.
+*/
+#define COL_ACLS (SELECT_ACL | INSERT_ACL | UPDATE_ACL | REFERENCES_ACL)
 
-#define SHOW_CREATE_TABLE_ACLS \
-(SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | \
- CREATE_ACL | DROP_ACL | ALTER_ACL | INDEX_ACL | \
- TRIGGER_ACL | REFERENCES_ACL | GRANT_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
+/**
+  Represents all privileges which could be granted to users for stored
+  procedures. It essentially represents all the privileges present in the
+  mysql.procs_priv table.
+*/
+#define PROC_ACLS (PROC_OP_ACLS | GRANT_ACL)
+
+/**
+  Represents all privileges which are required to show the stored procedure.
+*/
+#define SHOW_PROC_ACLS (ALTER_PROC_ACL | EXECUTE_ACL | CREATE_PROC_ACL)
+
+/**
+  Represents all privileges which could be granted to users globally.
+  It essentially represents all the privileges present in the mysql.user table
+*/
+#define GLOBAL_ACLS                                                            \
+  (SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
+   RELOAD_ACL | SHUTDOWN_ACL | PROCESS_ACL | FILE_ACL | GRANT_ACL |            \
+   REFERENCES_ACL | INDEX_ACL | ALTER_ACL | SHOW_DB_ACL | SUPER_ACL |          \
+   CREATE_TMP_ACL | LOCK_TABLES_ACL | REPL_SLAVE_ACL | REPL_CLIENT_ACL |       \
+   EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL |           \
+   ALTER_PROC_ACL | CREATE_USER_ACL | EVENT_ACL | TRIGGER_ACL |                \
+   CREATE_TABLESPACE_ACL)
+
+#define DEFAULT_CREATE_PROC_ACLS (ALTER_PROC_ACL | EXECUTE_ACL)
 
 /**
   Table-level privileges which are automatically "granted" to everyone on

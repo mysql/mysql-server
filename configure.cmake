@@ -446,6 +446,9 @@ CHECK_TYPE_SIZE("off_t"     SIZEOF_OFF_T)
 CHECK_TYPE_SIZE("time_t"    SIZEOF_TIME_T)
 CHECK_TYPE_SIZE("struct timespec" STRUCT_TIMESPEC)
 
+CHECK_STRUCT_HAS_MEMBER("struct tm"
+ tm_gmtoff "time.h" HAVE_TM_GMTOFF)
+
 # If finds the size of a type, set SIZEOF_<type> and HAVE_<type>
 FUNCTION(MY_CHECK_TYPE_SIZE type defbase)
   CHECK_TYPE_SIZE("${type}" SIZEOF_${defbase})

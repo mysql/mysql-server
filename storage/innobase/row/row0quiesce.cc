@@ -42,6 +42,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "trx0purge.h"
+#include "trx0roll.h"
 #include "fsp0sysspace.h"
 
 #include <my_aes.h>
@@ -913,9 +914,22 @@ row_quiesce_set_state(
 			    " FTS auxiliary tables will not be flushed.");
 	}
 
+	/* We should wait until rollback after recovery end,
+	to lock the table consistently. */
+	trx_rollback_or_clean_wait();
+
+	if (trx_purge_state() != PURGE_STATE_DISABLED) {
+		/* We should stop purge to lock the table consistently. */
+		trx_purge_stop();
+	}
+
 	row_mysql_lock_data_dictionary(trx);
 
 	dict_table_x_lock_indexes(table);
+
+	if (trx_purge_state() != PURGE_STATE_DISABLED) {
+		trx_purge_run();
+	}
 
 	switch (state) {
 	case QUIESCE_START:

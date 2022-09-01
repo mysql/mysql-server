@@ -43,6 +43,8 @@ Created 2013-04-12 Sunny Bains
 #include "srv0start.h"
 #include "row0trunc.h"
 #include "os0file.h"
+#include "trx0purge.h"
+#include "trx0roll.h"
 #include <vector>
 
 bool	truncate_t::s_fix_up_active = false;
@@ -1235,6 +1237,10 @@ row_truncate_complete(
 	TruncateLogger*		&logger,
 	dberr_t			err)
 {
+	if (trx_purge_state() != PURGE_STATE_DISABLED) {
+		trx_purge_run();
+	}
+
 	bool	is_file_per_table = dict_table_is_file_per_table(table);
 
 	if (table->memcached_sync_count == DICT_TABLE_IN_DDL) {
@@ -1841,6 +1847,15 @@ row_truncate_table_for_mysql(
 	if (!dict_table_is_temporary(table)) {
 		/* Avoid transaction overhead for temporary table DDL. */
 		trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
+	}
+
+	/* We should wait until rollback after recovery end,
+	to lock the table consistently. */
+	trx_rollback_or_clean_wait();
+
+	if (trx_purge_state() != PURGE_STATE_DISABLED) {
+		/* We should stop purge to lock the table consistently. */
+		trx_purge_stop();
 	}
 
 	/* Step-3: Validate ownership of needed locks (Exclusive lock).

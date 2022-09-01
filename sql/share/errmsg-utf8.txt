@@ -7799,6 +7799,18 @@ ER_WARN_DEPRECATED_TLS_VERSION
 ER_WARN_WRONG_NATIVE_TABLE_STRUCTURE
   eng "Optional native table '%-.64s'.'%-.64s' has the wrong structure or is missing."
 
+ER_AES_INVALID_KDF_NAME
+  eng "KDF method name is not valid. Please use hkdf or pbkdf2_hmac method name"
+
+ER_AES_INVALID_KDF_ITERATIONS
+  eng "For KDF method pbkdf2_hmac iterations value less than 1000 or more than 65535 is not allowed due to security reasons. Please provide iterations >= 1000 and iterations < 65535"
+
+WARN_AES_KEY_SIZE
+  eng "AES key size should be %d bytes length or secure KDF methods hkdf or pbkdf2_hmac should be used, please provide exact AES key size or use KDF methods for better security."
+
+ER_AES_INVALID_KDF_OPTION_SIZE
+  eng "KDF option size is invalid, please provide valid size < %d bytes and not NULL"
+
 #
 #  End of 5.7 error messages.
 #
