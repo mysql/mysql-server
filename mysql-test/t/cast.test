@@ -1132,3 +1132,17 @@ DROP TABLE t;
 set @a:= st_aswkb(st_astext(@b:=log10(0.0)));
 set @a:= @b;
 do convert(@a using latin1);
+
+--echo #
+--echo # Bug#34554755: DISTINCT on FLOAT values gives duplicates
+--echo #               with SQL_BIG_RESULT
+--echo #
+
+# These two integers map to the same FLOAT value, so the comparison
+# should return TRUE.
+SELECT CAST(1111111111111111 AS FLOAT) = CAST(1111111111111110 AS FLOAT) AS eq;
+
+# Converting the FLOAT to other types should not keep the full DOUBLE precision.
+SELECT CAST(CAST(1111111111111111 AS FLOAT) AS CHAR) AS v;
+SELECT CAST(CAST(1111111111111111 AS FLOAT) AS SIGNED) AS v;
+SELECT CAST(CAST(1111111111111111 AS FLOAT) AS DECIMAL(20,2)) AS v;

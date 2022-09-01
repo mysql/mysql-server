@@ -706,6 +706,8 @@ SET TIMESTAMP=DEFAULT;
 SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('"2000-01-02 12:13:14"', '$'));
 SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
                                           '$' RETURNING DECIMAL(14, 0)));
+--echo # Warns because 20000102121314 gets truncated to fit in a FLOAT,
+--echo # and is not a valid timestamp after truncation.
 SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
                                           '$' RETURNING FLOAT));
 SELECT TIMESTAMPADD(MINUTE, 1, JSON_VALUE('20000102121314',
@@ -1193,3 +1195,26 @@ SELECT JSON_VALUE(JSON_OBJECT('a', FALSE), '$.a' RETURNING SIGNED),
 # As CHAR:
 SELECT JSON_VALUE(JSON_OBJECT('a', 'value'), '$.a'),
        JSON_VALUE(JSON_OBJECT('a', NULL), '$.a');
+
+--echo #
+--echo # Bug#34554755: DISTINCT on FLOAT values gives duplicates
+--echo #               with SQL_BIG_RESULT
+--echo #
+
+# These two integers map to the same FLOAT value, so the comparison
+# should return TRUE.
+SELECT JSON_VALUE('1111111111111111', '$' RETURNING FLOAT) =
+       JSON_VALUE('1111111111111110', '$' RETURNING FLOAT) AS eq;
+
+# Converting the FLOAT to other types should not keep the full DOUBLE precision.
+SELECT CAST(JSON_VALUE('1111111111111111', '$' RETURNING FLOAT) AS CHAR) AS v;
+SELECT CAST(JSON_VALUE('1111111111111111', '$' RETURNING FLOAT) AS SIGNED) AS v;
+SELECT CAST(JSON_VALUE('1111111111111111', '$' RETURNING FLOAT)
+            AS DECIMAL(20,2)) AS res;
+SELECT CAST(JSON_VALUE('{}', '$.a' RETURNING FLOAT
+                       DEFAULT 1111111111111111 ON EMPTY) AS CHAR) AS v;
+SELECT CAST(JSON_VALUE('{}', '$.a' RETURNING FLOAT
+                       DEFAULT 1111111111111111 ON EMPTY) AS SIGNED) AS v;
+SELECT CAST(JSON_VALUE('{}', '$.a' RETURNING FLOAT
+                       DEFAULT 1111111111111111 ON EMPTY)
+            AS DECIMAL(20,2)) AS v;

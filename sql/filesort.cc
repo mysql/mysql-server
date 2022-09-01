@@ -1356,12 +1356,6 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
     case REAL_RESULT: {
       assert(!is_varlen);
       double value = item->val_real();
-      if (item->data_type() == MYSQL_TYPE_FLOAT) {
-        // Get rid of extra precision. Otherwise, duplicate removal may make the
-        // wrong decision and treat equal values as distinct values due to
-        // differences in the insignificant digits.
-        value = static_cast<float>(value);
-      }
       if (item->null_value) {
         assert(item->is_nullable());
         *null_indicator = 0;

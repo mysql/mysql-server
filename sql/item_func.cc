@@ -1994,21 +1994,20 @@ void Item_typecast_decimal::print(const THD *thd, String *str,
 }
 
 String *Item_typecast_real::val_str(String *str) {
-  double res = val_real();
-  if (null_value) return nullptr;
-
-  str->set_real(res, decimals, collation.collation);
-  return str;
+  return val_string_from_real(str);
 }
 
 double Item_typecast_real::val_real() {
   double res = args[0]->val_real();
   null_value = args[0]->null_value;
   if (null_value) return 0.0;
-  if (data_type() == MYSQL_TYPE_FLOAT &&
-      ((res > std::numeric_limits<float>::max()) ||
-       res < std::numeric_limits<float>::lowest()))
-    return raise_float_overflow();
+  if (data_type() == MYSQL_TYPE_FLOAT) {
+    if (res > std::numeric_limits<float>::max() ||
+        res < std::numeric_limits<float>::lowest()) {
+      return raise_float_overflow();
+    }
+    res = static_cast<float>(res);
+  }
   return check_float_overflow(res);
 }
 

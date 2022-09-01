@@ -263,7 +263,23 @@ String *Item::val_str_ascii(String *str) {
 String *Item::val_string_from_real(String *str) {
   double nr = val_real();
   if (null_value) return nullptr; /* purecov: inspected */
-  str->set_real(nr, decimals, &my_charset_bin);
+
+  char buffer[FLOATING_POINT_BUFFER];
+  size_t len;
+  if (data_type() == MYSQL_TYPE_FLOAT) {
+    len = my_gcvt(nr, MY_GCVT_ARG_FLOAT, MAX_FLOAT_STR_LENGTH, buffer,
+                  /*error=*/nullptr);
+  } else {
+    len = my_gcvt(nr, MY_GCVT_ARG_DOUBLE, MAX_DOUBLE_STR_LENGTH, buffer,
+                  /*error=*/nullptr);
+  }
+
+  uint dummy_errors;
+  if (str->copy(buffer, len, &my_charset_numeric, collation.collation,
+                &dummy_errors)) {
+    return error_str();
+  }
+
   return str;
 }
 

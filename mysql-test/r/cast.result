@@ -2276,3 +2276,19 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Warning	3020	Invalid argument for logarithm
 set @a:= @b;
 do convert(@a using latin1);
+#
+# Bug#34554755: DISTINCT on FLOAT values gives duplicates
+#               with SQL_BIG_RESULT
+#
+SELECT CAST(1111111111111111 AS FLOAT) = CAST(1111111111111110 AS FLOAT) AS eq;
+eq
+1
+SELECT CAST(CAST(1111111111111111 AS FLOAT) AS CHAR) AS v;
+v
+1.11111e15
+SELECT CAST(CAST(1111111111111111 AS FLOAT) AS SIGNED) AS v;
+v
+1111111126482944
+SELECT CAST(CAST(1111111111111111 AS FLOAT) AS DECIMAL(20,2)) AS v;
+v
+1111111126482944.00
