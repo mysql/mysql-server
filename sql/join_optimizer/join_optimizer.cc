@@ -659,7 +659,7 @@ void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
 
   We support table scans and ref access, so we create access paths for both
   (where possible) and cost them. In this context, “tables” in a query block
-  also includes l tables such as derived tables, so we need to figure out
+  also includes virtual tables such as derived tables, so we need to figure out
   if there is a cost for materializing them.
  */
 bool CostingReceiver::FoundSingleNode(int node_idx) {

@@ -439,10 +439,6 @@ static void DelayedCreateTemporaryTable(THD *thd, Query_block *query_block,
             path->materialize().table_path->table_scan().table = table;
       }
 
-      if (!path->materialize().param->table->is_union_or_table())
-        // INTERSECT, EXCEPT: Enforced by TableScanIterator
-        path->materialize().param->limit_rows = HA_POS_ERROR;
-
       EstimateMaterializeCost(thd, path);
     }
     *last_window_temp_table = nullptr;

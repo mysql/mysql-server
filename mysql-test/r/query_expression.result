@@ -2230,6 +2230,9 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1), (1), (2), (3), (2), (3), (3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 UNION     (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 EXPLAIN
