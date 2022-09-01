@@ -3093,15 +3093,22 @@ class Item : public Parse_tree_node {
       false otherwise.
   */
   inline bool has_compatible_context(Item *item) const {
-    /* Same context. */
-    if (cmp_context == INVALID_RESULT || item->cmp_context == cmp_context)
+    // If no explicit context has been set, assume the same type as the item
+    const Item_result this_context =
+        cmp_context == INVALID_RESULT ? result_type() : cmp_context;
+    const Item_result other_context = item->cmp_context == INVALID_RESULT
+                                          ? item->result_type()
+                                          : item->cmp_context;
+
+    // Check if both items have the same context
+    if (this_context == other_context) {
       return true;
+    }
     /* DATETIME comparison context. */
     if (is_temporal_with_date())
-      return item->is_temporal_with_date() ||
-             item->cmp_context == STRING_RESULT;
+      return item->is_temporal_with_date() || other_context == STRING_RESULT;
     if (item->is_temporal_with_date())
-      return is_temporal_with_date() || cmp_context == STRING_RESULT;
+      return is_temporal_with_date() || this_context == STRING_RESULT;
     return false;
   }
   virtual Field::geometry_type get_geometry_type() const {

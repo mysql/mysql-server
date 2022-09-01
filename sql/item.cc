@@ -6063,16 +6063,15 @@ static void convert_zerofill_number_to_string(Item **item,
 }
 
 /**
-  Set a pointer to the multiple equality the field reference belongs to
-  (if any).
+  If field matches a multiple equality, set a pointer to that object in the
+  field. Also return a pointer to a constant value that can be substituted for
+  a field (if any).
 
-  The function looks for a multiple equality containing the field item
-  among those referenced by arg.
-  In the case such equality exists the function does the following.
-  If the found multiple equality contains a constant, then the field
-  reference is substituted for this constant, otherwise it sets a pointer
-  to the multiple equality in the field item.
+  A constant value is returned only if certain conditions are met (see
+  implementation).
 
+  In addition, a numeric field with a zerofill attribute can be substituted
+  with a zerofilled value if it is to be used in a character string context.
 
   @param arg    reference to list of multiple equalities where
                 the field (this object) is to be looked for
@@ -6090,36 +6089,31 @@ Item *Item_field::equal_fields_propagator(uchar *arg) {
   if (no_constant_propagation) return this;
   item_equal = find_item_equal((COND_EQUAL *)arg);
   Item *item = nullptr;
-  if (item_equal) item = item_equal->get_const();
+  if (item_equal != nullptr) item = item_equal->get_const();
   /*
-    Disable const propagation for items used in different comparison contexts.
-    This must be done because, for example, Item_hex_string->val_int() is not
-    the same as (Item_hex_string->val_str() in BINARY column)->val_int().
-    We cannot simply disable the replacement in a particular context (
-    e.g. <bin_col> = <int_col> AND <bin_col> = <hex_string>) since
-    Items don't know the context they are in and there are functions like
-    IF (<hex_string>, 'yes', 'no').
-
-    Also, disable const propagation if the constant is nullable and this item is
-    not. If we were to allow propagation in this case, we would also need to
+    Disable const propagation if the constant is nullable and this item is not.
+    If propagation was allowed in this case, it would also be necessary to
     propagate the new nullability up to the parents of this item.
   */
-  if (item == nullptr || !has_compatible_context(item) ||
-      (item->is_nullable() && !is_nullable()))
-    item = this;
-  else if (field && field->is_flag_set(ZEROFILL_FLAG) &&
-           IS_NUM(field->type())) {
+  if (item == nullptr || (item->is_nullable() && !is_nullable())) {
+    return this;
+  }
+  if (field->is_flag_set(ZEROFILL_FLAG) && cmp_context == STRING_RESULT &&
+      IS_NUM(field->type())) {
     /*
-      We don't need to zero-fill timestamp columns here because they will be
-      first converted to a string (in date/time format) and compared as such if
-      compared with another string.
+      Convert numeric constant to a zero-filled string if the field has
+      the zerofill property and is wanted in a string context.
     */
-    if (item && field->type() != FIELD_TYPE_TIMESTAMP &&
-        cmp_context != INT_RESULT &&
-        item->real_item()->type() != Item::REAL_ITEM)
-      convert_zerofill_number_to_string(&item, (Field_num *)field);
-    else
-      item = this;
+    convert_zerofill_number_to_string(&item, down_cast<Field_num *>(field));
+    return item;
+  }
+  if (!has_compatible_context(item)) {
+    /*
+      If the field does not have the zerofill property, the items must have
+      compatible comparison contexts, otherwise the resolved metadata for
+      the items and the referencing objects might become invalid.
+    */
+    return this;
   }
   return item;
 }
