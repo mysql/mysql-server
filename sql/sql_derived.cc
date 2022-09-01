@@ -544,12 +544,10 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
   @param thd            Current thread.
   @param item           Item to be reparsed to get a clone.
   @param query_block    query block where expression is being parsed
-  @param is_system_view If this expression is part of a system view
 
   @returns A copy of the original item (unresolved) on success else nullptr.
 */
-static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
-                              bool is_system_view) {
+static Item *parse_expression(THD *thd, Item *item, Query_block *query_block) {
   // Set up for parsing item
   LEX *const old_lex = thd->lex;
   LEX *new_lex = new (thd->mem_root) st_lex_local;
@@ -579,8 +577,10 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block,
   // THD::parsing_system_view is set if the view being parsed is
   // INFORMATION_SCHEMA system view and is allowed to invoke native function.
   // If not, error ER_NO_ACCESS_TO_NATIVE_FCT is reported.
+  // Since we are cloning a condition here, we set it unconditionally
+  // to avoid the errors.
   bool parsing_system_view_saved = thd->parsing_system_view;
-  thd->parsing_system_view = is_system_view;
+  thd->parsing_system_view = true;
 
   // Set the correct query block to parse the item. In some cases, like
   // fulltext functions, parser needs to add them to ftfunc_list of the
@@ -723,14 +723,13 @@ Item *resolve_expression(THD *thd, Item *item, Query_block *query_block) {
 
   @param thd      Current thread
   @param item     Item for which clone is requested
-  @param is_system_view If the clone is for a system view
 
   @returns
   Cloned object for the item.
 */
 
-Item *Query_block::clone_expression(THD *thd, Item *item, bool is_system_view) {
-  Item *cloned_item = parse_expression(thd, item, this, is_system_view);
+Item *Query_block::clone_expression(THD *thd, Item *item) {
+  Item *cloned_item = parse_expression(thd, item, this);
   if (cloned_item == nullptr) return nullptr;
   if (item->item_name.is_set())
     cloned_item->item_name.set(item->item_name.ptr(), item->item_name.length());
@@ -1024,10 +1023,7 @@ bool Condition_pushdown::make_cond_for_derived() {
     if (derived_query_expression->is_set_operation()) {
       m_cond_to_push =
           derived_query_expression->outer_query_block()->clone_expression(
-              thd, orig_cond_to_push,
-              (m_derived_table->is_system_view ||
-               (m_derived_table->referencing_view &&
-                m_derived_table->referencing_view->is_system_view)));
+              thd, orig_cond_to_push);
       if (m_cond_to_push == nullptr) return true;
       m_cond_to_push->apply_is_true();
     }
