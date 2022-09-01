@@ -1119,8 +1119,11 @@ bool Item_func_concat::resolve_type(THD *thd) {
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
     return true;
 
-  for (uint i = 0; i < arg_count; i++)
+  for (uint i = 0; i < arg_count; i++) {
+    // Set compare context for use in substitutions
+    args[i]->cmp_context = STRING_RESULT;
     char_length += args[i]->max_char_length(collation.collation);
+  }
 
   set_data_type_string(char_length);
   set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
@@ -1176,9 +1179,11 @@ bool Item_func_concat_ws::resolve_type(THD *thd) {
   assert(arg_count >= 2);
   char_length = (ulonglong)args[0]->max_char_length(collation.collation) *
                 (arg_count - 2);
-  for (uint i = 1; i < arg_count; i++)
+  for (uint i = 1; i < arg_count; i++) {
+    // Set compare context for use in substitutions
+    args[i]->cmp_context = STRING_RESULT;
     char_length += args[i]->max_char_length(collation.collation);
-
+  }
   set_data_type_string(char_length);
   set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;

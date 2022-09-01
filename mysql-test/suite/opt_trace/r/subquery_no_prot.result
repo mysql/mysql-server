@@ -446,6 +446,18 @@ t1.a= (SELECT a FROM t2 LIMIT 1)	{
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(((/* select#2 */ select `t2`.`b` from `t2` limit 1) <> (/* select#3 */ select `t2`.`a` from `t2` limit 1)) and multiple equal((/* select#2 */ select `t2`.`b` from `t2` limit 1), `t1`.`a`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(((/* select#2 */ select `t2`.`b` from `t2` limit 1) <> (/* select#3 */ select `t2`.`a` from `t2` limit 1)) and multiple equal((/* select#2 */ select `t2`.`b` from `t2` limit 1), `t1`.`a`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_evaluation": [
                     {
                       "subselect_execution": {
                         "select#": 2,
@@ -492,18 +504,6 @@ t1.a= (SELECT a FROM t2 LIMIT 1)	{
                         ] /* steps */
                       } /* subselect_execution */
                     }
-                  ] /* subselect_evaluation */,
-                  "resulting_condition": "((NULL <> (/* select#3 */ select `t2`.`a` from `t2` limit 1)) and multiple equal((/* select#2 */ select NULL from `t2` limit 1), `t1`.`a`))"
-                },
-                {
-                  "transformation": "constant_propagation",
-                  "subselect_evaluation": [
-                  ] /* subselect_evaluation */,
-                  "resulting_condition": "((NULL <> (/* select#3 */ select `t2`.`a` from `t2` limit 1)) and multiple equal((/* select#2 */ select NULL from `t2` limit 1), `t1`.`a`))"
-                },
-                {
-                  "transformation": "trivial_condition_removal",
-                  "subselect_evaluation": [
                   ] /* subselect_evaluation */,
                   "resulting_condition": null
                 }
