@@ -1,0 +1,104 @@
+#
+# Bug #34513359 	Cost for field=dependent_subquery not included
+#
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 SELECT n,n FROM num;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
+EXPLAIN
+-> Filter: (x1.b = (select #2))  (cost=2.38..23.75 rows=10)
+    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Select #2 (subquery in condition; dependent)
+        -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
+            -> Filter: (x2.a > x1.a)  (cost=0.12..1.25 rows=10)
+                -> Table scan on x2  (cost=0.03..0.25 rows=10)
+
+Warnings:
+Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
+EXPLAIN
+-> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=2.48..24.75 rows=10)
+    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (cost=2.35..2.35 rows=1)
+            -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
+                -> Filter: (x2.a > x1.a)  (cost=0.12..1.25 rows=10)
+                    -> Table scan on x2  (cost=0.03..0.25 rows=10)
+
+Warnings:
+Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
+EXPLAIN
+-> Filter: (x1.b = (select #2))  (cost=1.19..2.31 rows=10)
+    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Select #2 (subquery in condition; run only once)
+        -> Aggregate: max(x2.b)  (cost=1.06..1.06 rows=1)
+            -> Index range scan on x2 using PRIMARY over (5 < a)  (cost=0.17..0.66 rows=4)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
+EXPLAIN
+-> Filter: <in_optimizer>(x1.b,x1.b in (select #2))  (cost=1.49..3.51 rows=10)
+    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((x1.b = `<materialized_subquery>`.`MAX(b)`))  (cost=1.26..1.26 rows=1)
+            -> Limit: 1 row(s)  (cost=1.16..1.16 rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (MAX(b)=x1.b)
+                    -> Materialize with deduplication  (cost=1.16..1.16 rows=1)
+                        -> Aggregate: max(x2.b)  (cost=1.06..1.06 rows=1)
+                            -> Index range scan on x2 using PRIMARY over (5 < a)  (cost=0.17..0.66 rows=4)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
+EXPLAIN
+-> Filter: (x1.b = (select #2))  (cost=2.38..23.75 rows=10)
+    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Select #2 (subquery in condition; uncacheable)
+        -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
+            -> Filter: (x2.a > (10 * rand(0)))  (cost=0.12..1.25 rows=10)
+                -> Table scan on x2  (cost=0.03..0.25 rows=10)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
+EXPLAIN
+-> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=2.48..24.75 rows=10)
+    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (cost=2.35..2.35 rows=1)
+            -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
+                -> Filter: (x2.a > (10 * rand(0)))  (cost=0.12..1.25 rows=10)
+                    -> Table scan on x2  (cost=0.03..0.25 rows=10)
+
+EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
+GROUP BY x1.b HAVING s>(SELECT MAX(x2.a) FROM t1 x2);
+EXPLAIN
+-> Filter: (s > (select #2))  (cost=6.02..7.82 rows=10)
+    -> Group aggregate: sum(x1.a)  (cost=4.67..5.57 rows=10)
+        -> Sort: x1.b  (cost=4.57..4.57 rows=10)
+            -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Select #2 (subquery in condition; run only once)
+        -> Aggregate: max(x2.a)  (cost=1.25..1.25 rows=1)
+            -> Table scan on x2  (cost=0.03..0.25 rows=10)
+
+EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
+GROUP BY x1.b HAVING s>(SELECT MAX(x2.a+RAND(0)) FROM t1 x2);
+EXPLAIN
+-> Filter: (s > (select #2))  (cost=6.02..19.07 rows=10)
+    -> Group aggregate: sum(x1.a)  (cost=4.67..5.57 rows=10)
+        -> Sort: x1.b  (cost=4.57..4.57 rows=10)
+            -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Select #2 (subquery in condition; uncacheable)
+        -> Aggregate: max((x2.a + rand(0)))  (cost=1.25..1.25 rows=1)
+            -> Table scan on x2  (cost=0.03..0.25 rows=10)
+-> Select #2 (subquery in projection; uncacheable)
+    -> Aggregate: max((x2.a + rand(0)))  (cost=1.25..1.25 rows=1)
+        -> Table scan on x2  (cost=0.03..0.25 rows=10)
+
+DROP TABLE num,t1;

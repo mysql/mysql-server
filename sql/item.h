@@ -32,6 +32,7 @@
 #include <cstring>
 #include <memory>
 #include <new>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -775,6 +776,50 @@ class Item_tree_walker {
 };
 
 /**
+   This class represents a subquery contained in some subclass of
+   Item_subselect, @see FindContainedSubqueries().
+*/
+struct ContainedSubquery {
+  /// The strategy for executing the subquery.
+  enum class Strategy : char {
+    /**
+       An independent subquery that is materialized, e.g.:
+       "SELECT * FROM tab WHERE field IN <independent subquery>".
+       where 'independent subquery' does not depend on any fields in 'tab'.
+       (This corresponds to the Item_in_subselect class.)
+     */
+    kMaterializable,
+
+    /**
+       A subquery that is reevaluated for each row, e.g.:
+       "SELECT * FROM tab WHERE field IN <dependent subquery>" or
+       "SELECT * FROM tab WHERE field = <dependent subquery>".
+       where 'dependent subquery' depends on at least one field in 'tab'.
+       Alternatively, the subquery may be independent of 'tab', but contain
+       a random function such as 'rand()'. Such subqueries are also required
+       to be reevaluated for each row.
+    */
+    kNonMaterializable,
+
+    /**
+       An independent single-row subquery that is evaluated once, e.g.:
+       "SELECT * FROM tab WHERE field = <independent single-row subquery>".
+       (This corresponds to the Item_singlerow_subselect class.)
+    */
+    kIndependentSingleRow
+  };
+
+  /// The root path of the subquery.
+  AccessPath *path;
+
+  /// The strategy for executing the subquery.
+  Strategy strategy;
+
+  /// The width (in bytes) of the subquery's rows.
+  int row_width;
+};
+
+/**
   Base class that is used to represent any kind of expression in a
   relational query. The class provides subclasses for simple components, like
   literal (constant) values, column references and variable references,
@@ -1198,6 +1243,20 @@ class Item : public Parse_tree_node {
     as a scalar JSON value. Only relevant for the Item_param class.
   */
   virtual void mark_json_as_scalar() {}
+
+  /**
+     If this item represents a IN/ALL/ANY/comparison_operator
+     subquery, return that (along with data on how it will be executed).
+     (These subqueries correspond to
+     @see Item_in_subselect and @see Item_singlerow_subselect .) Also,
+     @see FindContainedSubqueries() for context.
+     @param outer_query_block the Query_block to which 'this' belongs.
+     @returns The subquery that 'this' represents, if there is one.
+   */
+  virtual std::optional<ContainedSubquery> get_contained_subquery(
+      const Query_block *outer_query_block [[maybe_unused]]) {
+    return std::nullopt;
+  }
 
  protected:
   /**

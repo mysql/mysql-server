@@ -9,7 +9,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
 EXPLAIN
--> Filter: (t1.f1 = (select #2))  (cost=0.55..0.55 rows=1)
+-> Filter: (t1.f1 = (select #2))  (cost=3.10..3.10 rows=1)
     -> Table scan on t1  (cost=0.08..0.25 rows=3)
     -> Select #2 (subquery in condition; dependent)
         -> Aggregate: min(i.f1)  (cost=0.85..0.85 rows=1)
@@ -70,14 +70,14 @@ EXPLAIN
   "operation": "Filter: (t1.f1 = (select #2))",
   "access_type": "filter",
   "estimated_rows": 1.0,
-  "estimated_total_cost": 0.55,
-  "estimated_first_row_cost": 0.55
+  "estimated_total_cost": 3.1000000000000005,
+  "estimated_first_row_cost": 3.1000000000000005
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 EXPLAIN
--> Filter: (t1.f1 > (select #2))  (cost=0.18..0.55 rows=3)
+-> Filter: (t1.f1 > (select #2))  (cost=0.27..0.63 rows=3)
     -> Table scan on t1  (cost=0.08..0.25 rows=3)
     -> Select #2 (subquery in condition; run only once)
         -> Limit: 1 row(s)  (cost=0.08..0.08 rows=1)
@@ -124,8 +124,8 @@ EXPLAIN
   "operation": "Filter: (t1.f1 > (select #2))",
   "access_type": "filter",
   "estimated_rows": 3.0,
-  "estimated_total_cost": 0.55,
-  "estimated_first_row_cost": 0.18333333333333335
+  "estimated_total_cost": 0.6333333333333333,
+  "estimated_first_row_cost": 0.26666666666666666
 }
 drop table t1;
 #

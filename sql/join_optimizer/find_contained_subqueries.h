@@ -33,55 +33,34 @@ class THD;
 class Item;
 class Query_block;
 
-// Find out which subqueries are contained in this predicate, if any.
-// (This only counts IN/ALL/ANY subqueries, ie., those that we consider
-// materializing and have not converted to semijoins.) Note that
-// calling this repeatedly can be quite expensive, so many callers will want
-// to cache this information.
-//
-// Func should be on the form void func(ContainedSubquery), or something
-// compatible.
+/***
+Find out which subqueries are contained in this predicate, if any.
+(This only counts IN/ALL/ANY/comparison_operator subqueries, ie.,
+those that we consider materializing and have not converted to
+semijoins.) Note that calling this repeatedly can be quite expensive,
+so many callers will want to cache this information.
+
+Func should be on the form void func(ContainedSubquery), or something
+compatible.
+
+@param condition the root of the predicate.
+@param outer_query_block the Query_block to which 'condition' belongs.
+@param func a function that is called for each contained subquery.
+*/
 template <class Func>
-void FindContainedSubqueries(THD *thd, Item *condition,
+void FindContainedSubqueries(Item *condition,
                              const Query_block *outer_query_block,
                              Func &&func) {
-  WalkItem(
-      condition, enum_walk::POSTFIX,
-      [thd, outer_query_block, &func](Item *item) {
-        if (!IsItemInSubSelect(item)) {
-          return false;
-        }
-        Item_in_subselect *item_subs = down_cast<Item_in_subselect *>(item);
+  WalkItem(condition, enum_walk::POSTFIX,
+           [outer_query_block, &func](Item *item) {
+             std::optional<ContainedSubquery> subquery =
+                 item->get_contained_subquery(outer_query_block);
 
-        // TODO(sgunders): Respect subquery hints, which can force the
-        // strategy to be materialize.
-        Query_block *query_block = item_subs->unit->first_query_block();
-        const bool materializeable =
-            item_subs->subquery_allows_materialization(thd, query_block,
-                                                       outer_query_block) &&
-            query_block->subquery_strategy(thd) ==
-                Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT;
-
-        AccessPath *path = item_subs->unit->root_access_path();
-        if (path == nullptr) {
-          // In rare situations involving IN subqueries on the left side of
-          // other IN subqueries, the query block may not be part of the
-          // parent query block's list of inner query blocks. If so, it has
-          // not been optimized here. Since this is a rare case, we'll just
-          // skip it and assign it zero cost.
-          return false;
-        }
-
-        ContainedSubquery subquery;
-        subquery.row_width = 0;
-        for (const Item *qb_item : query_block->fields) {
-          subquery.row_width += std::min<size_t>(qb_item->max_length, 4096);
-        }
-        subquery.materializable = materializeable;
-        subquery.path = path;
-        func(std::move(subquery));
-        return false;
-      });
+             if (subquery.has_value()) {
+               func(subquery.value());
+             }
+             return false;
+           });
 }
 
 #endif  // SQL_JOIN_OPTIMIZER_FIND_CONTAINED_SUBQUERIES

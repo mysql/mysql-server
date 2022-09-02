@@ -359,6 +359,8 @@ class Item_singlerow_subselect : public Item_subselect {
     @return the Query_block structure that was given in the constructor.
   */
   Query_block *invalidate_and_restore_query_block();
+  std::optional<ContainedSubquery> get_contained_subquery(
+      const Query_block *outer_query_block) override;
   friend class Query_result_scalar_subquery;
 };
 
@@ -688,8 +690,9 @@ class Item_in_subselect : public Item_exists_subselect {
      last steps of this transformation.
   */
   bool finalize_materialization_transform(THD *thd, JOIN *join);
-
   AccessPath *root_access_path() const override;
+  std::optional<ContainedSubquery> get_contained_subquery(
+      const Query_block *outer_query_block) override;
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
