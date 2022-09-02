@@ -1124,7 +1124,7 @@ static bool log_files_consuming_oldest_file_takes_too_long(const log_t &log) {
   log_files_access_allowed_validate(log);
   ut_a(!log.m_files.empty());
 
-  if (recv_recovery_on) {
+  if (!(log_checkpointer_is_active() && log.m_allow_checkpoints.load())) {
     return false;
   }
 
@@ -1154,7 +1154,7 @@ static bool log_files_filling_oldest_file_takes_too_long(const log_t &log) {
   log_files_access_allowed_validate(log);
   ut_a(!log.m_files.empty());
 
-  if (recv_recovery_on) {
+  if (!(log_checkpointer_is_active() && log.m_allow_checkpoints.load())) {
     return false;
   }
 
@@ -1890,6 +1890,7 @@ static void log_files_generate_dummy_records(log_t &log, lsn_t min_bytes) {
   ut_ad(log_writer_is_active());
   ut_ad(!log_writer_mutex_own(log));
   ut_ad(log_checkpointer_is_active());
+  ut_ad(log.m_allow_checkpoints.load());
   ut_ad(!log_checkpointer_mutex_own(log));
   ut_ad(log_flusher_is_active());
   ut_ad(!log_flusher_mutex_own(log));
