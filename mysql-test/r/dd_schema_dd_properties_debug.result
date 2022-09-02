@@ -46,10 +46,10 @@ catalogs=
             pos=1
     name=catalogs
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -123,10 +123,10 @@ character_sets=
             pos=1
     name=character_sets
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -212,10 +212,10 @@ check_constraints=
             pos=2
     name=check_constraints
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -298,10 +298,10 @@ check_constraints=
             pos=1
     name=collations
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -388,10 +388,10 @@ check_constraints=
             pos=2
     name=column_statistics
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -451,10 +451,10 @@ check_constraints=
             pos=0
     name=column_type_elements
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -656,10 +656,10 @@ check_constraints=
             pos=2
     name=columns
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -838,10 +838,10 @@ events=
             pos=1
     name=events
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -929,10 +929,10 @@ foreign_key_column_usage=
             pos=1
     name=foreign_key_column_usage
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1046,10 +1046,10 @@ foreign_key_column_usage=
             pos=2
     name=foreign_keys
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1135,10 +1135,10 @@ index_column_usage=
             pos=0
     name=index_column_usage
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1218,10 +1218,10 @@ index_partitions=
             pos=0
     name=index_partitions
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1290,10 +1290,10 @@ index_stats=
             pos=0
     name=index_stats
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1421,10 +1421,10 @@ index_stats=
             pos=1
     name=indexes
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1478,10 +1478,10 @@ innodb_ddl_log=
       elem1=def=index_id BIGINT UNSIGNED
             lbl=index_id
             pos=5
-      elem2=def=new_file_path VARCHAR(512) COLLATE UTF8_BIN
+      elem2=def=new_file_path VARCHAR(512) COLLATE UTF8MB3_BIN
             lbl=new_file_path
             pos=8
-      elem3=def=old_file_path VARCHAR(512) COLLATE UTF8_BIN
+      elem3=def=old_file_path VARCHAR(512) COLLATE UTF8MB3_BIN
             lbl=old_file_path
             pos=7
       elem4=def=page_no INT UNSIGNED
@@ -1509,10 +1509,10 @@ innodb_ddl_log=
             pos=0
     name=innodb_ddl_log
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1564,10 +1564,10 @@ innodb_dynamic_metadata=
             pos=0
     name=innodb_dynamic_metadata
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1634,10 +1634,10 @@ innodb_index_stats=
             pos=0
     name=innodb_index_stats
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1698,10 +1698,10 @@ innodb_table_stats=
             pos=0
     name=innodb_table_stats
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1751,10 +1751,10 @@ parameter_type_elements=
             pos=0
     name=parameter_type_elements
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1879,10 +1879,10 @@ parameters=
             pos=1
     name=parameters
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -1959,10 +1959,10 @@ resource_groups=
             pos=1
     name=resource_groups
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -2171,10 +2171,10 @@ routines=
             pos=1
     name=routines
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -2288,10 +2288,10 @@ schemata=
             pos=1
     name=schemata
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -2391,10 +2391,10 @@ COLLATE utf8mb3_general_ci
             pos=2
     name=st_spatial_reference_systems
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -2462,10 +2462,10 @@ table_partition_values=
             pos=0
     name=table_partition_values
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -2576,10 +2576,10 @@ table_partitions=
             pos=2
     name=table_partitions
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -2696,10 +2696,10 @@ table_stats=
             pos=0
     name=table_stats
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -2935,10 +2935,10 @@ tables=
             pos=1
     name=tables
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -3040,10 +3040,10 @@ tablespace_files=
             pos=0
     name=tablespace_files
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -3115,10 +3115,10 @@ tablespaces=
             pos=1
     name=tablespaces
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -3260,10 +3260,10 @@ triggers=
             pos=2
     name=triggers
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -3350,10 +3350,10 @@ view_routine_usage=
             pos=0
     name=view_routine_usage
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
@@ -3415,10 +3415,10 @@ view_table_usage=
             pos=0
     name=view_table_usage
     options=
-      elem0=def=DEFAULT CHARSET=utf8
+      elem0=def=DEFAULT CHARSET=utf8mb3
             lbl=CHARSET
             pos=1
-      elem1=def=COLLATE=utf8_bin
+      elem1=def=COLLATE=utf8mb3_bin
             lbl=COLLATION
             pos=2
       elem2=def=ENGINE=INNODB
