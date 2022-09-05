@@ -454,6 +454,7 @@ void delegates_update_lock_type() {
   plugins add to thd->lex will be automatically unlocked.
  */
 #define FOREACH_OBSERVER(r, f, args)                                   \
+  r = 0;                                                               \
   Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);       \
   read_lock();                                                         \
   Observer_info_iterator iter = observer_info_iter();                  \
@@ -466,8 +467,7 @@ void delegates_update_lock_type() {
                              : my_plugin_lock(0, &info->plugin));      \
     if (!plugin) {                                                     \
       /* plugin is not initialized or deleted, this is not an error */ \
-      r = 0;                                                           \
-      break;                                                           \
+      continue;                                                        \
     }                                                                  \
     if (!replication_optimize_for_static_plugin_config)                \
       plugins.push_back(plugin);                                       \
@@ -495,6 +495,7 @@ void delegates_update_lock_type() {
   if (!plugins.empty()) plugin_unlock_list(0, &plugins[0], plugins.size());
 
 #define FOREACH_OBSERVER_ERROR_OUT(r, f, args, out)                    \
+  r = 0;                                                               \
   Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);       \
   read_lock();                                                         \
   Observer_info_iterator iter = observer_info_iter();                  \
@@ -509,12 +510,14 @@ void delegates_update_lock_type() {
                              : my_plugin_lock(0, &info->plugin));      \
     if (!plugin) {                                                     \
       /* plugin is not initialized or deleted, this is not an error */ \
-      r = 0;                                                           \
-      break;                                                           \
+      continue;                                                        \
     }                                                                  \
     if (!replication_optimize_for_static_plugin_config)                \
       plugins.push_back(plugin);                                       \
                                                                        \
+    if (nullptr == ((Observer *)info->observer)->f) {                  \
+      continue;                                                        \
+    }                                                                  \
     bool hook_error = false;                                           \
     hook_error = ((Observer *)info->observer)->f(args, error_out);     \
                                                                        \
