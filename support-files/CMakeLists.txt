@@ -68,7 +68,12 @@ INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql-log-rotate
   )
 
 IF(WITH_ROUTER)
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter-log-rotate.in
+  IF(NOT WITH_SYSTEMD)
+    SET(LOGROTATE_SCRIPT mysqlrouter-log-rotate.in)
+  ELSE()
+    SET(LOGROTATE_SCRIPT mysqlrouter-log-rotate-systemd.in)
+  ENDIF()
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${LOGROTATE_SCRIPT}
     ${CMAKE_CURRENT_BINARY_DIR}/mysqlrouter-log-rotate @ONLY)
 
   INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysqlrouter-log-rotate
