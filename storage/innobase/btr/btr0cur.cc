@@ -3445,6 +3445,54 @@ func_exit:
   return (err);
 }
 
+/** If default value of INSTANT ADD column is to be materialize in updated row.
+@param[in]  index  record descriptor
+@param[in]  rec    record
+@return true if instant add column(s) to be materialized. */
+bool materialize_instant_default(const dict_index_t *index, const rec_t *rec) {
+#ifdef UNIV_DEBUG
+  if (rec_new_is_versioned(rec)) {
+    uint8_t v = rec_get_instant_row_version_new(rec);
+    if (v == 0) {
+      ut_ad(index->has_instant_cols());
+    } else {
+      ut_ad(index->has_row_versions());
+    }
+  }
+#endif
+
+  /* For upgraded table with INSTANT ADD column done in previous implementaion,
+  don't materialize INSTANT columns for existing rows during update. The reason
+  is, earlier INSTANT ADD column is allowed even if after adding that column,
+  max size of a possible row may cross the row_size_limit. This creates an issue
+  with the UPDATE/ROLLBACK. Let's say during UPDATE all INSTANT ADD COLS are
+  materialized, updated row is fitting the row_size_limit. But if a rollback is
+  done and INSTANT columns are kept materialised row may exceed row_size_limit.
+  Thus ROLLBACK will fail. So for these rows, we keep the old behavior.
+  NOTE: Any new row inserted after upgrade will have all INSTANT columns
+  materialized and have version=0.
+  NOTE: In new implementation an INSTANT ADD will fail if max possible size of
+  a row crosses row_size_limit. So new rows with materialized INSTANT columns
+  will always be within row_size_limit.
+  Thus the above mentioned issue isn't there for rows inserted post upgrade. */
+
+  /* If the record is versioned, the old instant add defaults must already have
+  been materialized. */
+  if (rec_new_is_versioned(rec)) {
+    return true;
+  }
+
+  /* The record is not versioned. If the index has instant default from older
+  version, we must not materialize it. */
+  if (index->has_instant_cols()) {
+    return false;
+  }
+
+  /* The record is not versioned and the index doesn't have instant default from
+  older version. It is safe to materialize it. */
+  return true;
+}
+
 dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
                                   ulint **offsets, mem_heap_t **heap,
                                   const upd_t *update, ulint cmpl_info,
@@ -3541,17 +3589,13 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
   /* We checked above that there are no externally stored fields. */
   ut_a(!new_entry->has_ext());
 
-  /* For upgraded instant table, don't materialize instant default */
-  bool materialize_instant_default =
-      !(index->has_instant_cols() && !index->has_row_versions());
-
   /* The page containing the clustered index record
   corresponding to new_entry is latched in mtr.
   Thus the following call is safe. */
   row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update, false,
                                                *heap);
 
-  if (!materialize_instant_default) {
+  if (!materialize_instant_default(index, rec)) {
     new_entry->ignore_trailing_default(index);
   }
 
@@ -3806,10 +3850,6 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
 
   rec = btr_cur_get_rec(cursor);
 
-  /* For upgraded instant table, don't materialize instant default */
-  bool materialize_instant_default =
-      !(index->has_instant_cols() && !index->has_row_versions());
-
   *offsets = rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED,
                              UT_LOCATION_HERE, offsets_heap);
 
@@ -3825,7 +3865,7 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update, false,
                                                entry_heap);
 
-  if (!materialize_instant_default) {
+  if (!materialize_instant_default(index, rec)) {
     new_entry->ignore_trailing_default(index);
   }
 
@@ -3891,7 +3931,7 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
 
     /* During rollback of a record in table having INSTANT fields, it is
     possible to have an external field now which wasn't there before update */
-    ut_ad(big_rec_vec == nullptr || index->table->has_row_versions());
+    ut_ad(big_rec_vec == nullptr || materialize_instant_default(index, rec));
 
     ut_ad(index->is_clustered());
     ut_ad((flags & ~BTR_KEEP_POS_FLAG) ==

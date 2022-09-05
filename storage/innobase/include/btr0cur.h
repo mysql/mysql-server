@@ -768,6 +768,12 @@ extern ulint btr_cur_n_sea_old;
 extern uint btr_cur_limit_optimistic_insert_debug;
 #endif /* UNIV_DEBUG */
 
+/** If default value of INSTANT ADD column is to be materialize in updated row.
+@param[in]  index  record descriptor
+@param[in]  rec    record
+@return true if instant add column(s) to be materialized. */
+bool materialize_instant_default(const dict_index_t *index, const rec_t *rec);
+
 #include "btr0cur.ic"
 
 #endif

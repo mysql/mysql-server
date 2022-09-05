@@ -149,7 +149,9 @@ introduced where a call to log_free_check() is bypassed. */
         btr_cur, offsets, offsets_heap, heap, &dummy_big_rec, node->update,
         node->cmpl_info, thr, thr_get_trx(thr)->id, node->undo_no, mtr, pcur);
 
-    ut_a(!dummy_big_rec || node->table->has_row_versions());
+    const rec_t *rec = btr_cur_get_rec(btr_cur);
+    ut_a(!dummy_big_rec || materialize_instant_default(btr_cur->index, rec));
+
     if (dummy_big_rec) {
       ut_a(err == DB_SUCCESS);
 
