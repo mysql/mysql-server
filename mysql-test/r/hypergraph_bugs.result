@@ -20,9 +20,8 @@ EXPLAIN
     -> Nested loop left join  (cost=0.91..0.91 rows=0.3)
         -> Filter: (t1.a = 5)  (cost=0.55..0.55 rows=0.3)
             -> Table scan on t1  (cost=0.08..0.25 rows=3)
-        -> Filter: (t1.a = 5)  (cost=0.36..0.36 rows=0.01)
-            -> Filter: (t2.a = 5)  (cost=0.35..0.35 rows=0.1)
-                -> Table scan on t2  (cost=0.25..0.25 rows=1)
+        -> Filter: ((t2.a = 5) and (t1.a = 5))  (cost=0.36..0.36 rows=0.01)
+            -> Table scan on t2  (cost=0.25..0.25 rows=1)
     -> Table scan on t3  (cost=0.25..0.25 rows=1)
 
 SELECT

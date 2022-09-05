@@ -600,6 +600,30 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
   Query_block *old_query_block = thd->lex->current_query_block();
   thd->lex->set_current_query_block(query_block);
 
+  // We might have stacked multiple FILTERs on top of each other.
+  // Combine these into a single FILTER:
+  WalkAccessPaths(
+      root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [](AccessPath *path, JOIN *join [[maybe_unused]]) {
+        if (path->type == AccessPath::FILTER) {
+          AccessPath *child = path->filter().child;
+          if (child->type == AccessPath::FILTER &&
+              child->filter().materialize_subqueries ==
+                  path->filter().materialize_subqueries) {
+            // Combine conditions into a single FILTER.
+            Item *condition = new Item_cond_and(child->filter().condition,
+                                                path->filter().condition);
+            condition->quick_fix_field();
+            condition->update_used_tables();
+            condition->apply_is_true();
+            path->filter().condition = condition;
+            path->filter().child = child->filter().child;
+          }
+        }
+        return false;
+      },
+      /*post_order_traversal=*/true);
+
   // If we have a sort node (e.g. for GROUP BY) with a materialization under it,
   // we need to make sure that what we sort on is included in the
   // materialization. (We do this by putting it into the field list, and then

@@ -347,5 +347,23 @@ col_int_unique
 2
 4
 9
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM i AS table1
+JOIN d AS table2 ON table1.pk = table2.col_int
+WHERE table1.col_int_key BETWEEN 5 AND 5+4;
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on table2
+    -> Index range scan on table1 using col_int_key over (5 <= col_int_key <= 9), with pushed condition: ((table1.col_int_key between 5 and <cache>((5 + 4))) and (table1.pk = table2.col_int))
+
+Warnings:
+Note	1003	Can't push table 'table1' as child, access type 'Range-scan' not implemented
+SELECT
+table1.pk, table2.pk
+FROM i AS table1
+JOIN d AS table2 ON table1.pk = table2.col_int
+WHERE table1.col_int_key BETWEEN 5 AND 5+4;
+pk	pk
 set optimizer_switch='hypergraph_optimizer=default';
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
