@@ -114,6 +114,8 @@ void Object_queue::read_object(Item_processing_data* item_to_process)
       Mysql::Tools::Base::Message_data(
       0, "Not supported operation called.",
       Mysql::Tools::Base::Message_type_error));
+
+    return;
   }
 
   my_boost::mutex::scoped_lock lock(m_queue_mutex);

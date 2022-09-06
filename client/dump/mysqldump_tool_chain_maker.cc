@@ -98,9 +98,12 @@ I_object_reader* Mysqldump_tool_chain_maker::create_chain(
         compression_writer_as_writer= compression_writer;
       }
       else
+      {
         this->pass_message(Mysql::Tools::Base::Message_data(
           0, "Unknown compression method: " + algorithm_name,
           Mysql::Tools::Base::Message_type_error));
+        return NULL;
+      }
 
       compression_writer_as_wrapper->register_output_writer(writer);
       writer= compression_writer_as_writer;

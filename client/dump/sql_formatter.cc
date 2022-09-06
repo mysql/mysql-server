@@ -399,9 +399,13 @@ void Sql_formatter::format_plain_sql_object(
   if (new_priv_task != NULL)
   {
     if (m_options->m_drop_user)
-      this->append_output("DROP USER "
-       + (dynamic_cast<Abstract_data_object*>(new_priv_task))->get_name()
-       + ";\n");
+    {
+      Abstract_data_object* data_obj = dynamic_cast<Abstract_data_object*>(new_priv_task);
+      if (data_obj != NULL)
+        this->append_output("DROP USER "
+         + data_obj->get_name()
+         + ";\n");
+    }
   }
 
   this->append_output(plain_sql_dump_task->get_sql_formatted_definition()

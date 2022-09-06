@@ -41,9 +41,15 @@ void File_writer::append(const std::string& data_to_append)
 File_writer::~File_writer()
 {
   // Check for I/O errors and close file.
-  if (ferror(m_file) != 0 || fclose(m_file) != 0)
+  if (ferror(m_file) != 0)
   {
     this->pass_message(Mysql::Tools::Base::Message_data(ferror(m_file),
+      "Error occurred while finishing writing to output.",
+      Mysql::Tools::Base::Message_type_error));
+  }
+  if (fclose(m_file) != 0)
+  {
+    this->pass_message(Mysql::Tools::Base::Message_data(errno,
       "Error occurred while finishing writing to output.",
       Mysql::Tools::Base::Message_type_error));
   }
