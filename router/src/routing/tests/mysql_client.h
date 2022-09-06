@@ -528,18 +528,20 @@ class MysqlClient {
         }
       }
 
+      // iterator over rows
       class Iterator {
        public:
         using value_type = MYSQL_ROW;
+        using reference = value_type &;
 
-        Iterator(MYSQL_RES *res) : res_{res} {
-          if (res_ == nullptr) return;
-
-          current_row_ = mysql_fetch_row(res_);
+        Iterator(MYSQL_RES *res)
+            : res_{res},
+              current_row_{res_ != nullptr ? mysql_fetch_row(res_) : nullptr} {
           if (current_row_ == nullptr) {
             res_ = nullptr;
           }
         }
+
         Iterator &operator++() {
           current_row_ = mysql_fetch_row(res_);
           if (current_row_ == nullptr) {
@@ -548,9 +550,16 @@ class MysqlClient {
 
           return *this;
         }
-        bool operator!=(const Iterator &other) { return res_ != other.res_; }
 
-        value_type operator*() { return current_row_; }
+        bool operator==(const Iterator &other) const {
+          return res_ == other.res_;
+        }
+
+        bool operator!=(const Iterator &other) const {
+          return !(*this == other);
+        }
+
+        reference operator*() { return current_row_; }
 
        private:
         MYSQL_RES *res_;
@@ -585,7 +594,9 @@ class MysqlClient {
      public:
       class Iterator {
        public:
-        using reference = ResultSet;
+        using value_type = ResultSet;
+        using pointer = value_type *;
+        using reference = value_type &;
 
         Iterator(MYSQL *m) : m_{m} {}
         Iterator &operator++() {
@@ -595,20 +606,27 @@ class MysqlClient {
 
           return *this;
         }
-        bool operator!=(const Iterator &other) { return m_ != other.m_; }
 
-        reference operator*() { return {m_}; }
+        bool operator!=(const Iterator &other) const { return m_ != other.m_; }
+
+        reference operator*() { return res_; }
+        pointer operator->() { return &res_; }
 
        private:
         MYSQL *m_;
+
+        value_type res_{m_};
       };
 
       using iterator = Iterator;
+      using const_iterator = Iterator;
 
       Result(MYSQL *m) : m_{m} {}
 
       iterator begin() { return {m_}; }
+      const_iterator begin() const { return {m_}; }
       iterator end() { return {nullptr}; }
+      const_iterator end() const { return {nullptr}; }
 
      private:
       MYSQL *m_;
