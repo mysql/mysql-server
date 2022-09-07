@@ -210,6 +210,9 @@ public:
 
     CmvmiShowLongSignalOwnership = 2612, /* Show owners of LSM */
 
+    CmvmiSetWatchdogInterval = 2613,     /* Set or reset interval */
+    CmvmiSetErrorHandlingError = 2614,   /* Error insert for ErrorHandler */
+
     LCPContinue = 5900,
     // 7000 DIH
     // 7001 DIH
