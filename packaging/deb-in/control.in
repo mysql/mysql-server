@@ -90,6 +90,7 @@ Recommends: mecab-ipadic-utf8
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.1),
+ mysql-common (<< 8.0.32)
 Conflicts: mysql,
  mysql-server-core-5.7,
  mysql-server-core-8.0,
@@ -100,6 +101,7 @@ Conflicts: mysql,
 Replaces: mysql-@DEB_PRODUCTNAME@-server (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-server-core,
+ mysql-common (<< 8.0.32),
  mysql-server-core-5.7,
  mysql-server-core-8.0
 Provides: virtual-mysql-server-core

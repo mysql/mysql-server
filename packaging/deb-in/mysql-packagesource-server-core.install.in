@@ -98,6 +98,8 @@ usr/lib/mysql/plugin/component_keyring_file.so
 # support files
 usr/share/mysql-@MYSQL_BASE_VERSION@/dictionary.txt
 usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-log-rotate
+usr/share/mysql-@MYSQL_BASE_VERSION@/docs/INFO_SRC
+usr/share/mysql-@MYSQL_BASE_VERSION@/docs/INFO_BIN
 # localized error msgs
 usr/share/mysql-@MYSQL_BASE_VERSION@/*/errmsg.sys
 usr/share/mysql-@MYSQL_BASE_VERSION@/messages_to_error_log.txt

@@ -24,8 +24,6 @@
 debian/extra/conf.d  etc/mysql/
 debian/extra/my.cnf.fallback etc/mysql/
 
-usr/share/mysql-@MYSQL_BASE_VERSION@/docs/INFO_SRC
-usr/share/mysql-@MYSQL_BASE_VERSION@/docs/INFO_BIN
 # legal
 usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-common/
 usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-common/
