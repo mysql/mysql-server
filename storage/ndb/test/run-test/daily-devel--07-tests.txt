@@ -229,3 +229,7 @@ cmd: testBasic
 args : -n AbortIgnoreError T2 T3 D1
 max-time: 360
 
+cmd: testNodeRestart
+args: -n WatchdogSlowShutdown T1
+max-time: 180
+

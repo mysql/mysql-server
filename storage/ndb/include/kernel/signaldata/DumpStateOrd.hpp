@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,6 +172,9 @@ public:
     CmvmiLongSignalMemorySnapshotCheck2 = 2611,
 
     CmvmiShowLongSignalOwnership = 2612, /* Show owners of LSM */
+
+    CmvmiSetWatchdogInterval = 2613,     /* Set or reset interval */
+    CmvmiSetErrorHandlingError = 2614,   /* Error insert for ErrorHandler */
 
     LCPContinue = 5900,
     // 7000 DIH
