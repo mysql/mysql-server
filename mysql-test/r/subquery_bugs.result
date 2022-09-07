@@ -779,7 +779,7 @@ EXPLAIN
 -> Nested loop inner join  (cost=0.95 rows=5)
     -> Filter: (t1.pk is not null)  (cost=0.35 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (pk=t1.pk)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (pk=t1.pk)  (cost=1.64..1.64 rows=1)
         -> Materialize with deduplication  (cost=1.60..1.60 rows=5)
             -> Nested loop left join  (cost=1.10 rows=5)
                 -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)

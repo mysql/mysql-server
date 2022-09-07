@@ -3642,7 +3642,7 @@ EXPLAIN
             -> Filter: (t1.pk < 5)  (cost=0.45 rows=2)
                 -> Table scan on t1  (cost=0.45 rows=2)
             -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.30 rows=1)
-    -> Multi-range index lookup on t3 using k2 (f2=t1.pk)
+    -> Multi-range index lookup on t3 using k2 (f2=t1.pk)  (cost=0.38 rows=1)
 
 SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
 pk	pk	f1	f2
@@ -3689,7 +3689,7 @@ EXPLAIN
     -> Batched key access left join
         -> Batch input rows
             -> Index lookup on t2 using key_b (b=t1.b)  (cost=0.26 rows=1)
-        -> Multi-range index lookup on t3 using key_a (a=t2.a)
+        -> Multi-range index lookup on t3 using key_a (a=t2.a)  (cost=0.53 rows=3)
 
 SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
 FROM t1

@@ -904,7 +904,7 @@ EXPLAIN
 -> Nested loop inner join  (cost=1.85 rows=1)
     -> Table scan on t2  (cost=0.45 rows=2)
     -> Filter: reject_if((derived_1_2.Name_exp_3 > 1))  (cost=0.53..0.53 rows=1)
-        -> Index lookup on derived_1_2 using <auto_key0> (b=t2.a)
+        -> Index lookup on derived_1_2 using <auto_key0> (b=t2.a)  (cost=0.27..0.53 rows=2)
             -> Materialize  (cost=0.00..0.00 rows=0)
                 -> Filter: (1 = any_value(t1.a))
                     -> Table scan on <temporary>

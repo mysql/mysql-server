@@ -3644,7 +3644,7 @@ EXPLAIN
             -> Filter: (t1.pk < 5)  (cost=0.45 rows=2)
                 -> Table scan on t1  (cost=0.45 rows=2)
             -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.30 rows=1)
-    -> Multi-range index lookup on t3 using k2 (f2=t1.pk)
+    -> Multi-range index lookup on t3 using k2 (f2=t1.pk)  (cost=0.38 rows=1)
 
 SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
 pk	pk	f1	f2

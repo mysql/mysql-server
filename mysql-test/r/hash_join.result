@@ -762,7 +762,7 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 EXPLAIN
--> Constant row from <subquery2>  (cost=1.10..1.10 rows=1)
+-> Constant row from <subquery2>  (cost=1.30..1.30 rows=1)
     -> Materialize with deduplication  (cost=1.10..1.10 rows=0)
         -> Filter: (t3.i is not null)  (cost=1.10 rows=0)
             -> Inner hash join (no condition)  (cost=1.10 rows=0)
@@ -1419,7 +1419,7 @@ EXPLAIN
                 -> Hash
                     -> Nested loop inner join  (cost=0.95 rows=1)
                         -> Table scan on alias2  (cost=0.35 rows=1)
-                        -> Index lookup on alias3 using <auto_key0> (col_int_key=alias2.col_int_key, col_varchar_key=alias2.col_varchar_key)
+                        -> Index lookup on alias3 using <auto_key0> (col_int_key=alias2.col_int_key, col_varchar_key=alias2.col_varchar_key)  (cost=0.80..1.15 rows=2)
                             -> Materialize  (cost=0.45..0.45 rows=1)
                                 -> Table scan on sq1_alias1  (cost=0.35 rows=1)
         -> Covering index lookup on alias1 using idx (col_varchar_key=sq2_alias1.col_varchar)  (cost=0.26 rows=1)
@@ -1709,7 +1709,7 @@ EXPLAIN
                                     -> Filter: (sq2_alias1.col_varchar_key is not null)  (cost=2.25 rows=20)
                                         -> Index scan on sq2_alias1 using col_varchar_key  (cost=2.25 rows=20)
                                     -> Filter: (sq2_alias1.col_varchar_key <> alias1.col_varchar)  (cost=7.49..0.66 rows=2)
-                                        -> Index lookup on alias1 using <auto_key0> (col_varchar_key=sq2_alias1.col_varchar_key)
+                                        -> Index lookup on alias1 using <auto_key0> (col_varchar_key=sq2_alias1.col_varchar_key)  (cost=12.84..13.25 rows=3)
                                             -> Materialize  (cost=12.59..12.59 rows=27)
                                                 -> Limit: 100 row(s)  (cost=9.92 rows=27)
                                                     -> Nested loop left join  (cost=9.92 rows=27)
@@ -1824,8 +1824,8 @@ EXPLAIN
         -> Table scan on subquery1_t2  (cost=0.35 rows=2)
         -> Hash
             -> Table scan on subquery1_t1  (cost=0.35 rows=1)
-    -> Nested loop semijoin  (cost=3.83 rows=2)
-        -> Covering index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
+    -> Nested loop semijoin  (cost=4.53 rows=2)
+        -> Covering index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)  (cost=3.73..4.08 rows=2)
             -> Materialize  (cost=3.38..3.38 rows=2)
                 -> Table scan on <temporary>  (cost=1.91..3.18 rows=2)
                     -> Temporary table with deduplication  (cost=0.65..0.65 rows=2)
@@ -3680,7 +3680,7 @@ EXPLAIN
     -> Batched key access inner join
         -> Batch input rows
             -> Table scan on table1  (cost=0.35 rows=1)
-        -> Multi-range index lookup on table2 using idx_N_col_int_key (col_int_key=table3.pk)
+        -> Multi-range index lookup on table2 using idx_N_col_int_key (col_int_key=table3.pk)  (cost=0.35 rows=1)
 
 SELECT * FROM
 t1 AS table3 LEFT JOIN (t1 AS table1, t2 AS table2) ON table2.col_int_key=table3.pk;
@@ -3726,8 +3726,8 @@ EXPLAIN
                         -> Table scan on inner_t3  (cost=0.16 rows=4)
                         -> Hash
                             -> Index scan on t1 using i1  (cost=0.16 rows=4)
-        -> Filter: (inner_t2.f1 = inner_t1.f1)
-            -> Multi-range index lookup on inner_t2 using i1 (pk=inner_t1.pk)
+        -> Filter: (inner_t2.f1 = inner_t1.f1)  (cost=0.25 rows=1)
+            -> Multi-range index lookup on inner_t2 using i1 (pk=inner_t1.pk)  (cost=0.25 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'table2.pk' of SELECT #3 was resolved in SELECT #1

@@ -477,7 +477,7 @@ EXPLAIN
                 -> Table scan on t2  (cost=0.35 rows=1)
                 -> Filter: (t3.a = t2.a)  (cost=0.35 rows=1)
                     -> Table scan on t3  (cost=0.35 rows=1)
-        -> Covering index lookup on t4d using <auto_key0> (a=t1.a)
+        -> Covering index lookup on t4d using <auto_key0> (a=t1.a)  (cost=1.07..1.70 rows=2)
             -> Materialize (invalidate on row from t3)  (cost=0.45..0.45 rows=1)
                 -> Limit: 1 row(s)  (cost=0.35 rows=1)
                     -> Filter: (t4.a = t3.a)  (cost=0.35 rows=1)
@@ -589,7 +589,7 @@ EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a NOT IN ( SELECT b FROM t1 WHERE b >
 EXPLAIN
 -> Nested loop antijoin  (cost=1.75 rows=9)
     -> Table scan on t1  (cost=0.55 rows=3)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)  (cost=0.98..0.98 rows=1)
         -> Materialize with deduplication  (cost=0.85..0.85 rows=3)
             -> Filter: (t1.b is not null)  (cost=0.55 rows=3)
                 -> Filter: (t1.b > 2)  (cost=0.55 rows=3)
@@ -868,13 +868,13 @@ EXPLAIN
 -> Group (no aggregates)  (cost=0.45 rows=1)
     -> Table scan on t1  (cost=0.35 rows=1)
 -> Select #2 (subquery in projection; dependent)
-    -> Limit: 1 row(s)  (cost=0.45..0.45 rows=1)
-        -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (cost=0.45..0.45 rows=1)
-            -> Alternative plans for IN subquery: Index lookup unless a IS NULL
-                -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)
+    -> Limit: 1 row(s)  (cost=1.85..1.85 rows=1)
+        -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(d.a), true)  (cost=1.85..1.85 rows=1)
+            -> Alternative plans for IN subquery: Index lookup unless a IS NULL  (cost=0.80..1.85 rows=4)
+                -> Covering index lookup on d using <auto_key0> (a=<cache>(t1.a) or NULL)  (cost=1.40 rows=4)
                     -> Materialize  (cost=0.45..0.45 rows=1)
                         -> Table scan on t1  (cost=0.35 rows=1)
-                -> Table scan on d
+                -> Table scan on d  (cost=2.52 rows=2)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
@@ -1023,7 +1023,7 @@ EXPLAIN
                 -> Filter: (d1.a = (10 * d2.a))  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
                     -> Single-row covering index lookup on d1 using PRIMARY (a=(10 * d2.a))  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
             -> Filter: (d2.b = tx.i1)  (cost=0.75..0.70 rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.50 rows=2) (never executed)
                     -> Materialize CTE tx if needed (query plan printed elsewhere)  (cost=0.80..0.80 rows=1) (never executed)
         -> Table scan on tx  (cost=3.31..3.31 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
             -> Materialize CTE tx if needed  (cost=0.80..0.80 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
@@ -1046,7 +1046,7 @@ EXPLAIN
                 -> Filter: (d1.a = -(d2.a))  (cost=0.35 rows=1)
                     -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (cost=0.35 rows=1)
             -> Filter: (d2.b = tx.i1)  (cost=0.75..0.70 rows=2)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.50 rows=2)
                     -> Materialize CTE tx if needed  (cost=0.80..0.80 rows=1)
                         -> Nested loop inner join  (cost=0.70 rows=1)
                             -> Filter: (j1.b is not null)  (cost=0.35 rows=1)
@@ -1075,7 +1075,7 @@ EXPLAIN
                 -> Filter: (d1.a = -(d2.a))  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
                     -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
             -> Filter: (d2.b = tx.i1)  (cost=0.75..0.70 rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.50 rows=2) (never executed)
                     -> Materialize CTE tx if needed (query plan printed elsewhere)  (cost=0.80..0.80 rows=1) (never executed)
 
 EXPLAIN ANALYZE
@@ -1097,7 +1097,7 @@ EXPLAIN
                 -> Filter: (d2.b is not null)  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
                     -> Single-row index lookup on d2 using PRIMARY (a=d1.a)  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
             -> Filter: (d2.b = tx.i1)  (cost=0.75..0.70 rows=2) (actual time=N.NNN..N.NNN rows=0 loops=1)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (actual time=N.NNN..N.NNN rows=0 loops=1)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.50 rows=2) (actual time=N.NNN..N.NNN rows=0 loops=1)
                     -> Materialize CTE tx if needed (query plan printed elsewhere)  (cost=0.80..0.80 rows=1) (never executed)
 
 EXPLAIN ANALYZE
@@ -1114,7 +1114,7 @@ EXPLAIN
                 -> Filter: (d1.a = (10 * d2.a))  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
                     -> Single-row covering index lookup on d1 using PRIMARY (a=(10 * d2.a))  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
             -> Filter: (d2.b = tx.i1)  (cost=0.75..0.70 rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.50 rows=2) (never executed)
                     -> Materialize CTE tx if needed  (cost=0.80..0.80 rows=1) (never executed)
                         -> Nested loop inner join  (cost=0.70 rows=1) (never executed)
                             -> Filter: (j1.b is not null)  (cost=0.35 rows=1) (never executed)
@@ -1127,7 +1127,7 @@ EXPLAIN
                 -> Filter: (d1.a = -(d2.a))  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
                     -> Single-row covering index lookup on d1 using PRIMARY (a=-(d2.a))  (cost=0.35 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
             -> Filter: (d2.b = tx.i1)  (cost=0.75..0.70 rows=2) (never executed)
-                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (never executed)
+                -> Covering index lookup on tx using <auto_key0> (i1=d2.b)  (cost=1.15..1.50 rows=2) (never executed)
                     -> Materialize CTE tx if needed (query plan printed elsewhere)  (cost=0.80..0.80 rows=1) (never executed)
 
 EXPLAIN ANALYZE
@@ -1135,7 +1135,7 @@ WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
 SELECT * FROM x1 y1 WHERE y1.m1 = (SELECT MAX(m1) FROM x1);
 EXPLAIN
 -> Filter: (y1.m1 = (select #3))  (cost=0.35..0.35 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
-    -> Covering index lookup on y1 using <auto_key0> (m1=(select #3))  (actual time=N.NNN..N.NNN rows=1 loops=1)
+    -> Covering index lookup on y1 using <auto_key0> (m1=(select #3))  (cost=0.35..0.35 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
         -> Materialize CTE x1 if needed (query plan printed elsewhere)  (cost=0.00..0.00 rows=0) (never executed)
     -> Select #3 (subquery in condition; run only once)
         -> Aggregate: max(x1.m1)  (cost=2.50..2.50 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)

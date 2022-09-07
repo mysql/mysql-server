@@ -3583,7 +3583,7 @@ explain format=tree
 select * from t1 where a = 2 and c > 0 order by d;
 EXPLAIN
 -> Sort: t1.d  (cost=2.10 rows=3)
-    -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)
+    -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.10 rows=3)
 
 explain format=tree
 select * from t1 where b > 0 order by a;

@@ -1850,12 +1850,6 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
   } else {
     table_path = qep_tab->access_path();
 
-    POSITION *pos = qep_tab->position();
-    if (pos != nullptr) {
-      SetCostOnTableAccessPath(*thd->cost_model(), pos,
-                               /*is_after_filter=*/false, table_path);
-    }
-
     // See if this is an information schema table that must be filled in before
     // we scan.
     if (qep_tab->table_ref->schema_table &&
@@ -2786,6 +2780,8 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
       table_path =
           NewMRRAccessPath(thd, qep_tab->table(), &ref,
                            qep_tab->position()->table->join_cache_flags);
+      SetCostOnTableAccessPath(*thd->cost_model(), qep_tab->position(),
+                               /*is_after_filter=*/false, table_path);
 
       for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
            ++key_part_idx) {
@@ -3810,6 +3806,11 @@ AccessPath *QEP_TAB::access_path() {
       break;
   }
 
+  if (position() != nullptr) {
+    SetCostOnTableAccessPath(*join()->thd->cost_model(), position(),
+                             /*is_after_filter=*/false, path);
+  }
+
   /*
     If we have an item like <expr> IN ( SELECT f2 FROM t2 ), and we were not
     able to rewrite it into a semijoin, the optimizer may rewrite it into
@@ -3851,6 +3852,8 @@ AccessPath *QEP_TAB::access_path() {
         // the AlternativeIterator.
         AccessPath *table_scan_path = NewTableScanAccessPath(
             join()->thd, table(), /*count_examined_rows=*/true);
+        table_scan_path->set_num_output_rows(table()->file->stats.records);
+        table_scan_path->cost = table()->file->table_scan_cost().total_cost();
         path = NewAlternativeAccessPath(join()->thd, path, table_scan_path,
                                         used_ref);
         break;
@@ -3878,6 +3881,13 @@ AccessPath *QEP_TAB::access_path() {
     // sorted results out.
     path = NewSortAccessPath(join()->thd, path, filesort, filesort_pushed_order,
                              /*count_examined_rows=*/true);
+  }
+
+  // If we wrapped the table path in for example a sort or a filter, add cost to
+  // the wrapping path too.
+  if (path->num_output_rows() == -1 && position() != nullptr) {
+    SetCostOnTableAccessPath(*join()->thd->cost_model(), position(),
+                             /*is_after_filter=*/false, path);
   }
 
   return path;

@@ -590,7 +590,7 @@ ON table3 .`i1`  = table2 .o1
 ) ON table3 .`i2`  = table2 .o1
 ;
 EXPLAIN
--> Covering index lookup on table3 using <auto_key0> (i1='m', i2='m')
+-> Covering index lookup on table3 using <auto_key0> (i1='m', i2='m')  (cost=1.25..1.25 rows=1)
     -> Materialize  (cost=0.90..0.90 rows=2)
         -> Table scan on cc  (cost=0.70 rows=2)
 

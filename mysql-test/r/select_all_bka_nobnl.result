@@ -5589,8 +5589,8 @@ EXPLAIN
 -> Batched key access inner join
     -> Batch input rows
         -> Table scan on alias1  (cost=1.65 rows=14)
-    -> Filter: (alias2.f1 not between 4 and 12)
-        -> Multi-range index lookup on alias2 using i1 (f2=alias1.f1)
+    -> Filter: (alias2.f1 not between 4 and 12)  (cost=0.40 rows=1)
+        -> Multi-range index lookup on alias2 using i1 (f2=alias1.f1)  (cost=0.40 rows=2)
 
 SELECT *
 FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2
