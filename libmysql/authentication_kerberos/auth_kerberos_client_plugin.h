@@ -36,9 +36,17 @@
 
 #include "kerberos_client_interface.h"
 
+enum class authentication_mode {
+#if defined(_WIN32)
+  MODE_SSPI,
+#endif
+  MODE_GSSAPI
+};
+
 class Kerberos_plugin_client {
  public:
-  Kerberos_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
+  Kerberos_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql,
+                         authentication_mode mode);
   ~Kerberos_plugin_client() = default;
   bool authenticate();
   void set_upn_info(std::string name, std::string pwd);
@@ -54,6 +62,8 @@ class Kerberos_plugin_client {
   std::string m_as_user_relam;
   MYSQL_PLUGIN_VIO *m_vio{nullptr};
   MYSQL *m_mysql{nullptr};
+  authentication_mode m_mode;
   std::unique_ptr<I_Kerberos_client> m_kerberos_client;
 };
+
 #endif  // AUTH_KERBEROS_CLIENT_PLUGIN_H_

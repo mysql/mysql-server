@@ -162,6 +162,7 @@ static uint my_end_arg;
 static char *opt_mysql_unix_port = nullptr;
 static char *opt_bind_addr = nullptr;
 static int first_error = 0;
+#include "authentication_kerberos_clientopt-vars.h"
 #include "caching_sha2_passwordopt-vars.h"
 #include "multi_factor_passwordopt-vars.h"
 #include "sslopt-vars.h"
@@ -659,6 +660,7 @@ static struct my_option my_long_options[] = {
      "be dumped or not.",
      &opt_skip_gipk, &opt_skip_gipk, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+#include "authentication_kerberos_clientopt-longopts.h"
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -894,6 +896,8 @@ static bool get_one_option(int optid, const struct my_option *opt,
       debug_check_flag = true;
       break;
 #include "sslopt-case.h"
+
+#include "authentication_kerberos_clientopt-case.h"
 
     case 'V':
       print_version();
@@ -1592,6 +1596,14 @@ static int connect_to_db(char *host, char *user) {
   set_server_public_key(&mysql_connection);
   set_get_server_public_key_option(&mysql_connection);
   set_password_options(&mysql_connection);
+
+#if defined(_WIN32)
+  char error[256]{0};
+  if (set_authentication_kerberos_client_mode(&mysql_connection, error, 255)) {
+    fprintf(stderr, "%s", error);
+    return 1;
+  }
+#endif /* _WIN32 */
 
   if (opt_compress_algorithm)
     mysql_options(&mysql_connection, MYSQL_OPT_COMPRESSION_ALGORITHMS,

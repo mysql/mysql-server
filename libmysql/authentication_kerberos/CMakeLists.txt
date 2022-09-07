@@ -34,39 +34,35 @@ IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
 ENDIF()
 
 IF(KERBEROS_LIB_SSPI)
-  MESSAGE(STATUS "Building KERBEROS SSPI client authentication plug-in for windows.")
+  MESSAGE(STATUS "Building KERBEROS client authentication plug-in for windows.")
 ELSE()
-  MESSAGE(STATUS "Building KERBEROS GSSAPI client authentication plug-in for linux.")
-  MESSAGE(STATUS "GSSAPI_LIBRARIES  ${GSSAPI_LIBRARIES}")
-  MESSAGE(STATUS "KERBEROS_LIBRARIES  ${KERBEROS_LIBRARIES}")
-  MESSAGE(STATUS "GSSAPI_INCLUDE_DIR  ${GSSAPI_INCLUDE_DIR}")
-  MESSAGE(STATUS "KERBEROS_INCLUDE_DIR  ${KERBEROS_INCLUDE_DIR}")
+  MESSAGE(STATUS "Building KERBEROS client authentication plug-in for linux.")
 ENDIF()
 
-IF(NOT KERBEROS_LIB_SSPI)
-  IF((KERBEROS_INCLUDE_DIR AND GSSAPI_INCLUDE_DIR))
-    IF(NOT WITH_KERBEROS STREQUAL "system")
-      IF(KERBEROS_INCLUDE_DIR)
-        INCLUDE_DIRECTORIES(BEFORE SYSTEM ${KERBEROS_INCLUDE_DIR})
-      ENDIF()
-      IF(GSSAPI_INCLUDE_DIR)
-        INCLUDE_DIRECTORIES(BEFORE SYSTEM ${GSSAPI_INCLUDE_DIR})
-      ENDIF()
+IF((KERBEROS_INCLUDE_DIR AND GSSAPI_INCLUDE_DIR))
+  IF(NOT WITH_KERBEROS STREQUAL "system")
+    IF(KERBEROS_INCLUDE_DIR)
+      INCLUDE_DIRECTORIES(BEFORE SYSTEM ${KERBEROS_INCLUDE_DIR})
     ENDIF()
-    SET(AUTH_CLIENT "gssapi_authentication_client.cc")
-    SET(UTILITY "gssapi_utility.cc")
-    SET(CORE "kerberos_core.cc")
-    SET(KERBEROS_LIB  "${GSSAPI_LIBRARIES};${KERBEROS_LIBRARIES}")
-  ELSE()
-    MESSAGE(WARNING
-      "Skipping the KERBEROS client authentication plugin.")
-    RETURN()
+    IF(GSSAPI_INCLUDE_DIR)
+      INCLUDE_DIRECTORIES(BEFORE SYSTEM ${GSSAPI_INCLUDE_DIR})
+    ENDIF()
   ENDIF()
+  SET(AUTH_CLIENT "gssapi_authentication_client.cc")
+  SET(UTILITY "gssapi_utility.cc")
+  SET(CORE "kerberos_core.cc")
+  SET(KERBEROS_LIB "${GSSAPI_LIBRARIES}")
+  LIST(APPEND KERBEROS_LIB "${KERBEROS_LIBRARIES}")
+  MESSAGE(STATUS "Using Kerberos libraries: ${KERBEROS_LIB}")
 ELSE()
-  SET(AUTH_CLIENT "sspi_authentication_client.cc")
-  SET(UTILITY "sspi_utility.cc")
-  SET(CORE "")
-  SET(KERBEROS_LIB  "")
+  MESSAGE(WARNING
+    "Skipping the KERBEROS client authentication plugin.")
+  RETURN()
+ENDIF()
+
+IF(KERBEROS_LIB_SSPI)
+  LIST(APPEND AUTH_CLIENT "sspi_authentication_client.cc")
+  LIST(APPEND UTILITY "sspi_utility.cc")
 ENDIF()
 
 SET(MY_SQL "mysqlclient")
@@ -74,6 +70,7 @@ SET(MY_SQL "mysqlclient")
 DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_PLUGIN(authentication_kerberos_client
+  kerberos_client_interface.cc
   auth_kerberos_client_plugin.cc
   auth_kerberos_client_io.cc
   log_client.cc
@@ -90,6 +87,10 @@ MYSQL_ADD_PLUGIN(authentication_kerberos_client
   CLIENT_ONLY
   MODULE_ONLY
   MODULE_OUTPUT_NAME "authentication_kerberos_client")
+
+IF(KERBEROS_LIB_SSPI)
+  ADD_DEPENDENCIES(authentication_kerberos_client copy_kerberos_dlls)
+ENDIF()
 
 # MYSQL_ADD_PLUGIN may have decided not to build it.
 IF(NOT TARGET authentication_kerberos_client)

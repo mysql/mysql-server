@@ -236,12 +236,3 @@ bool Sspi_client::authenticate() {
   }
   return rc_auth;
 }
-
-I_Kerberos_client *I_Kerberos_client::create(const std::string &spn,
-                                             MYSQL_PLUGIN_VIO *vio,
-                                             const std::string &upn,
-                                             const std::string &password,
-                                             const std::string &kdc_host) {
-  Sspi_client *client = new Sspi_client(spn, vio, upn, password, kdc_host);
-  return static_cast<I_Kerberos_client *>(client);
-}

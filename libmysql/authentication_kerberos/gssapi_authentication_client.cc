@@ -149,10 +149,3 @@ std::string Gssapi_client::get_user_name() {
   }
   return cached_user_name;
 }
-
-I_Kerberos_client *I_Kerberos_client::create(
-    const std::string &spn, MYSQL_PLUGIN_VIO *vio, const std::string &upn,
-    const std::string &password, const std::string &kdc_host [[maybe_unused]]) {
-  Gssapi_client *client = new Gssapi_client(spn, vio, upn, password);
-  return static_cast<I_Kerberos_client *>(client);
-}
