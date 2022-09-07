@@ -428,6 +428,33 @@ void thd_inc_row_count(MYSQL_THD thd) {
 }
 
 /**
+  Returns the size of the beginning part of a (multibyte) string,
+  which can fit in max_size bytes.
+
+  @param[in] cs charset_info
+  @param[in] start pointer to the string
+  @param[in] original_size the length of the string (in bytes)
+  @param[in] max_size the size of the buffer which needs to hold the string
+  @return  the maximum length of a prefix of the string, that can be stored
+*/
+static size_t truncated_str_length(const CHARSET_INFO *cs, const char *start,
+                                   size_t original_size, size_t max_size) {
+  if (max_size >= original_size) return original_size;
+
+  uint next_char_len;
+  auto next_char = start;
+  auto end = start + original_size;
+
+  while ((next_char_len = my_mbcharlen_ptr(cs, next_char, end)) > 0 &&
+         (size_t)(next_char + next_char_len - start) <= max_size) {
+    next_char += next_char_len;
+    assert(next_char < end);
+    // *next_char is always a valid expression, since max_size < original_size
+  }
+  return next_char - start;
+}
+
+/**
   Dumps a text description of a thread, its security context
   (user, host) and the current query.
 
@@ -490,7 +517,9 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     else
       len = min(thd->query().length, max_query_len);
     str.append('\n');
-    str.append(thd->query().str, len);
+    str.append(thd->query().str,
+               truncated_str_length(thd->charset(), thd->query().str,
+                                    thd->query().length, len));
   }
 
   mysql_mutex_unlock(&thd->LOCK_thd_query);
@@ -502,7 +531,8 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     was reallocated to a larger buffer to be able to fit.
   */
   assert(buffer != nullptr);
-  length = min(str.length(), length - 1);
+  length = truncated_str_length(thd->charset(), str.c_ptr_quick(), str.length(),
+                                length - 1);
   memcpy(buffer, str.c_ptr_quick(), length);
   /* Make sure that the new string is null terminated */
   buffer[length] = '\0';
