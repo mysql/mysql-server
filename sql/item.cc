@@ -6617,77 +6617,67 @@ type_conversion_status Item::save_in_field_inner(Field *field,
   assert(!returns_array());
 
   if (result_type() == STRING_RESULT) {
-    const enum Type typ = type();
+    // Avoid JSON dom/binary serialization to/from string
+    if (data_type() == MYSQL_TYPE_JSON) {
+      const enum_field_types field_type = field->type();
+      if (field_type == MYSQL_TYPE_JSON) {
+        // Store the value in the JSON binary format.
+        Json_wrapper wr;
+        if (val_json(&wr)) return TYPE_ERR_BAD_VALUE;
 
-    if (typ == FUNC_ITEM || typ == SUBSELECT_ITEM) {
-      enum_field_types ft = data_type();
-      // Avoid JSON dom/binary serialization to/from string
-      if (ft == MYSQL_TYPE_JSON) {
-        if (field->type() == MYSQL_TYPE_JSON) {
-          // Store the value in the JSON binary format.
-          Field_json *f = down_cast<Field_json *>(field);
-          Json_wrapper wr;
-          if (val_json(&wr)) return TYPE_ERR_BAD_VALUE;
+        if (null_value) return set_field_to_null(field);
 
-          if (null_value) return set_field_to_null(field);
-
-          field->set_notnull();
-          return f->store_json(&wr);
+        field->set_notnull();
+        return down_cast<Field_json *>(field)->store_json(&wr);
+      }
+      if (is_temporal_type(field_type) && field_type != MYSQL_TYPE_YEAR) {
+        MYSQL_TIME t;
+        bool res = true;
+        switch (field_type) {
+          case MYSQL_TYPE_TIME:
+            res = get_time(&t);
+            break;
+          case MYSQL_TYPE_DATETIME:
+          case MYSQL_TYPE_TIMESTAMP:
+          case MYSQL_TYPE_DATE:
+          case MYSQL_TYPE_NEWDATE:
+            res = get_date(&t, 0);
+            break;
+          case MYSQL_TYPE_YEAR:
+            assert(false);
+          default:
+            assert(false);
         }
-
-        const enum_field_types field_type = field->type();
-        if (is_temporal_type(field_type) && field_type != MYSQL_TYPE_YEAR) {
-          MYSQL_TIME t;
-          bool res = true;
-          switch (field_type) {
-            case MYSQL_TYPE_TIME:
-              res = get_time(&t);
-              break;
-            case MYSQL_TYPE_DATETIME:
-            case MYSQL_TYPE_TIMESTAMP:
-            case MYSQL_TYPE_DATE:
-            case MYSQL_TYPE_NEWDATE:
-              res = get_date(&t, 0);
-              break;
-            case MYSQL_TYPE_YEAR:
-              assert(false);
-            default:
-              assert(false);
-          }
-          if (res) {
-            null_value = true;
-            return set_field_to_null_with_conversions(field, no_conversions);
-          }
-          field->set_notnull();
-          return field->store_time(&t);
+        if (res) {
+          null_value = true;
+          return set_field_to_null_with_conversions(field, no_conversions);
         }
-        if (field->type() == MYSQL_TYPE_NEWDECIMAL) {
-          my_decimal decimal_value;
-          my_decimal *value = val_decimal(&decimal_value);
-          if (null_value)
-            return set_field_to_null_with_conversions(field, no_conversions);
-          field->set_notnull();
-          return field->store_decimal(value);
-        }
-        if (field->type() == MYSQL_TYPE_INT24 ||
-            field->type() == MYSQL_TYPE_TINY ||
-            field->type() == MYSQL_TYPE_SHORT ||
-            field->type() == MYSQL_TYPE_LONG ||
-            field->type() == MYSQL_TYPE_LONGLONG) {
-          longlong nr = val_int();
-          if (null_value)
-            return set_field_to_null_with_conversions(field, no_conversions);
-          field->set_notnull();
-          return field->store(nr, unsigned_flag);
-        }
-        if (field->type() == MYSQL_TYPE_FLOAT ||
-            field->type() == MYSQL_TYPE_DOUBLE) {
-          double nr = val_real();
-          if (null_value)
-            return set_field_to_null_with_conversions(field, no_conversions);
-          field->set_notnull();
-          return field->store(nr);
-        }
+        field->set_notnull();
+        return field->store_time(&t);
+      }
+      if (field_type == MYSQL_TYPE_NEWDECIMAL) {
+        my_decimal decimal_value;
+        my_decimal *value = val_decimal(&decimal_value);
+        if (null_value)
+          return set_field_to_null_with_conversions(field, no_conversions);
+        field->set_notnull();
+        return field->store_decimal(value);
+      }
+      if (field_type == MYSQL_TYPE_INT24 || field_type == MYSQL_TYPE_TINY ||
+          field_type == MYSQL_TYPE_SHORT || field_type == MYSQL_TYPE_LONG ||
+          field_type == MYSQL_TYPE_LONGLONG) {
+        longlong nr = val_int();
+        if (null_value)
+          return set_field_to_null_with_conversions(field, no_conversions);
+        field->set_notnull();
+        return field->store(nr, unsigned_flag);
+      }
+      if (field_type == MYSQL_TYPE_FLOAT || field_type == MYSQL_TYPE_DOUBLE) {
+        double nr = val_real();
+        if (null_value)
+          return set_field_to_null_with_conversions(field, no_conversions);
+        field->set_notnull();
+        return field->store(nr);
       }
     }
 
@@ -6710,14 +6700,6 @@ type_conversion_status Item::save_in_field_inner(Field *field,
                      field->type() == MYSQL_TYPE_JSON ? result->charset() : cs);
     str_value.set_quick(nullptr, 0, cs);
     return error;
-  }
-
-  if (result_type() == REAL_RESULT && field->result_type() == STRING_RESULT) {
-    double nr = val_real();
-    if (null_value)
-      return set_field_to_null_with_conversions(field, no_conversions);
-    field->set_notnull();
-    return field->store(nr);
   }
 
   if (result_type() == REAL_RESULT) {
