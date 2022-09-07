@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -8812,6 +8812,95 @@ int runClearErrorInsert(NDBT_Context* ctx, NDBT_Step* step)
   return restarter.insertErrorInAllNodes(0);
 }
 
+int runWatchdogSlowShutdown(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Steps
+   * 1 Set low watchdog threshold
+   * 2 Get error reporter to be slow during shutdown
+   * 3 Trigger shutdown
+   *
+   * Expectation
+   * - Shutdown triggered, but slow
+   * - Watchdog detects and also attempts shutdown
+   * - No crash results, shutdown completes eventually
+   */
+
+  NdbRestarter restarter;
+
+  /* 1 Set low watchdog threshold */
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetWatchdogInterval, 2000 };
+    CHECK((restarter.dumpStateAllNodes(dumpVals, 2) == NDBT_OK),
+          "Failed to set watchdog thresh");
+  }
+
+  /* 2 Use error insert to get error reporter to be slow
+   *   during shutdown
+   */
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetErrorHandlingError, 1 };
+    CHECK((restarter.dumpStateAllNodes(dumpVals, 2) == NDBT_OK),
+          "Failed to set error handling mode");
+  }
+
+  /* 3 Trigger shutdown */
+  const int nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Injecting crash in node " << nodeId << endl;
+  /* First request a 'NOSTART' restart on error insert */
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
+    CHECK((restarter.dumpStateOneNode(nodeId, dumpVals, 2) == NDBT_OK),
+          "Failed to request error insert restart");
+  }
+
+  /* Next cause an error insert failure */
+  CHECK((restarter.insertErrorInNode(nodeId, 9999) == NDBT_OK),
+        "Failed to request node crash");
+
+  /* Expect shutdown to be stalled, and shortly after, watchdog
+   * to detect this and act
+   */
+  g_err << "Waiting for node " << nodeId << " to stop." << endl;
+  CHECK((restarter.waitNodesNoStart(&nodeId, 1) == NDBT_OK),
+        "Timeout waiting for node to stop");
+
+  g_err << "Waiting for node " << nodeId << " to start." << endl;
+  CHECK((restarter.startNodes(&nodeId, 1) == NDBT_OK),
+        "Timeout waiting for node to start");
+
+  CHECK((restarter.waitClusterStarted() == NDBT_OK),
+        "Timeout waiting for cluster to start");
+
+  g_err << "Success" << endl;
+  return NDBT_OK;
+}
+
+int runWatchdogSlowShutdownCleanup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  g_err << "Cleaning up" << endl;
+
+  /* Cleanup special measures */
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetWatchdogInterval};
+    if (restarter.dumpStateAllNodes(dumpVals, 1) != NDBT_OK)
+    {
+      g_err << "Failed to clear interval" << endl;
+      return NDBT_FAILED;
+    }
+  }
+  {
+    const int dumpVals[] = {DumpStateOrd::CmvmiSetErrorHandlingError};
+    if (restarter.dumpStateAllNodes(dumpVals, 1) != NDBT_OK)
+    {
+      g_err << "Failed to clear error handlng" << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
 
 
 NDBT_TESTSUITE(testNodeRestart);
@@ -9568,6 +9657,12 @@ TESTCASE("InplaceCharPkChangeCI",
   STEP(runRestarter);
   FINALIZER(runClearErrorInsert);
   FINALIZER(runDropCharKeyTable);
+}
+TESTCASE("WatchdogSlowShutdown",
+         "Watchdog reacts to slow exec thread shutdown")
+{
+  INITIALIZER(runWatchdogSlowShutdown);
+  FINALIZER(runWatchdogSlowShutdownCleanup);
 }
 
 

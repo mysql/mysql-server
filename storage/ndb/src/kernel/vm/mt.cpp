@@ -7880,15 +7880,21 @@ void mt_execSTOP_FOR_CRASH()
 {
   void *value= NdbThread_GetTlsKey(NDB_THREAD_TLS_THREAD);
   const thr_data *selfptr = reinterpret_cast<const thr_data *>(value);
-  require(selfptr != NULL);
 
-  NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
-  g_thr_repository->stopped_threads++;
-  NdbCondition_Signal(&g_thr_repository->stop_for_crash_cond);
-  NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
+  /* Signal exec threads have some state cleanup to do
+   * We can be executed from other threads.
+   * (Thread Watchdog, others via Unix signal handler)
+   */
+  if (selfptr != NULL)
+  {
+    /* Signal exec thread, some state cleanup to do */
+    NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
+    g_thr_repository->stopped_threads++;
+    NdbCondition_Signal(&g_thr_repository->stop_for_crash_cond);
+    NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
 
-  /* ToDo: is this correct? */
-  globalEmulatorData.theWatchDog->unregisterWatchedThread(selfptr->m_thr_no);
+    globalEmulatorData.theWatchDog->unregisterWatchedThread(selfptr->m_thr_no);
+  }
 
   my_thread_exit(NULL);
 }
