@@ -552,7 +552,7 @@ bool Sql_cmd_show_master_status::execute_inner(THD *thd) {
   return show_master_status(thd);
 }
 
-bool Sql_cmd_show_profiles::execute_inner(THD *thd) {
+bool Sql_cmd_show_profiles::execute_inner(THD *thd [[maybe_unused]]) {
 #if defined(ENABLED_PROFILING)
   thd->profiling->discard_current_query();
   return thd->profiling->show_profiles();
