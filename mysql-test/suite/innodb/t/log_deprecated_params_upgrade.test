@@ -3,7 +3,7 @@
 let ZIP_FILE = 8_0_19_clean.zip;
 let MYSQLD_DATADIR = $MYSQLTEST_VARDIR/tmp/log_deprecated_params_upg;
 let SEARCH_FILE = $MYSQLD_DATADIR/my_restart_attempt.err;
-let MYSQLD_ARGS = --no-defaults --pid-file=$MYSQLD_DATADIR/mysqld-in-test.pid --secure_file_priv=$MYSQLTEST_VARDIR --datadir=$MYSQLD_DATADIR --lower_case_table_names=1 --log-error-verbosity=3 --innodb-unknown-param=v --skip-log-bin --skip-networking --socket=$MYSQLD_DATADIR/test.sock --log-error=$SEARCH_FILE;
+let MYSQLD_ARGS = --no-defaults --pid-file=$MYSQLD_DATADIR/mysqld-in-test.pid --secure_file_priv=$MYSQLTEST_VARDIR --datadir=$MYSQLD_DATADIR --lower_case_table_names=1 --log-error-verbosity=3 --innodb-unknown-param=v --skip-log-bin --skip-networking --socket=$MYSQL_TMP_DIR/tmp.sock --log-error=$SEARCH_FILE;
 
 --echo # Create an empty data directory...
 --mkdir $MYSQLD_DATADIR

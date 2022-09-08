@@ -1,7 +1,6 @@
-let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 let MYSQLD_DATADIR = $MYSQLTEST_VARDIR/tmp/log_deprecated_params;
 let SEARCH_FILE = $MYSQLD_DATADIR/my_restart_attempt.err;
-let MYSQLD_ARGS = --no-defaults --pid-file=$MYSQLD_DATADIR/mysqld-in-test.pid --secure_file_priv=$MYSQLTEST_VARDIR --datadir=$MYSQLD_DATADIR --log-error-verbosity=3 --innodb-unknown-param=v --skip-log-bin --skip-networking --socket=$MYSQLD_DATADIR/test.sock --log-error=$SEARCH_FILE;
+let MYSQLD_ARGS = --no-defaults --pid-file=$MYSQLD_DATADIR/mysqld-in-test.pid --secure_file_priv=$MYSQLTEST_VARDIR --datadir=$MYSQLD_DATADIR --log-error-verbosity=3 --skip-log-bin --skip-networking --socket=$MYSQL_TMP_DIR/tmp.sock --log-error=$SEARCH_FILE;
 
 --echo # Test starting MySQL with --innodb-log-file-size provided and --innodb-redo-log-capacity provided...
 --mkdir $MYSQLD_DATADIR

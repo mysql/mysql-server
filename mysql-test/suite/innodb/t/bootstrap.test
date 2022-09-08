@@ -173,7 +173,7 @@ perl;
   }
 EOF
 --error 1,42
---exec $MYSQLD $args --skip-networking --socket=./mysqld.sock --innodb-unknown-parameter-12
+--exec $MYSQLD $args --skip-networking --socket=$MYSQL_TMP_DIR/tmp.sock --innodb-unknown-parameter-12
 let SEARCH_PATTERN=[ERROR].*innodb-unknown-parameter-12.*;
 --source include/search_pattern.inc
 --source ../include/bootstrap_cleanup.inc

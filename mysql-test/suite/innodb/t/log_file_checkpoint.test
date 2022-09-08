@@ -13,7 +13,6 @@ let $MYSQLD_SOCKET= `SELECT @@socket`;
 let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
 let MYSQLD_DATADIR = $tmp_dir/log_invalid_file;
 let MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
-let MYSQLD_EXTRA_ARGS = --socket=$MYSQLD_SOCKET;
 let SEARCH_FILE = $MYSQLD_ERROR_LOG;
 
 --echo # Initialize new data directory...
@@ -39,7 +38,7 @@ EOF
 --source $MYSQLD_DATADIR/found.inc
 
 --error 1,42
---exec $MYSQLD --no-defaults $MYSQLD_ARGS $MYSQLD_EXTRA_ARGS --innodb-unknown-param=y
+--exec $MYSQLD --no-defaults $MYSQLD_ARGS --innodb-unknown-param=y
 let SEARCH_PATTERN = The latest found checkpoint is at lsn = $REDO_CHECKPOINT_LSN in redo log file;
 --replace_result $REDO_CHECKPOINT_LSN REDO_CHECKPOINT_LSN
 --source include/search_pattern.inc
@@ -51,7 +50,6 @@ let SEARCH_PATTERN = innodb-unknown-param;
 --force-rmdir $MYSQLD_DATADIR
 
 let MYSQLD_ARGS=;
-let MYSQLD_EXTRA_ARGS=;
 let MYSQLD_DATADIR=;
 let MYSQLD_ERROR_LOG=;
 
