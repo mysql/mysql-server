@@ -1,0 +1,66 @@
+--source include/have_perl_64bit_int.inc
+DO innodb_redo_log_consumer_register();
+SELECT @@global.innodb_redo_log_encrypt ;
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SET GLOBAL innodb_redo_log_encrypt = 1;
+SELECT @@global.innodb_redo_log_encrypt ;
+INSERT INTO t1 (a, b) VALUES (2, REPEAT('b', 6*512*512));
+SET GLOBAL innodb_redo_log_encrypt = 0;
+SELECT @@global.innodb_redo_log_encrypt ;
+INSERT INTO t1 (a, b) VALUES (3, REPEAT('c', 6*512*512));
+FLUSH LOGS;
+CHECKSUM TABLE t1;
+--source include/kill_mysqld.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--source include/start_mysqld.inc
+
+CHECKSUM TABLE t1;
+SELECT a,LEFT(b,8) FROM t1;
+
+DO innodb_redo_log_consumer_register();
+INSERT INTO t1 (a, b) VALUES (4, REPEAT('d', 6*512*512));
+
+let MYSQLD_DATADIR = `select @@datadir`;
+--source include/kill_mysqld.inc
+
+perl;
+  use strict;
+  require 'include/ib_redo_log_files.inc';
+  my $found_a = 0;
+  my $found_c = 0;
+  my $found_d = 0;
+  for my $file (log_get_non_tmp_files()) {
+    open(FILE, "$file") or die("Unable to open $file: $!\n");
+    while (<FILE>) {
+      if ($_ =~ /aaaaaaaaaaaaaaaaaaaaaaaaaaa/) {
+        $found_a = 1;
+      }
+      if ($_ =~ /bbbbbbbbbbbbbbbbbbbbbbbbbbb/) {
+        print "Pattern bbbbb found unencrypted\n";
+      }
+      if ($_ =~ /ccccccccccccccccccccccccccc/) {
+        $found_c = 1;
+      }
+      if ($_ =~ /ddddddddddddddddddddddddddd/) {
+        $found_d = 1;
+      }
+    }
+    close(FILE);
+  }
+  if ($found_a == 0) {
+    print "Pattern aaaaaaa expected to be present unencrypted, but not found\n";
+  }
+  if ($found_c == 0) {
+    print "Pattern ccccccc expected to be present unencrypted, but not found\n";
+  }
+  if ($found_d == 0) {
+    print "Pattern ddddddd expected to be present unencrypted, but not found\n";
+  }
+EOF
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--source include/start_mysqld.inc
+SELECT a,LEFT(b,8) FROM t1;
+DROP TABLE t1;
