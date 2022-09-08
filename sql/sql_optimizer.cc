@@ -11363,6 +11363,14 @@ double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
             num_output_rows = table->file->stats.records;
           }
 
+          // Workaround for HeatWave. All access paths in HeatWave currently
+          // have num_output_rows set to zero. Get the handler's estimate
+          // instead.
+          if (num_output_rows == 0 && table->s->is_secondary_engine()) {
+            assert(subpath->type == AccessPath::TABLE_SCAN);
+            num_output_rows = table->file->stats.records;
+          }
+
           assert(num_output_rows >= 0);
 
           rows += num_evaluations * min(limit, num_output_rows);
