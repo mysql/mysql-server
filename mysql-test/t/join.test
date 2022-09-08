@@ -2127,6 +2127,6 @@ FROM t1 AS ra1 LEFT JOIN t1 AS ra2
        t1 AS ra3 LEFT JOIN t1 AS ra4
        ON ra3.k = ra4.k
      ON ra3.k = ra3.k
-WHERE ra3.k < ra1.k;
+WHERE ra3.k <= ra1.k;
 
 DROP TABLE t1;
