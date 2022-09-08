@@ -106,6 +106,7 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wheader-hygiene")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wnon-virtual-dtor")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wundefined-reinterpret-cast")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wrange-loop-analysis")
 
   MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-destructor-override")
   MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-override")
@@ -143,7 +144,6 @@ IF(MY_COMPILER_IS_CLANG)
   # -Wold-style-cast
   # -Wpadded
   # -Wpedantic
-  # -Wrange-loop-analysis
   # -Wredundant-parens
   # -Wreserved-id-macro
   # -Wshadow

@@ -247,17 +247,20 @@ class HARNESS_EXPORT Acl {
 
   class HARNESS_EXPORT iterator {
    public:
-    using reference_type = Ace;
+    using value_type = Ace;
+    using reference = value_type &;
 
     iterator(ACL *acl, size_t ndx) : acl_{acl}, ndx_{ndx} {}
 
-    reference_type operator*();
+    reference operator*();
     iterator &operator++();
-    bool operator!=(const iterator &other);
+    bool operator!=(const iterator &other) const;
 
    private:
     ACL *acl_;
     size_t ndx_;
+
+    value_type ace_{nullptr};
   };
 
   iterator begin() const { return {acl_, 0}; }

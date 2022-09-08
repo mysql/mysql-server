@@ -180,14 +180,16 @@ std::string Sid::to_string() const {
   return sid_out;
 }
 
-Acl::iterator::reference_type Acl::iterator::operator*() {
+Acl::iterator::reference Acl::iterator::operator*() {
   LPVOID ace = nullptr;
 
   if (GetAce(acl_, ndx_, &ace) == FALSE) {
     throw std::system_error(last_error_code());
   }
 
-  return {static_cast<ACE_HEADER *>(ace)};
+  ace_ = static_cast<ACE_HEADER *>(ace);
+
+  return ace_;
 }
 
 Acl::iterator &Acl::iterator::operator++() {
@@ -196,7 +198,7 @@ Acl::iterator &Acl::iterator::operator++() {
   return *this;
 }
 
-bool Acl::iterator::operator!=(const Acl::iterator &other) {
+bool Acl::iterator::operator!=(const Acl::iterator &other) const {
   return !(acl_ == other.acl_ && ndx_ == other.ndx_);
 }
 
