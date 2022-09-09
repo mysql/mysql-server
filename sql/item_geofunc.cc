@@ -4534,28 +4534,6 @@ BG_geometry_collection::BG_geometry_collection()
       m_geosdata(key_memory_Geometry_objects_data) {}
 
 /**
-  Convert this into a Gis_geometry_collection object.
-  @param geodata Stores the result object's WKB data.
-  @return The Gis_geometry_collection object created from this object.
- */
-Gis_geometry_collection *BG_geometry_collection::as_geometry_collection(
-    String *geodata) const {
-  if (m_geos.size() == 0) return empty_collection(geodata, m_srid);
-
-  Gis_geometry_collection *gc = nullptr;
-
-  for (Geometry_list::const_iterator i = m_geos.begin(); i != m_geos.end();
-       ++i) {
-    if (gc == nullptr)
-      gc = new Gis_geometry_collection(*i, geodata);
-    else
-      gc->append_geometry(*i, geodata);
-  }
-
-  return gc;
-}
-
-/**
   Store a Geometry object into this collection. If it's a geometry collection,
   flatten it and store its components into this collection, so that no
   component is a geometry collection.

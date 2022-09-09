@@ -179,9 +179,6 @@ class Opt_trace_stmt {
   /// Fills user-level information @sa Opt_trace_iterator
   void fill_info(Opt_trace_info *info) const;
 
-  /// @returns 'size' last bytes of the trace buffer
-  const char *trace_buffer_tail(size_t size);
-
   /// @returns total memory used by this trace
   size_t alloced_length() const {
     return trace_buffer.alloced_length() + query_buffer.alloced_length();
@@ -612,13 +609,6 @@ void Opt_trace_stmt::fill_info(Opt_trace_info *info) const {
     info->missing_bytes =
         trace_buffer.get_missing_bytes() + query_buffer.get_missing_bytes();
   }
-}
-
-const char *Opt_trace_stmt::trace_buffer_tail(size_t size) {
-  size_t buffer_len = trace_buffer.length();
-  const char *ptr = trace_buffer.c_ptr_safe();
-  if (buffer_len > size) ptr += buffer_len - size;
-  return ptr;
 }
 
 void Opt_trace_stmt::missing_privilege() {

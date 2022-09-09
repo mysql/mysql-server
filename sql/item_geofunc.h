@@ -170,8 +170,6 @@ class BG_geometry_collection {
 
   size_t num_isolated() const { return m_num_isolated; }
 
-  Gis_geometry_collection *as_geometry_collection(String *geodata) const;
-
  private:
   bool store_geometry(const Geometry *geo, bool break_multi_geom);
   Geometry *store(const Geometry *geo);
@@ -1246,26 +1244,8 @@ class Item_func_st_union final : public Item_func_spatial_operation {
   const char *func_name() const override { return "st_union"; }
 };
 
-class Item_func_buffer : public Item_geometry_func {
- public:
-  /*
-    There are five types of buffer strategies, this is an enumeration of them.
-   */
-  enum enum_buffer_strategy_types {
-    invalid_strategy_type = 0,
-    end_strategy,
-    join_strategy,
-    point_strategy,
-    // The two below are not parameterized.
-    distance_strategy,
-    side_strategy
-  };
-
-  /*
-    For each type of strategy listed above, there are several options/values
-    for it, this is an enumeration of all such options/values for all types of
-    strategies.
-   */
+class Item_func_buffer_strategy : public Item_str_func {
+ private:
   enum enum_buffer_strategies {
     invalid_strategy = 0,
     end_round,
@@ -1280,45 +1260,6 @@ class Item_func_buffer : public Item_geometry_func {
     // parameterization for them.
   };
 
-  /*
-    A piece of strategy setting. User can specify 0 to 3 different strategy
-    settings in any order to ST_Buffer(), which must be of different
-    strategy types. Default strategies are used if not explicitly specified.
-   */
-  struct Strategy_setting {
-    enum_buffer_strategies strategy;
-    // This field is only effective for end_round, join_round, join_mit,
-    // and point_circle.
-    double value;
-  };
-
- private:
-  BG_result_buf_mgr bg_resbuf_mgr;
-  int num_strats;
-  String *strategies[side_strategy + 1];
-  /*
-    end_xxx stored in settings[end_strategy];
-    join_xxx stored in settings[join_strategy];
-    point_xxx stored in settings[point_strategy].
-  */
-  Strategy_setting settings[side_strategy + 1];
-  String tmp_value;  // Stores current buffer result.
-  String m_tmp_geombuf;
-  void set_strategies();
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
-    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
-    if (param_type_is_default(thd, 2, -1)) return true;
-    return Item_geometry_func::resolve_type(thd);
-  }
-
- public:
-  Item_func_buffer(const POS &pos, PT_item_list *ilist);
-  const char *func_name() const override { return "st_buffer"; }
-};
-
-class Item_func_buffer_strategy : public Item_str_func {
- private:
   friend class Item_func_buffer;
   String tmp_value;
   char tmp_buffer[16];  // The buffer for tmp_value.

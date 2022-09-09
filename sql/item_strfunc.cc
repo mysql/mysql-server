@@ -113,7 +113,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"  // my_locale_by_name
 #include "sql/sql_show.h"    // grant_types
-#include "sql/strfunc.h"     // hexchar_to_int
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/val_int_compare.h"  // Integer_value
