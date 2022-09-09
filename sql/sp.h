@@ -384,10 +384,6 @@ void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 
 const uchar *sp_sroutine_key(const uchar *ptr, size_t *plen);
 
-sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
-                                        const dd::Routine *routine,
-                                        bool *free_sp_head);
-
 bool load_charset(MEM_ROOT *mem_root, Field *field, const CHARSET_INFO *dflt_cs,
                   const CHARSET_INFO **cs);
 

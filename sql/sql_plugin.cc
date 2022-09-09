@@ -3177,12 +3177,6 @@ static void plugin_var_memalloc_free(struct System_variables *vars) {
   vars->dynamic_variables_allocs = nullptr;
 }
 
-extern "C" bool get_one_plugin_option(int, const struct my_option *, char *);
-
-bool get_one_plugin_option(int, const struct my_option *, char *) {
-  return false;
-}
-
 /**
   Creates a set of my_option objects associated with a specified plugin-
   handle.

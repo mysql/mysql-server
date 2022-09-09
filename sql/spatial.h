@@ -128,8 +128,6 @@ struct MBR {
 
   int intersects(const MBR *mbr) const { return !disjoint(mbr); }
 
-  int touches(const MBR *mbr) const;
-
   int within(const MBR *mbr) const;
 
   int contains(const MBR *mbr) const { return mbr->within(this); }
@@ -466,6 +464,8 @@ class Geometry {
     Class_info(const char *name, int type_id, create_geom_t create_func);
   };
 
+  // LCOV_EXCL_START
+
   virtual const Class_info *get_class_info() const { return nullptr; }
 
   virtual uint32 get_data_size() const { return ~0U; }
@@ -490,6 +490,9 @@ class Geometry {
                                wkb_parser *wkb [[maybe_unused]]) const {
     return true;
   }
+
+  // LCOV_EXCL_STOP
+
   virtual bool get_mbr(MBR *mbr [[maybe_unused]],
                        wkb_parser *wkb [[maybe_unused]]) const {
     return true;
@@ -518,20 +521,23 @@ class Geometry {
     return 0;
   }
 
-  virtual int get_x(double *x [[maybe_unused]]) const { return -1; }
-  virtual int get_y(double *y [[maybe_unused]]) const { return -1; }
-  virtual int geom_length(double *len [[maybe_unused]]) const { return -1; }
-  virtual int is_closed(int *closed [[maybe_unused]]) const { return -1; }
-  virtual int num_interior_ring(uint32 *n_int_rings [[maybe_unused]]) const {
-    return -1;
-  }
-  virtual int num_points(uint32 *n_points [[maybe_unused]]) const { return -1; }
-  virtual int num_geometries(uint32 *num [[maybe_unused]]) const { return -1; }
-  virtual int copy_points(String *result [[maybe_unused]]) const { return -1; }
+  virtual int get_x(double *) const { return -1; }           // LCOV_EXCL_LINE
+  virtual int get_y(double *) const { return -1; }           // LCOV_EXCL_LINE
+  virtual int geom_length(double *) const { return -1; }     // LCOV_EXCL_LINE
+  virtual int is_closed(int *) const { return -1; }          // LCOV_EXCL_LINE
+  virtual int num_interior_ring(uint32 *) const {            // LCOV_EXCL_LINE
+    return -1;                                               // LCOV_EXCL_LINE
+  }                                                          // LCOV_EXCL_LINE
+  virtual int num_points(uint32 *) const { return -1; }      // LCOV_EXCL_LINE
+  virtual int num_geometries(uint32 *) const { return -1; }  // LCOV_EXCL_LINE
+  virtual int copy_points(String *) const { return -1; }     // LCOV_EXCL_LINE
   /* The following 7 functions return geometries in wkb format. */
-  virtual int start_point(String *point [[maybe_unused]]) const { return -1; }
-  virtual int end_point(String *point [[maybe_unused]]) const { return -1; }
-  virtual int exterior_ring(String *ring [[maybe_unused]]) const { return -1; }
+  virtual int start_point(String *) const { return -1; }    // LCOV_EXCL_LINE
+  virtual int end_point(String *) const { return -1; }      // LCOV_EXCL_LINE
+  virtual int exterior_ring(String *) const { return -1; }  // LCOV_EXCL_LINE
+
+  // LCOV_EXCL_START
+
   virtual int point_n(uint32 num [[maybe_unused]],
                       String *result [[maybe_unused]]) const {
     return -1;
@@ -544,6 +550,8 @@ class Geometry {
                          String *result [[maybe_unused]]) const {
     return -1;
   }
+
+  // LCOV_EXCL_STOP
 
   /**
     Reverses the coordinates of a geometry.
@@ -690,7 +698,6 @@ class Geometry {
   void append_points(String *txt, uint32 n_points, wkb_parser *wkb,
                      uint32 offset, bool bracket_pt = false) const;
   bool create_point(String *result, wkb_parser *wkb) const;
-  bool create_point(String *result, point_xy p) const;
   bool get_mbr_for_points(MBR *mbr, wkb_parser *wkb, uint offset) const;
   bool is_length_verified() const {
     return m_flags.props & GEOM_LENGTH_VERIFIED;
@@ -1018,7 +1025,9 @@ class Geometry {
   }
 
   void clear_wkb_data();
-  virtual void shallow_push(const Geometry *) { assert(false); }
+  virtual void shallow_push(const Geometry *) {  // LCOV_EXCL_LINE
+    assert(false);                               // LCOV_EXCL_LINE
+  }                                              // LCOV_EXCL_LINE
 
  protected:
   /**

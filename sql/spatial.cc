@@ -70,47 +70,6 @@ void *gis_wkb_realloc(void *p, size_t sz) {
   return cp + GEOM_HEADER_SIZE;
 }
 
-/***************************** MBR *******************************/
-
-/*
-  Returns 0/1 if this MBR doesn't/does touch mbr. Returns -1 if the MBRs
-  contain invalid data. This convention is true for all MBR relation test
-  functions.
-*/
-int MBR::touches(const MBR *mbr) const {
-  const MBR *mbr2 = mbr;
-  const MBR *mbr1 = this;
-  int ret = 0;
-  int dim1 = dimension();
-  int dim2 = mbr->dimension();
-
-  assert(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
-  if (dim1 == 0 && dim2 == 0) return 0;
-  if (dim1 == 0 && dim2 == 1)
-    return ((mbr1->xmin == mbr2->xmin && mbr1->ymin == mbr2->ymin) ||
-            (mbr1->xmin == mbr2->xmax && mbr1->ymin == mbr2->ymax));
-  if (dim1 == 1 && dim2 == 0) return mbr->touches(this);
-
-  assert(dim1 + dim2 >= 2);
-  ret = ((mbr2->xmin == mbr1->xmax || mbr2->xmax == mbr1->xmin) &&
-         (mbr1->ymin <= mbr2->ymax && mbr1->ymax >= mbr2->ymin)) ||
-        ((mbr2->ymin == mbr1->ymax || mbr2->ymax == mbr1->ymin) &&
-         (mbr1->xmin <= mbr2->xmax && mbr1->xmax >= mbr2->xmin));
-
-  if (ret && dim1 == 1 && dim2 == 1) {
-    // The two line segments may overlap, rather than touch.
-    int overlaps = ((mbr1->ymin == mbr1->ymax && mbr1->ymin == mbr2->ymax &&
-                     mbr2->ymin == mbr2->ymax && mbr1->xmin < mbr2->xmax &&
-                     mbr1->xmax > mbr2->xmin) ||
-                    (mbr1->xmin == mbr1->xmax && mbr2->xmin == mbr2->xmax &&
-                     mbr1->xmin == mbr2->xmin && mbr1->ymin < mbr2->ymax &&
-                     mbr1->ymax > mbr2->ymin));
-    if (overlaps) ret = 0;
-  }
-
-  return ret;
-}
-
 int MBR::within(const MBR *mbr) const {
   int dim1 = dimension();
   int dim2 = mbr->dimension();
@@ -1081,25 +1040,6 @@ bool Geometry::create_point(String *result, wkb_parser *wkb) const {
   q_append((uint32)wkb_point, result);
   /* Copy two double in same format */
   q_append(wkb->data(), POINT_DATA_SIZE, result);
-  return false;
-}
-
-/**
-  Create a point from coordinates.
-
-  @param [out] result The resulting point
-  @param p  coordinates for point
-
-  @return  false on success, true on error
-*/
-
-bool Geometry::create_point(String *result, point_xy p) const {
-  if (result->reserve(1 + 4 + POINT_DATA_SIZE, 32)) return true;
-
-  q_append((char)wkb_ndr, result);
-  q_append((uint32)wkb_point, result);
-  q_append(p.x, result);
-  q_append(p.y, result);
   return false;
 }
 

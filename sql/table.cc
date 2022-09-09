@@ -978,6 +978,19 @@ static int read_string(File file, uchar **to, size_t length) {
   return 0;
 } /* read_string */
 
+namespace {
+
+/**
+  convert a hex digit into number.
+*/
+
+inline int hexchar_to_int(char c) {
+  if (c <= '9' && c >= '0') return c - '0';
+  c |= 32;
+  if (c <= 'f' && c >= 'a') return c - 'a' + 10;
+  return -1;
+}
+
 /**
   Un-hex all elements in a typelib.
 
@@ -987,7 +1000,7 @@ static int read_string(File file, uchar **to, size_t length) {
   not be used any where else in the code. This function will be removed later.
 */
 
-static void unhex_type2(TYPELIB *interval) {
+void unhex_type2(TYPELIB *interval) {
   for (uint pos = 0; pos < interval->count; pos++) {
     char *from, *to;
     for (from = to = const_cast<char *>(interval->type_names[pos]); *from;) {
@@ -1005,6 +1018,8 @@ static void unhex_type2(TYPELIB *interval) {
     interval->type_lengths[pos] /= 2;
   }
 }
+
+}  // namespace
 
 /**
  Search after a field with given start & length

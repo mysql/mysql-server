@@ -58,17 +58,6 @@ size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
                   uint *errors);
 
 /**
-  convert a hex digit into number.
-*/
-
-inline int hexchar_to_int(char c) {
-  if (c <= '9' && c >= '0') return c - '0';
-  c |= 32;
-  if (c <= 'f' && c >= 'a') return c - 'a' + 10;
-  return -1;
-}
-
-/**
   Return a LEX_CSTRING handle to a std::string like (meaning something
   which has the c_str() and length() member functions). Note that the
   std::string-like object retains ownership of the character array,
