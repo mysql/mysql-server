@@ -36,7 +36,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
+#include <thread>
 
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -23283,6 +23286,76 @@ static void test_bug33535746() {
   myquery(rc);
 }
 
+static void test_bug25584097() {
+  DBUG_TRACE;
+  myheader("test_bug25584097");
+  int rc;
+
+  class test_bug25584097_thd {
+    unsigned long thread_id{0};
+    std::condition_variable cnd;
+    std::mutex mtx;
+
+   public:
+    void run() {
+      int rc;
+      MYSQL *lmysql;
+      MYSQL_STMT *stmt;
+      const char *sqlstmt = "select sleep(300)";
+      unsigned long ct = (unsigned long)CURSOR_TYPE_READ_ONLY;
+
+      printf("child thread start\n");
+      lmysql = mysql_client_init(nullptr);
+      DIE_UNLESS(lmysql);
+
+      if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
+                              current_db, opt_port, opt_unix_socket, 0)) {
+        fprintf(stderr, "Failed to connect to the database\n");
+        DIE_UNLESS(0);
+      }
+
+      {
+        std::unique_lock lk(mtx);
+        thread_id = mysql_thread_id(lmysql);
+      }
+      stmt = mysql_stmt_init(lmysql);
+      DIE_UNLESS(stmt != nullptr);
+      rc = mysql_stmt_prepare(stmt, sqlstmt, (unsigned long)strlen(sqlstmt));
+      DIE_UNLESS(rc == 0);
+      rc = mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void *)&ct);
+      DIE_UNLESS(rc == 0);
+      printf("child thread ready to exec\n");
+      cnd.notify_one();
+      rc = mysql_stmt_execute(stmt);
+      DIE_UNLESS(rc != 0);
+      printf("child thread cleaning up\n");
+      rc = mysql_stmt_close(stmt);
+      DIE_UNLESS(rc == 0);
+      mysql_close(lmysql);
+      printf("child thread ending\n");
+    }
+
+    unsigned long wait_to_kill() {
+      std::unique_lock lk(mtx);
+      cnd.wait(lk, [this] { return thread_id != 0; });
+      return thread_id;
+    }
+  } foo;
+
+  std::thread thd(&test_bug25584097_thd::run, &foo);
+  printf("Waiting for the child thread\n");
+  unsigned long thd_to_kill = foo.wait_to_kill();
+  sleep(2);
+
+  printf("Killing the child thread\n");
+  char cmd[50];
+  sprintf(cmd, "KILL %lu", thd_to_kill);
+  rc = mysql_query(mysql, cmd);
+  myquery(rc);
+  printf("Wating for the child thread to finish\n");
+  thd.join();
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -23596,6 +23669,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13075", test_wl13075},
     {"test_bug34007830", test_bug34007830},
     {"test_bug33535746", test_bug33535746},
+    {"test_bug25584097", test_bug25584097},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

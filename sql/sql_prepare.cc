@@ -3467,6 +3467,15 @@ bool Prepared_statement::execute(THD *thd, String *expanded_query,
   stmt_backup.save_rlb(thd);
 
   auto execute_guard = create_scope_guard([&]() {
+    // In an error situation, cursor may have been left open, close it:
+    if (status && open_cursor) {
+      if (m_cursor == nullptr && m_cursor_result != nullptr) {
+        m_cursor = m_cursor_result->cursor();
+      }
+      if (m_cursor != nullptr && m_cursor->is_open()) {
+        close_cursor();
+      }
+    }
     /*
       Restore the current database (if changed).
 
