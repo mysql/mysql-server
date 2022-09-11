@@ -1281,7 +1281,8 @@ extern "C" {
   is unused - i.e. doesn't have any locks on both "fast" and "slow" paths
   and is not marked as deleted.
 */
-static int mdl_lock_match_unused(const uchar *arg) {
+static int mdl_lock_match_unused(const uchar *arg,
+                                 void *match_arg [[maybe_unused]]) {
   const MDL_lock *lock = (const MDL_lock *)arg;
   /*
     It is OK to check MDL_lock::m_fast_path_state non-atomically here
@@ -1320,7 +1321,7 @@ void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
     high enough, there is a good chance for this technique to succeed.
   */
   MDL_lock *lock = static_cast<MDL_lock *>(lf_hash_random_match(
-      &m_locks, pins, &mdl_lock_match_unused, ctx->get_random()));
+      &m_locks, pins, &mdl_lock_match_unused, ctx->get_random(), nullptr));
 
   if (lock == nullptr || lock == MY_LF_ERRPTR) {
     /*

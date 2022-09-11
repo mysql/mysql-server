@@ -3380,7 +3380,7 @@ uint64 l_cache_flusher_global_version;
   @return Always 0 with the intention that this causes the hash_search
   function to iterate every single element in the hash.
 */
-static int cache_flusher(const uchar *ptr) {
+static int cache_flusher(const uchar *ptr, void *arg [[maybe_unused]]) {
   DBUG_TRACE;
   const Acl_hash_entry *entry = reinterpret_cast<const Acl_hash_entry *>(ptr);
   if (entry != nullptr) {
@@ -3399,7 +3399,7 @@ void Acl_cache::flush_cache() {
   l_cache_flusher_global_version = version();
   do {
     entry = static_cast<Acl_hash_entry *>(
-        lf_hash_random_match(&m_cache, pins, &cache_flusher, 0));
+        lf_hash_random_match(&m_cache, pins, &cache_flusher, 0, nullptr));
     if (entry &&
         !lf_hash_delete(&m_cache, pins, entry->key, entry->key_length)) {
       // Hash element is removed from cache; safe to delete
