@@ -74,6 +74,6 @@ HARNESS_TLS_EXPORT std::error_code make_tls_error();
  * @param ssl a SSL connection
  * @param res result of a SSL_ function.
  */
-HARNESS_TLS_EXPORT std::error_code make_tls_ssl_error(SSL *ssl, int res);
+HARNESS_TLS_EXPORT std::error_code make_tls_ssl_error(const SSL *ssl, int res);
 
 #endif
