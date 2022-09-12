@@ -1364,13 +1364,13 @@ let $query =
 SELECT dt.str
 FROM (SELECT t2.str
       FROM t2
-      WHERE t2.str LIKE _utf8mb4'Patc%' ESCAPE _utf8mb4'\\\\'
+      WHERE t2.str LIKE _latin1'Patc%' ESCAPE _latin1'\\\\'
       UNION ALL
       SELECT t1.str
       FROM t1
-      WHERE t1.str LIKE _utf8mb4'Patc%' ESCAPE _utf8mb4'\\\\'
+      WHERE t1.str LIKE _latin1'Patc%' ESCAPE _latin1'\\\\'
      ) AS dt
-WHERE dt.str LIKE _utf8mb4'P%' ESCAPE _utf8mb4'\\\\';
+WHERE dt.str LIKE _latin1'P%' ESCAPE _latin1'\\\\';
 
 --replace_regex $elide_costs
 eval explain format=tree $query;

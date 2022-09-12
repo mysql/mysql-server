@@ -3656,6 +3656,8 @@ bool Item_param::fix_fields(THD *, Item **) {
   if (param_state() == NO_VALUE) {
     // Parameter has no value, set data type from context
     assert(data_type() == MYSQL_TYPE_INVALID);
+    // If character string, use the default (connection) collation:
+    collation.set(default_charset());
     fixed = true;
     return false;
   }

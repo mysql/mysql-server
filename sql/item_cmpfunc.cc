@@ -682,47 +682,48 @@ bool Item_func_like::resolve_type(THD *thd) {
   // Function returns 0 or 1
   max_length = 1;
 
-  /*
-    For dynamic parameters, assign character string data type.
-    When assigning character set and collation, If one argument is a string,
-    use its collation, if there are no string arguments, use the default
-    (connection) collation.
-  */
-  Item *base_item = nullptr;
-  for (uint i = 0; i < arg_count; i++) {
-    if (is_string_type(args[i]->data_type())) {
-      base_item = args[i];
-      break;
-    }
-  }
-  const CHARSET_INFO *charset = base_item != nullptr
-                                    ? base_item->collation.collation
-                                    : Item::default_charset();
+  // Determine the common character set for all arguments
+  if (agg_arg_charsets_for_comparison(cmp.cmp_collation, args, arg_count))
+    return true;
+
   for (uint i = 0; i < arg_count; i++) {
     if (args[i]->data_type() == MYSQL_TYPE_INVALID &&
-        args[i]->propagate_type(thd,
-                                Type_properties(MYSQL_TYPE_VARCHAR, charset)))
+        args[i]->propagate_type(
+            thd,
+            Type_properties(MYSQL_TYPE_VARCHAR, cmp.cmp_collation.collation))) {
       return true;
+    }
   }
 
   if (reject_geometry_args(arg_count, args, this)) return true;
 
-  /*
-    See agg_item_charsets() in item.cc for comments
-    on character set and collation aggregation.
-  */
-  if (args[0]->result_type() == STRING_RESULT &&
-      args[1]->result_type() == STRING_RESULT) {
-    if (agg_arg_charsets_for_comparison(cmp.cmp_collation, args, 2))
-      return true;
-  } else if (args[1]->result_type() == STRING_RESULT) {
-    cmp.cmp_collation = args[1]->collation;
-  } else {
-    cmp.cmp_collation = args[0]->collation;
-  }
-  // LIKE is always carried out as string operation
+  // LIKE is always carried out as a string operation
   args[0]->cmp_context = STRING_RESULT;
   args[1]->cmp_context = STRING_RESULT;
+
+  if (arg_count > 2) {
+    args[2]->cmp_context = STRING_RESULT;
+
+    // ESCAPE clauses that vary per row are not valid:
+    if (!args[2]->const_for_execution()) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+      return true;
+    }
+  }
+  /*
+    If the escape item is const, evaluate it now, so that the range optimizer
+    can try to optimize LIKE 'foo%' into a range query.
+
+    TODO: If we move this into escape_is_evaluated(), which is called later,
+          we might be able to optimize more cases.
+  */
+  if (!escape_was_used_in_parsing() || args[2]->const_item()) {
+    escape_is_const = true;
+    if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
+      if (eval_escape_clause(thd)) return true;
+      if (check_covering_prefix_keys(thd)) return true;
+    }
+  }
 
   return false;
 }
@@ -6357,38 +6358,12 @@ bool Item_func_like::check_covering_prefix_keys(THD *thd) {
 }
 
 bool Item_func_like::fix_fields(THD *thd, Item **ref) {
-  assert(fixed == 0);
-
-  Condition_context CCT(thd->lex->current_query_block());
+  assert(!fixed);
 
   args[0]->real_item()->set_can_use_prefix_key();
 
-  if (Item_bool_func2::fix_fields(thd, ref)) {
-    fixed = false;
+  if (Item_bool_func::fix_fields(thd, ref)) {
     return true;
-  }
-
-  if (param_type_is_default(thd, 0, arg_count)) return true;
-
-  // ESCAPE clauses that vary per row are not valid:
-  if (arg_count > 2 && !args[2]->const_for_execution()) {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
-    return true;
-  }
-
-  /*
-    If the escape item is const, evaluate it now, so that the range optimizer
-    can try to optimize LIKE 'foo%' into a range query.
-
-    TODO: If we move this into escape_is_evaluated(), which is called later,
-    it could be that we could optimize more cases.
-  */
-  if (!escape_was_used_in_parsing() || args[2]->const_item()) {
-    escape_is_const = true;
-    if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
-      if (eval_escape_clause(thd)) return true;
-      if (check_covering_prefix_keys(thd)) return true;
-    }
   }
 
   return false;
