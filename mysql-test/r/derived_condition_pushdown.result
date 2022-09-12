@@ -2145,3 +2145,42 @@ SELECT * FROM (SELECT * FROM v1 UNION SELECT * FROM v2) AS dt;
 SELECT * FROM v3 WHERE VIEW_DEFINITION LIKE 'x';
 VIEW_DEFINITION
 DROP VIEW v1, v2, v3;
+# Bug#34359297: Incorrect work of query with union in inner select
+CREATE TABLE t1 (
+str VARCHAR(200) CHARACTER SET utf16 COLLATE utf16_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARACTER SET ascii COLLATE ascii_general_ci;
+CREATE TABLE t2 (
+str VARCHAR(200) CHARACTER SET utf16 COLLATE utf16_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARACTER SET ascii COLLATE ascii_general_ci;
+INSERT INTO t1 VALUES (_utf8mb4'Patch');
+explain format=tree SELECT dt.str
+FROM (SELECT t2.str
+FROM t2
+WHERE t2.str LIKE _utf8mb4'Patc%' ESCAPE _utf8mb4'\\'
+      UNION ALL
+SELECT t1.str
+FROM t1
+WHERE t1.str LIKE _utf8mb4'Patc%' ESCAPE _utf8mb4'\\'
+     ) AS dt
+WHERE dt.str LIKE _utf8mb4'P%' ESCAPE _utf8mb4'\\';
+EXPLAIN
+-> Table scan on dt  (rows=2)
+    -> Union all materialize  (rows=2)
+        -> Filter: ((t2.str like '\0P\0a\0t\0c\0%' escape _utf8mb4'\\') and (t2.str like '\0P\0%' escape _utf8mb4'\\'))  (rows=1)
+            -> Table scan on t2  (rows=1)
+        -> Filter: ((t1.str like '\0P\0a\0t\0c\0%' escape _utf8mb4'\\') and (t1.str like '\0P\0%' escape _utf8mb4'\\'))  (rows=1)
+            -> Table scan on t1  (rows=1)
+
+SELECT dt.str
+FROM (SELECT t2.str
+FROM t2
+WHERE t2.str LIKE _utf8mb4'Patc%' ESCAPE _utf8mb4'\\'
+      UNION ALL
+SELECT t1.str
+FROM t1
+WHERE t1.str LIKE _utf8mb4'Patc%' ESCAPE _utf8mb4'\\'
+     ) AS dt
+WHERE dt.str LIKE _utf8mb4'P%' ESCAPE _utf8mb4'\\';
+str
+Patch
+DROP TABLE t1, t2;

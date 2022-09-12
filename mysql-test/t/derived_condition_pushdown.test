@@ -1347,3 +1347,33 @@ CREATE ALGORITHM=TEMPTABLE VIEW v3 AS
 SELECT * FROM v3 WHERE VIEW_DEFINITION LIKE 'x';
 
 DROP VIEW v1, v2, v3;
+
+--echo # Bug#34359297: Incorrect work of query with union in inner select
+
+CREATE TABLE t1 (
+  str VARCHAR(200) CHARACTER SET utf16 COLLATE utf16_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARACTER SET ascii COLLATE ascii_general_ci;
+
+CREATE TABLE t2 (
+  str VARCHAR(200) CHARACTER SET utf16 COLLATE utf16_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARACTER SET ascii COLLATE ascii_general_ci;
+
+INSERT INTO t1 VALUES (_utf8mb4'Patch');
+
+let $query =
+SELECT dt.str
+FROM (SELECT t2.str
+      FROM t2
+      WHERE t2.str LIKE _utf8mb4'Patc%' ESCAPE _utf8mb4'\\\\'
+      UNION ALL
+      SELECT t1.str
+      FROM t1
+      WHERE t1.str LIKE _utf8mb4'Patc%' ESCAPE _utf8mb4'\\\\'
+     ) AS dt
+WHERE dt.str LIKE _utf8mb4'P%' ESCAPE _utf8mb4'\\\\';
+
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+DROP TABLE t1, t2;

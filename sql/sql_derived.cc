@@ -566,7 +566,10 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block) {
   // because for a case when statement gets reprepared during execution, we
   // still need Item_param::print() to print the '?' rather than the actual data
   // specified for the parameter.
-  item->print(thd, &str, QT_NO_DATA_EXPANSION);
+  // The flag QT_TO_ARGUMENT_CHARSET is required for printing character string
+  // literals with correct character set introducer.
+  item->print(thd, &str,
+              enum_query_type(QT_NO_DATA_EXPANSION | QT_TO_ARGUMENT_CHARSET));
   str.append('\0');
 
   Derived_expr_parser_state parser_state;
