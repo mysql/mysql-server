@@ -67,6 +67,7 @@
 #include "sql/iterators/row_iterator.h"  // RowIterator
 #include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
 #include "sql/my_decimal.h"
@@ -2581,6 +2582,38 @@ bool Item_in_subselect::init_left_expr_cache(THD *thd) {
   return false;
 }
 
+std::optional<ContainedSubquery> Item_in_subselect::get_contained_subquery(
+    const Query_block *outer_query_block) {
+  // TODO(sgunders): Respect subquery hints, which can force the
+  // strategy to be materialize.
+  Query_block *query_block = unit->first_query_block();
+  AccessPath *path = unit->root_access_path();
+  if (path == nullptr) {
+    // In rare situations involving IN subqueries on the left side of
+    // other IN subqueries, the query block may not be part of the
+    // parent query block's list of inner query blocks. If so, it has
+    // not been optimized here. Since this is a rare case, we'll just
+    // skip it and assign it zero cost.
+    return std::nullopt;
+  }
+
+  const bool materializable =
+      subquery_allows_materialization(current_thd, query_block,
+                                      outer_query_block) &&
+      query_block->subquery_strategy(current_thd) ==
+          Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT;
+
+  int row_width = 0;
+  for (const Item *qb_item : query_block->fields) {
+    row_width += std::min<size_t>(qb_item->max_length, kMaxItemLengthEstimate);
+  }
+  return ContainedSubquery(
+      {path,
+       materializable ? ContainedSubquery::Strategy::kMaterializable
+                      : ContainedSubquery::Strategy::kNonMaterializable,
+       row_width});
+}
+
 bool IsItemInSubSelect(Item *item) {
   if (item->type() != Item::SUBSELECT_ITEM) {
     return false;
@@ -2819,6 +2852,31 @@ Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
     result = coa;
   }
   return result;
+}
+
+std::optional<ContainedSubquery>
+Item_singlerow_subselect::get_contained_subquery(
+    const Query_block *outer_query_block [[maybe_unused]]) {
+  if (unit->root_access_path() == nullptr) {
+    // In rare situations involving IN subqueries on the left side of
+    // other IN subqueries, the query block may not be part of the
+    // parent query block's list of inner query blocks. If so, it has
+    // not been optimized here. Since this is a rare case, we'll just
+    // skip it and assign it zero cost.
+    return std::nullopt;
+  }
+
+  const ContainedSubquery::Strategy strategy =
+      unit->first_query_block()->is_cacheable()
+          ? ContainedSubquery::Strategy::kIndependentSingleRow
+          : ContainedSubquery::Strategy::kNonMaterializable;
+
+  int row_width = 0;
+  for (const Item *qb_item : unit->first_query_block()->fields) {
+    row_width += std::min<size_t>(qb_item->max_length, kMaxItemLengthEstimate);
+  }
+
+  return ContainedSubquery({unit->root_access_path(), strategy, row_width});
 }
 
 Item *Item_subselect::replace_item(Item_transformer t, uchar *arg) {

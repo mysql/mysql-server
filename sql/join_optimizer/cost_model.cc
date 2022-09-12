@@ -117,37 +117,52 @@ void EstimateSortCost(AccessPath *path) {
 
 void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
              FilterCost *cost) {
-  cost->cost_if_not_materialized += num_rows * subquery.path->cost;
-  if (subquery.materializable) {
-    // We can't ask the handler for costs at this stage, since that
-    // requires an actual TABLE, and we don't want to be creating
-    // them every time we're evaluating a cost-> Thus, instead,
-    // we ask the cost model for an estimate. Longer-term, these two
-    // estimates should really be guaranteed to be the same somehow.
-    Cost_model_server::enum_tmptable_type tmp_table_type;
-    if (subquery.row_width * num_rows < thd->variables.max_heap_table_size) {
-      tmp_table_type = Cost_model_server::MEMORY_TMPTABLE;
-    } else {
-      tmp_table_type = Cost_model_server::DISK_TMPTABLE;
-    }
-    cost->cost_if_materialized += thd->cost_model()->tmptable_readwrite_cost(
-        tmp_table_type, /*write_rows=*/0,
-        /*read_rows=*/num_rows);
-    cost->cost_to_materialize +=
-        subquery.path->cost +
-        kMaterializeOneRowCost * subquery.path->num_output_rows();
-  } else {
-    cost->cost_if_materialized += num_rows * subquery.path->cost;
+  switch (subquery.strategy) {
+    case ContainedSubquery::Strategy::kMaterializable: {
+      // We can't ask the handler for costs at this stage, since that
+      // requires an actual TABLE, and we don't want to be creating
+      // them every time we're evaluating a cost-> Thus, instead,
+      // we ask the cost model for an estimate. Longer-term, these two
+      // estimates should really be guaranteed to be the same somehow.
+      Cost_model_server::enum_tmptable_type tmp_table_type;
+      if (subquery.row_width * num_rows < thd->variables.max_heap_table_size) {
+        tmp_table_type = Cost_model_server::MEMORY_TMPTABLE;
+      } else {
+        tmp_table_type = Cost_model_server::DISK_TMPTABLE;
+      }
+      cost->cost_if_materialized += thd->cost_model()->tmptable_readwrite_cost(
+          tmp_table_type, /*write_rows=*/0,
+          /*read_rows=*/num_rows);
+      cost->cost_to_materialize +=
+          subquery.path->cost +
+          kMaterializeOneRowCost * subquery.path->num_output_rows();
+
+      cost->cost_if_not_materialized += num_rows * subquery.path->cost;
+    } break;
+
+    case ContainedSubquery::Strategy::kNonMaterializable:
+      cost->cost_if_not_materialized += num_rows * subquery.path->cost;
+      cost->cost_if_materialized += num_rows * subquery.path->cost;
+      break;
+
+    case ContainedSubquery::Strategy::kIndependentSingleRow:
+      cost->cost_if_materialized += subquery.path->cost;
+      cost->cost_if_not_materialized += subquery.path->cost;
+      cost->init_cost_if_not_materialized += subquery.path->cost;
+      break;
+
+    default:
+      assert(false);
   }
 }
 
 FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
                               const Query_block *outer_query_block) {
-  FilterCost cost{0.0, 0.0, 0.0};
+  FilterCost cost;
   cost.cost_if_not_materialized = num_rows * kApplyOneFilterCost;
   cost.cost_if_materialized = num_rows * kApplyOneFilterCost;
   FindContainedSubqueries(
-      thd, condition, outer_query_block,
+      condition, outer_query_block,
       [thd, num_rows, &cost](const ContainedSubquery &subquery) {
         AddCost(thd, subquery, num_rows, &cost);
       });

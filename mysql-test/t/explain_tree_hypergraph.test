@@ -1,0 +1,46 @@
+--source include/have_hypergraph.inc
+
+--echo #
+--echo # Bug #34513359 	Cost for field=dependent_subquery not included
+--echo #
+
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 SELECT n,n FROM num;
+
+ANALYZE TABLE t1;
+
+# Dependent subquery.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
+
+# Independent subquery.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
+
+# Independent subquery with random function. The subquery should be
+# reevaluated for each x1 row.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
+WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
+
+# Single-row subquery in HAVING condition.
+EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
+GROUP BY x1.b HAVING s>(SELECT MAX(x2.a) FROM t1 x2);
+
+# Single-row subquery with random function in HAVING condition.
+# The subquery must be reevaluated for each aggregated row.
+EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
+GROUP BY x1.b HAVING s>(SELECT MAX(x2.a+RAND(0)) FROM t1 x2);
+
+DROP TABLE num,t1;

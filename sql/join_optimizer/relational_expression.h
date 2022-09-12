@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 
+#include "sql/item.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/node_map.h"
 #include "sql/join_optimizer/overflow_bitset.h"
@@ -34,12 +35,6 @@
 
 struct AccessPath;
 class Item_eq_base;
-
-struct ContainedSubquery {
-  AccessPath *path;
-  bool materializable;
-  int row_width;  // Of the subquery's rows.
-};
 
 // Some information about each predicate that the join optimizer would like to
 // have available in order to avoid computing it anew for each use of that

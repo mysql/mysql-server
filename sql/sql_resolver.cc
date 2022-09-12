@@ -971,6 +971,9 @@ bool Item_in_subselect::subquery_allows_materialization(
   if (substype() != Item_subselect::IN_SUBS) {
     // Subq-mat cannot handle 'outer_expr > {ANY|ALL}(subq)'...
     cause = "not an IN predicate";
+  } else if (used_tables() & RAND_TABLE_BIT) {
+    // Subquery with a random function cannot be materalized.
+    cause = "random";
   } else if (query_block->is_part_of_set_operation()) {
     // Subquery must be a single query specification clause (not a UNION,
     // INTERSECT or EXCEPT).

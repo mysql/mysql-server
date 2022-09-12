@@ -35,6 +35,14 @@ class Query_block;
 class THD;
 struct TABLE;
 
+/**
+   When we make cost estimates, we use this as the maximal length the
+   values we get from evaluating an Item (in bytes). Actual values of
+   e.g. blobs may be much longer, but even so we use this as an upper
+   limit when doing cost calculations. (For context, @see Item#max_length .)
+*/
+constexpr size_t kMaxItemLengthEstimate = 4096;
+
 // These are extremely arbitrary cost model constants. We should revise them
 // based on actual query times (possibly using linear regression?), and then
 // put them into the cost model to make them user-tunable.
@@ -49,17 +57,25 @@ constexpr double kWindowOneRowCost = 0.1;
 
 /// See EstimateFilterCost.
 struct FilterCost {
-  // Cost of evaluating the filter if nothing in particular is done with it.
-  double cost_if_not_materialized;
+  /// Cost of evaluating the filter for all rows if subqueries are not
+  /// materialized.  (Note that this includes the contribution from
+  /// init_cost_if_not_materialized.)
+  double cost_if_not_materialized{0.0};
 
-  // Cost of evaluating the filter if all subqueries in it have been
-  // materialized beforehand. If there are no subqueries in the condition,
-  // equals cost_if_not_materialized.
-  double cost_if_materialized;
+  /// Initial cost before the filter can be applied for the first time.
+  /// Typically the cost of executing 'independent subquery' in queries like:
+  /// "SELECT * FROM tab WHERE field = <independent subquery>".
+  /// (That corresponds to the Item_singlerow_subselect class.)
+  double init_cost_if_not_materialized{0.0};
 
-  // Cost of materializing all subqueries present in the filter.
-  // If there are no subqueries in the condition, equals zero.
-  double cost_to_materialize;
+  /// Cost of evaluating the filter for all rows if all subqueries in
+  /// it have been materialized beforehand. If there are no subqueries
+  /// in the condition, equals cost_if_not_materialized.
+  double cost_if_materialized{0.0};
+
+  /// Cost of materializing all subqueries present in the filter.
+  /// If there are no subqueries in the condition, equals zero.
+  double cost_to_materialize{0.0};
 };
 
 /// Used internally by EstimateFilterCost() only.
@@ -83,7 +99,7 @@ FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
 inline FilterCost EstimateFilterCost(
     THD *thd, double num_rows,
     const Mem_root_array<ContainedSubquery> &contained_subqueries) {
-  FilterCost cost{0.0, 0.0, 0.0};
+  FilterCost cost;
   cost.cost_if_not_materialized = num_rows * kApplyOneFilterCost;
   cost.cost_if_materialized = num_rows * kApplyOneFilterCost;
 

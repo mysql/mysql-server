@@ -2501,7 +2501,8 @@ size_t EstimateHashJoinKeyWidth(const RelationalExpression *expr) {
     const Item *left = join_condition->get_arg(0);
     const Item *right = join_condition->get_arg(1);
     ret += min<size_t>(
-        max<size_t>(left->max_char_length(), right->max_char_length()), 4096);
+        max<size_t>(left->max_char_length(), right->max_char_length()),
+        kMaxItemLengthEstimate);
   }
   return ret;
 }
@@ -2730,7 +2731,7 @@ size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
         Field *field = table->field[i];
 
         // See above.
-        ret += min<size_t>(field->max_data_length(), 4096);
+        ret += min<size_t>(field->max_data_length(), kMaxItemLengthEstimate);
       }
     }
   }
@@ -2805,11 +2806,10 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
   // Cache information about which subqueries are contained in this
   // predicate, if any.
   pred.contained_subqueries.init(thd->mem_root);
-  FindContainedSubqueries(
-      thd, condition, graph->query_block(),
-      [&pred](ContainedSubquery subquery) {
-        pred.contained_subqueries.push_back(std::move(subquery));
-      });
+  FindContainedSubqueries(condition, graph->query_block(),
+                          [&pred](const ContainedSubquery &subquery) {
+                            pred.contained_subqueries.push_back(subquery);
+                          });
 
   graph->predicates.push_back(std::move(pred));
 

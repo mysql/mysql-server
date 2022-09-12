@@ -2695,6 +2695,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
         materialize_cost += cost.cost_to_materialize;
       } else {
         path->cost += cost.cost_if_not_materialized;
+        path->init_cost += cost.init_cost_if_not_materialized;
       }
       if (IsBitSet(i, applied_predicates)) {
         // We already factored in this predicate when calculating
@@ -5445,12 +5446,15 @@ void ApplyHavingCondition(THD *thd, Item *having_cond, Query_block *query_block,
     filter_path.set_num_output_rows(
         root_path->num_output_rows() *
         EstimateSelectivity(thd, having_cond, trace));
-    filter_path.init_cost = root_path->init_cost;
+
+    const FilterCost filter_cost = EstimateFilterCost(
+        thd, root_path->num_output_rows(), having_cond, query_block);
+
+    filter_path.init_cost =
+        root_path->init_cost + filter_cost.init_cost_if_not_materialized;
+
     filter_path.init_once_cost = root_path->init_once_cost;
-    filter_path.cost =
-        root_path->cost + EstimateFilterCost(thd, root_path->num_output_rows(),
-                                             having_cond, query_block)
-                              .cost_if_not_materialized;
+    filter_path.cost = root_path->cost + filter_cost.cost_if_not_materialized;
     filter_path.num_output_rows_before_filter = filter_path.num_output_rows();
     filter_path.cost_before_filter = filter_path.cost;
     // TODO(sgunders): Collect and apply functional dependencies from
@@ -6279,8 +6283,7 @@ static void CacheCostInfoForJoinConditions(THD *thd,
       properties.selectivity = EstimateSelectivity(thd, cond, trace);
       properties.contained_subqueries.init(thd->mem_root);
       FindContainedSubqueries(
-          thd, cond, query_block,
-          [&properties](const ContainedSubquery &subquery) {
+          cond, query_block, [&properties](const ContainedSubquery &subquery) {
             properties.contained_subqueries.push_back(subquery);
           });
 
@@ -6306,8 +6309,7 @@ static void CacheCostInfoForJoinConditions(THD *thd,
       properties.selectivity = EstimateSelectivity(thd, cond, trace);
       properties.contained_subqueries.init(thd->mem_root);
       FindContainedSubqueries(
-          thd, cond, query_block,
-          [&properties](const ContainedSubquery &subquery) {
+          cond, query_block, [&properties](const ContainedSubquery &subquery) {
             properties.contained_subqueries.push_back(subquery);
           });
       edge.expr->properties_for_join_conditions.push_back(
