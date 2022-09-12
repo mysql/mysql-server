@@ -11,6 +11,4 @@
 #perl mysql-test-run.pl --timer --force --parallel=6 --comment=rpl-valgrind --vardir=var-rpl-valgrind --suite=rpl,rpl_gtid,rpl_nogtid
 
 # Group Replication
-#perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication-valgrind --vardir=var-group_replication-valgrind --suite=group_replication
-
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=audit_log-valgrind --vardir=var-audit_log-valgrind --suite=audit_log
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication-valgrind --vardir=var-group_replication-valgrind --suite=group_replication
