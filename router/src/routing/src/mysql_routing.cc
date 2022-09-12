@@ -674,6 +674,28 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
 }
 
 stdx::expected<void, std::error_code>
+MySQLRouting::restart_accepting_connections() {
+  const auto result = start_accepting_connections();
+
+  // if we failed to restart the acceptor we keep retrying every 1 second if we
+  // have standalone destination. For the metadata-cache destinations there is
+  // another mechanism for that,` that uses metadata TTL as a trigger for that.
+  if (is_destination_standalone_ && !result) {
+    accept_port_reopen_retry_timer_.cancel();
+    accept_port_reopen_retry_timer_.expires_after(1s);
+    accept_port_reopen_retry_timer_.async_wait(
+        [this](const std::error_code &ec) {
+          if (ec && ec == std::errc::operation_canceled) {
+            return;
+          }
+          restart_accepting_connections();
+        });
+  }
+
+  return result;
+}
+
+stdx::expected<void, std::error_code>
 MySQLRouting::start_accepting_connections() {
   if (!is_running()) {
     return stdx::make_unexpected(

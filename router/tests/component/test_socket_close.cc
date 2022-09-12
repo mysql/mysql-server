@@ -749,13 +749,9 @@ class SocketUser final {
 const uint16_t SocketUser::error_code;
 const char SocketUser::error_msg[] = "You shall not pass";
 
-class FailToOpenSocketStaticRoundRobin
-    : public SocketCloseTest,
-      public ::testing::WithParamInterface<SocketsCloseTestParams> {};
-
-TEST_P(FailToOpenSocketStaticRoundRobin, StaticRoundRobin) {
+TEST_F(SocketCloseTest, StaticRoundRobin) {
   SCOPED_TRACE("// launch cluster with one node");
-  setup_cluster(1, GetParam().tracefile);
+  setup_cluster(1, "my_port.js");
 
   const auto router_rw_port_str = std::to_string(router_rw_port);
 
@@ -792,8 +788,7 @@ TEST_P(FailToOpenSocketStaticRoundRobin, StaticRoundRobin) {
                std::to_string(node_ports[0]) +
                " to bring the destination back from "
                "quarantine.");
-  const std::string json_metadata =
-      get_data_dir().join(GetParam().tracefile).str();
+  const std::string json_metadata = get_data_dir().join("my_port.js").str();
   cluster_nodes.push_back(&launch_mysql_server_mock(
       json_metadata, node_ports[0], EXIT_SUCCESS, false, node_http_ports[0]));
 
@@ -811,6 +806,11 @@ TEST_P(FailToOpenSocketStaticRoundRobin, StaticRoundRobin) {
     EXPECT_THAT(e.what(), ::testing::HasSubstr(SocketUser::error_msg));
   }
 
+  // sleep for a while to test that when the quarantine wants to reopen the
+  // acceptor port and it fails it will still be retried later when the port
+  // become available
+  std::this_thread::sleep_for(1.5s);
+
   SCOPED_TRACE("// Release the tcp-port:" + router_rw_port_str +
                ", and wait a bit to set router bind to the port again");
   socket_user.unlock();
@@ -824,17 +824,6 @@ TEST_P(FailToOpenSocketStaticRoundRobin, StaticRoundRobin) {
     FAIL() << e.what();
   }
 }
-
-INSTANTIATE_TEST_SUITE_P(
-    FailToOpenSocketStaticRoundRobinTest, FailToOpenSocketStaticRoundRobin,
-    ::testing::Values(
-        SocketsCloseTestParams("metadata_dynamic_nodes_v2_gr.js",
-                               "static_round_robin_fail_to_open_socket_gr_v2",
-                               ClusterType::GR_V2),
-        SocketsCloseTestParams("metadata_dynamic_nodes_v2_ar.js",
-                               "static_round_robin_fail_to_open_socket_ar_v2",
-                               ClusterType::RS_V2)),
-    get_test_description);
 
 enum class PortType { RW, RO, X_RW, X_RO };
 
@@ -1248,11 +1237,7 @@ INSTANTIATE_TEST_SUITE_P(
                                              ClusterType::RS_V2)),
     get_test_description);
 
-class StaticRoutingToNonExistentNodes
-    : public SocketCloseTest,
-      public ::testing::WithParamInterface<SocketsCloseTestParams> {};
-
-TEST_P(StaticRoutingToNonExistentNodes, StaticRoutingToNonExistentNodesTest) {
+TEST_F(SocketCloseTest, StaticRoutingToNonExistentNodesTest) {
   const auto port1 = port_pool_.get_next_available();
   const auto port2 = port_pool_.get_next_available();
   const auto port3 = port_pool_.get_next_available();
@@ -1293,16 +1278,6 @@ TEST_P(StaticRoutingToNonExistentNodes, StaticRoutingToNonExistentNodesTest) {
                std::runtime_error);
   EXPECT_TRUE(wait_for_port_unused(port3, 120s));
 }
-
-INSTANTIATE_TEST_SUITE_P(
-    StaticRoutingToNonExistentNodesTest, StaticRoutingToNonExistentNodes,
-    ::testing::Values(SocketsCloseTestParams("metadata_dynamic_nodes_v2_gr.js",
-                                             "non_existent_nodes_gr_v2",
-                                             ClusterType::GR_V2),
-                      SocketsCloseTestParams("metadata_dynamic_nodes_v2_ar.js",
-                                             "non_existent_nodes_ar_v2",
-                                             ClusterType::RS_V2)),
-    get_test_description);
 
 struct SharedQuarantineSocketCloseParam {
   std::string strategy;
