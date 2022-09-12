@@ -268,6 +268,15 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    */
   stdx::expected<void, std::error_code> start_accepting_connections() override;
 
+  /**
+   * Start accepting new connections on a listening socket after it has been
+   * quarantined for lack of valid destinations
+   *
+   * @returns std::error_code on errors.
+   */
+  stdx::expected<void, std::error_code> restart_accepting_connections()
+      override;
+
  private:
   /**
    * Get listening socket detail information used for the logging purposes.
@@ -352,6 +361,10 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
 
   /** Information if the routing plugging is still running. */
   std::atomic<bool> is_running_{true};
+
+  /** Used when the accepting port is been reopened and it failed, to schedule
+   * another retry for standalone-destination(s) route. */
+  net::steady_timer accept_port_reopen_retry_timer_{io_ctx_};
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);

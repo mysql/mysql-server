@@ -93,6 +93,7 @@ class ROUTING_EXPORT MySQLRoutingAPI {
   std::vector<mysql_harness::TCPAddress> get_destinations() const;
 
   void start_accepting_connections();
+  void restart_accepting_connections();
 
   bool is_accepting_connections() const;
 

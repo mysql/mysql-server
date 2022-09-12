@@ -108,7 +108,7 @@ void RoutingCommonUnreachableDestinations::
   for (const auto &instance_name : routing_instances) {
     auto routing_instance = component.api(instance_name);
 
-    routing_instance.start_accepting_connections();
+    routing_instance.restart_accepting_connections();
   }
 
   quarantined_destination_candidates_.erase(pos);

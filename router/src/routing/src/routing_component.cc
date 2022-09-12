@@ -123,6 +123,10 @@ void MySQLRoutingAPI::start_accepting_connections() {
   r_->start_accepting_connections();
 }
 
+void MySQLRoutingAPI::restart_accepting_connections() {
+  r_->restart_accepting_connections();
+}
+
 void MySQLRoutingAPI::stop_socket_acceptors() { r_->stop_socket_acceptors(); }
 
 bool MySQLRoutingAPI::is_running() const { return r_->is_running(); }
