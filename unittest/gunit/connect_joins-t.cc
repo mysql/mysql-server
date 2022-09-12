@@ -20,26 +20,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <gtest/gtest.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "my_table_map.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/mem_root_array.h"
+#include "sql/sql_class.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_select.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/optimizer_test.h"
 
 using optimizer_test::Table;
 using std::vector;
-using ConnectJoinTest = OptimizerTestBase<::testing::Test>;
+using ConnectJoinTest = OptimizerTestBase;
 
 // Tests a semijoin access path with two tables.
 TEST_F(ConnectJoinTest, SemiJoin) {

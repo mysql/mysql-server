@@ -196,7 +196,7 @@ void SortNodes(JoinHypergraph *graph) {
 
 }  // namespace
 
-using MakeHypergraphTest = OptimizerTestBase<::testing::Test>;
+using MakeHypergraphTest = OptimizerTestBase;
 
 TEST_F(MakeHypergraphTest, SingleTable) {
   Query_block *query_block =
@@ -1484,8 +1484,7 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
 //
 // We test with the inequality referring to both tables in turn, to make sure
 // that we're not just getting lucky.
-using MakeHypergraphMultipleEqualParamTest =
-    OptimizerTestBase<::testing::TestWithParam<int>>;
+using MakeHypergraphMultipleEqualParamTest = OptimizerTestWithParam<int>;
 
 TEST_P(MakeHypergraphMultipleEqualParamTest,
        MultipleEqualityOnAntijoinGetsIdeallyResolved) {
@@ -2458,7 +2457,7 @@ static string PrintSargablePredicate(const SargablePredicate &sp,
 // Verify that when we add a cycle in the graph due to a multiple equality,
 // that join predicate also becomes sargable.
 using HypergraphOptimizerCyclePredicatesSargableTest =
-    OptimizerTestBase<::testing::TestWithParam<const char *>>;
+    OptimizerTestWithParam<const char *>;
 
 TEST_P(HypergraphOptimizerCyclePredicatesSargableTest,
        CyclePredicatesSargable) {
@@ -3378,8 +3377,7 @@ std::ostream &operator<<(std::ostream &os, const FullTextParam &param) {
 
 }  // namespace
 
-using HypergraphFullTextTest =
-    OptimizerTestBase<::testing::TestWithParam<FullTextParam>>;
+using HypergraphFullTextTest = OptimizerTestWithParam<FullTextParam>;
 
 TEST_P(HypergraphFullTextTest, FullTextSearch) {
   SCOPED_TRACE(GetParam().query);
@@ -5733,7 +5731,7 @@ std::ostream &operator<<(std::ostream &os, const RejectionParam &param) {
 }  // namespace
 
 using HypergraphSecondaryEngineRejectionTest =
-    OptimizerTestBase<::testing::TestWithParam<RejectionParam>>;
+    OptimizerTestWithParam<RejectionParam>;
 
 TEST_P(HypergraphSecondaryEngineRejectionTest, RejectPathType) {
   const RejectionParam &param = GetParam();
@@ -6292,7 +6290,7 @@ TEST(ConflictDetectorTest, CountPlansLargeOperatorSet) {
   initializer.TearDown();
 }
 
-class CSETest : public OptimizerTestBase<::testing::Test> {
+class CSETest : public OptimizerTestBase {
  protected:
   string TestCSE(const string &expression);
 };
