@@ -11323,7 +11323,7 @@ SELECT 1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a);
 1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a)
 0
 Warnings:
-Warning	1292	Incorrect datetime value: '{"a": "b"}' for column 'a' at row 1
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column (null) at row 1
 DROP TABLE t;
 #
 # Bug#25840784: PARTIAL UPDATE ON VIEWS DOES NOT WORK AS EXPECTED ON BASE TABLES
