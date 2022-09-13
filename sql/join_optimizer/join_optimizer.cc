@@ -5294,6 +5294,68 @@ uint64_t FindSargableFullTextPredicates(const JoinHypergraph &graph) {
   return fulltext_predicates;
 }
 
+// Inject casts into comparisons of expressions with incompatible types.
+// For example, int_col = string_col is rewritten to
+// CAST(int_col AS DOUBLE) = CAST(string_col AS DOUBLE)
+bool InjectCastNodes(JoinHypergraph *graph) {
+  // Inject cast nodes into the WHERE clause.
+  for (Predicate &predicate :
+       make_array(graph->predicates.data(), graph->num_where_predicates)) {
+    if (predicate.condition->walk(&Item::cast_incompatible_args,
+                                  enum_walk::POSTFIX, nullptr)) {
+      return true;
+    }
+  }
+
+  // Inject cast nodes into the join conditions.
+  for (JoinPredicate &edge : graph->edges) {
+    RelationalExpression *expr = edge.expr;
+    if (expr->join_predicate_first != expr->join_predicate_last) {
+      // The join predicates have been lifted to the WHERE clause, and casts are
+      // already injected into the WHERE clause.
+      continue;
+    }
+    for (Item_eq_base *item : expr->equijoin_conditions) {
+      if (item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                     nullptr)) {
+        return true;
+      }
+    }
+    for (Item *item : expr->join_conditions) {
+      if (item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                     nullptr)) {
+        return true;
+      }
+    }
+  }
+
+  // Inject cast nodes to the expressions in the SELECT list.
+  const JOIN *join = graph->join();
+  for (Item *item : *join->fields) {
+    if (item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                   nullptr)) {
+      return true;
+    }
+  }
+
+  // Also GROUP BY expressions and HAVING, to be consistent everywhere.
+  for (ORDER *ord = join->group_list.order; ord != nullptr; ord = ord->next) {
+    if ((*ord->item)
+            ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                   nullptr)) {
+      return true;
+    }
+  }
+  if (join->having_cond != nullptr) {
+    if (join->having_cond->walk(&Item::cast_incompatible_args,
+                                enum_walk::POSTFIX, nullptr)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Checks if any of the full-text indexes are covering for a table. If the query
 // only needs the document ID and the rank, there is no need to access table
 // rows. Index-only access can only be used if there is an FTS_DOC_ID column in
@@ -6464,6 +6526,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                          &sort_ahead_orderings, &order_by_ordering_idx,
                          &group_by_ordering_idx, &distinct_ordering_idx,
                          &active_indexes, &fulltext_searches, trace);
+
+  if (InjectCastNodes(&graph)) return nullptr;
 
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also

@@ -1195,7 +1195,7 @@ static void FullyConcretizeMultipleEquals(Item_equal *cond,
 
 /**
   Finalize a condition (join condition or WHERE predicate); resolve any
-  remaining multiple equalities, and add casts to comparisons where needed.
+  remaining multiple equalities.
   Caches around constant arguments are not added here but during finalize,
   since we might plan two times, and the caches from the first time may confuse
   remove_eq_cond() in the second.
@@ -1230,8 +1230,6 @@ Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
 
   // Account for tables not in allowed_tables having been removed.
   condition->update_used_tables();
-
-  condition->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
   return condition;
 }
 
@@ -2088,7 +2086,6 @@ void ExtractCycleMultipleEqualitiesFromJoinConditions(
 
 /**
   Find constant expressions in join conditions, and add caches around them.
-  Also add cast nodes if there are incompatible arguments in comparisons.
 
   Similar to work done in JOIN::finalize_table_conditions() in the old
   optimizer. Non-join predicates are done near the end in MakeJoinHypergraph().
@@ -3374,33 +3371,6 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   FindConditionsUsedTables(thd, root);
   MakeHashJoinConditions(thd, root);
 
-  // One could argue this is a strange place to inject casts into the SELECT
-  // list, since it has nothing to do with the construction of the hypergraph
-  // itself. However, putting it here allows us to easily reach it in the unit
-  // test, and since we just added casts to the join conditions (in
-  // CanonicalizeJoinConditions), it should at least be fairly easy to find one
-  // from the other, and it's nice to have all canonicalization done before we
-  // start optimizing (this should really have been done in the prepare phase,
-  // as deciding data types should be part of resolving). For the old join
-  // optimizer, we do this after the join optimizer has finished, in
-  // sql_optimizer.cc.
-
-  // Traverse the expressions and inject cast nodes to compatible data types,
-  // if needed.
-  for (Item *item : *query_block->join->fields) {
-    item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
-  }
-
-  // Also GROUP BY expressions and HAVING, to be consistent everywhere.
-  for (ORDER *ord = join->group_list.order; ord != nullptr; ord = ord->next) {
-    (*ord->item)
-        ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
-  }
-  if (join->having_cond != nullptr) {
-    join->having_cond->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
-                            nullptr);
-  }
-
   if (trace != nullptr) {
     *trace += StringPrintf(
         "\nAfter pushdown; remaining WHERE conditions are %s, "
@@ -3518,8 +3488,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     graph->predicates.push_back(std::move(pred));
   }
 
-  // Cache constant expressions in predicates, and add cast nodes if there are
-  // incompatible arguments in comparisons. (We did join conditions earlier.)
+  // Cache constant expressions in predicates. (We did join conditions earlier.)
   for (Predicate &predicate : graph->predicates) {
     predicate.condition =
         CanonicalizeCondition(predicate.condition, /*allowed_tables=*/~0);

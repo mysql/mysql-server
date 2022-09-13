@@ -2165,6 +2165,47 @@ TEST_F(HypergraphOptimizerTest, SargableJoinPredicateSelectivity) {
       root->num_output_rows());
 }
 
+TEST_F(HypergraphOptimizerTest, SargableJoinPredicateWithTypeMismatch) {
+  // Give t1.x a different type than t2.x.
+  Mock_field_varstring t1_x(/*share=*/nullptr, /*name=*/"x",
+                            /*char_len=*/100, /*is_nullable=*/true);
+  Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&t1_x);
+  m_fake_tables["t1"] = t1;
+
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 WHERE t1.x = t2.x", /*nullable=*/true);
+
+  // Add an index on t2(x) to make the join predicate sargable.
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/true);
+
+  // Set up sizes to make index access on t2 preferable.
+  t1->file->stats.records = 100;
+  t1->file->stats.data_file_length = 1e5;
+  t2->file->stats.records = 100000;
+  t2->file->stats.data_file_length = 1e7;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect NLJ(t1, EQ_REF(t2)). Because of the type mismatch between t1.x and
+  // t2.x, a filter is needed on top of the EQ_REF to make sure no false matches
+  // are returned.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  ASSERT_EQ(AccessPath::FILTER, root->nested_loop_join().inner->type);
+  EXPECT_EQ("(cast(t1.x as double) = cast(t2.x as double))",
+            ItemToString(root->nested_loop_join().inner->filter().condition));
+  ASSERT_EQ(AccessPath::EQ_REF,
+            root->nested_loop_join().inner->filter().child->type);
+  EXPECT_STREQ(
+      "t2",
+      root->nested_loop_join().inner->filter().child->eq_ref().table->alias);
+}
+
 TEST_F(HypergraphOptimizerTest, AntiJoinGetsSameEstimateWithAndWithoutIndex) {
   double ref_output_rows = 0.0;
   for (bool has_index : {false, true}) {
