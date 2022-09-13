@@ -52,12 +52,12 @@ void check_name_resolution_tables(std::initializer_list<const char *> aliases,
 
 TEST_F(JoinSyntaxTest, CrossJoin) {
   Query_block *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3");
-  check_name_resolution_tables({"t1", "t2", "t3"}, query_block->table_list);
+  check_name_resolution_tables({"t1", "t2", "t3"}, query_block->m_table_list);
 }
 
 TEST_F(JoinSyntaxTest, CrossJoinOn) {
   Query_block *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3 ON 1");
-  check_name_resolution_tables({"t1", "t2", "t3"}, query_block->table_list);
+  check_name_resolution_tables({"t1", "t2", "t3"}, query_block->m_table_list);
 }
 
 }  // namespace join_syntax_unittest

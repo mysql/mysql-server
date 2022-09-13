@@ -1276,7 +1276,7 @@ class Window {
     See #m_is_last_row_in_frame
   */
   bool is_last_row_in_frame() const {
-    return m_is_last_row_in_frame || m_query_block->table_list.elements == 0;
+    return m_is_last_row_in_frame || m_query_block->m_table_list.elements == 0;
   }
 
   /**

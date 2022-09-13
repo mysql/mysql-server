@@ -1511,8 +1511,8 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
   // This function is called during DDL and should have set dbname already
   assert(Ndb_dbname_guard::check_dbname(ndb, dbname));
 
-  const char *src_db = thd->lex->query_block->table_list.first->db;
-  const char *src_tab = thd->lex->query_block->table_list.first->table_name;
+  const char *src_db = thd->lex->query_block->get_table_list()->db;
+  const char *src_tab = thd->lex->query_block->get_table_list()->table_name;
   if (src_db == nullptr || src_tab == nullptr) {
     assert(false);
     return 0;

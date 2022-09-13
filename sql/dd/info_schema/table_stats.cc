@@ -712,7 +712,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
   }
 
   Table_ref *table_list;
-  table_list = lex->query_block->table_list.first;
+  table_list = lex->query_block->get_table_list();
   table_list->required_type = dd::enum_table_type::BASE_TABLE;
 
   /*

@@ -3180,7 +3180,7 @@ bool Query_block::convert_subquery_to_semijoin(
   tl->next_leaf = subq_query_block->leaf_tables;
 
   // Add tables from subquery at end of next_local chain.
-  table_list.push_back(&subq_query_block->table_list);
+  m_table_list.push_back(&subq_query_block->m_table_list);
 
   // Note that subquery's tables are already in the next_global chain
 
@@ -3200,7 +3200,7 @@ bool Query_block::convert_subquery_to_semijoin(
     unlinked, make sure tables are not duplicated, or cleanup code could be
     confused:
   */
-  subq_query_block->table_list.clear();
+  subq_query_block->m_table_list.clear();
   subq_query_block->leaf_tables = nullptr;
 
   // Adjust table and expression counts in parent query block:
@@ -3553,7 +3553,7 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
   // Remove tables from old query block:
   derived_query_block->leaf_tables = nullptr;
   derived_query_block->leaf_table_count = 0;
-  derived_query_block->table_list.clear();
+  derived_query_block->m_table_list.clear();
 
   // Propagate schema table indication:
   // @todo: Add to BASE options instead
@@ -6128,9 +6128,9 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     assert(join == nullptr);
 
     // Move FROM tables under the new derived table with fix ups
-    new_derived->table_list = table_list;
-    table_list.clear();
-    for (Table_ref *tables = new_derived->table_list.first; tables != nullptr;
+    new_derived->m_table_list = m_table_list;
+    m_table_list.clear();
+    for (Table_ref *tables = new_derived->get_table_list(); tables != nullptr;
          tables = tables->next_local) {
       tables->query_block = new_derived;  // update query block context
       if (update_context_to_derived(tables->join_cond(), new_derived))
@@ -6178,10 +6178,10 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     context.first_name_resolution_table = tl;
     assert(context.last_name_resolution_table == nullptr);
     new_derived->context.init();
-    new_derived->context.table_list = table_list.first;
+    new_derived->context.table_list = get_table_list();
     new_derived->context.query_block = new_derived;
     new_derived->context.outer_context = &context;
-    new_derived->context.first_name_resolution_table = table_list.first;
+    new_derived->context.first_name_resolution_table = get_table_list();
 
     /*
       Retain only subqueries from SELECT list in this block [2]; all other

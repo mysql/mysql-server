@@ -2176,8 +2176,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         table is view.
       */
       table_list.query_block = thd->lex->query_block;
-      thd->lex->query_block->table_list.link_in_list(&table_list,
-                                                     &table_list.next_local);
+      thd->lex->query_block->m_table_list.link_in_list(&table_list,
+                                                       &table_list.next_local);
       thd->lex->add_to_query_tables(&table_list);
 
       if (is_infoschema_db(table_list.db, table_list.db_length)) {
@@ -2610,7 +2610,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   if (make_schema_query_block(thd, query_block, schema_table_idx)) {
     return 1;
   }
-  Table_ref *table_list = query_block->table_list.first;
+  Table_ref *table_list = query_block->get_table_list();
   table_list->schema_query_block = schema_query_block;
   table_list->schema_table_reformed = true;
   return 0;
@@ -5397,7 +5397,7 @@ bool mysql_test_parse_for_slave(THD *thd) {
     thd->m_digest = nullptr;
     thd->m_statement_psi = nullptr;
     if (parse_sql(thd, &parser_state, nullptr) == 0) {
-      if (all_tables_not_ok(thd, lex->query_block->table_list.first))
+      if (all_tables_not_ok(thd, lex->query_block->get_table_list()))
         ignorable = true;
       else if (!check_database_filters(thd, thd->db().str, lex->sql_command))
         ignorable = true;
@@ -6043,7 +6043,7 @@ Table_ref *Query_block::add_table_to_list(
   ptr->option = option ? option->str : nullptr;
   /* check that used name is unique */
   if (lock_type != TL_IGNORE) {
-    Table_ref *first_table = table_list.first;
+    Table_ref *first_table = get_table_list();
     if (lex->sql_command == SQLCOM_CREATE_VIEW)
       first_table = first_table ? first_table->next_local : nullptr;
     for (Table_ref *tables = first_table; tables; tables = tables->next_local) {
@@ -6055,14 +6055,14 @@ Table_ref *Query_block::add_table_to_list(
     }
   }
   /* Store the table reference preceding the current one. */
-  if (table_list.elements > 0) {
+  if (m_table_list.elements > 0) {
     /*
       table_list.next points to the last inserted Table_ref->next_local'
       element
       We don't use the offsetof() macro here to avoid warnings from gcc
     */
     previous_table_ref =
-        (Table_ref *)((char *)table_list.next -
+        (Table_ref *)((char *)m_table_list.next -
                       ((char *)&(ptr->next_local) - (char *)ptr));
     /*
       Set next_name_resolution_table of the previous table reference to point
@@ -6080,7 +6080,7 @@ Table_ref *Query_block::add_table_to_list(
     previous table reference to 'ptr'. Here we also add one element to the
     list 'table_list'.
   */
-  table_list.link_in_list(ptr, &ptr->next_local);
+  m_table_list.link_in_list(ptr, &ptr->next_local);
   ptr->next_name_resolution_table = nullptr;
   ptr->partition_names = partition_names;
   /* Link table in global list (all used tables) */
@@ -6296,7 +6296,7 @@ void Query_block::set_lock_for_tables(thr_lock_type lock_type) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
                        lock_type >= TL_READ_NO_INSERT));
-  for (Table_ref *table = table_list.first; table; table = table->next_local)
+  for (Table_ref *table = m_table_list.first; table; table = table->next_local)
     set_lock_for_table({lock_type, THR_WAIT}, table);
 }
 

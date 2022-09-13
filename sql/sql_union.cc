@@ -572,7 +572,7 @@ bool Query_expression::prepare_query_term(THD *thd, Query_term *qt,
         auto f = new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
         if (f == nullptr) return true;
         qts->set_fields(f);
-        if (qts->query_block()->table_list.first->table->fill_item_list(f))
+        if (qts->query_block()->get_table_list()->table->fill_item_list(f))
           return true;
       }
     } break;
@@ -650,8 +650,9 @@ bool Query_expression::prepare_query_term(THD *thd, Query_term *qt,
     auto pb = parent->query_block();
     // Parent's input is this tmp table
     Table_ref &input_to_parent = qt->result_table();
-    pb->table_list.link_in_list(&input_to_parent, &input_to_parent.next_local);
-    if (pb->table_list.first->table->fill_item_list(il))
+    pb->m_table_list.link_in_list(&input_to_parent,
+                                  &input_to_parent.next_local);
+    if (pb->get_table_list()->table->fill_item_list(il))
       return true;  // purecov: inspected
     pb->fields = *il;
   }

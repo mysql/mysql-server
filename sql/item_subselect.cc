@@ -255,7 +255,7 @@ void Item_subselect::accumulate_properties(Query_block *select) {
 
   for (ORDER *order = select->order_list.first; order; order = order->next)
     accumulate_expression(*order->item);
-  if (select->table_list.elements) used_tables_cache |= INNER_TABLE_BIT;
+  if (select->m_table_list.elements) used_tables_cache |= INNER_TABLE_BIT;
 
   List_iterator<Window> wi(select->m_windows);
   Window *w;
@@ -1134,7 +1134,7 @@ Item_subselect::trans_res Item_singlerow_subselect::select_transformer(
     my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
     return RES_ERROR;
   }
-  if (!unit->is_set_operation() && !select->table_list.elements &&
+  if (!unit->is_set_operation() && !select->m_table_list.elements &&
       single_field != nullptr && !single_field->has_aggregation() &&
       !single_field->has_wf() && !select->where_cond() &&
       !select->having_cond()) {
@@ -1416,7 +1416,7 @@ Item *Item_exists_subselect::truth_transformer(THD *, enum Bool_test test) {
   // let's not store the value transform in that case, and keep an explicit
   // truth test Item at the outside.
   if (!unit->is_set_operation() &&
-      unit->first_query_block()->table_list.elements == 0 &&
+      unit->first_query_block()->m_table_list.elements == 0 &&
       unit->first_query_block()->where_cond() == nullptr &&
       substype() == IN_SUBS &&
       unit->first_query_block()->single_visible_field() != nullptr)
@@ -1755,7 +1755,7 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
     if (!select->group_list.elements && !select->having_cond() &&
         // MIN/MAX(agg_or_window_func) would not be valid
         !select->with_sum_func && select->m_windows.elements == 0 &&
-        !(select->next_query_block()) && select->table_list.elements &&
+        !(select->next_query_block()) && select->m_table_list.elements &&
         // For ALL: MIN ignores NULL: 3<=ALL(4 and NULL) is UNKNOWN, while
         // NOT(3>(SELECT MIN(4 and NULL)) is TRUE
         !(substype() == ALL_SUBS && subquery_maybe_null)) {
@@ -2198,7 +2198,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
   uint cols_num = left_expr->cols();
   bool is_having_used = select->having_cond() || select->with_sum_func ||
                         select->group_list.first ||
-                        !select->table_list.elements ||
+                        !select->m_table_list.elements ||
                         select->m_windows.elements > 0;
 
   DBUG_TRACE;
@@ -3023,8 +3023,9 @@ void SubqueryWithResult::set_row(const mem_root_deque<Item *> &item_list,
   one row, false otherwise
 */
 static bool guaranteed_one_row(const Query_block *query_block) {
-  return query_block->table_list.elements == 0 && !query_block->where_cond() &&
-         !query_block->having_cond() && !query_block->select_limit;
+  return query_block->m_table_list.elements == 0 &&
+         !query_block->where_cond() && !query_block->having_cond() &&
+         !query_block->select_limit;
 }
 
 static bool wrapped_in_intersect_except(Query_term *qb) {

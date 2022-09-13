@@ -10948,8 +10948,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
       case SQLCOM_CREATE_INDEX:
       case SQLCOM_DROP_INDEX:
       case SQLCOM_ALTER_TABLE:
-        prepare_dbname = thd->lex->query_block->table_list.first->db;
-        prepare_tabname = thd->lex->query_block->table_list.first->table_name;
+        prepare_dbname = thd->lex->query_block->get_table_list()->db;
+        prepare_tabname = thd->lex->query_block->get_table_list()->table_name;
         break;
 
       case SQLCOM_RENAME_TABLE:
@@ -11106,8 +11106,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
           name via THD.
         */
         const char *orig_name =
-            thd->lex->query_block->table_list.first->table_name;
-        const char *orig_db = thd->lex->query_block->table_list.first->db;
+            thd->lex->query_block->get_table_list()->table_name;
+        const char *orig_db = thd->lex->query_block->get_table_list()->db;
         if (thd->lex->alter_info->flags & Alter_info::ALTER_RENAME &&
             (my_strcasecmp(system_charset_info, orig_db, new_dbname) ||
              my_strcasecmp(system_charset_info, orig_name, new_tabname))) {
@@ -11405,7 +11405,7 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *) {
 
   if (ndb_name_is_temp(tabname)) {
     const char *orig_table_name =
-        thd->lex->query_block->table_list.first->table_name;
+        thd->lex->query_block->get_table_list()->table_name;
     if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE &&
         Ndb_dist_priv_util::is_privilege_table(dbname, orig_table_name)) {
       ndb_log_info("Migrating legacy privilege table: Drop %s (%s)",

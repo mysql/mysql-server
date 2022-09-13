@@ -1396,7 +1396,7 @@ class Query_block : public Query_term {
   /// Remove hidden items from select list
   void remove_hidden_items();
 
-  Table_ref *get_table_list() const { return table_list.first; }
+  Table_ref *get_table_list() const { return m_table_list.first; }
   bool init_nested_join(THD *thd);
   Table_ref *end_nested_join();
   Table_ref *nest_last_join(THD *thd, size_t table_cnt = 2);
@@ -1811,7 +1811,7 @@ class Query_block : public Query_term {
 
   /// @returns true if this query block outputs at most one row.
   bool source_table_is_one_row() const {
-    return (table_list.size() == 0 &&
+    return (m_table_list.size() == 0 &&
             (!is_table_value_constructor || row_value_list->size() == 1));
   }
 
@@ -1933,7 +1933,7 @@ class Query_block : public Query_term {
   mem_root_deque<Table_ref *> sj_nests;
 
   /// List of tables in FROM clause - use Table_ref::next_local to traverse
-  SQL_I_List<Table_ref> table_list{};
+  SQL_I_List<Table_ref> m_table_list{};
 
   /**
     ORDER BY clause.

@@ -120,7 +120,7 @@ TEST_F(TableFactorSyntaxTest, TablelessTableSubquery) {
 
   EXPECT_NE(
       term,
-      term->table_list.first->derived_query_expression()->first_query_block())
+      term->get_table_list()->derived_query_expression()->first_query_block())
       << "No cycle in the AST, please.";
 }
 
@@ -134,7 +134,7 @@ TEST_F(TableFactorSyntaxTest, Union) {
   EXPECT_EQ(block, top_union->first_query_block());
   EXPECT_EQ(nullptr, block->next_query_block());
 
-  Table_ref *dt = block->table_list.first;
+  Table_ref *dt = block->get_table_list();
   EXPECT_EQ(dt, block->context.first_name_resolution_table);
 
   Item_func *top_where_cond = down_cast<Item_func *>(block->where_cond());
@@ -150,8 +150,8 @@ TEST_F(TableFactorSyntaxTest, Union) {
   Query_block *first_inner_block = inner_union->first_query_block();
   Query_block *second_inner_block = first_inner_block->next_query_block();
 
-  Table_ref *t1 = first_inner_block->table_list.first;
-  Table_ref *t2 = second_inner_block->table_list.first;
+  Table_ref *t1 = first_inner_block->get_table_list();
+  Table_ref *t2 = second_inner_block->get_table_list();
 
   EXPECT_EQ(t1, first_inner_block->context.first_name_resolution_table);
   EXPECT_EQ(t2, second_inner_block->context.first_name_resolution_table);
@@ -193,11 +193,11 @@ TEST_F(TableFactorSyntaxTest, NestedTableReferenceList) {
   EXPECT_EQ(term1, top_union->first_query_block());
   EXPECT_EQ(term2, top_union2->first_query_block());
 
-  EXPECT_EQ(4U, term1->table_list.elements);
-  ASSERT_EQ(4U, term2->table_list.elements);
+  EXPECT_EQ(4U, term1->m_table_list.elements);
+  ASSERT_EQ(4U, term2->m_table_list.elements);
 
-  EXPECT_STREQ("t1", term1->table_list.first->alias);
-  EXPECT_STREQ("t1", term2->table_list.first->alias);
+  EXPECT_STREQ("t1", term1->get_table_list()->alias);
+  EXPECT_STREQ("t1", term2->get_table_list()->alias);
 
   EXPECT_STREQ("(nest_last_join)", term1->join_list->front()->alias);
   EXPECT_STREQ("(nest_last_join)", term2->join_list->front()->alias);

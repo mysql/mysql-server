@@ -796,7 +796,7 @@ bool is_updatable_view(THD *thd, Table_ref *view) {
     /// @see Query_block::merge_derived()
     bool updatable = false;
     bool outer_joined = false;
-    for (Table_ref *tbl = lex->query_block->table_list.first; tbl;
+    for (Table_ref *tbl = lex->query_block->get_table_list(); tbl;
          tbl = tbl->next_local) {
       updatable |=
           !((tbl->is_view() && !tbl->updatable_view) || tbl->schema_table);
@@ -832,7 +832,7 @@ bool is_updatable_view(THD *thd, Table_ref *view) {
   */
   if (updatable_view &&
       !lex->query_block->master_query_expression()->is_set_operation() &&
-      !(lex->query_block->table_list.first)->next_local &&
+      !(lex->query_block->get_table_list())->next_local &&
       find_table_in_global_list(lex->query_tables->next_global,
                                 lex->query_tables->db,
                                 lex->query_tables->table_name)) {
@@ -1497,7 +1497,7 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
       This may change in future, for example if we enable merging of
       views with subqueries in select list.
     */
-    view_main_select_tables = view_query_block->table_list.first;
+    view_main_select_tables = view_query_block->get_table_list();
 
     /*
       Let us set proper lock type for tables of the view's main

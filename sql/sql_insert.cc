@@ -1339,7 +1339,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     }
 
     // Remove the insert table from the first query block
-    select->table_list.first = first_query_block_table;
+    select->m_table_list.first = first_query_block_table;
     context->table_list = first_query_block_table;
     context->first_name_resolution_table = first_query_block_table;
 
@@ -1347,13 +1347,14 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       return true;
 
     /* Restore the insert table but not the name resolution context */
-    if (first_query_block_table != select->table_list.first) {
+    if (first_query_block_table != select->get_table_list()) {
       // If we have transformation of the top block table list
       // by Query_block::transform_grouped_to_derived, we must update:
-      first_query_block_table = select->table_list.first;
+      first_query_block_table = select->get_table_list();
       ctx_state.update_next_local(first_query_block_table);
     }
-    select->table_list.first = context->table_list = table_list;
+    select->m_table_list.first = table_list;
+    context->table_list = table_list;
     table_list->next_local = first_query_block_table;
 
     if (field_count != unit->num_visible_fields()) {
@@ -1414,7 +1415,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   if (select_insert) {
     // Restore the insert table and the name resolution context
-    select->table_list.first = context->table_list = table_list;
+    select->m_table_list.first = table_list;
+    context->table_list = table_list;
     table_list->next_local = first_query_block_table;
     ctx_state.restore_state(context, table_list);
   }
@@ -1570,7 +1572,7 @@ bool Sql_cmd_insert_base::prepare_values_table(THD *thd) {
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   if (insert_field_list.empty()) {
-    Table_ref *insert_table = lex->query_block->table_list.first;
+    Table_ref *insert_table = lex->query_block->get_table_list();
     Field_iterator_table_ref it;
     it.set(insert_table);
 

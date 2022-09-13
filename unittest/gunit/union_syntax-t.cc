@@ -123,8 +123,8 @@ TEST_F(UnionSyntaxTest, QueryExpParensDualOrder) {
   EXPECT_EQ(term, exp->first_query_block());
 
   // Table expression
-  EXPECT_EQ(1U, term->table_list.elements);
-  Table_ref *table_list = term->table_list.first;
+  EXPECT_EQ(1U, term->m_table_list.elements);
+  Table_ref *table_list = term->get_table_list();
   EXPECT_STREQ("t1", table_list->alias);
 
   // Inner order clause, outer is ignored
@@ -146,8 +146,8 @@ TEST_F(UnionSyntaxTest, QueryExpParensOrder) {
   EXPECT_EQ(term, exp->first_query_block());
 
   // Table expression
-  EXPECT_EQ(1U, term->table_list.elements);
-  Table_ref *table_list = term->table_list.first;
+  EXPECT_EQ(1U, term->m_table_list.elements);
+  Table_ref *table_list = term->get_table_list();
   EXPECT_STREQ("t1", table_list->alias);
 
   // Inner order clause, outer is used when inner is missing
@@ -170,8 +170,8 @@ TEST_F(UnionSyntaxTest, QueryExpParensLimit1) {
   EXPECT_EQ(term, exp->first_query_block());
 
   // Table expression
-  EXPECT_EQ(1U, term->table_list.elements);
-  Table_ref *table_list = term->table_list.first;
+  EXPECT_EQ(1U, term->m_table_list.elements);
+  Table_ref *table_list = term->get_table_list();
   EXPECT_STREQ("t1", table_list->alias);
 
   EXPECT_EQ(2, term->select_limit->val_int())

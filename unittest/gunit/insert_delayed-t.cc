@@ -42,24 +42,24 @@ TEST_F(InsertDelayed, InsertDelayed) {
   Query_block *sl1 = parse("INSERT INTO t1 VALUES (1)", 0);
 
   thr_lock_type expected_lock_type =
-      sl1->table_list.first->lock_descriptor().type;
+      sl1->get_table_list()->lock_descriptor().type;
 
   Query_block *sl2 = parse("INSERT DELAYED INTO t1 VALUES (1)",
                            ER_WARN_LEGACY_SYNTAX_CONVERTED);
 
-  EXPECT_EQ(expected_lock_type, sl2->table_list.first->lock_descriptor().type);
+  EXPECT_EQ(expected_lock_type, sl2->get_table_list()->lock_descriptor().type);
 }
 
 TEST_F(InsertDelayed, ReplaceDelayed) {
   Query_block *sl1 = parse("REPLACE INTO t1 VALUES (1)", 0);
 
   thr_lock_type expected_lock_type =
-      sl1->table_list.first->lock_descriptor().type;
+      sl1->get_table_list()->lock_descriptor().type;
 
   Query_block *sl2 = parse("REPLACE DELAYED INTO t1 VALUES (1)",
                            ER_WARN_LEGACY_SYNTAX_CONVERTED);
 
-  EXPECT_EQ(expected_lock_type, sl2->table_list.first->lock_descriptor().type);
+  EXPECT_EQ(expected_lock_type, sl2->get_table_list()->lock_descriptor().type);
 }
 
 }  // namespace insert_delayed_unittest

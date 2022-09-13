@@ -740,7 +740,7 @@ void Sql_cmd_truncate_table::truncate_temporary(THD *thd,
 bool Sql_cmd_truncate_table::execute(THD *thd) {
   DBUG_TRACE;
 
-  Table_ref *first_table = thd->lex->query_block->table_list.first;
+  Table_ref *first_table = thd->lex->query_block->get_table_list();
   if (check_one_table_access(thd, DROP_ACL, first_table)) return true;
 
   if (is_temporary_table(first_table))

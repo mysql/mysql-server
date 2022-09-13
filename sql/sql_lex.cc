@@ -2962,7 +2962,7 @@ void Query_block::print_update(const THD *thd, String *str,
   print_update_options(str);
   if (parent_lex->sql_command == SQLCOM_UPDATE) {
     // Single table update
-    auto *t = table_list.first;
+    Table_ref *t = get_table_list();
     t->print(thd, str, query_type);  // table identifier
     str->append(STRING_WITH_LEN(" set "));
     print_update_list(thd, str, query_type, fields,
@@ -2996,7 +2996,7 @@ void Query_block::print_delete(const THD *thd, String *str,
   print_hints(thd, str, query_type);
   print_delete_options(str);
   if (parent_lex->sql_command == SQLCOM_DELETE) {
-    Table_ref *t = table_list.first;
+    Table_ref *t = get_table_list();
     // Single table delete
     str->append(STRING_WITH_LEN("from "));
     t->print(thd, str, query_type);  // table identifier
@@ -3045,7 +3045,7 @@ void Query_block::print_insert(const THD *thd, String *str,
 
   Table_ref *tbl = (parent_lex->insert_table_leaf)
                        ? parent_lex->insert_table_leaf
-                       : table_list.first;
+                       : get_table_list();
   tbl->print(thd, str, query_type);  // table identifier
 
   print_insert_fields(thd, str, query_type);
@@ -3135,23 +3135,23 @@ void Query_block::print_select_options(String *str) {
 }
 
 void Query_block::print_update_options(String *str) {
-  if (table_list.first &&
-      table_list.first->mdl_request.type == MDL_SHARED_WRITE_LOW_PRIO)
+  if (get_table_list() &&
+      get_table_list()->mdl_request.type == MDL_SHARED_WRITE_LOW_PRIO)
     str->append(STRING_WITH_LEN("low_priority "));
   if (parent_lex->is_ignore()) str->append(STRING_WITH_LEN("ignore "));
 }
 
 void Query_block::print_delete_options(String *str) {
-  if (table_list.first &&
-      table_list.first->mdl_request.type == MDL_SHARED_WRITE_LOW_PRIO)
+  if (get_table_list() &&
+      get_table_list()->mdl_request.type == MDL_SHARED_WRITE_LOW_PRIO)
     str->append(STRING_WITH_LEN("low_priority "));
   if (active_options() & OPTION_QUICK) str->append(STRING_WITH_LEN("quick "));
   if (parent_lex->is_ignore()) str->append(STRING_WITH_LEN("ignore "));
 }
 
 void Query_block::print_insert_options(String *str) {
-  if (table_list.first) {
-    int type = static_cast<int>(table_list.first->lock_descriptor().type);
+  if (get_table_list()) {
+    int type = static_cast<int>(get_table_list()->lock_descriptor().type);
 
     // Lock option
     if (type == static_cast<int>(TL_WRITE_LOW_PRIORITY))
@@ -3295,7 +3295,7 @@ void Query_block::print_from_clause(const THD *thd, String *str,
   /*
     from clause
   */
-  if (table_list.elements) {
+  if (m_table_list.elements) {
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
     print_join(thd, str, &top_join_list, query_type);
@@ -3442,7 +3442,7 @@ bool Query_block::accept(Select_lex_visitor *visitor) {
   }
 
   // From clause
-  if (table_list.elements != 0 && accept_for_join(join_list, visitor))
+  if (m_table_list.elements != 0 && accept_for_join(join_list, visitor))
     return true;
 
   // Where clause
@@ -3787,7 +3787,7 @@ bool Query_expression::is_mergeable() const {
 
   Query_block *const select = first_query_block();
   return !select->is_grouped() && !select->having_cond() &&
-         !select->is_distinct() && select->table_list.elements > 0 &&
+         !select->is_distinct() && select->m_table_list.elements > 0 &&
          !select->has_limit() && select->m_windows.elements == 0;
 }
 
@@ -4033,8 +4033,8 @@ Table_ref *LEX::unlink_first_table(bool *link_to_local) {
     if ((*link_to_local = query_block->get_table_list() != nullptr)) {
       query_block->context.table_list =
           query_block->context.first_name_resolution_table = first->next_local;
-      query_block->table_list.first = first->next_local;
-      query_block->table_list.elements--;  // safety
+      query_block->m_table_list.first = first->next_local;
+      query_block->m_table_list.elements--;  // safety
       first->next_local = nullptr;
       /*
         Ensure that the global list has the same first table as the local
@@ -4111,10 +4111,10 @@ void LEX::link_first_table_back(Table_ref *first, bool link_to_local) {
     query_tables = first;
 
     if (link_to_local) {
-      first->next_local = query_block->table_list.first;
+      first->next_local = query_block->m_table_list.first;
       query_block->context.table_list = first;
-      query_block->table_list.first = first;
-      query_block->table_list.elements++;  // safety
+      query_block->m_table_list.first = first;
+      query_block->m_table_list.elements++;  // safety
     }
   }
 }
@@ -4743,7 +4743,8 @@ Table_ref *Query_block::find_table_by_name(const Table_ident *ident) {
   LEX_CSTRING db_name = ident->db;
   LEX_CSTRING table_name = ident->table;
 
-  for (Table_ref *table = table_list.first; table; table = table->next_local) {
+  for (Table_ref *table = m_table_list.first; table;
+       table = table->next_local) {
     if ((db_name.length == 0 || strcmp(db_name.str, table->db) == 0) &&
         strcmp(table_name.str, table->alias) == 0)
       return table;

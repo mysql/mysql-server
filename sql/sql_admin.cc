@@ -784,7 +784,7 @@ static bool mysql_admin_table(
       table->next_global = nullptr;
       save_next_local = table->next_local;
       table->next_local = nullptr;
-      select->table_list.first = table;
+      select->m_table_list.first = table;
       /*
         Time zone tables and SP tables can be add to lex->query_tables list,
         so it have to be prepared.
@@ -1744,7 +1744,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
     */
     res = write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
-  thd->lex->query_block->table_list.first = first_table;
+  thd->lex->query_block->m_table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1765,7 +1765,7 @@ bool Sql_cmd_check_table::execute(THD *thd) {
                           lock_type, false, false, HA_OPEN_FOR_REPAIR, nullptr,
                           &handler::ha_check, 1, m_alter_info, true);
 
-  thd->lex->query_block->table_list.first = first_table;
+  thd->lex->query_block->m_table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1793,7 +1793,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd) {
     */
     res = write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
-  thd->lex->query_block->table_list.first = first_table;
+  thd->lex->query_block->m_table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1821,7 +1821,7 @@ bool Sql_cmd_repair_table::execute(THD *thd) {
     */
     res = write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
-  thd->lex->query_block->table_list.first = first_table;
+  thd->lex->query_block->m_table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:

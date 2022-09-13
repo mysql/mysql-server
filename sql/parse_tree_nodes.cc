@@ -810,7 +810,7 @@ static bool multi_delete_link_tables(Parse_context *pc,
                                      SQL_I_List<Table_ref> *delete_tables) {
   DBUG_TRACE;
 
-  Table_ref *tables = pc->select->table_list.first;
+  Table_ref *tables = pc->select->get_table_list();
 
   for (Table_ref *target_tbl = delete_tables->first; target_tbl;
        target_tbl = target_tbl->next_local) {
@@ -869,7 +869,7 @@ Sql_cmd *PT_delete::make_cmd(THD *thd) {
     return nullptr;
 
   if (is_multitable()) {
-    select->table_list.save_and_clear(&delete_tables);
+    select->m_table_list.save_and_clear(&delete_tables);
     lex->query_tables = nullptr;
     lex->query_tables_last = &lex->query_tables;
   } else {
@@ -883,7 +883,7 @@ Sql_cmd *PT_delete::make_cmd(THD *thd) {
     if (contextualize_array(&pc, &join_table_list)) return nullptr;
     pc.select->context.table_list =
         pc.select->context.first_name_resolution_table =
-            pc.select->table_list.first;
+            pc.select->get_table_list();
   }
 
   if (opt_where_clause != nullptr &&
@@ -934,7 +934,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   // Ensure we're resetting parsing context of the right select
   assert(select->parsing_place == CTX_UPDATE_VALUE);
   select->parsing_place = CTX_NONE;
-  const bool is_multitable = select->table_list.elements > 1;
+  const bool is_multitable = select->m_table_list.elements > 1;
   lex->sql_command = is_multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE;
 
   /*
@@ -1047,7 +1047,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
     */
     SQL_I_List<Table_ref> save_list;
     Query_block *const save_query_block = pc.select;
-    save_query_block->table_list.save_and_clear(&save_list);
+    save_query_block->m_table_list.save_and_clear(&save_list);
 
     if (insert_query_expression->contextualize(&pc)) return nullptr;
 
@@ -1057,7 +1057,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
       The following work only with the local list, the global list
       is created correctly in this case
     */
-    save_query_block->table_list.push_front(&save_list);
+    save_query_block->m_table_list.push_front(&save_list);
 
     lex->bulk_insert_row_cnt = 0;
   } else {
@@ -1097,7 +1097,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
                opt_on_duplicate_column_list->elements());
 
     lex->duplicates = DUP_UPDATE;
-    Table_ref *first_table = lex->query_block->table_list.first;
+    Table_ref *first_table = lex->query_block->get_table_list();
     /* Fix lock for ON DUPLICATE KEY UPDATE */
     if (first_table->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT)
       first_table->set_lock({TL_WRITE_DEFAULT, THR_DEFAULT});
@@ -1182,7 +1182,7 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
     if (contextualize_array(pc, &from_clause)) return true;
     pc->select->context.table_list =
         pc->select->context.first_name_resolution_table =
-            pc->select->table_list.first;
+            pc->select->get_table_list();
   }
 
   if (itemize_safe(pc, &opt_where_clause) ||
@@ -2046,7 +2046,7 @@ bool PT_create_union_option::contextualize(Table_ddl_parse_context *pc) {
 
   Table_ref **exclude_merge_engine_tables = lex->query_tables_last;
   SQL_I_List<Table_ref> save_list;
-  lex->query_block->table_list.save_and_clear(&save_list);
+  lex->query_block->m_table_list.save_and_clear(&save_list);
   if (pc->select->add_tables(thd, tables, TL_OPTION_UPDATING, yyps->m_lock_type,
                              yyps->m_mdl_type))
     return true;
@@ -2054,8 +2054,8 @@ bool PT_create_union_option::contextualize(Table_ddl_parse_context *pc) {
     Move the union list to the merge_list and exclude its tables
     from the global list.
   */
-  pc->create_info->merge_list = lex->query_block->table_list;
-  lex->query_block->table_list = save_list;
+  pc->create_info->merge_list = lex->query_block->m_table_list;
+  lex->query_block->m_table_list = save_list;
   /*
     When excluding union list from the global list we assume that
     elements of the former immediately follow elements which represent
@@ -2137,7 +2137,7 @@ using Local_tables_iterator =
 using Local_tables_list = IteratorContainer<Local_tables_iterator>;
 
 bool PT_query_block_locking_clause::set_lock_for_tables(Parse_context *pc) {
-  Local_tables_list local_tables(pc->select->table_list.first);
+  Local_tables_list local_tables(pc->select->get_table_list());
   for (Table_ref *table_list : local_tables)
     if (!table_list->is_derived()) {
       if (table_list->lock_descriptor().type != TL_READ_DEFAULT) {
@@ -2271,7 +2271,7 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
       */
       SQL_I_List<Table_ref> save_list;
       Query_block *const save_query_block = pc.select;
-      save_query_block->table_list.save_and_clear(&save_list);
+      save_query_block->m_table_list.save_and_clear(&save_list);
 
       if (opt_query_expression->contextualize(&pc)) return nullptr;
       if (pc.finalize_query_expression()) return nullptr;
@@ -2280,7 +2280,7 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
         The following work only with the local list, the global list
         is created correctly in this case
       */
-      save_query_block->table_list.push_front(&save_list);
+      save_query_block->m_table_list.push_front(&save_list);
       qe_tables = *query_expression_tables;
     }
   }
@@ -2360,7 +2360,7 @@ bool PT_show_table_base::make_table_base_cmd(THD *thd, bool *temporary) {
                                                : SCH_TMP_TABLE_KEYS;
     if (make_schema_query_block(thd, query_block, schema_table)) return true;
 
-    Table_ref *table_list = query_block->table_list.first;
+    Table_ref *table_list = query_block->get_table_list();
     table_list->schema_query_block = schema_query_block;
     table_list->schema_table_reformed = true;
   } else {
@@ -2382,7 +2382,7 @@ bool PT_show_table_base::make_table_base_cmd(THD *thd, bool *temporary) {
 
     if (sel == nullptr) return true;
 
-    Table_ref *table_list = sel->table_list.first;
+    Table_ref *table_list = sel->get_table_list();
     table_list->schema_query_block = schema_query_block;
   }
 
@@ -3073,8 +3073,8 @@ static bool init_alter_table_stmt(Table_ddl_parse_context *pc,
   pc->create_info->row_type = ROW_TYPE_NOT_USED;
 
   pc->alter_info->new_db_name =
-      LEX_CSTRING{lex->query_block->table_list.first->db,
-                  lex->query_block->table_list.first->db_length};
+      LEX_CSTRING{lex->query_block->get_table_list()->db,
+                  lex->query_block->get_table_list()->db_length};
   lex->no_write_to_binlog = false;
   pc->create_info->storage_media = HA_SM_DEFAULT;
 

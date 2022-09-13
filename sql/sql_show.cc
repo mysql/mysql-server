@@ -276,7 +276,7 @@ bool Sql_cmd_show_table_base::check_privileges(THD *thd) {
   if (check_table_access(thd, SELECT_ACL, table, false, UINT_MAX, false))
     return true;
 
-  Table_ref *dst_table = table->schema_query_block->table_list.first;
+  Table_ref *dst_table = table->schema_query_block->get_table_list();
   assert(dst_table != nullptr);
 
   if (m_temporary) return false;
@@ -698,7 +698,7 @@ bool Sql_cmd_show_table_base::check_parameters(THD *thd) {
   if (m_temporary) return false;
   bool can_deadlock = thd->mdl_context.has_locks();
   Table_ref *table = thd->lex->query_tables;
-  Table_ref *dst_table = table->schema_query_block->table_list.first;
+  Table_ref *dst_table = table->schema_query_block->get_table_list();
   if (try_acquire_high_prio_shared_mdl_lock(thd, dst_table, can_deadlock)) {
     /*
       Some error occurred (most probably we have been killed while
@@ -3743,7 +3743,7 @@ static int show_temporary_tables(THD *thd, Table_ref *tables, Item *) {
   */
   assert(thd->lex->sql_command == SQLCOM_SHOW_KEYS ||
          thd->lex->sql_command == SQLCOM_SHOW_FIELDS);
-  assert(lsel && lsel->table_list.first);
+  assert(lsel && lsel->get_table_list());
 
   /*
     In cases when SELECT from I_S table being filled by this call is
@@ -3811,11 +3811,11 @@ static int show_temporary_tables(THD *thd, Table_ref *tables, Item *) {
   */
   LEX_CSTRING db_name_lex_cstr, table_name_lex_cstr;
   if (lex_string_strmake(thd->mem_root, &db_name_lex_cstr,
-                         lsel->table_list.first->db,
-                         lsel->table_list.first->db_length) ||
+                         lsel->get_table_list()->db,
+                         lsel->get_table_list()->db_length) ||
       lex_string_strmake(thd->mem_root, &table_name_lex_cstr,
-                         lsel->table_list.first->table_name,
-                         lsel->table_list.first->table_name_length))
+                         lsel->get_table_list()->table_name,
+                         lsel->get_table_list()->table_name_length))
     goto end;
 
   /*
@@ -3827,7 +3827,7 @@ static int show_temporary_tables(THD *thd, Table_ref *tables, Item *) {
                       table_name_lex_cstr))
     goto end;
 
-  table_list = lex->query_block->table_list.first;
+  table_list = lex->query_block->get_table_list();
   assert(!table_list->is_view_or_derived());
 
   /*
@@ -3851,12 +3851,12 @@ static int show_temporary_tables(THD *thd, Table_ref *tables, Item *) {
   lex->sql_command = old_lex->sql_command;
 
   if (!result) {
-    const LEX_CSTRING orig_db_name{lsel->table_list.first->db,
-                                   lsel->table_list.first->db_length};
+    const LEX_CSTRING orig_db_name{lsel->get_table_list()->db,
+                                   lsel->get_table_list()->db_length};
 
     const LEX_CSTRING orig_table_name{
-        lsel->table_list.first->table_name,
-        lsel->table_list.first->table_name_length};
+        lsel->get_table_list()->table_name,
+        lsel->get_table_list()->table_name_length};
 
     result = schema_table->process_table(thd, table_list, table, result,
                                          orig_db_name, orig_table_name);

@@ -2362,7 +2362,7 @@ bool check_table_access(THD *thd, ulong requirements, Table_ref *tables,
       element from the main query block.
     */
     assert(!table_ref->schema_table_reformed ||
-           table_ref == thd->lex->query_block->table_list.first);
+           table_ref == thd->lex->query_block->get_table_list());
 
     DBUG_PRINT("info",
                ("table: %s derived: %d  view: %d", table_ref->table_name,

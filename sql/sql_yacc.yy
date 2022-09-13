@@ -17442,21 +17442,21 @@ view_query_block:
             lex->parsing_options.allows_select_into= false;
 
             /*
-              In CREATE VIEW v ... the table_list initially contains
+              In CREATE VIEW v ... the m_table_list initially contains
               here a table entry for the destination "table" `v'.
               Backup it and clean the table list for the processing of
               the query expression and push `v' back to the beginning of the
-              table_list finally.
+              m_table_list finally.
 
               @todo: Don't save the CREATE destination table in
-                     Query_block::table_list and remove this backup & restore.
+                     Query_block::m_table_list and remove this backup & restore.
 
               The following work only with the local list, the global list
               is created correctly in this case
             */
             SQL_I_List<Table_ref> save_list;
             Query_block * const save_query_block= Select;
-            save_query_block->table_list.save_and_clear(&save_list);
+            save_query_block->m_table_list.save_and_clear(&save_list);
 
             CONTEXTUALIZE_VIEW($1);
 
@@ -17464,7 +17464,7 @@ view_query_block:
               The following work only with the local list, the global list
               is created correctly in this case
             */
-            save_query_block->table_list.push_front(&save_list);
+            save_query_block->m_table_list.push_front(&save_list);
 
             Lex->create_view_check= $2;
 

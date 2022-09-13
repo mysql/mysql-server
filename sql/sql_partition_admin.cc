@@ -77,7 +77,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
   /* first Query_block (have special meaning for many of non-SELECTcommands) */
   Query_block *query_block = lex->query_block;
   /* first table of first Query_block */
-  Table_ref *first_table = query_block->table_list.first;
+  Table_ref *first_table = query_block->get_table_list();
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -584,7 +584,7 @@ bool Sql_cmd_alter_table_repair_partition::execute(THD *thd) {
 bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   int error;
   ulong timeout = thd->variables.lock_wait_timeout;
-  Table_ref *first_table = thd->lex->query_block->table_list.first;
+  Table_ref *first_table = thd->lex->query_block->get_table_list();
   uint table_counter;
   Partition_handler *part_handler = nullptr;
   handlerton *hton;

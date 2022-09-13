@@ -357,9 +357,9 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
     DBUG_PRINT("info", ("ALTER to different engine = '%s' detected",
                         ha_resolve_storage_engine_name(create_info->db_type)));
 
-    const char *orig_db_name = m_thd->lex->query_block->table_list.first->db;
+    const char *orig_db_name = m_thd->lex->query_block->get_table_list()->db;
     const char *orig_table_name =
-        m_thd->lex->query_block->table_list.first->table_name;
+        m_thd->lex->query_block->get_table_list()->table_name;
     DBUG_PRINT("info",
                ("original table name: '%s.%s'", orig_db_name, orig_table_name));
 

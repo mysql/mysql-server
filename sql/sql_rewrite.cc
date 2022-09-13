@@ -1287,7 +1287,7 @@ Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type,
 bool Rewriter_grant::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
 
-  Table_ref *first_table = lex->query_block->table_list.first;
+  Table_ref *first_table = lex->query_block->get_table_list();
   bool proxy_grant = lex->type == TYPE_ENUM_PROXY;
   String cols(1024);
   int c;
