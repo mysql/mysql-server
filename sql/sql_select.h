@@ -948,7 +948,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
   take part in the ref lookup.
  */
 bool init_ref(THD *thd, unsigned keyparts, unsigned length, unsigned keyno,
-              TABLE_REF *ref);
+              Index_lookup *ref);
 
 /**
   Initialize a given keypart in the table ref. In particular, sets up the
@@ -959,7 +959,7 @@ bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
                    bool null_rejecting, table_map const_tables,
                    table_map used_tables, bool nullable,
                    const KEY_PART_INFO *key_part_info, uchar *key_buff,
-                   TABLE_REF *ref);
+                   Index_lookup *ref);
 
 /**
   Set up the support structures (NULL bits, row offsets, etc.) for a semijoin

@@ -313,9 +313,9 @@ const TABLE *Item_subselect::get_table() const {
       ->get_table();
 }
 
-const TABLE_REF &Item_subselect::get_table_ref() const {
+const Index_lookup &Item_subselect::index_lookup() const {
   return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
-      ->get_table_ref();
+      ->index_lookup();
 }
 
 join_type Item_subselect::get_join_type() const {
@@ -3218,8 +3218,8 @@ Query_block *SubqueryWithResult::single_query_block() const {
     the index allows at most one NULL row.
   - Create a new result sink that sends the result stream of the subquery to
     the temporary table,
-  - Create and initialize TABLE_REF objects to perform lookups into the
-    indexed temporary table.
+  - Create and initialize Index_lookup objects to perform lookups into
+    the indexed temporary table.
 
   @param thd          thread handle
   @param tmp_columns  columns of temporary table
@@ -3287,8 +3287,8 @@ bool subselect_hash_sj_engine::setup(
   /* 2. Create/initialize execution related objects. */
 
   /*
-    Create and initialize the TABLE_REF used by the index lookup
-    iterator into the materialized subquery result.
+    Create and initialize the Index_lookup used by the index lookup iterator
+    into the materialized subquery result.
   */
 
   table = tmp_table;
@@ -3497,7 +3497,7 @@ void subselect_hash_sj_engine::cleanup() {
   if (unit->is_executed()) unit->reset_executed();
 }
 
-static int safe_index_read(TABLE *table, const TABLE_REF &ref) {
+static int safe_index_read(TABLE *table, const Index_lookup &ref) {
   int error = table->file->ha_index_read_map(
       table->record[0], ref.key_buff, make_prev_keypart_map(ref.key_parts),
       HA_READ_KEY_EXACT);

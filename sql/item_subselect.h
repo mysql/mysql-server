@@ -118,7 +118,7 @@ class Item_subselect : public Item_result_field {
 
   // For EXPLAIN. Only valid if engine_type() == HASH_SJ_ENGINE.
   const TABLE *get_table() const;
-  const TABLE_REF &get_table_ref() const;
+  const Index_lookup &index_lookup() const;
   join_type get_join_type() const;
 
   void create_iterators(THD *thd);
@@ -804,7 +804,7 @@ class subselect_indexsubquery_engine {
   /// Table which is read, using one of eq_ref, ref, ref_or_null.
   TABLE *table{nullptr};
   TABLE_LIST *table_ref{nullptr};
-  TABLE_REF ref;
+  Index_lookup ref;
   join_type type{JT_UNKNOWN};
   Item *cond;     /* The WHERE condition of subselect */
   ulonglong hash; /* Hash value calculated by RefIterator, when needed. */
@@ -826,7 +826,8 @@ class subselect_indexsubquery_engine {
   enum enum_engine_type { INDEXSUBQUERY_ENGINE, HASH_SJ_ENGINE };
 
   subselect_indexsubquery_engine(TABLE *table, TABLE_LIST *table_ref,
-                                 const TABLE_REF &ref, enum join_type join_type,
+                                 const Index_lookup &ref,
+                                 enum join_type join_type,
                                  Item_in_subselect *subs, Item *where,
                                  Item *having_arg)
       : table(table),
@@ -902,7 +903,7 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   enum_engine_type engine_type() const override { return HASH_SJ_ENGINE; }
 
   TABLE *get_table() const { return table; }
-  const TABLE_REF &get_table_ref() const { return ref; }
+  const Index_lookup &index_lookup() const { return ref; }
   enum join_type get_join_type() const { return type; }
   AccessPath *root_access_path() const { return m_root_access_path; }
   void create_iterators(THD *thd) override;

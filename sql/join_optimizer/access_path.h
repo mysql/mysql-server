@@ -59,12 +59,12 @@ class Window;
 struct AccessPath;
 struct GroupIndexSkipScanParameters;
 struct IndexSkipScanParameters;
+struct Index_lookup;
 struct KEY_PART;
 struct ORDER;
 struct POSITION;
 struct RelationalExpression;
 struct TABLE;
-struct TABLE_REF;
 
 /**
   A specification that two specific relational expressions
@@ -865,39 +865,39 @@ struct AccessPath {
     } index_scan;
     struct {
       TABLE *table;
-      TABLE_REF *ref;
+      Index_lookup *ref;
       bool use_order;
       bool reverse;
     } ref;
     struct {
       TABLE *table;
-      TABLE_REF *ref;
+      Index_lookup *ref;
       bool use_order;
     } ref_or_null;
     struct {
       TABLE *table;
-      TABLE_REF *ref;
+      Index_lookup *ref;
     } eq_ref;
     struct {
       TABLE *table;
-      TABLE_REF *ref;
+      Index_lookup *ref;
       bool use_order;
       bool is_unique;
     } pushed_join_ref;
     struct {
       TABLE *table;
-      TABLE_REF *ref;
+      Index_lookup *ref;
       bool use_order;
       bool use_limit;
       Item_func_match *ft_func;
     } full_text_search;
     struct {
       TABLE *table;
-      TABLE_REF *ref;
+      Index_lookup *ref;
     } const_table;
     struct {
       TABLE *table;
-      TABLE_REF *ref;
+      Index_lookup *ref;
       AccessPath *bka_path;
       int mrr_flags;
       bool keep_current_rowid;
@@ -1191,7 +1191,7 @@ struct AccessPath {
 
       // For the ref.
       AccessPath *child;
-      TABLE_REF *used_ref;
+      Index_lookup *used_ref;
     } alternative;
     struct {
       AccessPath *child;
@@ -1253,7 +1253,7 @@ inline AccessPath *NewIndexScanAccessPath(THD *thd, TABLE *table, int idx,
   return path;
 }
 
-inline AccessPath *NewRefAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
+inline AccessPath *NewRefAccessPath(THD *thd, TABLE *table, Index_lookup *ref,
                                     bool use_order, bool reverse,
                                     bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
@@ -1267,7 +1267,7 @@ inline AccessPath *NewRefAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
 }
 
 inline AccessPath *NewRefOrNullAccessPath(THD *thd, TABLE *table,
-                                          TABLE_REF *ref, bool use_order,
+                                          Index_lookup *ref, bool use_order,
                                           bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::REF_OR_NULL;
@@ -1278,7 +1278,7 @@ inline AccessPath *NewRefOrNullAccessPath(THD *thd, TABLE *table,
   return path;
 }
 
-inline AccessPath *NewEQRefAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
+inline AccessPath *NewEQRefAccessPath(THD *thd, TABLE *table, Index_lookup *ref,
                                       bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::EQ_REF;
@@ -1289,7 +1289,7 @@ inline AccessPath *NewEQRefAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
 }
 
 inline AccessPath *NewPushedJoinRefAccessPath(THD *thd, TABLE *table,
-                                              TABLE_REF *ref, bool use_order,
+                                              Index_lookup *ref, bool use_order,
                                               bool is_unique,
                                               bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
@@ -1303,7 +1303,7 @@ inline AccessPath *NewPushedJoinRefAccessPath(THD *thd, TABLE *table,
 }
 
 inline AccessPath *NewFullTextSearchAccessPath(THD *thd, TABLE *table,
-                                               TABLE_REF *ref,
+                                               Index_lookup *ref,
                                                Item_func_match *ft_func,
                                                bool use_order, bool use_limit,
                                                bool count_examined_rows) {
@@ -1319,7 +1319,7 @@ inline AccessPath *NewFullTextSearchAccessPath(THD *thd, TABLE *table,
 }
 
 inline AccessPath *NewConstTableAccessPath(THD *thd, TABLE *table,
-                                           TABLE_REF *ref,
+                                           Index_lookup *ref,
                                            bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::CONST_TABLE;
@@ -1333,7 +1333,7 @@ inline AccessPath *NewConstTableAccessPath(THD *thd, TABLE *table,
   return path;
 }
 
-inline AccessPath *NewMRRAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
+inline AccessPath *NewMRRAccessPath(THD *thd, TABLE *table, Index_lookup *ref,
                                     int mrr_flags) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::MRR;
@@ -1666,7 +1666,7 @@ inline AccessPath *NewRemoveDuplicatesOnIndexAccessPath(
 
 inline AccessPath *NewAlternativeAccessPath(THD *thd, AccessPath *child,
                                             AccessPath *table_scan_path,
-                                            TABLE_REF *used_ref) {
+                                            Index_lookup *used_ref) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::ALTERNATIVE;
   path->alternative().table_scan_path = table_scan_path;

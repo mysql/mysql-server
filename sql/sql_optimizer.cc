@@ -3565,7 +3565,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
 
         @see Item_in_optimizer::val_int()
         @see subselect_iterator_engine::exec()
-        @see TABLE_REF::cond_guards
+        @see Index_lookup::cond_guards
         @see push_index_cond()
 
         @todo: This choice to not use BKA should be done before making
@@ -4954,7 +4954,7 @@ void JOIN::update_depend_map() {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
   for (uint tableno = 0; tableno < tables; tableno++) {
     JOIN_TAB *const tab = best_ref[tableno];
-    TABLE_REF *const ref = &tab->ref();
+    Index_lookup *const ref = &tab->ref();
     table_map depend_map = 0;
     Item **item = ref->items;
     for (uint i = 0; i < ref->key_parts; i++, item++)
@@ -6238,7 +6238,7 @@ static void trace_table_dependencies(Opt_trace_context *trace,
       1. update_ref_and_keys() accumulates info about null-rejecting
          predicates in in Key_field::null_rejecting
       1.1 add_key_part saves these to Key_use.
-      2. create_ref_for_key copies them to TABLE_REF.
+      2. create_ref_for_key copies them to Index_lookup.
       3. add_not_null_conds adds "x IS NOT NULL" to join_tab->m_condition of
          appropriate JOIN_TAB members.
 
@@ -8730,7 +8730,8 @@ bool JOIN::attach_join_conditions(plan_idx last_tab) {
   in sorted order.
 *****************************************************************************/
 
-static Item *part_of_refkey(TABLE *table, TABLE_REF *ref, const Field *field) {
+static Item *part_of_refkey(TABLE *table, Index_lookup *ref,
+                            const Field *field) {
   uint ref_parts = ref->key_parts;
   if (ref_parts) {
     if (ref->has_guarded_conds()) return nullptr;

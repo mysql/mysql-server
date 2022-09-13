@@ -127,7 +127,8 @@ static bool alloc_group_fields(JOIN *join, ORDER *group);
 /// Maximum amount of space (in bytes) to allocate for a Record_buffer.
 static constexpr size_t MAX_RECORD_BUFFER_SIZE = 128 * 1024;  // 128KB
 
-string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
+string RefToString(const Index_lookup &ref, const KEY *key,
+                   bool include_nulls) {
   string ret;
 
   if (ref.keypart_hash != nullptr) {
@@ -845,7 +846,7 @@ static table_map ConvertQepTabMapToTableMap(JOIN *join, qep_tab_map tables) {
 AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
                                 qep_tab_map left_tables, AccessPath *inner_path,
                                 qep_tab_map right_tables, TABLE *table,
-                                TABLE_LIST *table_list, TABLE_REF *ref,
+                                TABLE_LIST *table_list, Index_lookup *ref,
                                 JoinType join_type) {
   table_map left_table_map = ConvertQepTabMapToTableMap(join, left_tables);
   table_map right_table_map = ConvertQepTabMapToTableMap(join, right_tables);
@@ -2780,7 +2781,7 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
         UseBKA(qep_tab) && !QueryMixesOuterBKAAndBNL(qep_tab->join());
 
     if (is_bka) {
-      TABLE_REF &ref = qep_tab->ref();
+      Index_lookup &ref = qep_tab->ref();
 
       table_path =
           NewMRRAccessPath(thd, qep_tab->table(), &ref,
@@ -3660,15 +3661,14 @@ static int read_system(TABLE *table) {
   return table->has_row() ? 0 : -1;
 }
 
-int read_const(TABLE *table, TABLE_REF *ref) {
+int read_const(TABLE *table, Index_lookup *ref) {
   int error;
   DBUG_TRACE;
 
   if (!table->is_started())  // If first read
   {
     /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
-    if (ref->impossible_null_ref() ||
-        construct_lookup_ref(current_thd, table, ref))
+    if (ref->impossible_null_ref() || construct_lookup(current_thd, table, ref))
       error = HA_ERR_KEY_NOT_FOUND;
     else {
       error = table->file->ha_index_init(ref->key, false);
@@ -3751,7 +3751,7 @@ AccessPath *QEP_TAB::access_path() {
   assert(table());
   // Only some access methods support reversed access:
   assert(!m_reversed_access || type() == JT_REF || type() == JT_INDEX_SCAN);
-  TABLE_REF *used_ref = nullptr;
+  Index_lookup *used_ref = nullptr;
   AccessPath *path = nullptr;
 
   switch (type()) {
@@ -4097,7 +4097,7 @@ bool check_unique_constraint(TABLE *table) {
   return true;
 }
 
-bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref) {
+bool construct_lookup(THD *thd, TABLE *table, Index_lookup *ref) {
   enum enum_check_fields save_check_for_truncated_fields =
       thd->check_for_truncated_fields;
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;

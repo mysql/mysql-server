@@ -55,7 +55,15 @@ using plan_idx = int;
 #define PRE_FIRST_PLAN_IDX \
   (-1)  ///< right before the first (first's index is 0)
 
-struct TABLE_REF {
+/**
+  Structure used for index-based lookups.
+
+  @todo Remove any references to the old name: it used to be called TABLE_REF,
+        hence many variables still have the ref prefix. In MySQL "index lookup"
+        and "ref" access are used interchangeable but in EXPLAIN we output the
+        former.
+*/
+struct Index_lookup {
   bool key_err;
   uint key_parts;    ///< num of ...
   uint key_length;   ///< length of key_buff
@@ -118,7 +126,7 @@ struct TABLE_REF {
    */
   ulonglong *keypart_hash = nullptr;
 
-  TABLE_REF()
+  Index_lookup()
       : key_err(true),
         key_parts(0),
         key_length(0),
@@ -280,7 +288,7 @@ class QEP_shared {
   void set_first_upper(plan_idx i) { m_first_upper = i; }
   plan_idx last_inner() { return m_last_inner; }
   plan_idx first_upper() { return m_first_upper; }
-  TABLE_REF &ref() { return m_ref; }
+  Index_lookup &ref() { return m_ref; }
   uint index() const { return m_index; }
   void set_index(uint i) { m_index = i; }
   enum join_type type() const { return m_type; }
@@ -394,7 +402,7 @@ class QEP_shared {
      Used when we read constant tables, in misc optimization (like
      remove_const()), and in execution.
   */
-  TABLE_REF m_ref;
+  Index_lookup m_ref;
 
   /// ID of index used for index scan or semijoin LooseScan
   uint m_index;
@@ -509,7 +517,7 @@ class QEP_shared_owner {
   void set_first_sj_inner(plan_idx i) { return m_qs->set_first_sj_inner(i); }
   void set_last_sj_inner(plan_idx i) { return m_qs->set_last_sj_inner(i); }
   void set_first_upper(plan_idx i) { return m_qs->set_first_upper(i); }
-  TABLE_REF &ref() const { return m_qs->ref(); }
+  Index_lookup &ref() const { return m_qs->ref(); }
   uint index() const { return m_qs->index(); }
   void set_index(uint i) { return m_qs->set_index(i); }
   enum join_type type() const { return m_qs->type(); }

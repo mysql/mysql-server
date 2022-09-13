@@ -755,7 +755,7 @@ void pushed_table::compute_type_and_index() {
   DBUG_TRACE;
   switch (m_path->type) {
     case AccessPath::EQ_REF: {
-      const TABLE_REF *ref = m_path->eq_ref().ref;
+      const Index_lookup *ref = m_path->eq_ref().ref;
       m_index_no = ref->key;
 
       if (m_index_no == static_cast<int>(m_table->s->primary_key)) {
@@ -778,7 +778,7 @@ void pushed_table::compute_type_and_index() {
        * full table scan, else it will be an unique single row lookup.
        * (i.e, can never be an index scan as suggested by type = REF!)
        */
-      const TABLE_REF *ref = m_path->ref().ref;
+      const Index_lookup *ref = m_path->ref().ref;
       m_index_no = ref->key;
 
       const KEY *key_info = m_table->s->key_info;
@@ -857,7 +857,7 @@ void pushed_table::compute_type_and_index() {
       break;
     }
     case AccessPath::MRR: {
-      const TABLE_REF *ref = m_path->mrr().ref;
+      const Index_lookup *ref = m_path->mrr().ref;
       const KEY *key_info = m_table->s->key_info;
       m_index_no = ref->key;
       assert(m_index_no != MAX_KEY);
@@ -1072,7 +1072,7 @@ table_map Join_nest::get_filtered_tables(const Join_nest *ancestor) const {
 //////////////////////////////////////////
 // Get'ers for pushed_table
 
-const TABLE_REF *pushed_table::get_table_ref() const {
+const Index_lookup *pushed_table::get_table_ref() const {
   switch (m_path->type) {
     case AccessPath::EQ_REF:
       return m_path->eq_ref().ref;
@@ -1122,7 +1122,7 @@ bool pushed_table::use_order() const {
   operation.
 */
 uint pushed_table::get_no_of_key_fields() const {
-  const TABLE_REF *ref = get_table_ref();
+  const Index_lookup *ref = get_table_ref();
   if (ref == nullptr) return 0;
   return ref->key_parts;
 }
@@ -1133,7 +1133,7 @@ uint pushed_table::get_no_of_key_fields() const {
   operation.
 */
 const Item *pushed_table::get_key_field(uint field_no) const {
-  const TABLE_REF *ref = get_table_ref();
+  const Index_lookup *ref = get_table_ref();
   if (ref == nullptr) return nullptr;
   assert(field_no < get_no_of_key_fields());
   return ref->items[field_no];

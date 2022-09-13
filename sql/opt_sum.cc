@@ -82,11 +82,12 @@
 #include "sql/sql_select.h"
 #include "sql/table.h"
 
-static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
+static bool find_key_for_maxmin(bool max_fl, Index_lookup *ref,
                                 Item_field *item_field, Item *cond,
                                 uint *range_fl, uint *key_prefix_length);
-static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
-                            Item *cond, uint range_fl, uint prefix_len);
+static bool reckey_in_range(bool max_fl, Index_lookup *ref,
+                            Item_field *item_field, Item *cond, uint range_fl,
+                            uint prefix_len);
 static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
 
 /**
@@ -123,7 +124,7 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables) {
     HA_ERR_...      Otherwise
 */
 
-static int get_index_min_value(TABLE *table, TABLE_REF *ref,
+static int get_index_min_value(TABLE *table, Index_lookup *ref,
                                Item_field *item_field, uint range_fl,
                                uint prefix_len) {
   int error;
@@ -207,7 +208,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
     HA_ERR_...      Otherwise
 */
 
-static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
+static int get_index_max_value(TABLE *table, Index_lookup *ref, uint range_fl) {
   return (ref->key_length
               ? table->file->ha_index_read_map(
                     table->record[0], ref->key_buff,
@@ -464,7 +465,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
           Item *expr = item_sum->get_arg(0)->real_item();
           if (expr->type() == Item::FIELD_ITEM) {
             uchar key_buff[MAX_KEY_LENGTH];
-            TABLE_REF ref;
+            Index_lookup ref;
             uint range_fl, prefix_len;
 
             ref.key_buff = key_buff;
@@ -727,7 +728,7 @@ bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order) {
     true     We can use the index to get MIN/MAX value
 */
 
-static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
+static bool matching_cond(bool max_fl, Index_lookup *ref, KEY *keyinfo,
                           KEY_PART_INFO *field_part, Item *cond, table_map map,
                           key_part_map *key_part_used, uint *range_fl,
                           uint *prefix_len) {
@@ -956,7 +957,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
            If true, ref, range_fl and prefix_len are updated
 */
 
-static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
+static bool find_key_for_maxmin(bool max_fl, Index_lookup *ref,
                                 Item_field *item_field, Item *cond,
                                 uint *range_fl, uint *prefix_len) {
   Field *const field = item_field->field;
@@ -1054,8 +1055,9 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
   @returns true if the condition is not true for the found row, false otherwise.
 */
 
-static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
-                            Item *cond, uint range_fl, uint prefix_len) {
+static bool reckey_in_range(bool max_fl, Index_lookup *ref,
+                            Item_field *item_field, Item *cond, uint range_fl,
+                            uint prefix_len) {
   if (key_cmp_if_same(item_field->field->table, ref->key_buff, ref->key,
                       prefix_len))
     return true;

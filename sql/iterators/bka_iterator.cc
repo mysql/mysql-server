@@ -318,9 +318,9 @@ int BKAIterator::Read() {
 }
 
 MultiRangeRowIterator::MultiRangeRowIterator(
-    THD *thd, TABLE *table, TABLE_REF *ref, int mrr_flags, JoinType join_type,
-    const Prealloced_array<TABLE *, 4> &outer_input_tables, bool store_rowids,
-    table_map tables_to_get_rowid_for)
+    THD *thd, TABLE *table, Index_lookup *ref, int mrr_flags,
+    JoinType join_type, const Prealloced_array<TABLE *, 4> &outer_input_tables,
+    bool store_rowids, table_map tables_to_get_rowid_for)
     : TableRowIterator(thd, table),
       m_file(table->file),
       m_ref(ref),
@@ -394,7 +394,7 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
 
     LoadBufferRowIntoTableBuffers(m_outer_input_tables, *m_current_pos);
 
-    construct_lookup_ref(thd(), table(), m_ref);
+    construct_lookup(thd(), table(), m_ref);
     if (!m_ref->impossible_null_ref()) {
       break;
     }

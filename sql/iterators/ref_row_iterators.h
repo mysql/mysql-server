@@ -36,8 +36,8 @@
 class Item_func_match;
 class QEP_TAB;
 class THD;
+struct Index_lookup;
 struct TABLE;
-struct TABLE_REF;
 
 /**
   For each record on the left side of a join (given in Init()), returns one or
@@ -47,7 +47,7 @@ template <bool Reverse>
 class RefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  RefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
+  RefIterator(THD *thd, TABLE *table, Index_lookup *ref, bool use_order,
               double expected_rows, ha_rows *examined_rows)
       : TableRowIterator(thd, table),
         m_ref(ref),
@@ -60,7 +60,7 @@ class RefIterator final : public TableRowIterator {
   int Read() override;
 
  private:
-  TABLE_REF *const m_ref;
+  Index_lookup *const m_ref;
   const bool m_use_order;
   const double m_expected_rows;
   ha_rows *const m_examined_rows;
@@ -75,7 +75,7 @@ class RefIterator final : public TableRowIterator {
 class RefOrNullIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
+  RefOrNullIterator(THD *thd, TABLE *table, Index_lookup *ref, bool use_order,
                     double expected_rows, ha_rows *examined_rows);
   ~RefOrNullIterator() override;
 
@@ -83,7 +83,7 @@ class RefOrNullIterator final : public TableRowIterator {
   int Read() override;
 
  private:
-  TABLE_REF *const m_ref;
+  Index_lookup *const m_ref;
   const bool m_use_order;
   bool m_reading_first_row;
   const double m_expected_rows;
@@ -100,7 +100,8 @@ class RefOrNullIterator final : public TableRowIterator {
 class EQRefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, ha_rows *examined_rows);
+  EQRefIterator(THD *thd, TABLE *table, Index_lookup *ref,
+                ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -115,7 +116,7 @@ class EQRefIterator final : public TableRowIterator {
   void StartPSIBatchMode() override {}
 
  private:
-  TABLE_REF *const m_ref;
+  Index_lookup *const m_ref;
   bool m_first_record_since_init;
   ha_rows *const m_examined_rows;
 };
@@ -127,7 +128,7 @@ class EQRefIterator final : public TableRowIterator {
 class ConstIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  ConstIterator(THD *thd, TABLE *table, TABLE_REF *table_ref,
+  ConstIterator(THD *thd, TABLE *table, Index_lookup *table_ref,
                 ha_rows *examined_rows);
 
   bool Init() override;
@@ -141,7 +142,7 @@ class ConstIterator final : public TableRowIterator {
   void UnlockRow() override {}
 
  private:
-  TABLE_REF *const m_ref;
+  Index_lookup *const m_ref;
   bool m_first_record_since_init;
   ha_rows *const m_examined_rows;
 };
@@ -150,7 +151,7 @@ class ConstIterator final : public TableRowIterator {
 class FullTextSearchIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  FullTextSearchIterator(THD *thd, TABLE *table, TABLE_REF *ref,
+  FullTextSearchIterator(THD *thd, TABLE *table, Index_lookup *ref,
                          Item_func_match *ft_func, bool use_order,
                          bool use_limit, ha_rows *examined_rows);
   ~FullTextSearchIterator() override;
@@ -159,7 +160,7 @@ class FullTextSearchIterator final : public TableRowIterator {
   int Read() override;
 
  private:
-  TABLE_REF *const m_ref;
+  Index_lookup *const m_ref;
   Item_func_match *const m_ft_func;
   const bool m_use_order;
   const bool m_use_limit;
@@ -253,14 +254,14 @@ class DynamicRangeIterator final : public TableRowIterator {
 class PushedJoinRefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  PushedJoinRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-                        bool is_unique, ha_rows *examined_rows);
+  PushedJoinRefIterator(THD *thd, TABLE *table, Index_lookup *ref,
+                        bool use_order, bool is_unique, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
 
  private:
-  TABLE_REF *const m_ref;
+  Index_lookup *const m_ref;
   const bool m_use_order;
   const bool m_is_unique;
   bool m_first_record_since_init;
@@ -283,7 +284,7 @@ class AlternativeIterator final : public RowIterator {
   AlternativeIterator(THD *thd, TABLE *table,
                       unique_ptr_destroy_only<RowIterator> source,
                       unique_ptr_destroy_only<RowIterator> table_scan_iterator,
-                      TABLE_REF *ref);
+                      Index_lookup *ref);
 
   bool Init() override;
 

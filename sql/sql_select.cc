@@ -2080,7 +2080,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
       on 'a'),
       - it references only tables earlier in the plan.
       Moreover, the execution layer is limited to maximum one ref_or_null
-      keypart, as TABLE_REF::null_ref_key is only one byte.
+      keypart, as Index_lookup::null_ref_key is only one byte.
     */
     if (!(~used_tables & keyuse->used_tables) && keyparts == keyuse->keypart &&
         !(found_part_ref_or_null & keyuse->optimize)) {
@@ -2110,7 +2110,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
 }
 
 bool init_ref(THD *thd, unsigned keyparts, unsigned length, unsigned keyno,
-              TABLE_REF *ref) {
+              Index_lookup *ref) {
   ref->key_parts = keyparts;
   ref->key_length = length;
   ref->key = keyno;
@@ -2133,7 +2133,7 @@ bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
                    bool null_rejecting, table_map const_tables,
                    table_map used_tables, bool nullable,
                    const KEY_PART_INFO *key_part_info, uchar *key_buff,
-                   TABLE_REF *ref) {
+                   Index_lookup *ref) {
   ref->items[part_no] = val;  // Save for cond removal
   ref->cond_guards[part_no] = cond_guard;
   // Set ref as "null rejecting" only if either side is really nullable:
@@ -2201,7 +2201,7 @@ bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
   used for index look up via one of the access methods {JT_FT,
   JT_CONST, JT_REF_OR_NULL, JT_REF, JT_EQ_REF} for the plan operator
   'j'. Generally the function sets up the structure j->ref (of type
-  TABLE_REF), and the access method j->type.
+  Index_lookup), and the access method j->type.
 
   @note We cannot setup fields used for ref access before we have sorted
         the items within multiple equalities according to the final order of
@@ -2261,7 +2261,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
     return false;
   }
-  // Set up TABLE_REF based on chosen Key_use-s.
+  // Set up Index_lookup based on chosen Key_use-s.
   for (uint part_no = 0; part_no < keyparts; part_no++) {
     Key_use *keyuse = chosen_keyuses[part_no];
     bool nullable = keyinfo->key_part[part_no].null_bit;
@@ -2763,7 +2763,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
        key'.
        @see Item_in_optimizer::val_int()
        @see subselect_iterator_engine::exec()
-       @see TABLE_REF::cond_guards
+       @see Index_lookup::cond_guards
        @see setup_join_buffering
     5. The join type is not CONST or SYSTEM. The reason for excluding
        these join types, is that these are optimized to only read the

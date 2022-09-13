@@ -73,9 +73,9 @@ using std::move;
 using std::pair;
 
 static inline pair<uchar *, key_part_map> FindKeyBufferAndMap(
-    const TABLE_REF *ref);
+    const Index_lookup *ref);
 
-ConstIterator::ConstIterator(THD *thd, TABLE *table, TABLE_REF *table_ref,
+ConstIterator::ConstIterator(THD *thd, TABLE *table, Index_lookup *table_ref,
                              ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_ref(table_ref),
@@ -108,7 +108,7 @@ int ConstIterator::Read() {
   return err;
 }
 
-EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
+EQRefIterator::EQRefIterator(THD *thd, TABLE *table, Index_lookup *ref,
                              ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_ref(ref),
@@ -181,7 +181,7 @@ int EQRefIterator::Read() {
     memcpy(m_ref->key_buff2, m_ref->key_buff, m_ref->key_length);
 
   // Create new key for lookup
-  m_ref->key_err = construct_lookup_ref(thd(), table(), m_ref);
+  m_ref->key_err = construct_lookup(thd(), table(), m_ref);
   if (m_ref->key_err) {
     table()->set_no_row();
     return -1;
@@ -240,7 +240,7 @@ int EQRefIterator::Read() {
   it if it was not used in this invocation of EQRefIterator::Read().
   Only count locks, thus remembering if the record was left unused,
   and unlock already when pruning the current value of
-  TABLE_REF buffer.
+  Index_lookup buffer.
   @sa EQRefIterator::Read()
 */
 
@@ -250,7 +250,7 @@ void EQRefIterator::UnlockRow() {
 }
 
 PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table,
-                                             TABLE_REF *ref, bool use_order,
+                                             Index_lookup *ref, bool use_order,
                                              bool is_unique,
                                              ha_rows *examined_rows)
     : TableRowIterator(thd, table),
@@ -285,7 +285,7 @@ int PushedJoinRefIterator::Read() {
       return -1;
     }
 
-    if (construct_lookup_ref(thd(), table(), m_ref)) {
+    if (construct_lookup(thd(), table(), m_ref)) {
       table()->set_no_row();
       return -1;
     }
@@ -373,7 +373,7 @@ int RefIterator<false>::Read() {  // Forward read.
       table()->set_no_row();
       return -1;
     }
-    if (construct_lookup_ref(thd(), table(), m_ref)) {
+    if (construct_lookup(thd(), table(), m_ref)) {
       table()->set_no_row();
       return -1;
     }
@@ -426,7 +426,7 @@ int RefIterator<true>::Read() {  // Reverse read.
       table()->set_no_row();
       return -1;
     }
-    if (construct_lookup_ref(thd(), table(), m_ref)) {
+    if (construct_lookup(thd(), table(), m_ref)) {
       table()->set_no_row();
       return -1;
     }
@@ -612,7 +612,7 @@ int DynamicRangeIterator::Read() {
 }
 
 FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
-                                               TABLE_REF *ref,
+                                               Index_lookup *ref,
                                                Item_func_match *ft_func,
                                                bool use_order, bool use_limit,
                                                ha_rows *examined_rows)
@@ -704,7 +704,7 @@ int FullTextSearchIterator::Read() {
   Reading of key with key reference and one part that may be NULL.
 */
 
-RefOrNullIterator::RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref,
+RefOrNullIterator::RefOrNullIterator(THD *thd, TABLE *table, Index_lookup *ref,
                                      bool use_order, double expected_rows,
                                      ha_rows *examined_rows)
     : TableRowIterator(thd, table),
@@ -735,7 +735,7 @@ int RefOrNullIterator::Read() {
     /* Perform "Late NULLs Filtering" (see internals manual for explanations)
      */
     if (m_ref->impossible_null_ref() ||
-        construct_lookup_ref(thd(), table(), m_ref)) {
+        construct_lookup(thd(), table(), m_ref)) {
       // Skip searching for non-NULL rows; go straight to NULL rows.
       *m_ref->null_ref_key = true;
     }
@@ -787,7 +787,7 @@ RefOrNullIterator::~RefOrNullIterator() {
 
 AlternativeIterator::AlternativeIterator(
     THD *thd, TABLE *table, unique_ptr_destroy_only<RowIterator> source,
-    unique_ptr_destroy_only<RowIterator> table_scan_iterator, TABLE_REF *ref)
+    unique_ptr_destroy_only<RowIterator> table_scan_iterator, Index_lookup *ref)
     : RowIterator(thd),
       m_source_iterator(std::move(source)),
       m_table_scan_iterator(std::move(table_scan_iterator)),
@@ -970,7 +970,7 @@ int TableValueConstructorIterator::Read() {
 }
 
 static inline pair<uchar *, key_part_map> FindKeyBufferAndMap(
-    const TABLE_REF *ref) {
+    const Index_lookup *ref) {
   if (ref->keypart_hash != nullptr) {
     return make_pair(pointer_cast<uchar *>(ref->keypart_hash), key_part_map{1});
   } else {

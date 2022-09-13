@@ -35,8 +35,8 @@ class NdbQueryOperand;
 class NdbQueryOperationDef;
 class NdbQueryOptions;
 class ndb_pushed_builder_ctx;
+struct Index_lookup;
 struct NdbError;
-struct TABLE_REF;
 
 /**
  * This type is used in conjunction with the 'pushed_table' objects and
@@ -654,7 +654,7 @@ struct pushed_table {
   uint m_properties{0};
 
   const Join_scope *get_join_scope() const;
-  const TABLE_REF *get_table_ref() const;
+  const Index_lookup *get_table_ref() const;
 
   void compute_type_and_index();
 

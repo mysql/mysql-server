@@ -1542,7 +1542,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
     case AccessPath::ALTERNATIVE: {
       const TABLE *table =
           path->alternative().table_scan_path->table_scan().table;
-      const TABLE_REF *ref = path->alternative().used_ref;
+      const Index_lookup *ref = path->alternative().used_ref;
       const KEY *key = &table->key_info[ref->key];
 
       int num_applicable_cond_guards = 0;

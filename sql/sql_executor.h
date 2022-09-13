@@ -228,7 +228,7 @@ bool copy_funcs(Temp_table_param *, const THD *thd,
   @retval false ref key copied successfully
   @retval true  error detected during copying of key
 */
-bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref);
+bool construct_lookup(THD *thd, TABLE *table, Index_lookup *ref);
 
 /** Help function when we get some an error from the table handler. */
 int report_handler_error(TABLE *table, int error);
@@ -254,7 +254,7 @@ bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(const Field *field, ulonglong *hash);
-int read_const(TABLE *table, TABLE_REF *ref);
+int read_const(TABLE *table, Index_lookup *ref);
 
 class QEP_TAB : public QEP_shared_owner {
  public:
@@ -557,7 +557,7 @@ AccessPath *GetAccessPathForDerivedTable(
 
 void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param);
-std::string RefToString(const TABLE_REF &ref, const KEY *key,
+std::string RefToString(const Index_lookup &ref, const KEY *key,
                         bool include_nulls);
 
 bool MaterializeIsDoingDeduplication(TABLE *table);

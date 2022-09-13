@@ -1731,9 +1731,9 @@ void CostingReceiver::ProposeIndexMerge(
   }
 }
 
-// Specifies a mapping in a TABLE_REF between an index keypart and a condition,
-// with the intention to satisfy the condition with the index keypart (ref
-// access). Roughly comparable to Key_use in the non-hypergraph optimizer.
+// Specifies a mapping in an Index_lookup between an index keypart and a
+// condition, with the intention to satisfy the condition with the index keypart
+// (ref access). Roughly comparable to Key_use in the non-hypergraph optimizer.
 struct KeypartForRef {
   // The condition we are pushing down (e.g. t1.f1 = 3).
   Item *condition;
@@ -1875,8 +1875,9 @@ bool CostingReceiver::ProposeRefAccess(
     }
   }
 
-  // Create TABLE_REF for this ref, and set it up based on the chosen keyparts.
-  TABLE_REF *ref = new (m_thd->mem_root) TABLE_REF;
+  // Create Index_lookup for this ref, and set it up based on the chosen
+  // keyparts.
+  Index_lookup *ref = new (m_thd->mem_root) Index_lookup;
   if (init_ref(m_thd, matched_keyparts, length, key_idx, ref)) {
     return true;
   }
@@ -2595,7 +2596,7 @@ bool CostingReceiver::ProposeFullTextIndexScan(
     TABLE *table, int node_idx, Item_func_match *match, int predicate_idx,
     int ordering_idx, double force_num_output_rows_after_filter) {
   const unsigned key_idx = match->key;
-  TABLE_REF *ref = new (m_thd->mem_root) TABLE_REF;
+  Index_lookup *ref = new (m_thd->mem_root) Index_lookup;
   if (init_ref(m_thd, /*keyparts=*/1, /*length=*/0, key_idx, ref)) {
     return true;
   }

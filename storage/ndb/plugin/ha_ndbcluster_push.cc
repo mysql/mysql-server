@@ -1094,8 +1094,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
      *    lookup, where its EQRefIterator::Read may detect equal keys and
      *    optimize away the read of pushed join. (Note a similar limitation for
      *    keys in ::is_field_item_pushable()).
-     *    TODO?: Integrate with setting of TABLE_REF::disable_cache and lift
-     *    these limitations when 'cache' is disabled.
+     *    TODO?: Integrate with setting of Index_lookup::disable_cache
+     *    and lift these limitations when 'cache' is disabled.
      *
      * 2) param_expr_tables:
      *    The pushed join, including any pushed conditions embedded within it,

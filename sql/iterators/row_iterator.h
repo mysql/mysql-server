@@ -96,7 +96,7 @@ class RowIterator {
 
     You can call Init() multiple times; subsequent calls will rewind the
     iterator (or reposition it, depending on whether the iterator takes in
-    e.g. a TABLE_REF) and allow you to read the records anew.
+    e.g. a Index_lookup) and allow you to read the records anew.
    */
   virtual bool Init() = 0;
 

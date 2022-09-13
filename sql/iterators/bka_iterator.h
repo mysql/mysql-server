@@ -69,9 +69,9 @@ class Item;
 class JOIN;
 class MultiRangeRowIterator;
 class THD;
+struct Index_lookup;
 struct KEY_MULTI_RANGE;
 struct TABLE;
-struct TABLE_REF;
 
 /**
   The BKA join iterator, with an arbitrary iterator tree on the outer side
@@ -280,8 +280,8 @@ class MultiRangeRowIterator final : public TableRowIterator {
       will make sure that table has the correct row ID already present
       after Read().
    */
-  MultiRangeRowIterator(THD *thd, TABLE *table, TABLE_REF *ref, int mrr_flags,
-                        JoinType join_type,
+  MultiRangeRowIterator(THD *thd, TABLE *table, Index_lookup *ref,
+                        int mrr_flags, JoinType join_type,
                         const Prealloced_array<TABLE *, 4> &outer_input_tables,
                         bool store_rowids, table_map tables_to_get_rowid_for);
 
@@ -380,7 +380,7 @@ class MultiRangeRowIterator final : public TableRowIterator {
   handler *const m_file;
 
   /// The index condition.
-  TABLE_REF *const m_ref;
+  Index_lookup *const m_ref;
 
   /// Flags passed on to MRR.
   const int m_mrr_flags;

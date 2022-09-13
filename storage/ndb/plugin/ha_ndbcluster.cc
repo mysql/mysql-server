@@ -14260,7 +14260,7 @@ void accept_pushed_conditions(const TABLE *table, AccessPath *filter) {
  * same pushed join as 'table'.
  */
 static void accept_pushed_child_joins(THD *thd, AccessPath *path, TABLE *table,
-                                      TABLE_REF *ref, bool is_unique) {
+                                      Index_lookup *ref, bool is_unique) {
   const TABLE *const pushed_join_root = table->file->member_of_pushed_join();
   if (pushed_join_root == nullptr) return;
   if (pushed_join_root == table) return;

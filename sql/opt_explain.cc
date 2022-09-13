@@ -716,7 +716,7 @@ bool Explain::explain_subqueries() {
                             buff_key_len, 10) -
               buff_key_len);
 
-      const TABLE_REF &ref = unit->item->get_table_ref();
+      const Index_lookup &ref = unit->item->index_lookup();
       if (explain_ref_key(fmt, ref.key_parts, ref.key_copy)) return true;
 
       fmt->entry()->col_rows.set(1);
