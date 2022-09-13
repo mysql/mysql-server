@@ -1138,18 +1138,19 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientStmtResetTest,
 
 // client::StmtSetOption
 
-using CodecMessageClientStmtSetOptionTest =
-    CodecTest<classic_protocol::message::client::StmtSetOption>;
+using CodecMessageClientSetOptionTest =
+    CodecTest<classic_protocol::message::client::SetOption>;
 
-TEST_P(CodecMessageClientStmtSetOptionTest, encode) { test_encode(GetParam()); }
-TEST_P(CodecMessageClientStmtSetOptionTest, decode) { test_decode(GetParam()); }
+TEST_P(CodecMessageClientSetOptionTest, encode) { test_encode(GetParam()); }
+TEST_P(CodecMessageClientSetOptionTest, decode) { test_decode(GetParam()); }
 
-const CodecParam<classic_protocol::message::client::StmtSetOption>
+const CodecParam<classic_protocol::message::client::SetOption>
     codec_stmt_set_option_param[] = {
-        {"set_option_stmt_1", {1}, {}, {0x1b, 0x01, 0x00}},
+        {"set_option_0", {0}, {}, {0x1b, 0x00, 0x00}},  // multi-stmts-off
+        {"set_option_1", {1}, {}, {0x1b, 0x01, 0x00}},  // multi-stmts-on
 };
 
-INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientStmtSetOptionTest,
+INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientSetOptionTest,
                          ::testing::ValuesIn(codec_stmt_set_option_param),
                          [](auto const &test_param_info) {
                            return test_param_info.param.test_name;

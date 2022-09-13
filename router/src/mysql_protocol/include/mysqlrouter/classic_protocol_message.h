@@ -974,16 +974,16 @@ constexpr bool operator==(const StmtFetch &a, const StmtFetch &b) {
 }
 
 /**
- * fetch rows from an executed statement.
+ * set options on the current connection.
  */
-class StmtSetOption {
+class SetOption {
  public:
   /**
-   * construct a ResetStmt message.
+   * construct a SetOption message.
    *
    * @param option options to set
    */
-  constexpr StmtSetOption(uint16_t option) : option_{option} {}
+  constexpr SetOption(uint16_t option) : option_{option} {}
 
   constexpr uint16_t option() const { return option_; }
 
@@ -991,7 +991,7 @@ class StmtSetOption {
   uint16_t option_;
 };
 
-constexpr bool operator==(const StmtSetOption &a, const StmtSetOption &b) {
+constexpr bool operator==(const SetOption &a, const SetOption &b) {
   return a.option() == b.option();
 }
 

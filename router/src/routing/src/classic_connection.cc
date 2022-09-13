@@ -4174,8 +4174,7 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
         cmd_byte<classic_protocol::message::client::StmtParamAppendData>(),
     StmtClose = cmd_byte<classic_protocol::message::client::StmtClose>(),
     StmtReset = cmd_byte<classic_protocol::message::client::StmtReset>(),
-    StmtSetOption =
-        cmd_byte<classic_protocol::message::client::StmtSetOption>(),
+    SetOption = cmd_byte<classic_protocol::message::client::SetOption>(),
     StmtFetch = cmd_byte<classic_protocol::message::client::StmtFetch>(),
     BinlogDumpGtid =
         cmd_byte<classic_protocol::message::client::BinlogDumpGtid>(),
@@ -4215,7 +4214,7 @@ void MysqlRoutingClassicConnection::client_recv_cmd() {
       return cmd_stmt_close();
     case Msg::StmtFetch:
       return cmd_stmt_fetch();
-    case Msg::StmtSetOption:
+    case Msg::SetOption:
       return cmd_stmt_set_option();
     case Msg::StmtReset:
       return cmd_stmt_reset();

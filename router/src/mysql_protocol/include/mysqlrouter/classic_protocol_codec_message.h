@@ -2260,11 +2260,11 @@ class Codec<message::client::StmtReset>
 };
 
 /**
- * codec for client's SetOption Cursor command.
+ * codec for client's SetOption command.
  */
 template <>
-class Codec<message::client::StmtSetOption>
-    : public impl::EncodeBase<Codec<message::client::StmtSetOption>> {
+class Codec<message::client::SetOption>
+    : public impl::EncodeBase<Codec<message::client::SetOption>> {
   template <class Accumulator>
   constexpr auto accumulate_fields(Accumulator &&accu) const {
     return accu.step(wire::FixedInt<1>(cmd_byte()))
@@ -2273,7 +2273,7 @@ class Codec<message::client::StmtSetOption>
   }
 
  public:
-  using value_type = message::client::StmtSetOption;
+  using value_type = message::client::SetOption;
   using __base = impl::EncodeBase<Codec<value_type>>;
 
   friend __base;
