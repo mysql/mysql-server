@@ -134,6 +134,7 @@ class Program {
   bool m_process_all_dbs;
   bool m_fix_table_names;
   bool m_fix_db_names;
+  bool m_fix_db_output;
   MYSQL *m_connection;
   std::string m_database_to_skip;
   void (*m_error_callback)(MYSQL *mysql, const std::string &when);
