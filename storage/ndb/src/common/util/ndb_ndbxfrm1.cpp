@@ -68,7 +68,8 @@ ndb_ndbxfrm1::trailer::trailer()
 }
 
 /*
- * -1 - bad magic
+ * -2 - bad magic
+ * -1 - ok magic, but other parts of header is bad
  *  0 - ok magic, store needed data in len
  *  1 - need more data,
  */
@@ -81,7 +82,7 @@ int ndb_ndbxfrm1::header::detect_header(const ndbxfrm_input_iterator* in,
   if (len < 8)
     return need_more_input;
   if (memcmp(buf, magic, 8) != 0)
-    return -1;
+    return -2;
 
   if (len < sizeof(fixed_header::magic))
     return need_more_input;

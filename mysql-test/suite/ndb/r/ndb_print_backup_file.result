@@ -210,6 +210,30 @@ ndb_print_backup_file suite/ndb/backups/bug17275798/BACKUP-1.21.log
 5382 bytes in output
 ndb_print_backup_file suite/ndb/backups/bug54613/BACKUP-2.2.ctl
 33362 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-1/BACKUP-1-0.1.Data
+534 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-1/BACKUP-1.1.ctl
+119052 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-1/BACKUP-1.1.log
+336 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-2/BACKUP-2-0.1.Data
+534 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-2/BACKUP-2.1.ctl
+119054 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_be/BACKUP-2/BACKUP-2.1.log
+361 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-1/BACKUP-1-0.1.Data
+534 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-1/BACKUP-1.1.ctl
+119052 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-1/BACKUP-1.1.log
+610 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-2/BACKUP-2-0.1.Data
+534 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-2/BACKUP-2.1.ctl
+119054 bytes in output
+ndb_print_backup_file --defaults-extra-file=suite/ndb/encrypted_backup.cnf suite/ndb/backups/encrypted_le/BACKUP-2/BACKUP-2.1.log
+687 bytes in output
 ndb_print_backup_file suite/ndb/backups/hashmap/BACKUP-1.2.ctl
 6425 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1-0.1.Data

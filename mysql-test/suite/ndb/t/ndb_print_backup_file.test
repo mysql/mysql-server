@@ -35,6 +35,9 @@ my $NDB_PRINT_BACKUP_FILE =  my_find_bin($bindir,
 # Directory containing backups from earlier versions of NDB
 my $NDB_SAVED_BACKUPS = "$ENV{MYSQL_TEST_DIR}/suite/ndb/backups";
 
+# configuration file with backup password
+my $NDB_ENCRYPTED_CNF = "$ENV{MYSQL_TEST_DIR}/suite/ndb/encrypted_backup.cnf";
+
 sub sorted
 {
   sort(@_);
@@ -43,13 +46,19 @@ sub sorted
 sub process
 {
   return unless -f;
+  my $pwd_arg;
+  if ($File::Find::name =~ /encrypted/)
+  {
+    $pwd_arg = "--defaults-extra-file=${NDB_ENCRYPTED_CNF} ";
+  }
   print "ndb_print_backup_file " .
+        ($pwd_arg =~ s|$ENV{MYSQL_TEST_DIR}/||r) .
         "suite/ndb/backups" .
           substr($File::Find::name, length($NDB_SAVED_BACKUPS)) .
         "\n";
 
   my $output;
-  open(my $fh, '-|', "$NDB_PRINT_BACKUP_FILE ${File::Find::name}")
+  open(my $fh, '-|', "$NDB_PRINT_BACKUP_FILE ${pwd_arg}$File::Find::name")
     or die("Unable to open $File::Find::name: $!\n");
   {
     local $/;

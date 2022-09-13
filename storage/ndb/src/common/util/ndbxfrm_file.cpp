@@ -656,8 +656,15 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
     m_encrypted = false;
     *trailer_max_size = 12 + 511;
   }
-  else if (ndb_ndbxfrm1::header::detect_header(in, &header_size) == 0)
+  else if (int ret = ndb_ndbxfrm1::header::detect_header(in, &header_size);
+           (ret == -1) || (ret == 0))
   {
+    m_file_format = FF_NDBXFRM1;
+    if (ret == -1)
+    {
+      // File magic was found, but other parts of header was bad.
+      RETURN(-1);
+    }
     if (header_size > in->size())
     {
       RETURN(-1);
@@ -671,7 +678,6 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in,
     {
       RETURN(-1);
     }
-    m_file_format = FF_NDBXFRM1;
     ndbxfrm_header.get_file_block_size(&m_file_block_size);
     ndbxfrm_header.get_trailer_max_size(trailer_max_size);
     m_compressed = (ndbxfrm_header.get_compression_method() != 0);
