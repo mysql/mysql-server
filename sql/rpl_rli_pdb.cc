@@ -702,6 +702,7 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
   DBUG_EXECUTE_IF("mta_debug_concurrent_access",
                   { mta_debug_concurrent_access++; };);
 
+  m_flag_positions_committed = true;
   return flush_info(force);
 }
 
@@ -1152,15 +1153,14 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
     /*
       DDL that has not yet updated the slave info repository does it now.
     */
-    if (ev->get_type_code() != binary_log::XID_EVENT &&
-        ev->get_type_code() != binary_log::TRANSACTION_PAYLOAD_EVENT &&
-        !is_committed_ddl(ev)) {
+    if (!m_flag_positions_committed && !is_committed_ddl(ev)) {
       commit_positions(ev, ptr_g, true);
       DBUG_EXECUTE_IF(
           "crash_after_commit_and_update_pos",
           sql_print_information("Crashing crash_after_commit_and_update_pos.");
           flush_info(true); DBUG_SUICIDE(););
     }
+    m_flag_positions_committed = false;  // set to false for the next group
 
     ptr_g->group_master_log_pos = group_master_log_pos;
     ptr_g->group_relay_log_pos = group_relay_log_pos;
