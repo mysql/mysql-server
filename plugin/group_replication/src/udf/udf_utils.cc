@@ -106,14 +106,7 @@ void log_privilege_status_result(privilege_result const &privilege,
 
 std::pair<bool, std::string> check_super_read_only_is_disabled() {
   bool read_only_mode = false, super_read_only_mode = false;
-
-  Sql_service_command_interface *sql_command_interface =
-      new Sql_service_command_interface();
-  bool error = sql_command_interface->establish_session_connection(
-                   PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer()) ||
-               get_read_mode_state(sql_command_interface, &read_only_mode,
-                                   &super_read_only_mode);
-  delete sql_command_interface;
+  bool error = get_read_mode_state(&read_only_mode, &super_read_only_mode);
 
   if (error) {
     /* purecov: begin inspected */

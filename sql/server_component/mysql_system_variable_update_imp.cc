@@ -92,20 +92,26 @@ static enum_var_type sysvar_type(const char *type_name) {
   the temporary THD, if we create one.
   @param var_type: Reference to output variable type enumeration (avoids parsing
   type multiple times).
+  @param override_thd_lock_wait_timeout: Reference to output variable, override
+  the value of thd lock_wait_timeout
   @retval FALSE: Success
   @retval TRUE:  Failure, error set
 */
 static bool prepare_thread_and_validate(
     MYSQL_THD thd_handle, const char *variable_type, my_h_string variable_name,
     THD *&thd, std::unique_ptr<Storing_auto_THD> &thd_auto,
-    enum_var_type &var_type) {
+    enum_var_type &var_type, bool &override_thd_lock_wait_timeout) {
   var_type = sysvar_type(variable_type);
   if (var_type == OPT_DEFAULT) var_type = OPT_GLOBAL;
 
   /* Use either the THD provided or create a temporary one */
-  if (thd_handle)
+  if (thd_handle) {
+    /*
+      If a THD is being reused, we will use its lock_wait_timeout value.
+    */
+    override_thd_lock_wait_timeout = false;
     thd = static_cast<THD *>(thd_handle);
-  else {
+  } else {
     /* A session variable update for a temporary THD has no effect
        and is not supported. */
     if (var_type == OPT_SESSION) {
@@ -113,6 +119,10 @@ static bool prepare_thread_and_validate(
       LogErr(ERROR_LEVEL, ER_TMP_SESSION_FOR_VAR, name->c_ptr_safe());
       return true;
     }
+    /*
+      lock_wait_timeout value will be override on a temporary THD.
+    */
+    override_thd_lock_wait_timeout = true;
     thd_auto.reset(new Storing_auto_THD());
     thd = thd_auto->get_THD();
   }
@@ -131,15 +141,18 @@ static bool prepare_thread_and_validate(
   @param variable_value: Pointer to Item object storing the value of the correct
   type (matching the type stored in system variable). If NULL, then the system
   variable default will be set.
+  @param override_thd_lock_wait_timeout: override the value of thd
+  lock_wait_timeout
   @retval FALSE: Success
   @retval TRUE:  Failure, error set
 */
-static bool common_system_variable_update_set(THD *thd, enum_var_type var_type,
-                                              my_h_string variable_base,
-                                              my_h_string variable_name,
-                                              Item *variable_value) {
+static bool common_system_variable_update_set(
+    THD *thd, enum_var_type var_type, my_h_string variable_base,
+    my_h_string variable_name, Item *variable_value,
+    bool override_thd_lock_wait_timeout) {
   bool result{false};
   constexpr ulong timeout{5};  // temporary lock wait timeout, in seconds
+  std::unique_ptr<Lock_wait_timeout> lock_wait_timeout;
 
   String *base = reinterpret_cast<String *>(variable_base);
   String *name = reinterpret_cast<String *>(variable_name);
@@ -157,7 +170,9 @@ static bool common_system_variable_update_set(THD *thd, enum_var_type var_type,
      locks during the update. Should that happen, we don't want to be holding
      LOCK_system_variables_hash.
   */
-  Lock_wait_timeout lock_wait_timeout(thd, timeout);
+  if (override_thd_lock_wait_timeout) {
+    lock_wait_timeout.reset(new Lock_wait_timeout(thd, timeout));
+  }
 
   System_variable_tracker var_tracker =
       System_variable_tracker::make_tracker(prefix, suffix);
@@ -211,15 +226,19 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_imp::set_string,
     enum_var_type var_type;
 
     if (variable_value == nullptr) return true;
+
+    bool override_thd_lock_wait_timeout = true;
     if (prepare_thread_and_validate(hthd, variable_type, variable_name, thd,
-                                    thd_auto, var_type))
+                                    thd_auto, var_type,
+                                    override_thd_lock_wait_timeout))
       return true;
     String *value = reinterpret_cast<String *>(variable_value);
     Item *value_str = new (thd->mem_root)
         Item_string(value->c_ptr_safe(), value->length(), value->charset());
 
     return common_system_variable_update_set(thd, var_type, variable_base,
-                                             variable_name, value_str);
+                                             variable_name, value_str,
+                                             override_thd_lock_wait_timeout);
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
@@ -260,14 +279,17 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_imp::set_signed,
     std::unique_ptr<Storing_auto_THD> thd_auto;
     enum_var_type var_type;
 
+    bool override_thd_lock_wait_timeout = true;
     if (prepare_thread_and_validate(hthd, variable_type, variable_name, thd,
-                                    thd_auto, var_type))
+                                    thd_auto, var_type,
+                                    override_thd_lock_wait_timeout))
       return true;
 
     Item *value_num = new (thd->mem_root) Item_int(variable_value);
 
     return common_system_variable_update_set(thd, var_type, variable_base,
-                                             variable_name, value_num);
+                                             variable_name, value_num,
+                                             override_thd_lock_wait_timeout);
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
@@ -301,14 +323,17 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_imp::set_unsigned,
     std::unique_ptr<Storing_auto_THD> thd_auto;
     enum_var_type var_type;
 
+    bool override_thd_lock_wait_timeout = true;
     if (prepare_thread_and_validate(hthd, variable_type, variable_name, thd,
-                                    thd_auto, var_type))
+                                    thd_auto, var_type,
+                                    override_thd_lock_wait_timeout))
       return true;
 
     Item *value_num = new (thd->mem_root) Item_uint(variable_value);
 
     return common_system_variable_update_set(thd, var_type, variable_base,
-                                             variable_name, value_num);
+                                             variable_name, value_num,
+                                             override_thd_lock_wait_timeout);
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
@@ -340,12 +365,15 @@ DEFINE_BOOL_METHOD(mysql_system_variable_update_imp::set_default,
     std::unique_ptr<Storing_auto_THD> thd_auto;
     enum_var_type var_type;
 
+    bool override_thd_lock_wait_timeout = true;
     if (prepare_thread_and_validate(hthd, variable_type, variable_name, thd,
-                                    thd_auto, var_type))
+                                    thd_auto, var_type,
+                                    override_thd_lock_wait_timeout))
       return true;
 
     return common_system_variable_update_set(thd, var_type, variable_base,
-                                             variable_name, nullptr);
+                                             variable_name, nullptr,
+                                             override_thd_lock_wait_timeout);
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }

@@ -23,6 +23,7 @@
 #include "plugin/group_replication/include/thread/mysql_thread.h"
 #include "my_dbug.h"
 #include "mysql/components/services/log_builtins.h"
+#include "plugin/group_replication/include/plugin_constants.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "sql/sql_class.h"
 
@@ -32,7 +33,12 @@ static void *launch_thread(void *arg) {
   return nullptr;
 }
 
-void Mysql_thread_task::execute() { m_body->run(m_parameters); }
+void Mysql_thread_task::execute() {
+  m_body->run(m_parameters);
+  m_finished = true;
+}
+
+bool Mysql_thread_task::is_finished() { return m_finished; }
 
 Mysql_thread::Mysql_thread(PSI_thread_key thread_key,
                            PSI_mutex_key run_mutex_key,
@@ -45,8 +51,7 @@ Mysql_thread::Mysql_thread(PSI_thread_key thread_key,
       m_dispatcher_mutex_key(dispatcher_mutex_key),
       m_dispatcher_cond_key(dispatcher_cond_key),
       m_state(),
-      m_aborted(false),
-      m_trigger_run_complete(false) {
+      m_aborted(false) {
   mysql_mutex_init(m_mutex_key, &m_run_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_cond_key, &m_run_cond);
   mysql_mutex_init(m_dispatcher_mutex_key, &m_dispatcher_lock,
@@ -67,7 +72,6 @@ Mysql_thread::~Mysql_thread() {
       /* purecov: begin inspected */
       Mysql_thread_task *task = nullptr;
       m_trigger_queue->pop(&task);
-      delete task;
       /* purecov: end */
     }
   }
@@ -119,7 +123,11 @@ bool Mysql_thread::terminate() {
   }
 
   m_aborted = true;
-  m_trigger_queue->abort();
+  /*
+     The memory of each queue element is released by the
+     Mysql_thread::trigger() caller.
+  */
+  m_trigger_queue->abort(false);
 
   while (m_state.is_thread_alive()) {
     DBUG_PRINT("sleep", ("Waiting for Mysql_thread to stop"));
@@ -130,7 +138,6 @@ bool Mysql_thread::terminate() {
   mysql_mutex_unlock(&m_run_lock);
 
   mysql_mutex_lock(&m_dispatcher_lock);
-  m_trigger_run_complete = true;
   mysql_cond_broadcast(&m_dispatcher_cond);
   mysql_mutex_unlock(&m_dispatcher_lock);
 
@@ -146,8 +153,9 @@ void Mysql_thread::dispatcher() {
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
+  thd->security_context()->assign_user(STRING_WITH_LEN(GROUPREPL_USER));
   // Needed to start replication threads
-  thd->security_context()->skip_grants();
+  thd->security_context()->skip_grants("", "");
   global_thd_manager_add_thd(thd);
   m_thd = thd;
 
@@ -161,18 +169,26 @@ void Mysql_thread::dispatcher() {
       break;
     }
 
-    DBUG_EXECUTE_IF("group_replication_mysql_thread_dispatcher_before_pop", {
-      Mysql_thread_task *t = nullptr;
-      m_trigger_queue->front(&t);
-      const char act[] =
-          "now signal "
-          "signal.group_replication_mysql_thread_dispatcher_before_pop_"
-          "reached "
-          "wait_for "
-          "signal.group_replication_mysql_thread_dispatcher_before_pop_"
-          "continue";
-      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-    });
+#ifndef NDEBUG
+    /*
+      Restrict the debug sync point to the mysql_thread used for
+      member actions.
+    */
+    if (m_thread_key == key_GR_THD_mysql_thread) {
+      DBUG_EXECUTE_IF("group_replication_mysql_thread_dispatcher_before_pop", {
+        Mysql_thread_task *t = nullptr;
+        m_trigger_queue->front(&t);
+        const char act[] =
+            "now signal "
+            "signal.group_replication_mysql_thread_dispatcher_before_pop_"
+            "reached "
+            "wait_for "
+            "signal.group_replication_mysql_thread_dispatcher_before_pop_"
+            "continue";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+    }
+#endif
 
     Mysql_thread_task *task = nullptr;
     if (m_trigger_queue->pop(&task)) {
@@ -182,18 +198,20 @@ void Mysql_thread::dispatcher() {
     task->execute();
 
     mysql_mutex_lock(&m_dispatcher_lock);
-    m_trigger_run_complete = true;
     mysql_cond_broadcast(&m_dispatcher_cond);
     mysql_mutex_unlock(&m_dispatcher_lock);
   }
 
   mysql_mutex_lock(&m_run_lock);
   m_aborted = true;
-  m_trigger_queue->abort();
+  /*
+     The memory of each queue element is released by the
+     Mysql_thread::trigger() caller.
+  */
+  m_trigger_queue->abort(false);
   mysql_mutex_unlock(&m_run_lock);
 
   mysql_mutex_lock(&m_dispatcher_lock);
-  m_trigger_run_complete = true;
   mysql_cond_broadcast(&m_dispatcher_cond);
   mysql_mutex_unlock(&m_dispatcher_lock);
 
@@ -222,8 +240,7 @@ bool Mysql_thread::trigger(Mysql_thread_task *task) {
     /* purecov: end */
   }
 
-  m_trigger_run_complete = false;
-  while (!m_trigger_run_complete) {
+  while (!m_aborted && !task->is_finished()) {
     DBUG_PRINT("sleep", ("Waiting for Mysql_thread to complete a trigger run"));
     struct timespec abstime;
     set_timespec(&abstime, 1);

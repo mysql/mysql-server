@@ -57,8 +57,11 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE event_name LIKE "%/group_rpl/%"] = 0
 --source include/assert.inc
 
---let $assert_text= No group replication entries are present in threads table.
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.threads WHERE name LIKE "%/group_rpl/%"] = 0
+--let $assert_text= 2 group replication entries are present in threads table.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.threads WHERE name LIKE "%/group_rpl/%"] = 2
+--source include/assert.inc
+--let $assert_text= THD_mysql_thread_handler* are present in threads table.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.threads WHERE name LIKE "%/group_rpl/THD_mysql_thread%"] = 2
 --source include/assert.inc
 
 --echo

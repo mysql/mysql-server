@@ -85,7 +85,9 @@ PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_mysql_thread_dispatcher_run,
     key_GR_LOCK_connection_map,
     key_GR_LOCK_mysql_thread_handler_run,
-    key_GR_LOCK_mysql_thread_handler_dispatcher_run;
+    key_GR_LOCK_mysql_thread_handler_dispatcher_run,
+    key_GR_LOCK_mysql_thread_handler_read_only_mode_run,
+    key_GR_LOCK_mysql_thread_handler_read_only_mode_dispatcher_run;
 
 PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_applier_module_suspend,
@@ -124,7 +126,10 @@ PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_mysql_thread_run,
     key_GR_COND_mysql_thread_dispatcher_run,
     key_GR_COND_mysql_thread_handler_run,
-    key_GR_COND_mysql_thread_handler_dispatcher_run;
+    key_GR_COND_mysql_thread_handler_dispatcher_run,
+    key_GR_COND_mysql_thread_handler_read_only_mode_run,
+    key_GR_COND_mysql_thread_handler_read_only_mode_dispatcher_run;
+
 
 PSI_thread_key key_GR_THD_applier_module_receiver,
     key_GR_THD_autorejoin,
@@ -140,7 +145,8 @@ PSI_thread_key key_GR_THD_applier_module_receiver,
     key_GR_THD_recovery,
     key_GR_THD_message_service_handler,
     key_GR_THD_mysql_thread,
-    key_GR_THD_mysql_thread_handler;
+    key_GR_THD_mysql_thread_handler,
+    key_GR_THD_mysql_thread_handler_read_only_mode;
 
 PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
     key_GR_RWLOCK_channel_observation_list,
@@ -382,7 +388,13 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_mysql_thread_handler_dispatcher_run,
      "LOCK_mysql_thread_handler_dispatcher_run", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME}};
+     PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_mysql_thread_handler_read_only_mode_run,
+     "LOCK_mysql_handler_thread_read_only_mode_run", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_mysql_thread_handler_read_only_mode_dispatcher_run,
+     "LOCK_mysql_thread_handler_read_only_mode_dispatcher_run",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
 static PSI_cond_info all_group_replication_psi_condition_keys[] = {
     {&key_GR_COND_applier_module_run, "COND_applier_module_run",
@@ -473,7 +485,13 @@ static PSI_cond_info all_group_replication_psi_condition_keys[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_COND_mysql_thread_handler_dispatcher_run,
      "COND_mysql_thread_handler_dispatcher_run", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME}};
+     PSI_DOCUMENT_ME},
+    {&key_GR_COND_mysql_thread_handler_read_only_mode_run,
+     "COND_mysql_thread_handler_read_only_mode_run", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_COND_mysql_thread_handler_read_only_mode_dispatcher_run,
+     "COND_mysql_thread_handler_read_only_mode_dispatcher_run",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
 static PSI_thread_info all_group_replication_psi_thread_keys[] = {
     {&key_GR_THD_applier_module_receiver, "THD_applier_module_receiver",
@@ -510,6 +528,9 @@ static PSI_thread_info all_group_replication_psi_thread_keys[] = {
     {&key_GR_THD_mysql_thread, "THD_mysql_thread", "gr_mysql",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
     {&key_GR_THD_mysql_thread_handler, "THD_mysql_thread_handler", "gr_handler",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_GR_THD_mysql_thread_handler_read_only_mode,
+     "THD_mysql_thread_handler_read_only_mode", "gr_handler_rom",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME}};
 
 static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
