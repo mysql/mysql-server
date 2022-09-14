@@ -48,6 +48,6 @@ select jt.t from
 json_tab, json_table(json_tab.je, "$[*]" COLUMNS(t text path "$")) as jt
 where jt.t like '%current access paths%join_order%' order by t;
 t
- - current access paths for {y1,y2}: {HASH_JOIN, cost=0.7, init_cost=0.3, rescan_cost=0.4, rows=0.1, join_order=(y1,y2)}, {NESTED_LOOP_JOIN, cost=0.6, init_cost=0.0, rows=0.1, join_order=(y1,y2)})
+ - current access paths for {y1,y2}: {HASH_JOIN, cost=0.7, init_cost=0.3, rescan_cost=0.4, rows=0.1, join_order=(y1,y2)}, {NESTED_LOOP_JOIN, cost=3.8, init_cost=0.0, rows=0.1, join_order=(y1,y2)})
 drop table t1;
 drop table json_tab;

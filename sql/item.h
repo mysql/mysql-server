@@ -796,8 +796,8 @@ struct ContainedSubquery {
        "SELECT * FROM tab WHERE field = <dependent subquery>".
        where 'dependent subquery' depends on at least one field in 'tab'.
        Alternatively, the subquery may be independent of 'tab', but contain
-       a random function such as 'rand()'. Such subqueries are also required
-       to be reevaluated for each row.
+       a non-deterministic function such as 'rand()'. Such subqueries are also
+       required to be reevaluated for each row.
     */
     kNonMaterializable,
 
@@ -815,7 +815,10 @@ struct ContainedSubquery {
   /// The strategy for executing the subquery.
   Strategy strategy;
 
-  /// The width (in bytes) of the subquery's rows.
+  /// The width (in bytes) of the subquery's rows. For variable-sized values we
+  /// use Item.max_length (but cap it at kMaxItemLengthEstimate).
+  /// @see kMaxItemLengthEstimate and
+  /// @see Item_in_subselect::get_contained_subquery().
   int row_width;
 };
 
