@@ -64,7 +64,7 @@ class I_multi_factor_auth {
     column.
   */
   virtual bool update_user_attributes() = 0;
-  virtual void add_factor(I_multi_factor_auth *m MY_ATTRIBUTE((unused))) {}
+  virtual void add_factor(I_multi_factor_auth *m [[maybe_unused]]) {}
   /**
     Helper methods to convert this interface into a valid JSON object
     and vice versa.

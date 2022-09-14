@@ -222,7 +222,7 @@ class AutoDebugTrace {
 #ifdef _WIN32
 #define DBUG_SUICIDE() DBUG_EXIT()
 #else
-extern void _db_suicide_() MY_ATTRIBUTE((noreturn));
+[[noreturn]] extern void _db_suicide_();
 extern void _db_flush_gcov_();
 #define DBUG_SUICIDE() (_db_flush_(), _db_suicide_())
 #endif

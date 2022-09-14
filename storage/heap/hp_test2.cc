@@ -39,7 +39,7 @@
 
 static int get_options(int argc, char *argv[]);
 static int rnd(int max_value);
-static void endprog(int sig_number) MY_ATTRIBUTE((noreturn));
+[[noreturn]] static void endprog(int sig_number);
 
 static uint flag = 0, verbose = 0, testflag = 0, recant = 10000, silent = 0;
 static uint keys = MAX_KEYS;

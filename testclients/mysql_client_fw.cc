@@ -109,8 +109,7 @@ static void print_error(MYSQL *l_mysql, const char *msg);
 static void print_st_error(MYSQL_STMT *stmt, const char *msg);
 static void client_disconnect(MYSQL *mysql);
 static void get_options(int *argc, char ***argv);
-static void die(const char *file, int line, const char *expr)
-    MY_ATTRIBUTE((noreturn));
+[[noreturn]] static void die(const char *file, int line, const char *expr);
 
 /*
 Abort unless given expression is non-zero.

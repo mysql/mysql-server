@@ -49,7 +49,7 @@
 FILE *in;
 FILE *out;
 
-static void die(const char *fmt, ...) MY_ATTRIBUTE((noreturn))
+[[noreturn]] static void die(const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));
 
 static void die(const char *fmt, ...) {

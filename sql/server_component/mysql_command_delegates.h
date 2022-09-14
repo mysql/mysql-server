@@ -289,7 +289,7 @@ class Command_delegate {
   /*
     Session was shutdown while command was running
   */
-  virtual void shutdown(int flag MY_ATTRIBUTE((unused))) { return; }
+  virtual void shutdown(int flag [[maybe_unused]]) { return; }
 
  private:
   static int call_start_result_metadata(void *ctx, uint num_cols, uint flags,
