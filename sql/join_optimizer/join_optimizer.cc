@@ -4470,7 +4470,6 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     if (!IsEmpty(path->filter_predicates)) {
       assert(path->num_output_rows() <= path->num_output_rows_before_filter);
       assert(path->cost_before_filter <= path->cost);
-      assert(path->init_cost <= path->cost_before_filter);
     }
   }
 

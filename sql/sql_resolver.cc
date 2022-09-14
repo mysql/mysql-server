@@ -973,7 +973,7 @@ bool Item_in_subselect::subquery_allows_materialization(
     cause = "not an IN predicate";
   } else if (used_tables() & RAND_TABLE_BIT) {
     // Subquery with a random function cannot be materalized.
-    cause = "random";
+    cause = "non-deterministic";
   } else if (query_block->is_part_of_set_operation()) {
     // Subquery must be a single query specification clause (not a UNION,
     // INTERSECT or EXCEPT).
