@@ -371,12 +371,16 @@ static void UpdateReferencesToMaterializedItems(
       FindTablesToGetRowidFor(path);
     }
   } else if (path->type == AccessPath::FILTER) {
-    // Only really relevant for in2exists filters that run after
-    // windowing.
+    // Only really relevant for in2exists filters that run after windowing, and
+    // for some cases of HAVING clauses.
     for (const Func_ptr_array *earlier_replacement : *applied_replacements) {
+      // Replace materialized items in the filter. If this is after aggregation,
+      // the HAVING clause may be wrapped in Item_aggregate_ref, so we need to
+      // see through it and don't require exact match.
+      const bool need_exact_match = !after_aggregation;
       path->filter().condition = FindReplacementOrReplaceMaterializedItems(
           thd, path->filter().condition, *earlier_replacement,
-          /*need_exact_match=*/true);
+          need_exact_match);
     }
   } else if (path->type == AccessPath::REMOVE_DUPLICATES) {
     Item **group_items = path->remove_duplicates().group_items;
