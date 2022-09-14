@@ -44,8 +44,8 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
 MYSQL_ROW csi_fetch_row(MYSQL_RES *);
 void csi_flush_use_result(MYSQL *mysql, bool);
 MYSQL_DATA *csi_read_rows(MYSQL *mysql,
-                          MYSQL_FIELD *mysql_fields MY_ATTRIBUTE((unused)),
-                          unsigned int fields MY_ATTRIBUTE((unused)));
+                          MYSQL_FIELD *mysql_fields [[maybe_unused]],
+                          unsigned int fields [[maybe_unused]]);
 MYSQL_RES *csi_use_result(MYSQL *mysql);
 void csi_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count);
 int csi_read_change_user_result(MYSQL *mysql);

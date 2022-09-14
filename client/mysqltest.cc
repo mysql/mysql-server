@@ -603,12 +603,12 @@ REPLACE *glob_replace = nullptr;
 void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *from,
                             size_t len);
 
-static void cleanup_and_exit(int exit_code) MY_ATTRIBUTE((noreturn));
+[[noreturn]] static void cleanup_and_exit(int exit_code);
 
-void die(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)))
-    MY_ATTRIBUTE((noreturn));
-void abort_not_supported_test(const char *fmt, ...)
-    MY_ATTRIBUTE((format(printf, 1, 2))) MY_ATTRIBUTE((noreturn));
+[[noreturn]] void die(const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
+[[noreturn]] void abort_not_supported_test(const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 void verbose_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 void log_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 void flush_ds_res();

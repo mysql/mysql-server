@@ -168,22 +168,21 @@ class Xcl_protocol_impl_tests : public Test {
     const int32_t expected_header_size = 5;
 
     EXPECT_CALL(*m_mock_connection, read(_, expected_header_size))
-        .WillOnce(
-            Invoke([id, payload_size, error_code](
-                       uchar *data, const std::size_t data_length MY_ATTRIBUTE(
-                                        (unused))) -> XError {
-              // 1byte(type)+ payload_size-bytes(protobuf-msg-payload)
-              *reinterpret_cast<int32_t *>(data) = 1 + payload_size;
+        .WillOnce(Invoke([id, payload_size, error_code](
+                             uchar *data, const std::size_t data_length
+                             [[maybe_unused]]) -> XError {
+          // 1byte(type)+ payload_size-bytes(protobuf-msg-payload)
+          *reinterpret_cast<int32_t *>(data) = 1 + payload_size;
 
 #ifdef WORDS_BIGENDIAN
-              std::swap(data[0], data[3]);
-              std::swap(data[1], data[2]);
+          std::swap(data[0], data[3]);
+          std::swap(data[1], data[2]);
 #endif
 
-              data[4] = static_cast<uchar>(id);
+          data[4] = static_cast<uchar>(id);
 
-              return XError{error_code, ""};
-            }));
+          return XError{error_code, ""};
+        }));
   }
 
   template <typename Message_type>
@@ -209,9 +208,8 @@ class Xcl_protocol_impl_tests : public Test {
 
     EXPECT_CALL(*m_mock_connection, read(_, message_payload.size()))
         .WillOnce(
-            Invoke([message_payload](uchar *data,
-                                     const std::size_t data_length MY_ATTRIBUTE(
-                                         (unused))) -> XError {
+            Invoke([message_payload](uchar *data, const std::size_t data_length
+                                     [[maybe_unused]]) -> XError {
               std::copy(message_payload.begin(), message_payload.end(), data);
               return {};
             }));

@@ -308,8 +308,8 @@ error:
 }
 
 MYSQL_DATA *csi_read_rows(MYSQL *mysql,
-                          MYSQL_FIELD *mysql_fields MY_ATTRIBUTE((unused)),
-                          unsigned int fields MY_ATTRIBUTE((unused))) {
+                          MYSQL_FIELD *mysql_fields [[maybe_unused]],
+                          unsigned int fields [[maybe_unused]]) {
   auto mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
   return std::exchange(mcs_extn->data, nullptr);
 }

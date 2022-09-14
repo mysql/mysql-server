@@ -2088,7 +2088,7 @@ class Reduced_batch_deserializer {
   void parse_page_data(const byte *page, uint16_t data_len, F &f) noexcept {
     const byte *page_data = page + REDUCED_HEADER_SIZE;
 #ifdef UNIV_DEBUG
-    const byte *page_start MY_ATTRIBUTE((unused)) = page + REDUCED_HEADER_SIZE;
+    const byte *page_start [[maybe_unused]] = page + REDUCED_HEADER_SIZE;
 #endif /* UNIV_DEBUG */
     const uint32_t expected_entries = data_len / REDUCED_ENTRY_SIZE;
     for (uint32_t entry = 1; entry <= expected_entries; ++entry) {

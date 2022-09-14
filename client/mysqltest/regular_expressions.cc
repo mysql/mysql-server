@@ -25,8 +25,8 @@
 #include "m_ctype.h"
 #include "my_compiler.h"
 
-extern void die(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)))
-    MY_ATTRIBUTE((noreturn));
+[[noreturn]] extern void die(const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /*
   Filter for queries that can be run using the
