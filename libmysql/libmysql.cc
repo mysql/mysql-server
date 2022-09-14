@@ -1760,8 +1760,12 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length,
         (the reset of the result set will be read in prepare_to_fetch_result).
       */
 
-      if ((pkt_len = cli_safe_read(mysql, &is_data_packet)) == packet_error)
+      if ((pkt_len = cli_safe_read(mysql, &is_data_packet)) == packet_error) {
+        set_stmt_errmsg(stmt, net);
+        mysql->status = MYSQL_STATUS_READY;
+        stmt->read_row_func = stmt_read_row_no_data;
         return true;
+      }
 
       if (is_data_packet) {
         assert(stmt->result.rows == 0);
