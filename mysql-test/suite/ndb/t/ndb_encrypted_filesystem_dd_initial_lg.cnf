@@ -1,0 +1,2 @@
+!include ndb_dd_initial_lg.cnf
+!include ../encrypted_filesystem.cnf

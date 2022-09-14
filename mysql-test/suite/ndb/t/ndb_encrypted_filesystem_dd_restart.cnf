@@ -1,0 +1,2 @@
+!include ndb_dd_restart.cnf
+!include ../encrypted_filesystem.cnf

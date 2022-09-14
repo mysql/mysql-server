@@ -1,0 +1,2 @@
+source include/have_ndb.inc;
+source ndb_dd_initial_lg.test;

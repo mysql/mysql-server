@@ -1,0 +1,724 @@
+**** Test Setup Section ****
+CREATE LOGFILE GROUP log_group1
+ADD UNDOFILE './log_group1/undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE table_space1
+ADD DATAFILE './table_space1/datafile.dat'
+USE LOGFILE GROUP log_group1
+INITIAL_SIZE 28M
+EXTENT_SIZE 256K
+ENGINE NDB;
+CREATE TABLE test.t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE table_space1 STORAGE DISK
+ENGINE=NDB;
+CREATE TABLE test.t2
+(pk2 INT NOT NULL PRIMARY KEY, b2 INT NOT NULL, c2 INT NOT NULL)
+ENGINE=NDB;
+
+**** Data load for first test ****
+INSERT INTO test.t1 VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),
+(11,11,11),(12,12,12),(13,13,13),(14,14,14),(15,15,15),
+(16,16,16),(17,17,17),(18,18,18),(19,19,19),(20,20,20),
+(21,21,21),(22,22,22),(23,23,23),(24,24,24),(25,25,25),
+(26,26,26),(27,27,27),(28,28,28),(29,29,29),(30,30,30),
+(31,31,31),(32,32,32),(33,33,33),(34,34,34),(35,35,35),
+(36,36,36),(37,37,37),(38,38,38),(39,39,39),(40,40,40),
+(41,41,41),(42,42,42),(43,43,43),(44,44,44),(45,45,45),
+(46,46,46),(47,47,47),(48,48,48),(49,49,49),(50,50,50),
+(51,51,51),(52,52,52),(53,53,53),(54,54,54),(55,55,55),
+(56,56,56),(57,57,57),(58,58,58),(59,59,59),(60,60,60),
+(61,61,61),(62,62,62),(63,63,63),(64,64,64),(65,65,65),
+(66,66,66),(67,67,67),(68,68,68),(69,69,69),(70,70,70),
+(71,71,71),(72,72,72),(73,73,73),(74,74,74),(75,75,75);
+INSERT INTO test.t2 VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),
+(11,11,11),(12,12,12),(13,13,13),(14,14,14),(15,15,15),
+(16,16,16),(17,17,17),(18,18,18),(19,19,19),(20,20,20),
+(21,21,21),(22,22,22),(23,23,23),(24,24,24),(25,25,25),
+(26,26,26),(27,27,27),(28,28,28),(29,29,29),(30,30,30),
+(31,31,31),(32,32,32),(33,33,33),(34,34,34),(35,35,35),
+(36,36,36),(37,37,37),(38,38,38),(39,39,39),(40,40,40),
+(41,41,41),(42,42,42),(43,43,43),(44,44,44),(45,45,45),
+(46,46,46),(47,47,47),(48,48,48),(49,49,49),(50,50,50),
+(51,51,51),(52,52,52),(53,53,53),(54,54,54),(55,55,55),
+(56,56,56),(57,57,57),(58,58,58),(59,59,59),(60,60,60),
+(61,61,61),(62,62,62),(63,63,63),(64,64,64),(65,65,65),
+(66,66,66),(67,67,67),(68,68,68),(69,69,69),(70,70,70),
+(71,71,71),(72,72,72),(73,73,73),(74,74,74),(75,75,75);
+
+*** Test 1 Section Begins ***
+SELECT COUNT(*) FROM test.t2 LEFT JOIN test.t1 ON pk2=pk1 WHERE b2 IN (4);
+COUNT(*)
+1
+SELECT * FROM test.t2 LEFT JOIN test.t1 ON pk2=pk1 WHERE b2 IN (4);
+pk2	b2	c2	pk1	b	c
+4	4	4	4	4	4
+SELECT COUNT(*) FROM test.t1 LEFT JOIN test.t2 ON pk1=pk2 WHERE b IN (4);
+COUNT(*)
+1
+SELECT COUNT(*) FROM test.t1 LEFT JOIN test.t2 ON b=b2 WHERE pk1 IN (75);
+COUNT(*)
+1
+SELECT b, c FROM test.t1 LEFT JOIN test.t2 ON pk1=pk2 ORDER BY b;
+b	c
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+40	40
+41	41
+42	42
+43	43
+44	44
+45	45
+46	46
+47	47
+48	48
+49	49
+50	50
+51	51
+52	52
+53	53
+54	54
+55	55
+56	56
+57	57
+58	58
+59	59
+60	60
+61	61
+62	62
+63	63
+64	64
+65	65
+66	66
+67	67
+68	68
+69	69
+70	70
+71	71
+72	72
+73	73
+74	74
+75	75
+
+*** Setup for test 2 ****
+DELETE FROM test.t1;
+INSERT INTO test.t1 VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),
+(11,11,11),(12,12,12),(13,13,13),(14,14,14),(15,15,15),
+(16,16,16),(17,17,17),(18,18,18),(19,19,19),(20,20,20),
+(21,21,21),(22,22,22),(23,23,23),(24,24,24),(25,25,25),
+(26,26,26),(27,27,27),(28,28,28),(29,29,29),(30,30,30),
+(31,31,31),(32,32,32),(33,33,33),(34,34,34),(35,35,35),
+(36,36,36),(37,37,37),(38,38,38),(39,39,39),(40,40,40),
+(41,41,41),(42,42,42),(43,43,43),(44,44,44),(45,45,45);
+
+**** Test Section 2 ****
+SELECT b, c FROM test.t1 LEFT JOIN test.t2 ON pk1=pk2 ORDER BY b;
+b	c
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+40	40
+41	41
+42	42
+43	43
+44	44
+45	45
+SELECT COUNT(*) FROM test.t1 LEFT JOIN test.t2 ON b=b2;
+COUNT(*)
+45
+SELECT COUNT(*) FROM test.t1 RIGHT JOIN test.t2 ON b=b2;
+COUNT(*)
+75
+SHOW CREATE TABLE test.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `pk2` int NOT NULL,
+  `b2` int NOT NULL,
+  `c2` int NOT NULL,
+  PRIMARY KEY (`pk2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
+  PRIMARY KEY (`pk1`)
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE test.t2 TABLESPACE table_space1 STORAGE DISK
+ENGINE=NDB;
+SHOW CREATE TABLE test.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `pk2` int NOT NULL,
+  `b2` int NOT NULL,
+  `c2` int NOT NULL,
+  PRIMARY KEY (`pk2`)
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE test.t1 STORAGE MEMORY ENGINE=NDBCLUSTER;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
+  PRIMARY KEY (`pk1`)
+) /*!50100 TABLESPACE `table_space1` STORAGE MEMORY */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+*** Setup for Test Section 3 ***
+CREATE TABLE test.t1 (
+usr_id INT unsigned NOT NULL,
+uniq_id INT unsigned NOT NULL AUTO_INCREMENT,
+start_num INT unsigned NOT NULL DEFAULT 1,
+increment INT unsigned NOT NULL DEFAULT 1,
+PRIMARY KEY (uniq_id),
+INDEX usr_uniq_idx (usr_id, uniq_id),
+INDEX uniq_usr_idx (uniq_id, usr_id))
+TABLESPACE table_space1 STORAGE DISK
+ENGINE=NDB;
+CREATE TABLE test.t2 (
+id INT unsigned NOT NULL DEFAULT 0,
+usr2_id INT unsigned NOT NULL DEFAULT 0,
+max INT unsigned NOT NULL DEFAULT 0,
+c_amount INT unsigned NOT NULL DEFAULT 0,
+d_max INT unsigned NOT NULL DEFAULT 0,
+d_num INT unsigned NOT NULL DEFAULT 0,
+orig_time INT unsigned NOT NULL DEFAULT 0,
+c_time INT unsigned NOT NULL DEFAULT 0,
+active ENUM ("no","yes") NOT NULL,
+PRIMARY KEY (id,usr2_id),
+INDEX id_idx (id),
+INDEX usr2_idx (usr2_id))
+ENGINE=NDB;
+INSERT INTO test.t1 VALUES (3,NULL,0,50),(3,NULL,0,200),(3,NULL,0,25),(3,NULL,0,84676),(3,NULL,0,235),(3,NULL,0,10),(3,NULL,0,3098),(3,NULL,0,2947),(3,NULL,0,8987),(3,NULL,0,8347654),(3,NULL,0,20398),(3,NULL,0,8976),(3,NULL,0,500),(3,NULL,0,198);
+
+**** Test Section 3 ****
+SELECT test.t1.usr_id,test.t1.uniq_id,test.t1.increment,
+test.t2.usr2_id,test.t2.c_amount,test.t2.max
+FROM test.t1
+LEFT JOIN test.t2 ON test.t2.id = test.t1.uniq_id
+WHERE test.t1.uniq_id = 4
+ORDER BY test.t2.c_amount;
+usr_id	uniq_id	increment	usr2_id	c_amount	max
+3	4	84676	NULL	NULL	NULL
+INSERT INTO test.t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
+INSERT INTO test.t2 VALUES (4,3,3000,6000,0,0,746584,837484,'yes');
+INSERT INTO test.t2 VALUES (7,3,1000,2000,0,0,746294,937484,'yes');
+SELECT test.t1.usr_id,test.t1.uniq_id,test.t1.increment,
+test.t2.usr2_id,test.t2.c_amount,test.t2.max
+FROM test.t1
+LEFT JOIN test.t2 ON test.t2.id = test.t1.uniq_id
+WHERE test.t1.uniq_id = 4
+ORDER BY test.t2.c_amount;
+usr_id	uniq_id	increment	usr2_id	c_amount	max
+3	4	84676	3	6000	3000
+
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+CREATE TABLE test.t1 (
+a1 smallint NOT NULL,
+a2 int NOT NULL,
+a3 bigint NOT NULL,
+a4 char(10),
+a5 decimal(5,1),
+a6 time,
+a7 date,
+a8 datetime,
+a9 VARCHAR(255),
+a10 blob,
+PRIMARY KEY(a1)
+) TABLESPACE table_space1 STORAGE DISK ENGINE=NDB;
+CREATE TABLE test.t2 (
+b1 smallint NOT NULL,
+b2 int NOT NULL,
+b3 bigint NOT NULL,
+b4 char(10),
+b5 decimal(5,1),
+b6 time,
+b7 date,
+b8 datetime,
+b9 VARCHAR(255),
+b10 blob,
+PRIMARY KEY(b1)
+) ENGINE=NDB;
+ALTER TABLE test.t1 ADD INDEX (a2), ADD INDEX (a3), ADD INDEX (a8);
+ALTER TABLE test.t2 ADD INDEX (b2), ADD INDEX (b3), ADD INDEX (b8);
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint NOT NULL,
+  `a2` int NOT NULL,
+  `a3` bigint NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  PRIMARY KEY (`a1`),
+  KEY `a2` (`a2`),
+  KEY `a3` (`a3`),
+  KEY `a8` (`a8`)
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE test.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `b1` smallint NOT NULL,
+  `b2` int NOT NULL,
+  `b3` bigint NOT NULL,
+  `b4` char(10) DEFAULT NULL,
+  `b5` decimal(5,1) DEFAULT NULL,
+  `b6` time DEFAULT NULL,
+  `b7` date DEFAULT NULL,
+  `b8` datetime DEFAULT NULL,
+  `b9` varchar(255) DEFAULT NULL,
+  `b10` blob,
+  PRIMARY KEY (`b1`),
+  KEY `b2` (`b2`),
+  KEY `b3` (`b3`),
+  KEY `b8` (`b8`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM test.t1 order by a1;
+a1	a2	a3	a4	a5	a6	a7	a8	a9	a10
+1	2	2000000001	aaa1	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb1	binary data
+2	3	2000000002	aaa2	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb2	binary data
+3	4	2000000003	aaa3	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb3	binary data
+4	5	2000000004	aaa4	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb4	binary data
+5	6	2000000005	aaa5	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb5	binary data
+6	7	2000000006	aaa6	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb6	binary data
+7	8	2000000007	aaa7	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb7	binary data
+8	9	2000000008	aaa8	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb8	binary data
+9	10	2000000009	aaa9	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb9	binary data
+10	11	2000000010	aaa10	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb10	binary data
+11	12	2000000011	aaa11	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb11	binary data
+12	13	2000000012	aaa12	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb12	binary data
+13	14	2000000013	aaa13	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb13	binary data
+14	15	2000000014	aaa14	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb14	binary data
+15	16	2000000015	aaa15	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb15	binary data
+16	17	2000000016	aaa16	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb16	binary data
+17	18	2000000017	aaa17	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb17	binary data
+18	19	2000000018	aaa18	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb18	binary data
+19	20	2000000019	aaa19	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb19	binary data
+20	21	2000000020	aaa20	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb20	binary data
+SELECT * FROM test.t2 order by b1;
+b1	b2	b3	b4	b5	b6	b7	b8	b9	b10
+3	4	3000000001	aaa1	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb1	binary data
+4	5	3000000002	aaa2	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb2	binary data
+5	6	3000000003	aaa3	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb3	binary data
+6	7	3000000004	aaa4	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb4	binary data
+7	8	3000000005	aaa5	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb5	binary data
+8	9	3000000006	aaa6	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb6	binary data
+9	10	3000000007	aaa7	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb7	binary data
+10	11	3000000008	aaa8	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb8	binary data
+11	12	3000000009	aaa9	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb9	binary data
+12	13	3000000010	aaa10	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb10	binary data
+13	14	3000000011	aaa11	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb11	binary data
+14	15	3000000012	aaa12	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb12	binary data
+15	16	3000000013	aaa13	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb13	binary data
+16	17	3000000014	aaa14	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb14	binary data
+17	18	3000000015	aaa15	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb15	binary data
+18	19	3000000016	aaa16	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb16	binary data
+19	20	3000000017	aaa17	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb17	binary data
+20	21	3000000018	aaa18	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb18	binary data
+21	22	3000000019	aaa19	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb19	binary data
+22	23	3000000020	aaa20	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb20	binary data
+SELECT COUNT(a1), a1, COUNT(a1)*a1 FROM test.t1 GROUP BY a1;
+COUNT(a1)	a1	COUNT(a1)*a1
+1	1	1
+1	2	2
+1	3	3
+1	4	4
+1	5	5
+1	6	6
+1	7	7
+1	8	8
+1	9	9
+1	10	10
+1	11	11
+1	12	12
+1	13	13
+1	14	14
+1	15	15
+1	16	16
+1	17	17
+1	18	18
+1	19	19
+1	20	20
+SELECT COUNT(a2), (a2+1), COUNT(a2)*(a2+0) FROM test.t1 GROUP BY a2;
+COUNT(a2)	(a2+1)	COUNT(a2)*(a2+0)
+1	3	2
+1	4	3
+1	5	4
+1	6	5
+1	7	6
+1	8	7
+1	9	8
+1	10	9
+1	11	10
+1	12	11
+1	13	12
+1	14	13
+1	15	14
+1	16	15
+1	17	16
+1	18	17
+1	19	18
+1	20	19
+1	21	20
+1	22	21
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+CREATE TABLE test.t1 (a INT NOT NULL,
+b CHAR(5), c TEXT, d INT NOT NULL PRIMARY KEY) TABLESPACE 
+table_space1 STORAGE DISK ENGINE=NDB;
+insert into test.t1 (a,b,c,d) values (1,'a','Jonas',1),(2,'b','Tomas',2),
+(3,'c','Pekka',3),(4,'d','Martin',4),(5,'e','Stewart',5),(6,'f','Jeb',6),
+(7,'g','Serge',7),(8,'h','Clavin',8);
+select distinct a from test.t1 group by b,a having a > 4 order by a desc;
+a
+8
+7
+6
+5
+select distinct a,c from test.t1 group by b,c,a having a > 2 order by a desc;
+a	c
+8	Clavin
+7	Serge
+6	Jeb
+5	Stewart
+4	Martin
+3	Pekka
+select distinct a from test.t1 group by b,a having a > 1 order by a asc;
+a
+2
+3
+4
+5
+6
+7
+8
+select distinct a,c from test.t1 group by b,c,a having a > 3 order by a asc;
+a	c
+4	Martin
+5	Stewart
+6	Jeb
+7	Serge
+8	Clavin
+drop table test.t1;
+create table test.t1 (a char(1), key(a)) TABLESPACE table_space1 
+STORAGE DISK ENGINE=NDB;
+insert into test.t1 values('1'),('1'),('1'),('2'),('2'),('3'),('3');
+select * from test.t1 where a >= '1' order by a;
+a
+1
+1
+1
+2
+2
+3
+3
+select distinct a from test.t1 order by a desc;
+a
+3
+2
+1
+select distinct a from test.t1 where a >= '1' order by a desc;
+a
+3
+2
+1
+select distinct a from test.t1 where a >= '1' order by a asc;
+a
+1
+2
+3
+drop table test.t1;
+CREATE TABLE test.t1 (email varchar(50), infoID BIGINT, dateentered DATETIME) 
+TABLESPACE table_space1 STORAGE DISK ENGINE=NDB;
+CREATE TABLE test.t2 (infoID BIGINT, shipcode varchar(10)) ENGINE=NDB;
+INSERT INTO test.t1 (email, infoID, dateentered) VALUES
+('test1@testdomain.com', 1, '2002-07-30 22:56:38'),
+('test1@testdomain.com', 1, '2002-07-27 22:58:16'),
+('test2@testdomain.com', 1, '2002-06-19 15:22:19'),
+('test2@testdomain.com', 2, '2002-06-18 14:23:47'),
+('test3@testdomain.com', 1, '2002-05-19 22:17:32');
+INSERT INTO test.t2(infoID, shipcode) VALUES
+(1, 'Z001'),
+(2, 'R002');
+SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 
+WHERE t1.infoID=t2.infoID order by email, shipcode;
+email	shipcode
+test1@testdomain.com	Z001
+test2@testdomain.com	R002
+test2@testdomain.com	Z001
+test3@testdomain.com	Z001
+SELECT DISTINCTROW email FROM test.t1 ORDER BY dateentered DESC;
+email
+test1@testdomain.com
+test2@testdomain.com
+test3@testdomain.com
+SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 
+WHERE test.t1.infoID=test.t2.infoID ORDER BY dateentered DESC;
+email	shipcode
+test1@testdomain.com	Z001
+test2@testdomain.com	Z001
+test2@testdomain.com	R002
+test3@testdomain.com	Z001
+DROP TABLE test.t1,test.t2;
+#
+# Bug#22195588 : SETTING NULL TO A DYNAMIC IN-MEMORY COLUMN CORRUPTS DISK COLUMN VALUES
+#
+# Setting up tables
+create table t1(
+a int unsigned auto_increment primary key,
+b int,
+c int default null column_format dynamic storage memory,
+d varchar(100) default null column_format dynamic storage memory
+)tablespace table_space1 storage disk engine=ndbcluster;
+# Populate t1
+# Setting all the dynamic columns to NULL and varying disk parts
+insert into t1 () values();
+insert into t1 (b) values (10);
+# Populating values to single dynamic column and varying disk parts
+insert into t1 (c) values (20);
+insert into t1 (b, c) values (10, 20);
+insert into t1 (d) values (repeat('0123456789', 3));
+insert into t1 (d) values (repeat('0123456789', 10));
+insert into t1 (b, d) values (10, repeat('0123456789',3));
+insert into t1 (b, d) values (10, repeat('0123456789',10));
+# Both dynamic columns have non NULL values and disk columns varied
+insert into t1 (c, d) values (20, repeat('0123456789',3));
+insert into t1 (c, d) values (20, repeat('0123456789',10));
+insert into t1 (b, c, d) values (10, 20, repeat('0123456789',3));
+insert into t1 (b, c, d) values (10, 20, repeat('0123456789',10));
+# Verify that they are properly stored and retrieved
+select * from t1 order by a;
+a	b	c	d
+1	NULL	NULL	NULL
+2	10	NULL	NULL
+3	NULL	20	NULL
+4	10	20	NULL
+5	NULL	NULL	012345678901234567890123456789
+6	NULL	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+7	10	NULL	012345678901234567890123456789
+8	10	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+9	NULL	20	012345678901234567890123456789
+10	NULL	20	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+11	10	20	012345678901234567890123456789
+12	10	20	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+# Update some rows to verify that the varpart is reallocating properly
+# Updating NULL dynamic columns and assigning NON-NULL values
+update t1 set c = 10 where a in (1,2);
+select * from t1 where a in (1,2) order by a;
+a	b	c	d
+1	NULL	10	NULL
+2	10	10	NULL
+# Updating and setting NULL to NON-NULL dynamic columns
+update t1 set c = null where a in (1,2);
+select * from t1 where a in (1,2) order by a;
+a	b	c	d
+1	NULL	NULL	NULL
+2	10	NULL	NULL
+# Updating NULL dynamic var columns and assigning NON-NULL values
+update t1 set d = repeat('0123456789', 5) where a in (1,2);
+select * from t1 where a in (1,2) order by a;
+a	b	c	d
+1	NULL	NULL	01234567890123456789012345678901234567890123456789
+2	10	NULL	01234567890123456789012345678901234567890123456789
+# Updating NULL to NON-NULL and vice versa in dynamic columns
+update t1 set c = null, d = repeat('0123456789', 10) where a in (3,4);
+select * from t1 where a in (3,4) order by a;
+a	b	c	d
+3	NULL	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+4	10	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+# Updating and setting NULL to NON-NULL dynamic var columns
+update t1 set c = 20, d = null where a in (5,6,7,8);
+select * from t1 where a in (5,6,7,8) order by a;
+a	b	c	d
+5	NULL	20	NULL
+6	NULL	20	NULL
+7	10	20	NULL
+8	10	20	NULL
+# Update all dynamic columns to NULL
+update t1 set c = null, d = null where a > 8;
+select * from t1 where a > 8 order by a;
+a	b	c	d
+9	NULL	NULL	NULL
+10	NULL	NULL	NULL
+11	10	NULL	NULL
+12	10	NULL	NULL
+# Update all dynamic columns to NON-NULL values
+update t1 set c = 20, d = '0123456789' where a > 8;
+select * from t1 where a > 8 order by a;
+a	b	c	d
+9	NULL	20	0123456789
+10	NULL	20	0123456789
+11	10	20	0123456789
+12	10	20	0123456789
+select * from t1 order by a;
+a	b	c	d
+1	NULL	NULL	01234567890123456789012345678901234567890123456789
+2	10	NULL	01234567890123456789012345678901234567890123456789
+3	NULL	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+4	10	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+5	NULL	20	NULL
+6	NULL	20	NULL
+7	10	20	NULL
+8	10	20	NULL
+9	NULL	20	0123456789
+10	NULL	20	0123456789
+11	10	20	0123456789
+12	10	20	0123456789
+# Now do some transactions with multiple operations
+# Add more data to dynamic varchar and then set to NULL
+# Meanwhile insert value into int column
+# This should reduce the var memory usage
+select * from t1 where a = 1;
+a	b	c	d
+1	NULL	NULL	01234567890123456789012345678901234567890123456789
+begin;
+update t1 set d = repeat('0123456789', 10) where a = 1;
+update t1 set b = 20 where a = 1;
+update t1 set d = NULL where a = 1;
+update t1 set c = 30 where a = 1;
+commit;
+select * from t1 where a = 1;
+a	b	c	d
+1	20	30	NULL
+# Check if the var mem has decreased
+Has var part memory usage decreased?
+Yes
+# Setting up next transaction - make dynamic columns NULL
+update t1 set c = NULL where a = 1;
+# Checking var memory and number of var parts before transaction
+# Insert and later set null to dynamic columns in the same transaction
+# This should not change memory usage
+select * from t1 where a = 1;
+a	b	c	d
+1	20	NULL	NULL
+begin;
+update t1 set c = 30 where a = 1;
+update t1 set b = 30 where a = 1;
+update t1 set d = repeat('0123456789', 10) where a = 1;
+update t1 set b = 45 where a = 1;
+update t1 set d = repeat('0123456789', 5) where a = 1;
+update t1 set c = NULL where a = 1;
+update t1 set d = NULL where a = 1;
+commit;
+select * from t1 where a = 1;
+a	b	c	d
+1	45	NULL	NULL
+# Checking if the var mem is the same
+Is var part memory usage unchanged?
+Yes
+# Grow the dynamic varchar and then shrink it but still having more data than when it was at start.
+# Insert alternatively the other dynamic column with NULL but back to a NON-NULL value at end
+# This should be reflected correctly in the memory
+select * from t1 where a = 12;
+a	b	c	d
+12	10	20	0123456789
+begin;
+update t1 set c = 42 where a = 12;
+update t1 set d = repeat('0123456789', 5) where a = 12;
+update t1 set c = NULL where a = 12;
+update t1 set d = repeat('0123456789', 10) where a = 12;
+update t1 set c = 30 where a = 12;
+update t1 set d = repeat('0123456789', 2) where a = 12;
+commit;
+select * from t1 where a = 12;
+a	b	c	d
+12	10	30	01234567890123456789
+# Check if the var mem has increased
+Has var part memory usage increased?
+Yes
+# Cleanup
+drop table t1;
+ALTER TABLESPACE table_space1
+DROP DATAFILE './table_space1/datafile.dat';
+DROP TABLESPACE table_space1;
+DROP LOGFILE GROUP log_group1
+ENGINE =NDB;
