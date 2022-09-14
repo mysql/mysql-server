@@ -240,7 +240,7 @@ int Primary_election_primary_process::primary_election_process_handler() {
       primary changes we do enabled `super_read_only` on all members and
       then run the member actions on the new primary.
     */
-    if (enable_server_read_mode(PSESSION_USE_THREAD)) {
+    if (enable_server_read_mode()) {
       /* purecov: begin inspected */
       LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
       /* purecov: end */

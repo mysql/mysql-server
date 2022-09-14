@@ -44,8 +44,11 @@ include/assert.inc ['There should be 1 entry corresponding to the mysql_thread_q
 
 #################################################################
 # 4. Assert that the number of bytes allocated for
-#    mysql_thread_queued_task event must be 0.
-include/assert.inc ['The sum of bytes allocated must be zero after stopping GR']
+#    mysql_thread_queued_task event must be 0 when the plugin
+#    is uninstalled.
+include/uninstall_group_replication_plugin.inc
+include/assert.inc ['The sum of bytes allocated must be zero after uninstall GR']
+include/install_group_replication_plugin.inc
 
 #################################################################
 # 5. Clean up

@@ -20,13 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/group_replication/include/services/get_system_variable/get_system_variable.h"
+#include "plugin/group_replication/include/services/system_variable/get_system_variable.h"
 #include "plugin/group_replication/include/plugin.h"
 
-#include "sql/sql_class.h"
-
 // safeguard due unknown gtid_executed or gtid_purged length
-#define GTID_VALUES_FETCH_BUFFER_SIZE 500000
+constexpr size_t GTID_VALUES_FETCH_BUFFER_SIZE{500000};
+constexpr size_t BOOL_VALUES_FETCH_BUFFER_SIZE{4};
 
 int Get_system_variable_parameters::get_error() { return m_error; }
 
@@ -37,20 +36,7 @@ Get_system_variable_parameters::get_service() {
   return m_service;
 }
 
-Get_system_variable::Get_system_variable() {
-  get_plugin_registry()->acquire(
-      "component_sys_variable_register",
-      &component_sys_variable_register_service_handler);
-}
-
-Get_system_variable::~Get_system_variable() {
-  if (component_sys_variable_register_service_handler != nullptr) {
-    get_plugin_registry()->release(
-        component_sys_variable_register_service_handler);
-  }
-}
-
-int Get_system_variable::get_server_gtid_executed(std::string &gtid_executed) {
+int Get_system_variable::get_global_gtid_executed(std::string &gtid_executed) {
   int error = 1;
 
   if (nullptr == mysql_thread_handler) {
@@ -72,7 +58,7 @@ int Get_system_variable::get_server_gtid_executed(std::string &gtid_executed) {
   return error;
 }
 
-int Get_system_variable::get_server_gtid_purged(std::string &gtid_purged) {
+int Get_system_variable::get_global_gtid_purged(std::string &gtid_purged) {
   int error = 1;
 
   if (nullptr == mysql_thread_handler) {
@@ -94,17 +80,81 @@ int Get_system_variable::get_server_gtid_purged(std::string &gtid_purged) {
   return error;
 }
 
+int Get_system_variable::get_global_read_only(bool &value) {
+  int error = 1;
+
+  if (nullptr == mysql_thread_handler_read_only_mode) {
+    return 1;
+  }
+
+  Get_system_variable_parameters *parameter =
+      new Get_system_variable_parameters(
+          Get_system_variable_parameters::VAR_READ_ONLY);
+  Mysql_thread_task *task = new Mysql_thread_task(this, parameter);
+  error = mysql_thread_handler_read_only_mode->trigger(task);
+  error |= parameter->get_error();
+
+  if (!error) {
+    value = string_to_bool(parameter->m_result);
+  }
+
+  delete task;
+  return error;
+}
+
+int Get_system_variable::get_global_super_read_only(bool &value) {
+  int error = 1;
+
+  if (nullptr == mysql_thread_handler_read_only_mode) {
+    return 1;
+  }
+
+  Get_system_variable_parameters *parameter =
+      new Get_system_variable_parameters(
+          Get_system_variable_parameters::VAR_SUPER_READ_ONLY);
+  Mysql_thread_task *task = new Mysql_thread_task(this, parameter);
+  error = mysql_thread_handler_read_only_mode->trigger(task);
+  error |= parameter->get_error();
+
+  if (!error) {
+    value = string_to_bool(parameter->m_result);
+  }
+
+  delete task;
+  return error;
+}
+
+bool Get_system_variable::string_to_bool(const std::string &value) {
+  if (value == "ON") {
+    return true;
+  }
+  assert(value == "OFF");
+  return false;
+}
+
 void Get_system_variable::run(Mysql_thread_body_parameters *parameters) {
   Get_system_variable_parameters *param =
       (Get_system_variable_parameters *)parameters;
   switch (param->get_service()) {
     case Get_system_variable_parameters::VAR_GTID_EXECUTED:
       param->set_error(internal_get_system_variable(
-          std::string("gtid_executed"), param->m_result));
+          std::string("gtid_executed"), param->m_result,
+          GTID_VALUES_FETCH_BUFFER_SIZE));
       break;
     case Get_system_variable_parameters::VAR_GTID_PURGED:
-      param->set_error(internal_get_system_variable(std::string("gtid_purged"),
-                                                    param->m_result));
+      param->set_error(internal_get_system_variable(
+          std::string("gtid_purged"), param->m_result,
+          GTID_VALUES_FETCH_BUFFER_SIZE));
+      break;
+    case Get_system_variable_parameters::VAR_READ_ONLY:
+      param->set_error(internal_get_system_variable(
+          std::string("read_only"), param->m_result,
+          BOOL_VALUES_FETCH_BUFFER_SIZE));
+      break;
+    case Get_system_variable_parameters::VAR_SUPER_READ_ONLY:
+      param->set_error(internal_get_system_variable(
+          std::string("super_read_only"), param->m_result,
+          BOOL_VALUES_FETCH_BUFFER_SIZE));
       break;
     default:
       param->set_error(1);
@@ -112,32 +162,28 @@ void Get_system_variable::run(Mysql_thread_body_parameters *parameters) {
 }
 
 int Get_system_variable::internal_get_system_variable(std::string variable,
-                                                      std::string &value) {
-  SERVICE_TYPE(component_sys_variable_register)
-  *component_sys_variable_register_service{nullptr};
+                                                      std::string &value,
+                                                      size_t value_max_length) {
   char *var_value = nullptr;
-  size_t var_len = GTID_VALUES_FETCH_BUFFER_SIZE;
-  bool error = false;
+  size_t var_len = value_max_length;
+  int error = false;
 
-  if (nullptr == component_sys_variable_register_service_handler) {
-    error = true; /* purecov: inspected */
-    goto end;     /* purecov: inspected */
+  if (nullptr == server_services_references_module
+                     ->component_sys_variable_register_service) {
+    error = 1; /* purecov: inspected */
+    goto end;  /* purecov: inspected */
   }
-
-  component_sys_variable_register_service =
-      reinterpret_cast<SERVICE_TYPE(component_sys_variable_register) *>(
-          component_sys_variable_register_service_handler);
 
   if ((var_value = new (std::nothrow) char[var_len + 1]) == nullptr) {
-    error = true; /* purecov: inspected */
-    goto end;     /* purecov: inspected */
+    error = 1; /* purecov: inspected */
+    goto end;  /* purecov: inspected */
   }
 
-  if (component_sys_variable_register_service->get_variable(
-          "mysql_server", variable.c_str(),
-          reinterpret_cast<void **>(&var_value), &var_len)) {
-    error = true; /* purecov: inspected */
-    goto end;     /* purecov: inspected */
+  if (server_services_references_module->component_sys_variable_register_service
+          ->get_variable("mysql_server", variable.c_str(),
+                         reinterpret_cast<void **>(&var_value), &var_len)) {
+    error = 1; /* purecov: inspected */
+    goto end;  /* purecov: inspected */
   }
 
   value.assign(var_value, var_len);

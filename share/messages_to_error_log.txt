@@ -4937,7 +4937,7 @@ ER_GRP_RPL_UNABLE_TO_ENSURE_EXECUTION_REC
 ER_GRP_RPL_WHILE_SENDING_MSG_REC
   eng "Error while sending message in the group replication incremental recovery process."
 
-ER_GRP_RPL_READ_UNABLE_FOR_SUPER_READ_ONLY
+OBSOLETE_ER_GRP_RPL_READ_UNABLE_FOR_SUPER_READ_ONLY
   eng "Unable to read the server value for the super_read_only variable."
 
 ER_GRP_RPL_READ_UNABLE_FOR_READ_ONLY_SUPER_READ_ONLY

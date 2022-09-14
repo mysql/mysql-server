@@ -24,7 +24,7 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
-#include "plugin/group_replication/include/services/get_system_variable/get_system_variable.h"
+#include "plugin/group_replication/include/services/system_variable/get_system_variable.h"
 
 Primary_election_handler::Primary_election_handler(
     ulong components_stop_timeout)
@@ -137,7 +137,7 @@ int Primary_election_handler::execute_primary_election(
         enum_primary_election_primary_change_status::
             PRIMARY_DID_NOT_CHANGE_NO_CANDIDATE,
         mode, PRIMARY_ELECTION_NO_CANDIDATES_ERROR);
-    if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
+    if (enable_server_read_mode()) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
     }
@@ -224,7 +224,7 @@ void Primary_election_handler::print_gtid_info_in_log() {
   std::string server_executed_gtids;
   Get_system_variable *get_system_variable = new Get_system_variable();
 
-  if (get_system_variable->get_server_gtid_executed(server_executed_gtids)) {
+  if (get_system_variable->get_global_gtid_executed(server_executed_gtids)) {
     /* purecov: begin inspected */
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR);
     goto err;
@@ -303,7 +303,7 @@ int Primary_election_handler::legacy_primary_election(
     member_actions_handler->trigger_actions(
         Member_actions::AFTER_PRIMARY_ELECTION);
   } else {
-    if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
+    if (enable_server_read_mode()) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
     }

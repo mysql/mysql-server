@@ -585,9 +585,9 @@ end:
     */
     leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION,
                       gcs_module->belongs_to_group());
-    leave_group_on_failure::leave(
-        leave_actions, ER_GRP_RPL_APPLIER_EXECUTION_FATAL_ERROR,
-        PSESSION_USE_THREAD, nullptr, exit_state_action_abort_log_message);
+    leave_group_on_failure::leave(leave_actions,
+                                  ER_GRP_RPL_APPLIER_EXECUTION_FATAL_ERROR,
+                                  nullptr, exit_state_action_abort_log_message);
   }
 
   // Even on error cases, send a stop signal to all handlers that could be

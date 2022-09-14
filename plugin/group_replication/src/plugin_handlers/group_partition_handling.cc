@@ -224,8 +224,8 @@ int Group_partition_handling::partition_thread_handler() {
     leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
     leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
     leave_actions.set(leave_group_on_failure::HANDLE_AUTO_REJOIN, true);
-    leave_group_on_failure::leave(leave_actions, 0, PSESSION_INIT_THREAD,
-                                  nullptr, exit_state_action_abort_log_message);
+    leave_group_on_failure::leave(leave_actions, 0, nullptr,
+                                  exit_state_action_abort_log_message);
   }
 
   mysql_mutex_lock(&run_lock);
