@@ -946,23 +946,17 @@ bool JOIN::optimize(bool finalize_access_paths) {
     need_tmp_before_win = true;
 
   /*
-    If we have full-text columns involved in aggregation, we need to
-    materialize it, as the saving and loading of rows in AggregateIterator
-    does not include FTS information. If we have multiple tables, we'll
-    have a materialization (either because we're aggregating into a temporary
-    table, or because we always materialize before further operations),
-    and if we have a GROUP BY, we'll either have an aggregate-to-table
-    or a sort, which also fixes the issue. However, in the case of a single
-    table and implicit grouping, we need to force the temporary table here.
+    If we have full-text columns involved in aggregation, we may need to
+    materialize them. Materialization is needed if the result of a full-text
+    search (the MATCH function) is accessed after aggregation, as the saving and
+    loading of rows in AggregateIterator does not include FTS information. If we
+    have a GROUP BY, we'll either have an aggregate-to-table or a sort, which
+    fixes the issue. However, in the case of implicit grouping, we need to force
+    the temporary table here.
    */
   if (!need_tmp_before_win && implicit_grouping &&
-      primary_tables - const_tables == 1 && order.empty() &&
-      best_ref[const_tables]->table_ref->is_fulltext_searched()) {
-    for (Item *item : *fields) {
-      need_tmp_before_win |=
-          contains_function_of_type(item, Item_func::FT_FUNC);
-      if (need_tmp_before_win) break;
-    }
+      contains_non_aggregated_fts()) {
+    need_tmp_before_win = true;
   }
 
   if (!plan_is_const())  // (2)
