@@ -56,6 +56,7 @@
 #include "my_inttypes.h"  // ssize_t
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts.h"
+#include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/socket.h"
@@ -144,17 +145,13 @@ bool pattern_found(const std::string &s, const std::string &pattern) {
 }
 
 namespace {
-#ifndef _WIN32
-int close_socket(int sock) {
-  ::shutdown(sock, SHUT_RDWR);
-  return close(sock);
+void shut_and_close_socket(net::impl::socket::native_handle_type sock) {
+  const auto shut_both =
+      static_cast<std::underlying_type_t<net::socket_base::shutdown_type>>(
+          net::socket_base::shutdown_type::shutdown_both);
+  net::impl::socket::shutdown(sock, shut_both);
+  net::impl::socket::close(sock);
 }
-#else
-int close_socket(SOCKET sock) {
-  ::shutdown(sock, SD_BOTH);
-  return closesocket(sock);
-}
-#endif
 }  // namespace
 
 bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
@@ -191,7 +188,7 @@ bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
                               "wait_for_port_ready(): socket() failed");
     }
     std::shared_ptr<void> exit_close_socket(
-        nullptr, [&](void *) { close_socket(sock_id); });
+        nullptr, [&](void *) { shut_and_close_socket(sock_id); });
 
 #ifdef _WIN32
     // On Windows if the port is not ready yet when we try the connect() first
