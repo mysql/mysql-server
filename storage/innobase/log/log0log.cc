@@ -1826,7 +1826,8 @@ dberr_t log_sys_init(bool expect_no_files, lsn_t flushed_lsn,
 
     ut_a(log.m_files_ctx.m_files_ruleset == Log_files_ruleset::CURRENT);
 
-    return log_files_create(log, flushed_lsn, new_files_lsn);
+    new_files_lsn = flushed_lsn;
+    return log_files_create(log, flushed_lsn);
   }
 
   if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
@@ -1870,8 +1871,12 @@ dberr_t log_sys_init(bool expect_no_files, lsn_t flushed_lsn,
         const auto ret = log_remove_files(log.m_files_ctx);
         ut_a(ret.first == DB_SUCCESS);
       }
-
-      return log_files_create(log, flushed_lsn, new_files_lsn);
+      new_files_lsn =
+          flushed_lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE
+              ? flushed_lsn
+              : ut_uint64_align_up(flushed_lsn, OS_FILE_LOG_BLOCK_SIZE) +
+                    LOG_BLOCK_HDR_SIZE;
+      return log_files_create(log, new_files_lsn);
 
     case Log_files_find_result::SYSTEM_ERROR:
     case Log_files_find_result::FOUND_CORRUPTED_FILES:
