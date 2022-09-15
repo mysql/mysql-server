@@ -21,6 +21,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#ifndef MYSQL_HARNESS_HEXIFY_INCLUDED
+#define MYSQL_HARNESS_HEXIFY_INCLUDED
 
 #include <algorithm>  // copy
 #include <array>
@@ -82,3 +84,5 @@ inline std::string hexify(const T &buf) {
   return out;
 }
 }  // namespace mysql_harness
+
+#endif

@@ -99,7 +99,7 @@ std::error_code make_tls_error() {
   return {static_cast<int>(ERR_get_error()), tls_err_category()};
 }
 
-std::error_code make_tls_ssl_error(SSL *ssl, int res) {
+std::error_code make_tls_ssl_error(const SSL *ssl, int res) {
   const auto ssl_err = SSL_get_error(ssl, res);
 
   switch (ssl_err) {
