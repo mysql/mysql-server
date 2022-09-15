@@ -104,10 +104,14 @@ MySQLXProtocol::decode_single_message(const std::vector<uint8_t> &payload) {
 
   auto buf = net::buffer(payload) + 1;
 
-  return {
-      std::in_place, msg_id,
-      protocol_decoder_.decode_message(
-          header_msg_id, static_cast<const uint8_t *>(buf.data()), buf.size())};
+  try {
+    return {std::in_place, msg_id,
+            protocol_decoder_.decode_message(
+                header_msg_id, static_cast<const uint8_t *>(buf.data()),
+                buf.size())};
+  } catch (...) {
+    return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  }
 }
 
 void MySQLXProtocol::encode_message(

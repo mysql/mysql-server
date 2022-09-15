@@ -497,52 +497,71 @@ void MysqlRoutingXConnection::client_recv_cmd() {
     kCursorClose = Mysqlx::ClientMessages::CURSOR_CLOSE,
   };
 
-  switch (Msg{msg_type}) {
-    case Msg::kConClose:
-      // wait for the client to close the connection.
-      return async_recv_client(Function::kWaitClientClose);
+  // we need to check if the server connection is properly initialized if the
+  // message we are handling is not one from the session setup stage. This may
+  // be the case if the client is not following the protocol properly.
+  bool server_connection_state_ok{true};
+  const auto msg = Msg{msg_type};
+  switch (msg) {
     case Msg::kConCapGet:
-      return client_cap_get();
     case Msg::kConCapSet:
-      return client_cap_set();
     case Msg::kSessAuthStart:
-      return client_sess_auth_start();
-    case Msg::kSessionReset:
-      return client_session_reset();
-    case Msg::kSessionClose:
-      return client_session_close();
-    case Msg::kStmtExecute:
-      return client_stmt_execute();
-    case Msg::kCrudFind:
-      return client_crud_find();
-    case Msg::kCrudDelete:
-      return client_crud_delete();
-    case Msg::kCrudInsert:
-      return client_crud_insert();
-    case Msg::kCrudUpdate:
-      return client_crud_update();
-    case Msg::kPreparePrepare:
-      return client_prepare_prepare();
-    case Msg::kPrepareDeallocate:
-      return client_prepare_deallocate();
-    case Msg::kPrepareExecute:
-      return client_prepare_execute();
-    case Msg::kExpectOpen:
-      return client_expect_open();
-    case Msg::kExpectClose:
-      return client_expect_close();
-    case Msg::kCrudCreateView:
-      return client_crud_create_view();
-    case Msg::kCrudModifyView:
-      return client_crud_modify_view();
-    case Msg::kCrudDropView:
-      return client_crud_drop_view();
-    case Msg::kCursorOpen:
-      return client_cursor_open();
-    case Msg::kCursorFetch:
-      return client_cursor_fetch();
-    case Msg::kCursorClose:
-      return client_cursor_close();
+      break;
+    default: {
+      if (!socket_splicer->server_conn().connection()) {
+        server_connection_state_ok = false;
+      }
+    }
+  }
+
+  if (server_connection_state_ok) {
+    switch (msg) {
+      case Msg::kConClose:
+        // wait for the client to close the connection.
+        return async_recv_client(Function::kWaitClientClose);
+      case Msg::kConCapGet:
+        return client_cap_get();
+      case Msg::kConCapSet:
+        return client_cap_set();
+      case Msg::kSessAuthStart:
+        return client_sess_auth_start();
+      case Msg::kSessionReset:
+        return client_session_reset();
+      case Msg::kSessionClose:
+        return client_session_close();
+      case Msg::kStmtExecute:
+        return client_stmt_execute();
+      case Msg::kCrudFind:
+        return client_crud_find();
+      case Msg::kCrudDelete:
+        return client_crud_delete();
+      case Msg::kCrudInsert:
+        return client_crud_insert();
+      case Msg::kCrudUpdate:
+        return client_crud_update();
+      case Msg::kPreparePrepare:
+        return client_prepare_prepare();
+      case Msg::kPrepareDeallocate:
+        return client_prepare_deallocate();
+      case Msg::kPrepareExecute:
+        return client_prepare_execute();
+      case Msg::kExpectOpen:
+        return client_expect_open();
+      case Msg::kExpectClose:
+        return client_expect_close();
+      case Msg::kCrudCreateView:
+        return client_crud_create_view();
+      case Msg::kCrudModifyView:
+        return client_crud_modify_view();
+      case Msg::kCrudDropView:
+        return client_crud_drop_view();
+      case Msg::kCursorOpen:
+        return client_cursor_open();
+      case Msg::kCursorFetch:
+        return client_cursor_fetch();
+      case Msg::kCursorClose:
+        return client_cursor_close();
+    }
   }
 
   {

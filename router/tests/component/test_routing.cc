@@ -61,9 +61,29 @@ std::ostream &operator<<(std::ostream &os,
 
 }  // namespace std
 
+using mysql_harness::ConfigBuilder;
 using mysqlrouter::MySQLSession;
 
-class RouterRoutingTest : public RouterComponentTest {};
+class RouterRoutingTest : public RouterComponentTest {
+ public:
+  std::string get_static_routing_section(
+      const std::string &name, uint16_t bind_port, uint16_t server_port,
+      const std::string &protocol,
+      const std::vector<ConfigBuilder::kv_type> &custom_settings = {}) {
+    std::vector<ConfigBuilder::kv_type> options{
+        {"bind_port", std::to_string(bind_port)},
+        {"mode", "read-write"},
+        {"destinations", "127.0.0.1:" + std::to_string(server_port)},
+        {"protocol", protocol}};
+
+    for (const auto &s : custom_settings) {
+      options.push_back(s);
+    }
+
+    return mysql_harness::ConfigBuilder::build_section("routing:"s + name,
+                                                       options);
+  }
+};
 
 using XProtocolSession = std::shared_ptr<xcl::XSession>;
 
@@ -466,23 +486,6 @@ TEST_F(RouterRoutingTest, XProtoHandshakeEmpty) {
 
 class RouterMaxConnectionsTest : public RouterRoutingTest {
  public:
-  std::string get_static_routing_section(
-      const std::string &name, uint16_t bind_port, uint16_t server_port,
-      const std::string &protocol, const std::string &custom_settings = "") {
-    const std::string result = "[routing:"s + name +
-                               "]\n"
-                               "bind_port = " +
-                               std::to_string(bind_port) +
-                               "\n"
-                               "mode = read-write\n"
-                               "destinations = 127.0.0.1:" +
-                               std::to_string(server_port) + "\n" +
-                               "protocol=" + protocol + "\n" + custom_settings +
-                               "\n";
-
-    return result;
-  }
-
   bool make_new_connection(uint16_t port,
                            const std::chrono::milliseconds timeout = 5s) {
     const auto start_timestamp = std::chrono::steady_clock::now();
@@ -521,7 +524,7 @@ TEST_F(RouterMaxConnectionsTest, RoutingTooManyConnections) {
 
   // create a config with routing that has max_connections == 2
   const std::string routing_section = get_static_routing_section(
-      "A", router_port, server_port, "classic", "max_connections = 2");
+      "A", router_port, server_port, "classic", {{"max_connections", "2"}});
 
   TempDirectory conf_dir("conf");
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
@@ -695,15 +698,15 @@ TEST_F(RouterMaxConnectionsTest,
   // the total_max_connections is 10
   const std::string routing_section_classic_rw = get_static_routing_section(
       "classic_rw", router_classic_rw_port, server_classic_port, "classic",
-      "max_connections=5");
+      {{"max_connections", "5"}});
   const std::string routing_section_classic_ro = get_static_routing_section(
       "classic_ro", router_classic_ro_port, server_classic_port, "classic",
-      "max_connections=5");
+      {{"max_connections", "5"}});
 
   const std::string routing_section_x_rw = get_static_routing_section(
-      "x_rw", router_x_rw_port, server_x_port, "x", "max_connections=2");
+      "x_rw", router_x_rw_port, server_x_port, "x", {{"max_connections", "2"}});
   const std::string routing_section_x_ro = get_static_routing_section(
-      "x_ro", router_x_ro_port, server_x_port, "x", "max_connections=2");
+      "x_ro", router_x_ro_port, server_x_port, "x", {{"max_connections", "2"}});
 
   TempDirectory conf_dir("conf");
 
@@ -792,15 +795,15 @@ TEST_F(RouterMaxConnectionsTest,
   // the total_max_connections is 25
   const std::string routing_section_classic_rw = get_static_routing_section(
       "classic_rw", router_classic_rw_port, server_classic_port, "classic",
-      "max_connections=5");
+      {{"max_connections", "5"}});
   const std::string routing_section_classic_ro = get_static_routing_section(
       "classic_ro", router_classic_ro_port, server_classic_port, "classic",
-      "max_connections=5");
+      {{"max_connections", "5"}});
 
   const std::string routing_section_x_rw = get_static_routing_section(
-      "x_rw", router_x_rw_port, server_x_port, "x", "max_connections=5");
+      "x_rw", router_x_rw_port, server_x_port, "x", {{"max_connections", "5"}});
   const std::string routing_section_x_ro = get_static_routing_section(
-      "x_ro", router_x_ro_port, server_x_port, "x", "max_connections=5");
+      "x_ro", router_x_ro_port, server_x_port, "x", {{"max_connections", "5"}});
 
   TempDirectory conf_dir("conf");
 
@@ -936,7 +939,7 @@ TEST_F(RouterMaxConnectionsTest, WarningWhenLocalMaxConGreaterThanTotalMaxCon) {
   // 600 max_connections the total_max_connections is default 512
   const std::string routing_section_classic_rw = get_static_routing_section(
       "classic_rw", router_classic_rw_port, server_classic_port, "classic",
-      "max_connections=600");
+      {{"max_connections", "600"}});
   TempDirectory conf_dir("conf");
 
   std::string conf_file = create_config_file(
@@ -1693,6 +1696,137 @@ const RoutingDefaultConfigParam routing_default_config_param[] = {
 INSTANTIATE_TEST_SUITE_P(Spec, RoutingDefaultConfigTest,
                          ::testing::ValuesIn(routing_default_config_param),
                          [](const auto &info) { return info.param.test_name; });
+
+void shut_and_close_socket(net::impl::socket::native_handle_type sock) {
+  const auto shut_both =
+      static_cast<std::underlying_type_t<net::socket_base::shutdown_type>>(
+          net::socket_base::shutdown_type::shutdown_both);
+  net::impl::socket::shutdown(sock, shut_both);
+  net::impl::socket::close(sock);
+}
+
+net::impl::socket::native_handle_type connect_to_port(
+    const std::string &hostname, uint16_t port) {
+  struct addrinfo hints, *ainfo;
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
+
+  int status = getaddrinfo(hostname.c_str(), std::to_string(port).c_str(),
+                           &hints, &ainfo);
+  if (status != 0) {
+    return net::impl::socket::kInvalidSocket;
+  }
+  std::shared_ptr<void> exit_freeaddrinfo(nullptr,
+                                          [&](void *) { freeaddrinfo(ainfo); });
+
+  auto result =
+      socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
+  if (result == net::impl::socket::kInvalidSocket) {
+    return result;
+  }
+
+  status = connect(result, ainfo->ai_addr, ainfo->ai_addrlen);
+  if (status < 0) {
+    return net::impl::socket::kInvalidSocket;
+  }
+
+  return result;
+}
+
+struct InvalidInitMessageParam {
+  std::string client_ssl_mode;
+  std::string server_ssl_mode;
+  // binary data that client sends after connecting
+  std::vector<uint8_t> client_data;
+};
+
+class RouterRoutingXProtocolInvalidInitMessageTest
+    : public RouterRoutingTest,
+      public ::testing::WithParamInterface<InvalidInitMessageParam> {};
+
+/**
+ * @test Check if the Router behavior is correct when the client sends
+ * unexpected data right after connecting. It is pretty basic test, we check if
+ * the Router does not crash and that connecting to the port is still possible
+ * after that.
+ */
+TEST_P(RouterRoutingXProtocolInvalidInitMessageTest,
+       XProtocolInvalidInitMessageTest) {
+  const auto server_classic_port = port_pool_.get_next_available();
+  const auto server_x_port = port_pool_.get_next_available();
+  const auto router_x_rw_port = port_pool_.get_next_available();
+
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+
+  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
+                           /*http_port*/ 0, server_x_port);
+
+  const std::string routing_x_section =
+      get_static_routing_section("x", router_x_rw_port, server_x_port, "x");
+
+  TempDirectory conf_dir("conf");
+
+  const std::string ssl_conf =
+      "server_ssl_mode="s + GetParam().server_ssl_mode +
+      "\n"
+      "client_ssl_mode="s +
+      GetParam().client_ssl_mode +
+      "\n"
+      "client_ssl_key=" SSL_TEST_DATA_DIR "/server-key-sha512.pem\n" +
+      "client_ssl_cert=" SSL_TEST_DATA_DIR "/server-cert-sha512.pem";
+
+  std::string conf_file =
+      create_config_file(conf_dir.name(), routing_x_section, nullptr,
+                         "mysqlrouter.conf", ssl_conf);
+
+  // launch the router with the created configuration
+  launch_router({"-c", conf_file});
+
+  const auto x_con_sock = connect_to_port("127.0.0.1", router_x_rw_port);
+  ASSERT_NE(net::impl::socket::kInvalidSocket, x_con_sock);
+
+  std::shared_ptr<void> exit_close_socket(
+      nullptr, [&](void *) { shut_and_close_socket(x_con_sock); });
+
+  const auto write_res = net::impl::socket::write(
+      x_con_sock, GetParam().client_data.data(), GetParam().client_data.size());
+
+  ASSERT_TRUE(write_res);
+
+  // check that after we have sent the random data, connecting is still
+  // possible
+  XProtocolSession x_session;
+  const auto res = make_x_connection(x_session, "127.0.0.1", router_x_rw_port,
+                                     "root", "fake-pass");
+
+  EXPECT_THAT(res.error(), ::testing::AnyOf(0, 3159));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    XProtocolInvalidInitMessageTest,
+    RouterRoutingXProtocolInvalidInitMessageTest,
+
+    ::testing::Values(
+        // ResetSession frame
+        InvalidInitMessageParam{
+            "REQUIRED", "AS_CLIENT", {0x1, 0x0, 0x0, 0x0, 0x6}},
+        InvalidInitMessageParam{
+            "PASSTHROUGH", "AS_CLIENT", {0x1, 0x0, 0x0, 0x0, 0x6}},
+        // SessionClose frame
+        InvalidInitMessageParam{
+            "REQUIRED", "AS_CLIENT", {0x1, 0x0, 0x0, 0x0, 0x7}},
+        InvalidInitMessageParam{
+            "PASSTHROUGH", "AS_CLIENT", {0x1, 0x0, 0x0, 0x0, 0x7}},
+        // short frame
+        InvalidInitMessageParam{"REQUIRED", "AS_CLIENT", {0x1}},
+        InvalidInitMessageParam{"PASSTHROUGH", "AS_CLIENT", {0x1}},
+        // random garbage
+        InvalidInitMessageParam{
+            "REQUIRED", "AS_CLIENT", {0x2, 0x3, 0x4, 0x5, 0x11, 0x22}},
+        InvalidInitMessageParam{
+            "PASSTHROUGH", "AS_CLIENT", {0x2, 0x3, 0x4, 0x5, 0x11, 0x22}}));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
