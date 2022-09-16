@@ -677,7 +677,7 @@ class JOIN {
   mem_root_deque<Item *> *get_current_fields();
 
   bool optimize_rollup();
-  bool finalize_table_conditions();
+  bool finalize_table_conditions(THD *thd);
   /**
     Release memory and, if possible, the open tables held by this execution
     plan (and nested plans). It's used to release some tables before
@@ -1236,8 +1236,16 @@ double find_worst_seeks(const TABLE *table, double num_rows,
   comparison in all cases, ie., one can remove any further checks on
   field = right_item. If not, there may be false positives, and one
   needs to keep the comparison after the ref lookup.
+
+  @param thd            thread handler
+  @param field          field that is looked up through an index
+  @param right_item     value used to perform look up
+  @param[out] subsumes  true if an exact comparison can be done, false otherwise
+
+  @returns false if success, true if error
  */
-bool ref_lookup_subsumes_comparison(Field *field, Item *right_item);
+bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
+                                    bool *subsumes);
 
 /**
   Checks if we need to create iterators for this query. We usually have to. The

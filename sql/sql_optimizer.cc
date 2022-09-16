@@ -1032,7 +1032,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
     // Test if we can use an index instead of sorting
     test_skip_sort();
 
-    if (finalize_table_conditions()) return true;
+    if (finalize_table_conditions(thd)) return true;
   }
 
   if (make_join_readinfo(this, no_jbuf_after))
@@ -1448,7 +1448,7 @@ int JOIN::replace_index_subquery() {
   if (!found_engine) return 0;
 
   /* Remove redundant predicates and cache constant expressions  */
-  if (finalize_table_conditions()) return -1;
+  if (finalize_table_conditions(thd)) return -1;
 
   if (alloc_qep(tables)) return -1; /* purecov: inspected */
   unplug_join_tabs();
@@ -8794,14 +8794,24 @@ static Item *part_of_refkey(TABLE *table, Index_lookup *ref,
   return nullptr;
 }
 
-bool ref_lookup_subsumes_comparison(Field *field, Item *right_item) {
+bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
+                                    bool *subsumes) {
+  *subsumes = false;
   right_item = right_item->real_item();
-  if (right_item->type() == Item::FIELD_ITEM)
-    return (field->eq_def(down_cast<Item_field *>(right_item)->field));
-  /* remove equalities injected by IN->EXISTS transformation */
-  else if (right_item->type() == Item::CACHE_ITEM)
-    return down_cast<Item_cache *>(right_item)->eq_def(field);
-  if (right_item->const_for_execution() && !right_item->is_null()) {
+  if (right_item->type() == Item::FIELD_ITEM) {
+    *subsumes = field->eq_def(down_cast<Item_field *>(right_item)->field);
+    return false;
+  } else if (right_item->type() == Item::CACHE_ITEM) {
+    // remove equalities injected by IN->EXISTS transformation
+    *subsumes = down_cast<Item_cache *>(right_item)->eq_def(field);
+    return false;
+  }
+  bool right_is_null = true;
+  if (right_item->const_for_execution()) {
+    right_is_null = right_item->is_null();
+    if (thd->is_error()) return true;
+  }
+  if (!right_is_null) {
     /*
       We can remove all fields except:
       1. String data types:
@@ -8836,7 +8846,7 @@ bool ref_lookup_subsumes_comparison(Field *field, Item *right_item) {
           field->binary()) &&
         !(field->type() == MYSQL_TYPE_FLOAT && field->decimals() > 0))  // 2
     {
-      return !right_item->save_in_field_no_warnings(field, true);
+      *subsumes = !right_item->save_in_field_no_warnings(field, true);
     }
   }
   return false;
@@ -8854,16 +8864,20 @@ bool ref_lookup_subsumes_comparison(Field *field, Item *right_item) {
   In such cases the predicate is known to be 'true' for any rows retrieved
   from that table. Thus it is redundant.
 
+  @param thd         session context
   @param left_item   The Item_field possibly being part of A ref-KEY.
   @param right_item  The equality value specified for 'left_item'.
+  @param[out] redundant true if predicate is redundant, false otherwise
 
-  @return  'true' if the predicate is redundant.
+  @returns false if success, true if error
 
   @note See comments in reduce_cond_for_table() about careful
   usage/modifications of test_if_ref().
 */
 
-static bool test_if_ref(Item_field *left_item, Item *right_item) {
+static bool test_if_ref(THD *thd, Item_field *left_item, Item *right_item,
+                        bool *redundant) {
+  *redundant = false;
   if (left_item->depended_from)
     return false;  // don't even read join_tab of inner subquery!
   Field *field = left_item->field;
@@ -8877,8 +8891,11 @@ static bool test_if_ref(Item_field *left_item, Item *right_item) {
       /* "ref_or_null" implements "x=y or x is null", not "x=y" */
       (join_tab->type() != JT_REF_OR_NULL)) {
     Item *ref_item = part_of_refkey(field->table, &join_tab->ref(), field);
-    return (ref_item && ref_item->eq(right_item, true) &&
-            ref_lookup_subsumes_comparison(field, right_item));
+    if (ref_item != nullptr && ref_item->eq(right_item, true)) {
+      if (ref_lookup_subsumes_comparison(thd, field, right_item, redundant)) {
+        return true;
+      }
+    }
   }
   return false;  // keep predicate
 }
@@ -8903,16 +8920,21 @@ static bool test_if_ref(Item_field *left_item, Item *right_item) {
   Any tables referred in Item_func_trig_cond(FOUND_MATCH) conditions are
   aggregated into this null_extended table_map.
 
+  @param thd            thread handler
   @param cond           The condition to be 'reduced'.
   @param null_extended  table_map of possibly null-extended outer-tables.
-
-  @return               The condition with redundant predicates removed,
+  @param[out] reduced   The condition with redundant predicates removed,
                         possibly nullptr.
+
+  @returns              false if success, true if error
 */
-static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
+static bool reduce_cond_for_table(THD *thd, Item *cond, table_map null_extended,
+                                  Item **reduced) {
   DBUG_TRACE;
   DBUG_EXECUTE("where",
                print_where(current_thd, cond, "cond term", QT_ORDINARY););
+
+  *reduced = nullptr;
 
   if (cond->type() == Item::COND_ITEM) {
     List<Item> *arguments = down_cast<Item_cond *>(cond)->argument_list();
@@ -8920,7 +8942,10 @@ static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
     if (down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC) {
       Item *item;
       while ((item = li++)) {
-        Item *upd_item = reduce_cond_for_table(item, null_extended);
+        Item *upd_item;
+        if (reduce_cond_for_table(thd, item, null_extended, &upd_item)) {
+          return true;
+        }
         if (upd_item == nullptr) {
           li.remove();
         } else if (upd_item != item) {
@@ -8929,16 +8954,20 @@ static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
       }
       switch (arguments->elements) {
         case 0:
-          return nullptr;  // All 'true' -> And-cond true
+          return false;  // All 'true' -> And-cond true
         case 1:
-          return arguments->head();
+          *reduced = arguments->head();
+          return false;
       }
     } else {  // Or list
       Item *item;
       while ((item = li++)) {
-        Item *upd_item = reduce_cond_for_table(item, null_extended);
+        Item *upd_item;
+        if (reduce_cond_for_table(thd, item, null_extended, &upd_item)) {
+          return true;
+        }
         if (upd_item == nullptr) {
-          return nullptr;  // Term 'true' -> entire Or-cond true
+          return false;  // Term 'true' -> entire Or-cond true
         } else if (upd_item != item) {
           li.replace(upd_item);
         }
@@ -8959,14 +8988,15 @@ static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
       }
 
       Item *cond_arg = func->arguments()[0];
-      Item *upd_arg = reduce_cond_for_table(cond_arg, null_extended);
+      Item *upd_arg;
+      if (reduce_cond_for_table(thd, cond_arg, null_extended, &upd_arg)) {
+        return true;
+      }
       if (upd_arg == nullptr) {
-        return nullptr;
+        return false;
       }
       func->arguments()[0] = upd_arg;
-    }
-
-    else if (func->functype() == Item_func::EQ_FUNC) {
+    } else if (func->functype() == Item_func::EQ_FUNC) {
       /*
         Remove equalities that are guaranteed to be true by use of 'ref' access
         method.
@@ -8989,17 +9019,29 @@ static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
       */
       Item *left_item = func->arguments()[0]->real_item();
       Item *right_item = func->arguments()[1]->real_item();
-      if ((left_item->type() == Item::FIELD_ITEM &&
-           !(left_item->used_tables() & null_extended) &&
-           test_if_ref(down_cast<Item_field *>(left_item), right_item)) ||
-          (right_item->type() == Item::FIELD_ITEM &&
-           !(right_item->used_tables() & null_extended) &&
-           test_if_ref(down_cast<Item_field *>(right_item), left_item))) {
-        return nullptr;
+      bool redundant = false;
+      if (left_item->type() == Item::FIELD_ITEM &&
+          !(left_item->used_tables() & null_extended) &&
+          test_if_ref(thd, down_cast<Item_field *>(left_item), right_item,
+                      &redundant)) {
+        return true;
+      }
+      if (redundant) {
+        return false;
+      }
+      if (right_item->type() == Item::FIELD_ITEM &&
+          !(right_item->used_tables() & null_extended) &&
+          test_if_ref(thd, down_cast<Item_field *>(right_item), left_item,
+                      &redundant)) {
+        return true;
+      }
+      if (redundant) {
+        return false;
       }
     }
   }
-  return cond;
+  *reduced = cond;
+  return false;
 }
 
 /**
@@ -9013,13 +9055,15 @@ static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
   for the table. Constant expressions are also cached
   to avoid evaluating them for each row being compared.
 
-  @return False if success, True if error
+  @param thd     thread handler
+
+  @returns false if success, true if error
 
   @note This function is run after conditions have been pushed down to
         individual tables, so transformation is applied to JOIN_TAB::condition
         and not to the WHERE condition.
 */
-bool JOIN::finalize_table_conditions() {
+bool JOIN::finalize_table_conditions(THD *thd) {
   /*
     Unnecessary to reduce conditions for const tables as they are only
     evaluated once.
@@ -9051,7 +9095,9 @@ bool JOIN::finalize_table_conditions() {
     */
     const table_map null_extended =
         query_block->outer_join & ~best_ref[i]->table_ref->map();
-    condition = reduce_cond_for_table(condition, null_extended);
+    if (reduce_cond_for_table(thd, condition, null_extended, &condition)) {
+      return true;
+    }
     if (condition != nullptr) condition->update_used_tables();
 
     /*

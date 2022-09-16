@@ -1953,7 +1953,12 @@ bool CostingReceiver::ProposeRefAccess(
     applied_predicates.SetBit(i);
 
     const KeypartForRef &keypart = keyparts[keypart_idx];
-    if (ref_lookup_subsumes_comparison(keypart.field, keypart.val)) {
+    bool subsumes;
+    if (ref_lookup_subsumes_comparison(m_thd, keypart.field, keypart.val,
+                                       &subsumes)) {
+      return true;
+    }
+    if (subsumes) {
       if (m_trace != nullptr) {
         *m_trace += StringPrintf(" - %s is subsumed by ref access on %s.%s\n",
                                  ItemToString(pred.condition).c_str(),
