@@ -46,7 +46,7 @@
 #include "plugin/group_replication/include/plugin_messages/sync_before_execution_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_prepared_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_with_guarantee_message.h"
-#include "plugin/group_replication/include/services/system_variable/get_system_variable.h"
+#include "plugin/group_replication/include/services/get_system_variable/get_system_variable.h"
 
 using std::vector;
 
@@ -777,7 +777,7 @@ bool Plugin_gcs_events_handler::was_member_expelled_from_group(
     leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
     leave_actions.set(leave_group_on_failure::HANDLE_AUTO_REJOIN, true);
     leave_group_on_failure::leave(leave_actions, ER_GRP_RPL_MEMBER_EXPELLED,
-                                  &m_notification_ctx,
+                                  PSESSION_INIT_THREAD, &m_notification_ctx,
                                   exit_state_action_abort_log_message);
   }
 
@@ -921,7 +921,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     /**
       Set the read mode if not set during start (auto-start)
     */
-    if (enable_server_read_mode()) {
+    if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
       /*
         The notification will be triggered in the top level handle function
         that calls this one. In this case, the on_view_changed handle.
@@ -929,9 +929,9 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
       leave_group_on_failure::mask leave_actions;
       leave_actions.set(leave_group_on_failure::SKIP_SET_READ_ONLY, true);
       leave_actions.set(leave_group_on_failure::SKIP_LEAVE_VIEW_WAIT, true);
-      leave_group_on_failure::leave(leave_actions,
-                                    ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR,
-                                    &m_notification_ctx, "");
+      leave_group_on_failure::leave(
+          leave_actions, ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR,
+          PSESSION_DEDICATED_THREAD, &m_notification_ctx, "");
       set_plugin_is_setting_read_mode(false);
 
       return;
@@ -1038,7 +1038,8 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
       */
       leave_group_on_failure::mask leave_actions;
       leave_actions.set(leave_group_on_failure::SKIP_LEAVE_VIEW_WAIT, true);
-      leave_group_on_failure::leave(leave_actions, 0, &m_notification_ctx, "");
+      leave_group_on_failure::leave(leave_actions, 0, PSESSION_DEDICATED_THREAD,
+                                    &m_notification_ctx, "");
       return;
     }
   }
@@ -1321,13 +1322,13 @@ Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
 
   Get_system_variable *get_system_variable = new Get_system_variable();
 
-  if (get_system_variable->get_global_gtid_executed(server_executed_gtids)) {
+  if (get_system_variable->get_server_gtid_executed(server_executed_gtids)) {
     /* purecov: begin inspected */
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR);
     goto sending;
     /* purecov: inspected */
   }
-  if (get_system_variable->get_global_gtid_purged(server_purged_gtids)) {
+  if (get_system_variable->get_server_gtid_purged(server_purged_gtids)) {
     /* purecov: begin inspected */
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_PURGED_EXTRACT_ERROR);
     goto sending;
@@ -1867,7 +1868,7 @@ void Plugin_gcs_events_handler::disable_read_mode_for_compatible_members(
      * version. */
     if (!local_member_info->in_primary_mode() &&
         *joiner_compatibility_status == COMPATIBLE) {
-      if (disable_server_read_mode()) {
+      if (disable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
         LogPluginErr(WARNING_LEVEL,
                      ER_GRP_RPL_DISABLE_SRV_READ_MODE_RESTRICTED);
       }

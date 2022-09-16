@@ -22,16 +22,22 @@
 
 #include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 
+#include <stddef.h>
+
 #include "my_dbug.h"
+#include "mysql/components/services/log_builtins.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_utils.h"
-#include "plugin/group_replication/include/services/system_variable/set_system_variable.h"
 
-void enable_server_offline_mode() {
+void enable_server_offline_mode(enum_plugin_con_isolation session_isolation) {
   DBUG_TRACE;
 
-  Set_system_variable set_system_variable;
-  int error = set_system_variable.set_global_offline_mode(true);
+  Sql_service_command_interface *sql_command_interface =
+      new Sql_service_command_interface();
+  int error = sql_command_interface->establish_session_connection(
+                  session_isolation, GROUPREPL_USER, get_plugin_pointer()) ||
+              sql_command_interface->set_offline_mode();
+  delete sql_command_interface;
 
   if (error) {
     /* purecov: begin inspected */

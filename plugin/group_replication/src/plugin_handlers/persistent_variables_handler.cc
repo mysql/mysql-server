@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,19 +20,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef OFFLINE_MODE_HANDLER_INCLUDE
-#define OFFLINE_MODE_HANDLER_INCLUDE
+#include "plugin/group_replication/include/plugin_handlers/persistent_variables_handler.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_constants.h"
 
-#include "plugin/group_replication/include/sql_service/sql_service_command.h"
+long set_persist_only_variable(
+    std::string &name, std::string &value,
+    Sql_service_command_interface *command_interface) {
+  DBUG_TRACE;
+  long error = 0;
 
-/**
-  This method creates a server session and connects to the server
-  to enable the offline mode
+  DBUG_EXECUTE_IF("group_replication_var_persist_error", { return 1; });
 
-  @param session_isolation session creation requirements: use current thread,
-                           use thread but initialize it or create it in a
-                           dedicated thread
-*/
-void enable_server_offline_mode(enum_plugin_con_isolation session_isolation);
+  assert(command_interface != nullptr);
 
-#endif /* OFFLINE_MODE_HANDLER_INCLUDE */
+  error = command_interface->set_persist_only_variable(name, value);
+
+  return error;
+}

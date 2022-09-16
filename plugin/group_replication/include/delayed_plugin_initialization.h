@@ -23,7 +23,7 @@
 #ifndef DELAYED_PLUGIN_INITIALIZATION_INCLUDE
 #define DELAYED_PLUGIN_INITIALIZATION_INCLUDE
 
-#include "plugin/group_replication/include/plugin_utils.h"
+#include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
 
 class Delayed_initialization_thread {
  public:

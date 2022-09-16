@@ -126,15 +126,6 @@ Advertised_recovery_endpoints *advertised_recovery_endpoints = nullptr;
 Member_actions_handler *member_actions_handler = nullptr;
 /** Handle tasks on mysql_thread */
 Mysql_thread *mysql_thread_handler = nullptr;
-/**
-  Dedicated mysql_thread to enable `read_only` and `super_read_only`
-  since these are blocking operations.
-  If we did use `mysql_thread_handler` that would block all other
-  other operations until read modes operations complete.
-*/
-Mysql_thread *mysql_thread_handler_read_only_mode = nullptr;
-/** Module with the acquired server services on plugin install */
-Server_services_references *server_services_references_module = nullptr;
 
 Plugin_gcs_events_handler *events_handler = nullptr;
 Plugin_gcs_view_modification_notifier *view_change_notifier = nullptr;
@@ -687,17 +678,8 @@ int initialize_plugin_and_join(
   bool read_only_mode = false, super_read_only_mode = false;
   bool write_set_limits_set = false;
 
-  /*
-    Despite START GROUP_REPLICATION do not depend on the SQL API,
-    other operations, like distributed recovery through clone, do
-    depend, as such we do validate early that SQL API is operational.
-  */
-  Sql_service_command_interface sql_command_interface;
-  if (sql_command_interface.establish_session_connection(
-          sql_api_isolation, GROUPREPL_USER, lv.plugin_info_ptr)) {
-    error = 1;
-    goto err;
-  }
+  Sql_service_command_interface *sql_command_interface =
+      new Sql_service_command_interface();
 
   /**
     We redo the check for the group name here when starting on boot as only
@@ -726,7 +708,15 @@ int initialize_plugin_and_join(
   // GCS interface.
   if ((error = gcs_module->initialize())) goto err; /* purecov: inspected */
 
-  get_read_mode_state(&read_only_mode, &super_read_only_mode);
+  // Setup SQL service interface.
+  if (sql_command_interface->establish_session_connection(
+          sql_api_isolation, GROUPREPL_USER, lv.plugin_info_ptr)) {
+    error = 1; /* purecov: inspected */
+    goto err;  /* purecov: inspected */
+  }
+
+  get_read_mode_state(sql_command_interface, &read_only_mode,
+                      &super_read_only_mode);
 
   /*
    At this point in the code, set the super_read_only mode here on the
@@ -735,7 +725,7 @@ int initialize_plugin_and_join(
    deadlock issues.
   */
   if (!lv.plugin_is_auto_starting_on_install) {
-    if (enable_server_read_mode()) {
+    if (enable_super_read_only_mode(sql_command_interface)) {
       /* purecov: begin inspected */
       error = 1;
       LogPluginErr(ERROR_LEVEL,
@@ -854,7 +844,8 @@ err:
 
     if (!lv.server_shutdown_status && server_engine_initialized() &&
         enabled_super_read_only) {
-      set_read_mode_state(read_only_mode, super_read_only_mode);
+      set_read_mode_state(sql_command_interface, read_only_mode,
+                          super_read_only_mode);
     }
 
     assert(transactions_latch->empty());
@@ -867,6 +858,7 @@ err:
     }
   }
 
+  delete sql_command_interface;
   lv.plugin_is_auto_starting_on_install = false;
 
   return error;
@@ -1265,7 +1257,7 @@ int plugin_group_replication_stop(char **error_message) {
   // Enable super_read_only.
   if (!lv.server_shutdown_status && !lv.plugin_is_being_uninstalled &&
       server_engine_initialized()) {
-    if (enable_server_read_mode()) {
+    if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_FAILED_TO_ENABLE_READ_ONLY_MODE_ON_SHUTDOWN);
@@ -1307,6 +1299,20 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
                   { lv.rejoin_timeout = 1ULL; };);
   DBUG_EXECUTE_IF("group_replication_rejoin_long_retry",
                   { lv.rejoin_timeout = 60ULL; };);
+
+  /*
+    Mysql thread handler.
+  */
+  if (modules_to_init[gr_modules::MYSQL_THREAD_HANDLER]) {
+    mysql_thread_handler = new Mysql_thread(
+        key_GR_THD_mysql_thread_handler, key_GR_LOCK_mysql_thread_handler_run,
+        key_GR_COND_mysql_thread_handler_run,
+        key_GR_LOCK_mysql_thread_handler_dispatcher_run,
+        key_GR_COND_mysql_thread_handler_dispatcher_run);
+    if (mysql_thread_handler->initialize()) {
+      return GROUP_REPLICATION_CONFIGURATION_ERROR;
+    }
+  }
 
   /*
     Registry module.
@@ -1663,6 +1669,17 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
     }
   }
 
+  /*
+    Mysql thread handler.
+  */
+  if (modules_to_terminate[gr_modules::MYSQL_THREAD_HANDLER]) {
+    if (nullptr != mysql_thread_handler) {
+      mysql_thread_handler->terminate();
+      delete mysql_thread_handler;
+      mysql_thread_handler = nullptr;
+    }
+  }
+
   return error;
 }
 
@@ -1683,6 +1700,7 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::GCS_EVENTS_HANDLER, true);
   modules_mask.set(gr_modules::REMOTE_CLONE_HANDLER, true);
   modules_mask.set(gr_modules::MEMBER_ACTIONS_HANDLER, true);
+  modules_mask.set(gr_modules::MYSQL_THREAD_HANDLER, true);
   modules_mask.set(gr_modules::MESSAGE_SERVICE_HANDLER, true);
   modules_mask.set(gr_modules::BINLOG_DUMP_THREAD_KILL, true);
   modules_mask.set(gr_modules::RECOVERY_MODULE, true);
@@ -1856,66 +1874,6 @@ end:
   return ret;
 }
 
-void mysql_thread_handler_finalize() {
-  if (nullptr != mysql_thread_handler_read_only_mode) {
-    mysql_thread_handler_read_only_mode->terminate();
-    delete mysql_thread_handler_read_only_mode;
-    mysql_thread_handler_read_only_mode = nullptr;
-  }
-
-  if (nullptr != mysql_thread_handler) {
-    mysql_thread_handler->terminate();
-    delete mysql_thread_handler;
-    mysql_thread_handler = nullptr;
-  }
-}
-
-bool mysql_thread_handler_initialize() {
-  mysql_thread_handler = new Mysql_thread(
-      key_GR_THD_mysql_thread_handler, key_GR_LOCK_mysql_thread_handler_run,
-      key_GR_COND_mysql_thread_handler_run,
-      key_GR_LOCK_mysql_thread_handler_dispatcher_run,
-      key_GR_COND_mysql_thread_handler_dispatcher_run);
-  bool error = mysql_thread_handler->initialize();
-
-  mysql_thread_handler_read_only_mode = new Mysql_thread(
-      key_GR_THD_mysql_thread_handler_read_only_mode,
-      key_GR_LOCK_mysql_thread_handler_read_only_mode_run,
-      key_GR_COND_mysql_thread_handler_read_only_mode_run,
-      key_GR_LOCK_mysql_thread_handler_read_only_mode_dispatcher_run,
-      key_GR_COND_mysql_thread_handler_read_only_mode_dispatcher_run);
-  error |= mysql_thread_handler_read_only_mode->initialize();
-
-  if (error) {
-    LogPluginErr(
-        ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
-        "Failed to initialize Group Replication mysql thread handlers.");
-    mysql_thread_handler_finalize();
-  }
-
-  return error;
-}
-
-void server_services_references_finalize() {
-  if (nullptr != server_services_references_module) {
-    server_services_references_module->finalize();
-    delete server_services_references_module;
-    server_services_references_module = nullptr;
-  }
-}
-
-bool server_services_references_initialize() {
-  server_services_references_module = new Server_services_references();
-  bool error = server_services_references_module->initialize();
-  if (error) {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
-                 "Failed to acquire the required server services.");
-    server_services_references_finalize();
-  }
-
-  return error;
-}
-
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   // Initialize plugin local variables.
   lv.init();
@@ -1935,13 +1893,6 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   mysql_runtime_error_service =
       reinterpret_cast<SERVICE_TYPE_NO_CONST(mysql_runtime_error) *>(
           h_mysql_runtime_error_service);
-
-  /*
-    Acquire required server services once at plugin install.
-  */
-  if (server_services_references_initialize()) {
-    return 1;
-  }
 
 // Register all PSI keys at the time plugin init
 #ifdef HAVE_PSI_INTERFACE
@@ -2035,16 +1986,6 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   member_actions_handler = new Member_actions_handler();
   consensus_leaders_handler =
       new Consensus_leaders_handler{*group_events_observation_manager};
-
-  /*
-    We do query super_read_only value while Group Replication is stopped,
-    on example is the `group_replication_enable_member_action` UDF, as such,
-    we need to initialize the mysql_thread used on `Get_system_variable`
-    on plugin install.
-  */
-  if (mysql_thread_handler_initialize()) {
-    return 1;
-  }
 
   bool const error = register_udfs();
   if (error) return 1;
@@ -2203,7 +2144,6 @@ int plugin_group_replication_deinit(void *p) {
 
   unregister_udfs();
   sql_service_interface_deinit();
-  mysql_thread_handler_finalize();
 
   delete member_actions_handler;
   member_actions_handler = nullptr;
@@ -2229,8 +2169,6 @@ int plugin_group_replication_deinit(void *p) {
   lv.online_wait_mutex = nullptr;
 
   lv.plugin_info_ptr = nullptr;
-
-  server_services_references_finalize();
 
   // Deinitialize runtime error service.
   my_h_service h_mysql_runtime_error_service =

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,19 +20,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef OFFLINE_MODE_HANDLER_INCLUDE
-#define OFFLINE_MODE_HANDLER_INCLUDE
+#ifndef PERSISTENT_VARIABLES_HANDLER_INCLUDED
+#define PERSISTENT_VARIABLES_HANDLER_INCLUDED
 
 #include "plugin/group_replication/include/sql_service/sql_service_command.h"
 
 /**
-  This method creates a server session and connects to the server
-  to enable the offline mode
+  Persist a variable in the configuration but do not set the value
+  @param name the name of the query
+  @param value the value to set in the variable
+  @param command_interface the interface to the session API
 
-  @param session_isolation session creation requirements: use current thread,
-                           use thread but initialize it or create it in a
-                           dedicated thread
+  @note use this method when there is already an open server connection
+
+  @returns 0 in case of success, or the error value from the query
 */
-void enable_server_offline_mode(enum_plugin_con_isolation session_isolation);
+long set_persist_only_variable(
+    std::string &name, std::string &value,
+    Sql_service_command_interface *command_interface);
 
-#endif /* OFFLINE_MODE_HANDLER_INCLUDE */
+#endif /* PERSISTENT_VARIABLES_HANDLER_INCLUDED */

@@ -38,10 +38,9 @@
 #include "plugin/group_replication/include/plugin_messages/transaction_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_with_guarantee_message.h"
 #include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
-
-#ifndef NDEBUG
 #include "plugin/group_replication/include/sql_service/sql_command_test.h"
-#endif
+#include "plugin/group_replication/include/sql_service/sql_service_command.h"
+#include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 
 /*
   Buffer to read the write_set value as a string.
