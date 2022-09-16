@@ -21,6 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 ADD_SUBDIRECTORY(connection_pool)
+ADD_SUBDIRECTORY(destination_status)
 ADD_SUBDIRECTORY(harness)
 ADD_SUBDIRECTORY(http)
 ADD_SUBDIRECTORY(io)

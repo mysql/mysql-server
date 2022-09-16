@@ -311,7 +311,8 @@ const Plugin_data router_plugins[]{
         "router_protobuf",
         "router_openssl",
         "io",
-        "connection_pool"
+        "connection_pool",
+        "destination_status"
     )",
      ""},
     {"metadata_cache",

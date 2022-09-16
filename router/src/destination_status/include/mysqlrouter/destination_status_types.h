@@ -22,43 +22,39 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED
-#define MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED
+#ifndef MYSQLROUTER_DESTINATION_STATUS_TYPES_INCLUDED
+#define MYSQLROUTER_DESTINATION_STATUS_TYPES_INCLUDED
 
-#include <array>
-#include <string_view>
+#include <memory>
+#include <vector>
 
-static constexpr std::array<const char *, 29> routing_supported_options{
-    "protocol",
-    "destinations",
-    "bind_port",
-    "bind_address",
-    "socket",
-    "connect_timeout",
-    "mode",
-    "routing_strategy",
-    "max_connect_errors",
-    "max_connections",
-    "client_connect_timeout",
-    "net_buffer_length",
-    "thread_stack_size",
-    "client_ssl_mode",
-    "client_ssl_cert",
-    "client_ssl_key",
-    "client_ssl_cipher",
-    "client_ssl_curves",
-    "client_ssl_dh_params",
-    "server_ssl_mode",
-    "server_ssl_verify",
-    "disabled",
-    "server_ssl_cipher",
-    "server_ssl_ca",
-    "server_ssl_capath",
-    "server_ssl_crl",
-    "server_ssl_crlpath",
-    "server_ssl_curves",
-    // that is no longer used, kept for backward compatibilty, replaced by
-    // [destination_status].error_quarantine_interval
-    "unreachable_destination_refresh_interval",
+#include "tcp_address.h"
+
+struct QuarantineRoutingCallbacks {
+  std::function<std::vector<mysql_harness::TCPAddress>(const std::string &)>
+      on_get_destinations;
+  std::function<void(const std::string &)> on_start_acceptors;
+  std::function<void(const std::string &)> on_stop_acceptors;
+
+  void reset() {
+    on_get_destinations =
+        [](const std::string &) -> std::vector<mysql_harness::TCPAddress> {
+      return {};
+    };
+
+    on_start_acceptors = [](const std::string &) -> void {};
+    on_stop_acceptors = [](const std::string &) -> void {};
+  }
 };
-#endif /* MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED */
+
+struct AvailableDestination {
+  AvailableDestination(mysql_harness::TCPAddress a, std::string i)
+      : address{std::move(a)}, id{std::move(i)} {}
+
+  mysql_harness::TCPAddress address;
+  std::string id;
+};
+
+using AllowedNodes = std::vector<AvailableDestination>;
+
+#endif  // MYSQLROUTER_DESTINATION_STATUS_TYPES_INCLUDED

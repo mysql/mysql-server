@@ -22,35 +22,31 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_ROUTING_COMMON_UNREACHABLE_DESTINATIONS_INCLUDED
-#define MYSQLROUTER_ROUTING_COMMON_UNREACHABLE_DESTINATIONS_INCLUDED
+#ifndef MYSQLROUTER_UNREACHABLE_DESTINATIONS_QUARANTINE_INCLUDED
+#define MYSQLROUTER_UNREACHABLE_DESTINATIONS_QUARANTINE_INCLUDED
 
 #include <chrono>
+#include <map>
 #include <mutex>
 #include <vector>
 
-#include "destination.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/timer.h"
+#include "mysqlrouter/destination_status_types.h"
 #include "mysqlrouter/io_component.h"
-#include "tcp_address.h"
-
-struct AvailableDestination;
 
 /**
  * Information about unreachable destination candidates that is shared between
- * routing plugin instances.
+ * plugin instances.
  *
  * Quarantined destinations will not be used for
  * routing purposes. Each unreachable destination candidate is periodically
  * probed for availability and removed from the unreachable destination
  * candidate set if it became available.
  */
-class RoutingCommonUnreachableDestinations {
+class UnreachableDestinationsQuarantine {
  public:
-  using AllowedNodes = std::vector<AvailableDestination>;
-
   /**
    * Initialize the unreachable destination candidate mechanism.
    *
@@ -61,25 +57,43 @@ class RoutingCommonUnreachableDestinations {
    *   sockets
    * - quarantine_refresh_interval Used for unreachable destination candidates
    *   availability checks.
-   *
-   * @param[in] instance_name MySQLRouting plugin instance name.
-   * @param[in] quarantine_refresh_interval Time in seconds that will be used
-   *            for unreachable destination candidate availability checks.
+   * @param[in] quarantine_interval The interval in seconds used for checking
+   * the health (connectivity) of the quarantined destinations.
+   * @param[in] qurantine_threshold Number of consecutive reported failed
+   * connections to the destination until it gets quarantined.
    */
-  void init(const std::string &instance_name,
-            std::chrono::seconds quarantine_refresh_interval);
+  void init(std::chrono::seconds quarantine_interval,
+            uint32_t qurantine_threshold);
+
+  void register_routing_callbacks(
+      QuarantineRoutingCallbacks &&routing_callbacks);
+  void unregister_routing_callbacks();
+
+  void register_route(const std::string &route_name);
 
   /**
-   * Add unreachable destination candidate to quarantine.
+   * @brief
    *
-   * If the destination candidate is not quarantine yet it will starting
-   * the async handler for it, otherwise it will just update the referencing
-   * routing plugins list.
+   * Register the connection error or success to a given destination.
    *
-   * @param[in] dest Unreachable destination candidate address.
+   * If registering a success it will set the number of reported errors to a
+   * given connection to 0.
+   *
+   * If registering a failure it will increment the number of reported failed
+   * connections to the destination. If the number reached the
+   * quarantine_threshold the destination will be added to the quarantine. If
+   * the destination candidate is not quarantine yet it will starting the async
+   * handler for it, otherwise it will just update the referencing plugins list.
+   *
+   * @param[in] dest Reported destination address.
+   * @param[in] success Indicates if the reported connection result is success
+   * of failure.
+   *
+   * @returns true if the destination got added to the quarantine, false
+   * otherwise
    */
-  void add_destination_candidate_to_quarantine(
-      const mysql_harness::TCPAddress &dest);
+  bool report_connection_result(const mysql_harness::TCPAddress &dest,
+                                bool success);
 
   /**
    * Remove unreachable destination candidate from quarantine.
@@ -133,6 +147,9 @@ class RoutingCommonUnreachableDestinations {
    */
   void quarantine_handler(const std::error_code &ec,
                           const mysql_harness::TCPAddress &dest);
+
+  void add_destination_candidate_to_quarantine(
+      const mysql_harness::TCPAddress &dest);
 
   /**
    * Go through all routing instances and check if there are routing plugins
@@ -219,7 +236,6 @@ class RoutingCommonUnreachableDestinations {
     stdx::expected<void, std::error_code> connect_finish();
     stdx::expected<void, std::error_code> connected();
 
-    RoutingCommonUnreachableDestinations *destinations_;
     net::io_context *io_ctx_;
     mysql_harness::TCPAddress address_;
     std::vector<std::string> referencing_routing_instances_;
@@ -252,10 +268,13 @@ class RoutingCommonUnreachableDestinations {
 
   std::chrono::milliseconds kQuarantinedConnectTimeout{1000};
   std::chrono::seconds quarantine_interval_{1};
+  uint32_t quarantine_threshold_{1};
   net::io_context &io_ctx_ = IoComponent::get_instance().io_context();
   std::mutex quarantine_mutex_;
   std::vector<std::shared_ptr<Unreachable_destination_candidate>>
       quarantined_destination_candidates_;
+  std::map<mysql_harness::TCPAddress, uint32_t> destination_errors_;
+  std::mutex destination_errors_mutex_;
   std::mutex unreachable_destinations_init_mutex_;
   std::mutex routing_instances_mutex_;
   std::vector<std::string> routing_instances_;
@@ -265,6 +284,8 @@ class RoutingCommonUnreachableDestinations {
   std::atomic<size_t> quarantined_dest_counter_{0};
   std::condition_variable quarantine_empty_cond_;
   std::mutex quarantine_empty_cond_m_;
+
+  QuarantineRoutingCallbacks routing_callbacks_;
 };
 
-#endif  // MYSQLROUTER_ROUTING_COMMON_UNREACHABLE_DESTINATIONS_INCLUDED
+#endif  // MYSQLROUTER_UNREACHABLE_DESTINATIONS_QUARANTINE_INCLUDED

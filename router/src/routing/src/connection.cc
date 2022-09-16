@@ -219,6 +219,11 @@ stdx::expected<void, std::error_code> ConnectorBase::connected() {
   destination_id_ =
       endpoints_it_->host_name() + ":" + endpoints_it_->service_name();
 
+  if (on_connect_success_) {
+    on_connect_success_(endpoints_it_->host_name(),
+                        endpoints_it_->endpoint().port());
+  }
+
   return {};
 }
 

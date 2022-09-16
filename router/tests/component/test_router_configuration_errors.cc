@@ -437,50 +437,6 @@ INSTANTIATE_TEST_SUITE_P(
     });
 #endif
 
-class RouterDefaultConfigSectionTest : public RouterComponentTest {};
-
-class UnreachableDestinationRefreshIntervalOption
-    : public RouterDefaultConfigSectionTest,
-      public ::testing::WithParamInterface<std::string> {};
-
-/**
- * @test WL14663:TS_R2_1
- */
-TEST_P(UnreachableDestinationRefreshIntervalOption, ensure) {
-  TempDirectory conf_dir_;
-  auto default_section = get_DEFAULT_defaults();
-  const std::string unreachable_dest_refresh =
-      "unreachable_destination_refresh_interval = " + GetParam();
-
-  std::vector<std::string> sections{mysql_harness::ConfigBuilder::build_section(
-      "routing", {
-                     {"bind_address", "127.0.0.1:7001"},
-                     {"destinations", "127.0.0.1:3306"},
-                     {"mode", "read-only"},
-                     {"connect_timeout", "1"},
-                 })};
-  const std::string conf_file{
-      create_config_file(conf_dir_.name(), mysql_harness::join(sections, ""),
-                         &default_section, "test", unreachable_dest_refresh)};
-
-  auto &router{
-      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s)};
-
-  check_exit_code(router, EXIT_FAILURE);
-
-  EXPECT_THAT(router.get_logfile_content(),
-              ::testing::HasSubstr(
-                  "Configuration error: option "
-                  "unreachable_destination_refresh_interval in [default] needs "
-                  "value between 1 and 65535 inclusive, was '" +
-                  GetParam() + "'"));
-}
-
-INSTANTIATE_TEST_SUITE_P(UnreachableDestinationRefreshIntervalOptionTest,
-                         UnreachableDestinationRefreshIntervalOption,
-                         ::testing::ValuesIn(std::vector<std::string>{
-                             "0", "-1", "65536", "10a"}));
-
 class RouterCmdlineTest : public RouterComponentTest {
  protected:
   TempDirectory conf_dir_;

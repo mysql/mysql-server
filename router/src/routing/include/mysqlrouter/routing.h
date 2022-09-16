@@ -86,13 +86,6 @@ constexpr const unsigned int kDefaultNetBufferLength{16384};
  */
 constexpr const std::chrono::seconds kDefaultClientConnectTimeout{9};
 
-/**
- * The number of seconds that MySQL Router waits between checking for
- * reachability of an unreachable destination.
- */
-constexpr const std::chrono::seconds
-    kDefaultUnreachableDestinationRefreshInterval{1};
-
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
   kUndefined = 0,

@@ -886,11 +886,15 @@ void MysqlRoutingClassicConnection::async_run() {
   connector().on_connect_failure(
       [&](std::string hostname, uint16_t port, const std::error_code last_ec) {
         if (last_ec == std::error_code{}) return;  // no failure.
-
-        log_debug("[%s] add destination '%s:%d' to quarantine",
-                  context().get_name().c_str(), hostname.c_str(), port);
-        context().shared_quarantine().update({hostname, port});
+        if (context().shared_quarantine().update({hostname, port}, false)) {
+          log_debug("[%s] add destination '%s:%d' to quarantine",
+                    context().get_name().c_str(), hostname.c_str(), port);
+        }
       });
+
+  connector().on_connect_success([&](std::string hostname, uint16_t port) {
+    context().shared_quarantine().update({hostname, port}, true);
+  });
 
   connector().on_is_destination_good(
       [&](const std::string &hostname, uint16_t port) {

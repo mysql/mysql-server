@@ -174,6 +174,10 @@ class ConnectorBase {
     on_connect_failure_ = std::move(func);
   }
 
+  void on_connect_success(std::function<void(std::string, uint16_t)> func) {
+    on_connect_success_ = std::move(func);
+  }
+
   void on_is_destination_good(std::function<bool(std::string, uint16_t)> func) {
     on_is_destination_good_ = std::move(func);
   }
@@ -220,6 +224,7 @@ class ConnectorBase {
 
   std::function<void(std::string, uint16_t, std::error_code)>
       on_connect_failure_;
+  std::function<void(std::string, uint16_t)> on_connect_success_;
   std::function<bool(std::string, uint16_t)> on_is_destination_good_;
 };
 

@@ -419,9 +419,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     } catch (const URIError &) {
       r->set_destinations_from_csv(config.destinations);
     }
-    MySQLRoutingComponent::get_instance().init(
-        section->key, r,
-        std::chrono::seconds(config.unreachable_destination_refresh_interval));
+    MySQLRoutingComponent::get_instance().register_route(section->key, r);
 
     Scope_guard guard{[section_key = section->key]() {
       MySQLRoutingComponent::get_instance().erase(section_key);
@@ -451,12 +449,13 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   io_context_work_guards.clear();
 }
 
-static const std::array<const char *, 5> required = {{
+static const std::array<const char *, 6> required = {{
     "logger",
     "router_protobuf",
     "router_openssl",
     "io",
     "connection_pool",
+    "destination_status",
 }};
 
 mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing = {

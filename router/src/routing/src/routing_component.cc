@@ -23,15 +23,15 @@
 */
 
 #include "mysqlrouter/routing_component.h"
-#include "mysql/harness/config_option.h"
-
-#include <cstring>
-
-#include "mysql_routing_base.h"
-#include "mysqlrouter/routing.h"
 
 #include <algorithm>
-#include <iostream>
+#include <cstring>
+
+#include "mysql/harness/config_option.h"
+#include "mysql_routing_base.h"
+#include "mysqlrouter/destination_status_component.h"
+#include "mysqlrouter/destination_status_types.h"
+#include "mysqlrouter/routing.h"
 
 using namespace std::string_literals;
 
@@ -132,40 +132,45 @@ void MySQLRoutingAPI::stop_socket_acceptors() { r_->stop_socket_acceptors(); }
 bool MySQLRoutingAPI::is_running() const { return r_->is_running(); }
 
 void MySQLRoutingComponent::deinit() {
-  routing_common_unreachable_destinations_.stop_quarantine();
+  DestinationStatusComponent::get_instance()
+      .stop_unreachable_destinations_quarantine();
   for (auto &route : routes_) {
     if (auto routing_plugin = route.second.lock()) {
       routing_plugin->get_context().shared_quarantine().reset();
     }
   }
+
+  DestinationStatusComponent::get_instance().unregister_quarantine_callbacks();
 }
 
-void MySQLRoutingComponent::init(
-    const std::string &name, std::shared_ptr<MySQLRoutingBase> srv,
-    std::chrono::seconds quarantine_refresh_interval) {
+void MySQLRoutingComponent::register_route(
+    const std::string &name, std::shared_ptr<MySQLRoutingBase> srv) {
   auto &quarantine = srv->get_context().shared_quarantine();
 
-  quarantine.on_update([&](const mysql_harness::TCPAddress &addr) {
-    routing_common_unreachable_destinations_
-        .add_destination_candidate_to_quarantine(addr);
+  quarantine.on_update([&](const mysql_harness::TCPAddress &addr,
+                           bool success) -> bool {
+    return DestinationStatusComponent::get_instance().report_connection_result(
+        addr, success);
   });
 
   quarantine.on_is_quarantined([&](const mysql_harness::TCPAddress &addr) {
-    return routing_common_unreachable_destinations_.is_quarantined(addr);
+    return DestinationStatusComponent::get_instance()
+        .is_destination_quarantined(addr);
   });
 
-  quarantine.on_stop(
-      [&]() { routing_common_unreachable_destinations_.stop_quarantine(); });
+  quarantine.on_stop([&]() {
+    DestinationStatusComponent::get_instance()
+        .stop_unreachable_destinations_quarantine();
+  });
 
   quarantine.on_refresh([&](const std::string &instance_name,
                             const bool nodes_changed_on_md_refresh,
                             const AllowedNodes &available_destinations) {
-    routing_common_unreachable_destinations_.refresh_quarantine(
+    DestinationStatusComponent::get_instance().refresh_destinations_quarantine(
         instance_name, nodes_changed_on_md_refresh, available_destinations);
   });
 
-  routing_common_unreachable_destinations_.init(
-      name, std::move(quarantine_refresh_interval));
+  DestinationStatusComponent::get_instance().register_route(name);
 
   std::lock_guard<std::mutex> lock(routes_mu_);
 
@@ -246,4 +251,23 @@ void MySQLRoutingComponent::init(const mysql_harness::Config &config) {
   max_total_connections_ = get_uint64_config(
       config, "max_total_connections", 1, std::numeric_limits<int64_t>::max(),
       kDefaultMaxTotalConnections);
+
+  QuarantineRoutingCallbacks quarantine_callbacks;
+  quarantine_callbacks.on_get_destinations = [&](
+      const std::string &route_name) -> auto {
+    return this->api(route_name).get_destinations();
+  };
+
+  quarantine_callbacks.on_start_acceptors =
+      [&](const std::string &route_name) -> void {
+    this->api(route_name).restart_accepting_connections();
+  };
+
+  quarantine_callbacks.on_stop_acceptors =
+      [&](const std::string &route_name) -> void {
+    this->api(route_name).stop_socket_acceptors();
+  };
+
+  DestinationStatusComponent::get_instance().register_quarantine_callbacks(
+      std::move(quarantine_callbacks));
 }

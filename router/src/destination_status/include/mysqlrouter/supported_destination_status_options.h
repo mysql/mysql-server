@@ -22,43 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED
-#define MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED
+#ifndef MYSQLROUTER_ROUTING_SUPPORTED_DESTINATION_STATUS_OPTIONS_INCLUDED
+#define MYSQLROUTER_ROUTING_SUPPORTED_DESTINATION_STATUS_OPTIONS_INCLUDED
 
 #include <array>
-#include <string_view>
 
-static constexpr std::array<const char *, 29> routing_supported_options{
-    "protocol",
-    "destinations",
-    "bind_port",
-    "bind_address",
-    "socket",
-    "connect_timeout",
-    "mode",
-    "routing_strategy",
-    "max_connect_errors",
-    "max_connections",
-    "client_connect_timeout",
-    "net_buffer_length",
-    "thread_stack_size",
-    "client_ssl_mode",
-    "client_ssl_cert",
-    "client_ssl_key",
-    "client_ssl_cipher",
-    "client_ssl_curves",
-    "client_ssl_dh_params",
-    "server_ssl_mode",
-    "server_ssl_verify",
-    "disabled",
-    "server_ssl_cipher",
-    "server_ssl_ca",
-    "server_ssl_capath",
-    "server_ssl_crl",
-    "server_ssl_crlpath",
-    "server_ssl_curves",
-    // that is no longer used, kept for backward compatibilty, replaced by
-    // [destination_status].error_quarantine_interval
-    "unreachable_destination_refresh_interval",
-};
-#endif /* MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED */
+static constexpr std::array<const char *, 2>
+    destination_status_supported_options{"error_quarantine_interval",
+                                         "error_quarantine_threshold"};
+
+#endif /* MYSQLROUTER_ROUTING_SUPPORTED_DESTINATION_STATUS_OPTIONS_INCLUDED */

@@ -31,6 +31,8 @@
 #include <string>        // string
 #include <system_error>  // error_code
 
+#include "tcp_address.h"
+
 /**
  * Destination to forward client connections to.
  *

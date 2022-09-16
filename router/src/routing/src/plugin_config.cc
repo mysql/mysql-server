@@ -472,11 +472,14 @@ RoutingPluginConfig::RoutingPluginConfig(
                      StringOption{});
   GET_OPTION_CHECKED(dest_ssl_curves, section, "server_ssl_curves",
                      StringOption{});
-  auto unreachable_destination_refresh_interval_op =
-      IntOption<uint32_t>{1, 65535};
-  GET_OPTION_CHECKED(unreachable_destination_refresh_interval, section,
-                     "unreachable_destination_refresh_interval",
-                     unreachable_destination_refresh_interval_op);
+
+  if (get_option(section, "unreachable_destination_refresh_interval",
+                 StringOption{}) != "") {
+    log_warning(
+        "Option 'unreachable_destination_refresh_interval' is deprecated and "
+        "has no effect. Please configure "
+        "[destination_status].error_quarantine_interval instead.");
+  }
 
   using namespace std::string_literals;
 
@@ -540,9 +543,6 @@ std::string RoutingPluginConfig::get_default(const std::string &option) const {
       {"net_buffer_length", std::to_string(routing::kDefaultNetBufferLength)},
       {"thread_stack_size",
        std::to_string(mysql_harness::kDefaultStackSizeInKiloBytes)},
-      {"unreachable_destination_refresh_interval",
-       std::to_string(
-           routing::kDefaultUnreachableDestinationRefreshInterval.count())},
       {"client_ssl_mode", ""},
       {"server_ssl_mode", "as_client"},
       {"server_ssl_verify", "disabled"},

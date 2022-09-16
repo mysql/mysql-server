@@ -34,7 +34,8 @@
 
 class SharedQuarantineHandler {
  public:
-  using update_callback_type = std::function<void(mysql_harness::TCPAddress)>;
+  using update_callback_type =
+      std::function<bool(mysql_harness::TCPAddress, bool)>;
   using is_quarantined_callback_type =
       std::function<bool(mysql_harness::TCPAddress)>;
   using stop_callback_type = std::function<void()>;
@@ -50,8 +51,9 @@ class SharedQuarantineHandler {
    */
   void on_update(update_callback_type clb) { on_update_ = std::move(clb); }
 
-  void update(const mysql_harness::TCPAddress &addr) {
-    if (on_update_) on_update_(addr);
+  bool update(const mysql_harness::TCPAddress &addr, bool success) {
+    if (on_update_) return on_update_(addr, success);
+    return false;
   }
 
   /**

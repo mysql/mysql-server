@@ -25,6 +25,7 @@ usr/bin/mysqlrouter_keyring
 usr/bin/mysqlrouter_plugin_info
 usr/bin/mysqlrouter_passwd
 usr/lib/mysqlrouter/plugin/connection_pool.so
+usr/lib/mysqlrouter/plugin/destination_status.so
 usr/lib/mysqlrouter/plugin/http_auth_backend.so
 usr/lib/mysqlrouter/plugin/http_auth_realm.so
 usr/lib/mysqlrouter/plugin/http_server.so
@@ -46,6 +47,7 @@ usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_tls.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_connection_pool.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_destination_status.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.1
