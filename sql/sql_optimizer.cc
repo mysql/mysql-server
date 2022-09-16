@@ -249,6 +249,55 @@ static void SaveCondEqualLists(COND_EQUAL *cond_equal) {
   SaveCondEqualLists(cond_equal->upper_levels);
 }
 
+bool JOIN::check_access_path_with_fts() const {
+  // Only relevant to the old optimizer.
+  assert(!thd->lex->using_hypergraph_optimizer);
+
+  assert(query_block->has_ft_funcs());
+  assert(rollup_state != RollupState::NONE);
+
+  // Find all tables referenced from non-aggregated MATCH calls in the SELECT
+  // list or in any hidden items lifted to the SELECT list from other clauses.
+  table_map fulltext_tables = 0;
+  for (Item *field : *fields) {
+    WalkItem(field, enum_walk::PREFIX | enum_walk::POSTFIX,
+             NonAggregatedFullTextSearchVisitor(
+                 [&fulltext_tables](Item_func_match *item) {
+                   fulltext_tables |= item->used_tables();
+                   return false;
+                 }));
+  }
+
+  if (fulltext_tables == 0) return false;
+
+  // See if any of those tables is accessed without materialization between the
+  // table access path and the aggregate access path.
+  bool found = false;
+  WalkAccessPaths(
+      root_access_path(), this, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [fulltext_tables, &found](const AccessPath *path, const JOIN *) {
+        if (path->type == AccessPath::AGGREGATE) {
+          // Does the aggregate path access any of "fulltext_tables" without an
+          // intermediate materialization step? GetUsedTableMap() does not see
+          // through materialization and returns RAND_TABLE_BIT instead of the
+          // actual tables if "path" reads materialized results.
+          found |=
+              Overlaps(fulltext_tables,
+                       GetUsedTableMap(path, /*include_pruned_tables=*/true));
+        }
+        return found;
+      });
+
+  if (found) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "reading non-aggregated results of the MATCH full-text search "
+             "function after GROUP BY WITH ROLLUP");
+    return true;
+  }
+
+  return false;
+}
+
 /**
   Optimizes one query block into a query execution plan (QEP.)
 
@@ -1008,6 +1057,12 @@ bool JOIN::optimize(bool finalize_access_paths) {
   // Creating iterators may evaluate a constant hash join condition, which may
   // fail:
   if (thd->is_error()) return true;
+
+  if (rollup_state != RollupState::NONE && query_block->has_ft_funcs()) {
+    if (check_access_path_with_fts()) {
+      return true;
+    }
+  }
 
   /*
     At this stage, we have set up an AccessPath 'plan'. Traverse the
