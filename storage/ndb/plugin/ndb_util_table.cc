@@ -405,8 +405,8 @@ std::string Ndb_util_table::unpack_varbinary(NdbRecAttr *ndbRecAttr) {
   assert(ndbRecAttr->getType() == NdbDictionary::Column::Varbinary ||
          ndbRecAttr->getType() == NdbDictionary::Column::Longvarbinary);
 
-  const char *value_start;
-  size_t value_length;
+  const char *value_start = nullptr;
+  size_t value_length = 0;
   ndb_unpack_varchar(ndbRecAttr->getColumn(), 0, &value_start, &value_length,
                      ndbRecAttr->aRef());
 
@@ -428,8 +428,8 @@ std::string Ndb_util_table::unpack_varbinary(const char *column_name,
   assert(get_table() != nullptr);
   // The type of column should be VARBINARY
   assert(check_column_varbinary(column_name));
-  const char *unpacked_str;
-  size_t unpacked_str_length;
+  const char *unpacked_str = nullptr;
+  size_t unpacked_str_length = 0;
   ndb_unpack_varchar(get_column(column_name), 0, &unpacked_str,
                      &unpacked_str_length, packed_str);
 

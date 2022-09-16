@@ -70,8 +70,7 @@ end:
 void ssl_wrapper_version(Vio *vio, char *buffer, const size_t buffer_size) {
   const char *ssl_version = SSL_get_version((SSL *)vio->ssl_arg);
 
-  strncpy(buffer, ssl_version, buffer_size);
-  buffer[buffer_size - 1] = '\0';
+  snprintf(buffer, buffer_size, "%s", ssl_version);
 }
 
 /**

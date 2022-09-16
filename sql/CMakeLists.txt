@@ -1142,6 +1142,12 @@ IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
   IF(HAS_WARN_FLAG)
     MY_TARGET_LINK_OPTIONS(mysqld "${HAS_WARN_FLAG}")
   ENDIF()
+  # We may get errors in boost/geometry/srs/projections/proj/ob_tran.hpp
+  # and several other boost files.
+  MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    MY_TARGET_LINK_OPTIONS(mysqld "${HAS_WARN_FLAG}")
+  ENDIF()
 ENDIF()
 
 GET_TARGET_PROPERTY(mysqld_link_flags mysqld LINK_FLAGS)

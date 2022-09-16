@@ -233,7 +233,7 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd, const LEX_STRING *txt,
                                                 const char *end_ptr) {
   if (!m_cpp_utf8_processed_ptr) return;
 
-  LEX_STRING utf_txt;
+  LEX_STRING utf_txt{nullptr, 0};
 
   if (!my_charset_same(txt_cs, &my_charset_utf8mb4_general_ci)) {
     thd->convert_string(&utf_txt, &my_charset_utf8mb4_general_ci, txt->str,
