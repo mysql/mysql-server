@@ -23,7 +23,6 @@
 #ifndef MYSQL_THREAD_INCLUDE
 #define MYSQL_THREAD_INCLUDE
 
-#include <atomic>
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/plugin_utils.h"
@@ -183,20 +182,10 @@ class Mysql_thread_task {
     */
   void execute();
 
-  /**
-    Check if the task did finish.
-
-    @return did the task finish?
-      @retval false  No
-      @retval true   Yes
-    */
-  bool is_finished();
-
  private:
   // cannot be deleted, represent class where method will run
   Mysql_thread_body *m_body{nullptr};
   Mysql_thread_body_parameters *m_parameters{nullptr};
-  std::atomic<bool> m_finished{false};
 };
 
 /**
@@ -260,10 +249,11 @@ class Mysql_thread {
   mysql_mutex_t m_run_lock;
   mysql_cond_t m_run_cond;
   thread_state m_state;
-  std::atomic<bool> m_aborted{false};
+  bool m_aborted{false};
 
   mysql_mutex_t m_dispatcher_lock;
   mysql_cond_t m_dispatcher_cond;
+  bool m_trigger_run_complete{false};
 
   Abortable_synchronized_queue<Mysql_thread_task *> *m_trigger_queue{nullptr};
 };

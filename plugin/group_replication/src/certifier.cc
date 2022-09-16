@@ -31,7 +31,7 @@
 #include "plugin/group_replication/include/certifier.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/services/system_variable/get_system_variable.h"
+#include "plugin/group_replication/include/services/get_system_variable/get_system_variable.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME = "gtid_extracted";
 const std::string Certifier::CERTIFICATION_INFO_ERROR_NAME =
@@ -414,7 +414,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
 
   get_system_variable = new Get_system_variable();
 
-  error = get_system_variable->get_global_gtid_executed(gtid_executed);
+  error = get_system_variable->get_server_gtid_executed(gtid_executed);
   DBUG_EXECUTE_IF("gr_server_gtid_executed_extraction_error", error = 1;);
   if (error) {
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ERROR_FETCHING_GTID_EXECUTED_SET);

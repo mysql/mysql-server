@@ -115,8 +115,6 @@ RUN STOP GROUP_REPLICATION
 RUN SET GLOBAL read_only= FALSE
 RUN DROP TABLE test.tab1
 RUN RESET MASTER
-[ASSERT view_change on 'verify_1' connection]
-[ASSERT state_change on 'verify_1' connection]
 [connection server_2]
 RUN DROP TABLE test.tab1
 RUN RESET MASTER
@@ -255,8 +253,6 @@ RUN STOP GROUP_REPLICATION
 RUN SET GLOBAL read_only= FALSE
 RUN DROP TABLE test.tab1
 RUN RESET MASTER
-[ASSERT no notices on 'verify_1' connection]
-[ASSERT no notices on 'verify_1' connection]
 [connection server_2]
 RUN DROP TABLE test.tab1
 RUN RESET MASTER

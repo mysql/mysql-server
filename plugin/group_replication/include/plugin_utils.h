@@ -361,21 +361,14 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
   /**
    Remove all elements, abort current and future waits on retrieving elements
    from queue.
-
-   @param delete_elements When true, apart from emptying the queue, it also
-                          delete each element.
-                          When false, the delete (memory release) responsibility
-                          belongs to the `push()` caller.
   */
-  void abort(bool delete_elements) {
+  void abort() {
     mysql_mutex_lock(&this->lock);
     while (this->queue.size()) {
       T elem;
       elem = this->queue.front();
       this->queue.pop();
-      if (delete_elements) {
-        delete elem;
-      }
+      delete elem;
     }
     m_abort = true;
     mysql_cond_broadcast(&this->cond);
