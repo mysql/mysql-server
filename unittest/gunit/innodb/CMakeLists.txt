@@ -27,6 +27,13 @@ INCLUDE_DIRECTORIES(
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/innodb.cmake)
 
+IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
+  IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+    # -Walloc-size-larger-than=PTRDIFF_MAX is enabled by default.
+    STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -Wno-alloc-size-larger-than")
+  ENDIF()
+ENDIF()
+
 SET(TESTS
   #example
   fil_path

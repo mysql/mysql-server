@@ -322,7 +322,7 @@ HttpUri::operator bool() const { return pImpl_->uri.operator bool(); }
 
 std::string HttpUri::decode(const std::string &uri_str,
                             const bool decode_plus) {
-  size_t out_size;
+  size_t out_size = 0;
   std::unique_ptr<char, decltype(&free)> decoded{
       evhttp_uridecode(uri_str.c_str(), decode_plus ? 1 : 0, &out_size), &free};
   return std::string(decoded.get(), out_size);

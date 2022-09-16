@@ -133,7 +133,7 @@ TEST_F(RegexpEngineTest, AppendReplacementGrowBuffer) {
   // We simulate starting on the second character, and fake an AppendHead()
   // operation.
   EXPECT_TRUE(uregex_find(engine.re(), 1, &error_code));
-  engine.set_replace_buffer({'a'});
+  engine.set_replace_buffer({'a', 'x'});
   engine.set_replace_pos(1);
 
   engine.AppendReplacement(m_replacement);

@@ -2228,6 +2228,12 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
       IF(HAS_WARN_FLAG)
         MY_TARGET_LINK_OPTIONS(server_unittest_library "${HAS_WARN_FLAG}")
       ENDIF()
+      # We may get errors in boost/geometry/srs/projections/proj/ob_tran.hpp
+      # and several other boost files.
+      MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
+      IF(HAS_WARN_FLAG)
+        MY_TARGET_LINK_OPTIONS(server_unittest_library "${HAS_WARN_FLAG}")
+      ENDIF()
     ENDIF()
   ELSE()
     SET(DUMMY_SOURCE_FILE ${CMAKE_BINARY_DIR}/server_unittest_library.c)
