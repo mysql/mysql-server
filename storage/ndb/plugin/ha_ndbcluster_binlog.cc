@@ -6915,7 +6915,7 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
                                      Uint64 current_epoch,
                                      ndb_binlog_index_row *rows,
                                      unsigned trans_row_count,
-                                     unsigned replicated_row_count) const {
+                                     unsigned replicated_row_count) {
   if (!trans.good()) {
     return;
   }
@@ -6950,6 +6950,7 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
       ndbcluster::ndbrequire(commit_res == 0);
     }
   }
+
   injector::transaction::binlog_pos start = trans.start_pos();
   injector::transaction::binlog_pos next = trans.next_pos();
   rows->gci = (Uint32)(current_epoch >> 32);  //  Expose gci hi/lo
@@ -6982,6 +6983,14 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
       }
     }
   }
+
+  if (m_cache_spill_checker.check_disk_spill(binlog_cache_disk_use)) {
+    log_warning(
+        "Binary log cache data overflowed to disk %u time(s). "
+        "Consider increasing --binlog-cache-size.",
+        m_cache_spill_checker.m_disk_spills);
+  }
+
   ndb_latest_applied_binlog_epoch = current_epoch;
 }
 
