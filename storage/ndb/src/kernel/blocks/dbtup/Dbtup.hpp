@@ -3151,6 +3151,7 @@ public:
    * Used by Restore...
    */
   Uint32 read_lcp_keys(Uint32, const Uint32 * src, Uint32 len, Uint32 *dst);
+  Uint32 get_pages_allocated() const;
 private:
 
 //------------------------------------------------------------------
