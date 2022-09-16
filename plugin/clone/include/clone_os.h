@@ -46,7 +46,7 @@ const uint CLONE_DEF_CON = 16;
 @param[in]     length      buffer/data length
 @param[in]     src_name    source file name
 @return error code */
-int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
+int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *to_buffer,
                               uint length, const char *src_name);
 
 /** Check zero copy support

@@ -154,7 +154,7 @@ static int read_from_file(Ha_clone_file from_file, uchar *buffer,
   return (0);
 }
 
-int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
+int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *to_buffer,
                               uint length, const char *src_name) {
   CLONE_OS_CHECK_FILE(from_file);
 
