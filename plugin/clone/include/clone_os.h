@@ -41,13 +41,13 @@ const int CLONE_OS_ALIGN = 4 * 1024;
 const uint CLONE_DEF_CON = 16;
 
 /** Copy data from file to buffer
-@param[in]	from_file	source file descriptor
-@param[in,out]	to_buffer	buffer to copy data
-@param[in,out]	length		buffer/data length
-@param[in]	src_name	source file name
+@param[in]     from_file   source file descriptor
+@param[in,out] to_buffer   buffer to copy data
+@param[in]     length      buffer/data length
+@param[in]     src_name    source file name
 @return error code */
 int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
-                              uint &length, const char *src_name);
+                              uint length, const char *src_name);
 
 /** Check zero copy support
 @return true if supports zero copy */

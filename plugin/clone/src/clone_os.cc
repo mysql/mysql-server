@@ -155,7 +155,7 @@ static int read_from_file(Ha_clone_file from_file, uchar *buffer,
 }
 
 int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
-                              uint &length, const char *src_name) {
+                              uint length, const char *src_name) {
   CLONE_OS_CHECK_FILE(from_file);
 
   /* Assert buffer alignment to CLONE_OS_ALIGN[4K] for O_DIRECT */
@@ -166,7 +166,7 @@ int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
   while (len_left > 0) {
     uint ret_length = 0;
     auto error =
-        read_from_file(from_file, to_buffer, length, src_name, ret_length);
+        read_from_file(from_file, to_buffer, len_left, src_name, ret_length);
 
     if (error != 0) {
       DBUG_PRINT("debug", ("Error: clone read failed."
@@ -177,6 +177,7 @@ int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
     }
 
     len_left -= ret_length;
+    to_buffer += ret_length;
   }
 
   return (0);
