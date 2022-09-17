@@ -1620,14 +1620,18 @@ void JOIN::test_skip_sort() {
                             // (DISTINCT was rewritten to GROUP BY if skippable)
   {
     /*
-      When there is SQL_BIG_RESULT or a JSON aggregation function,
-      do not sort using index for GROUP BY, and thus force sorting on disk
-      unless a group min-max optimization is going to be used as it is applied
-      now only for one table queries with covering indexes.
+      If the SQL_BIG_RESULT option is set on the query block or a JSON
+      aggregation function is used, check if it is possible to sort using index
+      for GROUP BY and thus avoid materializing the row set to disk, unless:
+
+      1. A group min-max optimization will be used, or
+      2. Some non-aggregated full-text search results must be accessible after
+         aggregation.
     */
     if (!(query_block->active_options() & SELECT_BIG_RESULT || with_json_agg) ||
         (tab->range_scan() &&
-         tab->range_scan()->type == AccessPath::GROUP_INDEX_SKIP_SCAN)) {
+         tab->range_scan()->type == AccessPath::GROUP_INDEX_SKIP_SCAN) ||
+        contains_non_aggregated_fts()) {
       if (simple_group &&    // GROUP BY is possibly skippable
           !select_distinct)  // .. if not preceded by a DISTINCT
       {
