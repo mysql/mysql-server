@@ -119,9 +119,13 @@ let $wait_condition= SELECT COUNT(processlist_info) FROM performance_schema.thre
 --replace_result $id <CONNECTION_ID>
 --eval KILL CONNECTION $id
 
---echo # show rows in slow_log:
-SELECT "1>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
-  FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
+--echo # show rows (0) in slow_log:
+SELECT "Connx" AS kill_type,
+       IF(thread_id=@main_thd_id,"KILLER","killee") AS thread,
+       sql_text AS query
+  FROM mysql.slow_log
+ WHERE INSTR(sql_text,"SLEEP(10")>0
+ ORDER BY start_time;
 
 --echo # error indicates that the connection's gone (as expected):
 --connection con1
@@ -151,14 +155,22 @@ SELECT @@log_output,@@slow_query_log,@@long_query_time;
 
 # --echo # default connection (from whence we use KILL QUERY)
 --connection default
-let $wait_condition= SELECT COUNT(processlist_info) FROM performance_schema.threads WHERE processlist_state="User sleep";
+let $wait_condition= SELECT COUNT(processlist_info) FROM performance_schema.threads WHERE processlist_state="User sleep" AND processlist_info LIKE "%KILL QUERY: should be logged%";
 --source include/wait_condition.inc
 --replace_result $id <CONNECTION_ID>
 --eval KILL QUERY $id
 
---echo # show rows in slow_log:
-SELECT "2>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
-  FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
+# Wait for the query to hit the log (guard against race condition).
+let $wait_condition= SELECT COUNT(sql_text)=1 FROM mysql.slow_log WHERE sql_text LIKE "% KILL QUERY: should be logged %";
+--source include/wait_condition.inc
+
+--echo # show rows (1) in slow_log:
+SELECT "Query" AS kill_type,
+       IF(thread_id=@main_thd_id,"KILLER","killee") AS thread,
+       sql_text AS query
+  FROM mysql.slow_log
+ WHERE INSTR(sql_text,"SLEEP(10")>0
+ ORDER BY start_time;
 
 # show that the connection's gone:
 --connection con1
