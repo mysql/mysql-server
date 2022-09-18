@@ -32,10 +32,14 @@ FILE,TABLE	1	0.000000
 /* KILL CONNECTION: should not be logged */ SELECT SLEEP(1001);
 # default connection (from whence we use KILL CONNECTION)
 KILL CONNECTION <CONNECTION_ID>;
-# show rows in slow_log:
-SELECT "1>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
-FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
-1>	IF(thread_id=@main_thd_id,"KILLER","killee")	sql_text
+# show rows (0) in slow_log:
+SELECT "Connx" AS kill_type,
+IF(thread_id=@main_thd_id,"KILLER","killee") AS thread,
+sql_text AS query
+FROM mysql.slow_log
+WHERE INSTR(sql_text,"SLEEP(10")>0
+ORDER BY start_time;
+kill_type	thread	query
 # error indicates that the connection's gone (as expected):
 Got one of the listed errors
 #
@@ -50,11 +54,15 @@ SELECT @@log_output,@@slow_query_log,@@long_query_time;
 FILE,TABLE	1	0.000000
 /* KILL QUERY: should be logged */ SELECT SLEEP(1002);
 KILL QUERY <CONNECTION_ID>;
-# show rows in slow_log:
-SELECT "2>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
-FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
-2>	IF(thread_id=@main_thd_id,"KILLER","killee")	sql_text
-2>	killee	/* KILL QUERY: should be logged */ SELECT SLEEP(1002)
+# show rows (1) in slow_log:
+SELECT "Query" AS kill_type,
+IF(thread_id=@main_thd_id,"KILLER","killee") AS thread,
+sql_text AS query
+FROM mysql.slow_log
+WHERE INSTR(sql_text,"SLEEP(10")>0
+ORDER BY start_time;
+kill_type	thread	query
+Query	killee	/* KILL QUERY: should be logged */ SELECT SLEEP(1002)
 SLEEP(1002)
 1
 SELECT "con1 is still here.";
