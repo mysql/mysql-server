@@ -1,0 +1,34 @@
+SET SESSION debug= '+d,skip_dd_table_access_check';
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a char(10));
+INSERT INTO t1 VALUES(1, 'aa');
+INSERT INTO t1 VALUES(2, 'bb');
+SELECT options FROM mysql.tables WHERE name LIKE "%t1%";
+options
+avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;
+ALTER TABLE t1 ADD b VARCHAR(20), ALGORITHM=INSTANT;
+SELECT options FROM mysql.tables WHERE name LIKE "%t1%";
+options
+avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;
+DROP TABLE t1;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a char(10));
+INSERT INTO t1 VALUES(1, 'aa');
+INSERT INTO t1 VALUES(2, 'bb');
+SELECT options FROM mysql.tables WHERE name LIKE "%t1%";
+options
+avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;
+ALTER TABLE t1 ADD b VARCHAR(20), ALGORITHM=COPY;
+SELECT options FROM mysql.tables WHERE name LIKE "%t1%";
+options
+avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;
+DROP TABLE t1;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a char(10));
+INSERT INTO t1 VALUES(1, 'aa');
+INSERT INTO t1 VALUES(2, 'bb');
+SELECT options FROM mysql.tables WHERE name LIKE "%t1%";
+options
+avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;
+ALTER TABLE t1 ADD b VARCHAR(20), ALGORITHM=INPLACE;
+SELECT options FROM mysql.tables WHERE name LIKE "%t1%";
+options
+avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;
+DROP TABLE t1;
