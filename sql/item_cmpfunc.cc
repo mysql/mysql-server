@@ -7118,6 +7118,17 @@ bool Item_equal::eq(const Item *item, bool binary_cmp) const {
   return true;
 }
 
+longlong Item_func_match_predicate::val_int() {
+  // Reimplement Item_func_match::val_int() instead of forwarding to it. Even
+  // though args[0] is usually an Item_func_match, it could in some situations
+  // be replaced with a reference to a field in a temporary table holding the
+  // result of the MATCH function. And since the conversion from double to
+  // integer in Field_double::val_int() is different from the conversion in
+  // Item_func_match::val_int(), just returning args[0]->val_int() would give
+  // wrong results when the argument has been materialized.
+  return args[0]->val_real() != 0;
+}
+
 longlong Item_func_trig_cond::val_int() {
   if (trig_var == nullptr) {
     // We don't use trigger conditions for IS_NOT_NULL_COMPL / FOUND_MATCH in

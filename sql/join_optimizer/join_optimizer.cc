@@ -4937,162 +4937,6 @@ bool IsMaterializationPath(const AccessPath *path) {
 }
 
 /**
-  Goes through an item tree and collects all the sub-items that should be
-  materialized if full-text search is used in combination with sort-based
-  aggregation.
-
-  This means all expressions in the SELECT list, GROUP BY clause, ORDER BY
-  clause and HAVING clause that are possible to evaluate before aggregation.
-
-  The reason why this materialization is needed, is that
-  Item_func_match::val_real() can only be evaluated if the underlying scan is
-  positioned on the row for which the full-text search score is to be retrieved.
-  In the sort-based aggregation performed by AggregateIterator, the rows are
-  returned with the underlying scan positioned on some other row (typically one
-  in the next group). Even though AggregateIterator restores the contents of the
-  record buffers to what they had when the scan was positioned on that row, it
-  is not enough; the handler needs to be repositioned to make Item_func_match
-  give the correct result. To avoid this, we materialize the results of the
-  MATCH functions before they are seen by AggregateIterator.
-
-  The most important thing to materialize is the MATCH function, but
-  AggregateIterator is not currently prepared for reading some data from a
-  materialized source and other data directly from the base tables, so we have
-  to materialize all expressions that are to be used as input to
-  AggregateIterator.
-
-  The old optimizer does not have special code for materializing MATCH
-  functions. In most cases it does not need it, because it usually performs
-  aggregation by materializing all expressions (not only MATCH) in the SELECT
-  list, the GROUP BY clause and the ORDER BY clause anyway. It does not,
-  however, materialize the non-aggregated expressions in the HAVING clause, so
-  calls to the MATCH function in the HAVING clause may give wrong results with
-  the old optimizer.
-
-  The old optimizer uses the same sort-based aggregation as the hypergraph
-  optimizer for ROLLUP. The lack of materialization of MATCH expressions leads
-  to wrong results also when MATCH is used in the SELECT list or the ORDER BY
-  clause of a ROLLUP query.
-
-  The materialization performed by this function makes the hypergraph optimizer
-  produce correct results for the above mentioned cases where the old optimizer
-  produces wrong results.
- */
-void CollectItemsToMaterializeForFullTextAggregation(
-    Item *root, mem_root_deque<Item *> *items) {
-  // Walk through the item and materialize those sub-expressions that don't
-  // depend on aggregation. We use CompileItem instead of WalkItem, because the
-  // former allows skipping sub-trees. This is useful, so that we don't need to
-  // materialize every sub-expression if a non-leaf item can be materialized.
-  // We don't use the transformation capability of CompileItem, hence the
-  // transformer argument is a simple identity function.
-  CompileItem(
-      root,
-      [items](Item *item) {
-        if (item->has_aggregation()) {
-          // Since we materialize before aggregation, we cannot materialize
-          // items that depend on an aggregated value. But we can look inside
-          // the item and materialize those parts of the tree that don't depend
-          // on aggregation.
-          return true;
-        } else if (item->has_rollup_expr()) {
-          // Similarly, we cannot materialize items depending on rollup items,
-          // but we can possibly materialize items inside the rollup item, so
-          // keep looking.
-          return true;
-        } else if (item->type() == Item::REF_ITEM) {
-          // Skip past Item_ref and look at its "real" item.
-          return true;
-        } else if (item->const_for_execution()) {
-          // Constant items don't need materialization (and often they are
-          // materialized/cached in an Item_cache anyways), so we skip such
-          // items and also skip their sub-items.
-          return false;
-        } else {
-          // Otherwise, we have an expression that does not depend on
-          // aggregation to have happened, so we materialize the full expression
-          // and don't look further inside of it.
-          items->push_back(item);
-          return false;
-        }
-      },
-      [](Item *item) { return item; });
-}
-
-/**
-  Creates a temporary table which materializes the results of all full-text
-  functions that need to be accessible after aggregation. This is needed for
-  sort-based aggregation on full-text searched tables if the full-text search
-  score is accessed in the SELECT list, GROUP BY clause, ORDER BY clause or
-  HAVING clause. See #CollectItemsToMaterializeForFullTextAggregation() for more
-  details.
-
-  @param thd the session object
-  @param query_block the query block
-  @param[out] temp_table the created temporary table,
-    or nullptr if there are no MATCH functions that need materialization
-  @param[out] temp_table_param the parameters of the created temporary table
-
-  @returns false on success, true if an error was raised
- */
-bool CreateTemporaryTableForFullTextFunctions(
-    THD *thd, Query_block *query_block, TABLE **temp_table,
-    Temp_table_param **temp_table_param) {
-  JOIN *join = query_block->join;
-
-  mem_root_deque<Item *> items_to_materialize(thd->mem_root);
-
-  // Materialize all non-aggregate expressions in the SELECT list and
-  // GROUP BY clause.
-  for (Item *item : *join->fields) {
-    CollectItemsToMaterializeForFullTextAggregation(item,
-                                                    &items_to_materialize);
-  }
-
-  // Materialize all non-aggregate expressions in the HAVING clause.
-  if (join->having_cond != nullptr) {
-    CollectItemsToMaterializeForFullTextAggregation(join->having_cond,
-                                                    &items_to_materialize);
-  }
-
-  // Materialize all non-aggregate expressions in the ORDER BY clause.
-  for (ORDER *order = join->order.order; order != nullptr;
-       order = order->next) {
-    CollectItemsToMaterializeForFullTextAggregation(*order->item,
-                                                    &items_to_materialize);
-  }
-
-  // If we didn't find any full-text functions that needed materialization, we
-  // don't need a temporary table.
-  if (std::none_of(items_to_materialize.begin(), items_to_materialize.end(),
-                   [](Item *item) {
-                     return contains_function_of_type(item, Item_func::FT_FUNC);
-                   })) {
-    *temp_table = nullptr;
-    return false;
-  }
-
-  *temp_table_param = new (thd->mem_root) Temp_table_param;
-  if (*temp_table_param == nullptr) return true;
-  count_field_types(query_block, *temp_table_param, items_to_materialize,
-                    /*reset_with_sum_func=*/false, /*save_sum_fields=*/false);
-
-  *temp_table =
-      create_tmp_table(thd, *temp_table_param, items_to_materialize,
-                       /*group=*/nullptr, /*distinct=*/false,
-                       /*save_sum_fields=*/false, query_block->active_options(),
-                       /*rows_limit=*/HA_POS_ERROR, "<temporary>");
-  if (*temp_table == nullptr) return true;
-
-  // We made a new table, so make sure it gets properly cleaned up
-  // at the end of execution.
-  join->temp_tables.push_back(
-      JOIN::TemporaryTableToCleanup{*temp_table, *temp_table_param});
-
-  return false;
-}
-
-/**
   Is this DELETE target table a candidate for being deleted from immediately,
   while scanning the result of the join? It only checks if it is a candidate for
   immediate delete. Whether it actually ends up being deleted from immediately,
@@ -5489,38 +5333,26 @@ AccessPath *CreateZeroRowsForEmptyJoin(JOIN *join, const char *cause) {
 
 /**
   Creates an AGGREGATE AccessPath, possibly with an intermediary STREAM node if
-  one is needed.
-
-  If the caller has already determined that an intermediary STREAM node is
-  needed, it can pass a TABLE and Temp_table_param describing what to
-  materialize. (This is only used by full-text search, which needs a temporary
-  table of a different shape than what we get from
-  FinalizePlanForQueryBlock()/DelayedCreateTemporaryTable(). See
-  CreateTemporaryTableForFullTextFunctions().)
-
-  Otherwise, we check if "path" has any other property that makes streaming
-  necessary, and add a STREAM node if needed. The creation of the temporary
-  table does not happen here, but is left for FinalizePlanForQueryBlock().
+  one is needed. The creation of the temporary table does not happen here, but
+  is left for FinalizePlanForQueryBlock().
  */
 AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
-                                          const Query_block *query_block,
-                                          bool rollup, TABLE *table,
-                                          Temp_table_param *param) {
-  assert((table == nullptr) == (param == nullptr));
-
+                                          JOIN *join, bool rollup) {
   AccessPath *child_path = path;
+  const Query_block *query_block = join->query_block;
 
   // Create a streaming node, if one is needed. It is needed for aggregation of
-  // some full-text queries (in which case a temporary table is supplied by the
-  // caller). It is also needed if the query contains an EQ_REF path which
-  // caches the previous result, because EQRefIterator's caching assumes
-  // table->record[0] is left untouched between two calls to Read(), but
-  // AggregateIterator may change it when it switches between groups. Adding a
-  // STREAM object ensures that the EQRefIterator and the AggregateIterator work
-  // on different TABLE objects.
-  if (table != nullptr || HasEqRefWithCache(path)) {
-    child_path = NewStreamingAccessPath(thd, path, query_block->join, param,
-                                        table, /*ref_slice=*/-1);
+  // some full-text queries, because AggregateIterator doesn't preserve the
+  // position of the underlying scans. It is also needed if the query contains
+  // an EQ_REF path which caches the previous result, because EQRefIterator's
+  // caching assumes table->record[0] is left untouched between two calls to
+  // Read(), but AggregateIterator may change it when it switches between
+  // groups. Adding a STREAM object ensures that the EQRefIterator and the
+  // AggregateIterator work on different TABLE objects.
+  if (join->contains_non_aggregated_fts() || HasEqRefWithCache(path)) {
+    child_path = NewStreamingAccessPath(
+        thd, path, join, /*temp_table_param=*/nullptr, /*table=*/nullptr,
+        /*ref_slice=*/-1);
     CopyBasicProperties(*path, child_path);
   }
 
@@ -6846,25 +6678,6 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       *trace += "Applying aggregation for GROUP BY\n";
     }
 
-    // Create a temporary table for materializing the results of full-text
-    // functions, if needed.
-    //
-    // The full-text MATCH function requires the handler to be positioned on the
-    // row that holds the value to perform the full-text search on. It is not
-    // enough to have all the required column values in the record buffer. Since
-    // sort-based aggregation has moved off the original row when a group is
-    // returned, we add a temporary table which materializes the results of any
-    // calls to MATCH that will be needed after aggregation, and stream the rows
-    // through this table before aggregation.
-    TABLE *fulltext_table = nullptr;
-    Temp_table_param *fulltext_param = nullptr;
-    if (query_block->has_ft_funcs()) {
-      if (CreateTemporaryTableForFullTextFunctions(
-              thd, query_block, &fulltext_table, &fulltext_param)) {
-        return nullptr;
-      }
-    }
-
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       const bool rollup = (join->rollup_state != JOIN::RollupState::NONE);
@@ -6875,8 +6688,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
       if (!group_needs_sort) {
         AccessPath aggregate_path =
-            CreateStreamingAggregationPath(thd, root_path, query_block, rollup,
-                                           fulltext_table, fulltext_param);
+            CreateStreamingAggregationPath(thd, root_path, join, rollup);
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
         continue;
@@ -6921,8 +6733,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         }
 
         AccessPath aggregate_path =
-            CreateStreamingAggregationPath(thd, sort_path, query_block, rollup,
-                                           fulltext_table, fulltext_param);
+            CreateStreamingAggregationPath(thd, sort_path, join, rollup);
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, description);
       }

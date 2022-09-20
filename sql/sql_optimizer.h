@@ -609,6 +609,13 @@ class JOIN {
   */
   bool plan_is_single_table() { return primary_tables - const_tables == 1; }
 
+  /**
+    Returns true if any of the items in JOIN::fields contains a call to the
+    full-text search function MATCH, which is not wrapped in an aggregation
+    function.
+  */
+  bool contains_non_aggregated_fts() const;
+
   bool optimize(bool finalize_access_paths);
   void reset();
   bool prepare_result();

@@ -529,7 +529,18 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   }
 
   // Setup full-text functions after resolving HAVING
-  if (has_ft_funcs() && setup_ftfuncs(thd, this)) return true;
+  if (has_ft_funcs()) {
+    // The full-text search function cannot be called after aggregation, as it
+    // needs the underlying scan to be positioned on the correct row. Therefore,
+    // lift calls to the full-text search MATCH function to the SELECT list (as
+    // hidden items), so the results can be materialized before or during
+    // aggregation.
+    if (lift_fulltext_from_having_to_select_list(thd)) {
+      return true;
+    }
+
+    if (setup_ftfuncs(thd, this)) return true;
+  }
 
   if (query_result() && query_result()->prepare(thd, fields, unit)) return true;
 
@@ -7681,6 +7692,52 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     opt_trace_print_expanded_query(thd, this, &trace_object);
   }
 
+  return false;
+}
+
+bool Query_block::lift_fulltext_from_having_to_select_list(THD *thd) {
+  Item *having_cond = m_having_cond;
+  if (having_cond == nullptr) return false;
+
+  const size_t first_added_item = fields.size();
+
+  // Add all full-text search calls as hidden elements of the SELECT list.
+  if (WalkItem(
+          having_cond, enum_walk::PREFIX | enum_walk::POSTFIX,
+          NonAggregatedFullTextSearchVisitor([this](Item_func_match *item) {
+            add_hidden_item(item);
+            return false;
+          }))) {
+    return true;
+  }
+
+  if (thd->lex->using_hypergraph_optimizer) {
+    return false;
+  }
+
+  // The above is sufficient for the hypergraph optimizer. The old optimizer
+  // additionally needs to have pointers from the HAVING clause to the
+  // corresponding elements in the SELECT list, so that it knows that it should
+  // read results from a temporary table instead of evaluating the expressions
+  // if they have been materialized. So we insert Item_refs.
+
+  for (size_t i = first_added_item; i < fields.size(); ++i) {
+    Item **item_to_replace = &base_ref_items[i];
+    having_cond = TransformItem(having_cond, [&](Item *sub_item) -> Item * {
+      if (sub_item == *item_to_replace) {
+        return new (thd->mem_root)
+            Item_ref(&context, item_to_replace, "<fulltext>");
+      } else {
+        return sub_item;
+      }
+    });
+    if (having_cond == nullptr) return true;
+  }
+
+  // The MATCH calls are always wrapped in other functions, since non-boolean
+  // predicates in HAVING are made complete. The topmost Item should therefore
+  // never be changed in the above calls to TransformItem().
+  assert(having_cond == m_having_cond);
   return false;
 }
 
