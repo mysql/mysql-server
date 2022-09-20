@@ -1655,10 +1655,13 @@ int BufferingWindowIterator::Read() {
         example, 1+t.a. But also 1+LEAD. Even though at this point we lack
         data to compute LEAD; the saved value is thus incorrect; later,
         when the row is fully computable, we will re-evaluate the
-        CFT_NON_WF to get a correct value for 1+LEAD.
+        CFT_NON_WF to get a correct value for 1+LEAD. We haven't copied fields
+        yet, so use input file slice: referenced fields are present in input
+        file record.
       */
-      if (copy_funcs(m_temp_table_param, thd(), CFT_HAS_NO_WF)) {
-        return 1;
+      {
+        Switch_ref_item_slice slice_switch(m_join, m_input_slice);
+        if (copy_funcs(m_temp_table_param, thd(), CFT_HAS_NO_WF)) return 1;
       }
 
       bool new_partition = false;
