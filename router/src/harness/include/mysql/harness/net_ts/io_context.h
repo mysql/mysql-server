@@ -75,6 +75,17 @@ class io_context : public execution_context {
         io_service_open_res_{io_service_->open()} {}
 
   explicit io_context(int /* concurrency_hint */) : io_context() {}
+
+  ~io_context() {
+    active_ops_.release_all();
+    cancelled_ops_.clear();
+    // Make sure the services are destroyed before our internal fields. The
+    // services own the timers that can indirectly call our methods when
+    // destructed. See UT NetTS_io_context.pending_timer_on_destroy for an
+    // example.
+    destroy();
+  }
+
   io_context(const io_context &) = delete;
   io_context &operator=(const io_context &) = delete;
 
@@ -396,6 +407,31 @@ class io_context : public execution_context {
 
     element_type extract_first(native_handle_type fd) {
       return extract_first(fd, [](auto const &) { return true; });
+    }
+
+    void release_all() {
+      // We expect that this method is called before AsyncOps destructor, to
+      // make sure that ops_ map is empty when the destructor executes. If the
+      // ops_ is not empty when destructed, the destructor of its element can
+      // trigger a method that will try to access that map (that is destructed).
+      // Example: we have an AsyncOp that captures some Socket object with a
+      // smart pointer. When the destructor of this AsyncOp is called, it can
+      // also call the destructor of that Socket, which in turn will call
+      // socket.close(), causing the Socket to unregister its operations in
+      // its respective io_context object which is us (calls extract_first()).
+      std::list<element_type> ops_to_delete;
+      {
+        std::lock_guard<std::mutex> lk(mtx_);
+        for (auto &fd_ops : ops_) {
+          for (auto &fd_op : fd_ops.second) {
+            ops_to_delete.push_back(std::move(fd_op));
+          }
+        }
+        ops_.clear();
+        // It is important that we release the mtx_ here before the
+        // ops_to_delete go out of scope and are deleted. AsyncOp destructor can
+        // indirectly call extract_first which would lead to a deadlock.
+      }
     }
 
    private:

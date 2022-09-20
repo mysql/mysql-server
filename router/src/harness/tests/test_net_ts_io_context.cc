@@ -30,6 +30,7 @@
 #include <memory>
 
 #include "mysql/harness/net_ts/executor.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/timer.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
@@ -602,6 +603,81 @@ TEST(NetTS_io_context, executor_defer_move_only_lambda) {
   SCOPED_TRACE("// not run again");
   ASSERT_EQ(0, io_ctx.run_one());
   ASSERT_EQ(called, 1);
+}
+
+/**
+ * test that io_context is destructed with no issues when there are still async
+ * operations pending at the time of destruction
+ */
+TEST(NetTS_io_context, pending_async_ops_on_destroy) {
+  net::io_context io_ctx;
+  {
+    auto sock{std::make_shared<net::ip::tcp::socket>(io_ctx)};
+    ASSERT_TRUE(sock->open(net::ip::tcp::v4()));
+    ASSERT_TRUE(sock->is_open());
+
+    sock->async_wait(net::socket_base::wait_read,
+                     [sock](auto /*ec*/) { sock->close(); });
+
+    // Here the sock goes out of scope so the io_context is the only owner of
+    // socket object - which means it will destroy it upon its own destruction.
+  }
+
+  // The io_context is destroyed here when goes out of scope. The test idea is
+  // to make sure it does not lead to a crash or deadlock.
+}
+
+/**
+ * test that io_context is destructed with no issues when there are still
+ * cancelled operations pending at the time of destruction
+ */
+TEST(NetTS_io_context, pending_cancelled_ops_on_destroy) {
+  net::io_context io_ctx;
+  {
+    auto sock{std::make_shared<net::ip::tcp::socket>(io_ctx)};
+    ASSERT_TRUE(sock->open(net::ip::tcp::v4()));
+    ASSERT_TRUE(sock->is_open());
+
+    sock->async_wait(net::socket_base::wait_read,
+                     [sock](auto /*ec*/) { sock->close(); });
+
+    sock->cancel();
+    // Here the sock goes out of scope so the io_context is the only owner of
+    // socket object - which means it will destroy it upon its own destruction.
+  }
+
+  // The io_context is destroyed here when goes out of scope. The test idea is
+  // to make sure it does not lead to a crash or deadlock.
+}
+
+/**
+ * test that io_context is destructed with no issues when there are still
+ * timers pending at the time of destruction
+ */
+TEST(NetTS_io_context, pending_timer_on_destroy) {
+  net::io_context io_ctx;
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t(io_ctx);
+
+  {
+    auto sock{std::make_shared<net::ip::tcp::socket>(io_ctx)};
+    ASSERT_TRUE(sock->open(net::ip::tcp::v4()));
+    ASSERT_TRUE(sock->is_open());
+
+    t.expires_after(1s);
+
+    t.async_wait([sock](std::error_code ec) {
+      if (ec == std::errc::operation_canceled) {
+        return;
+      }
+      sock->close();
+    });
+  }
+
+  // The io_context is destroyed here when goes out of scope. The test idea is
+  // to make sure it does not lead to a crash or deadlock.
 }
 
 // net::is_executor_v<> chokes with solaris-ld on
