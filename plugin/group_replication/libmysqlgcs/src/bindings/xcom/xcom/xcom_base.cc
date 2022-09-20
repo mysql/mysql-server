@@ -319,12 +319,15 @@
 
 #endif
 
+#include <chrono>
+#include <future>
 #include <queue>
 #include <tuple>
 
 /* Defines and constants */
 
 #define SYS_STRERROR_SIZE 512
+#define XCOM_SEND_APP_WAIT_TIMEOUT 20
 
 /* Avoid printing the warning of protocol version mismatch too often */
 #define PROTOVERSION_WARNING_TIMEOUT 600.0 /** Every 10 minutes */
@@ -8262,12 +8265,24 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
   pax_msg *rp = nullptr;
 
   do {
-    retval = (int)xcom_send_client_app_data(fd, a, force);
-    memset(p, 0, sizeof(*p)); /* before return so caller can free p */
-    if (retval < 0) {
+    std::packaged_task<void()> send_client_app_data_task([&]() {
+      retval = (int)xcom_send_client_app_data(fd, a, force);
+      if (retval >= 0) rp = socket_read_msg(fd, p);
+    });
+
+    auto send_client_app_data_result = send_client_app_data_task.get_future();
+    std::thread(std::move(send_client_app_data_task)).detach();
+
+    std::future_status request_status = send_client_app_data_result.wait_for(
+        std::chrono::seconds(XCOM_SEND_APP_WAIT_TIMEOUT));
+    if ((retval < 0) || request_status == std::future_status::timeout) {
+      memset(p, 0, sizeof(*p)); /* before return so caller can free p */
+      G_INFO(
+          "Client sent negotiation request for protocol failed. Please check "
+          "the remote node log for more details.")
       return SEND_REQUEST_FAILED;
     }
-    rp = socket_read_msg(fd, p);
+
     if (rp) {
       client_reply_code cli_err = rp->cli_err;
       switch (cli_err) {
