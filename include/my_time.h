@@ -35,7 +35,6 @@
 #include "my_config.h"
 
 #include <assert.h>  // assert
-#include <stdio.h>   // snprintf
 #include <algorithm>
 #include <cstddef>  // std::size_t
 #include <cstdint>  // std::int32_t
@@ -195,10 +194,13 @@ struct MYSQL_TIME_STATUS {
       m_deprecation.m_kind = kind;
       m_deprecation.m_delim_seen = *delim;
       m_deprecation.m_colon = colon;
-      const size_t bufsize = sizeof(m_deprecation.m_arg);
+      const size_t bufsize = sizeof(m_deprecation.m_arg) - 1;  // -1: for '\0'
       const size_t argsize = end - arg;
-      const size_t size = std::min(bufsize, argsize + 1);
-      snprintf(m_deprecation.m_arg, size, "%s", arg);
+      const size_t size = std::min(bufsize, argsize);
+      // The input string is not necessarily zero-terminated,
+      // so do not use snprintf().
+      std::strncpy(m_deprecation.m_arg, arg, size);
+      m_deprecation.m_arg[size] = '\0';
       m_deprecation.m_position = delim - arg;
     }
   }
