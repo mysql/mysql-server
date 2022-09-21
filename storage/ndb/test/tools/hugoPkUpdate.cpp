@@ -172,6 +172,8 @@ int main(int argc, const char** argv){
   }
 
   ths.disconnect();
+  ths.exit();
+  ths.join();
 
   return NDBT_ProgramExit(NDBT_OK);
 }
