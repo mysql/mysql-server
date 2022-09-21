@@ -409,3 +409,98 @@ ALTER TABLE t1 ADD COLUMN col2 VARCHAR(15);
 --echo # Restart the server with default options.
 --let $restart_parameters= restart:
 --source include/start_mysqld.inc
+
+--echo #
+--echo # Bug#34607401: unhelpful 8.0.28->8.0.30 "Data Dictionary initialization
+--echo #               failed."
+--echo #
+
+###############################################################################
+# In 8.0.28:
+#
+# mysql> CREATE SCHEMA test;
+# Query OK, 1 row affected (0.00 sec)
+#
+# mysql> USE test;
+# Database changed
+#
+# mysql> create table t1( a int);
+# Query OK, 0 rows affected (0.05 sec)
+#
+# mysql> insert into t1 values(1);
+# Query OK, 1 row affected (0.02 sec)
+#
+# mysql> delimiter //
+# mysql> create procedure max_exec_time_10pov9() begin select /*+ MAX_EXECUTION_TIME(1000000000) */ `a` from t1; end;//
+# Query OK, 0 rows affected, 1 warning (0.00 sec)
+#
+# mysql> show warnings//
+# +---------+------+-------------------------------------------------------------------------------------+
+# | Level   | Code | Message                                                                             |
+# +---------+------+-------------------------------------------------------------------------------------+
+# | Warning | 3125 | MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only |
+# +---------+------+-------------------------------------------------------------------------------------+
+# 1 row in set (0.00 sec)
+#
+# mysql> create procedure max_exec_time_10pov10() begin select /*+ MAX_EXECUTION_TIME(10000000000) */ `a` from t1; end;//
+# Query OK, 0 rows affected, 1 warning (0.00 sec)
+#
+# mysql> show warnings//
+# +---------+------+-----------------------------------------------------------------------+
+# | Level   | Code | Message                                                               |
+# +---------+------+-----------------------------------------------------------------------+
+# | Warning | 1064 | Unsupported MAX_EXECUTION_TIME near ') */ `a` from t1; end' at line 1 |
+# +---------+------+-----------------------------------------------------------------------+
+# 1 row in set (0.00 sec)
+#
+# mysql> create procedure invalid_hint() begin select /*+ abc  */ `a` from t1; end;//
+# Query OK, 0 rows affected, 1 warning (0.06 sec)
+#
+# mysql> show warnings//
+# +---------+------+-----------------------------------------------------------------------+
+# | Level   | Code | Message                                                               |
+# +---------+------+-----------------------------------------------------------------------+
+# | Warning | 1064 | Optimizer hint syntax error near 'abc  */ `a` from t1; end' at line 1 |
+# +---------+------+-----------------------------------------------------------------------+
+# 1 row in set (0.00 sec)
+# mysql > shutdown//
+#
+# DATADIR NAME: data80028_invalid_opt_hints
+# zip -r data80028_invalid_opt_hints.zip data80028_invalid_opt_hints
+###############################################################################
+
+--echo # Copy the zipped 8.0.28 data directory and unzip it.
+--copy_file $MYSQLTEST_VARDIR/std_data/data80028_invalid_opt_hints.zip $MYSQL_TMP_DIR/data80028_invalid_opt_hints.zip
+--file_exists $MYSQL_TMP_DIR/data80028_invalid_opt_hints.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data80028_invalid_opt_hints.zip -d $MYSQL_TMP_DIR
+
+let DATADIR= $MYSQL_TMP_DIR/data80028_invalid_opt_hints;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/data80028_invalid_opt_hints/error.log;
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--echo # Start the server with the 8.0.28 data directory
+--echo # Without the patch, the upgrade fails.
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 10000
+--exec echo "restart: --datadir=$DATADIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+CALL max_exec_time_10pov10();
+CALL invalid_hint();
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--echo # Check for errors in the error log.
+--let SEARCH_FILE    = $MYSQLD_LOG
+--let SEARCH_PATTERN = \[ERROR\]
+--source include/search_pattern.inc
+
+--echo # Cleanup
+--force-rmdir $DATADIR
+--remove_file $MYSQL_TMP_DIR/data80028_invalid_opt_hints.zip
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
