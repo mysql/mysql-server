@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <stdio.h>
 
 #include <ndb_global.h>
 
@@ -32,9 +33,8 @@ const char* NdbEnv_GetEnv(const char* name, char * buf, int buflen)
   char* p = NULL;
   p = getenv(name);
 
-  if (p != NULL && buf != NULL){
-    strncpy(buf, p, buflen);
-    buf[buflen-1] = 0;
+  if (p != nullptr && buf != nullptr){
+    snprintf(buf, buflen, "%s", p);
   }
   return p;
 

@@ -247,6 +247,14 @@ MYSQL_ADD_EXECUTABLE(mysqlbinlog
   LINK_LIBRARIES ${MYSQLBINLOG_LIBRARIES}
   )
 
+# __builtin_strncpy specified bound depends on the length of the source argument
+# mysqlbinlog.cc:2169:22: note: length computed here
+IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND
+    MY_COMPILER_IS_GNU AND
+    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 11)
+  MY_TARGET_LINK_OPTIONS(mysqlbinlog "-Wno-stringop-truncation")
+ENDIF()
+
 IF(WITH_JSON_BINLOG_LIBRARY)
   IF(APPLE)
     ADD_CUSTOM_COMMAND(TARGET mysqlbinlog POST_BUILD
