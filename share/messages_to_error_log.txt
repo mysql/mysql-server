@@ -8954,7 +8954,7 @@ ER_IB_MSG_1139
 ER_IB_MSG_RECOVERY_CORRUPT
   eng "The redo log file may have been corrupt and it is possible that the log scan or parsing did not proceed far enough in recovery. Please run CHECK TABLE on your InnoDB tables to check that they are ok! It may be safest to recover your InnoDB database from a backup!"
 
-OBSOLETE_ER_IB_MSG_LOG_FILES_RESIZE_ON_START_IN_READ_ONLY_MODE
+ER_IB_MSG_LOG_FILES_RESIZE_ON_START_IN_READ_ONLY_MODE
   eng "Cannot resize redo log files in read-only mode. Provide --innodb_redo_log_capacity >= %lluMB or start without --innodb-read-only."
 
 ER_IB_MSG_1142
@@ -11710,7 +11710,7 @@ ER_IB_MSG_LOG_UPGRADE_NON_PERSISTED_DD_METADATA__UNEXPECTED
 ER_IB_MSG_LOG_UPGRADE_FLUSH_FAILED__UNEXPECTED
   eng "Cannot upgrade format (v%lu) of redo log files, because InnoDB failed to reach state in which redo log is logically empty. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
 
-OBSOLETE_ER_IB_MSG_LOG_FILES_RESIZE_ON_START_FAILED__UNEXPECTED
+ER_IB_MSG_LOG_FILES_RESIZE_ON_START_FAILED__UNEXPECTED
   eng "Failed to resize the redo log synchronously, because InnoDB failed to reach state in which redo log is logically empty. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
 
 ER_IB_MSG_LOG_FILE_FOREIGN_UUID
@@ -11948,9 +11948,6 @@ ER_THREAD_POOL_QUERY_THRS_PER_GRP_EXCEEDS_TXN_THR_LIMIT
 
 ER_IB_MSG_INVALID_PAGE_TYPE
   eng "Found page type mismatch. Expected %u, found %u, in page: space_id=%lu page_no= %lu"
-
-ER_IB_WRN_IGNORE_REDO_LOG_CAPACITY
-  eng "Ignored the innodb-redo-log-capacity option in the Innodb read-only mode. Server is using active redo log files."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
