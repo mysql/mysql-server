@@ -171,9 +171,9 @@ dd::String_type Syntax_error_handler::reason = "";
 const uint Syntax_error_handler::MAX_SERVER_CHECK_FAILS = 50;
 
 bool Syntax_error_handler::handle_condition(
-    THD *, uint sql_errno, const char *, Sql_condition::enum_severity_level *,
-    const char *msg) {
-  if (sql_errno == ER_PARSE_ERROR) {
+    THD *, uint sql_errno, const char *,
+    Sql_condition::enum_severity_level *level, const char *msg) {
+  if (sql_errno == ER_PARSE_ERROR && *level == Sql_condition::SL_ERROR) {
     parse_error_count++;
     if (m_global_counter) (*m_global_counter)++;
     is_parse_error = true;
