@@ -261,6 +261,18 @@ IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
     COMPILE_FLAGS "-Wno-free-nonheap-object")
 ENDIF()
 
+# The combination of
+# ut_ad(strlen(dir_path) + 1 + strlen(dir_name) + 1 < sizeof(path))
+# and
+# snprintf(path, sizeof(path), "%s%c%s", dir_path, OS_PATH_SEPARATOR, dir_name);
+# gives a warning: -Werror=format-truncation=
+IF(MY_COMPILER_IS_GNU AND
+    CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 11 AND
+    CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" AND
+    CMAKE_CXX_FLAGS MATCHES " -O2 ")
+  ADD_COMPILE_FLAGS(arch/arch0arch.cc COMPILE_FLAGS "-Wformat-truncation=0")
+ENDIF()
+
 IF(MSVC)
   # TODO(Bug#33985941): update the code and remove the disabled warnings
   MY_ADD_COMPILE_DEFINITIONS(os/os0file.cc

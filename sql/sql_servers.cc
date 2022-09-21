@@ -943,12 +943,11 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
 
   DBUG_EXECUTE_IF("bug33962357_simulate_null_server",
                   { server_name = nullptr; });
-  DBUG_PRINT("info", ("server_name %s", server_name));
-
   if (!server_name || !strlen(server_name)) {
     DBUG_PRINT("info", ("server_name not defined!"));
     return nullptr;
   }
+  DBUG_PRINT("info", ("server_name %s", server_name));
 
   server_name_length = strlen(server_name);
   const std::string str_server(server_name, server_name_length);
