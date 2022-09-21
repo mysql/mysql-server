@@ -298,6 +298,8 @@ class Option<Opt, const char *> {
  public:
   using value_type = const char *;
 
+  static constexpr const int num_of_args{1};
+
   Option() = default;
   constexpr explicit Option(value_type v) : v_{std::move(v)} {}
 
@@ -319,6 +321,8 @@ template <mysql_option Opt>
 class Option<Opt, std::nullptr_t> {
  public:
   using value_type = std::nullptr_t;
+
+  static constexpr const int num_of_args{1};
 
   Option() = default;
   // accept a void *, but ignore it.
