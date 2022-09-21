@@ -477,7 +477,7 @@ Ndb_free_list_t<T>::~Ndb_free_list_t()
 template<class T>
 inline
 int
-Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
+Ndb_free_list_t<T>::fill(Ndb* ndb [[maybe_unused]], Uint32 cnt [[maybe_unused]])
 {
 #ifndef HAVE_VALGRIND
   m_is_growing = true;

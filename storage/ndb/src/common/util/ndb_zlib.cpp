@@ -476,6 +476,17 @@ int main()
   byte ibuf[32768];
   byte obuf[32768];
 
+#if defined __GNUC__ && (__GNUC__ >= 11)
+  /*
+   * Hack to to avoid some GNU compiler versions to generate a false
+   * -Wmaybe-uninitialized warning. Possibly it is an instance of the following
+   * GCC Bug 104060 - [11/12/13 Regression] -Wmaybe-uninitialized false alarm
+   * on address of local array.
+   * See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104060
+   */
+  ibuf[0] = 0;
+#endif
+
   ndbxfrm_input_iterator in{ibuf, ibuf, true};
   ndbxfrm_output_iterator out{obuf, obuf + 32768, false};
   require(zlib.deflate_init() == 0);

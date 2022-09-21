@@ -1297,9 +1297,8 @@ TransporterRegistry::prepareSendOverAllLinks(
   }
   assert(!node_trp->isPartOfMultiTransporter());
 
-  LinearSectionPtr ptr[3];
   require(signalHeader->m_noOfSections == 0);
-  const Packer::LinearSectionArg section(ptr);
+  const Packer::LinearSectionArg section(nullptr);
 
   if (!node_trp->isMultiTransporter())
   {
