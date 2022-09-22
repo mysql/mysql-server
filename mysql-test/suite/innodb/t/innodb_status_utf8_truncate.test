@@ -25,7 +25,7 @@ UPDATE t SET a=' ☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃
 --let $innodb_status= $MYSQL_TMP_DIR/innodb.status
 
 --echo mysql -e "SHOW ENGINE INNODB STATUS"
---exec $MYSQL -e "SHOW ENGINE INNODB STATUS" > $innodb_status;
+--exec $MYSQL -e "SHOW ENGINE INNODB STATUS" > $innodb_status
 
 --let SEARCH_FILE=$innodb_status
 --let SEARCH_PATTERN=UPDATE t SET a=.*☃\?+
@@ -42,7 +42,7 @@ UPDATE t SET a=' ☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃
 --let $innodb_status= $MYSQL_TMP_DIR/innodb.status
 
 --echo mysql -e "SHOW ENGINE INNODB STATUS"
---exec $MYSQL -e "SHOW ENGINE INNODB STATUS" > $innodb_status;
+--exec $MYSQL -e "SHOW ENGINE INNODB STATUS" > $innodb_status
 
 --let SEARCH_FILE=$innodb_status
 --let SEARCH_PATTERN=UPDATE t SET a=.*☃\?+
