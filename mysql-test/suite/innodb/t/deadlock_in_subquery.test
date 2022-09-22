@@ -1,0 +1,61 @@
+#
+# Bug #34616560 -- assert failure after deadlock detection
+#
+
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (
+  column1 int NOT NULL
+);
+
+INSERT INTO t1 VALUES (80);
+
+
+CREATE TABLE t2 (
+  column1 int DEFAULT NULL,
+  column2 double DEFAULT NULL,
+  column3 text,
+  column4 double DEFAULT NULL
+);
+
+INSERT INTO t2 VALUES
+(77,76.1,'abc',NULL),
+(81,NULL,'abcd',86.71),
+(83,95.58,'abcde',67.74);
+
+CREATE TABLE t3 (
+  column1 int DEFAULT NULL,
+  x text
+);
+
+INSERT INTO t3 VALUES
+(76,''),
+(82,'');
+
+--connect(c0,localhost,root,,)
+--connect(c1,localhost,root,,)
+
+--connection c1
+  START TRANSACTION;
+  update t2 set column1 = 125;
+
+--connection c0
+  START TRANSACTION;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL c0_will_wait';
+  --send update t3 set x = case when exists ( select ref_2.column2 as c0 from t2 as ref_2 window w_cc03ob as ( partition by ref_2.column3 order by ref_2.column4 desc)) then null else 24 end where exists (select distinct * from t1);
+
+--connection c1
+  SET DEBUG_SYNC = 'now WAIT_FOR c0_will_wait';
+  update t2 set column1 = 122;
+  update t3 set column1 = 123;
+  commit;
+
+# We expect a deadlock between the update on c0 and the other update to t2 on c1,
+#  and we expect the deadlock detector to kill c0, and let c1 run.
+--connection c0
+  --error ER_LOCK_DEADLOCK
+  --reap
+
+  drop table t1;
+  drop table t2;
+  drop table t3;
