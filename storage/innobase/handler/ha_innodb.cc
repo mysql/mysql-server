@@ -21826,6 +21826,12 @@ static void innodb_redo_log_capacity_update(THD *thd, SYS_VAR *, void *,
   ut_a(new_value <= LOG_CAPACITY_MAX);
   ut_a(new_value % MB == 0);
 
+  if (srv_read_only_mode) {
+    my_error(ER_CANT_CHANGE_SYS_VAR_IN_READ_ONLY_MODE, MYF(0),
+             "innodb-redo-log-capacity");
+    return;
+  }
+
   srv_redo_log_capacity = new_value;
 
   if (new_value == srv_redo_log_capacity_used) {

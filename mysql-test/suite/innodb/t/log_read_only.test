@@ -68,7 +68,25 @@ let SEARCH_PATTERN= Cannot create redo log files in read-only mode;
 --echo # Cleanup...
 --source include/start_mysqld.inc
 
+--echo # Scenario 4
+--echo # Restart MySQL in read-only mode
+--echo # Ensure we do not allow to change the innodb_redo_log_capacity in read-only mode.
+let MYSQLD_LOG_4=$MYSQLTEST_VARDIR/log/log_read_only-4.log;
+let $restart_parameters = restart: --innodb-read-only=ON --log-error=$MYSQLD_LOG_4;
+--source include/restart_mysqld_no_echo.inc
+--echo # Try to set some random value to innodb_redo_log_capacity
+--error ER_CANT_CHANGE_SYS_VAR_IN_READ_ONLY_MODE
+set global innodb_redo_log_capacity=60000000;
+--echo # Try to set default value to innodb_redo_log_capacity
+--error ER_CANT_CHANGE_SYS_VAR_IN_READ_ONLY_MODE
+set global innodb_redo_log_capacity=10485760;
+
+--echo # Cleanup...
+let $restart_parameters = restart;
+--source include/restart_mysqld_no_echo.inc
+
 # It might be useful to comment out code below, when debugging test failures
 --remove_file $MYSQLD_LOG_1
 --remove_file $MYSQLD_LOG_2
 --remove_file $MYSQLD_LOG_3
+--remove_file $MYSQLD_LOG_4
