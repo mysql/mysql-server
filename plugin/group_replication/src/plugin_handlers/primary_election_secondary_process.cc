@@ -39,8 +39,6 @@ Primary_election_secondary_process::Primary_election_secondary_process()
       primary_ready(false),
       group_in_read_mode(false),
       is_waiting_on_read_mode_group(false),
-      read_mode_session_id(0),
-      is_read_mode_set(SECONDARY_ELECTION_READ_MODE_NOT_SET),
       number_of_know_members(0) {
   mysql_mutex_init(key_GR_LOCK_primary_election_secondary_process_run,
                    &election_lock, MY_MUTEX_INIT_FAST);
@@ -77,8 +75,6 @@ int Primary_election_secondary_process::launch_secondary_election_process(
   group_in_read_mode = false;
   is_waiting_on_read_mode_group = false;
   election_process_aborted = false;
-  read_mode_session_id = 0;
-  is_read_mode_set = SECONDARY_ELECTION_READ_MODE_NOT_SET;
 
   known_members_addresses.clear();
   for (Group_member_info *member : *group_members_info) {
@@ -271,53 +267,12 @@ bool Primary_election_secondary_process::enable_read_mode_on_server() {
   remote_clone_handler->lock_gr_clone_read_mode_lock();
 
   if (!plugin_is_group_replication_cloning()) {
-    mysql_mutex_lock(&election_lock);
-    Sql_service_command_interface *sql_command_interface =
-        new Sql_service_command_interface();
-    error = sql_command_interface->establish_session_connection(
-        PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer());
-    if (!error) {
-      read_mode_session_id =
-          sql_command_interface->get_sql_service_interface()->get_session_id();
-      is_read_mode_set = SECONDARY_ELECTION_READ_MODE_BEING_SET;
-    }
-    mysql_mutex_unlock(&election_lock);
-
     if (!error && !election_process_aborted) {
-      error = enable_super_read_only_mode(sql_command_interface);
+      error = enable_server_read_mode();
     }
-
-    mysql_mutex_lock(&election_lock);
-    delete sql_command_interface;
-    is_read_mode_set = SECONDARY_ELECTION_READ_MODE_IS_SET;
-    mysql_mutex_unlock(&election_lock);
   }
 
   remote_clone_handler->unlock_gr_clone_read_mode_lock();
-
-  return error != 0;
-}
-
-bool Primary_election_secondary_process::kill_read_mode_query() {
-  int error = 0;
-
-  mysql_mutex_assert_owner(&election_lock);
-
-  if (is_read_mode_set == SECONDARY_ELECTION_READ_MODE_BEING_SET) {
-    assert(read_mode_session_id != 0);
-    Sql_service_command_interface *sql_command_interface =
-        new Sql_service_command_interface();
-    error = sql_command_interface->establish_session_connection(
-        PSESSION_DEDICATED_THREAD, GROUPREPL_USER, get_plugin_pointer());
-    if (!error) {
-      error = sql_command_interface->kill_session(read_mode_session_id);
-      // If the thread is no longer there don't report an warning
-      if (ER_NO_SUCH_THREAD == error) {
-        error = 0; /* purecov: inspected */
-      }
-    }
-    delete sql_command_interface;
-  }
 
   return error != 0;
 }
@@ -462,13 +417,6 @@ int Primary_election_secondary_process::terminate_election_process(bool wait) {
 
   // Awake up possible stuck conditions
   mysql_cond_broadcast(&election_cond);
-
-  if (kill_read_mode_query()) {
-    abort_plugin_process(
-        "In the primary election process it was not possible to kill a "
-        "previous query trying to enable the server read "
-        "mode."); /* purecov: inspected */
-  }
 
   if (wait) {
     while (election_process_thd_state.is_thread_alive()) {

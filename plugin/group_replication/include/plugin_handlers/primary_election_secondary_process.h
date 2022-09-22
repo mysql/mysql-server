@@ -85,12 +85,6 @@ class Primary_election_secondary_process : public Group_event_observer {
   void set_stop_wait_timeout(ulong timeout);
 
  private:
-  enum enum_election_read_mode_status {
-    SECONDARY_ELECTION_READ_MODE_NOT_SET = 0,    // Read only mode not set
-    SECONDARY_ELECTION_READ_MODE_BEING_SET = 1,  // Read only mode being set
-    SECONDARY_ELECTION_READ_MODE_IS_SET = 2,     // Read only mode is set
-  };
-
   // The listeners for group events
 
   int after_view_change(const std::vector<Gcs_member_identifier> &joining,
@@ -114,12 +108,6 @@ class Primary_election_secondary_process : public Group_event_observer {
   bool enable_read_mode_on_server();
 
   /**
-    Kills the current read mode query that might be stuck
-    @return false in case of success, or true otherwise
-  */
-  bool kill_read_mode_query();
-
-  /**
      Signal that the read mode is ready on this member
      @returns false in case of success, or true otherwise
   */
@@ -138,10 +126,6 @@ class Primary_election_secondary_process : public Group_event_observer {
   bool group_in_read_mode;
   /** Process is waiting on read mode - stage related var*/
   bool is_waiting_on_read_mode_group;
-  /** The session id that is set the read mode*/
-  unsigned long read_mode_session_id;
-  /** What is the status on the read only mode enabling query */
-  enum_election_read_mode_status is_read_mode_set;
 
   /** The election invocation context */
   enum_primary_election_mode election_mode;

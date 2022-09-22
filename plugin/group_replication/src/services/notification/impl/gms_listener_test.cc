@@ -54,6 +54,7 @@ bool log_notification_to_test_table(std::string msg) {
   Sql_resultset rset;
   ulong srv_err = 0;
   bool was_read_only = false;
+  bool read_only_mode = false, super_read_only_mode = false;
   Sql_service_command_interface *sql_cmd = new Sql_service_command_interface();
   Sql_service_interface *sql_intf = nullptr;
   enum_plugin_con_isolation trx_iso =
@@ -84,7 +85,8 @@ bool log_notification_to_test_table(std::string msg) {
     goto end; /* purecov: inspected */
   }
 
-  if (sql_cmd->get_server_super_read_only()) {
+  get_read_mode_state(&read_only_mode, &super_read_only_mode);
+  if (super_read_only_mode) {
     /*
       When joining the group the server is in super_read_only.
       Unset this temporarily.

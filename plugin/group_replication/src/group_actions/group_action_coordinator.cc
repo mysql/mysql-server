@@ -924,8 +924,7 @@ int Group_action_coordinator::execute_group_action_handler() {
       leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
       leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
       leave_group_on_failure::leave(
-          leave_actions, ER_GRP_RPL_CONFIGURATION_ACTION_KILLED_ERROR,
-          PSESSION_INIT_THREAD, nullptr,
+          leave_actions, ER_GRP_RPL_CONFIGURATION_ACTION_KILLED_ERROR, nullptr,
           exit_state_action_abort_log_message.c_str());
 
       awake_coordinator_on_error(current_executing_action, is_sender, true);

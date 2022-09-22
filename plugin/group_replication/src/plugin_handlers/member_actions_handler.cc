@@ -354,7 +354,7 @@ void Member_actions_handler::run(Mysql_thread_body_parameters *parameters) {
           leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION,
                             true);
           leave_group_on_failure::leave(
-              leave_actions, 0, PSESSION_USE_THREAD, nullptr,
+              leave_actions, 0, nullptr,
               "Please check previous messages in the error log.");
         }
       }
@@ -372,7 +372,7 @@ int Member_actions_handler::run_internal_action(
 
   if (action.name() == "mysql_disable_super_read_only_if_primary") {
     if (im_the_primary) {
-      error = disable_server_read_mode(PSESSION_USE_THREAD);
+      error = disable_server_read_mode();
 
       DBUG_EXECUTE_IF(
           "group_replication_force_error_on_mysql_disable_super_read_only_if_"

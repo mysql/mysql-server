@@ -202,12 +202,9 @@ class Remote_clone_handler : public Group_event_observer {
   /**
     In error fall back to recovery or error out
 
-    @param[in] sql_command_interface  the server connection
     @param[in] critical_error         the error prevent distributed recovery
   */
-  int fallback_to_recovery_or_leave(
-      Sql_service_command_interface *sql_command_interface,
-      bool critical_error = false);
+  int fallback_to_recovery_or_leave(bool critical_error = false);
 
   /**
     Executes the query to change the allowed donor list for clone

@@ -25,8 +25,8 @@
 
 #include <bitset>
 
+#include "my_inttypes.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
-#include "plugin/group_replication/include/sql_service/sql_service_command.h"
 
 /**
   Structure that holds the actions taken by the plugin when the
@@ -57,10 +57,6 @@ struct leave_group_on_failure {
                   Actions performed.
     @param[in]  error_to_log
                   Error logged into error log.
-    @param[in]  session_isolation
-                  Session creation requirements: use current thread,
-                  use thread but initialize it or create it in a
-                  dedicated thread.
     @param[in]  caller_notification_context
                   If defined the member state change notification
                   will update this notification context and the
@@ -73,7 +69,6 @@ struct leave_group_on_failure {
                   that function is called.
   */
   static void leave(const mask &actions, longlong error_to_log,
-                    enum_plugin_con_isolation session_isolation,
                     Notification_context *caller_notification_context,
                     const char *exit_state_action_abort_log_message);
 };

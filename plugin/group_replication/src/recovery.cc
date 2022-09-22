@@ -163,8 +163,7 @@ void Recovery_module::leave_group_on_recovery_failure() {
   leave_group_on_failure::mask leave_actions;
   leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
   leave_group_on_failure::leave(leave_actions, ER_GRP_RPL_FATAL_REC_PROCESS,
-                                PSESSION_USE_THREAD, nullptr,
-                                exit_state_action_abort_log_message);
+                                nullptr, exit_state_action_abort_log_message);
 }
 
 /*

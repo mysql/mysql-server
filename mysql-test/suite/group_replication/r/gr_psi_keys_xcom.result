@@ -68,6 +68,8 @@ wait/synch/mutex/group_rpl/LOCK_mysql_thread_dispatcher_run	YES	YES	singleton	NU
 wait/synch/mutex/group_rpl/LOCK_connection_map	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_mysql_handler_thread_run	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_mysql_thread_handler_dispatcher_run	YES	YES	singleton	NULL	0	NULL
+wait/synch/mutex/group_rpl/LOCK_mysql_handler_thread_read_only_mode_run	YES	YES	singleton	NULL	0	NULL
+wait/synch/mutex/group_rpl/LOCK_mysql_thread_handler_read_only_mode_dispatcher_run	YES	YES	singleton	NULL	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_certifier_stable_gtid_set	YES	YES	singleton	NULL	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_channel_observation_list	YES	YES	singleton	NULL	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations	YES	YES	singleton	NULL	0	NULL
@@ -119,6 +121,8 @@ wait/synch/cond/group_rpl/COND_mysql_thread_run	YES	YES	singleton	NULL	0	NULL
 wait/synch/cond/group_rpl/COND_mysql_thread_dispatcher_run	YES	YES	singleton	NULL	0	NULL
 wait/synch/cond/group_rpl/COND_mysql_thread_handler_run	YES	YES	singleton	NULL	0	NULL
 wait/synch/cond/group_rpl/COND_mysql_thread_handler_dispatcher_run	YES	YES	singleton	NULL	0	NULL
+wait/synch/cond/group_rpl/COND_mysql_thread_handler_read_only_mode_run	YES	YES	singleton	NULL	0	NULL
+wait/synch/cond/group_rpl/COND_mysql_thread_handler_read_only_mode_dispatcher_run	YES	YES	singleton	NULL	0	NULL
 stage/group_rpl/Undergoing auto-rejoin procedure	YES	YES	progress	NULL	0	NULL
 stage/group_rpl/Multi-primary Switch: waiting for pending transactions to finish	YES	YES	progress	NULL	0	NULL
 stage/group_rpl/Multi-primary Switch: waiting on another member step completion	YES	YES	progress	NULL	0	NULL
@@ -181,6 +185,7 @@ thread/group_rpl/THD_Gcs_xcom_engine::m_engine_thread	BACKGROUND	YES
 thread/group_rpl/THD_message_service_handler	BACKGROUND	YES
 thread/group_rpl/THD_mysql_thread	BACKGROUND	YES
 thread/group_rpl/THD_mysql_thread_handler	BACKGROUND	YES
+thread/group_rpl/THD_mysql_thread_handler_read_only_mode	BACKGROUND	YES
 
 ############################################################
 # 5. Test end.

@@ -49,6 +49,7 @@
 #include "plugin/group_replication/include/recovery.h"
 #include "plugin/group_replication/include/services/message_service/message_service.h"
 #include "plugin/group_replication/include/services/registry.h"
+#include "plugin/group_replication/include/services/server_services_references.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
 // Forward declarations
@@ -116,7 +117,6 @@ struct gr_modules {
     MESSAGE_SERVICE_HANDLER,
     BINLOG_DUMP_THREAD_KILL,
     MEMBER_ACTIONS_HANDLER,
-    MYSQL_THREAD_HANDLER,
     NUM_MODULES
   };
   using mask = std::bitset<NUM_MODULES>;
@@ -173,6 +173,8 @@ extern Autorejoin_thread *autorejoin_module;
 extern Message_service_handler *message_service_handler;
 extern Member_actions_handler *member_actions_handler;
 extern Mysql_thread *mysql_thread_handler;
+extern Mysql_thread *mysql_thread_handler_read_only_mode;
+extern Server_services_references *server_services_references_module;
 
 // Auxiliary Functionality
 extern Plugin_gcs_events_handler *events_handler;
@@ -230,6 +232,7 @@ bool get_plugin_is_stopping();
 bool get_wait_on_engine_initialization();
 void enable_server_shutdown_status();
 bool get_server_shutdown_status();
+void mysql_thread_handler_finalize();
 void set_plugin_is_setting_read_mode(bool value);
 bool get_plugin_is_setting_read_mode();
 const char *get_group_name_var();
