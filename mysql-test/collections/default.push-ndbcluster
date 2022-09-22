@@ -48,7 +48,7 @@ perl mysql-test-run.pl --debug-server --timer --force  --comment=ldap --vardir=v
 perl mysql-test-run.pl --debug-server --timer --force  --comment=openssl_udf --vardir=var_openssl_udf --suite=openssl_udf  --no-skip
 
 # thread_pool
-perl mysql-test-run.pl --debug-server --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool  --no-skip
+perl mysql-test-run.pl --debug-server --timer --force  --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool,thread_pool_noload  --no-skip
 
 # windows-authentication-plugin
 perl mysql-test-run.pl --debug-server --timer --force  --comment=windows-authentication-plugin --vardir=var-windows-authentication-plugin --suite=windows-authentication-plugin  --no-skip
