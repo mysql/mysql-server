@@ -1115,14 +1115,14 @@ Get rec(type:id) is t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   UNIQUE KEY `idx2` (`c6`(50)),
   KEY `idx1` (`c4`(20))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE t3 ADD COLUMN c3 INT;
 Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   `c3` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t2 DROP COLUMN c100;
 ALTER TABLE t2 DROP COLUMN c101;
 ALTER TABLE t2 DROP COLUMN c102;
@@ -2124,7 +2124,7 @@ Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c998` int DEFAULT NULL,
   `c999` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t7 MODIFY c2 BIGINT NOT NULL;
 Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int NOT NULL,

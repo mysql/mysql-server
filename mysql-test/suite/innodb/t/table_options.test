@@ -1,0 +1,27 @@
+# Bug #34565163: InnoDB: memcached.memc286_sdi_create fails due to content mismatch
+# The content mismatch was caused after removing the overwriting of some table options during instant alter.
+# This test checks that the options are set correctly for all algorithms, to avoid such errors in the future.
+
+--source include/have_debug.inc
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+
+--let algo=0
+while($algo<=2) {
+  CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a char(10));
+  INSERT INTO t1 VALUES(1, 'aa');
+  INSERT INTO t1 VALUES(2, 'bb');
+  SELECT options FROM mysql.tables WHERE name LIKE "%t1%";
+  if ($algo == 0) {
+    ALTER TABLE t1 ADD b VARCHAR(20), ALGORITHM=INSTANT;
+  }
+  if ($algo == 1) {
+    ALTER TABLE t1 ADD b VARCHAR(20), ALGORITHM=COPY;
+  }
+  if($algo == 2) {
+    ALTER TABLE t1 ADD b VARCHAR(20), ALGORITHM=INPLACE;
+  }
+  SELECT options FROM mysql.tables WHERE name LIKE "%t1%";
+  DROP TABLE t1;
+  --inc $algo
+}
