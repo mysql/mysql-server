@@ -251,7 +251,7 @@ Dbtup::update_pages_allocated(int retNo)
   tup_block->m_pages_allocated += retNo;
   if (retNo > 0 &&
       tup_block->m_pages_allocated >
-        tup_block->m_pages_allocated_max)
+      tup_block->m_pages_allocated_max)
   {
     tup_block->m_pages_allocated_max = tup_block->m_pages_allocated;
   }
@@ -260,4 +260,9 @@ Dbtup::update_pages_allocated(int retNo)
   {
     NdbMutex_Unlock(lqh_block->m_lock_tup_page_mutex);
   }
+}
+
+Uint32 Dbtup::get_pages_allocated() const
+{
+  return m_pages_allocated;
 }
