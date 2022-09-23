@@ -960,7 +960,10 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
   ulint i;
   ut_ad(rollback);
 
-  ut_ad(big_rec_vec == nullptr || m_index->has_row_versions());
+#ifdef UNIV_DEBUG
+  ut_ad(big_rec_vec == nullptr || materialize_instant_default(m_index, m_rec));
+#endif
+
   ut_ad(rec_offs_validate());
   ut_ad(mtr_is_page_fix(m_mtr, m_rec, MTR_MEMO_PAGE_X_FIX, m_index->table));
   /* Assert that the cursor position and the record are matching. */
