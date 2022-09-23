@@ -434,7 +434,8 @@ createevent(Tab& t)
     const Col& c = g_col[i];
     evt.addEventColumn(c.name);
   }
-  evt.setReport(NdbDictionary::Event::ER_UPDATED);
+  const NdbDictionary::Event::EventReport er = NdbDictionary::Event::ER_UPDATED;
+  evt.setReport(er);
   evt.mergeEvents(! g_opts.separate_events);
 #if 0 // XXX random bugs
   if (g_dic->getEvent(t.evtname) != 0)
@@ -445,6 +446,9 @@ createevent(Tab& t)
 #endif
   NdbDictionary::Event_ptr ev(g_dic->getEvent(t.evtname));
   chkdb(ev != nullptr);
+  chkrc(ev->getReport() == er);
+  chkrc((ev->getReportOptions() & er) == er);
+  chkrc(ev->getDurability() == NdbDictionary::Event::ED_PERMANENT);
   g_dic = 0;
   return 0;
 }

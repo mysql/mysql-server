@@ -19067,6 +19067,7 @@ void Dbdict::createEvent_sendReply(Signal* signal,
     evntConf->setAttrListBitmask(evntRecPtr.p->m_request.getAttrListBitmask());
     evntConf->setEventType(evntRecPtr.p->m_request.getEventType());
     evntConf->setRequestType(evntRecPtr.p->m_request.getRequestType());
+    evntConf->setReportFlags(evntRecPtr.p->m_request.getReportFlags());
 
     signalLength = CreateEvntConf::SignalLength;
 #ifdef EVENT_PH2_DEBUG

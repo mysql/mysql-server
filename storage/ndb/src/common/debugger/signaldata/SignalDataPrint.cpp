@@ -312,6 +312,9 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_PROCESSINFO_REP, printPROCESSINFO_REP }
 
   ,{ GSN_TRP_KEEP_ALIVE, printTRP_KEEP_ALIVE }
+  ,{ GSN_CREATE_EVNT_REQ, printCREATE_EVNT_REQ}
+  ,{ GSN_CREATE_EVNT_CONF, printCREATE_EVNT_CONF}
+  ,{ GSN_CREATE_EVNT_REF, printCREATE_EVNT_REF}
   ,{ 0, nullptr }
 };
 

@@ -5100,8 +5100,7 @@ int Ndb_binlog_client::create_event(Ndb *ndb,
   my_event.addTableEvent(NDBEVENT::TE_ALL);
   if (ndb_table_has_hidden_pk(ndbtab)) {
     /* Hidden primary key, subscribe for all attributes */
-    my_event.setReport(
-        (NDBEVENT::EventReport)(NDBEVENT::ER_ALL | NDBEVENT::ER_DDL));
+    my_event.setReportOptions(NDBEVENT::ER_ALL | NDBEVENT::ER_DDL);
     DBUG_PRINT("info", ("subscription all"));
   } else {
     if (Ndb_schema_dist_client::is_schema_dist_table(share->db,
@@ -5109,22 +5108,19 @@ int Ndb_binlog_client::create_event(Ndb *ndb,
       /**
        * ER_SUBSCRIBE is only needed on schema distribution table
        */
-      my_event.setReport((NDBEVENT::EventReport)(
-          NDBEVENT::ER_ALL | NDBEVENT::ER_SUBSCRIBE | NDBEVENT::ER_DDL));
+      my_event.setReportOptions(NDBEVENT::ER_ALL | NDBEVENT::ER_SUBSCRIBE |
+                                NDBEVENT::ER_DDL);
       DBUG_PRINT("info", ("subscription all and subscribe"));
     } else if (Ndb_schema_dist_client::is_schema_dist_result_table(
                    share->db, share->table_name)) {
-      my_event.setReport(
-          (NDBEVENT::EventReport)(NDBEVENT::ER_ALL | NDBEVENT::ER_DDL));
+      my_event.setReportOptions(NDBEVENT::ER_ALL | NDBEVENT::ER_DDL);
       DBUG_PRINT("info", ("subscription all"));
     } else {
       if (share->get_binlog_full()) {
-        my_event.setReport(
-            (NDBEVENT::EventReport)(NDBEVENT::ER_ALL | NDBEVENT::ER_DDL));
+        my_event.setReportOptions(NDBEVENT::ER_ALL | NDBEVENT::ER_DDL);
         DBUG_PRINT("info", ("subscription all"));
       } else {
-        my_event.setReport(
-            (NDBEVENT::EventReport)(NDBEVENT::ER_UPDATED | NDBEVENT::ER_DDL));
+        my_event.setReportOptions(NDBEVENT::ER_UPDATED | NDBEVENT::ER_DDL);
         DBUG_PRINT("info", ("subscription only updated"));
       }
     }

@@ -38,6 +38,15 @@ let $found_event = `SELECT count(*) FROM ndbinfo.events
 if ($found_event)
 {
   echo Found event for '$check_event_dbname.$check_event_tabname';
+
+  #
+  # Check how report options for the event is configured. Use the 'reporting'
+  # column of ndbinfo.events which is a SET that correspond to the flags
+  # describing what should be reported
+  let $reporting = `SELECT reporting FROM ndbinfo.events
+                      WHERE name = '$expected_event_name'`;
+  echo Report flags: '$reporting';
+
 }
 if (!$found_event)
 {
