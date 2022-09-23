@@ -203,8 +203,8 @@ void Message_service_handler::dispatcher() {
       leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
       leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
       leave_group_on_failure::leave(
-          leave_actions, ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR,
-          PSESSION_USE_THREAD, nullptr, exit_state_action_abort_log_message);
+          leave_actions, ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR, nullptr,
+          exit_state_action_abort_log_message);
     }
 
     delete service_message;
@@ -237,7 +237,7 @@ int Message_service_handler::terminate() {
 
   mysql_mutex_lock(&m_message_service_run_lock);
   m_aborted = true;
-  m_incoming->abort();
+  m_incoming->abort(true);
 
   while (m_message_service_thd_state.is_thread_alive()) {
     struct timespec abstime;

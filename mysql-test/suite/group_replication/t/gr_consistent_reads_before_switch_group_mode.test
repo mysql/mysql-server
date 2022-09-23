@@ -93,7 +93,7 @@ SET @@SESSION.group_replication_consistency= 'BEFORE';
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='executing' AND info LIKE 'SELECT group_replication_switch_to_single_primary_mode(%'
 --source include/wait_condition.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='mysql.session' AND state='Waiting for global read lock' AND info='PLUGIN: SET GLOBAL super_read_only= 1'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = 'thread/group_rpl/THD_mysql_thread_handler_read_only_mode' AND PROCESSLIST_STATE = 'Waiting for global read lock'
 --source include/wait_condition.inc
 
 

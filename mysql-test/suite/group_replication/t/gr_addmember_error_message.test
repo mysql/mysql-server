@@ -43,7 +43,7 @@
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/gr_add_member_error_message.2.err
 --let $assert_only_after=  Plugin 'group_replication' is starting
 --let $assert_select = \[System\] \[MY-011565\] \[Repl\] Plugin group_replication reported: 'Setting super_read_only=ON\.'
---let $assert_count = 1
+--let $assert_count = 2
 --let $assert_text = Found message informing that `super_read_only` is ON.
 --source include/assert_grep.inc
 

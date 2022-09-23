@@ -67,7 +67,6 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin_handlers/member_actions_handler.cc
   src/plugin_handlers/member_actions_handler_configuration.cc
   src/plugin_handlers/offline_mode_handler.cc
-  src/plugin_handlers/persistent_variables_handler.cc
   src/plugin_handlers/primary_election_invocation_handler.cc
   src/plugin_handlers/primary_election_primary_process.cc
   src/plugin_handlers/primary_election_secondary_process.cc
@@ -97,11 +96,13 @@ SET(GROUP_REPLICATION_SOURCES
   src/recovery_channel_state_observer.cc
   src/recovery_state_transfer.cc
   src/replication_threads_api.cc
-  src/services/get_system_variable/get_system_variable.cc
   src/services/message_service/message_service.cc
   src/services/notification/notification.cc
   src/services/status_service/status_service.cc
+  src/services/system_variable/get_system_variable.cc
+  src/services/system_variable/set_system_variable.cc
   src/services/registry.cc
+  src/services/server_services_references.cc
   src/sql_service/sql_command_test.cc
   src/sql_service/sql_resultset.cc
   src/sql_service/sql_service_command.cc

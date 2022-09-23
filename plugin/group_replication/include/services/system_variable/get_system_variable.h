@@ -23,14 +23,17 @@
 #ifndef GR_GET_SYSTEM_VARIABLE
 #define GR_GET_SYSTEM_VARIABLE
 
-#include <mysql/components/services/component_sys_var_service.h>
-#include <mysql/components/services/registry.h>
 #include <string>
 #include "plugin/group_replication/include/thread/mysql_thread.h"
 
 class Get_system_variable_parameters : public Mysql_thread_body_parameters {
  public:
-  enum System_variable_service { VAR_GTID_EXECUTED, VAR_GTID_PURGED };
+  enum System_variable_service {
+    VAR_GTID_EXECUTED,
+    VAR_GTID_PURGED,
+    VAR_READ_ONLY,
+    VAR_SUPER_READ_ONLY
+  };
 
   Get_system_variable_parameters(System_variable_service service)
       : m_result(""), m_service(service), m_error(1){};
@@ -70,9 +73,9 @@ class Get_system_variable_parameters : public Mysql_thread_body_parameters {
 
 class Get_system_variable : Mysql_thread_body {
  public:
-  Get_system_variable();
+  Get_system_variable() = default;
 
-  virtual ~Get_system_variable();
+  virtual ~Get_system_variable() = default;
 
   /**
     Method to return the server gtid_executed by executing the get_variables
@@ -84,7 +87,7 @@ class Get_system_variable : Mysql_thread_body {
     @retval 0      OK
     @retval !=0    Error
     */
-  int get_server_gtid_executed(std::string &gtid_executed);
+  int get_global_gtid_executed(std::string &gtid_executed);
 
   /**
     Method to return the server gtid_purged by executing the get_variables
@@ -96,7 +99,31 @@ class Get_system_variable : Mysql_thread_body {
     @retval 0      OK
     @retval !=0    Error
     */
-  int get_server_gtid_purged(std::string &gtid_purged);
+  int get_global_gtid_purged(std::string &gtid_purged);
+
+  /**
+    Method to return the global value of read_only by executing
+    the get_variables component service.
+
+    @param [out] value The variable where the value will be set
+
+    @return the error value returned
+    @retval 0      OK
+    @retval !=0    Error
+    */
+  int get_global_read_only(bool &value);
+
+  /**
+    Method to return the global value of super_read_only by executing
+    the get_variables component service.
+
+    @param [out] value The variable where the value will be set
+
+    @return the error value returned
+    @retval 0      OK
+    @retval !=0    Error
+    */
+  int get_global_super_read_only(bool &value);
 
   /**
     Method that will be run on mysql_thread.
@@ -108,18 +135,29 @@ class Get_system_variable : Mysql_thread_body {
 
  private:
   /**
+    Method to convert a string into a boolean.
+
+    @param [in] value The value as string.
+
+    @return the value as boolean
+    @retval true   string value is "ON"
+    @retval false  otherwise
+    */
+  bool string_to_bool(const std::string &value);
+
+  /**
     Method to return the server system variable specified on variable.
 
     @param [in]  variable The system variable name to be retrieved
     @param [out] value    The string where the result will be set
+    @param [in]  value_max_length The maximum string value length
 
     @return the error value returned
     @retval 0      OK
     @retval !=0    Error
     */
-  int internal_get_system_variable(std::string variable, std::string &value);
-
-  my_h_service component_sys_variable_register_service_handler{nullptr};
+  int internal_get_system_variable(std::string variable, std::string &value,
+                                   size_t value_max_length);
 };
 
 #endif  // GR_GET_SYSTEM_VARIABLE

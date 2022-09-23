@@ -33,7 +33,6 @@
 
 void leave_group_on_failure::leave(
     const leave_group_on_failure::mask &actions, longlong error_to_log,
-    enum_plugin_con_isolation session_isolation,
     Notification_context *caller_notification_context,
     const char *exit_state_action_abort_log_message) {
   DBUG_TRACE;
@@ -176,7 +175,7 @@ void leave_group_on_failure::leave(
 
   if (!actions[leave_group_on_failure::SKIP_SET_READ_ONLY]) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SERVER_SET_TO_READ_ONLY_DUE_TO_ERRORS);
-    enable_server_read_mode(session_isolation);
+    enable_server_read_mode();
   }
 
   /*
@@ -187,7 +186,7 @@ void leave_group_on_failure::leave(
   if (actions[leave_group_on_failure::HANDLE_EXIT_STATE_ACTION] &&
       !start_auto_rejoin) {
     if (get_exit_state_action_var() == EXIT_STATE_ACTION_OFFLINE_MODE) {
-      enable_server_offline_mode(session_isolation);
+      enable_server_offline_mode();
     }
   }
 

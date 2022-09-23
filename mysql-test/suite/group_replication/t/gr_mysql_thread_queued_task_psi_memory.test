@@ -16,12 +16,14 @@
 # 3. Verify that the entries corresponding to the instrumented
 #    mysql_thread_queued_task remain in the tables after stopping GR.
 # 4. Assert that the number of bytes allocated for
-#    mysql_thread_queued_task event must be 0.
+#    mysql_thread_queued_task event must be 0 when the plugin
+#    is uninstalled.
 # 5. Clean up
 ###############################################################################
 
 --source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_group_replication_single_primary_mode=1
 --source include/group_replication.inc
@@ -99,10 +101,13 @@ SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WH
 --echo
 --echo #################################################################
 --echo # 4. Assert that the number of bytes allocated for
---echo #    mysql_thread_queued_task event must be 0.
---let $assert_text= 'The sum of bytes allocated must be zero after stopping GR'
+--echo #    mysql_thread_queued_task event must be 0 when the plugin
+--echo #    is uninstalled.
+--source include/uninstall_group_replication_plugin.inc
+--let $assert_text= 'The sum of bytes allocated must be zero after uninstall GR'
 --let $assert_cond= CURRENT_NUMBER_OF_BYTES_USED = 0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE "memory/group_rpl/mysql_thread_queued_task"
 --source include/assert.inc
+--source include/install_group_replication_plugin.inc
 
 --echo
 --echo #################################################################

@@ -18,7 +18,8 @@ include/assert.inc [Group replication recovery thread is not present in threads 
 
 include/stop_group_replication.inc
 include/assert.inc [No group replication entries are present in events_stages_current table.]
-include/assert.inc [No group replication entries are present in threads table.]
+include/assert.inc [2 group replication entries are present in threads table.]
+include/assert.inc [THD_mysql_thread_handler* are present in threads table.]
 
 # 03. Create some data on server1.
 #     Recovery channel will have some data on server2.

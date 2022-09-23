@@ -88,6 +88,6 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg) {
   leave_group_on_failure::mask leave_actions;
   leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
   leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
-  leave_group_on_failure::leave(leave_actions, 0, PSESSION_INIT_THREAD, nullptr,
+  leave_group_on_failure::leave(leave_actions, 0, nullptr,
                                 exit_state_action_abort_log_message.c_str());
 }

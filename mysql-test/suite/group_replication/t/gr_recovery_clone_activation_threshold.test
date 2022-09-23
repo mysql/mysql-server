@@ -60,7 +60,9 @@ SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Plugin group_replication reported.*");
 SET SESSION sql_log_bin = 1;
 
---let $group_replication_start_member_state= RECOVERING
+# Clone plugin is not installed, as such the member will error
+# during recovery.
+--let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 
 # Assert that recovery using clone is logged to the server error log.
