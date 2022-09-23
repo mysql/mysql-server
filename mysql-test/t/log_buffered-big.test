@@ -46,7 +46,7 @@ SET PERSIST log_error_suppression_list="ER_BASEDIR_SET_TO,ER_DD_INIT_FAILED";
 --replace_result $LOG_FILE_TRAD LOG_FILE_TRAD
 --source include/restart_mysqld.inc
 
-SELECT "Hi";
+SELECT "[ PASS ] Server has restarted.";
 
 # Now convert the JSON log to trad format, so we can more easily compare
 # the contents of the two:
@@ -62,12 +62,16 @@ SELECT "Hi";
    my @log_lines_trad=<FILET>;
    close(FILET);
 
+   print "[ PASS ] Successfully read traditional log file.\n";
+
 #  s/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *(\[.*)$/$1/ for @log_lines_trad;
 
    # Read entire JSON log so far (i.e. start-up log).
    open(FILEJ,"$file_json") or die("Unable to open $file_json $!\n");
    my @log_lines_json=<FILEJ>;
    close(FILEJ);
+
+   print "[ PASS ] Successfully read JSON log file.\n";
 
    # Write trad log output generated from JSON input
    # (so that we may use diff to show that trad log and the JSON log
@@ -94,8 +98,10 @@ SELECT "Hi";
 
    if($success)
    {
-     print "[ PASS ] Error log successfully parsed as a JSON document\n";
-     for my $item( sort { $a->{time} cmp $b->{time} } @$parsed_json ){
+     print "[ PASS ] Error log successfully parsed as a JSON document.\n";
+
+     my $line_count=0;
+     for my $item( sort { $a->{time} cmp $b->{time} } @$parsed_json ) {
         my $errcode_formatted= sprintf("%06d", $item->{'err_code'});
 
         # Verify that the --log-error-suppression-list works for
@@ -103,8 +109,8 @@ SELECT "Hi";
         # non-buffered messages.
         if ($errcode_formatted =~ $ENV{'SUPPRESSED_ERRCODE1'} or
             $errcode_formatted =~ $ENV{'SUPPRESSED_ERRCODE2'}) {
-          die("Error message with error code suppressed using ".
-              "--log-error-suppression-list is seen in the error log");
+          print "[ FAIL ] Error message with error code suppressed using ".
+              "--log-error-suppression-list is seen in the error log";
         }
         my $thread_id= defined $item->{'thread'} ? $item->{'thread'} : 0;
         my $label= ($item->{'label'} =~ "Error") ? uc $item->{'label'}
@@ -115,7 +121,18 @@ SELECT "Hi";
 
         print $outfh $item->{'time'}." ".$thread_id." "."[".$label."] [MY-".
               $errcode_formatted."] [".$item->{'subsystem'}."] ".$msg . "\n";
+
+        $line_count++;
      }
+     if ($line_count == 0) {
+       print "[ FAIL ] No lines were converted from JSON to trad.\n";
+     }
+     else {
+       print "[ PASS ] Lines were converted from JSON to trad.\n";
+     }
+   }
+   else {
+     print "[ FAIL ] Error log could not be parsed as a JSON document.\n";
    }
    close($outfh);
  EOF
@@ -131,21 +148,22 @@ SELECT "Hi";
    my $compare = compare($file_conv, $file_trad);
 
    if ($compare == 0) {
-     print "Success: trad log and JSON-converted-to-trad log are the same.\n";
+     print "[ PASS ] Traditional log and JSON-converted-to-trad log are the same.\n";
    }
    else {
-     print "Failure: trad log and JSON-converted-to-trad log are NOT the same.\n";
+     print "[ FAIL ] Traditional log and JSON-converted-to-trad log are NOT the same.\n";
+
      $/ = undef;
      my $contents;
 
-     print "\nContents of converted file, ".$file_conv."\n";
-     open my $fh, '<', $file_conv or die;
+     print "\n--- Contents of converted file, ".$file_conv." ---\n";
+     open my $fh, '<', $file_conv or die("Unable to open $file_conv $!\n");
      $contents = <$fh>;
      close $fh;
      print $contents;
 
-     print "\nContents of native trad file, ".$file_trad."\n";
-     open my $fh, '<', $file_trad or die;
+     print "\n--- Contents of native trad file, ".$file_trad." ---\n";
+     open my $fh, '<', $file_trad or die("Unable to open $file_trad $!\n");
      $contents = <$fh>;
      close $fh;
      print $contents;

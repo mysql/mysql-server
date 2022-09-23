@@ -1,11 +1,14 @@
 SET PERSIST log_error_services="log_filter_internal,log_sink_internal,log_sink_json";
 SET PERSIST log_error_suppression_list="ER_BASEDIR_SET_TO,ER_DD_INIT_FAILED";
 # restart: --log-error=LOG_FILE_TRAD --log-error-verbosity=3
-SELECT "Hi";
-Hi
-Hi
-[ PASS ] Error log successfully parsed as a JSON document
-Success: trad log and JSON-converted-to-trad log are the same.
+SELECT "[ PASS ] Server has restarted.";
+[ PASS ] Server has restarted.
+[ PASS ] Server has restarted.
+[ PASS ] Successfully read traditional log file.
+[ PASS ] Successfully read JSON log file.
+[ PASS ] Error log successfully parsed as a JSON document.
+[ PASS ] Lines were converted from JSON to trad.
+[ PASS ] Traditional log and JSON-converted-to-trad log are the same.
 RESET PERSIST log_error_services;
 RESET PERSIST log_error_suppression_list;
 SET GLOBAL log_error_services=DEFAULT;
