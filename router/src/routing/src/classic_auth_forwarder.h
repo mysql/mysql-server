@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_AUTH_INCLUDED
-#define ROUTING_CLASSIC_AUTH_INCLUDED
+#ifndef ROUTING_CLASSIC_AUTH_FORWARDER_INCLUDED
+#define ROUTING_CLASSIC_AUTH_FORWARDER_INCLUDED
 
 #include <memory>  // unique_ptr
 #include <string_view>
@@ -34,40 +34,41 @@
 #include "classic_connection.h"
 #include "mysql/harness/stdx/expected.h"
 
-template <class T>
-struct OsslDeleter;
-
-template <>
-struct OsslDeleter<EVP_PKEY> {
-  void operator()(EVP_PKEY *k) { EVP_PKEY_free(k); }
-};
-
-using EvpPkey = std::unique_ptr<EVP_PKEY, OsslDeleter<EVP_PKEY>>;
-
-class AuthBase {
+/**
+ * forward authentication between a client and server.
+ *
+ * started from the server after AuthSwitch
+ */
+class AuthForwarder : public Processor {
  public:
-  static stdx::expected<std::string, std::error_code>
-  public_key_from_ssl_ctx_as_pem(SSL_CTX *ssl_ctx);
+  using Processor::Processor;
 
-  static stdx::expected<EvpPkey, std::error_code> public_key_from_pem(
-      std::string_view pubkey);
+  enum class Stage {
+    Init,
 
-  static stdx::expected<std::string, std::error_code> public_key_encrypt(
-      std::string plaintext, EVP_PKEY *pkey);
+    AuthMethodSwitch,
 
-  static stdx::expected<std::string, std::error_code> private_key_decrypt(
-      std::string_view ciphertext, EVP_PKEY *priv);
+    Response,
 
-  static stdx::expected<std::string, std::error_code> rsa_decrypt_password(
-      SSL_CTX *ssl_ctx, std::string_view encrypted, std::string_view nonce);
+    Error,
+    Ok,
 
-  static stdx::expected<std::string, std::error_code> rsa_encrypt_password(
-      const EvpPkey &pkey, std::string_view password, std::string_view nonce);
+    Done,
+  };
 
-  static std::string_view strip_trailing_null(std::string_view s);
+  stdx::expected<Result, std::error_code> process() override;
 
-  static bool connection_has_public_key(
-      MysqlRoutingClassicConnection *connection);
+  void stage(Stage stage) { stage_ = stage; }
+  [[nodiscard]] Stage stage() const { return stage_; }
+
+ private:
+  stdx::expected<Result, std::error_code> init();
+  stdx::expected<Result, std::error_code> auth_method_switch();
+  stdx::expected<Result, std::error_code> response();
+  stdx::expected<Result, std::error_code> error();
+  stdx::expected<Result, std::error_code> ok();
+
+  Stage stage_{Stage::Init};
 };
 
 #endif

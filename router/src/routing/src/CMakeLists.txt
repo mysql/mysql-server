@@ -56,6 +56,11 @@ ADD_LIBRARY(routing SHARED
 
   processor.cc
   classic_auth.cc
+  classic_auth_cleartext.cc
+  classic_auth_caching_sha2.cc
+  classic_auth_forwarder.cc
+  classic_auth_native.cc
+  classic_auth_sha256_password.cc
   classic_binlog_dump.cc
   classic_change_user.cc
   classic_clone.cc

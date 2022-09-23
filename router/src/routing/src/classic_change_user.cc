@@ -26,9 +26,12 @@
 
 #include <optional>
 
-#include <openssl/evp.h>
-
 #include "classic_auth.h"
+#include "classic_auth_caching_sha2.h"
+#include "classic_auth_cleartext.h"
+#include "classic_auth_forwarder.h"
+#include "classic_auth_native.h"
+#include "classic_auth_sha256_password.h"
 #include "classic_connect.h"
 #include "classic_connection.h"
 #include "classic_forwarder.h"
@@ -49,20 +52,6 @@ using mysql_harness::hexify;
 
 using namespace std::string_literals;
 using namespace std::string_view_literals;
-
-static bool connection_has_public_key(
-    MysqlRoutingClassicConnection *connection) {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
-  if (!connection->context().source_ssl_ctx()) return false;
-
-  SSL_CTX *ssl_ctx = connection->context().source_ssl_ctx()->get();
-
-  return SSL_CTX_get0_certificate(ssl_ctx) != nullptr;
-#else
-  (void)connection;
-  return false;
-#endif
-}
 
 /**
  * forward the change-user message flow.
@@ -287,16 +276,10 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
-    case Stage::Response:
-      return response();
-    case Stage::AuthMethodSwitch:
-      return auth_method_switch();
-    case Stage::ClientData:
-      return client_data();
-    case Stage::AuthResponse:
-      return auth_response();
-    case Stage::ServerData:
-      return server_data();
+    case Stage::InitialResponse:
+      return initial_response();
+    case Stage::FinalResponse:
+      return final_response();
     case Stage::Ok:
       return ok();
     case Stage::Error:
@@ -527,12 +510,20 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::command() {
       ClassicFrame::send_msg(dst_channel, dst_protocol, *change_user_msg_);
   if (!send_res) return send_server_failed(send_res.error());
 
-  stage(Stage::Response);
+  stage(Stage::InitialResponse);
   return Result::SendToServer;
 }
 
 stdx::expected<Processor::Result, std::error_code>
-ChangeUserSender::response() {
+ChangeUserSender::initial_response() {
+  connection()->push_processor(std::make_unique<AuthForwarder>(connection()));
+
+  stage(Stage::FinalResponse);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ChangeUserSender::final_response() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
@@ -544,16 +535,11 @@ ChangeUserSender::response() {
   const uint8_t msg_type = src_protocol->current_msg_type().value();
 
   enum class Msg {
-    AuthMethodSwitch = ClassicFrame::cmd_byte<
-        classic_protocol::message::server::AuthMethodSwitch>(),
     Ok = ClassicFrame::cmd_byte<classic_protocol::message::server::Ok>(),
     Error = ClassicFrame::cmd_byte<classic_protocol::message::server::Error>(),
   };
 
   switch (Msg{msg_type}) {
-    case Msg::AuthMethodSwitch:
-      stage(Stage::AuthMethodSwitch);
-      return Result::Again;
     case Msg::Ok:
       stage(Stage::Ok);
       return Result::Again;
@@ -563,436 +549,6 @@ ChangeUserSender::response() {
   }
 
   trace(Tracer::Event().stage("change_user::response"));
-
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
-}
-
-stdx::expected<Processor::Result, std::error_code>
-ChangeUserSender::auth_method_switch() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
-  auto dst_protocol = connection()->client_protocol();
-
-  auto msg_res = ClassicFrame::recv_msg<
-      classic_protocol::message::server::AuthMethodSwitch>(src_channel,
-                                                           src_protocol);
-  if (!msg_res) return recv_server_failed(msg_res.error());
-
-  auto msg = std::move(*msg_res);
-
-  trace(Tracer::Event().stage("change_user::auth_method_switch: " +
-                              msg.auth_method()));
-
-  src_protocol->auth_method_name(msg.auth_method());
-  src_protocol->auth_method_data(msg.auth_method_data());
-  dst_protocol->auth_method_name(msg.auth_method());
-  dst_protocol->auth_method_data(msg.auth_method_data());
-
-  if (dst_protocol->password().has_value()) {
-    auto pwd = *(dst_protocol->password());
-
-    discard_current_msg(src_channel, src_protocol);
-
-    if (!src_channel->ssl() && !pwd.empty() &&
-        dst_protocol->auth_method_name() == AuthSha256Password::kName) {
-      // the server channel isn't encrypted, request the public-key.
-
-      auto send_res = AuthSha256Password::send_public_key_request(src_channel,
-                                                                  src_protocol);
-
-      if (!send_res) return send_server_failed(send_res.error());
-    } else {
-      trace(Tracer::Event().stage("change_user::client_data"));
-
-      auto scramble_res = scramble_them_all(
-          msg.auth_method(), strip_trailing_null(msg.auth_method_data()), pwd);
-
-      if (!scramble_res) {
-        return recv_server_failed(make_error_code(std::errc::bad_message));
-      }
-
-      auto send_res = ClassicFrame::send_msg<classic_protocol::wire::String>(
-          src_channel, src_protocol, {*scramble_res});
-      if (!send_res) return send_server_failed(send_res.error());
-    }
-
-    stage(Stage::AuthResponse);
-    return Result::SendToServer;
-  } else {
-    stage(Stage::ClientData);
-    return forward_server_to_client();
-  }
-}
-
-stdx::expected<Processor::Result, std::error_code>
-ChangeUserSender::client_data() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->client_channel();
-  auto src_protocol = connection()->client_protocol();
-  auto *dst_channel = socket_splicer->server_channel();
-  auto *dst_protocol = connection()->server_protocol();
-
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::AuthMethodData>(
-          src_channel, src_protocol);
-  if (!msg_res) return recv_client_failed(msg_res.error());
-
-  trace(Tracer::Event().stage("change_user::client_data:\n" +
-                              hexify(msg_res->auth_method_data())));
-
-  if (src_protocol->auth_method_name() == AuthCachingSha2Password::kName) {
-    using Auth = AuthCachingSha2Password;
-
-    if (Auth::is_public_key_request(msg_res->auth_method_data()) &&
-        connection_has_public_key(connection())) {
-      discard_current_msg(src_channel, src_protocol);
-
-      trace(Tracer::Event().stage("server::auth::public_key"));
-
-      auto pubkey_res = Auth::public_key_from_ssl_ctx_as_pem(
-          connection()->context().source_ssl_ctx()->get());
-      if (!pubkey_res) {
-        auto ec = pubkey_res.error();
-
-        if (ec != std::errc::function_not_supported) {
-          return send_client_failed(ec);
-        }
-
-        // couldn't get the public key, fail the auth.
-        auto send_res =
-            ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-                src_channel, src_protocol,
-                {ER_ACCESS_DENIED_ERROR, "Access denied", "HY000"});
-        if (!send_res) return send_client_failed(send_res.error());
-      } else {
-        auto send_res =
-            Auth::send_public_key(src_channel, src_protocol, *pubkey_res);
-        if (!send_res) return send_client_failed(send_res.error());
-      }
-
-      return Result::SendToClient;
-    } else if (Auth::is_public_key(msg_res->auth_method_data()) &&
-               connection_has_public_key(connection())) {
-      auto recv_res = Auth::rsa_decrypt_password(
-          connection()->context().source_ssl_ctx()->get(),
-          msg_res->auth_method_data(), src_protocol->auth_method_data());
-      if (!recv_res) return recv_client_failed(recv_res.error());
-
-      src_protocol->password(*recv_res);
-
-      trace(Tracer::Event().stage("change_user::password"));
-
-      discard_current_msg(src_channel, src_protocol);
-
-      if (dst_channel->ssl()) {
-        // the server-side is encrypted: send plaintext password
-        trace(Tracer::Event().stage("change_user::plaintext_password"));
-
-        auto send_res = Auth::send_plaintext_password(
-            dst_channel, dst_protocol, *src_protocol->password());
-        if (!send_res) return send_server_failed(send_res.error());
-      } else {
-        // the server is NOT encrypted: ask for the server's publickey
-        trace(Tracer::Event().stage("change_user::request_public_key"));
-
-        auto send_res =
-            Auth::send_public_key_request(dst_channel, dst_protocol);
-        if (!send_res) return send_server_failed(send_res.error());
-      }
-
-      stage(Stage::AuthResponse);
-      return Result::SendToServer;
-    } else if (src_channel->ssl() && msg_res->auth_method_data().size() == 32) {
-      // try fast auth first.
-
-      stage(Stage::AuthResponse);
-      return forward_client_to_server();
-    } else if (src_channel->ssl()) {
-      discard_current_msg(src_channel, src_protocol);
-
-      auto pwd = msg_res->auth_method_data();
-      pwd.resize(pwd.size() - 1);
-
-      // the plaintext password.
-      src_protocol->password(pwd);
-
-      if (dst_channel->ssl() || pwd.empty()) {
-        trace(Tracer::Event().stage("client::auth::plaintext_password"));
-        // the server-side is encrypted: send plaintext password with trailing
-        // \0
-        auto send_res = Auth::send_plaintext_password(
-            dst_channel, dst_protocol, *src_protocol->password());
-        if (!send_res) return send_server_failed(send_res.error());
-      } else {
-        trace(Tracer::Event().stage("client::auth::request_public_key"));
-        // the server is NOT encrypted: ask for the server's publickey
-        auto send_res =
-            Auth::send_public_key_request(dst_channel, dst_protocol);
-        if (!send_res) return send_server_failed(send_res.error());
-      }
-
-      stage(Stage::AuthResponse);
-      return Result::SendToServer;
-    }
-  } else if (src_protocol->auth_method_name() == AuthSha256Password::kName) {
-    using Auth = AuthSha256Password;
-
-    if (Auth::is_public_key_request(msg_res->auth_method_data()) &&
-        connection_has_public_key(connection())) {
-      discard_current_msg(src_channel, src_protocol);
-
-      trace(Tracer::Event().stage("server::auth::public_key"));
-
-      auto pubkey_res = Auth::public_key_from_ssl_ctx_as_pem(
-          connection()->context().source_ssl_ctx()->get());
-      if (!pubkey_res) return send_client_failed(pubkey_res.error());
-
-      auto send_res =
-          Auth::send_public_key(src_channel, src_protocol, *pubkey_res);
-      if (!send_res) return send_client_failed(send_res.error());
-
-      return Result::SendToClient;
-    } else if (Auth::is_public_key(msg_res->auth_method_data()) &&
-               connection()->context().source_ssl_ctx()) {
-      auto recv_res = Auth::rsa_decrypt_password(
-          connection()->context().source_ssl_ctx()->get(),
-          msg_res->auth_method_data(), src_protocol->auth_method_data());
-      if (!recv_res) return recv_client_failed(recv_res.error());
-
-      src_protocol->password(*recv_res);
-
-      discard_current_msg(src_channel, src_protocol);
-
-      if (dst_channel->ssl()) {
-        trace(Tracer::Event().stage("client::auth_data::password"));
-        // the server-side is encrypted: send plaintext password
-
-        auto send_res = Auth::send_plaintext_password(
-            dst_channel, dst_protocol, *src_protocol->password());
-        if (!send_res) return send_server_failed(send_res.error());
-      } else {
-        // the server is NOT encrypted: ask for the server's public-key
-        trace(Tracer::Event().stage("client::auth::request_public_key"));
-
-        auto send_res =
-            Auth::send_public_key_request(dst_channel, dst_protocol);
-        if (!send_res) return send_server_failed(send_res.error());
-      }
-
-      stage(Stage::AuthResponse);
-      return Result::SendToServer;
-    } else if (src_channel->ssl()) {
-      discard_current_msg(src_channel, src_protocol);
-      auto pwd = msg_res->auth_method_data();
-      pwd.resize(pwd.size() - 1);
-
-      // the plaintext password.
-      src_protocol->password(pwd);
-
-      if (dst_channel->ssl() || pwd.empty()) {
-        trace(Tracer::Event().stage("client::auth_data::password"));
-        // the server-side is encrypted (or the password is empty)
-        auto send_res = Auth::send_plaintext_password(
-            dst_channel, dst_protocol, *src_protocol->password());
-        if (!send_res) return send_server_failed(send_res.error());
-      } else {
-        // the server is NOT encrypted: ask for the server's public-key
-        trace(Tracer::Event().stage("client::auth::request_public_key"));
-
-        auto send_res =
-            Auth::send_public_key_request(dst_channel, dst_protocol);
-        if (!send_res) return send_server_failed(send_res.error());
-      }
-
-      stage(Stage::AuthResponse);
-      return Result::SendToServer;
-    }
-  }
-
-  stage(Stage::AuthResponse);
-  return forward_client_to_server();
-}
-
-stdx::expected<Processor::Result, std::error_code>
-ChangeUserSender::auth_response() {
-  // ERR|OK|data
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
-
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
-  if (!read_res) return recv_server_failed(read_res.error());
-
-  uint8_t msg_type = src_protocol->current_msg_type().value();
-
-  enum class Msg {
-    Error = ClassicFrame::cmd_byte<classic_protocol::message::server::Error>(),
-    Ok = ClassicFrame::cmd_byte<classic_protocol::message::server::Ok>(),
-    AuthData = ClassicFrame::cmd_byte<
-        classic_protocol::message::server::AuthMethodData>(),
-  };
-
-  switch (Msg{msg_type}) {
-    case Msg::Error:
-      stage(Stage::Error);
-      return Result::Again;
-    case Msg::Ok:
-      stage(Stage::Ok);
-      return Result::Again;
-    case Msg::AuthData:
-      stage(Stage::ServerData);
-      return Result::Again;
-  }
-
-  trace(Tracer::Event().stage("change_user::auth::response"));
-
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
-}
-
-/**
- * receive auth-data from the server handle it.
- */
-stdx::expected<Processor::Result, std::error_code>
-ChangeUserSender::server_data() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
-  auto dst_protocol = connection()->client_protocol();
-
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::AuthMethodData>(
-          src_channel, src_protocol);
-  if (!msg_res) return recv_server_failed(msg_res.error());
-
-  auto msg = std::move(*msg_res);
-
-  if (src_protocol->auth_method_name() == AuthCachingSha2Password::kName) {
-    using Auth = AuthCachingSha2Password;
-
-    // if ensure_has_full_frame fails, we'll fail later with bad_message.
-
-    if (msg.auth_method_data().size() < 1) {
-      return recv_server_failed(make_error_code(std::errc::bad_message));
-    }
-
-    switch (msg.auth_method_data()[0]) {
-      case Auth::kFastAuthDone:
-        trace(Tracer::Event().stage("change_user::auth::fast-auth-ok"));
-
-        stage(Stage::AuthResponse);
-
-        // fast-auth-ok is followed by Ok
-        if (dst_protocol->password().has_value()) {
-          // as the client provided a password already, it expects a Ok next.
-          discard_current_msg(src_channel, src_protocol);
-
-          return Result::Again;
-        } else {
-          // client provided a hash and expects the 0x03 and OK.
-          return forward_server_to_client(true /* noflush */);
-        }
-      case Auth::kPerformFullAuth:
-        trace(Tracer::Event().stage("change_user::auth::full-auth"));
-
-        if (dst_protocol->password().has_value()) {
-          auto opt_pwd = dst_protocol->password();
-
-          discard_current_msg(src_channel, src_protocol);
-
-          if (!src_channel->ssl()) {
-            // the server is NOT encrypted: ask for the server's publickey
-            trace(
-                Tracer::Event().stage("change_user::auth::request_public_key"));
-            auto send_res =
-                Auth::send_public_key_request(src_channel, src_protocol);
-            if (!send_res) return send_server_failed(send_res.error());
-          } else {
-            trace(
-                Tracer::Event().stage("change_user::auth::plaintext_password"));
-            auto send_res = Auth::send_plaintext_password(
-                src_channel, src_protocol, *opt_pwd);
-            if (!send_res) return send_server_failed(send_res.error());
-          }
-
-          // send it to the server.
-          stage(Stage::AuthResponse);
-          return Result::SendToServer;
-        } else {
-          // forward request for full auth to the client.
-          stage(Stage::ClientData);
-
-          return forward_server_to_client();
-        }
-      case '-': {
-        trace(Tracer::Event().stage("change_user::auth::public_key"));
-
-        if (dst_protocol->password().has_value()) {
-          // the client's password is known: answer the server directly.
-          auto pubkey_res = Auth::public_key_from_pem(msg.auth_method_data());
-          if (!pubkey_res) return recv_server_failed(pubkey_res.error());
-
-          discard_current_msg(src_channel, src_protocol);
-
-          trace(Tracer::Event().stage("client::auth::password"));
-
-          auto encrypted_res = Auth::rsa_encrypt_password(
-              *pubkey_res, *(dst_protocol->password()),
-              src_protocol->auth_method_data());
-          if (!encrypted_res) return send_server_failed(encrypted_res.error());
-
-          auto send_res = Auth::send_encrypted_password(
-              src_channel, src_protocol, *encrypted_res);
-          if (!send_res) return send_server_failed(send_res.error());
-
-          stage(Stage::Response);
-          return Result::SendToServer;
-        } else {
-          // ... otherwise forward the public-key to the client and send its
-          // encrypted password.
-          stage(Stage::ClientData);
-
-          return forward_server_to_client();
-        }
-      }
-    }
-  } else if (src_protocol->auth_method_name() == AuthSha256Password::kName) {
-    using Auth = AuthSha256Password;
-    // public key
-    trace(Tracer::Event().stage("server::auth::public-key"));
-
-    if (dst_protocol->password().has_value()) {
-      // the client's password is known: answer the server directly.
-      auto pubkey_res = Auth::public_key_from_pem(msg.auth_method_data());
-      if (!pubkey_res) return recv_server_failed(pubkey_res.error());
-
-      discard_current_msg(src_channel, src_protocol);
-
-      trace(Tracer::Event().stage("client::auth::password"));
-
-      auto encrypted_res =
-          Auth::rsa_encrypt_password(*pubkey_res, *(dst_protocol->password()),
-                                     src_protocol->auth_method_data());
-      if (!encrypted_res) return send_server_failed(encrypted_res.error());
-
-      auto send_res = Auth::send_encrypted_password(src_channel, src_protocol,
-                                                    *encrypted_res);
-      if (!send_res) return send_server_failed(send_res.error());
-
-      stage(Stage::AuthResponse);
-      return Result::SendToServer;
-    } else {
-      // ... otherwise forward the public-key to the client and send its
-      // encrypted password.
-      stage(Stage::ClientData);
-
-      return forward_server_to_client();
-    }
-  }
-
-  log_debug("change_user::auth::data: %s",
-            hexify(msg.auth_method_data()).c_str());
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }

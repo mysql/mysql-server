@@ -33,10 +33,21 @@
 #include <openssl/x509.h>
 
 #include "auth_digest.h"
-#include "classic_frame.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysqlrouter/classic_protocol_wire.h"
 #include "openssl_version.h"
+
+/**
+ * remove trailing \0 in a string_view.
+ *
+ * returns the original string-view, if there is no trailing NUL-char.
+ */
+std::string_view AuthBase::strip_trailing_null(std::string_view s) {
+  if (s.empty()) return s;
+
+  if (s.back() == '\0') s.remove_suffix(1);
+
+  return s;
+}
 
 template <>
 struct OsslDeleter<BIO> {
@@ -278,132 +289,16 @@ stdx::expected<std::string, std::error_code> AuthBase::rsa_encrypt_password(
   return AuthBase::public_key_encrypt(plaintext, pkey.get());
 }
 
-//  AuthCleartextPassword
+bool AuthBase::connection_has_public_key(
+    MysqlRoutingClassicConnection *connection) {
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
+  if (!connection->context().source_ssl_ctx()) return false;
 
-std::optional<std::string> AuthCleartextPassword::scramble(
-    [[maybe_unused]] std::string_view nonce, std::string_view pwd) {
-  std::string s(pwd);
+  SSL_CTX *ssl_ctx = connection->context().source_ssl_ctx()->get();
 
-  s.push_back('\0');
-
-  return s;
-}
-
-// AuthNativePassword
-
-std::optional<std::string> AuthNativePassword::scramble(std::string_view nonce,
-                                                        std::string_view pwd) {
-  return mysql_native_password_scramble<std::string>(nonce, pwd);
-}
-
-// AuthCachingSha2Password
-
-std::optional<std::string> AuthCachingSha2Password::scramble(
-    std::string_view nonce, std::string_view pwd) {
-  return caching_sha2_password_scramble<std::string>(nonce, pwd);
-}
-
-stdx::expected<size_t, std::error_code>
-AuthCachingSha2Password::send_public_key_request(
-    Channel *dst_channel, ClassicProtocolState *dst_protocol) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {std::string(kPublicKeyRequest)});
-}
-
-stdx::expected<size_t, std::error_code>
-AuthCachingSha2Password::send_public_key(Channel *dst_channel,
-                                         ClassicProtocolState *dst_protocol,
-                                         const std::string &public_key) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {public_key});
-}
-
-stdx::expected<size_t, std::error_code>
-AuthCachingSha2Password::send_plaintext_password_request(
-    Channel *dst_channel, ClassicProtocolState *dst_protocol) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::server::AuthMethodData>(
-      dst_channel, dst_protocol, {std::string(1, kPerformFullAuth)});
-}
-
-stdx::expected<size_t, std::error_code>
-AuthCachingSha2Password::send_plaintext_password(
-    Channel *dst_channel, ClassicProtocolState *dst_protocol,
-    const std::string &password) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {password + '\0'});
-}
-
-stdx::expected<size_t, std::error_code>
-AuthCachingSha2Password::send_encrypted_password(
-    Channel *dst_channel, ClassicProtocolState *dst_protocol,
-    const std::string &encrypted) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {encrypted});
-}
-
-bool AuthCachingSha2Password::is_public_key_request(
-    const std::string_view &data) {
-  return data == kPublicKeyRequest;
-}
-
-bool AuthCachingSha2Password::is_public_key(const std::string_view &data) {
-  return data.size() == 256;
-}
-
-// AuthSha256Password
-
-std::optional<std::string> AuthSha256Password::scramble(
-    [[maybe_unused]] std::string_view nonce, std::string_view pwd) {
-  std::string s(pwd);
-
-  s.push_back('\0');
-
-  return s;
-}
-
-stdx::expected<size_t, std::error_code>
-AuthSha256Password::send_public_key_request(
-    Channel *dst_channel, ClassicProtocolState *dst_protocol) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {std::string(kPublicKeyRequest)});
-}
-
-stdx::expected<size_t, std::error_code> AuthSha256Password::send_public_key(
-    Channel *dst_channel, ClassicProtocolState *dst_protocol,
-    const std::string &public_key) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {public_key});
-}
-
-stdx::expected<size_t, std::error_code>
-AuthSha256Password::send_plaintext_password(Channel *dst_channel,
-                                            ClassicProtocolState *dst_protocol,
-                                            const std::string &password) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {password + '\0'});
-}
-
-stdx::expected<size_t, std::error_code>
-AuthSha256Password::send_encrypted_password(Channel *dst_channel,
-                                            ClassicProtocolState *dst_protocol,
-                                            const std::string &encrypted) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {encrypted});
-}
-
-bool AuthSha256Password::is_public_key_request(const std::string_view &data) {
-  return data == kPublicKeyRequest;
-}
-
-bool AuthSha256Password::is_public_key(const std::string_view &data) {
-  return data.size() == 256;
+  return SSL_CTX_get0_certificate(ssl_ctx) != nullptr;
+#else
+  (void)connection;
+  return false;
+#endif
 }

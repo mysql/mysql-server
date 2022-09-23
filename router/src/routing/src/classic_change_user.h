@@ -72,11 +72,8 @@ class ChangeUserSender : public Processor {
 
   enum class Stage {
     Command,
-    Response,
-    AuthMethodSwitch,
-    ClientData,
-    AuthResponse,
-    ServerData,
+    InitialResponse,
+    FinalResponse,
     Ok,
     Error,
     Done,
@@ -89,11 +86,8 @@ class ChangeUserSender : public Processor {
 
  private:
   stdx::expected<Result, std::error_code> command();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> auth_method_switch();
-  stdx::expected<Result, std::error_code> client_data();
-  stdx::expected<Result, std::error_code> auth_response();
-  stdx::expected<Result, std::error_code> server_data();
+  stdx::expected<Result, std::error_code> initial_response();
+  stdx::expected<Result, std::error_code> final_response();
   stdx::expected<Result, std::error_code> ok();
   stdx::expected<Result, std::error_code> error();
 

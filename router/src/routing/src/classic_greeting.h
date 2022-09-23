@@ -127,12 +127,10 @@ class ServerGreetor : public Processor {
     TlsConnectInit,
     TlsConnect,
     ClientGreetingAfterTls,
-    Response,
-    AuthMethodSwitch,
-    ClientAuth,
+    InitialResponse,
+    FinalResponse,
     AuthOk,
     AuthError,
-    AuthData,
 
     ServerGreetingSent,
     Error,
@@ -154,12 +152,10 @@ class ServerGreetor : public Processor {
   stdx::expected<Result, std::error_code> tls_connect_init();
   stdx::expected<Result, std::error_code> tls_connect();
   stdx::expected<Result, std::error_code> client_greeting_after_tls();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> client_auth();
+  stdx::expected<Result, std::error_code> initial_response();
+  stdx::expected<Result, std::error_code> final_response();
   stdx::expected<Result, std::error_code> auth_error();
   stdx::expected<Result, std::error_code> auth_ok();
-  stdx::expected<Result, std::error_code> auth_data();
-  stdx::expected<Result, std::error_code> auth_method_switch();
   stdx::expected<Result, std::error_code> error();
 
   void client_greeting_server_adjust_caps(ClassicProtocolState *src_protocol,
@@ -238,12 +234,10 @@ class ServerFirstAuthenticator : public Processor {
     TlsConnectInit,
     TlsConnect,
     ClientGreetingAfterTls,
-    Response,
-    AuthMethodSwitch,
-    ClientAuth,
+    InitialResponse,
+    FinalResponse,
     AuthOk,
     AuthError,
-    AuthData,
 
     Error,
     Ok,
@@ -263,12 +257,10 @@ class ServerFirstAuthenticator : public Processor {
   stdx::expected<Result, std::error_code> tls_connect_init();
   stdx::expected<Result, std::error_code> tls_connect();
   stdx::expected<Result, std::error_code> client_greeting_after_tls();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> client_auth();
+  stdx::expected<Result, std::error_code> initial_response();
+  stdx::expected<Result, std::error_code> final_response();
   stdx::expected<Result, std::error_code> auth_error();
   stdx::expected<Result, std::error_code> auth_ok();
-  stdx::expected<Result, std::error_code> auth_data();
-  stdx::expected<Result, std::error_code> auth_method_switch();
 
   void client_greeting_server_adjust_caps(ClassicProtocolState *src_protocol,
                                           ClassicProtocolState *dst_protocol);
