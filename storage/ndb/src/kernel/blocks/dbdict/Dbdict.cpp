@@ -6892,7 +6892,10 @@ Dbdict::create_fragmentation(Signal* signal,
      * and distributed in the same manner but has always a normal hash
      * fragmentation.
      */
-    frag_req->primaryTableId = RNIL;
+    if ((flags & CreateFragmentationReq::RI_ADD_FRAGMENTS) == 0)
+    {
+      frag_req->primaryTableId = RNIL;
+    }
   }
   else
   {
@@ -9953,12 +9956,12 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       c_fragDataLen = 2 * newTablePtr.p->fragmentCount;
       Uint32 save1 = newTablePtr.p->primaryTableId;
       Uint32 flags = CreateFragmentationReq::RI_CREATE_FRAGMENTATION;
-      if (save1 == RNIL)
+      if (save1 == RNIL ||  newTablePtr.p->isHashIndex())
       {
         /**
-         * This is a "base" table
-         *   signal that this is a add-partitions
-         *   by setting primaryTableId to "original" table and setting flag
+         * This is either a base table or an UI table
+         * signal that this is an add-partitions operation
+         * by setting primaryTableId to "original" table and setting flag
          */
         flags = CreateFragmentationReq::RI_ADD_FRAGMENTS;
         newTablePtr.p->primaryTableId = tablePtr.p->tableId;
