@@ -50,7 +50,6 @@ class Item;
 class THD;
 
 using hypergraph::NodeMap;
-using std::move;
 using testing::UnorderedElementsAre;
 
 TEST(OnlineCycleFinderTest, SelfEdges) {
@@ -99,7 +98,7 @@ static void AddEdge(THD *thd, RelationalExpression::Type join_type,
   pred.expr->type = join_type;
   pred.expr->nodes_in_subtree = left | right;
   pred.estimated_bytes_per_row = 0;  // To keep the compiler happy.
-  graph->edges.push_back(move(pred));
+  graph->edges.push_back(std::move(pred));
   graph->graph.AddEdge(left, right);
 }
 

@@ -129,8 +129,6 @@ class os0file_t : public ::testing::Test {
   static constexpr char TEST_FILE_NAME[] = "os0file-t-temp.txt";
 };
 
-constexpr char os0file_t::TEST_FILE_NAME[];
-
 TEST_F(os0file_t, hundred_10_byte_writes_reads_flushes_with_fsync) {
   srv_use_fdatasync = false;
   static constexpr char TEST_DATA[] = "testdata42";

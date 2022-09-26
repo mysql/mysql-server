@@ -96,13 +96,6 @@ The tablespace memory cache */
 using Dirs = std::vector<std::string>;
 using Space_id_set = std::set<space_id_t>;
 
-constexpr char Fil_path::DB_SEPARATOR;
-constexpr char Fil_path::OS_SEPARATOR;
-constexpr const char *Fil_path::SEPARATOR;
-constexpr const char *Fil_path::DOT_SLASH;
-constexpr const char *Fil_path::DOT_DOT_SLASH;
-constexpr const char *Fil_path::SLASH_DOT_DOT_SLASH;
-
 dberr_t dict_stats_rename_table(const char *old_name, const char *new_name,
                                 char *errstr, size_t errstr_sz);
 
@@ -1915,19 +1908,12 @@ because of the race condition below. */
 void Fil_shard::validate() const {
   mutex_acquire();
 
-  size_t n_open = 0;
-
   for (auto elem : m_spaces) {
     page_no_t size = 0;
     auto space = elem.second;
 
     for (const auto &file : space->files) {
       ut_a(file.is_open || !file.n_pending_ios);
-
-      if (file.is_open) {
-        ++n_open;
-      }
-
       size += file.size;
     }
 
@@ -9102,7 +9088,6 @@ void Fil_system::encryption_reencrypt(
   }
 
   size_t fail_count = 0;
-  size_t rotate_count = 0;
   byte encrypt_info[Encryption::INFO_SIZE];
 
   /* This operation is done either post recovery or when the first time
@@ -9122,7 +9107,6 @@ void Fil_system::encryption_reencrypt(
     mtr_commit(&mtr);
 
     if (rotate_ok) {
-      ++rotate_count;
       if (fsp_is_ibd_tablespace(space_id)) {
         if (fsp_is_file_per_table(space_id, space->flags)) {
           ib::info(ER_IB_MSG_REENCRYPTED_TABLESPACE_KEY, space->name);

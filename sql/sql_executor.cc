@@ -115,7 +115,6 @@
 using std::make_pair;
 using std::max;
 using std::min;
-using std::move;
 using std::pair;
 using std::string;
 using std::unique_ptr;
@@ -2057,7 +2056,7 @@ static AccessPath *CreateHashJoinAccessPath(
     // For inner join, attach the extra conditions as filters after the join.
     // This gives us more detailed output in EXPLAIN ANALYZE since we get an
     // instrumented FilterIterator on top of the join.
-    *join_conditions = move(hash_join_extra_conditions);
+    *join_conditions = std::move(hash_join_extra_conditions);
   } else {
     join_conditions->clear();
 
@@ -2209,7 +2208,7 @@ static void ExtractJoinConditions(const QEP_TAB *current_table,
     }
   }
 
-  *predicates = move(real_predicates);
+  *predicates = std::move(real_predicates);
 }
 
 static bool UseHashJoin(QEP_TAB *qep_tab) {

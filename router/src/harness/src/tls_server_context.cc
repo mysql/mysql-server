@@ -57,9 +57,6 @@ constexpr int kMinRsaKeySize{2048};
 #endif
 constexpr int kMinDhKeySize{1024};
 
-constexpr std::array<const char *, 9>
-    TlsServerContext::unacceptable_cipher_spec;
-
 namespace {
 const SSL_METHOD *server_method =
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)

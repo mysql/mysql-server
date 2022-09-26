@@ -1853,7 +1853,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
     
     // Loop over the fields in each bound.
     Uint32 keyPartNo = 0;
-    Uint32 distKeyPartNo = 0;
+    Uint32 distKeyPartNo [[maybe_unused]] = 0;
     while (keyPos < keyEnd)
     {
       const NdbIndexScanOperation::BoundType type = 

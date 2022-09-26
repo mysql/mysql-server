@@ -32,9 +32,6 @@
 
 #include "../src/base64.h"
 
-// instantiate the constexpr members
-constexpr const char HttpAuthMethodBasic::kMethodName[];
-
 HttpAuthMethodBasic::AuthData HttpAuthMethodBasic::decode_authorization(
     const std::string &http_auth_data, std::error_code &ec) {
   std::vector<uint8_t> decoded;

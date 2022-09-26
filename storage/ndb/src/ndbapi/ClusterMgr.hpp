@@ -197,7 +197,7 @@ private:
   void execAPI_REGREF    (const Uint32 * theData);
   void execDUMP_STATE_ORD(const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execNODE_FAILREP  (const NdbApiSignal*, const LinearSectionPtr ptr[]);
-  void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
+  void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
 
   void check_wait_for_hb(NodeId nodeId);
 

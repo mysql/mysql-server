@@ -162,7 +162,6 @@ TARGET_INCLUDE_DIRECTORIES(http_auth_realm PRIVATE
 
 ADD_HARNESS_PLUGIN(http_server
   SOURCES
-  content_type.cc
   http_auth.cc
   http_auth_method_basic.cc
   http_server_component.cc

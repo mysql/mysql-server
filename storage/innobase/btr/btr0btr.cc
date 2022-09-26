@@ -4211,9 +4211,7 @@ static bool btr_validate_level(
     seg -= PAGE_BTR_SEG_TOP - PAGE_BTR_SEG_LEAF;
   }
 
-  size_t n_pages = 0;
   do {
-    ++n_pages;
     mem_heap_empty(heap);
     offsets = offsets2 = nullptr;
     if (!srv_read_only_mode) {

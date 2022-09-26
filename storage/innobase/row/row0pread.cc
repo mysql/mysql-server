@@ -442,7 +442,7 @@ dberr_t PCursor::move_to_next_block(dict_index_t *index) {
     err = move_to_user_rec();
   }
 
-  int n_retries = 0;
+  int n_retries [[maybe_unused]] = 0;
   while (err == DB_LOCK_NOWAIT) {
     /* We should restore the cursor from index root page,
     to avoid deadlock opportunity. */

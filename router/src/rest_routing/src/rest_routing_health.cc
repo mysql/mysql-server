@@ -34,8 +34,6 @@
 #include "mysqlrouter/rest_api_utils.h"
 #include "mysqlrouter/routing_component.h"
 
-constexpr const char RestRoutingHealth::path_regex[];
-
 bool RestRoutingHealth::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
     const std::vector<std::string> &path_matches) {

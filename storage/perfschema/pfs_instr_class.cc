@@ -257,8 +257,6 @@ static uint safe_strlen(const char *s, uint max_len) {
   return end == nullptr ? max_len : static_cast<uint>(end - s);
 }
 
-constexpr uint PFS_instr_name::max_length;
-
 void PFS_instr_name::set(PFS_class_type class_type, const char *name,
                          uint max_length_arg) {
   // Copy the given name to the member.

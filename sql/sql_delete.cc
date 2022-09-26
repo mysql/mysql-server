@@ -1028,7 +1028,7 @@ bool DeleteRowsIterator::Init() {
       auto tempfile = make_unique_destroy_only<Unique>(
           thd()->mem_root, refpos_order_cmp, table->file,
           table->file->ref_length, thd()->variables.sortbuff_size);
-      if (tempfile == nullptr || m_tempfiles.push_back(move(tempfile)) ||
+      if (tempfile == nullptr || m_tempfiles.push_back(std::move(tempfile)) ||
           m_delayed_tables.push_back(table)) {
         return true; /* purecov: inspected */
       }

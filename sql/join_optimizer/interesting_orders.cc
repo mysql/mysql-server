@@ -48,7 +48,6 @@ using std::fill;
 using std::lower_bound;
 using std::make_pair;
 using std::max;
-using std::move;
 using std::none_of;
 using std::pair;
 using std::sort;
@@ -1234,7 +1233,7 @@ int LogicalOrderings::AddArtificialState(THD *thd, Ordering ordering) {
   state.satisfied_ordering_idx = -1;  // Irrelevant, but placate the compiler.
   state.outgoing_edges.init(thd->mem_root);
   state.type = NFSMState::ARTIFICIAL;
-  m_states.push_back(move(state));
+  m_states.push_back(std::move(state));
   return m_states.size() - 1;
 }
 
@@ -1299,7 +1298,7 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
     state.type = m_orderings[i].type == OrderingWithInfo::INTERESTING
                      ? NFSMState::INTERESTING
                      : NFSMState::ARTIFICIAL;
-    m_states.push_back(move(state));
+    m_states.push_back(std::move(state));
   }
 
   // Add an edge from the initial state to each producible ordering/grouping.
@@ -1748,7 +1747,7 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
   initial.nfsm_states.push_back(0);
   ExpandThroughAlwaysActiveFDs(&initial.nfsm_states, &generation,
                                /*extra_allowed_fd_idx=*/0);
-  m_dfsm_states.push_back(move(initial));
+  m_dfsm_states.push_back(std::move(initial));
   constructed_states.insert(0);
   FinalizeDFSMState(thd, /*state_idx=*/0);
 
@@ -1835,7 +1834,7 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
       // Add a new DFSM state for the NFSM states we've collected.
       int target_dfsm_state_idx = m_dfsm_states.size();
       m_dfsm_states.push_back(DFSMState{});
-      m_dfsm_states.back().nfsm_states = move(nfsm_states);
+      m_dfsm_states.back().nfsm_states = std::move(nfsm_states);
 
       // See if there is an existing DFSM state that matches the set of
       // NFSM states we've collected.
@@ -1850,7 +1849,7 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
         // newly added duplicate and use the original one.
         target_dfsm_state_idx = *place;
         // Allow reuse of the memory in the next iteration.
-        nfsm_states = move(m_dfsm_states.back().nfsm_states);
+        nfsm_states = std::move(m_dfsm_states.back().nfsm_states);
         m_dfsm_states.pop_back();
       }
 

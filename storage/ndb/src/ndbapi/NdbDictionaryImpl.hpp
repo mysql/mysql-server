@@ -889,7 +889,7 @@ private:
 
   void execDROP_TABLE_REF(const NdbApiSignal*);
   void execDROP_TABLE_CONF(const NdbApiSignal*);
-  void execLIST_TABLES_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[]);
+  void execLIST_TABLES_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
 
   void execCREATE_FILE_REF(const NdbApiSignal*);
   void execCREATE_FILE_CONF(const NdbApiSignal*);

@@ -288,10 +288,12 @@ class HashJoinTestHelper {
 
     left_iterator.reset(new (&m_mem_root) FakeIntegerIterator(
         initializer.thd(), m_left_table.get(),
-        down_cast<Field_long *>(m_left_table->field[0]), move(left_dataset)));
+        down_cast<Field_long *>(m_left_table->field[0]),
+        std::move(left_dataset)));
     right_iterator.reset(new (&m_mem_root) FakeIntegerIterator(
         initializer.thd(), m_right_table.get(),
-        down_cast<Field_long *>(m_right_table->field[0]), move(right_dataset)));
+        down_cast<Field_long *>(m_right_table->field[0]),
+        std::move(right_dataset)));
   }
 
   HashJoinTestHelper(const Server_initializer &initializer,
@@ -312,11 +314,11 @@ class HashJoinTestHelper {
     left_iterator.reset(new (&m_mem_root) FakeStringIterator(
         initializer.thd(), m_left_table.get(),
         down_cast<Field_varstring *>(m_left_table->field[0]),
-        move(left_dataset)));
+        std::move(left_dataset)));
     right_iterator.reset(new (&m_mem_root) FakeStringIterator(
         initializer.thd(), m_right_table.get(),
         down_cast<Field_varstring *>(m_right_table->field[0]),
-        move(right_dataset)));
+        std::move(right_dataset)));
   }
 
   Prealloced_array<TABLE *, 4> left_tables() const {
@@ -564,8 +566,8 @@ static void BM_HashTableIteratorBuild(size_t num_iterations) {
     right_dataset.emplace_back(distribution(generator));
   }
 
-  HashJoinTestHelper test_helper(initializer, move(left_dataset),
-                                 move(right_dataset));
+  HashJoinTestHelper test_helper(initializer, std::move(left_dataset),
+                                 std::move(right_dataset));
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
@@ -610,8 +612,8 @@ static void BM_HashTableIteratorProbe(size_t num_iterations) {
     left_dataset.emplace_back(distribution(generator));
     right_dataset.emplace_back(distribution(generator));
   }
-  HashJoinTestHelper test_helper(initializer, move(left_dataset),
-                                 move(right_dataset));
+  HashJoinTestHelper test_helper(initializer, std::move(left_dataset),
+                                 std::move(right_dataset));
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
@@ -660,8 +662,8 @@ static void BM_HashTableIteratorProbeSemiJoin(size_t num_iterations) {
     left_dataset.emplace_back(distribution(generator));
     right_dataset.emplace_back(distribution(generator));
   }
-  HashJoinTestHelper test_helper(initializer, move(left_dataset),
-                                 move(right_dataset));
+  HashJoinTestHelper test_helper(initializer, std::move(left_dataset),
+                                 std::move(right_dataset));
 
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),

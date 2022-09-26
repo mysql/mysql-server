@@ -58,7 +58,6 @@ class Opt_trace_context;
 
 using std::max;
 using std::min;
-using std::move;
 
 #ifndef NDEBUG
 static void print_ror_scans_arr(TABLE *table, const char *msg,

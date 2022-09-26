@@ -309,6 +309,9 @@ if(CMAKE_COMPILER_IS_GNUCC)
 endif()
 
 DISABLE_MISSING_PROFILE_WARNING()
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-strict-prototypes")
+ENDIF()
 
 # Decide which keyword to use for thread-local storage.
 if(CMAKE_COMPILER_IS_GNUCC OR

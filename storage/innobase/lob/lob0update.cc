@@ -271,7 +271,6 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
 
   dberr_t ret(DB_SUCCESS);
   mtr_t *mtr = ctx.get_mtr();
-  uint32_t new_entries = 0;
   const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
   const uint32_t lob_version = first_page.get_lob_version();
 
@@ -362,7 +361,6 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
       goto error;
     }
 
-    new_entries++;
     index_entry_t new_entry(new_node, mtr, index);
     new_entry.set_versions_null();
     new_entry.set_trx_id(trx->id);
@@ -422,7 +420,6 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
       goto error;
     }
 
-    new_entries++;
     index_entry_t new_entry(new_node, mtr, index);
     new_entry.set_lob_version(lob_version);
     new_entry.set_versions_null();
@@ -471,7 +468,6 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
       goto error;
     }
 
-    new_entries++;
     index_entry_t new_entry(new_node, mtr, index);
     new_entry.set_lob_version(lob_version);
     new_entry.set_versions_null();
@@ -547,7 +543,7 @@ static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
 
   index_entry_t cur_entry(mtr, index);
 
-  ulint loop_count = 0;
+  ulint loop_count [[maybe_unused]] = 0;
 
   while (!fil_addr_is_null(node_loc) && want > 0) {
     ut_ad(loop_count <= 1);

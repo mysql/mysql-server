@@ -115,7 +115,7 @@ void LoadImmutableStringIntoTableBuffers(const TableCollection &tables,
 HashJoinRowBuffer::HashJoinRowBuffer(
     TableCollection tables, std::vector<HashJoinCondition> join_conditions,
     size_t max_mem_available)
-    : m_join_conditions(move(join_conditions)),
+    : m_join_conditions(std::move(join_conditions)),
       m_tables(std::move(tables)),
       m_mem_root(key_memory_hash_join, 16384 /* 16 kB */),
       m_overflow_mem_root(key_memory_hash_join, 256),

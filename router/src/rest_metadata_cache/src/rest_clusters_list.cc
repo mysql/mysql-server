@@ -34,8 +34,6 @@
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/rest_api_utils.h"
 
-constexpr const char RestClustersList::path_regex[];
-
 bool RestClustersList::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
     const std::vector<std::string> & /* path_matches */) {

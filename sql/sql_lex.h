@@ -862,7 +862,7 @@ class Query_expression {
 
   RowIterator *root_iterator() const { return m_root_iterator.get(); }
   unique_ptr_destroy_only<RowIterator> release_root_iterator() {
-    return move(m_root_iterator);
+    return std::move(m_root_iterator);
   }
   AccessPath *root_access_path() const { return m_root_access_path; }
 

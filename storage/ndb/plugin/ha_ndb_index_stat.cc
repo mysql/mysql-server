@@ -982,7 +982,7 @@ static void ndb_index_stat_free(Ndb_index_stat *st) {
   Ndb_index_stat *st_head = nullptr;
   Ndb_index_stat *st_tail = nullptr;
   Ndb_index_stat *st_loop = share->index_stat_list;
-  uint found = 0;
+  uint found [[maybe_unused]] = 0;
   while (st_loop != nullptr) {
     if (st == st_loop) {
       // Unlink entry from NDB_SHARE and request it to be released
@@ -2274,7 +2274,7 @@ static int ndb_index_stat_wait_query(Ndb_index_stat *st,
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   int err = 0;
-  uint count = 0;
+  uint count [[maybe_unused]] = 0;
   struct timespec abstime;
   glob.wait_stats++;
   glob.query_count++;
@@ -2339,7 +2339,7 @@ static int ndb_index_stat_wait_analyze(Ndb_index_stat *st,
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   int err = 0;
-  uint count = 0;
+  uint count [[maybe_unused]] = 0;
   struct timespec abstime;
   glob.wait_update++;
   glob.analyze_count++;

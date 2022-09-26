@@ -1702,9 +1702,7 @@ void Btree_load::print_pages_in_level(const size_t level) const {
       is_root_level ? dict_index_get_page(m_index) : m_first_page_nos[level];
   const page_size_t page_size(dict_table_page_size(m_index->table));
   mtr_t mtr;
-  size_t n_pages = 0;
   while (page_no != FIL_NULL) {
-    n_pages++;
     mtr.start();
     const page_id_t page_id(m_index->space, page_no);
     buf_block_t *block = btr_block_get(page_id, page_size, RW_S_LATCH,

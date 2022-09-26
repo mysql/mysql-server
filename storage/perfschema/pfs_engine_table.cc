@@ -1433,13 +1433,11 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
     */
     assert(m_remaining_key_part_info->type == HA_KEYTYPE_TEXT);
 
-    size_t length_offset = 0;
     size_t data_offset = 0;
     isnull = false;
     if (m_remaining_key_part_info->field->is_nullable()) {
       assert(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
 
-      length_offset++;
       data_offset++;
       if (m_remaining_key[0]) {
         isnull = true;

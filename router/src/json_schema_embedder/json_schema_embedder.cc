@@ -70,10 +70,9 @@ int main(int argc, const char **argv) {
               "//\n"
               "// (see " __FILE__ ")\n"
               "#include \"%s\"\n"
-              "\n"
-              "constexpr const char %s::data_[];\n",
+              "\n",
               argv[0], in_filename, out_filename, hdr_filename, symbol_name,
-              hdr_filename, symbol_name))
+              hdr_filename))
         throw_error("Failed writing output file", out_filename);
       if (fclose(out_file))
         throw_error("Failed closing output file", out_filename);

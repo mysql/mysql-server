@@ -2189,8 +2189,6 @@ void Arch_Page_Sys::track_initial_pages() {
     buf_flush_list_mutex_enter(buf_pool);
 
     buf_page_t *bpage;
-    uint page_count;
-    uint skip_count;
 
     bpage = buf_pool->oldest_hp.get();
     if (bpage != nullptr) {
@@ -2198,9 +2196,6 @@ void Arch_Page_Sys::track_initial_pages() {
     } else {
       bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
     }
-
-    page_count = 0;
-    skip_count = 0;
 
     /* Add all pages for which IO is already started. */
     while (bpage != nullptr) {
@@ -2247,9 +2242,6 @@ void Arch_Page_Sys::track_initial_pages() {
       if (bpage->is_io_fix_write()) {
         /* IO has already started. Must add the page */
         track_page(bpage, LSN_MAX, LSN_MAX, true);
-        ++page_count;
-      } else {
-        ++skip_count;
       }
 
       bpage = UT_LIST_GET_PREV(list, bpage);
