@@ -24,87 +24,143 @@ insert into t1 values
 select count(*) into @cnt_start
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 alter table t1 algorithm=copy,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select count(*) into @cnt_one_per_ldm_per_node
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 alter table t1 algorithm=copy,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select count(*) into @cnt_one_per_ldm_per_nodegroup
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+2	0
+2	1
+2	2
+2	3
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
+1
+1
+1
+1
 alter table t1 algorithm=copy,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select count(*) into @cnt_one_per_node
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-2	0	1
-2	1	2
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+2	0
+2	1
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
 alter table t1 algorithm=copy,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select count(*) into @cnt_one_per_nodegroup
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	3
-2	0	3
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+2	0
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
 drop table t1;
 select @cnt_start = @cnt_one_per_ldm_per_node;
 @cnt_start = @cnt_one_per_ldm_per_node
@@ -123,75 +179,120 @@ select @cnt_one_per_nodegroup = 1;
 1
 create table t1 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
 engine=ndb;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 create table t2 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
 engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 create table t3 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
 engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t3' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t3' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+2	0
+2	1
+2	2
+2	3
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t3' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
+1
+1
+1
+1
 create table t4 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
 engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t4' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	4
-1	1	1
-2	0	4
-2	1	1
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t4' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+2	0
+2	1
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t4' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
 create table t5 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
 engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	2
-2	0	2
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t5' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+2	0
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t5' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
 select count(*) into @cnt_t1_0
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -208,71 +309,116 @@ select count(*) into @cnt_t5_0
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't5';
 alter table t1 algorithm=inplace, reorganize partition;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 alter table t2 algorithm=inplace, reorganize partition;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 alter table t3 algorithm=inplace, reorganize partition;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t3' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t3' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+2	0
+2	1
+2	2
+2	3
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t3' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
+1
+1
+1
+1
 alter table t4 algorithm=inplace, reorganize partition;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t4' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	4
-1	1	1
-2	0	4
-2	1	1
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t4' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+2	0
+2	1
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t4' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
 alter table t5 algorithm=inplace, reorganize partition;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	2
-2	0	2
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t5' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+2	0
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t5' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
 select count(*) into @cnt_t1_1
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -304,81 +450,130 @@ select @cnt_t5_0 = @cnt_t5_1;
 @cnt_t5_0 = @cnt_t5_1
 1
 alter table t1 algorithm=inplace, add partition partitions 1;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-1	8	3
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
-2	8	3
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+1	8
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+2	8
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+3
+3
+2
+2
+2
+2
+2
+2
 alter table t2 algorithm=inplace, add partition partitions 1;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-1	8	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
-2	8	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+1	8
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+2	8
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' group by node_id, block_instance order by cnt desc;
+cnt
+3
+3
+2
+2
+2
+2
+2
+2
 alter table t3 algorithm=inplace, add partition partitions 1;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t3' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t3' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+2	0
+2	1
+2	2
+2	3
+2	4
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t3' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+1
+1
+1
+1
+1
+1
 alter table t4 algorithm=inplace, add partition partitions 1;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t4' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	4
-1	1	1
-1	2	2
-2	0	4
-2	1	1
-2	2	2
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t4' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+2	0
+2	1
+2	2
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t4' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
+1
+1
 alter table t5 algorithm=inplace, add partition partitions 1;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	2
-1	1	3
-2	0	2
-2	1	3
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t5' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+2	0
+2	1
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t5' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
 select count(*) into @cnt_t1_2
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -455,11 +650,16 @@ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
 alter table t1 algorithm=copy,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,NOLOGGING=1";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	4
-2	0	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+2	0
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -471,13 +671,20 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,NOLOGGING=1'
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	4
-1	1	1
-2	0	4
-2	1	1
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+2	0
+2	1
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
 select count(*) into @cnt_t1_5
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -495,17 +702,28 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,PARTITION_BALANCE=FOR_RP_BY_NODE'
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	4
-1	1	1
-1	2	2
-1	3	3
-2	0	4
-2	1	1
-2	2	2
-2	3	3
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+2	0
+2	1
+2	2
+2	3
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
+1
+1
+1
+1
 select count(*) into @cnt_t1_6
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -523,25 +741,36 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,PARTITION_BALANCE=FOR_RA_BY_LDM'
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	4
-1	1	1
-1	2	2
-1	3	3
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	4
-2	1	1
-2	2	2
-2	3	3
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 select count(*) into @cnt_t1_7
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -600,51 +829,89 @@ Level	Code	Message
 Error	1478	Table storage engine 'ndbcluster' does not support the create option 'NOLOGGING=1 on table with fields using STORAGE DISK'
 create table t2 (a bigint primary key, b bigint unique) engine ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	2
-2	0	2
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name like '%unique' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	3
-2	0	3
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+2	0
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name like '%unique' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+2	0
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
 alter table t2 algorithm=copy,
 COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	4
-1	1	1
-2	0	4
-2	1	1
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name like '%unique' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	2
-1	1	3
-2	0	2
-2	1	3
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+2	0
+2	1
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name like '%unique' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+2	0
+2	1
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
 drop table t2;
 create table t2 (a bigint primary key, b bigint unique) engine ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 alter table t2 algorithm=inplace,
 COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	4
-1	1	2
-2	0	4
-2	1	2
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name like '%unique' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	4
-2	0	1
-2	1	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+2	0
+2	1
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name like '%unique' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+2	0
+2	1
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name like '%unique' group by node_id, block_instance order by cnt desc;
+cnt
+1
+1
+1
+1
 drop table t2;
 create table t1 (a bigint primary key, b bigint unique) engine ndb
 comment="NDB_TABLE=READ_BACKUP=1";
@@ -656,44 +923,66 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name like '%unique' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name like '%unique' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name like '%unique' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 show create table t1;
@@ -704,108 +993,163 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name like '%unique' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name like '%unique' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name like '%unique' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 drop table t1;
 create table t1 (a bigint primary key, b bigint unique) engine ndb;
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 alter table t1 algorithm=copy,
 COMMENT="NDB_TABLE=READ_BACKUP=1";
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 drop table t1;
 create table t1 (a bigint primary key) engine ndb
 partition by key();
-select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
-where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
-node_id	fragment_num	block_instance
-1	0	1
-1	1	2
-1	2	3
-1	3	4
-1	4	1
-1	5	2
-1	6	3
-1	7	4
-2	0	1
-2	1	2
-2	2	3
-2	3	4
-2	4	1
-2	5	2
-2	6	3
-2	7	4
+select node_id, fragment_num from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num;
+node_id	fragment_num
+1	0
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+1	7
+2	0
+2	1
+2	2
+2	3
+2	4
+2	5
+2	6
+2	7
+select count(*) as cnt from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' group by node_id, block_instance order by cnt desc;
+cnt
+2
+2
+2
+2
+2
+2
+2
+2
 drop table t1;
 create table t1 (a bigint primary key) engine ndb
 comment="NDB_TABLE=READ_BACKUP=0"
