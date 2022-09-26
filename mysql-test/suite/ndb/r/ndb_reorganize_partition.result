@@ -1,0 +1,207 @@
+### create tables and insert/load data
+create table t1(id int NOT NULL PRIMARY KEY, data char(8), other int,
+unique(other))  engine=ndb;
+create table t2(id int, data char(8), id2 binary(80), primary key (id, id2))
+engine=ndb;
+create table t3(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table t4(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table t5(id int primary key, data int, other int, unique(other))
+engine=ndb;
+create table t6(id int primary key, data int, other int, unique(other))
+engine=ndb;
+insert into t1 values (1,"data",1), (2,"data",2), (3,"data",3), (4,"data",4),
+(5,"data",5), (6,"data",6),(7,"data",7), (8,"data",8);
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t2
+fields terminated by ' ' lines terminated by '\n' (id, @data) set data = @data,
+id2 = repeat(@data,10);
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t3
+fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t4
+fields terminated by ' ' lines terminated by '\n';
+insert into t5 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5),
+(6,6,6),(7,7,7), (8,8,8);
+insert into t6 values (1,1,1), (2,2,2), (3,3,3),
+(4,4,4), (5,5,5), (6,6,6),(7,7,7), (8,8,8);
+### verify that the number of preferred primary is equal on each
+node (2 nodes)
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t1' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+2	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t2' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+2	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t3' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+2	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t4' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+2	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t5' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+2	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t6' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+2	4
+### verify that the Unique hash index fragments are balanced across all
+data nodes (2 nodes)
+select fragment_num,parent_fq_name,type,node_id from ndbinfo.memory_per_fragment
+where type like 'Unique hash index'  and parent_fq_name like '%t1%'
+  order by fragment_num;
+fragment_num	parent_fq_name	type	node_id
+0	test/def/t1	Unique hash index	1
+0	test/def/t1	Unique hash index	2
+1	test/def/t1	Unique hash index	1
+1	test/def/t1	Unique hash index	2
+2	test/def/t1	Unique hash index	1
+2	test/def/t1	Unique hash index	2
+3	test/def/t1	Unique hash index	1
+3	test/def/t1	Unique hash index	2
+4	test/def/t1	Unique hash index	1
+4	test/def/t1	Unique hash index	2
+5	test/def/t1	Unique hash index	1
+5	test/def/t1	Unique hash index	2
+6	test/def/t1	Unique hash index	1
+6	test/def/t1	Unique hash index	2
+7	test/def/t1	Unique hash index	1
+7	test/def/t1	Unique hash index	2
+### Create nodegroup for nodes 3 and 4
+Nodegroup 1 created
+### Create one more table and insert data
+create table t7(id int primary key, data int, other int, unique(other))
+engine=ndb;
+insert into t7 values (1,1,1), (2,2,2), (3,3,3),
+(4,4,4), (5,5,5), (6,6,6),(7,7,7), (8,8,8);
+### Cluster running after adding two data nodes
+ndbd(s)
+id=1	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
+id=2	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)
+id=3	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 1)
+id=4	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 1)
+ndb_mgmd(s)
+id=5	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
+mysqld(s)
+id=16	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
+### Reorganize partitions
+ALTER TABLE t1 ALGORITHM=INPLACE, REORGANIZE PARTITION;
+ALTER TABLE t2 ALGORITHM=INPLACE, REORGANIZE PARTITION;
+ALTER TABLE t3 ALGORITHM=INPLACE, REORGANIZE PARTITION;
+ALTER TABLE t4 ALGORITHM=COPY, REORGANIZE PARTITION;
+ALTER TABLE t5 ALGORITHM=COPY, REORGANIZE PARTITION;
+ALTER TABLE t6 ALGORITHM=COPY, REORGANIZE PARTITION;
+### verify that the number of preferred primary is equal on each node
+(2 nodes +2 nodes online)
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t1' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+2	4
+3	4
+4	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t2' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+2	4
+3	4
+4	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t3' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+2	4
+3	4
+4	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t4' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+3	4
+2	4
+4	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t5' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+3	4
+2	4
+4	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t6' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+3	4
+2	4
+4	4
+select preferred_primary, count(*) from ndbinfo.table_fragments as tf join
+ndbinfo.dict_obj_tree as dot where tf.table_id = dot.id
+and root_name like '%t7' and type = 2 group by preferred_primary;
+preferred_primary	count(*)
+1	4
+3	4
+2	4
+4	4
+### verify that the Unique hash index fragments are balanced across all
+data nodes  (2 nodes +2 nodes online)
+select fragment_num,parent_fq_name,type,node_id from ndbinfo.memory_per_fragment
+where type like 'Unique hash index'  and parent_fq_name like '%t1%'
+  order by fragment_num;
+fragment_num	parent_fq_name	type	node_id
+0	test/def/t1	Unique hash index	1
+0	test/def/t1	Unique hash index	2
+1	test/def/t1	Unique hash index	1
+1	test/def/t1	Unique hash index	2
+2	test/def/t1	Unique hash index	1
+2	test/def/t1	Unique hash index	2
+3	test/def/t1	Unique hash index	2
+3	test/def/t1	Unique hash index	1
+4	test/def/t1	Unique hash index	1
+4	test/def/t1	Unique hash index	2
+5	test/def/t1	Unique hash index	2
+5	test/def/t1	Unique hash index	1
+6	test/def/t1	Unique hash index	1
+6	test/def/t1	Unique hash index	2
+7	test/def/t1	Unique hash index	1
+7	test/def/t1	Unique hash index	2
+8	test/def/t1	Unique hash index	3
+8	test/def/t1	Unique hash index	4
+9	test/def/t1	Unique hash index	3
+9	test/def/t1	Unique hash index	4
+10	test/def/t1	Unique hash index	3
+10	test/def/t1	Unique hash index	4
+11	test/def/t1	Unique hash index	3
+11	test/def/t1	Unique hash index	4
+12	test/def/t1	Unique hash index	3
+12	test/def/t1	Unique hash index	4
+13	test/def/t1	Unique hash index	3
+13	test/def/t1	Unique hash index	4
+14	test/def/t1	Unique hash index	3
+14	test/def/t1	Unique hash index	4
+15	test/def/t1	Unique hash index	3
+15	test/def/t1	Unique hash index	4
+drop table t1,t2,t3,t4,t5,t6,t7;
+### Drop nodegroup with "new" nodes
+Drop Node Group 1 done
