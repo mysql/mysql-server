@@ -1733,6 +1733,14 @@ class THD : public MDL_context_owner,
   bool is_current_stmt_binlog_log_replica_updates_disabled() const;
 
   /**
+    Checks whether binlog caches are disabled (binlog does not cache data) or
+    empty. This function may be safely called in case binlogging is disabled.
+    @retval true binlog local caches are disabled (or binlogging is disabled)
+    @retval false binlog local caches are enabled and contain data
+  */
+  bool is_binlog_cache_disabled_or_empty() const;
+
+  /**
     Determine if binloging is enabled in row format and write set extraction is
     enabled for this session
     @retval true  if is enable

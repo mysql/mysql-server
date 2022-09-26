@@ -1803,10 +1803,10 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
 
       The conditions should be understood as follows:
 
-      - When the binlog is enabled, this will be done from
-        MYSQL_BIN_LOG::ordered_commit and should not be done here.
-        Therefore, we have the condition
-        thd->is_current_stmt_binlog_disabled().
+      - When the binlog is enabled and binlog local caches contain transaction
+        information, ordering is done in MYSQL_BIN_LOG::ordered_commit
+        and should be disabled here. Therefore, we have the condition
+        thd->is_binlog_cache_disabled_or_empty().
 
       - This function is usually called once per statement, with
         all=false.  We should not preserve the commit order when this
@@ -1833,10 +1833,10 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       Note: the calls to Commit_order_manager::wait/wait_and_finish() will be
             no-op for threads other than replication applier threads.
     */
+
     if ((!thd->is_operating_substatement_implicitly &&
          !thd->is_operating_gtid_table_implicitly &&
-         thd->is_current_stmt_binlog_log_replica_updates_disabled() &&
-         ending_trans(thd, all)) ||
+         thd->is_binlog_cache_disabled_or_empty() && ending_trans(thd, all)) ||
         Commit_order_manager::get_rollback_status(thd)) {
       if (Commit_order_manager::wait(thd)) {
         error = 1;
