@@ -1,0 +1,64 @@
+#
+# 1. Create source-replica topology and initial setup.
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+include/sync_slave_sql_with_master.inc
+call mtr.add_suppression("Slave SQL for channel.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+# Adding debug point 'wait_after_do_update_pos' to @@GLOBAL.debug
+#
+# 2. Execute insert statement followed by STOP REPLICA SQL_THREAD for two
+#    times. Wait for SLAVE_WAIT_GROUP_DONE(60s) after first iteration.
+#
+# 2.1 Execute a statement on source.
+[connection master]
+INSERT INTO t1 (c1) VALUES (1);;
+#
+# 2.2 Verify that applier thread is waiting on debug sync point.
+[connection slave]
+#
+# 2.3 Execute 'stop replica sql_thread' and let it wait
+#     on debug sync point.
+[START] stop replica sql_thread;
+#
+# 2.4 Continue applier thread.
+SET DEBUG_SYNC= 'now SIGNAL signal.after_do_update_pos_continue';
+#
+# 2.5 Continue 'stop replica sql_thread'.
+[END] stop replica sql_thread;
+[connection master]
+[connection slave]
+#
+# 2.6 Execute 'start replica sql_thread'.
+include/start_slave_sql.inc
+#
+# 2.1 Execute a statement on source.
+[connection master]
+INSERT INTO t1 (c1) VALUES (1);;
+#
+# 2.2 Verify that applier thread is waiting on debug sync point.
+[connection slave]
+#
+# 2.3 Execute 'stop replica sql_thread' and let it wait
+#     on debug sync point.
+[START] stop replica sql_thread;
+#
+# 2.4 Continue applier thread.
+SET DEBUG_SYNC= 'now SIGNAL signal.after_do_update_pos_continue';
+#
+# 2.5 Continue 'stop replica sql_thread'.
+[END] stop replica sql_thread;
+[connection master]
+[connection slave]
+# Removing debug point 'wait_after_do_update_pos' from @@GLOBAL.debug
+#
+# 2.6 Execute 'start replica sql_thread'.
+include/start_slave_sql.inc
+#
+# 3. Cleanup.
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc
