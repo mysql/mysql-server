@@ -1,0 +1,118 @@
+################################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that, in single thread replication
+# mode when applier thread is handling a transaction that interacts with
+# non-transaction tables, server should not report error when applier thread is
+# being stopped in the middle of a transaction and able to complete the
+# transaction with in the timeout which is hard-coded to 60 seconds.
+#
+# ==== Requirement ====
+# In single thread replication, when applier thread is being stopped in the
+# middle of a transaction that interacts with non-transactional tables, there
+# should not be any error if the transaction is able to complete with in the
+# timeout. When the applier thread is restarted, the timeout should be reset,
+# so that the next 'stop replica sql_thread' statement again gives a 60 seconds
+# interval for non-transactional statements to complete. Also replica should be
+# stopped successfully.
+#
+# ==== Implementation ====
+# 1. Create source-replica topology and initial setup.
+# 2. Execute insert statement followed by STOP REPLICA SQL_THREAD for two times.
+#    2.1 Execute a statement on source.
+#    2.2 Verify that applier thread is waiting on debug sync point.
+#    2.3 Execute 'stop replica sql_thread' and let it wait on debug sync point.
+#    2.4 Continue applier thread.
+#    2.5 Continue 'stop replica sql_thread'.
+#    2.6 Execute 'start replica sql_thread'.
+# 3. Cleanup.
+#
+# ==== References ====
+# BUG#33646899: MTS + STOP SLAVE SQL_THREAD + group of rep events stops
+#               before 60 sec timeout
+################################################################################
+
+source include/have_myisam.inc;
+source include/have_debug.inc;
+source include/have_debug_sync.inc;
+source include/have_binlog_format_row.inc;
+source include/big_test.inc;
+source include/not_mts_replica_parallel_workers.inc;
+
+--echo #
+--echo # 1. Create source-replica topology and initial setup.
+source include/master-slave.inc;
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+
+--source include/sync_slave_sql_with_master.inc
+call mtr.add_suppression("Slave SQL for channel.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+
+# Adding debug sync points to execute special code required for this test
+--let $debug_point=wait_after_do_update_pos
+--source include/add_debug_point.inc
+
+--echo #
+--echo # 2. Execute insert statement followed by STOP REPLICA SQL_THREAD for two
+--echo #    times. Wait for SLAVE_WAIT_GROUP_DONE(60s) after first iteration.
+--let $iter=0
+while ($iter < 2)
+{
+  --echo #
+  --echo # 2.1 Execute a statement on source.
+  --source include/rpl_connection_master.inc
+  --send INSERT INTO t1 (c1) VALUES (1);
+
+  --echo #
+  --echo # 2.2 Verify that applier thread is waiting on debug sync point.
+  --source include/rpl_connection_slave.inc
+  --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now';
+  --source include/wait_condition.inc
+
+  --echo #
+  --echo # 2.3 Execute 'stop replica sql_thread' and let it wait
+  --echo #     on debug sync point.
+  # Let 'stop replica sql_thread' reach the point where it sets the 'abort_slave'
+  # flag for the applier thread. This ensures that the applier thread starts
+  # the 60 seconds countdown once it is unpaused.
+  --let $statement_connection = slave
+  --let $statement = stop replica sql_thread
+  --let $auxiliary_connection = server_2_1
+  --let $sync_point = terminate_slave_threads_after_set_abort_slave
+  --source include/execute_to_sync_point.inc
+
+  --echo #
+  --echo # 2.4 Continue applier thread.
+  SET DEBUG_SYNC= 'now SIGNAL signal.after_do_update_pos_continue';
+
+  --echo #
+  --echo # 2.5 Continue 'stop replica sql_thread'.
+  --source include/execute_from_sync_point.inc
+
+  --source include/rpl_connection_master.inc
+  --reap;
+
+  #wait till SLAVE_WAIT_GROUP_DONE
+  if ($iter == 0)
+  {
+    --sleep 61
+  }
+
+  --source include/rpl_connection_slave.inc
+  if ($iter == 1)
+  {
+    # Remove debug sync point
+    --let $debug_point=wait_after_do_update_pos
+    --source include/remove_debug_point.inc
+  }
+
+  --echo #
+  --echo # 2.6 Execute 'start replica sql_thread'.
+  --source include/start_slave_sql.inc
+
+  --inc $iter
+}
+
+--echo #
+--echo # 3. Cleanup.
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc
