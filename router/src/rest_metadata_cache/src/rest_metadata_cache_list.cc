@@ -34,8 +34,6 @@
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/rest_api_utils.h"
 
-constexpr const char RestMetadataCacheList::path_regex[];
-
 template <class AllocatorType>
 rapidjson::Value json_value_from_string(const std::string &s,
                                         AllocatorType &allocator) {

@@ -180,7 +180,7 @@ bool dtuple_validate(const dtuple_t *tuple) {
     auto len = dfield_get_len(field);
 
     if (!dfield_is_null(field)) {
-      const byte *data;
+      const byte *data [[maybe_unused]];
 
       data = static_cast<const byte *>(dfield_get_data(field));
 #ifndef UNIV_DEBUG_VALGRIND
@@ -427,7 +427,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   dfield_t *dfield;
   dict_field_t *ifield;
   ulint size;
-  ulint n_fields;
+  ulint n_fields [[maybe_unused]];
   ulint local_len;
   ulint local_prefix_len;
 

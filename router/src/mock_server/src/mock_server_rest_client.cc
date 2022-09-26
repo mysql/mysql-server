@@ -37,11 +37,6 @@
 #include <stdexcept>
 #include <thread>
 
-/* static */ constexpr std::chrono::milliseconds
-    MockServerRestClient::kMockServerMaxRestEndpointStepTime;
-/* static */ constexpr std::chrono::milliseconds
-    MockServerRestClient::kMockServerDefaultRestEndpointTimeout;
-
 MockServerRestClient::MockServerRestClient(const uint16_t http_port,
                                            const std::string &http_hostname)
     : http_hostname_(http_hostname), http_port_(http_port) {}

@@ -42,12 +42,6 @@
 
 #include "base64.h"
 
-constexpr char Pbkdf2McfType::kTypeSha256[];
-constexpr char Pbkdf2McfType::kTypeSha512[];
-constexpr unsigned long Pbkdf2McfAdaptor::kMaxRounds;
-constexpr unsigned long Pbkdf2McfAdaptor::kMinRounds;
-constexpr size_t Pbkdf2McfAdaptor::kMaxSaltLength;
-
 std::vector<uint8_t> Pbkdf2::salt() {
   std::vector<uint8_t> out(16);
 

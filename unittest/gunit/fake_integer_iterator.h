@@ -45,7 +45,7 @@ class FakeIntegerIterator final : public TableRowIterator {
                       std::vector<std::optional<int>> dataset)
       : TableRowIterator(thd, table),
         m_field(field),
-        m_dataset(move(dataset)) {}
+        m_dataset(std::move(dataset)) {}
 
   bool Init() override {
     m_current_index = 0;

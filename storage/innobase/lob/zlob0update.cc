@@ -178,7 +178,6 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                          ulint len, byte *buf) {
   DBUG_TRACE;
   dberr_t ret(DB_SUCCESS);
-  uint32_t new_entries = 0;
   trx_id_t trxid = (trx == nullptr) ? 0 : trx->id;
   const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
   const uint32_t lob_version = first_page.get_lob_version();
@@ -284,7 +283,6 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
       cur_entry.set_trx_undo_no_modifier(undo_no);
       new_entry.set_old_version(cur_entry);
       new_entry.set_lob_version(lob_version);
-      new_entries++;
       yet_to_skip = 0;
 
     } else {
@@ -313,7 +311,6 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
       cur_entry.remove(base_node);
       new_entry.set_old_version(cur_entry);
       new_entry.set_lob_version(lob_version);
-      new_entries++;
     }
 
     node_loc = new_entry.get_next();

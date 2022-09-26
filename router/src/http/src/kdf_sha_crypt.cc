@@ -42,13 +42,6 @@
 
 #include "base64.h"
 
-constexpr char ShaCryptMcfType::kTypeSha256[];
-constexpr char ShaCryptMcfType::kTypeSha512[];
-constexpr char ShaCryptMcfType::kTypeCachingSha2Password[];
-constexpr unsigned long ShaCryptMcfAdaptor::kDefaultRounds;
-constexpr unsigned long ShaCryptMcfAdaptor::kMinRounds;
-constexpr unsigned long ShaCryptMcfAdaptor::kMaxRounds;
-
 std::string ShaCrypt::salt() {
   // 12 byte input, generate 16 byte output
   std::vector<uint8_t> out(12);

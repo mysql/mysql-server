@@ -1730,7 +1730,6 @@ bool partition_info::set_up_charset_field_preps() {
   uchar **char_ptrs;
   unsigned i;
   size_t size;
-  uint tot_fields = 0;
   uint tot_part_fields = 0;
   uint tot_subpart_fields = 0;
   DBUG_TRACE;
@@ -1742,7 +1741,6 @@ bool partition_info::set_up_charset_field_preps() {
     while ((field = *(ptr++))) {
       if (field_is_partition_charset(field)) {
         tot_part_fields++;
-        tot_fields++;
       }
     }
     size = tot_part_fields * sizeof(char *);
@@ -1773,7 +1771,6 @@ bool partition_info::set_up_charset_field_preps() {
     while ((field = *(ptr++))) {
       if (field_is_partition_charset(field)) {
         tot_subpart_fields++;
-        tot_fields++;
       }
     }
     size = tot_subpart_fields * sizeof(char *);

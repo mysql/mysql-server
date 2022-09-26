@@ -358,7 +358,7 @@ void Chunk_Info::serialize(byte *desc_chunk, uint &len) {
   ut_ad(len_left >= 4);
   len_left -= 4;
 
-  ulint index = 0;
+  ulint index [[maybe_unused]] = 0;
 
   for (auto &key_value : m_incomplete_chunks) {
     ut_ad(index < chunk_map_size);

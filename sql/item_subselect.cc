@@ -148,7 +148,7 @@ void Item_subselect::init(Query_block *query_block,
   unit = query_block->master_query_expression();
 
   if (unit->item) {
-    subquery = move(unit->item->subquery);
+    subquery = std::move(unit->item->subquery);
     parsing_place = unit->item->parsing_place;
     unit->item = this;
     subquery->change_query_result(current_thd, this, result);

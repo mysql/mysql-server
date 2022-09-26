@@ -94,7 +94,6 @@
 
 using std::make_unique;
 using std::min;
-using std::move;
 using std::string;
 using std::unique_ptr;
 
@@ -2235,7 +2234,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   old_acl_users = acl_users;
   old_acl_dbs = acl_dbs;
   old_acl_proxy_users = acl_proxy_users;
-  old_acl_restrictions = move(acl_restrictions);
+  old_acl_restrictions = std::move(acl_restrictions);
   swap_role_cache();
   roles_init();
 
@@ -2249,7 +2248,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
   // acl_load() overwrites global_acl_memory, so we need to free it.
   // However, we can't do that immediately, because acl_load() might fail,
   // and then we'd need to keep it.
-  old_mem = move(global_acl_memory);
+  old_mem = std::move(global_acl_memory);
   delete acl_wild_hosts;
   acl_wild_hosts = nullptr;
   delete acl_check_hosts;
@@ -2270,8 +2269,8 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     acl_users = old_acl_users;
     acl_dbs = old_acl_dbs;
     acl_proxy_users = old_acl_proxy_users;
-    global_acl_memory = move(old_mem);
-    acl_restrictions = move(old_acl_restrictions);
+    global_acl_memory = std::move(old_mem);
+    acl_restrictions = std::move(old_acl_restrictions);
     // Revert to the old role caches
     swap_role_cache();
     // Old caches must be pointing to the global role caches right now
@@ -2606,17 +2605,17 @@ static bool grant_reload_procs_priv(Table_ref *table) {
   /* Save a copy of the current hash if we need to undo the grant load */
   unique_ptr<
       malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>>
-      old_proc_priv_hash(move(proc_priv_hash));
+      old_proc_priv_hash(std::move(proc_priv_hash));
   unique_ptr<
       malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>>
-      old_func_priv_hash(move(func_priv_hash));
+      old_func_priv_hash(std::move(func_priv_hash));
   bool return_val = false;
 
   if ((return_val = grant_load_procs_priv(table->table))) {
     /* Error; Reverting to old hash */
     DBUG_PRINT("error", ("Reverting to old privileges"));
-    proc_priv_hash = move(old_proc_priv_hash);
-    func_priv_hash = move(old_func_priv_hash);
+    proc_priv_hash = std::move(old_proc_priv_hash);
+    func_priv_hash = std::move(old_func_priv_hash);
   }
 
   return return_val;
@@ -2683,13 +2682,13 @@ bool grant_reload(THD *thd, bool mdl_locked) {
   {
     unique_ptr<
         malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_TABLE>>>
-        old_column_priv_hash(move(column_priv_hash));
+        old_column_priv_hash(std::move(column_priv_hash));
 
     /*
       Create a new memory pool but save the current memory pool to make an
       undo operation possible in case of failure.
     */
-    old_mem = move(memex);
+    old_mem = std::move(memex);
     init_sql_alloc(key_memory_acl_memex, &memex, ACL_ALLOC_BLOCK_SIZE);
     /*
       tables[2].table i.e. procs_priv can be null if we are working with
@@ -2699,10 +2698,11 @@ bool grant_reload(THD *thd, bool mdl_locked) {
                        grant_reload_procs_priv(
                            &tables[2])))) {  // Error. Revert to old hash
       DBUG_PRINT("error", ("Reverting to old privileges"));
-      column_priv_hash = move(old_column_priv_hash); /* purecov: deadcode */
+      column_priv_hash =
+          std::move(old_column_priv_hash); /* purecov: deadcode */
       memex.Clear();
-      memex = move(old_mem); /* purecov: deadcode */
-    } else {                 // Reload successful
+      memex = std::move(old_mem); /* purecov: deadcode */
+    } else {                      // Reload successful
       old_column_priv_hash.reset();
       old_mem.Clear();
       grant_version++;
@@ -3265,13 +3265,13 @@ Acl_map::~Acl_map() {
 Acl_map::Acl_map(const Acl_map &&map) { operator=(map); }
 
 Acl_map &Acl_map::operator=(Acl_map &&map) {
-  m_db_acls = move(map.m_db_acls);
+  m_db_acls = std::move(map.m_db_acls);
   m_global_acl = map.m_global_acl;
   m_reference_count = map.m_reference_count.load();
-  m_table_acls = move(map.m_table_acls);
-  m_sp_acls = move(map.m_sp_acls);
-  m_func_acls = move(map.m_func_acls);
-  m_with_admin_acls = move(map.m_with_admin_acls);
+  m_table_acls = std::move(map.m_table_acls);
+  m_sp_acls = std::move(map.m_sp_acls);
+  m_func_acls = std::move(map.m_func_acls);
+  m_with_admin_acls = std::move(map.m_with_admin_acls);
   m_version = map.m_version;
   m_restrictions = map.m_restrictions;
   map.m_reference_count = 0;

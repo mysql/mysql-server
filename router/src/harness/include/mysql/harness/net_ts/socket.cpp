@@ -23,18 +23,3 @@
 */
 
 #include "mysql/harness/net_ts/socket.h"
-
-// materialize constexpr's
-
-constexpr net::socket_base::wait_type net::socket_base::wait_write;
-constexpr net::socket_base::wait_type net::socket_base::wait_read;
-constexpr net::socket_base::wait_type net::socket_base::wait_error;
-
-constexpr net::socket_base::shutdown_type net::socket_base::shutdown_receive;
-constexpr net::socket_base::shutdown_type net::socket_base::shutdown_send;
-constexpr net::socket_base::shutdown_type net::socket_base::shutdown_both;
-
-constexpr net::socket_base::message_flags net::socket_base::message_peek;
-constexpr net::socket_base::message_flags
-    net::socket_base::message_do_not_route;
-constexpr net::socket_base::message_flags net::socket_base::message_out_of_band;

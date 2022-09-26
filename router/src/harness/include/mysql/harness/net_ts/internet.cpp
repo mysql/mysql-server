@@ -23,7 +23,3 @@
 */
 
 #include "mysql/harness/net_ts/internet.h"
-
-// materialize constexpr's
-
-constexpr net::ip::resolver_base::flags net::ip::resolver_base::passive;

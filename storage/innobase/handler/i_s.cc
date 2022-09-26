@@ -752,7 +752,7 @@ static int trx_i_s_common_fill_table(
     Item *)            /*!< in: condition (not used) */
 {
   const char *table_name;
-  int ret;
+  int ret [[maybe_unused]];
   trx_i_s_cache_t *cache;
 
   DBUG_TRACE;
@@ -812,7 +812,6 @@ static int trx_i_s_common_fill_table(
   deadlock occurs between the mysqld server and mysql client,
   see http://bugs.mysql.com/29900 ; when that bug is resolved
   we can enable the return ret above */
-  ret++;  // silence a gcc46 warning
   return 0;
 #endif
 }

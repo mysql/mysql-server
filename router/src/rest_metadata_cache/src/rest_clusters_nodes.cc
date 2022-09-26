@@ -34,8 +34,6 @@
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/rest_api_utils.h"
 
-constexpr const char RestClustersNodes::path_regex[];
-
 static const char *server_mode_to_string(metadata_cache::ServerMode mode) {
   switch (mode) {
     case metadata_cache::ServerMode::ReadOnly:

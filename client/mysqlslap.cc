@@ -1673,12 +1673,11 @@ static int run_scheduler(stats *sptr, statement *stmts, uint concur,
 }
 
 extern "C" void *run_task(void *p) {
-  ulonglong counter = 0, queries;
+  ulonglong queries;
   ulonglong detach_counter;
   unsigned int commit_counter;
   MYSQL *mysql;
   MYSQL_RES *result;
-  MYSQL_ROW row;
   statement *ptr;
   thread_context *con = (thread_context *)p;
 
@@ -1783,7 +1782,8 @@ extern "C" void *run_task(void *p) {
             fprintf(stderr, "%s: Error when storing result: %d %s\n",
                     my_progname, mysql_errno(mysql), mysql_error(mysql));
           else {
-            while ((row = mysql_fetch_row(result))) counter++;
+            while (mysql_fetch_row(result)) {
+            }
             mysql_free_result(result);
           }
         }

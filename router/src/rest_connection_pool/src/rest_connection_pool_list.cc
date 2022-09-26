@@ -30,8 +30,6 @@
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/rest_api_utils.h"
 
-constexpr const char RestConnectionPoolList::path_regex[];
-
 bool RestConnectionPoolList::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
     const std::vector<std::string> & /* path_matches */) {

@@ -389,7 +389,7 @@ dberr_t Arch_Group::Recovery::cleanup_if_required(Arch_Recv_Group_Info &info) {
 
 dberr_t Arch_Page_Sys::Recovery::recover() {
   dberr_t err = DB_SUCCESS;
-  uint num_active = 0;
+  uint num_active [[maybe_unused]] = 0;
 
   for (auto info = m_dir_group_info_map.begin();
        info != m_dir_group_info_map.end(); ++info) {

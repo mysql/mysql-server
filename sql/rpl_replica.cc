@@ -6170,7 +6170,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
 
     Relaylog_file_reader relaylog_file_reader(opt_replica_sql_verify_checksum);
 
-    for (int checking = 0; not_reached_commit; checking++) {
+    while (not_reached_commit) {
       if (relaylog_file_reader.open(linfo.log_file_name, offset)) {
         LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED,
                relaylog_file_reader.get_error_str());

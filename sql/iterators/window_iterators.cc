@@ -1518,7 +1518,7 @@ WindowIterator::WindowIterator(THD *thd,
                                Temp_table_param *temp_table_param, JOIN *join,
                                int output_slice)
     : RowIterator(thd),
-      m_source(move(source)),
+      m_source(std::move(source)),
       m_temp_table_param(temp_table_param),
       m_window(temp_table_param->m_window),
       m_join(join),
@@ -1565,7 +1565,7 @@ BufferingWindowIterator::BufferingWindowIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source,
     Temp_table_param *temp_table_param, JOIN *join, int output_slice)
     : RowIterator(thd),
-      m_source(move(source)),
+      m_source(std::move(source)),
       m_temp_table_param(temp_table_param),
       m_window(temp_table_param->m_window),
       m_join(join),

@@ -39,7 +39,7 @@ static int get_options(int argc, char *argv[]);
 static int flag = 0, verbose = 0, remove_ant = 0, flags[50];
 
 int main(int argc, char **argv) {
-  int i, j, error, deleted;
+  int i, j, error;
   HP_INFO *file;
   uchar record[128], key[32];
   const char *filename;
@@ -71,7 +71,6 @@ int main(int argc, char **argv) {
   keyinfo[0].seg[0].null_bit = 0;
   keyinfo[0].flag = HA_NOSAME;
 
-  deleted = 0;
   memset(flags, 0, sizeof(flags));
 
   printf("- Creating heap-file\n");
@@ -116,7 +115,6 @@ int main(int argc, char **argv) {
         printf("key: %s  delete: %d  my_errno: %d\n", (char *)key, error,
                my_errno());
       flags[j] = 0;
-      if (!error) deleted++;
     }
     if (heap_check_heap(file, false)) {
       puts("Heap keys crashed");

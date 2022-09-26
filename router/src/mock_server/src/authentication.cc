@@ -113,15 +113,12 @@ std::optional<std::vector<uint8_t>> MySQLNativePassword::scramble(
   return impl::scramble(nonce, password, EVP_sha1(), true);
 }
 
-constexpr char MySQLNativePassword::name[];
-
 // caching_sha2_password
 
 std::optional<std::vector<uint8_t>> CachingSha2Password::scramble(
     std::string_view nonce, std::string_view password) {
   return impl::scramble(nonce, password, EVP_sha256(), false);
 }
-constexpr char CachingSha2Password::name[];
 
 // clear_text_password
 
@@ -134,5 +131,3 @@ std::optional<std::vector<uint8_t>> ClearTextPassword::scramble(
 
   return res;
 }
-
-constexpr char ClearTextPassword::name[];

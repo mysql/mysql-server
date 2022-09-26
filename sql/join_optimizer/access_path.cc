@@ -567,12 +567,12 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         children.reserve(param.children->size());
         for (size_t child_idx = 0; child_idx < param.children->size();
              ++child_idx) {
-          children.push_back(move(job.children[child_idx]));
+          children.push_back(std::move(job.children[child_idx]));
         }
 
         unique_ptr_destroy_only<RowIterator> cpk_child;
         if (param.cpk_child != nullptr) {
-          cpk_child = move(job.children[param.children->size()]);
+          cpk_child = std::move(job.children[param.children->size()]);
         }
         iterator = NewIterator<RowIDIntersectionIterator>(
             thd, mem_root, mem_root, param.table, param.retrieve_full_rows,
@@ -600,7 +600,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         Mem_root_array<unique_ptr_destroy_only<RowIterator>> children(mem_root);
         children.reserve(param.children->size());
         for (unique_ptr_destroy_only<RowIterator> &child : job.children) {
-          children.push_back(move(child));
+          children.push_back(std::move(child));
         }
         iterator = NewIterator<RowIDUnionIterator>(
             thd, mem_root, mem_root, param.table, std::move(children));
@@ -669,7 +669,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         iterator = NewIterator<MaterializedTableFunctionIterator>(
             thd, mem_root, param.table_function, param.table,
-            move(job.children[0]));
+            std::move(job.children[0]));
         break;
       }
       case AccessPath::UNQUALIFIED_COUNT:
@@ -684,8 +684,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
 
         iterator = NewIterator<NestedLoopIterator>(
-            thd, mem_root, move(job.children[0]), move(job.children[1]),
-            param.join_type, param.pfs_batch_mode);
+            thd, mem_root, std::move(job.children[0]),
+            std::move(job.children[1]), param.join_type, param.pfs_batch_mode);
         break;
       }
       case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL: {
@@ -696,8 +696,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         iterator = NewIterator<NestedLoopSemiJoinWithDuplicateRemovalIterator>(
-            thd, mem_root, move(job.children[0]), move(job.children[1]),
-            param.table, param.key, param.key_len);
+            thd, mem_root, std::move(job.children[0]),
+            std::move(job.children[1]), param.table, param.key, param.key_len);
         break;
       }
       case AccessPath::BKA_JOIN: {
@@ -716,9 +716,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             down_cast<MultiRangeRowIterator *>(
                 mrr_path->iterator->real_iterator());
         iterator = NewIterator<BKAIterator>(
-            thd, mem_root, move(job.children[0]),
+            thd, mem_root, std::move(job.children[0]),
             GetUsedTables(param.outer, /*include_pruned_tables=*/true),
-            move(job.children[1]), thd->variables.join_buff_size,
+            std::move(job.children[1]), thd->variables.join_buff_size,
             param.mrr_length_per_rec, param.rec_per_key, param.store_rowids,
             param.tables_to_get_rowid_for, mrr_iterator, param.join_type);
         break;
@@ -793,12 +793,12 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                 : nullptr;
 
         iterator = NewIterator<HashJoinIterator>(
-            thd, mem_root, move(job.children[1]),
+            thd, mem_root, std::move(job.children[1]),
             GetUsedTables(param.inner, /*include_pruned_tables=*/true),
-            estimated_build_rows, move(job.children[0]),
+            estimated_build_rows, std::move(job.children[0]),
             GetUsedTables(param.outer, /*include_pruned_tables=*/true),
             param.store_rowids, param.tables_to_get_rowid_for,
-            thd->variables.join_buff_size, move(conditions),
+            thd->variables.join_buff_size, std::move(conditions),
             param.allow_spill_to_disk, join_type,
             join_predicate->expr->join_conditions, probe_input_batch_mode,
             hash_table_generation);
@@ -815,7 +815,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           return nullptr;
         }
         iterator = NewIterator<FilterIterator>(
-            thd, mem_root, move(job.children[0]), param.condition);
+            thd, mem_root, std::move(job.children[0]), param.condition);
         break;
       }
       case AccessPath::SORT: {
@@ -830,8 +830,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                                         : lrint(param.child->num_output_rows());
         Filesort *filesort = param.filesort;
         iterator = NewIterator<SortingIterator>(
-            thd, mem_root, filesort, move(job.children[0]), num_rows_estimate,
-            param.tables_to_get_rowid_for, examined_rows);
+            thd, mem_root, filesort, std::move(job.children[0]),
+            num_rows_estimate, param.tables_to_get_rowid_for, examined_rows);
         if (filesort->m_remove_duplicates) {
           filesort->tables[0]->duplicate_removal_iterator =
               down_cast<SortingIterator *>(iterator->real_iterator());
@@ -851,7 +851,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         Prealloced_array<TABLE *, 4> tables =
             GetUsedTables(param.child, /*include_pruned_tables=*/true);
         iterator = NewIterator<AggregateIterator>(
-            thd, mem_root, move(job.children[0]), join,
+            thd, mem_root, std::move(job.children[0]), join,
             TableCollection(tables, /*store_rowids=*/false,
                             /*tables_to_get_rowid_for=*/0),
             param.rollup);
@@ -877,8 +877,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
 
         iterator = unique_ptr_destroy_only<RowIterator>(
             temptable_aggregate_iterator::CreateIterator(
-                thd, move(job.children[0]), param.temp_table_param, param.table,
-                move(job.children[1]), join, param.ref_slice));
+                thd, std::move(job.children[0]), param.temp_table_param,
+                param.table, std::move(job.children[1]), join,
+                param.ref_slice));
 
         break;
       }
@@ -896,8 +897,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           send_records = &join->send_records;
         }
         iterator = NewIterator<LimitOffsetIterator>(
-            thd, mem_root, move(job.children[0]), param.limit, param.offset,
-            param.count_all_rows, param.reject_multiple_rows, send_records);
+            thd, mem_root, std::move(job.children[0]), param.limit,
+            param.offset, param.count_all_rows, param.reject_multiple_rows,
+            send_records);
         break;
       }
       case AccessPath::STREAM: {
@@ -908,7 +910,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         iterator = NewIterator<StreamingIterator>(
-            thd, mem_root, move(job.children[0]), param.temp_table_param,
+            thd, mem_root, std::move(job.children[0]), param.temp_table_param,
             param.table, param.provide_rowid, param.join, param.ref_slice);
         break;
       }
@@ -948,14 +950,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         unique_ptr_destroy_only<RowIterator> table_iterator =
-            move(job.children[0]);
+            std::move(job.children[0]);
         Mem_root_array<materialize_iterator::QueryBlock> query_blocks(
             thd->mem_root, param->query_blocks.size());
         for (size_t i = 0; i < param->query_blocks.size(); ++i) {
           const MaterializePathParameters::QueryBlock &from =
               param->query_blocks[i];
           materialize_iterator::QueryBlock &to = query_blocks[i];
-          to.subquery_iterator = move(job.children[i + 1]);
+          to.subquery_iterator = std::move(job.children[i + 1]);
           to.select_number = from.select_number;
           to.join = from.join;
           to.disable_deduplication_by_hash_field =
@@ -986,9 +988,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         JOIN *subjoin = param->ref_slice == -1 ? nullptr : query_blocks[0].join;
 
         iterator = unique_ptr_destroy_only<RowIterator>(
-            materialize_iterator::CreateIterator(thd, std::move(query_blocks),
-                                                 param, move(table_iterator),
-                                                 subjoin));
+            materialize_iterator::CreateIterator(
+                thd, std::move(query_blocks), param, std::move(table_iterator),
+                subjoin));
 
         break;
       }
@@ -1000,7 +1002,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         iterator = NewIterator<MaterializeInformationSchemaTableIterator>(
-            thd, mem_root, move(job.children[0]), param.table_list,
+            thd, mem_root, std::move(job.children[0]), param.table_list,
             param.condition);
         break;
       }
@@ -1026,9 +1028,10 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         vector<unique_ptr_destroy_only<RowIterator>> children;
         children.reserve(param.children->size());
         for (unique_ptr_destroy_only<RowIterator> &child : job.children) {
-          children.push_back(move(child));
+          children.push_back(std::move(child));
         }
-        iterator = NewIterator<AppendIterator>(thd, mem_root, move(children));
+        iterator =
+            NewIterator<AppendIterator>(thd, mem_root, std::move(children));
         break;
       }
       case AccessPath::WINDOW: {
@@ -1040,11 +1043,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         if (param.needs_buffering) {
           iterator = NewIterator<BufferingWindowIterator>(
-              thd, mem_root, move(job.children[0]), param.temp_table_param,
+              thd, mem_root, std::move(job.children[0]), param.temp_table_param,
               join, param.ref_slice);
         } else {
           iterator = NewIterator<WindowIterator>(
-              thd, mem_root, move(job.children[0]), param.temp_table_param,
+              thd, mem_root, std::move(job.children[0]), param.temp_table_param,
               join, param.ref_slice);
         }
         break;
@@ -1057,7 +1060,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         iterator = NewIterator<WeedoutIterator>(
-            thd, mem_root, move(job.children[0]), param.weedout_table,
+            thd, mem_root, std::move(job.children[0]), param.weedout_table,
             param.tables_to_get_rowid_for);
         break;
       }
@@ -1069,7 +1072,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         iterator = NewIterator<RemoveDuplicatesIterator>(
-            thd, mem_root, move(job.children[0]), join, param.group_items,
+            thd, mem_root, std::move(job.children[0]), join, param.group_items,
             param.group_items_size);
         break;
       }
@@ -1081,7 +1084,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         iterator = NewIterator<RemoveDuplicatesOnIndexIterator>(
-            thd, mem_root, move(job.children[0]), param.table, param.key,
+            thd, mem_root, std::move(job.children[0]), param.table, param.key,
             param.loosescan_key_len);
         break;
       }
@@ -1104,7 +1107,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         iterator = NewIterator<AlternativeIterator>(
             thd, mem_root, param.table_scan_path->table_scan().table,
-            move(job.children[0]), move(job.children[1]), param.used_ref);
+            std::move(job.children[0]), std::move(job.children[1]),
+            param.used_ref);
         break;
       }
       case AccessPath::CACHE_INVALIDATOR: {
@@ -1115,7 +1119,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         iterator = NewIterator<CacheInvalidatorIterator>(
-            thd, mem_root, move(job.children[0]), param.name);
+            thd, mem_root, std::move(job.children[0]), param.name);
         break;
       }
       case AccessPath::DELETE_ROWS: {
@@ -1131,7 +1135,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           continue;
         }
         iterator = NewIterator<DeleteRowsIterator>(
-            thd, mem_root, move(job.children[0]), join,
+            thd, mem_root, std::move(job.children[0]), join,
             param.tables_to_delete_from, param.immediate_tables);
         break;
       }

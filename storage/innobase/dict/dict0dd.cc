@@ -1801,7 +1801,7 @@ void dd_clear_instant_part(dd::Partition &dd_part) {
 bool dd_instant_columns_consistent(const dd::Table &dd_table) {
   bool found = false;
   size_t n_non_instant_cols = 0;
-  size_t n_version_add_cols = 0;
+  size_t n_version_add_cols [[maybe_unused]] = 0;
   size_t n_instant_add_cols = 0;
   size_t n_version_drop_cols = 0;
   for (auto column : dd_table.columns()) {

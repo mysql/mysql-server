@@ -79,7 +79,6 @@ SET_TARGET_PROPERTIES(routertest_http_auth_method PROPERTIES
 
 add_test_file(test_content_type.cc
   MODULE http
-  EXTRA_SOURCES ../src/content_type.cc
   )
 ## content_type.cc is from the http_server plugin and its symbols are marked a "dllimport"
 ## by default. As we use them directly, mark them as "static" instead.
@@ -105,7 +104,6 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     ../src/kdf_sha_crypt.cc
     ../src/kdf_pbkdf2.cc
     ../src/mcf_error.cc
-    ../src/base64.cc
     COMPONENT Router
     LINK_LIBRARIES ${SSL_LIBRARIES} metadata_cache
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -121,7 +119,6 @@ IF(LIBFUZZER_COMPILE_FLAGS)
   MYSQL_ADD_EXECUTABLE(routerfuzz_auth_method_basic
     fuzz_auth_method_basic.cc
     ../src/http_auth_method_basic.cc
-    ../src/base64.cc
     COMPONENT Router
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
@@ -135,7 +132,6 @@ IF(LIBFUZZER_COMPILE_FLAGS)
   ## base64
   MYSQL_ADD_EXECUTABLE(routerfuzz_base64
     fuzz_base64.cc
-    ../src/base64.cc
     COMPONENT Router
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL

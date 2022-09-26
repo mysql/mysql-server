@@ -72,7 +72,7 @@ bool ndb_get_table_statistics(THD *thd, Ndb *ndb,
   int retries = 100;
   NdbTransaction *trans;
   do {
-    Uint32 count = 0;
+    Uint32 count [[maybe_unused]] = 0;
     Uint64 sum_rows = 0;
     Uint64 sum_row_size = 0;
     Uint64 sum_mem = 0;

@@ -23,18 +23,3 @@
 */
 
 #include "../src/base64.h"
-
-// instantiate the constexpr's
-
-namespace Base64Alphabet {
-constexpr alphabet_type Base64::alphabet;
-constexpr inverse_alphabet_type Base64::inverse_alphabet;
-constexpr alphabet_type Mcf::alphabet;
-constexpr inverse_alphabet_type Mcf::inverse_alphabet;
-constexpr alphabet_type Crypt::alphabet;
-constexpr inverse_alphabet_type Crypt::inverse_alphabet;
-constexpr alphabet_type Bcrypt::alphabet;
-constexpr inverse_alphabet_type Bcrypt::inverse_alphabet;
-constexpr alphabet_type Uuencode::alphabet;
-constexpr inverse_alphabet_type Uuencode::inverse_alphabet;
-}  // namespace Base64Alphabet

@@ -63,7 +63,7 @@ struct Sharded_key_value_store_logger<T, true> {
     };
 
     auto &kv_store_shards = static_cast<T &>(*this).m_kv_store_shard;
-    uint32_t shard_id = 0;
+    uint32_t shard_id [[maybe_unused]] = 0;
     for (auto &kv : kv_store_shards) {
       auto kv_shard_stats = kv.shard.stats();
       size_t nr_of_emplace_events = std::count_if(
