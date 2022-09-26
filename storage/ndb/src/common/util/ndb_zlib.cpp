@@ -45,7 +45,8 @@ ndb_zlib::ndb_zlib()
   mem_end(nullptr),
   m_op_mode(NO_OP),
   pkcs_padded(false),
-  padding(0)
+  padding(0),
+  padding_left(0)
 {
   file.zalloc = Z_NULL;
   file.zfree = Z_NULL;
