@@ -66,11 +66,13 @@ ulint z_read(ReadContext *ctx, trx_t *trx, lob::ref_t ref, ulint offset,
 #ifdef UNIV_DEBUG
 /** Validate one zlib stream, given its index entry.
 @param[in]      index      The index dictionary object.
+@param[in]      first      First page of the LOB.
 @param[in]      entry      The index entry (memory copy).
 @param[in]      mtr        Mini-transaction.
 @return true if validation passed.
 @return does not return if validation failed.*/
-bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr);
+bool z_validate_strm(dict_index_t *index, z_first_page_t &first,
+                     z_index_entry_t &entry, mtr_t *mtr);
 #endif /* UNIV_DEBUG */
 
 } /* namespace lob */

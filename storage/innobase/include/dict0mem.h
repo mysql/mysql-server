@@ -1573,7 +1573,7 @@ struct dict_index_t {
 
   /** Check if the underlying table is compressed.
   @return true if compressed, false otherwise. */
-  bool is_compressed() const;
+  inline bool is_compressed() const;
 
   /** Check if a multi-value index is built on specified multi-value
   virtual column. Please note that there could be only one multi-value
@@ -1885,6 +1885,12 @@ struct dict_table_t {
   /** Check if the table is compressed.
   @return true if compressed, false otherwise. */
   bool is_compressed() const { return (DICT_TF_GET_ZIP_SSIZE(flags) != 0); }
+
+  /** Check if the table is encrypted.  Only for file per table tablespace.
+  @return true if encrypted, false otherwise. */
+  bool is_encrypted() const {
+    return (flags2 & DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
+  }
 
   /** Get reference count.
   @return current value of n_ref_count */
@@ -2694,9 +2700,7 @@ static inline void DICT_TF2_FLAG_UNSET(dict_table_t *table, uint32_t flag) {
   table->flags2 &= ~flag;
 }
 
-inline bool dict_index_t::is_compressed() const {
-  return (table->is_compressed());
-}
+bool dict_index_t::is_compressed() const { return (table->is_compressed()); }
 
 /** Persistent dynamic metadata type, there should be 1 to 1
 relationship between the metadata and the type. Please keep them in order

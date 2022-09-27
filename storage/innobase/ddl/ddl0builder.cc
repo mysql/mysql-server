@@ -28,6 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  DDL build index implementation.
 Created 2020-11-01 by Sunny Bains. */
 
+#include "btr0load.h"
 #include "clone0api.h"
 #include "ddl0fts.h"
 #include "ddl0impl-builder.h"
@@ -38,11 +39,503 @@ Created 2020-11-01 by Sunny Bains. */
 #include "ddl0impl-rtree.h"
 #include "lob0lob.h"
 #include "os0thread-create.h"
+#include "rem0rec.h"
 #include "row0ext.h"
 #include "row0vers.h"
+#include "scope_guard.h"
 #include "ut0stage.h"
 
 namespace ddl {
+
+/** Write records to a temporary file. */
+struct File_writer {
+  /** Constructor.
+  @param[in]   builder       the index builder object.
+  @param[in]   buffer_size   the i/o buffer size (in bytes). */
+  File_writer(Builder *builder, size_t buffer_size);
+
+  /** Destructor.  Close the temporary file and free the in-memory buffer. */
+  ~File_writer();
+
+  /** Open the file writer.  It creates a temporary file and allocates
+  a memory buffer of size m_buffer_size.
+  @return DB_SUCCESS on success, an error code on failure. */
+  dberr_t open();
+
+  /** Write the given record mrec to the temporary file.  First the record is
+  added to the internal memory buffer and if this buffer becomes full, it is
+  written to the temporary file.
+  @param[in]  mrec   the serialized record.
+  @param[in]  offsets   the record offsets.
+  @return DB_SUCCESS on success, an error code on failure. */
+  dberr_t write(const mrec_t *mrec, const ulint *offsets);
+
+  /** Add the end-of-list marker to the in-memory buffer, and flush the
+  contents of the buffer to the temporary file.
+  @return DB_SUCCESS on success, an error code on failure. */
+  dberr_t flush();
+
+  /** Get the number of records written by this object.
+  @return the number of records written by this writer. */
+  size_t get_row_count() const { return m_n_wrote; }
+
+  /** Get the current size of the underlying temporary file, including the
+  contents in the in-memory buffer.
+  @return the current size. */
+  size_t get_current_size() const {
+    return m_file.m_size + (m_ptr - m_io_buffer.first);
+  }
+
+  /** Reset the object.  Does not free the in-memory buffer. And does not
+  close the underlying temporary file. */
+  void reset() {
+    m_n_wrote = 0;
+    m_ptr = m_io_buffer.first;
+    m_file.reset();
+  }
+
+  bool is_open() const { return m_file.is_open(); }
+
+  /** Output temporary file into which this object writes data. */
+  file_t m_file;
+
+  /** Number of records written to the file. */
+  size_t m_n_wrote{};
+
+  /** The index builder that is using this File_writer object. */
+  Builder *m_builder{};
+
+  /** Current location within the in-memory buffer where the next write
+  operation will take place. */
+  byte *m_ptr{};
+
+  /** The i/o buffer pointing to the m_buffer */
+  IO_buffer m_io_buffer;
+
+  /** The in-memory buffer of size m_buffer_size. */
+  Aligned_buffer m_buffer;
+
+  /** The size of the in-memory buffer. */
+  size_t m_buffer_size;
+
+#ifdef UNIV_DEBUG
+  /** This is a debug function to check if we are able to read the same number
+  of records that was written by this object. */
+  size_t count_recs_in_file(size_t n_rows);
+#endif /* UNIV_DEBUG */
+};
+
+File_writer::File_writer(Builder *builder, size_t buffer_size)
+    : m_builder(builder), m_buffer_size(buffer_size) {}
+
+File_writer::~File_writer() {
+  /* Don't close the m_file here. */
+  m_buffer.deallocate();
+  reset();
+}
+
+dberr_t File_writer::open() {
+  DBUG_EXECUTE_IF("ddl_write_failure", {
+    m_builder->set_error(DB_CORRUPTION);
+    return m_builder->get_error();
+  });
+
+  const os_fd_t fd = m_builder->create_file(m_file);
+  if (fd == OS_FD_CLOSED) {
+    return DB_FAIL;
+  }
+
+  if (m_io_buffer.first == nullptr) {
+    if (!m_buffer.allocate(m_buffer_size)) {
+      return DB_OUT_OF_MEMORY;
+    }
+  }
+
+  m_io_buffer = m_buffer.io_buffer();
+  m_n_wrote = 0;
+  m_ptr = m_io_buffer.first;
+  return DB_SUCCESS;
+}
+
+/** Write sorted data into multiple files. */
+struct Split_writer {
+  /** Constructor.
+  @param[in]   builder   the index builder which uses this split writer.
+  @param[in]  io_buffer_size  the i/o buffer size
+  @param[in]  bytes_per_file  target size of each file created. */
+  Split_writer(Builder *builder, size_t io_buffer_size, size_t bytes_per_file);
+
+  /** Open and prepare the underlying File_writer object.
+  @return DB_SUCCESS on success, an error code on failure. */
+  dberr_t open() { return m_file_writer.open(); }
+
+  /** Write the given record to the underlying file.  Before writing, check
+  the current size of the file. If the current size of the file is more than
+  target size, then create the next temporary file.
+  @param[in]  mrec   the serialized record.
+  @param[in]  offsets   the record offsets.
+  @return DB_SUCCESS on success, an error code on failure. */
+  dberr_t write(const mrec_t *mrec, const ulint *offsets);
+
+  /** Flush the remaining data to the temporary file on disk.
+  @return DB_SUCCESS on success, an error code on failure. */
+  dberr_t finish();
+
+  /** Create a new thread to build a B-tree subtree using the last temporary
+  file containing sorted data.
+  @return DB_SUCCESS on success, an error code on failure. */
+  [[nodiscard]] dberr_t create_build_thread();
+
+  /** The index builder that is using this split writer. */
+  Builder *m_builder;
+
+  /** The writer object used to write data to temporary file. */
+  File_writer m_file_writer;
+
+  /** Target size (in bytes) of the files created. */
+  const size_t m_bytes_per_file;
+
+  /** Check if the size of the current file has reached the expected size.
+  @return true if the file can be considered full. */
+  bool is_file_full() const;
+
+#ifdef UNIV_DEBUG
+ public:
+  /** Split mode used for testing.  The height of the resulting subtrees can
+  be controlled by using different split modes. */
+  enum split_mode_t {
+    SPLIT_MODE_NONE,
+    SPLIT_MODE_1, /* Data distribution b/w files: ( 1%, 10%, 20%, 69%) */
+    SPLIT_MODE_2, /* Data distribution b/w files: (69%, 20%, 10%,  1%) */
+  };
+
+  /** Set the split mode.  This is debug function which is to be called using
+  DBUG_EXECUTE_IF() macro.
+  @param[in]  bytes  total size of the B-tree data in bytes.
+  @param[in]  max_files  maximum number of files that can be created.
+  @param[in]  mode  split mode to control subtree heights. */
+  void set_split_mode(size_t bytes, size_t max_files,
+                      Split_writer::split_mode_t mode);
+
+  /** Check the current file size against the expected file size by making
+  use of the split mode.
+  @return expected size of the current file. */
+  size_t check_size_with_split_mode() const;
+
+  /** Total size of the B-tree data in bytes. */
+  size_t m_total_bytes{};
+
+  /** Total number of files, equal to number of subtrees created. */
+  size_t m_n_files{};
+
+  /** Maximum number of files allowed. */
+  size_t m_max_files{};
+
+  /** Current file number. */
+  size_t m_nth_file{};
+
+  /** Split mode used. */
+  split_mode_t m_split_mode{SPLIT_MODE_NONE};
+#endif /* UNIV_DEBUG */
+};
+
+bool Split_writer::is_file_full() const {
+#ifdef UNIV_DEBUG
+  if (m_split_mode != SPLIT_MODE_NONE) {
+    const size_t split_size = check_size_with_split_mode();
+    const bool do_split = (m_file_writer.get_current_size() >= split_size);
+    return do_split;
+  }
+#endif /* UNIV_DEBUG */
+  return m_file_writer.get_current_size() >= m_bytes_per_file;
+}
+
+#ifdef UNIV_DEBUG
+size_t Split_writer::check_size_with_split_mode() const {
+  size_t nbytes = 0;
+  const size_t file_1_size = (m_total_bytes * 1 / 100);
+  const size_t file_2_size = (m_total_bytes * 10 / 100);
+  const size_t file_3_size = (m_total_bytes * 20 / 100);
+  const size_t file_4_size =
+      (m_total_bytes - file_1_size - file_2_size - file_3_size);
+  switch (m_split_mode) {
+    case SPLIT_MODE_1: {
+      if (m_nth_file == 0) {
+        nbytes = file_1_size;
+      } else if (m_nth_file == 1) {
+        nbytes = file_2_size;
+      } else if (m_nth_file == 2) {
+        nbytes = file_3_size;
+      } else if (m_nth_file == 3) {
+        nbytes = file_4_size;
+      } else {
+        ut_ad(0);
+      }
+    } break;
+    case SPLIT_MODE_2: {
+      if (m_nth_file == 0) {
+        nbytes = file_4_size;
+      } else if (m_nth_file == 1) {
+        nbytes = file_1_size;
+      } else if (m_nth_file == 2) {
+        nbytes = file_2_size;
+      } else if (m_nth_file == 3) {
+        nbytes = file_3_size;
+      } else {
+        ut_ad(0);
+      }
+    } break;
+    default:
+      ut_ad(0);
+      break;
+  }
+  return nbytes;
+}
+
+void Split_writer::set_split_mode(size_t bytes, size_t max_files,
+                                  Split_writer::split_mode_t mode) {
+  if (max_files >= 4) {
+    m_total_bytes = bytes;
+    m_max_files = max_files;
+    m_n_files = std::min((size_t)4, m_max_files);
+    ut_ad(m_n_files <= m_max_files);
+    m_nth_file = 0;
+    m_split_mode = mode;
+  } else {
+    m_split_mode = SPLIT_MODE_NONE;
+  }
+}
+#endif /* UNIV_DEBUG */
+
+dberr_t Split_writer::finish() {
+  dberr_t err{DB_SUCCESS};
+  /* Don't do anything for an empty file. */
+  if (m_file_writer.get_row_count() > 0) {
+    err = m_file_writer.flush();
+    m_builder->m_files_vec.push_back(m_file_writer.m_file);
+    /* The build is started as soon as one temporary file is created. */
+    err = create_build_thread();
+  }
+  return err;
+}
+
+Split_writer::Split_writer(Builder *builder, size_t io_buffer_size,
+                           size_t bytes_per_file)
+    : m_builder(builder),
+      m_file_writer(builder, io_buffer_size),
+      m_bytes_per_file(bytes_per_file) {}
+
+dberr_t Split_writer::write(const mrec_t *mrec, const ulint *offsets) {
+  dberr_t err = DB_SUCCESS;
+  if (is_file_full()) {
+    m_file_writer.flush();
+    ut_ad(m_file_writer.is_open());
+    m_builder->m_files_vec.push_back(m_file_writer.m_file);
+    ut_ad(m_builder->m_files_vec.back().is_open());
+    /* The build is started as soon as one temporary file is created. */
+    err = create_build_thread();
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+#ifdef UNIV_DEBUG
+    if (m_split_mode != SPLIT_MODE_NONE) {
+      m_nth_file++;
+      ut_ad(m_nth_file < m_max_files);
+    }
+#endif /* UNIV_DEBUG */
+    m_file_writer.reset();
+    err = m_file_writer.open();
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+  }
+  return m_file_writer.write(mrec, offsets);
+}
+
+dberr_t Split_writer::create_build_thread() {
+  /* One file is ready, so start building the sub-tree. */
+  auto observer = m_builder->get_observer();
+  const size_t n_threads = m_builder->get_n_threads();
+  Btree_load *btr_load = ut::new_withkey<Btree_load>(
+      ut::make_psi_memory_key(mem_key_ddl), m_builder->index(),
+      m_builder->trx(), observer);
+  if (btr_load == nullptr) {
+    return DB_OUT_OF_MEMORY;
+  }
+  btr_load->set_n_threads(n_threads);
+  m_builder->m_btree_loads.push_back(btr_load);
+  const size_t btree_load_id = m_builder->m_btree_loads.size() - 1;
+#ifdef UNIV_DEBUG
+  ut_ad(btree_load_id < m_builder->m_files_vec.size());
+  auto load_file = m_builder->m_files_vec[btree_load_id];
+  ut_ad(load_file.m_size > 0);
+#endif /* UNIV_DEBUG */
+
+  m_builder->m_build_threads.emplace_back(
+      std::thread(Builder::btree_subtree_build, m_builder, btree_load_id));
+  return DB_SUCCESS;
+}
+
+dberr_t File_writer::write(const mrec_t *mrec, const ulint *offsets) {
+  /* Refer to Merge_file_sort::Output_file::write() */
+  ++m_n_wrote;
+
+  size_t need;
+  char prefix[sizeof(uint16_t)];
+
+  /* Normalize extra_size. Value 0 signals "end of list". */
+  const auto extra_size = rec_offs_extra_size(offsets);
+  const auto nes = extra_size + 1;
+
+  if (likely(nes < 0x80)) {
+    need = 1;
+    prefix[0] = (byte)nes;
+  } else {
+    need = 2;
+    prefix[0] = (byte)(0x80 | (nes >> 8));
+    prefix[1] = (byte)nes;
+  }
+
+  const auto rec_size = extra_size + rec_offs_data_size(offsets);
+  ut_ad(rec_size == rec_offs_size(offsets));
+
+  const byte *end_ptr = m_io_buffer.first + m_io_buffer.second;
+  if (unlikely(m_ptr + rec_size + need >= end_ptr)) {
+    const size_t n_write = m_ptr - m_io_buffer.first;
+    const auto len = ut_uint64_align_down(n_write, IO_BLOCK_SIZE);
+    auto err = ddl::pwrite(m_file.fd(), m_io_buffer.first, len, m_file.m_size);
+
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+
+    ut_a(n_write >= len);
+    const auto n_move = n_write - len;
+
+    m_ptr = m_io_buffer.first;
+    memmove(m_ptr, m_ptr + len, n_move);
+    m_ptr += n_move;
+
+    m_file.m_size += len;
+  }
+
+  memcpy(m_ptr, prefix, need);
+  m_ptr += need;
+
+  ut_a(m_ptr + rec_size <= m_io_buffer.first + m_io_buffer.second);
+
+  memcpy(m_ptr, mrec - extra_size, rec_size);
+  m_ptr += rec_size;
+
+  return DB_SUCCESS;
+}
+
+dberr_t File_writer::flush() {
+  /* There must always be room to write the end of list marker. */
+  *m_ptr++ = 0;
+
+  const auto len = ut_uint64_align_up(m_ptr - m_io_buffer.first, IO_BLOCK_SIZE);
+  const auto err =
+      ddl::pwrite(m_file.fd(), m_io_buffer.first, len, m_file.m_size);
+
+  m_file.m_size += len;
+  m_file.m_n_recs = m_n_wrote;
+
+  /* Start writing the next page from the start. */
+  m_ptr = m_io_buffer.first;
+
+#ifdef UNIV_DEBUG
+  if (err == DB_SUCCESS && m_builder->get_error() == DB_SUCCESS) {
+    const size_t n = count_recs_in_file(m_n_wrote);
+    ut_ad(n == m_n_wrote);
+  }
+#endif /* UNIV_DEBUG */
+
+  return err;
+}
+
+#ifdef UNIV_DEBUG
+Split_writer::split_mode_t g_bulk_load_split_mode_debug{
+    Split_writer::SPLIT_MODE_NONE};
+#endif /* UNIV_DEBUG */
+
+dberr_t Builder::split_data_into_files(Builder *builder,
+                                       Merge_cursor &merge_cursor) {
+  const size_t io_buffer_size = builder->get_io_buffer_size();
+  const size_t n_max_data = merge_cursor.get_max_data_size();
+  if (n_max_data == 0) {
+    return DB_SUCCESS;
+  }
+  const size_t n_threads = builder->get_n_threads();
+  const size_t bytes_per_thread = (n_max_data + n_threads - 1) / n_threads;
+  /* The vector should not be re-allocated.  So reserve enough capacity. */
+  builder->m_files_vec.reserve(n_threads + 1);
+
+  Split_writer split_writer(builder, io_buffer_size, bytes_per_thread);
+
+#ifdef UNIV_DEBUG
+  switch (g_bulk_load_split_mode_debug) {
+    case Split_writer::SPLIT_MODE_NONE:
+      break;
+    case Split_writer::SPLIT_MODE_1:
+      split_writer.set_split_mode(n_max_data, n_threads,
+                                  Split_writer::SPLIT_MODE_1);
+      break;
+    case Split_writer::SPLIT_MODE_2:
+      split_writer.set_split_mode(n_max_data, n_threads,
+                                  Split_writer::SPLIT_MODE_2);
+      break;
+    default:
+      ut_error;
+  }
+#endif /* UNIV_DEBUG */
+
+  dberr_t err = split_writer.open();
+  if (err != DB_SUCCESS) {
+    builder->set_error(err);
+    return builder->get_error();
+  }
+
+  err = merge_cursor.open();
+  if (err != DB_SUCCESS) {
+    builder->set_error(err);
+    return builder->get_error();
+  }
+
+  if (builder->get_error() != DB_SUCCESS) {
+    return builder->get_error();
+  }
+
+  ulint *offsets;
+  const mrec_t *rec;
+  size_t n_rows = 0; /* Number of records processed. */
+  while ((err = merge_cursor.fetch(rec, offsets)) == DB_SUCCESS) {
+    ++n_rows;
+    err = split_writer.write(rec, offsets);
+    ut_ad(err == DB_SUCCESS);
+    err = merge_cursor.next();
+
+    DBUG_EXECUTE_IF("ddl_read_failure", err = DB_CORRUPTION;);
+
+    if (err != DB_SUCCESS) {
+      break;
+    }
+  }
+  if (err == DB_END_OF_INDEX) {
+    err = DB_SUCCESS;
+  }
+
+  if (err == DB_SUCCESS) {
+    ut_ad(builder->get_error() == DB_SUCCESS);
+    err = split_writer.finish();
+  }
+
+  if (err != DB_SUCCESS) {
+    builder->set_error(err);
+  }
+
+  return builder->get_error();
+}
 
 /** Context for copying cluster index row for the index to being created. */
 struct Copy_ctx {
@@ -142,7 +635,8 @@ struct Key_sort_buffer_cursor : public Load_cursor {
   @return DB_SUCCESS or error code. */
   dberr_t open() noexcept;
 
-  /** Fetch the current row as a tuple. Note: Tuple columns are shallow copies.
+  /** Fetch the current row as a tuple. Note: Tuple columns are shallow
+  copies.
   @param[out] dtuple          Row represented as a tuple.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
   [[nodiscard]] dberr_t fetch(dtuple_t *&dtuple) noexcept override;
@@ -174,13 +668,22 @@ struct Key_sort_buffer_cursor : public Load_cursor {
 /** For loading a Btree index from a file. */
 struct File_cursor : public Load_cursor {
   /** Constructor.
+  @param[in] builder          The index build driver.
+  @param[in] fd               File to read from.
+  @param[in] buffer_size      IO buffer size to use for reads.
+  @param[in] size             Size of the file in bytes.
+  @param[in,out] stage        PFS observability.
+  @param[in] total_rows       Total number of rows in file. */
+  File_cursor(Builder *builder, os_fd_t fd, size_t buffer_size,
+              os_offset_t size, Alter_stage *stage,
+              uint64_t total_rows) noexcept;
+
+  /** Constructor.
   @param[in] builder            The index build driver.
   @param[in] file               File to read from.
   @param[in] buffer_size        IO buffer size to use for reads.
-  @param[in] size               Size of the file in bytes.
   @param[in,out] stage          PFS observability. */
-  File_cursor(Builder *builder, const Unique_os_file_descriptor &file,
-              size_t buffer_size, os_offset_t size,
+  File_cursor(Builder *builder, const file_t &file, size_t buffer_size,
               Alter_stage *stage) noexcept;
 
   /** Destructor. */
@@ -190,7 +693,10 @@ struct File_cursor : public Load_cursor {
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t open() noexcept;
 
-  /** Fetch the current row as a tuple. Note: Tuple columns are shallow copies.
+  [[nodiscard]] bool eof() const noexcept { return m_reader.eof(); }
+
+  /** Fetch the current row as a tuple. Note: Tuple columns are shallow
+  copies.
   @param[out] dtuple            Row represented as a tuple.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
   [[nodiscard]] dberr_t fetch(dtuple_t *&dtuple) noexcept override;
@@ -204,6 +710,14 @@ struct File_cursor : public Load_cursor {
   /** Move to the next record.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
   [[nodiscard]] dberr_t next() noexcept override;
+
+  size_t get_row_count() const { return m_n_rows; }
+
+  size_t get_max_data_size() const { return m_reader.m_size; }
+
+  /** Get the current offset from which next read will happen.
+  @return the current offset from which next read will happen. */
+  os_offset_t get_offset() const { return m_reader.get_offset(); }
 
  private:
   /** Prepare to fetch the current row.
@@ -223,6 +737,9 @@ struct File_cursor : public Load_cursor {
   /** PFS monitoring. */
   Alter_stage *m_stage{};
 
+  /** Total records in file. */
+  const uint64_t m_total_rows{};
+
   friend struct Merge_cursor;
 };
 
@@ -240,15 +757,20 @@ dberr_t File_reader::get_tuple(Builder *builder, mem_heap_t *heap,
   }
 }
 
-File_cursor::File_cursor(Builder *builder,
-                         const Unique_os_file_descriptor &file,
-                         size_t buffer_size, os_offset_t size,
-                         Alter_stage *stage) noexcept
+File_cursor::File_cursor(Builder *builder, os_fd_t fd, size_t buffer_size,
+                         os_offset_t size, Alter_stage *stage,
+                         uint64_t total_rows) noexcept
     : Load_cursor(builder, nullptr),
-      m_reader(file, builder->index(), buffer_size, size),
-      m_stage(stage) {
-  ut_a(m_reader.m_file.is_open());
+      m_reader(fd, builder->index(), buffer_size, size),
+      m_stage(stage),
+      m_total_rows(total_rows) {
+  ut_a(m_reader.is_open());
 }
+
+File_cursor::File_cursor(Builder *builder, const file_t &file,
+                         size_t buffer_size, Alter_stage *stage) noexcept
+    : File_cursor(builder, file.fd(), buffer_size, file.m_size, stage,
+                  file.m_n_recs) {}
 
 dberr_t File_cursor::open() noexcept {
   m_tuple_heap.create(2048, UT_LOCATION_HERE);
@@ -348,11 +870,11 @@ bool Merge_cursor::Compare::operator()(const File_cursor *lhs,
 
 dberr_t Merge_cursor::add_file(const ddl::file_t &file,
                                size_t buffer_size) noexcept {
-  ut_a(file.m_file.is_open());
+  ut_a(file.is_open());
 
   auto cursor = ut::new_withkey<File_cursor>(
-      ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_file, buffer_size,
-      file.m_size, m_stage);
+      ut::make_psi_memory_key(mem_key_ddl), m_builder, file.fd(), buffer_size,
+      file.m_size, m_stage, file.m_n_recs);
 
   if (cursor == nullptr) {
     m_err = DB_OUT_OF_MEMORY;
@@ -574,10 +1096,13 @@ Builder::Thread_ctx::~Thread_ctx() noexcept {
   if (m_key_buffer != nullptr) {
     ut::delete_(m_key_buffer);
   }
-
   if (m_rtree_inserter != nullptr) {
     ut::delete_(m_rtree_inserter);
   }
+  if (m_prev_fields != nullptr) {
+    ut::free(m_prev_fields);
+  }
+  m_file.close();
 }
 
 Builder::Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept
@@ -587,7 +1112,6 @@ Builder::Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept
       m_index(ctx.m_indexes[m_id]),
       m_clust_dup({ctx.m_indexes[0], ctx.m_table, ctx.m_col_map, 0}) {
   m_tmpdir = thd_innodb_tmpdir(m_ctx.thd());
-
   m_sort_index = is_fts_index() ? m_ctx.m_fts.m_ptr->sort_index() : m_index;
 
   if (dict_table_is_comp(m_ctx.m_old_table) &&
@@ -597,6 +1121,18 @@ Builder::Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept
 }
 
 Builder::~Builder() noexcept {
+  for (auto &file : m_files_vec) {
+    file.close();
+  }
+  m_files_vec.clear();
+
+  for (auto &thr : m_build_threads) {
+    if (thr.joinable()) {
+      thr.join();
+    }
+  }
+  m_build_threads.clear();
+
   for (auto thread_ctx : m_thread_ctxs) {
     ut::delete_(thread_ctx);
   }
@@ -608,10 +1144,10 @@ Builder::~Builder() noexcept {
     ut::delete_(m_local_stage);
   }
 
-  if (m_btr_load != nullptr) {
-    ut::delete_(m_btr_load);
-    m_btr_load = nullptr;
+  for (auto btr_load : m_btree_loads) {
+    ut::delete_(btr_load);
   }
+  m_btree_loads.clear();
 }
 
 dberr_t Builder::check_state_of_online_build_log() noexcept {
@@ -656,6 +1192,14 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
     if (thread_ctx == nullptr) {
       ut::delete_(key_buffer);
       key_buffer = nullptr;
+    }
+
+    if (dict_table_is_comp(m_ctx.m_old_table) &&
+        !dict_table_is_comp(m_ctx.m_new_table)) {
+      thread_ctx->m_conv_heap.create(sizeof(mrec_buf_t), UT_LOCATION_HERE);
+      if (thread_ctx->m_conv_heap.is_null()) {
+        return DB_OUT_OF_MEMORY;
+      }
     }
 
     m_thread_ctxs.push_back(thread_ctx);
@@ -733,17 +1277,19 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
   }
 
   if (is_skip_file_sort()) {
-    ut_a(m_btr_load == nullptr);
-    const auto trx_id = m_ctx.m_trx->id;
+    ut_a(m_btree_loads.empty());
     auto observer = m_ctx.flush_observer();
 
-    m_btr_load = ut::new_withkey<Btree_load>(
-        ut::make_psi_memory_key(mem_key_ddl), m_index, trx_id, observer);
-
-    if (m_btr_load == nullptr) {
-      set_error(DB_OUT_OF_MEMORY);
-      set_next_state();
-      return get_error();
+    for (size_t i = 0; i < n_threads; ++i) {
+      auto ptr = ut::new_withkey<Btree_load>(
+          ut::make_psi_memory_key(mem_key_ddl), m_index, m_ctx.trx(), observer);
+      if (ptr == nullptr) {
+        set_error(DB_OUT_OF_MEMORY);
+        set_next_state();
+        return get_error();
+      }
+      ptr->set_n_threads(n_threads);
+      m_btree_loads.push_back(ptr);
     }
   }
 
@@ -881,6 +1427,7 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
   auto &fts = m_ctx.m_fts;
   auto key_buffer = m_thread_ctxs[ctx.m_thread_id]->m_key_buffer;
   auto &fields = key_buffer->m_dtuples[key_buffer->size()];
+  Scoped_heap &conv_heap = m_thread_ctxs[ctx.m_thread_id]->m_conv_heap;
 
   const dict_field_t *ifield = m_index->get_field(0);
   auto field = fields = key_buffer->alloc(ctx.m_n_fields);
@@ -919,11 +1466,11 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
 
       if (field->len != UNIV_SQL_NULL && col->mtype == DATA_MYSQL &&
           col->len != field->len) {
-        if (m_conv_heap.get() != nullptr) {
+        if (!conv_heap.is_null()) {
           convert(m_ctx.m_old_table->first_index(), src_field, field, col->len,
                   page_size,
                   IF_DEBUG(dict_table_is_sdi(m_ctx.m_old_table->id), )
-                      m_conv_heap.get());
+                      conv_heap.get());
         } else {
           /* Field length mismatch should not happen when rebuilding
           redundant row format table. */
@@ -1017,6 +1564,7 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
 dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
   auto key_buffer = m_thread_ctxs[ctx.m_thread_id]->m_key_buffer;
   const auto is_multi_value_index = m_index->is_multi_value();
+  Scoped_heap &conv_heap = m_thread_ctxs[ctx.m_thread_id]->m_conv_heap;
 
   ut_a(ctx.m_n_rows_added == 0);
 
@@ -1095,7 +1643,7 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
     format. There is an assert ut_ad(size < UNIV_PAGE_SIZE) in
     rec_offs_data_size(). It may hit the assert before attempting to
     insert the row. */
-    if (unlikely(m_conv_heap.get() != nullptr &&
+    if (unlikely(conv_heap.get() != nullptr &&
                  ctx.m_data_size > UNIV_PAGE_SIZE)) {
       ctx.m_n_rows_added = 0;
       return DB_TOO_BIG_RECORD;
@@ -1114,9 +1662,7 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
     ctx.m_n_fields = 0;
     ++ctx.m_n_rows_added;
 
-    if (m_conv_heap.get() != nullptr) {
-      mem_heap_empty(m_conv_heap.get());
-    }
+    conv_heap.clear();
 
     if (ctx.m_n_rows_added < ctx.m_n_mv_rows_to_add) {
       ut_a(is_multi_value_index);
@@ -1144,11 +1690,11 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
 }
 
 bool Builder::create_file(ddl::file_t &file) noexcept {
-  ut_a(!file.m_file.is_open());
+  ut_a(!file.is_open());
 
   if (ddl::file_create(&file, m_tmpdir)) {
     MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
-    ut_a(file.m_file.is_open());
+    ut_a(file.is_open());
     return true;
   } else {
     return false;
@@ -1156,8 +1702,8 @@ bool Builder::create_file(ddl::file_t &file) noexcept {
 }
 
 dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer) noexcept {
-  auto err = ddl::pwrite(file.m_file.get(), io_buffer.first, io_buffer.second,
-                         file.m_size);
+  auto err =
+      ddl::pwrite(file.fd(), io_buffer.first, io_buffer.second, file.m_size);
 
   if (err != DB_SUCCESS) {
     set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1205,47 +1751,53 @@ dberr_t Builder::key_buffer_sort(size_t thread_id) noexcept {
 }
 
 dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
-  ut_a(m_id == 0);
   ut_ad(is_skip_file_sort());
   ut_a(!is_fts_index());
   ut_a(m_ctx.m_trx->id > 0);
   ut_a(!is_spatial_index());
   ut_a(!srv_read_only_mode);
   ut_a(!dict_index_is_ibuf(m_index));
+  ut_a(m_index->is_clustered());
 
   {
     auto err = m_ctx.check_state_of_online_build_log();
 
     if (err != DB_SUCCESS) {
       set_error(err);
-      err = m_btr_load->finish(err);
-      ut::delete_(m_btr_load);
-      m_btr_load = nullptr;
       return get_error();
     }
   }
 
-  m_btr_load->latch();
-
   auto thread_ctx = m_thread_ctxs[thread_id];
   auto key_buffer = thread_ctx->m_key_buffer;
+  auto btree_load = m_btree_loads[thread_id];
+  btree_load->latch();
 
-  /* Temporary File is not used. Insert sorted block directly into the index. */
-  cursor.m_tuple_heap.clear();
-
+  /* Temporary file is not used. Insert sorted block directly into the index.*/
   {
+    if (thread_ctx->m_prev_heap.is_null()) {
+      thread_ctx->m_prev_heap.create(2048, UT_LOCATION_HERE);
+    } else {
+      thread_ctx->m_prev_heap.clear();
+    }
     /* Copy the last row for duplicate key check. */
-    auto p = cursor.m_tuple_heap.get();
+    auto p = thread_ctx->m_prev_heap.get();
     auto fields = key_buffer->back();
 
-    memcpy(cursor.m_prev_fields, fields, m_ctx.m_n_uniq * sizeof(dfield_t));
+    if (thread_ctx->m_prev_fields == nullptr) {
+      dberr_t err = thread_ctx->init(m_index);
+      if (err != DB_SUCCESS) {
+        return err;
+      }
+    }
 
-    for (size_t i = 0; i < m_ctx.m_n_uniq; ++i) {
-      dfield_dup(&cursor.m_prev_fields[i], p);
+    memcpy(thread_ctx->m_prev_fields, fields,
+           m_index->n_fields * sizeof(dfield_t));
+
+    for (size_t i = 0; i < m_index->n_fields; ++i) {
+      dfield_dup(&thread_ctx->m_prev_fields[i], p);
     }
   }
-
-  m_prev_fields = cursor.m_prev_fields;
 
   {
     Key_sort_buffer_cursor key_buffer_cursor(this, key_buffer);
@@ -1253,7 +1805,7 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
     auto err = key_buffer_cursor.open();
 
     if (err == DB_SUCCESS) {
-      err = m_btr_load->build(key_buffer_cursor);
+      err = btree_load->build(key_buffer_cursor);
 
       /* Load didn't return an internal error, check cursor for errors. */
       if (err == DB_SUCCESS) {
@@ -1262,11 +1814,10 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
     }
 
     if (cursor.eof() || err != DB_SUCCESS) {
-      err = m_btr_load->finish(err);
-      ut::delete_(m_btr_load);
-      m_btr_load = nullptr;
+      const bool is_subtree = true;
+      err = btree_load->finish(err, is_subtree);
     } else {
-      m_btr_load->release();
+      btree_load->release();
     }
 
     if (err != DB_SUCCESS) {
@@ -1360,14 +1911,38 @@ dberr_t Builder::add_to_key_buffer(Copy_ctx &ctx,
     ut_ad(m_id == 0);
     ut_ad(key_buffer->is_clustered());
 
-    /* Detect duplicates by comparing the current record with previous record.*/
-    if (m_prev_fields != nullptr &&
-        Key_sort_buffer::compare(m_prev_fields, fields, &m_clust_dup) == 0) {
+    /* Detect duplicates by comparing the current record with previous
+    record.*/
+    if (thread_ctx->m_prev_fields != nullptr &&
+        Key_sort_buffer::compare(thread_ctx->m_prev_fields, fields,
+                                 &m_clust_dup) == 0) {
       set_error(DB_DUPLICATE_KEY);
       return get_error();
     }
 
-    m_prev_fields = fields;
+    if (thread_ctx->m_prev_fields == nullptr) {
+      dberr_t err = thread_ctx->init(key_buffer->m_index);
+      if (err != DB_SUCCESS) {
+        set_error(err);
+        return get_error();
+      }
+    }
+
+    if (thread_ctx->m_prev_heap.is_null()) {
+      thread_ctx->m_prev_heap.create(2048, UT_LOCATION_HERE);
+    } else {
+      thread_ctx->m_prev_heap.clear();
+    }
+
+    memcpy(thread_ctx->m_prev_fields, fields,
+           m_index->n_fields * sizeof(dfield_t));
+
+    auto p = thread_ctx->m_prev_heap.get();
+    ut_ad(p != nullptr);
+
+    for (size_t i = 0; i < m_index->n_fields; ++i) {
+      dfield_dup(&thread_ctx->m_prev_fields[i], p);
+    }
   }
 
   return DB_SUCCESS;
@@ -1422,7 +1997,8 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       if (is_skip_file_sort()) {
         if (!cursor.eof()) {
           /* Copy the row data and release any latches held by the parallel
-          scan thread. Required for the log_free_check() during mtr.commit(). */
+          scan thread. Required for the log_free_check() during mtr.commit().
+        */
           err = cursor.copy_row(thread_id, row);
 
           if (err != DB_SUCCESS) {
@@ -1443,7 +2019,6 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
         key_buffer->clear();
 
         if (err != DB_SUCCESS) {
-          ut_a(m_btr_load == nullptr);
           set_error(err);
           return get_error();
         }
@@ -1454,7 +2029,6 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
           continue;
         }
 
-        ut_a(m_btr_load == nullptr);
         return DB_END_OF_INDEX;
       }
     }
@@ -1470,7 +2044,7 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
 
     IF_ENABLED("ddl_ins_spatial_fail", set_error(DB_FAIL); return get_error();)
 
-    if (!thread_ctx->m_file.m_file.is_open()) {
+    if (!thread_ctx->m_file.is_open()) {
       if (!create_file(thread_ctx->m_file)) {
         set_error(DB_IO_ERROR);
         return get_error();
@@ -1493,8 +2067,7 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       }
       ut_a(n >= IO_BLOCK_SIZE);
 
-      auto err =
-          ddl::pwrite(file.m_file.get(), io_buffer.first, n, file.m_size);
+      auto err = ddl::pwrite(file.fd(), io_buffer.first, n, file.m_size);
 
       if (err != DB_SUCCESS) {
         set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1699,6 +2272,590 @@ dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept {
   return err == DB_END_OF_INDEX ? DB_SUCCESS : err;
 }
 
+dberr_t Builder::btree_subtree_build(Builder *builder,
+                                     size_t btree_load_id) noexcept {
+  auto load_file = builder->m_files_vec[btree_load_id];
+  Btree_load *btr_load = builder->get_btree_load(btree_load_id);
+  Context &ctx = builder->ctx();
+  const auto io_buffer_size = ctx.load_io_buffer_size(1);
+  ut_ad(load_file.m_size > 0);
+  ut_ad(load_file.is_open());
+  File_cursor cursor(builder, load_file.fd(), io_buffer_size, load_file.m_size,
+                     nullptr, load_file.m_n_recs);
+
+  const size_t n_rows = load_file.m_n_recs;
+  dberr_t cursor_err{DB_SUCCESS};
+  dberr_t err{DB_SUCCESS};
+  if (n_rows > 0) {
+    err = cursor.open();
+
+    if (err == DB_SUCCESS) {
+      err = btr_load->build(cursor);
+    } else if (err == DB_END_OF_INDEX) {
+      err = DB_SUCCESS;
+    }
+    cursor_err = cursor.get_err();
+
+    if (cursor_err == DB_END_OF_INDEX) {
+      cursor_err = DB_SUCCESS;
+    }
+
+    ut_a(err != DB_SUCCESS || n_rows == cursor.get_row_count());
+  }
+
+  const bool subtree = true;
+
+  /* First we check if the Btree loader returned an internal error.
+  If loader succeeded then we check if the cursor returned an error. */
+  err = btr_load->finish(err != DB_SUCCESS ? err : cursor_err, subtree);
+
+  if (err != DB_SUCCESS) {
+    builder->set_error(err);
+  }
+
+  return builder->get_error();
+}
+
+#ifdef UNIV_DEBUG
+dberr_t Builder::check_file_order() {
+  ut_ad(get_error() == DB_SUCCESS);
+  const auto n_files = m_files_vec.size();
+  dberr_t err = DB_SUCCESS;
+
+  for (auto &file : m_files_vec) {
+    ut_ad(check_file_is_sorted(file) == DB_SUCCESS);
+  }
+
+  if (n_files > 1) {
+    for (Files_t::size_type i = 0, j = 1; j < n_files; ++i, ++j) {
+      err = check_keys_disjoint(m_files_vec[i], m_files_vec[j]);
+      ut_ad(err == DB_SUCCESS);
+    }
+  }
+
+  return err;
+}
+#endif /* UNIV_DEBUG */
+
+#ifdef UNIV_DEBUG
+dberr_t Builder::check_file_is_sorted(const file_t &file) {
+  const auto io_buffer_size = m_ctx.load_io_buffer_size(1);
+  File_cursor l_fcursor(this, file, io_buffer_size, nullptr);
+  File_cursor r_fcursor(this, file, io_buffer_size, nullptr);
+  const mrec_t *l_rec, *r_rec;
+  ulint *l_offsets, *r_offsets;
+  int cmp;
+
+  dberr_t l_err = DB_SUCCESS, r_err = DB_SUCCESS;
+
+  l_err = l_fcursor.open();
+  r_err = r_fcursor.open();
+  ut_ad(l_err == r_err);
+  if (l_err != DB_SUCCESS) {
+    return l_err;
+  }
+
+  while (l_err == DB_SUCCESS) {
+    l_err = l_fcursor.fetch(l_rec, l_offsets);
+    r_err = r_fcursor.fetch(r_rec, r_offsets);
+    ut_ad(l_err == r_err);
+
+    if (l_err != DB_SUCCESS) {
+      break;
+    }
+
+    cmp = cmp_rec_rec(l_rec, r_rec, l_offsets, r_offsets, m_index, false,
+                      nullptr, false);
+    ut_ad(cmp == 0);
+
+    r_err = r_fcursor.next();
+
+    if (r_err == DB_SUCCESS) {
+      dberr_t err = r_fcursor.fetch(r_rec, r_offsets);
+      ut_ad(err = DB_SUCCESS);
+
+      cmp = cmp_rec_rec(l_rec, r_rec, l_offsets, r_offsets, m_index, false,
+                        nullptr, false);
+      ut_ad(cmp < 0);
+    }
+
+    l_err = l_fcursor.next();
+    ut_ad(l_err == r_err);
+  }
+
+  return DB_SUCCESS;
+}
+#endif /* UNIV_DEBUG */
+
+#ifdef UNIV_DEBUG
+dberr_t Builder::check_keys_disjoint(const file_t &l_file,
+                                     const file_t &r_file) {
+  const auto io_buffer_size = m_ctx.load_io_buffer_size(1);
+  File_cursor l_file_cursor(this, l_file, io_buffer_size, nullptr);
+  File_cursor r_file_cursor(this, r_file, io_buffer_size, nullptr);
+
+  dberr_t err = l_file_cursor.open();
+  ut_ad(err == DB_SUCCESS);
+  err = r_file_cursor.open();
+  ut_ad(err == DB_SUCCESS);
+
+  const mrec_t *l_rec, *r_rec;
+  ulint *l_offsets, *r_offsets;
+  err = r_file_cursor.fetch(r_rec, r_offsets);
+  ut_ad(err == DB_SUCCESS);
+
+  while ((err = l_file_cursor.fetch(l_rec, l_offsets)) == DB_SUCCESS) {
+    int rec_order = cmp_rec_rec(l_rec, r_rec, l_offsets, r_offsets, m_index,
+                                false, nullptr, false);
+    ut_ad(rec_order < 0);
+    err = l_file_cursor.next();
+    if (err != DB_SUCCESS) {
+      break;
+    }
+  }
+
+  return DB_SUCCESS;
+}
+#endif /* UNIV_DEBUG */
+
+dberr_t Builder::btree_build_mt() noexcept {
+  for (auto &thr : m_build_threads) {
+    thr.join();
+  }
+  m_build_threads.clear();
+  const dberr_t err = get_error();
+
+#ifdef UNIV_DEBUG
+  if (err == DB_SUCCESS) {
+    /* For debug build, close the file after doing some checks. */
+    const dberr_t e = check_file_order();
+    ut_ad(e == DB_SUCCESS);
+  }
+#endif /* UNIV_DEBUG */
+  for (auto &file : m_files_vec) {
+    file.close();
+  }
+  m_files_vec.clear();
+  m_is_subtree = true;
+  DBUG_EXECUTE_IF("btree_build_mt_force_error",
+                  { set_error(DB_CANNOT_OPEN_FILE); });
+  if (err == DB_SUCCESS) {
+    set_state(State::FINISH);
+  } else {
+    set_next_state();
+  }
+  m_loader.add_task(Loader::Task{this});
+  auto observer = m_ctx.m_trx->flush_observer;
+  observer->flush();
+  return get_error();
+}
+
+dberr_t Builder::subtree_link_levels(size_t &highest_level) {
+  mtr_t *mtr;
+  Scoped_heap local_heap(2048, UT_LOCATION_HERE);
+  using stl_alloc_t = mem_heap_allocator<Btree_load *>;
+  stl_alloc_t local_alloc(local_heap.get());
+  auto mtr_heap = local_heap.alloc(sizeof(mtr_t));
+  mtr = new (mtr_heap) mtr_t();
+  highest_level = 0;
+  const space_id_t space_id = dict_index_get_space(m_index);
+  const page_size_t page_size(dict_table_page_size(m_index->table));
+  using List = std::list<Btree_load *, stl_alloc_t>;
+  auto from_list_raw = local_heap.alloc(sizeof(List));
+  if (from_list_raw == nullptr) {
+    return DB_OUT_OF_MEMORY;
+  }
+  List *from_list = new (from_list_raw) List(local_alloc);
+  auto to_list_raw = local_heap.alloc(sizeof(List));
+  if (to_list_raw == nullptr) {
+    return DB_OUT_OF_MEMORY;
+  }
+  List *to_list = new (to_list_raw) List(local_alloc);
+  /* Populate the from list.  Also calculate the highest level. */
+  for (auto btree_load : m_btree_loads) {
+    const size_t root_level = btree_load->get_root_level();
+    const size_t tree_height = root_level + 1;
+
+    ib::info(ER_IB_BULK_LOAD_SUBTREE_INFO, (size_t)space_id,
+             m_index->table_name, m_index->name(), tree_height,
+             btree_load->m_stat_n_extents, btree_load->m_stat_n_pages);
+
+    if (root_level > highest_level) {
+      highest_level = root_level;
+    }
+    from_list->push_back(btree_load);
+#ifdef UNIV_DEBUG
+    for (size_t cur_level = 0; cur_level < root_level; ++cur_level) {
+      const page_no_t leftmost = btree_load->m_first_page_nos[cur_level];
+      const page_no_t rightmost = btree_load->m_last_page_nos[cur_level];
+      ut_ad(rightmost != leftmost);
+    }
+    {
+      const page_no_t leftmost = btree_load->m_first_page_nos[root_level];
+      const page_no_t rightmost = btree_load->m_last_page_nos[root_level];
+      ut_ad(rightmost == leftmost);
+    }
+#endif /* UNIV_DEBUG */
+  }
+
+  /** Loop till all subtrees are at same level or only one subtree remaining.*/
+  const size_t MAX_LOOP = 10;
+  for (size_t n_loop = 0;; ++n_loop) {
+    ut_ad(n_loop < MAX_LOOP);
+
+    if (n_loop >= MAX_LOOP) {
+      set_error(DB_FAIL);
+      return get_error();
+    }
+
+    /* There is only one subtree.  */
+    if (from_list->size() == 1) {
+      break;
+    }
+
+    while (!from_list->empty()) {
+      Btree_load *subtree_1 = from_list->front();
+      from_list->pop_front();
+      if (from_list->empty()) {
+        to_list->push_back(subtree_1);
+        break;
+      }
+      Btree_load *subtree_2 = from_list->front();
+      from_list->pop_front();
+
+      /* All keys in subtree_1 must be less than all keys in subtree_2 */
+      const size_t level_1 = subtree_1->get_root_level();
+      const size_t level_2 = subtree_2->get_root_level();
+      const size_t level = std::min(level_1, level_2);
+
+      for (size_t cur_level = 0; cur_level <= level; cur_level++) {
+        const page_no_t l_page_no = subtree_1->m_last_page_nos[cur_level];
+        const page_no_t r_page_no = subtree_2->m_first_page_nos[cur_level];
+
+        const page_id_t l_page_id(space_id, l_page_no);
+        const page_id_t r_page_id(space_id, r_page_no);
+
+        mtr->start();
+        buf_block_t *l_block = buf_page_get(l_page_id, page_size, RW_X_LATCH,
+                                            UT_LOCATION_HERE, mtr);
+        buf_block_t *r_block = buf_page_get(r_page_id, page_size, RW_X_LATCH,
+                                            UT_LOCATION_HERE, mtr);
+
+#ifdef UNIV_DEBUG
+        const page_type_t l_type = l_block->get_page_type();
+        const page_type_t r_type = r_block->get_page_type();
+        ut_a(l_type == FIL_PAGE_INDEX);
+        ut_a(r_type == FIL_PAGE_INDEX);
+#endif /* UNIV_DEBUG */
+
+        byte *l_frame = buf_block_get_frame(l_block);
+        byte *r_frame = buf_block_get_frame(r_block);
+
+        page_zip_des_t *l_zip = buf_block_get_page_zip(l_block);
+        page_zip_des_t *r_zip = buf_block_get_page_zip(r_block);
+
+        btr_page_set_next(l_frame, l_zip, r_page_no, mtr);
+        btr_page_set_prev(r_frame, r_zip, l_page_no, mtr);
+
+        rec_t *first_rec = page_rec_get_next(page_get_infimum_rec(r_frame));
+
+        btr_unset_min_rec_mark(first_rec, mtr);
+
+#ifdef UNIV_DEBUG
+        {
+          rec_t *l_rec = page_rec_get_prev(page_get_supremum_rec(l_frame));
+          rec_t *r_rec = first_rec;
+          auto heap = local_heap.get();
+
+          ulint *l_offsets =
+              rec_get_offsets(l_rec, m_index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
+          ulint *r_offsets =
+              rec_get_offsets(r_rec, m_index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
+
+          const bool spatial_index_non_leaf = false;
+          const bool cmp_btree_recs = false;
+          ulint matched_fields{};
+          int rec_order = cmp_rec_rec(l_rec, r_rec, l_offsets, r_offsets,
+                                      m_index, spatial_index_non_leaf,
+                                      &matched_fields, cmp_btree_recs);
+          ut_ad(rec_order <= 0);
+        }
+#endif /* UNIV_DEBUG */
+
+        mtr->commit();
+      }
+      if (level_1 == level_2) {
+        to_list->push_back(subtree_1);
+        from_list->push_front(subtree_2);
+      } else if (level_1 < level_2) {
+        const page_no_t l_page_no = subtree_1->m_last_page_nos[level_1];
+        const page_no_t r_page_no = subtree_2->m_first_page_nos[level_1 + 1];
+
+        const page_id_t l_page_id(space_id, l_page_no);
+        const page_id_t r_page_id(space_id, r_page_no);
+
+        /* Load the two pages. */
+        mtr->start();
+        buf_block_t *l_block = buf_page_get(l_page_id, page_size, RW_X_LATCH,
+                                            UT_LOCATION_HERE, mtr);
+        buf_block_t *r_block = buf_page_get(r_page_id, page_size, RW_X_LATCH,
+                                            UT_LOCATION_HERE, mtr);
+
+        byte *l_frame = buf_block_get_frame(l_block);
+        byte *r_frame = buf_block_get_frame(r_block);
+
+        auto r_first_rec = page_rec_get_next(page_get_infimum_rec(r_frame));
+        btr_unset_min_rec_mark(r_first_rec, mtr);
+
+        /* Obtain node ptr of left page. */
+        auto l_first_rec = page_rec_get_next(page_get_infimum_rec(l_frame));
+        ut_a(page_rec_is_user_rec(l_first_rec));
+        auto node_ptr = dict_index_build_node_ptr(
+            m_index, l_first_rec, l_page_no, local_heap.get(), level_1);
+
+        /* Insert node ptr into higher right page. */
+        page_cur_t page_cur;
+        page_cur_set_before_first(r_block, &page_cur);
+
+        ulint *offsets{};
+        mem_heap_t *heap = local_heap.get();
+        rec_t *insert_rec = page_cur_tuple_insert(&page_cur, node_ptr, m_index,
+                                                  &offsets, &heap, mtr);
+        ut_ad(insert_rec != nullptr);
+#ifdef UNIV_DEBUG
+        {
+          rec_t *next_rec = page_rec_get_next(insert_rec);
+          const page_no_t right_page_no = btr_page_get_next(l_frame, mtr);
+          ulint *node_ptr_offsets =
+              rec_get_offsets(next_rec, m_index, nullptr, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
+          const page_no_t right_child_no =
+              btr_node_ptr_get_child_page_no(next_rec, node_ptr_offsets);
+          ut_ad(right_page_no == right_child_no);
+        }
+#endif /* UNIV_DEBUG */
+        btr_set_min_rec_mark(insert_rec, mtr);
+        mtr->commit();
+        from_list->push_front(subtree_2);
+
+        for (size_t cur_level = 0; cur_level <= level_1; cur_level++) {
+          subtree_2->m_first_page_nos[cur_level] =
+              subtree_1->m_first_page_nos[cur_level];
+        }
+        ut::delete_(subtree_1);
+      } else if (level_1 > level_2) {
+        /* Left subtree is taller. */
+        const page_no_t l_page_no = subtree_1->m_last_page_nos[level_2 + 1];
+        const page_no_t r_page_no = subtree_2->m_first_page_nos[level_2];
+
+        const page_id_t l_page_id(space_id, l_page_no);
+        const page_id_t r_page_id(space_id, r_page_no);
+
+        /* Load the two pages. */
+        mtr->start();
+        buf_block_t *l_block = buf_page_get(l_page_id, page_size, RW_X_LATCH,
+                                            UT_LOCATION_HERE, mtr);
+        buf_block_t *r_block = buf_page_get(r_page_id, page_size, RW_X_LATCH,
+                                            UT_LOCATION_HERE, mtr);
+
+        byte *r_frame = buf_block_get_frame(r_block);
+
+        /* Obtain node ptr of right page. */
+        auto r_first_rec = page_rec_get_next(page_get_infimum_rec(r_frame));
+        ut_a(page_rec_is_user_rec(r_first_rec));
+        btr_unset_min_rec_mark(r_first_rec, mtr);
+
+        auto node_ptr = dict_index_build_node_ptr(
+            m_index, r_first_rec, r_page_no, local_heap.get(), level_2);
+
+        /* Insert node ptr into higher left page. */
+        page_cur_t page_cur;
+        page_cur_search(l_block, m_index, node_ptr, &page_cur);
+
+        ulint *offsets{};
+        mem_heap_t *heap = local_heap.get();
+        rec_t *inserted = page_cur_tuple_insert(&page_cur, node_ptr, m_index,
+                                                &offsets, &heap, mtr);
+        ut_a(inserted != nullptr);
+
+        mtr->commit();
+        from_list->push_front(subtree_1);
+        for (size_t cur_level = 0; cur_level <= level_2; cur_level++) {
+          subtree_1->m_last_page_nos[cur_level] =
+              subtree_2->m_last_page_nos[cur_level];
+        }
+        ut::delete_(subtree_2);
+      }
+    }
+    std::swap(from_list, to_list);
+
+    /* Check if all subtrees are same level. */
+    const bool same_level =
+        std::all_of(from_list->begin(), from_list->end(),
+                    [highest_level](Btree_load *load) {
+                      return load->get_root_level() == highest_level;
+                    });
+
+    if (same_level) {
+      ut_ad(std::is_sorted(from_list->begin(), from_list->end(),
+                           Btree_load_compare(m_index)));
+      break;
+    }
+  }
+
+  m_btree_loads.clear();
+  while (!from_list->empty()) {
+    Btree_load *subtree = from_list->front();
+    from_list->pop_front();
+    m_btree_loads.push_back(subtree);
+  }
+  return DB_SUCCESS;
+}
+
+dberr_t Builder::add_root_for_subtrees(const size_t highest_level) {
+  /* This function uses mtr with MTR_LOG_NO_REDO and a flush observer. */
+  if (m_btree_loads.empty()) {
+    return DB_SUCCESS;
+  }
+  ut_ad(std::is_sorted(m_btree_loads.begin(), m_btree_loads.end(),
+                       Btree_load_compare(m_index)));
+  Scoped_heap tuple_heap(2048, UT_LOCATION_HERE);
+
+  const page_no_t root_page_no = dict_index_get_page(m_index);
+  auto observer = m_ctx.m_trx->flush_observer;
+
+  size_t n_subtrees = 0;
+  size_t n_root_data = 0;
+  size_t n_root_recs = 0;
+  for (size_t i = 0; i < m_btree_loads.size(); ++i) {
+    const auto level = m_btree_loads[i]->get_root_level();
+    if (level == highest_level) {
+      n_subtrees++;
+      Page_stat page_stat;
+      m_btree_loads[i]->get_root_page_stat(page_stat);
+      n_root_data += page_stat.m_data_size;
+      n_root_recs += page_stat.m_n_recs;
+    }
+  }
+
+  const size_t slot_size = page_dir_calc_reserved_space(n_root_recs);
+  const size_t need_space = n_root_data + slot_size;
+  const size_t max_free = get_max_free();
+  const bool level_incr = (n_subtrees > 1) && (need_space >= max_free);
+  const size_t new_root_level = level_incr ? highest_level + 1 : highest_level;
+
+  Page_load root_load(m_index, m_ctx.m_trx->id, root_page_no, new_root_level,
+                      observer);
+  mtr_t mtr;
+  mtr.start();
+  mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
+
+  auto err = root_load.init();
+  if (err != DB_SUCCESS) {
+    set_error(err);
+    return get_error();
+  }
+
+  bool min_rec = true;
+  for (size_t i = 0; i < m_btree_loads.size(); ++i) {
+    const page_no_t subtree_root = m_btree_loads[i]->get_subtree_root();
+    const size_t tree_level = m_btree_loads[i]->get_root_level();
+
+    if (tree_level != highest_level) {
+      /* Skip smaller sub-trees.  */
+      continue;
+    }
+
+    const page_id_t page_id(dict_index_get_space(m_index), subtree_root);
+    page_size_t page_size(dict_table_page_size(m_index->table));
+
+    buf_block_t *subtree_block = btr_block_get(page_id, page_size, RW_X_LATCH,
+                                               UT_LOCATION_HERE, m_index, &mtr);
+    auto subtree_page = buf_block_get_frame(subtree_block);
+    auto first_rec = page_rec_get_next(page_get_infimum_rec(subtree_page));
+    ut_a(page_rec_is_user_rec(first_rec));
+
+    if (highest_level > 0) {
+      min_rec ? btr_set_min_rec_mark(first_rec, &mtr)
+              : btr_unset_min_rec_mark(first_rec, &mtr);
+    }
+
+    if (level_incr) {
+      auto node_ptr = dict_index_build_node_ptr(
+          m_index, first_rec, subtree_root, tuple_heap.get(), highest_level);
+      auto rec_size = rec_get_converted_size(m_index, node_ptr);
+
+      if (min_rec) {
+        node_ptr->set_min_rec_flag();
+      }
+
+      err = root_load.insert(node_ptr, nullptr, rec_size);
+      if (err != DB_SUCCESS) {
+        set_error(err);
+        return get_error();
+      }
+    } else {
+      /* Copy the records from subtree root to actual root. */
+      root_load.copy_all(subtree_page);
+      /* Remove the subtree root. */
+      btr_page_free_low(m_index, subtree_block, highest_level, &mtr);
+    }
+    min_rec = false;
+  }
+  root_load.set_next(FIL_NULL);
+  root_load.finish();
+  mtr.commit();
+  err = m_btree_loads[0]->page_commit(&root_load, nullptr, false);
+  if (err != DB_SUCCESS) {
+    set_error(err);
+    return get_error();
+  }
+  observer->flush();
+  return err;
+}
+
+dberr_t Builder::full_sort() noexcept {
+  Merge_cursor cursor(this, nullptr, nullptr);
+  const auto io_buffer_size = m_ctx.load_io_buffer_size(m_thread_ctxs.size());
+
+  size_t total_files{};
+  uint64_t total_rows{};
+  dberr_t err{DB_SUCCESS};
+
+  for (auto thread_ctx : m_thread_ctxs) {
+    if (thread_ctx->m_file.is_closed()) {
+      continue;
+    }
+
+    err = cursor.add_file(thread_ctx->m_file, io_buffer_size);
+
+    if (err != DB_SUCCESS) {
+      set_error(err);
+      return get_error();
+    }
+
+    ut_a(thread_ctx->m_n_recs == thread_ctx->m_file.m_n_recs);
+
+    ++total_files;
+    total_rows += thread_ctx->m_n_recs;
+  }
+
+  if (total_files == 1) {
+    set_next_state(State::BTREE_BUILD);
+  } else {
+    split_data_into_files(this, cursor);
+    set_next_state(State::BTREE_BUILD_MT);
+  }
+
+  if (err == DB_SUCCESS) {
+    m_loader.add_task(Loader::Task{this});
+  }
+
+  return get_error();
+}
+
 dberr_t Builder::btree_build() noexcept {
   ut_a(!is_skip_file_sort());
 
@@ -1717,7 +2874,7 @@ dberr_t Builder::btree_build() noexcept {
   dberr_t err{DB_SUCCESS};
 
   for (auto thread_ctx : m_thread_ctxs) {
-    if (!thread_ctx->m_file.m_file.is_open()) {
+    if (!thread_ctx->m_file.is_open()) {
       continue;
     }
 
@@ -1734,7 +2891,7 @@ dberr_t Builder::btree_build() noexcept {
     total_rows += thread_ctx->m_n_recs;
   }
 
-  Btree_load btr_load(m_index, m_ctx.m_trx->id, observer);
+  Btree_load btr_load(m_index, m_ctx.m_trx, observer);
 
   dberr_t cursor_err{DB_SUCCESS};
 
@@ -1756,9 +2913,10 @@ dberr_t Builder::btree_build() noexcept {
     ut_a(err != DB_SUCCESS || total_rows == cursor.get_n_rows());
   }
 
+  m_is_subtree = false;
   /* First we check if the Btree loader returned an internal error.
   If loader succeeded then we check if the cursor returned an error. */
-  err = btr_load.finish(err != DB_SUCCESS ? err : cursor_err);
+  err = btr_load.finish(err != DB_SUCCESS ? err : cursor_err, m_is_subtree);
 
   if (err != DB_SUCCESS) {
     set_error(err);
@@ -1880,7 +3038,7 @@ dberr_t Builder::fts_sort_and_build() noexcept {
   auto err = fts.m_ptr->insert(this);
 
   for (auto thread_ctx : m_thread_ctxs) {
-    thread_ctx->m_file.m_file.close();
+    thread_ctx->m_file.close();
   }
 
   if (fts.m_ptr != nullptr) {
@@ -1901,6 +3059,13 @@ dberr_t Builder::fts_sort_and_build() noexcept {
 dberr_t Builder::finalize() noexcept {
   ut_a(m_ctx.m_need_observer);
   ut_a(get_state() == State::FINISH);
+
+  for (auto &thr : m_build_threads) {
+    if (thr.joinable()) {
+      thr.join();
+    }
+  }
+  m_build_threads.clear();
 
   auto observer = m_ctx.m_trx->flush_observer;
 
@@ -1940,7 +3105,7 @@ dberr_t Builder::merge_sort(size_t thread_id) noexcept {
 
   /* If there is a single (or no) list of rows then there is nothing to merge
   and the file must already be sorted. */
-  if (thread_ctx->m_file.m_file.is_open() && thread_ctx->m_offsets.size() > 1) {
+  if (thread_ctx->m_file.is_open() && thread_ctx->m_offsets.size() > 1) {
     Merge_file_sort::Context merge_ctx;
     Dup dup = {m_index, m_ctx.m_table, m_ctx.m_col_map, 0};
 
@@ -1987,7 +3152,86 @@ dberr_t Builder::setup_sort() noexcept {
   }
 }
 
+dberr_t Builder::merge_subtrees() noexcept {
+  auto guard = create_scope_guard([this]() {
+    get_observer()->flush();
+    for (auto btr_load : m_btree_loads) {
+      ut::delete_(btr_load);
+    }
+    m_btree_loads.clear();
+  });
+
+  if (is_fts_index()) {
+    return DB_SUCCESS;
+  }
+
+  if (strcmp(m_index->name(), FTS_DOC_ID_INDEX_NAME) == 0) {
+    return DB_SUCCESS;
+  }
+
+  if (!is_skip_file_sort() && !m_is_subtree) {
+    return DB_SUCCESS;
+  }
+
+  for (auto iter = m_btree_loads.begin(); iter != m_btree_loads.end();) {
+    auto btree_load = *iter;
+    if (btree_load->m_first_page_nos.empty()) {
+      ut::delete_(btree_load);
+      iter = m_btree_loads.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+
+  if (m_btree_loads.empty()) {
+    return DB_SUCCESS;
+  }
+
+  Btree_load_compare cmp_obj(m_index);
+  std::sort(m_btree_loads.begin(), m_btree_loads.end(), cmp_obj);
+
+#ifdef UNIV_DEBUG
+  for (auto btree_load : m_btree_loads) {
+    ut_ad(!btree_load->m_first_page_nos.empty());
+    ut_ad(!btree_load->m_last_page_nos.empty());
+    ut_ad(btree_load->m_first_page_nos.size() ==
+          btree_load->m_last_page_nos.size());
+  }
+#endif /* UNIV_DEBUG */
+
+  size_t highest_level;
+  dberr_t err = subtree_link_levels(highest_level);
+  ut_ad(err == DB_SUCCESS);
+  if (err != DB_SUCCESS) {
+    set_error(err);
+    return get_error();
+  }
+  err = add_root_for_subtrees(highest_level);
+  ut_ad(err == DB_SUCCESS);
+
+  if (err != DB_SUCCESS) {
+    set_error(err);
+    return get_error();
+  }
+  return err;
+}
+
 dberr_t Builder::finish() noexcept {
+  dberr_t err{DB_SUCCESS};
+
+  for (auto &thr : m_build_threads) {
+    if (thr.joinable()) {
+      thr.join();
+    }
+  }
+  m_build_threads.clear();
+
+  err = merge_subtrees();
+  if (err != DB_SUCCESS) {
+    set_error(err);
+    return get_error();
+  }
+
   if (get_error() != DB_SUCCESS) {
     set_next_state();
     return get_error();
@@ -1997,10 +3241,8 @@ dberr_t Builder::finish() noexcept {
   ut_a(get_state() == State::FINISH);
 
   for (auto thread_ctx : m_thread_ctxs) {
-    thread_ctx->m_file.m_file.close();
+    thread_ctx->m_file.close();
   }
-
-  dberr_t err{DB_SUCCESS};
 
   if (get_error() != DB_SUCCESS || !m_ctx.m_online) {
     /* Do not apply any online log. */
@@ -2019,8 +3261,13 @@ dberr_t Builder::finish() noexcept {
     }
   }
 
-  set_next_state();
+#ifdef UNIV_DEBUG
+  if (err == DB_SUCCESS) {
+    ut_ad(btr_validate_index(m_index, m_ctx.m_trx, false));
+  }
+#endif /* UNIV_DEBUG */
 
+  set_next_state();
   return get_error();
 }
 
@@ -2035,7 +3282,8 @@ void Builder::fallback_to_single_thread() noexcept {
 }
 
 void Builder::set_next_state() noexcept {
-  if (get_error() != DB_SUCCESS) {
+  dberr_t err = get_error();
+  if (err != DB_SUCCESS) {
     set_state(State::ERROR);
     return;
   }
@@ -2052,6 +3300,7 @@ void Builder::set_next_state() noexcept {
         set_state(State::SETUP_SORT);
       } else {
         set_state(State::FINISH);
+
         break;
       }
       break;
@@ -2061,9 +3310,15 @@ void Builder::set_next_state() noexcept {
       break;
 
     case State::SORT:
-      set_state(State::BTREE_BUILD);
+      set_state(State::FULL_SORT);
       break;
 
+    case State::FULL_SORT:
+      set_state(State::BTREE_BUILD_MT);
+      break;
+
+    case State::BTREE_BUILD_MT:
+      /* fall through. */
     case State::BTREE_BUILD:
       set_state(State::FINISH);
       break;
@@ -2096,6 +3351,16 @@ dberr_t Loader::Task::operator()() noexcept {
       err = m_builder->merge_sort(m_thread_id);
       break;
 
+    case Builder::State::FULL_SORT:
+      /* Data is sorted across files. */
+      err = m_builder->full_sort();
+      break;
+
+    case Builder::State::BTREE_BUILD_MT:
+      /* Multi-threaded btree build. */
+      err = m_builder->btree_build_mt();
+      break;
+
     case Builder::State::BTREE_BUILD:
       err = m_builder->btree_build();
       break;
@@ -2123,4 +3388,56 @@ dberr_t Loader::Task::operator()() noexcept {
   return err;
 }
 
+// void file_destroy(ddl::file_t *file) noexcept {
+// Builder::file_destroy(file);
+// }
+
+#ifdef UNIV_DEBUG
+size_t File_writer::count_recs_in_file(size_t n_rows) {
+  ut_ad(m_builder->get_error() == DB_SUCCESS);
+  File_cursor cursor(m_builder, m_file.fd(), m_buffer_size, m_file.m_size,
+                     nullptr, m_file.m_n_recs);
+  ut_ad(cursor.get_offset() == 0);
+  dberr_t err = cursor.open();
+  if (err == DB_SUCCESS) {
+    dtuple_t *tuple;
+    while ((err = cursor.fetch(tuple)) == DB_SUCCESS) {
+      err = cursor.next();
+      if (err != DB_SUCCESS) {
+        break;
+      }
+    }
+  }
+  const size_t N = cursor.get_row_count();
+  if (n_rows != N) {
+    ut_ad(n_rows == N || err != DB_SUCCESS);
+  }
+  return n_rows;
+}
+#endif /* UNIV_DEBUG */
+
+size_t Merge_cursor::get_max_data_size() const noexcept {
+  size_t N = 0;
+  for (auto cursor : m_cursors) {
+    N += cursor->get_max_data_size();
+  }
+  return N;
+}
+
 }  // namespace ddl
+
+#ifdef UNIV_DEBUG
+void set_bulk_load_split_mode(size_t split_mode) {
+  switch (split_mode) {
+    case 0:
+      ddl::g_bulk_load_split_mode_debug = ddl::Split_writer::SPLIT_MODE_NONE;
+      break;
+    case 1:
+      ddl::g_bulk_load_split_mode_debug = ddl::Split_writer::SPLIT_MODE_1;
+      break;
+    case 2:
+      ddl::g_bulk_load_split_mode_debug = ddl::Split_writer::SPLIT_MODE_2;
+      break;
+  }
+}
+#endif /* UNIV_DEBUG */

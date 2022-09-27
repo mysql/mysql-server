@@ -25,6 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 #include "zlob0read.h"
+#include "btr0load.h"
 #include "lob0impl.h"
 #include "lob0lob.h"
 #include "lob0zip.h"
@@ -300,17 +301,27 @@ ulint z_read_strm(dict_index_t *index, z_index_entry_t &entry, byte *zbuf,
 }
 
 #ifdef UNIV_DEBUG
-static bool z_validate_strm_low(dict_index_t *index, z_index_entry_t &entry,
-                                mtr_t *mtr) {
+static bool z_validate_strm_low(dict_index_t *index, z_first_page_t &first,
+                                z_index_entry_t &entry, mtr_t *mtr) {
   /* Expected length of compressed data. */
   const ulint exp_zlen = entry.get_zdata_len();
   page_no_t page_no = entry.get_z_page_no();
+  ut_ad(page_no != FIL_NULL);
   ulint remain = exp_zlen;
+  buf_block_t *block{nullptr};
 
   while (remain > 0 && page_no != FIL_NULL) {
-    buf_block_t *block = buf_page_get(
-        page_id_t(dict_index_get_space(index), page_no),
-        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
+    if (mtr == nullptr) {
+      Btree_load *btree_load = first.get_btree_load();
+      ut_ad(btree_load != nullptr);
+      block = btree_load->block_get(page_no);
+      ut_ad(block != nullptr);
+      ut_ad(block->get_page_no() == page_no);
+    } else {
+      block = buf_page_get(page_id_t(dict_index_get_space(index), page_no),
+                           dict_table_page_size(index->table), RW_X_LATCH,
+                           UT_LOCATION_HERE, mtr);
+    }
 
     page_type_t ptype = block->get_page_type();
     ulint data_size = 0;
@@ -328,6 +339,7 @@ static bool z_validate_strm_low(dict_index_t *index, z_index_entry_t &entry,
       data_size = data_page.get_data_len();
       ut_a(data_size <= data_page.payload());
     }
+    ut_ad(data_size > 0);
     ut_a(data_size <= remain);
     remain -= data_size;
     page_no = block->get_next_page_no();
@@ -337,14 +349,15 @@ static bool z_validate_strm_low(dict_index_t *index, z_index_entry_t &entry,
   return (true);
 }
 
-bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr) {
-  static const uint32_t FREQ = 50;
+bool z_validate_strm(dict_index_t *index, z_first_page_t &first,
+                     z_index_entry_t &entry, mtr_t *mtr) {
+  static const uint32_t FREQ = 2;
   static std::atomic<uint32_t> n{0};
   bool ret = true;
   if (++n % FREQ == 0) {
-    ret = z_validate_strm_low(index, entry, mtr);
+    ret = z_validate_strm_low(index, first, entry, mtr);
   }
-  return (ret);
+  return ret;
 }
 #endif /* UNIV_DEBUG */
 

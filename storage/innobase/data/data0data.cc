@@ -855,6 +855,8 @@ bool multi_value_data::has(ulint mtype, ulint prtype, const byte *data,
   return (false);
 }
 
+void dtuple_t::set_min_rec_flag() { info_bits |= REC_INFO_MIN_REC_FLAG; }
+
 #endif /* !UNIV_HOTBACKUP */
 
 void multi_value_data::alloc(uint32_t num, bool alc_bitset, mem_heap_t *heap) {

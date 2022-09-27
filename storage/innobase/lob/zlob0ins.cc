@@ -31,10 +31,13 @@ namespace lob {
 
 int zInserter::write_first_page(big_rec_field_t &field) {
   buf_block_t *rec_block = m_ctx->block();
-  mtr_t *mtr = start_blob_mtr();
+  mtr_t *mtr = nullptr;
 
-  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
-               UT_LOCATION_HERE, mtr);
+  if (!rec_block->is_memory()) {
+    mtr = start_blob_mtr();
+    buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
+                 UT_LOCATION_HERE, mtr);
+  }
 
   buf_block_t *blob_block = alloc_blob_page();
 
@@ -69,7 +72,7 @@ int zInserter::write_first_page(big_rec_field_t &field) {
   /* After writing the first blob page, update the blob reference. */
   if (!m_ctx->is_bulk()) {
     m_ctx->zblob_write_blobref(m_ctx->index()->get_field_off_pos(field_no),
-                               &m_blob_mtr);
+                               mtr);
   }
 
   m_prev_page_no = page_get_page_no(blob_page);
@@ -162,7 +165,11 @@ dberr_t zInserter::write_one_blob(size_t blob_j) {
 int zInserter::write_into_single_page() {
   const uint in_before = m_stream.avail_in;
 
-  mtr_t *const mtr = &m_blob_mtr;
+  mtr_t *mtr = nullptr;
+
+  if (!m_ctx->is_bulk()) {
+    mtr = &m_blob_mtr;
+  }
 
   /* Space available in compressed page to carry blob data */
   const page_size_t page_size = m_ctx->page_size();
@@ -211,9 +218,12 @@ int zInserter::write_into_single_page() {
   }
 
   /* Redo log the page contents (the page is not modified). */
-  mlog_log_string(
-      blob_page + FIL_PAGE_FILE_FLUSH_LSN,
-      page_zip_get_size(m_ctx->get_page_zip()) - FIL_PAGE_FILE_FLUSH_LSN, mtr);
+  if (mtr != nullptr) {
+    mlog_log_string(
+        blob_page + FIL_PAGE_FILE_FLUSH_LSN,
+        page_zip_get_size(m_ctx->get_page_zip()) - FIL_PAGE_FILE_FLUSH_LSN,
+        mtr);
+  }
 
   /* Copy the page to compressed storage, because it will be flushed
   to disk from there. */
@@ -232,16 +242,14 @@ int zInserter::write_into_single_page() {
 int zInserter::write_single_blob_page(big_rec_field_t &field,
                                       ulint nth_blob_page) {
   ut_ad(nth_blob_page > 0);
-
   buf_block_t *rec_block = m_ctx->block();
   mtr_t *mtr = start_blob_mtr();
-
-  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
-               UT_LOCATION_HERE, mtr);
-
+  if (mtr != nullptr) {
+    buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
+                 UT_LOCATION_HERE, mtr);
+  }
   buf_block_t *blob_block = alloc_blob_page();
   page_t *blob_page = buf_block_get_frame(blob_block);
-
   set_page_next();
 
   m_prev_page_no = page_get_page_no(blob_page);
@@ -308,14 +316,13 @@ words, make the page m_cur_blob_page_no as the next page
 dberr_t zInserter::set_page_next() {
   buf_block_t *prev_block = get_previous_blob_block();
   page_t *prev_page = buf_block_get_frame(prev_block);
-
+  const bool is_bulk = m_ctx->is_bulk();
+  mtr_t *mtr = is_bulk ? nullptr : &m_blob_mtr;
   mlog_write_ulint(prev_page + FIL_PAGE_NEXT, m_cur_blob_page_no, MLOG_4BYTES,
-                   &m_blob_mtr);
-
+                   mtr);
   memcpy(buf_block_get_page_zip(prev_block)->data + FIL_PAGE_NEXT,
          prev_page + FIL_PAGE_NEXT, 4);
-
-  return (m_err);
+  return m_err;
 }
 
 }  // namespace lob

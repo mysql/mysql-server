@@ -133,11 +133,9 @@ struct FTS::Parser {
   @return DB_SUCCESS or error code. */
   dberr_t init(size_t n_threads) noexcept;
 
-  /** Releases ownership of the i'th file used.
-  @return the i'th file. */
-  file_t release_file(size_t id) noexcept {
-    return std::move(m_handlers[id]->m_file);
-  }
+  /** Get the ith file.
+  @return the ith file. */
+  file_t &get_file(size_t id) noexcept { return m_handlers[id]->m_file; }
 
   /** Data structures for building an index. */
   struct Handler {
@@ -255,7 +253,11 @@ struct FTS::Inserter {
     Handler() = default;
 
     /** Destructor. */
-    ~Handler() = default;
+    ~Handler() {
+      for (auto &file : m_files) {
+        file.close();
+      }
+    }
 
     using Buffer = Aligned_buffer;
     using Files = std::vector<file_t, ut::allocator<file_t>>;
@@ -288,10 +290,10 @@ struct FTS::Inserter {
   @param[in] id                 Aux index ID.
   @param[in] file               File to merge and insert.
   @return DB_SUCCESS or error code. */
-  dberr_t add_file(size_t id, file_t file) noexcept {
+  dberr_t add_file(size_t id, const file_t &file) noexcept {
     auto &handler = m_handlers[id];
 
-    handler.m_files.push_back(std::move(file));
+    handler.m_files.push_back(file);
 
     return DB_SUCCESS;
   }
@@ -338,7 +340,7 @@ struct FTS::Inserter {
 FTS::Parser::Handler::Handler(dict_index_t *index, size_t size) noexcept
     : m_file(), m_key_buffer(index, size), m_aligned_buffer() {}
 
-FTS::Parser::Handler::~Handler() noexcept {}
+FTS::Parser::Handler::~Handler() noexcept { m_file.close(); }
 
 FTS::Parser::Parser(size_t id, Context &ctx, Dup *dup,
                     bool doc_id_32_bit) noexcept
@@ -1333,7 +1335,15 @@ dberr_t FTS::Inserter::insert(Builder *builder,
 
   /* Create bulk load instance */
   ins_ctx.m_btr_bulk = ut::new_withkey<Btree_load>(
-      ut::make_psi_memory_key(mem_key_ddl), aux_index, trx->id, observer);
+      ut::make_psi_memory_key(mem_key_ddl), aux_index, trx, observer);
+
+  if (ins_ctx.m_btr_bulk == nullptr) {
+    return func_exit(DB_OUT_OF_MEMORY);
+  }
+  dberr_t err = ins_ctx.m_btr_bulk->init();
+  if (err != DB_SUCCESS) {
+    return func_exit(err);
+  }
 
   /* Create tuple for insert. */
   ins_ctx.m_tuple =
@@ -1373,10 +1383,10 @@ dberr_t FTS::Inserter::insert(Builder *builder,
     for (auto &file : handler->m_files) {
       ut_a(file.m_n_recs > 0);
 
-      auto err = cursor.add_file(file, io_buffer_size);
+      err = cursor.add_file(file, io_buffer_size);
 
       if (err != DB_SUCCESS) {
-        return err;
+        return func_exit(err);
       }
 
       ++i;
@@ -1389,7 +1399,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
     return func_exit(DB_SUCCESS);
   }
 
-  auto err = cursor.open();
+  err = cursor.open();
 
   if (err != DB_SUCCESS) {
     return func_exit(err);
@@ -1611,18 +1621,22 @@ dberr_t FTS::insert(Builder *builder) noexcept {
 dberr_t FTS::setup_insert_phase() noexcept {
   for (auto parser : m_parsers) {
     for (size_t i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
-      auto file = parser->release_file(i);
+      auto &file = parser->get_file(i);
 
       if (file.m_n_recs == 0) {
         /* Ignore empty files. */
         continue;
       }
 
-      const auto err = m_inserter->add_file(i, std::move(file));
+      const auto err = m_inserter->add_file(i, file);
 
       if (err != DB_SUCCESS) {
         break;
       }
+
+      /* The file is now owned by the m_inserter object. So parser should
+      ignore it. */
+      file.reset();
     }
   }
 

@@ -1,0 +1,59 @@
+# InnoDB does not support compressed tables for page sizes=32k,64k
+--source include/have_innodb_max_16k.inc
+--source include/have_debug.inc
+--source include/big_test.inc
+
+set innodb_interpreter = 'bulk_load_enable_slow_io';
+
+SET GLOBAL innodb_compression_level = 0;
+CREATE TABLE t1
+(f1 BIGINT AUTO_INCREMENT PRIMARY KEY,
+ f2 CHAR(100),
+ f3 LONGTEXT);
+
+let $i=1;
+
+start transaction;
+--echo # INSERT INTO t1(f2, f3) ...
+--disable_query_log
+while ($i < 2048)
+{
+  eval INSERT INTO t1(f2, f3) VALUES (REPEAT('a', 100), REPEAT('Y', $i * 512));
+  inc $i;
+}
+--enable_query_log
+commit work;
+
+let $p = 1;
+while ($p) {
+  --echo # Loop: $p
+  SHOW CREATE TABLE t1;
+  CHECK TABLE t1;
+  CHECKSUM TABLE t1;
+
+  ALTER TABLE t1 ROW_FORMAT=compact;
+  SHOW CREATE TABLE t1;
+  CHECK TABLE t1;
+  CHECKSUM TABLE t1;
+
+  ALTER TABLE t1 ROW_FORMAT=compressed;
+  SHOW CREATE TABLE t1;
+  CHECK TABLE t1;
+  CHECKSUM TABLE t1;
+
+  ALTER TABLE t1 ROW_FORMAT=dynamic;
+  SHOW CREATE TABLE t1;
+  CHECK TABLE t1;
+  CHECKSUM TABLE t1;
+
+  ALTER TABLE t1 ROW_FORMAT=redundant;
+  SHOW CREATE TABLE t1;
+  CHECK TABLE t1;
+  CHECKSUM TABLE t1;
+
+  dec $p;
+}
+
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = default;
+set innodb_interpreter = 'bulk_load_disable_slow_io';

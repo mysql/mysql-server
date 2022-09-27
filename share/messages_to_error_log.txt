@@ -11949,6 +11949,24 @@ ER_THREAD_POOL_QUERY_THRS_PER_GRP_EXCEEDS_TXN_THR_LIMIT
 ER_IB_MSG_INVALID_PAGE_TYPE
   eng "Found page type mismatch. Expected %u, found %u, in page: space_id=%lu page_no= %lu"
 
+ER_IB_PARALLEL_READER_WORKER_INFO
+  eng "preader: space_id=%zu, table=%s, index=%s, scan_ctx=%zu, ctx=%zu, thread_id=%zu, n_threads=%zu"
+
+ER_IB_BULK_LOAD_SUBTREE_INFO
+  eng "bulkload: space_id=%zu, table=%s, index=%s, height=%zu, n_extents=%zu, n_pages=%zu"
+
+ER_IB_BULK_FLUSHER_INFO
+  eng "bulkflusher: sleep_count=%zu, sleep_duration=%zu milliseconds, total_sleep=%zu milliseconds, pages_flushed=%zu"
+
+ER_IB_BUFFER_POOL_OVERUSE
+  eng "%s: Over 67 percent of the buffer pool (curr_size=%zu MB) is occupied by lock heaps or the adaptive hash index or BUF_BLOCK_MEMORY pages. Check that your transactions do not set too many row locks. Maybe you should make the buffer pool bigger?. Starting the InnoDB Monitor to print diagnostics."
+
+ER_IB_BUFFER_POOL_FULL
+  eng "%s: Over 95 percent of the buffer pool (curr_size=%zu MB) is occupied by lock heaps or the adaptive hash index or BUF_BLOCK_MEMORY pages. Check that your transactions do not set too many row locks. Maybe you should make the buffer pool bigger?. We intentionally generate a seg fault to print a stack trace on Linux!";
+
+ER_IB_DUPLICATE_KEY
+  eng "%s: table=%s, index=%s, n_uniq=%zu, n_fields=%zu, lhs=(%s), rhs=(%s)"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

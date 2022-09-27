@@ -109,9 +109,6 @@ static const ulint IO_IBUF_SEGMENT = 0;
 /** Log segment id */
 static const ulint IO_LOG_SEGMENT = 1;
 
-/** Number of retries for partial I/O's */
-static const ulint NUM_RETRIES_ON_PARTIAL_IO = 10;
-
 /** For storing the allocated blocks */
 using Blocks = std::vector<file::Block>;
 
@@ -1081,55 +1078,6 @@ class AIOHandler {
   static dberr_t check_read(Slot *slot, ulint n_bytes);
 };
 
-/** Helper class for doing synchronous file IO. Currently, the objective
-is to hide the OS specific code, so that the higher level functions aren't
-peppered with "#ifdef". Makes the code flow difficult to follow.  */
-class SyncFileIO {
- public:
-  /** Constructor
-  @param[in]    fh      File handle
-  @param[in,out]        buf     Buffer to read/write
-  @param[in]    n       Number of bytes to read/write
-  @param[in]    offset  Offset where to read or write */
-  SyncFileIO(os_file_t fh, void *buf, ulint n, os_offset_t offset)
-      : m_fh(fh), m_buf(buf), m_n(static_cast<ssize_t>(n)), m_offset(offset) {
-    ut_ad(m_n > 0);
-  }
-
-  /** Destructor */
-  ~SyncFileIO() = default;
-
-  /** Do the read/write
-  @param[in]    request The IO context and type
-  @return the number of bytes read/written or negative value on error */
-  ssize_t execute(const IORequest &request);
-
-  /** Move the read/write offset up to where the partial IO succeeded.
-  @param[in]    n_bytes The number of bytes to advance */
-  void advance(ssize_t n_bytes) {
-    m_offset += n_bytes;
-
-    ut_ad(m_n >= n_bytes);
-
-    m_n -= n_bytes;
-
-    m_buf = reinterpret_cast<uchar *>(m_buf) + n_bytes;
-  }
-
- private:
-  /** Open file handle */
-  os_file_t m_fh;
-
-  /** Buffer to read/write */
-  void *m_buf;
-
-  /** Number of bytes to read/write */
-  ssize_t m_n;
-
-  /** Offset from where to read/write */
-  os_offset_t m_offset;
-};
-
 /** If it is a compressed page return the compressed page data + footer size
 @param[in]      buf             Buffer to check, must include header + 10 bytes
 @return ULINT_UNDEFINED if the page is not a compressed page or length
@@ -1952,6 +1900,7 @@ file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
 
     buf = buf_ptr;
     *n = compressed_len;
+    block->m_size = compressed_len;
 
     if (compressed_len >= old_compressed_len &&
         !type.is_punch_hole_optimisation_disabled()) {
@@ -2030,6 +1979,31 @@ static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
   }
 
   return (block);
+}
+
+dberr_t SyncFileIO::execute_with_retry(const IORequest &request,
+                                       const size_t max_retries) {
+  dberr_t err{DB_SUCCESS};
+  size_t total_bytes = 0;
+  for (size_t i = 0; i < max_retries; ++i) {
+    ssize_t n_bytes = execute(request);
+    if (n_bytes < 0) {
+      err = DB_IO_ERROR;
+      break;
+    }
+    total_bytes += n_bytes;
+    if (total_bytes == m_orig_bytes) {
+      break;
+    }
+    advance(n_bytes);
+  }
+  if (total_bytes != m_orig_bytes) {
+    /* If the number of retries has reached the maximum allowed, and still the
+    requested number of bytes is not read/written, then an error is returned.
+    So, ensure that the number of retries is high enough. */
+    err = DB_IO_ERROR;
+  }
+  return err;
 }
 
 #ifndef _WIN32
@@ -3709,6 +3683,7 @@ void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
 @return the number of bytes read/written or negative value on error */
 ssize_t SyncFileIO::execute(const IORequest &request) {
   OVERLAPPED overlapped{};
+  ut_ad(buf_page_t::is_zeroes((page_t *)&overlapped, sizeof(overlapped)));
 
   /* We need a fresh, not shared instance of Event for the OVERLAPPED structure.
   Both are stopped being used at most at the end of this method, as we wait for
@@ -3744,7 +3719,9 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
   }
 
   if (!result) {
-    if (GetLastError() == ERROR_IO_PENDING) {
+    const DWORD error = GetLastError();
+    ut_a(error != ERROR_INVALID_PARAMETER);
+    if (error == ERROR_IO_PENDING) {
       result =
           GetOverlappedResult(m_fh, &overlapped, &n_bytes_transfered, true);
     }
@@ -5109,8 +5086,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
         << "Retry attempts for " << (type.is_read() ? "reading" : "writing")
         << " partial data failed.";
   }
-
-  return (bytes_returned);
+  return bytes_returned;
 }
 
 /** Does a synchronous write operation in Posix.

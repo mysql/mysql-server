@@ -2,6 +2,9 @@
 # Test flush on error in bulk load to make sure we do a proper cleanup.
 # Note: We flush all dirty pages before applying any online log in bulk load.
 #
+--disable_query_log
+call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
+--enable_query_log
 
 -- source include/have_debug.inc
 

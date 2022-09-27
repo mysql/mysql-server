@@ -297,6 +297,10 @@ dberr_t Loader::load() noexcept {
     return DB_OUT_OF_MEMORY;
   }
 
+#ifdef UNIV_DEBUG
+  m_ctx.print_indexes();
+#endif /* UNIV_DEBUG */
+
   for (auto builder : m_builders) {
     ut_a(builder->get_state() == Builder::State::ADD);
     /* RTrees are built during the scan phase, using row by row insert. */

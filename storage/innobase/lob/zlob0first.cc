@@ -25,6 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 #include "zlob0first.h"
+#include "btr0load.h"
 #include "trx0trx.h"
 #include "zlob0index.h"
 #include "zlob0read.h"
@@ -88,16 +89,17 @@ ulint z_first_page_t::get_n_frag_entries() const {
 
 buf_block_t *z_first_page_t::alloc(bool bulk) {
   ut_ad(m_block == nullptr);
-
   page_no_t hint = FIL_NULL;
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
-
+  if (bulk) {
+    m_block = m_btree_load->blob()->alloc_first_page();
+    ut_ad(m_block != nullptr);
+  } else {
+    m_block = alloc_lob_page(m_index, m_mtr, hint);
+  }
   if (m_block == nullptr) {
     return (nullptr);
   }
-
   init();
-
   ut_ad(m_block->get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
   return (m_block);
 }
@@ -152,7 +154,7 @@ std::ostream &z_first_page_t::print_frag_entries(std::ostream &out) const {
   while (!fil_addr_is_null(node_loc)) {
     flst_node_t *node =
         fut_get_ptr(space, page_size, node_loc, RW_X_LATCH, m_mtr);
-    z_frag_entry_t entry(node, m_mtr);
+    z_frag_entry_t entry(node, m_mtr, m_btree_load);
     out << entry << std::endl;
     node_loc = entry.get_next();
   }
@@ -169,7 +171,7 @@ z_index_entry_t z_first_page_t::alloc_index_entry(bool bulk) {
   fil_addr_t first_loc = flst_get_first(free_lst, m_mtr);
 
   if (fil_addr_is_null(first_loc)) {
-    z_index_page_t page(m_mtr, m_index);
+    z_index_page_t page(m_mtr, m_index, m_btree_load);
     page.alloc(*this, bulk);
     first_loc = flst_get_first(free_lst, m_mtr);
   }
@@ -179,7 +181,7 @@ z_index_entry_t z_first_page_t::alloc_index_entry(bool bulk) {
   }
 
   flst_node_t *first_ptr = addr2ptr_x(first_loc);
-  z_index_entry_t entry(first_ptr, m_mtr);
+  z_index_entry_t entry(first_ptr, m_mtr, m_btree_load);
   entry.remove(free_lst);
 
   return (entry);
@@ -196,7 +198,7 @@ z_frag_entry_t z_first_page_t::alloc_frag_entry(bool bulk) {
   fil_addr_t first_loc = flst_get_first(free_lst, m_mtr);
 
   if (fil_addr_is_null(first_loc)) {
-    z_frag_node_page_t page(m_mtr, m_index);
+    z_frag_node_page_t page(m_mtr, m_index, m_btree_load);
     page.alloc(*this, bulk);
     first_loc = flst_get_first(free_lst, m_mtr);
   }
@@ -206,7 +208,7 @@ z_frag_entry_t z_first_page_t::alloc_frag_entry(bool bulk) {
   }
 
   flst_node_t *first_ptr = addr2ptr_x(first_loc);
-  z_frag_entry_t entry(first_ptr, m_mtr);
+  z_frag_entry_t entry(first_ptr, m_mtr, m_btree_load);
   entry.remove(free_lst);
   entry.push_front(used_lst);
   return (entry);
@@ -215,7 +217,7 @@ z_frag_entry_t z_first_page_t::alloc_frag_entry(bool bulk) {
 frag_id_t z_first_page_t::alloc_fragment(bool bulk, ulint len,
                                          z_frag_page_t &frag_page,
                                          z_frag_entry_t &entry) {
-  ut_ad(m_mtr != nullptr);
+  ut_ad(m_mtr != nullptr || m_block->is_memory());
 
   frag_id_t frag_id = FRAG_ID_NULL;
 
@@ -347,7 +349,7 @@ size_t z_first_page_t::free_all_frag_node_pages() {
       break;
     }
 
-    z_frag_node_page_t frag_node_page(&local_mtr, m_index);
+    z_frag_node_page_t frag_node_page(&local_mtr, m_index, m_btree_load);
     frag_node_page.load_x(page_no);
     page_no_t next_page = frag_node_page.get_next_page_no();
 
@@ -367,6 +369,7 @@ size_t z_first_page_t::free_all_frag_node_pages() {
 
 /** Free all the index pages. */
 size_t z_first_page_t::free_all_index_pages() {
+  ut_ad(m_btree_load == nullptr);
   size_t n_pages_freed = 0;
   mtr_t local_mtr;
   mtr_start(&local_mtr);
@@ -405,7 +408,7 @@ void z_first_page_t::init_index_entries() {
   for (ulint i = 0; i < n; ++i) {
     flst_node_t *ptr = frame() + OFFSET_INDEX_BEGIN;
     ptr += (i * z_index_entry_t::SIZE);
-    z_index_entry_t entry(ptr, m_mtr);
+    z_index_entry_t entry(ptr, m_mtr, m_btree_load);
     entry.init();
     entry.push_back(flst);
   }
@@ -428,8 +431,12 @@ void z_first_page_t::dealloc() {
 
 buf_block_t *z_first_page_t::load_x(const page_id_t &page_id,
                                     const page_size_t &page_size) {
-  m_block =
-      buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
+  if (m_mtr != nullptr) {
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
+  } else {
+    m_block = m_btree_load->block_get(page_id.page_no());
+  }
 
 #ifdef UNIV_DEBUG
   /* Dump the page into the log file, if the page type is not matching
@@ -546,7 +553,7 @@ bool z_first_page_t::validate_low() {
     flst_node_t *node = addr2ptr_x(node_loc, &local_mtr);
     cur_entry.reset(node);
 
-    ut_ad(z_validate_strm(m_index, cur_entry, &local_mtr));
+    ut_ad(z_validate_strm(m_index, *this, cur_entry, &local_mtr));
 
     flst_base_node_t *vers = cur_entry.get_versions_list();
     fil_addr_t ver_loc = flst_get_first(vers, &local_mtr);
@@ -554,7 +561,7 @@ bool z_first_page_t::validate_low() {
     while (!fil_addr_is_null(ver_loc)) {
       flst_node_t *ver_node = addr2ptr_x(ver_loc, &local_mtr);
       z_index_entry_t vers_entry(ver_node, &local_mtr, m_index);
-      ut_ad(z_validate_strm(m_index, vers_entry, &local_mtr));
+      ut_ad(z_validate_strm(m_index, *this, vers_entry, &local_mtr));
       ver_loc = vers_entry.get_next();
       restart_mtr(&local_mtr);
       node = addr2ptr_x(node_loc, &local_mtr);
@@ -604,7 +611,7 @@ size_t z_first_page_t::free_all_frag_pages_old() {
     while (flst_get_len(cur_lst) > 0) {
       fil_addr_t loc = flst_get_first(cur_lst, &local_mtr);
       flst_node_t *node = addr2ptr_x(loc, &local_mtr);
-      z_frag_entry_t entry(node, &local_mtr);
+      z_frag_entry_t entry(node, &local_mtr, m_btree_load);
       page_no_t frag_page_no = entry.get_page_no();
       loc = entry.get_next();
       entry.remove(cur_lst);
@@ -617,7 +624,7 @@ size_t z_first_page_t::free_all_frag_pages_old() {
       the list and remove all entries pointing to the same fragment page. */
       while (!fil_addr_is_null(loc)) {
         node = addr2ptr_x(loc, &local_mtr);
-        z_frag_entry_t entry2(node, &local_mtr);
+        z_frag_entry_t entry2(node, &local_mtr, m_btree_load);
 
         loc = entry2.get_next();
         if (frag_page_no == entry2.get_page_no()) {
@@ -693,11 +700,19 @@ size_t z_first_page_t::make_empty() {
   return (n_pages_freed);
 }
 
+dberr_t z_first_page_t::flush_data_extents() {
+  return m_btree_load->blob()->flush_data_extents();
+}
+
 #ifdef UNIV_DEBUG
 bool z_first_page_t::verify_frag_page_no() {
   mtr_t local_mtr;
-  mtr_start(&local_mtr);
   page_no_t page_no = get_frag_page_no();
+
+  mtr_t *mtr = (m_btree_load == nullptr) ? &local_mtr : nullptr;
+  if (mtr != nullptr) {
+    mtr_start(&local_mtr);
+  }
 
   /* If the page_no is 0, then FIL_PAGE_PREV is not used to store the list of
   fragment pages.  So modifying it is not allowed and hence verification is
@@ -708,10 +723,12 @@ bool z_first_page_t::verify_frag_page_no() {
     return (true);
   }
 
-  z_frag_page_t frag_page(&local_mtr, m_index);
+  z_frag_page_t frag_page(mtr, m_index, m_btree_load);
   frag_page.load_x(page_no);
   page_type_t ptype = frag_page.get_page_type();
-  mtr_commit(&local_mtr);
+  if (mtr != nullptr) {
+    mtr_commit(&local_mtr);
+  }
 
   ut_ad(ptype == FIL_PAGE_TYPE_ZLOB_FRAG);
   return (ptype == FIL_PAGE_TYPE_ZLOB_FRAG);

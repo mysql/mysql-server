@@ -2422,7 +2422,8 @@ dberr_t Double_write::create_single_segments() noexcept {
   return DB_SUCCESS;
 }
 
-file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage) noexcept {
+file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
+                                        IORequest &type) noexcept {
   space_id_t space_id = bpage->space();
   page_no_t page_no = bpage->page_no();
 
@@ -2448,7 +2449,6 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage) noexcept {
     return nullptr;
   }
 
-  IORequest type(IORequest::WRITE);
   void *frame{};
   uint32_t len{};
 
@@ -2536,7 +2536,8 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
 
     /* Encrypt the page here, so that the same encrypted contents are written
     to the dblwr file and the data file. */
-    file::Block *e_block = dblwr::get_encrypted_frame(bpage);
+    IORequest type(IORequest::WRITE);
+    file::Block *e_block = dblwr::get_encrypted_frame(bpage, type);
 
     if (!sync && flush_type != BUF_FLUSH_SINGLE_PAGE) {
       MONITOR_INC(MONITOR_DBLWR_ASYNC_REQUESTS);
@@ -3644,9 +3645,11 @@ bool has_encrypted_pages() noexcept {
       byte *frame = buffer.begin();
       page_type_t page_type = fil_page_get_type(frame);
 
-      TLOG("space_id=" << page_get_space_id(frame)
-                       << ", page_no=" << page_get_page_no(frame)
-                       << ", page_type=" << fil_get_page_type_str(page_type));
+      if (page_type != FIL_PAGE_TYPE_ALLOCATED) {
+        TLOG("space_id=" << page_get_space_id(frame)
+                         << ", page_no=" << page_get_page_no(frame)
+                         << ", page_type=" << fil_get_page_type_str(page_type));
+      }
 
       if (is_encrypted_page(frame)) {
         st = true;

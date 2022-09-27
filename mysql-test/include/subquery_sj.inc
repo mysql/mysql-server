@@ -3608,14 +3608,18 @@ create table t3 as select * from t2 limit 0;
 insert into t3 select @a:=@a+1, t2.a from t2, t0;
 insert into t3 select @a:=@a+1, t2.a from t2, t0;
 insert into t3 select @a:=@a+1, t2.a from t2, t0;
-
 alter table t3 add primary key(id), add key(a);
+
+# The number of leaf pages in the primary key is less than 60.
+SET GLOBAL innodb_stats_persistent_sample_pages = 60;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
 --echo The following must use loose index scan over t3, key a:
 explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 select count(a) from t2 where a in ( SELECT  a FROM t3);
 
 drop table t0,t1,t2,t3;
-
+SET GLOBAL innodb_stats_persistent_sample_pages = DEFAULT;
 
 --echo #
 --echo # Bug#33062: subquery in stored routine cause crash

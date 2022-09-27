@@ -40,6 +40,7 @@ dberr_t File_reader::prepare() noexcept {
   ut_a(m_mrec == nullptr);
   ut_a(m_buffer_size > 0);
   ut_a(m_bounds.first == nullptr && m_bounds.second == nullptr);
+  ut_a(is_open());
 
   if (m_offset == m_size) {
     return DB_END_OF_INDEX;
@@ -77,7 +78,7 @@ dberr_t File_reader::prepare() noexcept {
 
   ut_a(m_size > m_offset);
   const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
+  const auto err = ddl::pread(m_fd, m_io_buffer.first, len, m_offset);
 
   if (err != DB_SUCCESS) {
     return err;
@@ -96,7 +97,7 @@ dberr_t File_reader::seek(os_offset_t offset) noexcept {
   m_offset = offset;
 
   const auto len = std::min(m_io_buffer.second, m_size - m_offset);
-  const auto err = ddl::pread(m_file.get(), m_io_buffer.first, len, m_offset);
+  const auto err = ddl::pread(m_fd, m_io_buffer.first, len, m_offset);
 
   m_ptr = m_io_buffer.first;
 

@@ -31,9 +31,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
  ***********************************************************************/
 
 #include "fut0lst.h"
-
+#include "btr0load.h"
 #include "buf0buf.h"
-
 #include "page0page.h"
 
 /** Adds a node to an empty list. */
@@ -46,12 +45,14 @@ static void flst_add_to_empty(flst_base_node_t *base, /*!< in: pointer to base
   fil_addr_t node_addr;
   ulint len;
 
-  ut_ad(mtr && base && node);
+  ut_ad(base && node);
   ut_ad(base != node);
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, node, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, node, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
   len = flst_get_len(base);
   ut_a(len == 0);
 
@@ -82,22 +83,24 @@ void flst_insert_before(
     flst_node_t *node3,     /*!< in: node to insert before */
     mtr_t *mtr);            /*!< in: mini-transaction handle */
 
-/** Adds a node as the last node in a list.
-@param[in] base Pointer to base node of list
-@param[in] node Node to add
-@param[in] mtr Mini-transaction handle */
-void flst_add_last(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr) {
+void flst_add_last(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr,
+                   const Btree_load *btree_load) {
   space_id_t space;
   fil_addr_t node_addr;
   ulint len;
   fil_addr_t last_addr;
 
-  ut_ad(mtr && base && node);
+  ut_ad(base && node);
   ut_ad(base != node);
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, node, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr != nullptr || btree_load != nullptr);
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(node));
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(base));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, node, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
   len = flst_get_len(base);
   last_addr = flst_get_last(base, mtr);
 
@@ -115,7 +118,8 @@ void flst_add_last(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr) {
 
       ut_ad(found);
 
-      last_node = fut_get_ptr(space, page_size, last_addr, RW_SX_LATCH, mtr);
+      last_node = fut_get_ptr(space, page_size, last_addr, RW_SX_LATCH, mtr,
+                              nullptr, btree_load);
     }
 
     flst_insert_after(base, last_node, node, mtr);
@@ -125,23 +129,25 @@ void flst_add_last(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr) {
   }
 }
 
-/** Adds a node as the first node in a list.
-@param[in] base Pointer to base node of list
-@param[in] node Node to add
-@param[in] mtr Mini-transaction handle */
-void flst_add_first(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr) {
+void flst_add_first(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr,
+                    Btree_load *btree_load) {
   space_id_t space;
   fil_addr_t node_addr;
   ulint len;
   fil_addr_t first_addr;
   flst_node_t *first_node;
 
-  ut_ad(mtr && base && node);
+  ut_ad(base && node);
   ut_ad(base != node);
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, node, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr || btree_load == nullptr);
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(base));
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(node));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, node, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
   len = flst_get_len(base);
   first_addr = flst_get_first(base, mtr);
 
@@ -157,7 +163,8 @@ void flst_add_first(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr) {
 
       ut_ad(found);
 
-      first_node = fut_get_ptr(space, page_size, first_addr, RW_SX_LATCH, mtr);
+      first_node = fut_get_ptr(space, page_size, first_addr, RW_SX_LATCH, mtr,
+                               nullptr, btree_load);
     }
 
     flst_insert_before(base, node, first_node, mtr);
@@ -181,16 +188,19 @@ void flst_insert_after(
   fil_addr_t node3_addr;
   ulint len;
 
-  ut_ad(mtr && node1 && node2 && base);
+  ut_ad(node1 && node2 && base);
   ut_ad(base != node1);
   ut_ad(base != node2);
   ut_ad(node2 != node1);
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, node1, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, node2, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, node1, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, node2, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
 
   buf_ptr_get_fsp_addr(node1, &space, &node1_addr);
   buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
@@ -237,16 +247,22 @@ void flst_insert_before(
   fil_addr_t node3_addr;
   ulint len;
 
-  ut_ad(mtr && node2 && node3 && base);
+  ut_ad(node2 && node3 && base);
   ut_ad(base != node2);
   ut_ad(base != node3);
   ut_ad(node2 != node3);
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, node2, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, node3, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(base));
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(node2));
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(node3));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, node2, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, node3, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
 
   buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
   buf_ptr_get_fsp_addr(node3, &space, &node3_addr);
@@ -279,24 +295,26 @@ void flst_insert_before(
   mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
-/** Removes a node.
-@param[in] base Pointer to base node of list
-@param[in] node2 Node to remove
-@param[in] mtr Mini-transaction handle */
-void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr) {
+void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr,
+                 const Btree_load *btree_load) {
   space_id_t space;
   flst_node_t *node1;
   fil_addr_t node1_addr;
   fil_addr_t node2_addr;
   flst_node_t *node3;
   fil_addr_t node3_addr;
-  ulint len;
 
-  ut_ad(mtr && node2 && base);
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, node2, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(node2 && base);
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(base));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, node2, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+
+  const ulint len = flst_get_len(base);
+  ut_ad(len > 0);
 
   buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
 
@@ -314,7 +332,8 @@ void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr) {
     if (node1_addr.page == node2_addr.page) {
       node1 = page_align(node2) + node1_addr.boffset;
     } else {
-      node1 = fut_get_ptr(space, page_size, node1_addr, RW_SX_LATCH, mtr);
+      node1 = fut_get_ptr(space, page_size, node1_addr, RW_SX_LATCH, mtr,
+                          nullptr, btree_load);
     }
 
     ut_ad(node1 != node2);
@@ -331,7 +350,8 @@ void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr) {
     if (node3_addr.page == node2_addr.page) {
       node3 = page_align(node2) + node3_addr.boffset;
     } else {
-      node3 = fut_get_ptr(space, page_size, node3_addr, RW_SX_LATCH, mtr);
+      node3 = fut_get_ptr(space, page_size, node3_addr, RW_SX_LATCH, mtr,
+                          nullptr, btree_load);
     }
 
     ut_ad(node2 != node3);
@@ -343,24 +363,28 @@ void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr) {
   }
 
   /* Update len of base node */
-  len = flst_get_len(base);
-  ut_ad(len > 0);
-
   mlog_write_ulint(base + FLST_LEN, len - 1, MLOG_4BYTES, mtr);
 }
 
-void flst_validate(const flst_base_node_t *base, mtr_t *mtr1) {
+void flst_validate(const flst_base_node_t *base, mtr_t *mtr1,
+                   const Btree_load *btree_load) {
   space_id_t space;
   const flst_node_t *node;
   fil_addr_t node_addr;
   fil_addr_t base_addr;
   ulint len;
   ulint i;
-  mtr_t mtr2;
+  mtr_t local_mtr;
+  mtr_t *mtr2 = nullptr;
+
+  if (mtr1 != nullptr) {
+    mtr2 = &local_mtr;
+  }
 
   ut_ad(base);
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr1, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr1 == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr1, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
 
   /* We use two mini-transaction handles: the first is used to
   lock the base node, and prevent other threads from modifying the
@@ -381,13 +405,15 @@ void flst_validate(const flst_base_node_t *base, mtr_t *mtr1) {
   node_addr = flst_get_first(base, mtr1);
 
   for (i = 0; i < len; i++) {
-    mtr_start(&mtr2);
+    if (mtr2 != nullptr) mtr_start(mtr2);
 
-    node = fut_get_ptr(space, page_size, node_addr, RW_SX_LATCH, &mtr2);
-    node_addr = flst_get_next_addr(node, &mtr2);
+    node = fut_get_ptr(space, page_size, node_addr, RW_SX_LATCH, mtr2, nullptr,
+                       btree_load);
+    node_addr = flst_get_next_addr(node, mtr2);
 
-    mtr_commit(&mtr2); /* Commit mtr2 each round to prevent buffer
-                       becoming full */
+    if (mtr2 != nullptr)
+      mtr_commit(mtr2); /* Commit mtr2 each round to prevent buffer
+                         becoming full */
   }
 
   ut_a(fil_addr_is_null(node_addr));
@@ -395,14 +421,47 @@ void flst_validate(const flst_base_node_t *base, mtr_t *mtr1) {
   node_addr = flst_get_last(base, mtr1);
 
   for (i = 0; i < len; i++) {
-    mtr_start(&mtr2);
+    if (mtr2 != nullptr) mtr_start(mtr2);
 
-    node = fut_get_ptr(space, page_size, node_addr, RW_SX_LATCH, &mtr2);
-    node_addr = flst_get_prev_addr(node, &mtr2);
+    node = fut_get_ptr(space, page_size, node_addr, RW_SX_LATCH, mtr2, nullptr,
+                       btree_load);
+    node_addr = flst_get_prev_addr(node, mtr2);
 
-    mtr_commit(&mtr2); /* Commit mtr2 each round to prevent buffer
-                       becoming full */
+    if (mtr2 != nullptr)
+      mtr_commit(mtr2); /* Commit mtr2 each round to prevent buffer
+                         becoming full */
   }
 
   ut_a(fil_addr_is_null(node_addr));
 }
+
+#ifndef UNIV_HOTBACKUP
+[[nodiscard]] byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
+                                fil_addr_t addr, rw_lock_type_t rw_latch,
+                                mtr_t *mtr, buf_block_t **ptr_block,
+                                const Btree_load *btree_load) {
+  buf_block_t *block;
+  byte *ptr;
+  ut_ad(mtr != nullptr || btree_load != nullptr);
+
+  ut_ad(addr.boffset < UNIV_PAGE_SIZE);
+  ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH) ||
+        (rw_latch == RW_SX_LATCH));
+
+  if (mtr == nullptr) {
+    block = btree_load->block_get(addr.page);
+    ut_ad(block != nullptr);
+  } else {
+    block = buf_page_get(page_id_t(space, addr.page), page_size, rw_latch,
+                         UT_LOCATION_HERE, mtr);
+  }
+  ptr = buf_block_get_frame(block) + addr.boffset;
+
+  buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+  if (ptr_block != nullptr) {
+    *ptr_block = block;
+  }
+
+  return (ptr);
+}
+#endif /* !UNIV_HOTBACKUP */

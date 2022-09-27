@@ -26,7 +26,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifdef UNIV_DEBUG
 #include "ut0test.h"
+#include "btr0load.h"
 #include "buf0flu.h"
+#include "ddl0impl-builder.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "fil0fil.h"
@@ -277,7 +279,12 @@ Ret_t Tester::find_fil_page_lsn(std::vector<std::string> &tokens) noexcept {
 
 Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   TLOG("Tester::find_ondisk_page_type()");
-  ut_ad(tokens.size() == 3);
+  if (tokens.size() != 3) {
+    for (auto token : tokens) {
+      TLOG("TOKEN: " << token);
+    }
+    ut_ad(tokens.size() == 3);
+  }
 
   ut_ad(tokens[0] == "find_ondisk_page_type");
   const std::string space_id_str = tokens[1];
@@ -571,6 +578,7 @@ DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {
   }
 
   mtr.commit();
+  mtr.wait_for_flush();
 
   fil_space_release(space);
 
@@ -646,15 +654,24 @@ Ret_t Tester::run(const std::string &cmdline) noexcept {
   /* Save the current command token.  This will be the value of the
   innodb_interpreter variable. */
   m_command = command;
+  m_thd = current_thd;
 
   if (command == "init") {
-    init();
+    /* do nothing. */
   } else if (command == "destroy") {
     destroy();
   } else if (command == "buf_flush_sync_all_buf_pools") {
     buf_flush_sync_all_buf_pools();
     TLOG("Executed buf_flush_sync_all_buf_pools()");
     ret = RET_PASS;
+  } else if (command == "bulk_load_split_mode_1") {
+    set_bulk_load_split_mode((size_t)1);
+  } else if (command == "bulk_load_split_mode_2") {
+    set_bulk_load_split_mode((size_t)2);
+  } else if (command == "bulk_load_enable_slow_io") {
+    bulk_load_enable_slow_io_debug();
+  } else if (command == "bulk_load_disable_slow_io") {
+    bulk_load_disable_slow_io_debug();
   } else {
     ret = RET_CMD_TBD;
   }

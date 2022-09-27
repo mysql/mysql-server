@@ -156,7 +156,9 @@ introduced where a call to log_free_check() is bypassed. */
       ut_a(err == DB_SUCCESS);
 
       DEBUG_SYNC_C("before_row_upd_extern");
-      err = lob::btr_store_big_rec_extern_fields(trx, pcur, node->update,
+      lob::Lob_ctx lob_ctx;
+      lob_ctx.m_trx = trx;
+      err = lob::btr_store_big_rec_extern_fields(lob_ctx, pcur, node->update,
                                                  *offsets, dummy_big_rec, mtr,
                                                  lob::OPCODE_UPDATE);
       DEBUG_SYNC_C("after_row_upd_extern");

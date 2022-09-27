@@ -839,7 +839,6 @@ void buf_flush_remove(buf_page_t *bpage) {
   flushing was done then notify it. */
   if (bpage->get_flush_observer() != nullptr) {
     bpage->get_flush_observer()->notify_remove(buf_pool, bpage);
-
     bpage->reset_flush_observer();
   }
 
@@ -962,7 +961,10 @@ void buf_flush_update_zip_checksum(buf_frame_t *page, ulint size, lsn_t lsn,
       page, size,
       static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 
-  ut_ad(skip_lsn_check || mach_read_from_8(page + FIL_PAGE_LSN) <= lsn);
+#ifdef UNIV_DEBUG
+  const lsn_t page_lsn = mach_read_from_8(page + FIL_PAGE_LSN);
+  ut_ad(skip_lsn_check || page_lsn <= lsn);
+#endif /* UNIV_DEBUG */
 
   mach_write_to_8(page + FIL_PAGE_LSN, lsn);
   mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
@@ -1013,7 +1015,8 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
     ut_ad(ut_is_2pow(size));
     ut_ad(size <= UNIV_ZIP_SIZE_MAX);
 
-    switch (fil_page_get_type(page)) {
+    const page_type_t page_type = fil_page_get_type(page);
+    switch (page_type) {
       case FIL_PAGE_TYPE_ALLOCATED:
       case FIL_PAGE_INODE:
       case FIL_PAGE_IBUF_BITMAP:
@@ -1053,9 +1056,17 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
     ut_error;
   }
 
-  /* Write the newest modification lsn to the page header and trailer */
-  ut_ad(skip_lsn_check || mach_read_from_8(page + FIL_PAGE_LSN) <= newest_lsn);
+#ifdef UNIV_DEBUG
+  {
+    /* Check if the previously existing page lsn is less than or equal to the
+    new lsn.  The page_lsn should be updated in non-descending order. */
+    const lsn_t old_page_lsn = mach_read_from_8(page + FIL_PAGE_LSN);
+    const bool lsn_non_descending = (old_page_lsn <= newest_lsn);
+    ut_ad(skip_lsn_check || lsn_non_descending);
+  }
+#endif /* UNIV_DEBUG */
 
+  /* Write the newest modification lsn to the page header and trailer */
   mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
   mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
@@ -3803,10 +3814,15 @@ Flush_observer::Flush_observer(space_id_t space_id, trx_t *trx,
       m_flushed(srv_buf_pool_instances),
       m_removed(srv_buf_pool_instances) {
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_130) << "Flush_observer : ID= " << m_id
+  ib::info(ER_IB_MSG_130) << "Flush_observer : ID= " << (void *)this
                           << ", space_id=" << space_id << ", trx_id="
                           << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
+  for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+    m_flushed[i] = 0;
+    m_removed[i] = 0;
+  }
+  ut_ad(validate());
 }
 
 Flush_observer::~Flush_observer() noexcept {
@@ -3814,9 +3830,9 @@ Flush_observer::~Flush_observer() noexcept {
   ut_ad(buf_flush_get_dirty_pages_count(m_space_id, this) == 0);
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_131) << "~Flush_observer : ID= " << m_id
-                          << ", space_id=" << space_id << ", trx_id="
-                          << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
+  ib::info(ER_IB_MSG_131) << "~Flush_observer : ID= " << (void *)this
+                          << ", space_id=" << m_space_id << ", trx_id="
+                          << (m_trx == nullptr ? TRX_ID_MAX : m_trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
@@ -3831,7 +3847,9 @@ bool Flush_observer::check_interrupted() {
 }
 
 void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *) {
-  m_flushed.at(buf_pool->instance_no).fetch_add(1, std::memory_order_relaxed);
+  const auto buf_pool_idx = buf_pool->instance_no;
+  ut_ad(m_flushed[buf_pool_idx].load() >= 0);
+  m_flushed.at(buf_pool_idx).fetch_add(1);
 
   if (m_stage != nullptr) {
     m_stage->inc(1);
@@ -3839,11 +3857,14 @@ void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *) {
 }
 
 void Flush_observer::notify_remove(buf_pool_t *buf_pool, buf_page_t *) {
-  m_removed.at(buf_pool->instance_no).fetch_add(1, std::memory_order_relaxed);
+  const auto buf_pool_idx = buf_pool->instance_no;
+  ut_ad(m_removed[buf_pool_idx].load() >= 0);
+  m_removed.at(buf_pool_idx).fetch_add(1);
 }
 
 void Flush_observer::flush() {
   buf_remove_t buf_remove;
+  ut_ad(validate());
 
   if (m_interrupted) {
     buf_remove = BUF_REMOVE_FLUSH_NO_WRITE;
@@ -3862,10 +3883,41 @@ void Flush_observer::flush() {
   /* Wait for all dirty pages were flushed. */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     while (!is_complete(i)) {
+      IF_DEBUG(const auto flushed_1 = m_flushed[i].load(););
       std::this_thread::sleep_for(std::chrono::milliseconds(2));
+      IF_DEBUG(const auto flushed_2 = m_flushed[i].load(););
+#ifdef UNIV_DEBUG
+      if (flushed_2 > 0 && (flushed_1 == flushed_2)) {
+        ib::info(ER_IB_MSG_131)
+            << "No progress by Flush_observer (" << (void *)this
+            << "): flushed_1=" << flushed_1 << ", flushed_2=" << flushed_2;
+      }
+#endif /* UNIV_DEBUG */
     }
   }
 }
+
+#ifdef UNIV_DEBUG
+[[nodiscard]] bool Flush_observer::validate() const noexcept {
+  for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+    ut_ad(m_flushed[i].load() >= 0);
+    ut_ad(m_removed[i].load() >= 0);
+  }
+  return true;
+}
+#endif /* UNIV_DEBUG */
+
+std::ostream &Flush_observer::print(std::ostream &out) const {
+  out << "[FO: m_interrupted=" << m_interrupted
+      << ", m_n_ref_count=" << m_n_ref_count << " ";
+  for (size_t i = 0; i < srv_buf_pool_instances; i++) {
+    out << "[m_flushed=" << m_flushed[i] << ", m_removed=" << m_removed[i]
+        << "]";
+  }
+  out << "];" << std::endl;
+  return out;
+}
+
 #else
 
 bool buf_flush_page_cleaner_is_active() { return (false); }

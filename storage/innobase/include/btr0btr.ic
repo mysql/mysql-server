@@ -114,7 +114,6 @@ static inline void btr_page_set_level(
     mtr_t *mtr)               /*!< in: mini-transaction handle */
 {
   ut_ad(page != nullptr);
-  ut_ad(mtr != nullptr);
   ut_ad(level <= BTR_MAX_NODE_LEVEL);
 
   if (page_zip) {
@@ -143,7 +142,6 @@ static inline void btr_page_set_next(
     mtr_t *mtr)               /*!< in: mini-transaction handle */
 {
   ut_ad(page != nullptr);
-  ut_ad(mtr != nullptr);
 
   if (page_zip) {
     mach_write_to_4(page + FIL_PAGE_NEXT, next);
@@ -170,7 +168,6 @@ static inline void btr_page_set_prev(
     mtr_t *mtr)               /*!< in: mini-transaction handle */
 {
   ut_ad(page != nullptr);
-  ut_ad(mtr != nullptr);
 
   if (page_zip) {
     mach_write_to_4(page + FIL_PAGE_PREV, prev);

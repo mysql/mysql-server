@@ -770,6 +770,8 @@ struct dtuple_t {
     return n_ext;
   }
 
+  void set_min_rec_flag();
+
   /** Does tuple has externally stored fields.
   @retval true if there is externally stored fields. */
   inline bool has_ext() const {

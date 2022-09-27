@@ -32,6 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "fut0lst.h"
 
+class Btree_load;
+
 namespace lob {
 
 /** Number of times an LOB can be partially updated.  Once this limit is
@@ -46,6 +48,16 @@ struct basic_page_t {
 
   basic_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index)
       : m_block(block), m_mtr(mtr), m_index(index) {}
+
+  /** Constructor.
+  @param[in]  block the underlying buffer block.
+  @param[in]  mtr  the mini transaction context.  Could be nullptr for bulk
+                   load operation.
+  @param[in]  index   clustered index to which the blob belongs.
+  @param[in]  btree_load  the bulk load context object. */
+  basic_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index,
+               Btree_load *btree_load)
+      : m_block(block), m_mtr(mtr), m_index(index), m_btree_load(btree_load) {}
 
   /** Update the space identifier to given value without generating
   any redo log records.
@@ -72,20 +84,14 @@ struct basic_page_t {
   transaction context.
   @param[in]    page_no   The page number to set.
   @param[in]    mtr       The mini-transaction context. */
-  void set_next_page(page_no_t page_no, mtr_t *mtr) {
-    mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, mtr);
-  }
+  inline void set_next_page(page_no_t page_no, mtr_t *mtr);
 
   /** Set the FIL_PAGE_NEXT to the given page number.
   @param[in]    page_no   The page number to set. */
   void set_next_page(page_no_t page_no) { set_next_page(page_no, m_mtr); }
 
   /** Set the FIL_PAGE_NEXT to FIL_NULL. */
-  void set_next_page_null() {
-    ut_ad(m_mtr != nullptr);
-
-    set_next_page(FIL_NULL);
-  }
+  inline void set_next_page_null();
 
   page_no_t get_next_page() {
     return (mach_read_from_4(frame() + FIL_PAGE_NEXT));
@@ -127,7 +133,23 @@ struct basic_page_t {
   buf_block_t *m_block;
   mtr_t *m_mtr;
   dict_index_t *m_index;
+  Btree_load *m_btree_load{};
+
+ public:
+  void set_btree_load(Btree_load *btree_load) { m_btree_load = btree_load; }
+  Btree_load *get_btree_load() { return m_btree_load; }
 };
+
+inline void basic_page_t::set_next_page(page_no_t page_no, mtr_t *mtr) {
+  ut_ad(m_mtr != nullptr || m_block->is_memory());
+  mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, mtr);
+}
+
+inline void basic_page_t::set_next_page_null() {
+  ut_ad(m_mtr != nullptr || m_block->is_memory());
+
+  set_next_page(FIL_NULL);
+}
 
 [[nodiscard]] inline buf_block_t *basic_page_t::get_block() const noexcept {
   return m_block;
@@ -135,13 +157,11 @@ struct basic_page_t {
 
 /** Allocate one LOB page.
 @param[in]  index   Index in which LOB exists.
-@param[in]  lob_mtr Mini-transaction context.
+@param[in]  lob_mtr  Mini-transaction context.
 @param[in]  hint    Hint page number for allocation.
-@param[in]  bulk    true if operation is OPCODE_INSERT_BULK,
-                    false otherwise.
 @return the allocated block of the BLOB page or nullptr. */
-buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *lob_mtr, page_no_t hint,
-                            bool bulk);
+buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *lob_mtr,
+                            page_no_t hint);
 
 /** Check if the index entry is visible to the given transaction.
 @param[in]      index           the index to which LOB belongs.

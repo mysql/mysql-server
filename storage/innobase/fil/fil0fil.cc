@@ -5167,7 +5167,6 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
 
     } else if (count > 25000) {
       mutex_release();
-
       return DB_ERROR;
 
     } else if (space != get_space_by_name(space->name)) {
@@ -5250,9 +5249,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
       /* There are pending I/O's or flushes or the
       file is currently being extended, sleep for
       a while and retry */
-
       retry = true;
-
       space->prevent_file_open = false;
 
     } else if (!file->is_flushed()) {
@@ -11805,3 +11802,30 @@ void fil_space_t::bump_version() {
   ++m_version;
 }
 #endif /* !UNIV_HOTBACKUP */
+
+dberr_t fil_prepare_file_for_io(space_id_t space_id, page_no_t &page_no,
+                                fil_node_t **node_out) {
+  auto shard = fil_system->shard_by_id(space_id);
+  shard->mutex_acquire();
+  fil_space_t *space = shard->get_space_by_id(space_id);
+  fil_node_t *node = space->get_file_node(&page_no);
+  ut_ad(node != nullptr);
+  dberr_t err{DB_SUCCESS};
+  bool file_ready = shard->prepare_file_for_io(node);
+  if (file_ready) {
+    *node_out = node;
+  } else {
+    *node_out = nullptr;
+    ut_ad(file_ready);
+    err = DB_IO_ERROR;
+  }
+  shard->mutex_release();
+  return err;
+}
+
+void fil_complete_write(space_id_t space_id, fil_node_t *node) {
+  auto shard = fil_system->shard_by_id(space_id);
+  shard->mutex_acquire();
+  shard->complete_io(node, IORequestWrite);
+  shard->mutex_release();
+}

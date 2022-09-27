@@ -38,20 +38,21 @@ namespace ddl {
 // Forward declaration
 struct File_cursor;
 
-/** Read rows from the temporary file. */
+/** Read rows from the temporary file. This class is never the owner of the
+underlying file.  It neither opens, nor closes the file descriptor. */
 struct File_reader : private ut::Non_copyable {
   /** Constructor.
-  @param[in] file               Opened file.
-  @param[in,out] index          Index that the rows belong to.
-  @param[in] buffer_size        Size of file buffer for reading.
-  @param[in] size               File size in bytes. */
-  File_reader(const Unique_os_file_descriptor &file, dict_index_t *index,
-              size_t buffer_size, os_offset_t size) noexcept
-      : m_index(index), m_file(file), m_size(size), m_buffer_size(buffer_size) {
+  @param[in] fd              Opened file.
+  @param[in,out] index       Index that the rows belong to.
+  @param[in] buffer_size     Size of file buffer for reading.
+  @param[in] size            File size in bytes. */
+  File_reader(os_fd_t fd, dict_index_t *index, size_t buffer_size,
+              os_offset_t size) noexcept
+      : m_index(index), m_fd(fd), m_size(size), m_buffer_size(buffer_size) {
     ut_a(size > 0);
     ut_a(m_buffer_size > 0);
     ut_a(m_index != nullptr);
-    ut_a(m_file.is_open());
+    ut_a(is_open());
   }
 
   /** Destructor. */
@@ -60,6 +61,18 @@ struct File_reader : private ut::Non_copyable {
       ut::delete_arr(m_aux_buf);
     }
   }
+
+  /** Get the file descriptor.
+  @return the file descriptor. */
+  os_fd_t fd() const { return m_fd; }
+
+  /** Check if the underlying file is open.
+  @return true if underlying file is open, false otherwise. */
+  bool is_open() const { return m_fd != OS_FD_CLOSED; }
+
+  /** Get the file size in bytes
+  @return the file size in bytes. */
+  size_t get_file_size() const { return m_size; }
 
   /** Prepare the file for reading.
   @return DB_SUCCESS or error code. */
@@ -81,6 +94,10 @@ struct File_reader : private ut::Non_copyable {
   /** Set the range or rows to traverse.
   @param[in] offset              New offset to read from. */
   void set_offset(os_offset_t offset) noexcept { m_offset = offset; }
+
+  /** Get the current offset from which next read will happen.
+  @return the current offset from which next read will happen. */
+  os_offset_t get_offset() const { return m_offset; }
 
   /** @return true if the range first == second. */
   [[nodiscard]] bool eof() const noexcept { return m_offset == m_size; }
@@ -116,8 +133,8 @@ struct File_reader : private ut::Non_copyable {
   /** Columns offsets. */
   Offsets m_offsets{};
 
-  /** File handle to read from. */
-  const Unique_os_file_descriptor &m_file;
+  /** File descriptor to read from. */
+  os_fd_t m_fd{OS_FD_CLOSED};
 
  private:
   using Bounds = std::pair<const byte *, const byte *>;

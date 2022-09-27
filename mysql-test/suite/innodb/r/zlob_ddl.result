@@ -1,0 +1,144 @@
+SET GLOBAL innodb_compression_level = 0;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 LONGTEXT) ROW_FORMAT=COMPRESSED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` longtext,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
+INSERT INTO t1 VALUES (1, repeat('a',2*1024*1024));
+INSERT INTO t1 VALUES (2, repeat('b',3*1024*1024-1));
+INSERT INTO t1 VALUES (3, repeat('c',4*1024*1024-11));
+INSERT INTO t1 VALUES (4, repeat('d',4*1024*1024-111));
+INSERT INTO t1 VALUES (5, repeat('e',4*1024*1024-1111));
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	left(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	right(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	796369734
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	796369734
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	left(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	right(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` longtext,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	796369734
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	left(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	right(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+ALTER TABLE t1 ROW_FORMAT=compact;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` longtext,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	796369734
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	left(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	right(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+ALTER TABLE t1 ROW_FORMAT=dynamic;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` longtext,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	796369734
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	left(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+f1	length(f2)	right(f2, 40)
+1	2097152	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+2	3145727	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+3	4194293	cccccccccccccccccccccccccccccccccccccccc
+4	4194193	dddddddddddddddddddddddddddddddddddddddd
+5	4193193	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = default;
