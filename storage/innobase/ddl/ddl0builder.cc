@@ -2821,7 +2821,6 @@ dberr_t Builder::full_sort() noexcept {
   const auto io_buffer_size = m_ctx.load_io_buffer_size(m_thread_ctxs.size());
 
   size_t total_files{};
-  uint64_t total_rows{};
   dberr_t err{DB_SUCCESS};
 
   for (auto thread_ctx : m_thread_ctxs) {
@@ -2839,7 +2838,6 @@ dberr_t Builder::full_sort() noexcept {
     ut_a(thread_ctx->m_n_recs == thread_ctx->m_file.m_n_recs);
 
     ++total_files;
-    total_rows += thread_ctx->m_n_recs;
   }
 
   if (total_files == 1) {
