@@ -3475,6 +3475,51 @@ where
 drop table t1;
 
 
+--echo #########################################################################
+--echo #
+--echo # Bug#34644930 NDB: Performance regression in TPC-H Q22
+--echo #
+--echo #########################################################################
+
+# When interpreter code generation used Item::save_in_field() to fetch
+# and type convert a value, it might return status 'TYPE_NOTE_TRUNCATED'.
+# For this particular test case it happens as avg() returns a decimal
+# type with higher precission than the source type. Interpreter code
+# used to handle such a '*_NOTE_* status as an error, thus failed to
+# generate the interpreter code.
+#
+create table t1 (
+  d decimal(6,2)
+) engine = ndbcluster;
+
+## Insert values such that average will be 1.666666....
+insert into t1 values (1.00), (1.00), (3.00);
+
+# Note that avg() is calculated as a decimal(*,6).
+# Average decimals value will be truncated when pulled into
+# the generated interpreter code -> TYPE_NOTE_TRUNCATED.
+#
+explain format=tree
+select * from t1
+  where d > (select avg(d) from t1);
+
+SELECT variable_value into @read_cnt0
+FROM performance_schema.global_status
+  WHERE variable_name = 'Ndb_api_read_row_count';
+
+select * from t1
+  where d > (select avg(d) from t1);
+
+--echo # Expect 4 rows to have been read:
+--echo #   The 3 rows for calculating avg(d)
+--echo # + A single row from t1 with the pushed condition 'd > avg()'
+SELECT variable_value-@read_cnt0
+FROM performance_schema.global_status
+  WHERE variable_name = 'Ndb_api_read_row_count';
+
+drop table t1;
+
+
 --echo #
 --echo # Bug#29460314 NDB: INCORRECT JOIN RESULT WHEN EQ_REF IS
 --echo # COMBINED WITH PUSHED CONDITION
