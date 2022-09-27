@@ -2641,9 +2641,9 @@ static bool validate_secondary_engine_option(THD *thd,
 /**
  * Loads a table from its primary engine into its secondary engine.
  *
- * This call assumes that MDL_SHARED_NO_WRITE/SECLOAD_SCAN_START_MDL lock
- * on the table have been acquired by caller. During its execution it may
- * downgrade this lock to MDL_SHARED_UPGRADEABLE/SECLOAD_PAR_SCAN_MDL.
+ * @note An MDL_EXCLUSIVE lock on the table must have been acquired prior to
+ * calling this function to ensure that all currently running DML statements
+ * commit before load begins.
  *
  * @param thd              Thread handler.
  * @param table            Table in primary storage engine.
@@ -2652,8 +2652,7 @@ static bool validate_secondary_engine_option(THD *thd,
  */
 static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
   assert(thd->mdl_context.owns_equal_or_stronger_lock(
-      MDL_key::TABLE, table.s->db.str, table.s->table_name.str,
-      SECLOAD_SCAN_START_MDL));
+      MDL_key::TABLE, table.s->db.str, table.s->table_name.str, MDL_EXCLUSIVE));
   assert(table.s->has_secondary_engine());
 
   // At least one column must be loaded into the secondary engine.
@@ -11437,16 +11436,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   assert(m_alter_info->requested_algorithm ==
          Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT);
 
-  // Load if SECONDARY_LOAD, unload if SECONDARY_UNLOAD
-  const bool is_load = m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD;
-
-  // SECONDARY_LOAD operation requires SNW MDL for its initial phase, which is
-  // downgraded to SU lock (by RAPID SE) and eventually upgraded to X lock (by
-  // SQL-layer) before updating Table Definition Cache.
-  const enum_mdl_type mdl_type =
-      is_load ? SECLOAD_SCAN_START_MDL : MDL_EXCLUSIVE;
-
-  table_list->mdl_request.set_type(mdl_type);
+  table_list->mdl_request.set_type(MDL_EXCLUSIVE);
 
   // Always use isolation level READ_COMMITTED to ensure consistent view of
   // table data during entire load operation. Higher isolation levels provide no
@@ -11461,30 +11451,6 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   table_list->required_type = dd::enum_table_type::BASE_TABLE;
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
     return true;
-
-  // SECONDARY_LOAD/SECONDARY_UNLOAD requires a secondary engine.
-  if (!table_list->table->s->has_secondary_engine()) {
-    my_error(ER_SECONDARY_ENGINE, MYF(0), "No secondary engine defined");
-    return true;
-  }
-
-  if (!is_load && secondary_engine_lock_tables_mode(*thd)) {
-    if (thd->mdl_context.upgrade_shared_lock(table_list->table->mdl_ticket,
-                                             mdl_type,
-                                             thd->variables.lock_wait_timeout))
-      return true;
-  }
-  assert(thd->mdl_context.owns_equal_or_stronger_lock(
-      MDL_key::TABLE, table_list->db, table_list->table_name, mdl_type));
-
-  MDL_ticket *mdl_ticket = table_list->table->mdl_ticket;
-  auto downgrade_guard = create_scope_guard([mdl_ticket, thd] {
-    // Under LOCK TABLES, downgrade to MDL_SHARED_NO_READ_WRITE after all
-    // operations have completed.
-    if (secondary_engine_lock_tables_mode(*thd)) {
-      mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
-    }
-  });
 
   // Omit hidden generated columns and columns marked as NOT SECONDARY from
   // read_set. It is the responsibility of the secondary engine handler to load
@@ -11503,6 +11469,12 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     table_list->table->mark_column_used(*field, MARK_COLUMNS_READ);
   }
 
+  // SECONDARY_LOAD/SECONDARY_UNLOAD requires a secondary engine.
+  if (!table_list->table->s->has_secondary_engine()) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0), "No secondary engine defined");
+    return true;
+  }
+
   // It should not have been possible to define a temporary table with a
   // secondary engine.
   assert(table_list->table->s->tmp_table == NO_TMP_TABLE);
@@ -11518,13 +11490,22 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
           table_list->db, table_list->table_name, &table_def))
     return true;
 
+  MDL_ticket *mdl_ticket = table_list->table->mdl_ticket;
+
+  auto downgrade_guard = create_scope_guard([mdl_ticket, thd] {
+    // Under LOCK TABLES, downgrade to MDL_SHARED_NO_READ_WRITE after all
+    // operations have completed.
+    if (secondary_engine_lock_tables_mode(*thd)) {
+      mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    }
+  });
+  if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
+                                           thd->variables.lock_wait_timeout))
+    return true;
+
   // Cleanup that must be done regardless of commit or rollback.
   auto cleanup = [thd, hton]() {
     hton->post_ddl(thd);
-
-    // reopen_tables() will only affect tables which have been closed by
-    // close_all_tables_for_name(), which means it will do reopen only while we
-    // hold X lock on table.
     return thd->locked_tables_mode &&
            thd->locked_tables_list.reopen_tables(thd);
   };
@@ -11537,6 +11518,10 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     cleanup();
   });
 
+  // Load if SECONDARY_LOAD, unload if SECONDARY_UNLOAD
+  const bool is_load = m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD;
+
+  // Initiate loading into or unloading from secondary engine.
   if (is_load) {
     if (DBUG_EVALUATE_IF("sim_secload_fail",
                          (my_error(ER_SECONDARY_ENGINE, MYF(0),
@@ -11555,13 +11540,6 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
                                       table_list->table_name, *table_def, true))
       return true;
   }
-
-  // Need to upgrade to allow old table definition to be purged from TDC
-  // (this is no-op in case of SECONDARY_UNLOAD).
-  DEBUG_SYNC(thd, "secload_upgrade_mdl_x");
-  if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, SECLOAD_TDC_EVICT_MDL,
-                                           thd->variables.lock_wait_timeout))
-    return true;
 
   // Update the secondary_load flag based on the current operation.
   if (table_def->options().set("secondary_load", is_load) ||
