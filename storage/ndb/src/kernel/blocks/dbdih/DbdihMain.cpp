@@ -25472,6 +25472,12 @@ void Dbdih::setNodeActiveStatus()
 /***************************************************************************/
 void Dbdih::setNodeGroups()
 {
+  /*
+   * Remember the current next nodegroup and try keep it even if nodegroups
+   * moves around in c_node_group list.
+   */
+  Uint32 next_nodegroup_id = c_node_groups[c_nextNodeGroup];
+
   NodeGroupRecordPtr NGPtr;
   NodeRecordPtr sngNodeptr;
   Uint32 Ti;
@@ -25481,6 +25487,7 @@ void Dbdih::setNodeGroups()
     NGPtr.p->nodeCount = 0;
     NGPtr.p->nodegroupIndex = RNIL;
   }//for
+  ndbrequire(cnoOfNodeGroups == 0 || c_nextNodeGroup < cnoOfNodeGroups);
   cnoOfNodeGroups = 0;
   for (sngNodeptr.i = 1; sngNodeptr.i < MAX_NDB_NODES; sngNodeptr.i++) {
     ptrAss(sngNodeptr, nodeRecord);
@@ -25501,6 +25508,13 @@ void Dbdih::setNodeGroups()
       NGPtr.p->nodesInGroup[NGPtr.p->nodeCount] = sngNodeptr.i;
       NGPtr.p->nodeCount++;
       add_nodegroup(NGPtr);
+      /*
+       * If the next nodegroup has moved in nodegroup list (can happen if an
+       * earlier nodegroup is dropped) we make sure that the next nodegroup
+       * remains.
+       */
+      if (NGPtr.i == next_nodegroup_id)
+        c_nextNodeGroup = NGPtr.p->nodegroupIndex;
       break;
     case Sysfile::NS_NotDefined:
     case Sysfile::NS_Configured:
@@ -25513,6 +25527,17 @@ void Dbdih::setNodeGroups()
       break;
     }//switch
   }//for
+  /*
+   * If setNodeGroups was called when completing drop nodegroup and the dropped
+   * nodegroup was the one referred to by c_nextNodeGroup and that was the last
+   * nodegroup we wrap to use the first nodegroup as the next.
+   * If the dropped nodegroup was in the middle we assume that the new
+   * nodegroup at that position is the nodegroup that would been next after
+   * the dropped and we can keep c_nextNodeGroup as is.
+   */
+  if (c_nextNodeGroup >= cnoOfNodeGroups)
+    c_nextNodeGroup = 0;
+
   sngNodeptr.i = getOwnNodeId();
   ptrCheckGuard(sngNodeptr, MAX_NDB_NODES, nodeRecord);
   NGPtr.i = sngNodeptr.p->nodeGroup;
