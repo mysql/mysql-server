@@ -2714,24 +2714,6 @@ class Item : public Parse_tree_node {
     return false;
   }
 
-  /**
-    Propagate components that use referenced columns from derived tables.
-    Some columns from derived tables may be determined to be unused, but
-    may actually reference other columns that are used. This function will
-    return true for such columns when called with Item::walk(), which then
-    means that this column can also be marked as used.
-    @see also Query_block::delete_unused_merged_columns().
-  */
-  bool propagate_derived_used(uchar *) { return is_derived_used(); }
-
-  /**
-    Called by Item::walk() to set all the referenced items' derived_used flag.
-  */
-  bool propagate_set_derived_used(uchar *) {
-    set_derived_used();
-    return false;
-  }
-
   /// @see Distinct_check::check_query()
   virtual bool aggregate_check_distinct(uchar *) { return false; }
   /// @see Group_check::check_query()
@@ -3257,9 +3239,6 @@ class Item : public Parse_tree_node {
   /// Whether this Item was created by the IN->EXISTS subquery transformation
   virtual bool created_by_in2exists() const { return false; }
 
-  // @return true if an expression in select list of derived table is used
-  bool is_derived_used() const { return derived_used; }
-
   void mark_subqueries_optimized_away() {
     if (has_subquery())
       walk(&Item::subq_opt_away_processor, enum_walk::POSTFIX, nullptr);
@@ -3315,9 +3294,6 @@ class Item : public Parse_tree_node {
 
  private:
   virtual bool subq_opt_away_processor(uchar *) { return false; }
-
-  // Set an expression from select list of derived table as used.
-  void set_derived_used() { derived_used = true; }
 
  public:  // Start of data fields
   /**
@@ -3463,13 +3439,6 @@ class Item : public Parse_tree_node {
     evaluated for a check constraint.
   */
   bool m_in_check_constraint_exec_ctx{false};
-
- private:
-  /**
-    True if this is an expression from the select list of a derived table
-    which is actually used by outer query.
-  */
-  bool derived_used;
 
  protected:
   /**
@@ -5994,10 +5963,6 @@ class Item_view_ref final : public Item_ref {
       selected item from a derived table/view as used.
     */
     auto mark_field = (Mark_field *)arg;
-    if (mark_field->mark != MARK_COLUMNS_NONE)
-      // Set the same flag for all the objects that ref_item() depends on.
-      ref_item()->walk(&Item::propagate_set_derived_used,
-                       enum_walk::SUBQUERY_POSTFIX, nullptr);
     return get_result_field()
                ? Item::mark_field_in_map(mark_field, get_result_field())
                : false;
