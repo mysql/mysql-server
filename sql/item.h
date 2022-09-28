@@ -2904,8 +2904,9 @@ class Item : public Parse_tree_node {
     down to derived table.
   */
   virtual bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) {
-    // A generic item cannot be pushed down unless constant.
-    return !const_item();
+    // A generic item cannot be pushed down unless it's a constant
+    // which does not have a subquery.
+    return !const_item() || has_subquery();
   }
 
   /**
