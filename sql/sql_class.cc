@@ -2991,13 +2991,6 @@ bool THD::is_current_stmt_binlog_log_replica_updates_disabled() const {
           !mysql_bin_log.is_open());
 }
 
-bool THD::is_binlog_cache_disabled_or_empty() const {
-  if (!opt_bin_log || !mysql_bin_log.is_open()) {
-    return true;
-  }
-  return mysql_bin_log.is_binlog_cache_disabled_or_empty(this);
-}
-
 bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const {
   return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
           is_current_stmt_binlog_format_row() &&
