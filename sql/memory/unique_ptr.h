@@ -781,7 +781,7 @@ typename memory::Unique_ptr<T, A>::pointer memory::Unique_ptr<T, A>::clone()
 #ifndef IN_DOXYGEN  // Doxygen doesn't understand this construction.
 template <typename T, std::enable_if_t<std::is_array<T>::value> *>
 memory::Unique_ptr<T, std::nullptr_t> memory::make_unique(size_t size) {
-  return std::move(memory::Unique_ptr<T, std::nullptr_t>{size});
+  return memory::Unique_ptr<T, std::nullptr_t>{size};
 }
 
 template <typename T, typename A, std::enable_if_t<std::is_array<T>::value> *>
@@ -800,8 +800,7 @@ memory::Unique_ptr<T, A> memory::make_unique(A &alloc, Args &&... args) {
 template <typename T, typename... Args,
           std::enable_if_t<!std::is_array<T>::value> *>
 memory::Unique_ptr<T, std::nullptr_t> memory::make_unique(Args &&... args) {
-  return std::move(
-      memory::Unique_ptr<T, std::nullptr_t>{std::forward<Args>(args)...});
+  return memory::Unique_ptr<T, std::nullptr_t>{std::forward<Args>(args)...};
 }
 #endif
 

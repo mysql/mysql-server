@@ -374,7 +374,7 @@ struct Plugin {
    */
 
   size_t requires_length;
-  const char *const *requires;
+  const char *const *requires_plugins;
 
   /**
    * Array of names of plugins it conflicts with.

@@ -182,7 +182,7 @@ stdx::expected<void, std::error_code> connect_pair(
       proto.family(), proto.type(), proto.protocol());
   if (!res) return stdx::make_unexpected(res.error());
 
-  const auto fds = std::move(*res);
+  const auto fds = *res;
 
   const auto assign1_res = sock1.assign(proto, fds.first);
   if (!assign1_res) {

@@ -793,7 +793,7 @@ std::vector<std::string> MySQLRouter::check_config_files() {
                        .validate();
 
   if (!res) {
-    const auto err = std::move(res.error());
+    const auto err = res.error();
     if (err.ec == make_error_code(ConfigFilePathValidatorErrc::kDuplicate)) {
       throw std::runtime_error(string_format(
           "The configuration file '%s' is provided multiple "

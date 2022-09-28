@@ -39,7 +39,8 @@ Plugin_info::Plugin_info(const Plugin_v1 &plugin)
       arch_descriptor(plugin.arch_descriptor ? plugin.arch_descriptor : ""),
       brief(plugin.brief ? plugin.brief : ""),
       plugin_version(plugin.plugin_version) {
-  copy_to_list(requires, plugin.requires, plugin.requires_length);
+  copy_to_list(requires_plugins, plugin.requires_plugins,
+               plugin.requires_length);
   copy_to_list(conflicts, plugin.conflicts, plugin.conflicts_length);
 }
 
@@ -80,7 +81,7 @@ void Plugin_info::print_as_json(std::ostream &out_stream) const {
 
   writer.Key("requires");
   writer.StartArray();
-  for (const auto &i : requires) writer.String(i.c_str());
+  for (const auto &i : requires_plugins) writer.String(i.c_str());
   writer.EndArray();
 
   writer.Key("conflicts");
