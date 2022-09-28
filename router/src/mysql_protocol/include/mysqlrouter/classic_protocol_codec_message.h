@@ -1211,7 +1211,7 @@ class Codec<message::server::StmtRow>
         accu.template step<wire::String>(bytes_per_bits(types.size()));
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
-    const auto nullbits = std::move(nullbits_res->value());
+    const auto nullbits = nullbits_res->value();
 
     std::vector<value_type::value_type> values;
 
@@ -2012,7 +2012,7 @@ class Codec<message::client::StmtExecute>
     std::vector<std::optional<std::string>> values;
 
     if (new_params_bound_res->value()) {
-      const auto nullbits = std::move(nullbits_res->value());
+      const auto nullbits = nullbits_res->value();
 
       types.reserve(param_count);
       values.reserve(param_count);

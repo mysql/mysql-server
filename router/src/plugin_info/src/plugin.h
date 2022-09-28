@@ -56,7 +56,7 @@ struct Plugin_v1 {
   uint32_t plugin_version;
 
   size_t requires_length;
-  const char **requires;
+  const char **requires_plugins;
 
   size_t conflicts_length;
   const char **conflicts;
@@ -110,7 +110,7 @@ class Plugin_info {
   std::string brief;
   uint32_t plugin_version;
 
-  std::list<std::string> requires;
+  std::list<std::string> requires_plugins;
   std::list<std::string> conflicts;
 };
 

@@ -61,7 +61,7 @@ class PluginInfoAppTest : public ::testing::Test {
 
   void verify_version_output();
   void verify_plugin_info(const std::string &brief, const std::string &version,
-                          const std::string &requires,
+                          const std::string &requires_plugins,
                           const std::string &conflicts);
 
   std::string get_plugin_file_path(const std::string &plugin_name);
@@ -140,7 +140,7 @@ void PluginInfoAppTest::verify_version_output() {
 
 void PluginInfoAppTest::verify_plugin_info(const std::string &brief,
                                            const std::string &version,
-                                           const std::string &requires,
+                                           const std::string &requires_plugins,
                                            const std::string &conflicts) {
   EXPECT_THAT(out_stream_err_.str(), StrEq(""));
 
@@ -164,7 +164,7 @@ void PluginInfoAppTest::verify_plugin_info(const std::string &brief,
       version +
       "\",\n"
       "    \"requires\": [" +
-      requires +
+      requires_plugins +
       "],\n"
       "    \"conflicts\": [" +
       conflicts +

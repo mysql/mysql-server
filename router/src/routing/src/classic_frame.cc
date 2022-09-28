@@ -198,7 +198,7 @@ ClassicFrame::recv_frame_sequence(Channel *src_channel,
               net::buffer(recv_buf) + (expected_size - hdr_size), 0);
       if (!hdr_res) return hdr_res.get_unexpected();
 
-      auto hdr = std::move(*hdr_res);
+      auto hdr = *hdr_res;
       seq_id = hdr.second.seq_id();
       auto payload_size = hdr.second.payload_size();
 

@@ -413,7 +413,8 @@ const Plugin *Loader::load_from(const std::string &plugin_name,
   // the user might have added these by accident (for example, he
   // assumed that the array was NULL-terminated) and they can safely
   // be ignored instead of raising an error.
-  for (auto req : make_range(plugin->requires, plugin->requires_length)) {
+  for (auto req :
+       make_range(plugin->requires_plugins, plugin->requires_length)) {
     if (req != nullptr) {
       // Parse the designator to extract the plugin and constraints.
       Designator designator(req);
@@ -1072,7 +1073,7 @@ bool Loader::visit(const std::string &designator,
       (*status)[info.plugin] = Status::ONGOING;
       if (const Plugin *plugin = plugins_.at(info.plugin).plugin()) {
         for (auto required :
-             make_range(plugin->requires, plugin->requires_length)) {
+             make_range(plugin->requires_plugins, plugin->requires_length)) {
           assert(required != nullptr);
           bool succeeded = visit(required, status, order);
           if (!succeeded) return false;
