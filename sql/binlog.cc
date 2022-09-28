@@ -2790,19 +2790,6 @@ static int binlog_savepoint_set(handlerton *, THD *thd, void *sv) {
   return error;
 }
 
-bool MYSQL_BIN_LOG::is_binlog_cache_disabled_or_empty(const THD *thd) const {
-  DBUG_TRACE;
-  if (!opt_bin_log || !mysql_bin_log.is_open()) {
-    // thd_get_cache_mngr requires binlog to option to be enabled
-    return true;
-  }
-  binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(thd);
-  if (cache_mngr == nullptr) {
-    return true;
-  }
-  return cache_mngr->is_binlog_empty();
-}
-
 static int binlog_savepoint_rollback(handlerton *, THD *thd, void *sv) {
   DBUG_TRACE;
   binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(thd);
