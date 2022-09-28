@@ -58,14 +58,6 @@ SET(STRINGS_SOURCES
   xml.cc
 )
 
-# Aliasing bug in union in Clang
-# Bug#26161442 MAIN.SELECT* TESTS ARE FAILING WITH CLANG 4.0
-# Problem: wrong results for some corner cases when converting string to double.
-IF(MY_COMPILER_IS_CLANG AND
-    CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL "4.0")
-  ADD_COMPILE_FLAGS(dtoa.cc COMPILE_FLAGS "-fno-strict-aliasing")
-ENDIF()
-
 MYSQL_ADD_EXECUTABLE(uca9dump uca9-dump.cc SKIP_INSTALL)
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
