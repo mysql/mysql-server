@@ -2153,6 +2153,10 @@ CREATE TABLE t2 (
 str VARCHAR(200) CHARACTER SET utf16 COLLATE utf16_unicode_ci
 ) ENGINE=InnoDB DEFAULT CHARACTER SET ascii COLLATE ascii_general_ci;
 INSERT INTO t1 VALUES (_utf8mb4'Patch');
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain format=tree SELECT dt.str
 FROM (SELECT t2.str
 FROM t2
@@ -2164,12 +2168,12 @@ WHERE t1.str LIKE _latin1'Patc%' ESCAPE _latin1'\\'
      ) AS dt
 WHERE dt.str LIKE _latin1'P%' ESCAPE _latin1'\\';
 EXPLAIN
--> Table scan on dt  (rows=2)
-    -> Union all materialize  (rows=2)
-        -> Filter: ((t2.str like '\0P\0a\0t\0c\0%' escape '\0\\') and (t2.str like '\0P\0%' escape '\0\\'))  (rows=1)
-            -> Table scan on t2  (rows=1)
-        -> Filter: ((t1.str like '\0P\0a\0t\0c\0%' escape '\0\\') and (t1.str like '\0P\0%' escape '\0\\'))  (rows=1)
-            -> Table scan on t1  (rows=1)
+-> Table scan on dt
+    -> Union all materialize
+        -> Filter: ((t2.str like '\0P\0a\0t\0c\0%' escape '\0\\') and (t2.str like '\0P\0%' escape '\0\\'))
+            -> Table scan on t2
+        -> Filter: ((t1.str like '\0P\0a\0t\0c\0%' escape '\0\\') and (t1.str like '\0P\0%' escape '\0\\'))
+            -> Table scan on t1
 
 SELECT dt.str
 FROM (SELECT t2.str

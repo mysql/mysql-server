@@ -1360,6 +1360,8 @@ CREATE TABLE t2 (
 
 INSERT INTO t1 VALUES (_utf8mb4'Patch');
 
+ANALYZE TABLE t1,t2;
+
 let $query =
 SELECT dt.str
 FROM (SELECT t2.str
@@ -1371,8 +1373,7 @@ FROM (SELECT t2.str
       WHERE t1.str LIKE _latin1'Patc%' ESCAPE _latin1'\\\\'
      ) AS dt
 WHERE dt.str LIKE _latin1'P%' ESCAPE _latin1'\\\\';
-
---replace_regex $elide_costs
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 eval $query;
 
