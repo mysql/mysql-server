@@ -477,7 +477,7 @@ Ndb_free_list_t<T>::~Ndb_free_list_t()
 template<class T>
 inline
 int
-Ndb_free_list_t<T>::fill(Ndb* ndb [[maybe_unused]], Uint32 cnt [[maybe_unused]])
+Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
 {
 #ifndef HAVE_VALGRIND
   m_is_growing = true;
@@ -507,6 +507,10 @@ Ndb_free_list_t<T>::fill(Ndb* ndb [[maybe_unused]], Uint32 cnt [[maybe_unused]])
   }
   return 0;
 #else
+  // Older versions of gcc do not like [[maybe_unused]] in templates.
+  // So disable the maybe-unused warning like this instead:
+  (void) ndb;
+  (void) cnt;
   return 0;
 #endif
 }
