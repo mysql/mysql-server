@@ -1176,9 +1176,7 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   else if (subRec->requestType == STAT_SCAN)
   {
     jam();
-    orderPtr[1].p = 0;
-    orderPtr[1].sz = 0;
-    noOfSections = 2;
+    noOfSections = 1;
     subSyncReq->requestInfo |= SubSyncReq::LM_CommittedRead;
     subSyncReq->requestInfo |= SubSyncReq::RangeScan;
     subSyncReq->requestInfo |= SubSyncReq::StatScan;
