@@ -140,6 +140,9 @@ private:
   static void setPartialReadFlag(UintR & opFlag, Uint32 flag);
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_FSREADREQ, Local);
+DECLARE_SIGNAL_SCOPE(GSN_FSWRITEREQ, Local);
+
 /**
  * Operation flag
  *

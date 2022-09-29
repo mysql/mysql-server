@@ -220,6 +220,8 @@ public:
   static void v5_setFragmentId(Uint32 fileNumber[], Uint32 no);
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_FSOPENREQ, Local);
+
 /**
  * File flags (set according to solaris standard)
  *

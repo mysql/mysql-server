@@ -429,6 +429,9 @@ template<GlobalSignalNumber GSN> struct signal_property
  with the respective signal classes.
 */
 
+DECLARE_SIGNAL_SCOPE(GSN_CONTINUEB, Local);
+DECLARE_SIGNAL_SCOPE(GSN_FSSUSPENDORD, Local);
+
 #undef JAM_FILE_ID
 
 #endif

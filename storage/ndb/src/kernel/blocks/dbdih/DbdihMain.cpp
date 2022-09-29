@@ -13110,7 +13110,6 @@ Dbdih::find_next_log_part(TabRecord *primTabPtrP, Uint32 & next_log_part)
  */
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
-  LOCAL_SIGNAL(signal);
   jamEntry();
   CreateFragmentationReq * const req = 
     (CreateFragmentationReq*)signal->getDataPtr();

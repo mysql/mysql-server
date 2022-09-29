@@ -65,6 +65,9 @@ private:
   Uint32 config[DataLength];
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_STTOR, Local);
+DECLARE_SIGNAL_SCOPE(GSN_NDB_STTOR, Local);
+
 class NdbSttorry {
   /**
    * Receiver(s)
@@ -93,6 +96,8 @@ private:
   Uint32 senderRef;
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_STTORRY, Local);
+DECLARE_SIGNAL_SCOPE(GSN_NDB_STTORRY, Local);
 
 #undef JAM_FILE_ID
 

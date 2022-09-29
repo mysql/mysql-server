@@ -40,6 +40,8 @@ public:
   Uint32 parameters[1];  // see mgmapi_config_parameters.h
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_READ_CONFIG_REQ, Local);
+
 class ReadConfigConf {
 public:
   static constexpr Uint32 SignalLength = 2;
@@ -48,6 +50,7 @@ public:
   Uint32 senderData;
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_READ_CONFIG_CONF, Local);
 
 #undef JAM_FILE_ID
 

@@ -81,6 +81,7 @@ private:
 
 };
 
+DECLARE_SIGNAL_SCOPE(GSN_FSCLOSEREQ, Local);
 
 inline
 bool 
