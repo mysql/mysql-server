@@ -1529,7 +1529,7 @@ void warn_about_deprecated_binary(THD *thd)
 %type <locked_row_action> locked_row_action opt_locked_row_action
 
 %type <item>
-        literal insert_ident temporal_literal
+        literal insert_column temporal_literal
         simple_ident expr opt_expr opt_else
         set_function_specification sum_expr
         in_sum_expr grouping_operation
@@ -1579,7 +1579,8 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <item_list2>
         expr_list udf_expr_list opt_udf_expr_list opt_expr_list select_item_list
-        opt_paren_expr_list ident_list_arg ident_list values opt_values row_value fields
+        opt_paren_expr_list ident_list_arg ident_list values opt_values row_value
+        insert_columns
         fields_or_vars
         opt_field_or_var_spec
         row_value_explicit
@@ -13218,7 +13219,7 @@ insert_from_constructor:
             $$.column_list= NEW_PTN PT_item_list;
             $$.row_value_list= $3;
           }
-        | '(' fields ')' insert_values
+        | '(' insert_columns ')' insert_values
           {
             $$.column_list= $2;
             $$.row_value_list= $4;
@@ -13236,21 +13237,21 @@ insert_query_expression:
             $$.column_list= NEW_PTN PT_item_list;
             $$.insert_query_expression= $3;
           }
-        | '(' fields ')' query_expression_with_opt_locking_clauses
+        | '(' insert_columns ')' query_expression_with_opt_locking_clauses
           {
             $$.column_list= $2;
             $$.insert_query_expression= $4;
           }
         ;
 
-fields:
-          fields ',' insert_ident
+insert_columns:
+          insert_columns ',' insert_column
           {
             if ($$->push_back($3))
               MYSQL_YYABORT;
             $$= $1;
           }
-        | insert_ident
+        | insert_column
           {
             $$= NEW_PTN PT_item_list;
             if ($$ == NULL || $$->push_back($1))
@@ -14747,9 +14748,8 @@ opt_interval:
 ** Creating different items.
 **********************************************************************/
 
-insert_ident:
+insert_column:
           simple_ident_nospvar
-        | table_wild
         ;
 
 table_wild:

@@ -1056,3 +1056,17 @@ CREATE TABLE t1 (f1 INTEGER, b INTEGER AS ((1)) INVISIBLE, KEY k1(b));
 # User added hidden field. Should not be affected.
 INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #33142665: THE NINTH SIGABRT CAUSE SERVER CRASH OF MYSQL
+--echo # The fix removes unsupported syntax from the parser: wildcard
+--echo #
+CREATE TABLE t1 (a INT, b INT);
+
+--error ER_PARSE_ERROR
+INSERT INTO t1 (t1.*) VALUES (0, 1);
+
+--error ER_PARSE_ERROR
+INSERT INTO t1 (*) VALUES (0, 1);
+
+DROP TABLE t1;

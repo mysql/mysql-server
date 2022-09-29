@@ -1128,3 +1128,13 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 INTEGER, b INTEGER AS ((1)) INVISIBLE, KEY k1(b));
 INSERT INTO t1 VALUES() AS f2 ON DUPLICATE KEY UPDATE f1=1;
 DROP TABLE t1;
+#
+# Bug #33142665: THE NINTH SIGABRT CAUSE SERVER CRASH OF MYSQL
+# The fix removes unsupported syntax from the parser: wildcard
+#
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 (t1.*) VALUES (0, 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '*) VALUES (0, 1)' at line 1
+INSERT INTO t1 (*) VALUES (0, 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '*) VALUES (0, 1)' at line 1
+DROP TABLE t1;
