@@ -87,19 +87,27 @@ void Ndb_local_connection::set_binlog_options(bool log_replica_updates,
   if (disable_binlog) m_thd->variables.option_bits &= ~OPTION_BIN_LOG;
 }
 
-/* Execute query, ignoring particular errors.
-   The query may be written to the binlog.
-*/
-bool Ndb_local_connection::execute_query(const std::string &sql_query,
-                                         const uint *ignore_mysql_errors) {
+uint Ndb_local_connection::execute_query(const std::string &sql_query) {
   DBUG_TRACE;
 
+  uint result = 0;
   const LEX_STRING sql_text{const_cast<char *>(sql_query.c_str()),
                             sql_query.length()};
   if (impl->connection.execute_direct(sql_text)) {
     /* Error occurred while executing the query */
-    const uint last_errno = impl->connection.get_last_errno();
-    assert(last_errno);  // last_errno must have been set
+    result = impl->connection.get_last_errno();
+    assert(result);  // last_errno must have been set
+
+    // catch some SQL parse errors in debug
+    assert(result != ER_PARSE_ERROR && result != ER_EMPTY_QUERY);
+  }
+  return result;
+}
+
+bool Ndb_local_connection::check_query_error(const std::string &sql_query,
+                                             uint last_errno,
+                                             const uint *ignore_mysql_errors) {
+  if (last_errno) {
     const char *last_errmsg = impl->connection.get_last_error();
 
     DBUG_PRINT("error", ("Query '%s' failed, error: '%d: %s'",
@@ -129,6 +137,15 @@ bool Ndb_local_connection::execute_query(const std::string &sql_query,
   }
 
   return false;  // Success
+}
+
+/* Execute query, ignoring particular errors.
+   The query may be written to the binlog.
+*/
+bool Ndb_local_connection::execute_query(const std::string &sql_query,
+                                         const uint *ignore_mysql_errors) {
+  uint result = execute_query(sql_query);
+  return check_query_error(sql_query, result, ignore_mysql_errors);
 }
 
 /*
@@ -218,6 +235,16 @@ bool Ndb_local_connection::run_acl_statement(const std::string &acl_sql) {
                                        ER_NONEXISTING_TABLE_GRANT, 0};
   m_thd->set_query_id(next_query_id());
   return execute_query(acl_sql, ignore_mysql_errors);
+}
+
+bool Ndb_local_connection::try_create_user(const std::string &sql) {
+  DBUG_TRACE;
+  const uint ignore_mysql_errors[4] = {
+      ER_USER_ALREADY_EXISTS, ER_USER_DOES_NOT_EXIST, ER_CANNOT_USER, 0};
+  m_thd->set_query_id(next_query_id());
+  uint result = execute_query(sql);
+  (void)check_query_error(sql, result, ignore_mysql_errors);
+  return (bool)result;
 }
 
 bool Ndb_local_connection::create_database(const std::string &database_name) {

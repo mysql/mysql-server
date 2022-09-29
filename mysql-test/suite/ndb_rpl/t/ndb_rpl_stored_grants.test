@@ -106,14 +106,15 @@ connect(D_root,127.0.0.1,root,,,$MYSQL_D_PORT,);
 connection D_root;
 echo;
 echo [Test 1D: Server D binlog events];
---echo  **   Expect 7 Query events: 1 CREATE USER, 1 REVOKE, 2 ALTERs, 3 GRANTs.
+--echo  **   Expect 4 Query events: 1 CREATE USER + 3 GRANTs.
 --echo  **   These must have server_id = 1.
 --let $show_binlog_events_mask_columns= 1,2,5
 --let $mask_user_password_events= 1
 --let binlog_file= LAST
-# The LIMIT clause reflects six header events plus one row that show_binlog_events.inc
-# filters out for each of the 7 rows we are interested in.
---let $binlog_limit= 6,14
+# The LIMIT clause reflects six header events plus one row that
+# show_binlog_events.inc filters out for each of the 4 rows we
+# are interested in.
+--let $binlog_limit= 6,8
 --source include/show_binlog_events.inc
 
 

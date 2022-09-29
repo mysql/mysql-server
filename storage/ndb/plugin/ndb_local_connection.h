@@ -57,6 +57,9 @@ class Ndb_local_connection {
   */
   void set_binlog_options(bool log_replica_updates, unsigned int op_anyvalue);
 
+  /* Public bool methods return true on unexpected error;
+     false on success or expected error.
+  */
   bool truncate_table(const std::string &db, const std::string &table,
                       bool ignore_no_such_table);
 
@@ -73,11 +76,17 @@ class Ndb_local_connection {
 
   bool run_acl_statement(const std::string &acl_sql);
 
+  /* try_create_user() returns false only if the operation actually succeeds. */
+  bool try_create_user(const std::string &acl_sql);
+
  protected:
   bool execute_query_iso(const std::string &sql_query,
                          const uint *ignore_mysql_errors);
   bool execute_query(const std::string &sql_query,
                      const uint *ignore_mysql_errors);
+  uint execute_query(const std::string &sql_query);
+  bool check_query_error(const std::string &sql_query, uint result,
+                         const uint *ignore_mysql_errors);
 
   class Ed_result_set *get_results();
 

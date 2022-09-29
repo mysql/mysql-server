@@ -1,3 +1,12 @@
+CREATE USER t346;
+GRANT NDB_STORED_USER ON *.* TO t346;
+SELECT password_expired FROM mysql.user WHERE USER = 't346';
+password_expired
+N
+server 2:
+SELECT password_expired FROM mysql.user WHERE USER = 't346';
+password_expired
+N
 result_format: 2
 ## When a MySQL server starts up, it has to catch up on all the changes
 ## to NDB stored users as recorded in the ndb_sql_metadata table. The snapshots
@@ -17,4 +26,5 @@ CREATE USER for t331@localhost	CREATE USER `t331`@`localhost` IDENTIFIED WITH 'c
 set print_identified_with_as_hex = false;
 
 ## Cleanup
+DROP USER t346;
 DROP USER t331@localhost;
