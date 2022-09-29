@@ -1,0 +1,2 @@
+--source include/not_hypergraph.inc
+--source suite/sys_vars/inc/explain_default_format.inc

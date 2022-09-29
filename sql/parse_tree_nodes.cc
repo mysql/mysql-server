@@ -3485,30 +3485,40 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
   switch (m_format) {
     case Explain_format_type::TRADITIONAL:
-      lex->explain_format = new (thd->mem_root) Explain_format_traditional;
+    case Explain_format_type::TRADITIONAL_STRICT:
+      /*
+        With no format specified:
+        - With ANALYZE, convert TRADITIONAL[_STRICT] to TREE unconditionally.
+        - With hypergraph, convert TRADITIONAL to TREE. Don't convert
+          TRADITIONAL_STRICT, because it's purpose is to prevent exactly this
+          silent conversion with hypergraph. TRADITIONAL_STRICT will throw an
+          error, later.
+      */
+      if (!m_explicit_format &&
+          (m_analyze ||
+           (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
+            m_format == Explain_format_type::TRADITIONAL))) {
+        lex->explain_format = new (thd->mem_root) Explain_format_tree;
+      } else {
+        lex->explain_format = new (thd->mem_root) Explain_format_traditional;
+      }
       break;
-    case Explain_format_type::JSON:
-    case Explain_format_type::JSON_WITH_EXECUTE: {
+    case Explain_format_type::JSON: {
       lex->explain_format = new (thd->mem_root) Explain_format_JSON(
           thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER)
               ? Explain_format_JSON::FormatVersion::kIteratorBased
               : Explain_format_JSON::FormatVersion::kLinear);
-      lex->is_explain_analyze =
-          (m_format == Explain_format_type::JSON_WITH_EXECUTE);
       break;
     }
     case Explain_format_type::TREE:
       lex->explain_format = new (thd->mem_root) Explain_format_tree;
-      break;
-    case Explain_format_type::TREE_WITH_EXECUTE:
-      lex->explain_format = new (thd->mem_root) Explain_format_tree;
-      lex->is_explain_analyze = true;
       break;
     default:
       assert(false);
       lex->explain_format = new (thd->mem_root) Explain_format_traditional;
   }
   if (lex->explain_format == nullptr) return nullptr;  // OOM
+  lex->is_explain_analyze = m_analyze;
 
   Sql_cmd *ret = m_explainable_stmt->make_cmd(thd);
   if (ret == nullptr) return nullptr;  // OOM

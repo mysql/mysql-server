@@ -322,17 +322,6 @@ struct Value_or_default {
   T value;  ///< undefined if is_default is true
 };
 
-enum class Explain_format_type {
-  // DEFAULT will be changed during parsing to TRADITIONAL
-  // for regular EXPLAIN, or TREE for EXPLAIN ANALYZE.
-  DEFAULT,
-  TRADITIONAL,
-  JSON,
-  JSON_WITH_EXECUTE,
-  TREE,
-  TREE_WITH_EXECUTE
-};
-
 struct Bipartite_name {
   LEX_CSTRING prefix;  ///< prefix is optional: prefix.str can be nullptr
   LEX_CSTRING name;
@@ -694,6 +683,11 @@ union YYSTYPE {
   resourcegroups::Type resource_group_type;
   Mem_root_array<ulonglong> *thread_id_list_type;
   Explain_format_type explain_format_type;
+  struct {
+    Explain_format_type explain_format_type;
+    bool is_analyze;
+    bool is_explicit;
+  } explain_options_type;
   struct {
     Item *set_var;
     Item *set_expr;

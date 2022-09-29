@@ -6244,6 +6244,11 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--log-output=file");
   }
 
+  # Force this initial explain_format value, so that tests don't fail with
+  # --hypergraph due to implicit conversion from TRADITIONAL to TREE. Check the
+  # definition of enum Explain_format_type for more details.
+  mtr_add_arg($args, "--explain-format=TRADITIONAL_STRICT");
+
   # Indicate to mysqld it will be debugged in debugger
   if ($glob_debugger) {
     mtr_add_arg($args, "--gdb");

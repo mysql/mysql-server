@@ -2156,8 +2156,8 @@ void warn_about_deprecated_binary(THD *thd)
         ts_option_encryption
         ts_option_engine_attribute
 
-%type <explain_format_type> opt_explain_format_type
-%type <explain_format_type> opt_explain_analyze_type
+%type <explain_options_type> opt_explain_format
+%type <explain_options_type> opt_explain_options
 
 %type <load_set_element> load_data_set_elem
 
@@ -13963,9 +13963,10 @@ describe_stmt:
         ;
 
 explain_stmt:
-          describe_command opt_explain_analyze_type explainable_stmt
+          describe_command opt_explain_options explainable_stmt
           {
-            $$= NEW_PTN PT_explain($2, $3);
+            $$= NEW_PTN PT_explain($2.explain_format_type, $2.is_analyze,
+                                   $2.is_explicit, $3);
           }
         ;
 
@@ -13986,53 +13987,41 @@ describe_command:
         | DESCRIBE
         ;
 
-opt_explain_format_type:
+opt_explain_format:
           /* empty */
           {
-            $$= Explain_format_type::DEFAULT;
+            $$.is_explicit = false;
+            $$.explain_format_type = YYTHD->variables.explain_format;
           }
         | FORMAT_SYM EQ ident_or_text
           {
+            $$.is_explicit = true;
             if (is_identifier($3, "JSON"))
-              $$= Explain_format_type::JSON;
+              $$.explain_format_type = Explain_format_type::JSON;
             else if (is_identifier($3, "TRADITIONAL"))
-              $$= Explain_format_type::TRADITIONAL;
+              $$.explain_format_type = Explain_format_type::TRADITIONAL;
             else if (is_identifier($3, "TREE"))
-              $$= Explain_format_type::TREE;
-            else
-            {
+              $$.explain_format_type = Explain_format_type::TREE;
+            else {
+              // This includes even TRADITIONAL_STRICT. Since this value is
+              // only meant for mtr infrastructure temporarily, we don't want
+              // the user to explicitly use this value in EXPLAIN statements.
+              // This results in having one less place to deprecate from.
               my_error(ER_UNKNOWN_EXPLAIN_FORMAT, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
           }
 
-opt_explain_analyze_type:
-          ANALYZE_SYM opt_explain_format_type
+opt_explain_options:
+          ANALYZE_SYM opt_explain_format
           {
-            switch ($2)
-            {
-              case Explain_format_type::DEFAULT:
-              case Explain_format_type::TREE:
-                $$= Explain_format_type::TREE_WITH_EXECUTE;
-                break;
-              case Explain_format_type::JSON:
-                // Without hypergraph, we don't support JSON format. But in the
-                // parser we don't know whether hypergraph optimizer is on. So
-                // we defer raising the error here.
-                $$= Explain_format_type::JSON_WITH_EXECUTE;
-                break;
-              default:
-                my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                         "FORMAT=TRADITIONAL with EXPLAIN ANALYZE");
-                MYSQL_YYABORT;
-            }
+            $$ = $2;
+            $$.is_analyze = true;
           }
-        | opt_explain_format_type
+        | opt_explain_format
           {
-            if ($1 == Explain_format_type::DEFAULT)
-              $$= Explain_format_type::TRADITIONAL;
-            else
-              $$= $1;
+            $$ = $1;
+            $$.is_analyze = false;
           }
         ;
 

@@ -1,0 +1,126 @@
+set @orig_explain_format=@@global.explain_format;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+TRADITIONAL_STRICT	TRADITIONAL_STRICT
+explain select 1;
+set explain_format=traditional;
+# With hypergraph and TRADITIONAL, EXPLAIN should use TREE format.
+explain select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+# Test that explain_format can be set to any of the scopes; i.e. session,
+# global and persist.
+set persist explain_format=tree;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+TRADITIONAL	TREE
+set global explain_format=json;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+TRADITIONAL	JSON
+set explain_format=tree;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+TREE	JSON
+set explain_format=default;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+JSON	JSON
+set global explain_format=default;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+JSON	TRADITIONAL
+set persist explain_format=default;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+JSON	TRADITIONAL
+set explain_format=default;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+TRADITIONAL	TRADITIONAL
+reset persist explain_format;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+TRADITIONAL	TRADITIONAL
+explain select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+explain format=tree select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+explain format=json select 1;
+EXPLAIN
+{
+  "query": "/* select#1 */ select 1 AS `1`",
+  "operation": "Rows fetched before execution",
+  "access_type": "rows_fetched_before_execution",
+  "estimated_rows": 1.0,
+  "estimated_total_cost": 0.0,
+  "estimated_first_row_cost": 0.0
+}
+set explain_format=tree;
+explain select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+explain format=json select 1;
+EXPLAIN
+{
+  "query": "/* select#1 */ select 1 AS `1`",
+  "operation": "Rows fetched before execution",
+  "access_type": "rows_fetched_before_execution",
+  "estimated_rows": 1.0,
+  "estimated_total_cost": 0.0,
+  "estimated_first_row_cost": 0.0
+}
+set explain_format=json;
+explain format=tree select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+explain select 1;
+EXPLAIN
+{
+  "query": "/* select#1 */ select 1 AS `1`",
+  "operation": "Rows fetched before execution",
+  "access_type": "rows_fetched_before_execution",
+  "estimated_rows": 1.0,
+  "estimated_total_cost": 0.0,
+  "estimated_first_row_cost": 0.0
+}
+set explain_format=default;
+explain select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+explain format=tree select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+set global explain_format=json;
+set explain_format=traditional;
+explain select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+set explain_format=traditional;
+explain analyze select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
+
+set explain_format=traditional_strict;
+explain analyze select 1;
+EXPLAIN
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
+
+explain analyze format=traditional select 1;
+ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE with TRADITIONAL format'
+explain format=traditional_strict select 1;
+ERROR HY000: Unknown EXPLAIN format name: 'traditional_strict'
+set global explain_format=@orig_explain_format;
+select @@explain_format, @@global.explain_format;
+@@explain_format	@@global.explain_format
+TRADITIONAL_STRICT	TRADITIONAL_STRICT

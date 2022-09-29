@@ -5140,13 +5140,19 @@ class PT_explain_for_connection final : public Parse_tree_root {
 
 class PT_explain final : public Parse_tree_root {
  public:
-  PT_explain(Explain_format_type format, Parse_tree_root *explainable_stmt)
-      : m_format(format), m_explainable_stmt(explainable_stmt) {}
+  PT_explain(Explain_format_type format, bool is_analyze,
+             bool is_explicit_format, Parse_tree_root *explainable_stmt)
+      : m_format(format),
+        m_analyze(is_analyze),
+        m_explicit_format(is_explicit_format),
+        m_explainable_stmt(explainable_stmt) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
  private:
   const Explain_format_type m_format;
+  const bool m_analyze;
+  const bool m_explicit_format;
   Parse_tree_root *const m_explainable_stmt;
 };
 

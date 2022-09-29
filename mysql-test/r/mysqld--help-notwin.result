@@ -378,6 +378,12 @@ The following options may be given as the first argument:
  options are set to nonzero values,
  binlog-expire-logs-seconds takes priority. Possible
  purges happen at startup and at binary log rotation.
+ --explain-format[=name] 
+ The default format in which the EXPLAIN statement
+ displays information. Valid values are TRADITIONAL
+ (default), TREE, JSON and TRADITIONAL_STRICT.
+ TRADITIONAL_STRICT is only used internally by the mtr
+ test suite, and is not meant to be used anywhere else.
  --explicit-defaults-for-timestamp 
  This option causes CREATE TABLE to create all TIMESTAMP
  columns as NULL with DEFAULT NULL attribute, Without this
@@ -1725,6 +1731,7 @@ enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler ON
 expire-logs-days 0
+explain-format TRADITIONAL
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE
