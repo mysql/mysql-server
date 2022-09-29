@@ -4353,7 +4353,6 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       if ((*order->item)->real_item() != (*select_item)->real_item()) {
         Item::Cleanup_after_removal_context ctx(
             thd->lex->current_query_block());
-
         (*order->item)
             ->walk(&Item::clean_up_after_removal, walk_options,
                    pointer_cast<uchar *>(&ctx));
@@ -4495,6 +4494,20 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
   const bool is_aggregated = select->is_grouped();
 
   for (uint number = 1; order; order = order->next, number++) {
+    Item *order_item = *order->item;
+    if (order_item->fixed && !order_item->const_item()) {
+      // If a non constant expression in order by is already
+      // resolved, it must have been merged from a derived table.
+      // So, we do not need to re-resolve in this query block. Add
+      // a hidden item instead.
+      uint size = fields->size();
+      order_item->hidden = true;
+      order->in_field_list = false;
+      fields->push_front(order_item);
+      ref_item_array[size] = order_item;
+      continue;
+    }
+
     if (find_order_in_list(thd, ref_item_array, tables, order, fields, false,
                            false))
       return true;
