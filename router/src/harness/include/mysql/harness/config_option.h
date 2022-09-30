@@ -33,6 +33,8 @@
 #include <string_view>
 #include <type_traits>
 
+#include "mysql/harness/string_utils.h"
+
 #include "harness_export.h"
 
 namespace mysql_harness {
@@ -106,6 +108,8 @@ T option_as_uint(const std::string_view &value, const std::string &option_desc,
 template <typename T>
 class IntOption {
  public:
+  using value_type = T;
+
   constexpr IntOption(T min_value = std::numeric_limits<T>::min(),
                       T max_value = std::numeric_limits<T>::max())
       : min_value_{min_value}, max_value_{max_value} {}
@@ -120,8 +124,27 @@ class IntOption {
   T max_value_;
 };
 
+template <typename Option>
+class ArrayOption {
+ public:
+  using value_type = std::vector<typename Option::value_type>;
+
+  value_type operator()(const std::string &value,
+                        const std::string &option_desc) {
+    value_type result;
+    auto array = mysql_harness::split_string(value, '"', false);
+
+    for (const auto &element : array) {
+      result.push_back(Option()(element, option_desc));
+    }
+
+    return result;
+  }
+};
+
 class StringOption {
  public:
+  using value_type = std::string;
   std::string operator()(const std::string &value,
                          const std::string & /* option_desc */) {
     return value;
@@ -130,6 +153,8 @@ class StringOption {
 
 class BoolOption {
  public:
+  using value_type = bool;
+
   bool operator()(const std::string &value, const std::string &option_desc) {
     if (value == "true" || value == "1") return true;
     if (value == "false" || value == "0") return false;
@@ -166,6 +191,7 @@ using DoubleOption = FloatingPointOption<double>;
 template <typename Dur>
 class DurationOption : public DoubleOption {
  public:
+  using value_type = Dur;
   using duration_type = Dur;
   using __base = DoubleOption;
 

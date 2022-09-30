@@ -178,7 +178,7 @@ bool HttpAuth::require_auth(HttpRequest &req,
   // enforce authentication
   auto authorization = req.get_input_headers().get(kAuthorization);
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
 
   // no Authorization, tell the client to authenticate
   if (authorization == nullptr) {

@@ -40,7 +40,7 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
-#include "base64.h"
+#include "mysqlrouter/base64.h"
 
 std::string ShaCrypt::salt() {
   // 12 byte input, generate 16 byte output

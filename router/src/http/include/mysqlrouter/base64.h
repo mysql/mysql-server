@@ -106,16 +106,6 @@ enum class Base64Endianess { LITTLE, BIG };
  * - at encode() no padding is added.
  * - at decode() padding is accepted, but not required.
  */
-
-/*
- * TODO: look into
- *
- * - http://0x80.pl/notesen/2015-12-27-base64-encoding.html
- * - http://0x80.pl/notesen/2016-01-12-sse-base64-encoding.html
- * - http://0x80.pl/notesen/2016-01-17-sse-base64-decoding.html
- * - http://alfredklomp.com/programming/sse-base64/
- * - https://github.com/lemire/fastbase64
- */
 class Base64Impl {
  public:
   /**

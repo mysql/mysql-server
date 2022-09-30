@@ -1,0 +1,184 @@
+/*
+ Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+#include "mrs/route_static_file.h"
+
+#include <time.h>
+
+#include "mrs/rest/handler_file.h"
+
+namespace mrs {
+
+using Format = RouteStaticFile::Format;
+using Column = helper::Column;
+
+RouteStaticFile::RouteStaticFile(
+    const ContentFile &pe, RouteSchemaPtr schema,
+    collector::MysqlCacheManager *cache, const bool is_ssl,
+    mrs::interface::AuthManager *auth_manager,
+    std::shared_ptr<HandlerFactory> handler_factory)
+    : cse_{pe},
+      cache_{cache},
+      is_ssl_{is_ssl},
+      auth_{auth_manager},
+      handler_factory_{handler_factory} {
+  update(&pe, schema);
+}
+
+void RouteStaticFile::turn(const State state) {
+  if (stateOff == state || !cse_.active) {
+    handle_file_.reset();
+
+    return;
+  }
+
+  auto handle_file = std::make_unique<rest::HandlerFile>(this, auth_);
+
+  handle_file_ = std::move(handle_file);
+}
+
+bool RouteStaticFile::update(const void *pv, RouteSchemaPtr schema) {
+  auto &pe = *reinterpret_cast<const ContentFile *>(pv);
+  bool result = false;
+  if (schema != schema_) {
+    if (schema_) schema_->route_unregister(this);
+    if (schema) schema->route_register(this);
+    schema_ = schema;
+    result = true;
+  }
+
+  if ((cse_.service_path != pe.service_path) ||
+      (cse_.schema_path != pe.schema_path) || (cse_.file_path != pe.file_path))
+    result = true;
+
+  cse_ = pe;
+
+  update_variables();
+
+  return result;
+}
+
+const std::string &RouteStaticFile::get_rest_canonical_url() {
+  static std::string empty;
+  return empty;
+}
+
+const std::string &RouteStaticFile::get_rest_url() { return rest_url_; }
+
+const std::string &RouteStaticFile::get_json_description() {
+  static std::string empty;
+  return empty;
+}
+
+const std::string &RouteStaticFile::get_rest_path() { return rest_path_; }
+
+const std::string &RouteStaticFile::get_rest_path_raw() {
+  return rest_path_raw_;
+}
+
+const std::string &RouteStaticFile::get_rest_canonical_path() {
+  static std::string empty;
+  return empty;
+}
+
+const std::string &RouteStaticFile::get_object_path() { return cse_.file_path; }
+
+const std::string &RouteStaticFile::get_schema_name() {
+  static std::string empty;
+  return empty;
+}
+
+const std::string &RouteStaticFile::get_object_name() {
+  static std::string empty;
+  return empty;
+}
+
+const std::string &RouteStaticFile::get_version() { return version_; }
+
+const std::vector<Column> &RouteStaticFile::get_cached_columnes() {
+  static std::vector<Column> empty;
+  return empty;
+}
+
+const std::string &RouteStaticFile::get_cached_primary() {
+  static std::string empty;
+  return empty;
+}
+
+uint32_t RouteStaticFile::get_on_page() { return 1; }
+
+bool RouteStaticFile::requires_authentication() const {
+  return cse_.requires_authentication || cse_.set_requires_authentication;
+}
+
+uint64_t RouteStaticFile::get_id() const { return cse_.id; }
+
+uint64_t RouteStaticFile::get_service_id() const { return cse_.service_id; }
+
+bool RouteStaticFile::has_access(const Access access) const {
+  if (access == kRead) return true;
+
+  return false;
+}
+
+uint32_t RouteStaticFile::get_access() const {
+  return static_cast<uint32_t>(kRead);
+}
+
+Format RouteStaticFile::get_format() const { return Route::kMedia; }
+
+RouteStaticFile::Media RouteStaticFile::get_media_type() const {
+  return {false, {}};
+}
+
+RouteStaticFile::RouteSchema *RouteStaticFile::get_schema() {
+  return schema_.get();
+}
+
+collector::MysqlCacheManager *RouteStaticFile::get_cache() { return cache_; }
+
+void RouteStaticFile::update_variables() {
+  rest_url_ = (is_ssl_ ? "https://" : "http://") + cse_.host +
+              cse_.service_path + cse_.schema_path + cse_.file_path;
+  rest_path_ = "^" + cse_.service_path + cse_.schema_path + cse_.file_path +
+               "(/[0-9]*/?)?$";
+  rest_path_raw_ = cse_.service_path + cse_.schema_path + cse_.file_path;
+  version_ = "\"" + std::to_string(time(nullptr)) + "-" +
+             std::to_string(cse_.size) + "\"";
+}
+
+const RouteStaticFile::RowUserOwnership &
+RouteStaticFile::get_user_row_ownership() const {
+  static RowUserOwnership result{false, {}};
+
+  return result;
+}
+const RouteStaticFile::VectorOfRowGroupOwnership &
+RouteStaticFile::get_group_row_ownership() const {
+  static VectorOfRowGroupOwnership result;
+
+  return result;
+}
+
+}  // namespace mrs

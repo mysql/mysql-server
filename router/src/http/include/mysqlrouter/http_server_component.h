@@ -49,28 +49,19 @@ class HTTP_SERVER_EXPORT BaseRequestHandler {
 
 class HTTP_SERVER_EXPORT HttpServerComponent {
  public:
+  virtual ~HttpServerComponent() = default;
+
   static HttpServerComponent &get_instance();
-  void init(std::shared_ptr<HttpServer> srv);
-  void add_route(const std::string &url_regex,
-                 std::unique_ptr<BaseRequestHandler> cb);
-  void remove_route(const std::string &url_regex);
+  // Just for tests
+  static void set_instance(std::unique_ptr<HttpServerComponent> component);
 
- private:
-  // disable copy, as we are a single-instance
-  HttpServerComponent(HttpServerComponent const &) = delete;
-  void operator=(HttpServerComponent const &) = delete;
+  virtual void init(std::shared_ptr<HttpServer> srv) = 0;
+  virtual void *add_route(const std::string &url_regex,
+                          std::unique_ptr<BaseRequestHandler> cb) = 0;
+  virtual void remove_route(const std::string &url_regex) = 0;
+  virtual void remove_route(const void *handler) = 0;
 
-  struct RouterData {
-    std::string url_regex_str;
-    std::unique_ptr<BaseRequestHandler> handler;
-  };
-
-  std::mutex rh_mu;  // request handler mutex
-  std::vector<RouterData> request_handlers_;
-
-  std::weak_ptr<HttpServer> srv_;
-
-  HttpServerComponent() = default;
+  virtual bool is_ssl_configured() = 0;
 };
 
 class HttpAuthRealm;

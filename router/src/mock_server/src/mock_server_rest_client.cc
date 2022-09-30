@@ -65,7 +65,7 @@ void MockServerRestClient::set_globals(const std::string &globals_json) {
         std::to_string(put_req.get_response_code()));
   }
 
-  auto put_resp_body = put_req.get_input_buffer();
+  auto &put_resp_body = put_req.get_input_buffer();
   if ((put_resp_body.length() != 0u)) {
     throw std::runtime_error(
         std::string("Invalid response body length from HTTP PUT request: ") +
@@ -96,7 +96,7 @@ std::string MockServerRestClient::get_globals_as_json_string() {
                              req.get_input_headers().get("Content-Type"));
   }
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   if (!(resp_body.length() > 0u)) {
     throw std::runtime_error(std::string("Invalid response buffer size: ") +
                              std::to_string(resp_body.length()));

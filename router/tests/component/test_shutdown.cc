@@ -106,8 +106,7 @@ class ShutdownTest : public RouterComponentTest {
 
     IOContext io_ctx;
     RestClient rest_client(io_ctx, kHostname, http_port);
-    HttpRequest req =
-        rest_client.request_sync(HttpMethod::Get, kRestGlobalsUri);
+    auto req = rest_client.request_sync(HttpMethod::Get, kRestGlobalsUri);
 
     EXPECT_TRUE(req) << "HTTP Request to " << kHostname << ":"
                      << std::to_string(http_port)
@@ -117,7 +116,7 @@ class ShutdownTest : public RouterComponentTest {
         << " failed: " << req.error_msg() << std::endl;
     EXPECT_EQ(req.get_response_code(), 200u);
 
-    auto resp_body = req.get_input_buffer();
+    auto &resp_body = req.get_input_buffer();
     auto resp_body_content = resp_body.pop_front(resp_body.length());
 
     // parse JSON

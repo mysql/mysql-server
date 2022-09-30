@@ -27,7 +27,7 @@
 #include <event2/http.h>
 #include "mysqlrouter/http_request.h"
 
-class HttpRequest::impl {
+class HttpRequestImpl::impl {
  public:
   using evhttp_req_type =
       std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>>;

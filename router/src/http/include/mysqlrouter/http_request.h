@@ -310,22 +310,24 @@ class HTTP_COMMON_EXPORT HttpHeaders {
    private:
     IteratorHandle node_;
   };
-  HttpHeaders(HttpHeaders &&);
 
-  ~HttpHeaders();
+  virtual ~HttpHeaders();
 
   /**
    * add a header.
    */
-  int add(const char *key, const char *value);
+  virtual int add(const char *key, const char *value);
 
   /**
    * get a header.
    */
-  const char *get(const char *key) const;
+  virtual const char *get(const char *key) const;
 
-  Iterator begin();
-  Iterator end();
+  virtual Iterator begin();
+  virtual Iterator end();
+
+ protected:
+  HttpHeaders();
 
  private:
   struct impl;
@@ -333,7 +335,7 @@ class HTTP_COMMON_EXPORT HttpHeaders {
 
   HttpHeaders(std::unique_ptr<impl> &&impl);
 
-  friend class HttpRequest;
+  friend class HttpRequestImpl;
 
   std::unique_ptr<impl> pImpl_;
 };
@@ -348,29 +350,30 @@ class HTTP_COMMON_EXPORT HttpHeaders {
  */
 class HTTP_COMMON_EXPORT HttpBuffer {
  public:
-  HttpBuffer(HttpBuffer &&);
-
-  ~HttpBuffer();
+  virtual ~HttpBuffer();
 
   /**
    * add a memory buffer.
    */
-  void add(const char *data, size_t data_size);
+  virtual void add(const char *data, size_t data_size);
 
   /**
    * add a file.
    */
-  void add_file(int file_fd, off_t offset, off_t size);
+  virtual void add_file(int file_fd, off_t offset, off_t size);
 
   /**
    * get length of buffer.
    */
-  size_t length() const;
+  virtual size_t length() const;
 
   /**
    * move a subset out from the front of the buffer.
    */
-  std::vector<uint8_t> pop_front(size_t length);
+  virtual std::vector<uint8_t> pop_front(size_t length);
+
+ protected:
+  HttpBuffer();
 
  private:
   struct impl;
@@ -379,7 +382,7 @@ class HTTP_COMMON_EXPORT HttpBuffer {
 
   std::unique_ptr<impl> pImpl_;
 
-  friend class HttpRequest;
+  friend class HttpRequestImpl;
 };
 
 /**
@@ -390,8 +393,7 @@ class HTTP_COMMON_EXPORT HttpBuffer {
 class HTTP_COMMON_EXPORT HttpUri {
  public:
   HttpUri();
-  HttpUri(HttpUri &&);
-  ~HttpUri();
+  virtual ~HttpUri();
 
   /**
    * create HttpUri from string.
@@ -403,36 +405,36 @@ class HTTP_COMMON_EXPORT HttpUri {
   /**
    * convert URI to string.
    */
-  std::string join() const;
+  virtual std::string join() const;
 
-  std::string get_scheme() const;
-  void set_scheme(const std::string &scheme);
+  virtual std::string get_scheme() const;
+  virtual void set_scheme(const std::string &scheme);
 
-  std::string get_userinfo() const;
-  void set_userinfo(const std::string &userinfo);
+  virtual std::string get_userinfo() const;
+  virtual void set_userinfo(const std::string &userinfo);
 
-  std::string get_host() const;
-  void set_host(const std::string &host);
+  virtual std::string get_host() const;
+  virtual void set_host(const std::string &host);
 
-  uint16_t get_port() const;
-  void set_port(uint16_t port) const;
+  virtual uint16_t get_port() const;
+  virtual void set_port(uint16_t port) const;
 
   /**
    * get path part of the URI.
    */
-  std::string get_path() const;
-  void set_path(const std::string &path);
+  virtual std::string get_path() const;
+  virtual void set_path(const std::string &path);
 
-  std::string get_fragment() const;
-  void set_fragment(const std::string &fragment);
+  virtual std::string get_fragment() const;
+  virtual void set_fragment(const std::string &fragment);
 
-  std::string get_query() const;
-  void set_query(const std::string &query);
+  virtual std::string get_query() const;
+  virtual bool set_query(const std::string &query);
 
   /**
    * check if URI is valid.
    */
-  operator bool() const;
+  virtual operator bool() const;
 
  private:
   struct impl;
@@ -441,57 +443,43 @@ class HTTP_COMMON_EXPORT HttpUri {
 
   std::unique_ptr<impl> pImpl_;
 
-  friend class HttpRequest;
+  friend class HttpRequestImpl;
 };
 
-/**
- * a HTTP request and response.
- *
- * wraps evhttp_request
- */
 class HTTP_COMMON_EXPORT HttpRequest {
  public:
-  using RequestHandler = void (*)(HttpRequest *, void *);
+  virtual ~HttpRequest() = default;
 
-  HttpRequest(RequestHandler cb, void *arg = nullptr);
-  HttpRequest(HttpRequest &&);
-  ~HttpRequest();
+  virtual HttpHeaders &get_output_headers() = 0;
+  virtual HttpHeaders &get_input_headers() const = 0;
+  virtual HttpBuffer &get_output_buffer() = 0;
+  virtual HttpBuffer &get_input_buffer() const = 0;
 
-  HttpHeaders get_output_headers();
-  HttpHeaders get_input_headers() const;
-  HttpBuffer get_output_buffer();
-  HttpBuffer get_input_buffer() const;
+  virtual unsigned get_response_code() const = 0;
+  virtual std::string get_response_code_line() const = 0;
 
-  unsigned get_response_code() const;
-  std::string get_response_code_line() const;
+  virtual HttpMethod::type get_method() const = 0;
 
-  HttpMethod::type get_method() const;
+  virtual HttpUri &get_uri() const = 0;
 
-  HttpUri get_uri() const;
+  virtual void send_reply(int status_code) = 0;
+  virtual void send_reply(int status_code, std::string status_text) = 0;
+  virtual void send_reply(int status_code, std::string status_text,
+                          HttpBuffer &buffer) = 0;
 
-  void send_reply(int status_code) {
-    send_reply(status_code,
-               HttpStatusCode::get_default_status_text(status_code));
-  }
-  void send_reply(int status_code, std::string status_text);
-  void send_reply(int status_code, std::string status_text, HttpBuffer &buffer);
+  virtual void send_error(int status_code) = 0;
+  virtual void send_error(int status_code, std::string status_text) = 0;
 
-  void send_error(int status_code) {
-    send_error(status_code,
-               HttpStatusCode::get_default_status_text(status_code));
-  }
-  void send_error(int status_code, std::string status_text);
+  virtual operator bool() const = 0;
+
+  virtual int error_code() = 0;
+  virtual void error_code(int) = 0;
+  virtual std::string error_msg() = 0;
+
+  virtual std::error_code socket_error_code() const = 0;
+  virtual void socket_error_code(std::error_code ec) = 0;
 
   static void sync_callback(HttpRequest *, void *);
-
-  operator bool() const;
-
-  int error_code();
-  void error_code(int);
-  std::string error_msg();
-
-  std::error_code socket_error_code() const;
-  void socket_error_code(std::error_code ec);
 
   /**
    * is request modified since 'last_modified'.
@@ -499,19 +487,88 @@ class HTTP_COMMON_EXPORT HttpRequest {
    * @return true, if local content is newer than the clients last known date,
    * false otherwise
    */
-  bool is_modified_since(time_t last_modified);
+  virtual bool is_modified_since(time_t last_modified) = 0;
 
   /**
    * add a Last-Modified-Since header to the response headers.
    */
-  bool add_last_modified(time_t last_modified);
+  virtual bool add_last_modified(time_t last_modified) = 0;
+};
+
+/**
+ * a HTTP request and response.
+ *
+ * wraps evhttp_request
+ */
+class HTTP_COMMON_EXPORT HttpRequestImpl : public HttpRequest {
+ public:
+  using RequestHandler = void (*)(HttpRequestImpl *, void *);
+
+  HttpRequestImpl(RequestHandler cb, void *arg = nullptr);
+  HttpRequestImpl(HttpRequestImpl &&);
+  ~HttpRequestImpl() override;
+
+  HttpHeaders &get_output_headers() override;
+  HttpHeaders &get_input_headers() const override;
+  HttpBuffer &get_output_buffer() override;
+  HttpBuffer &get_input_buffer() const override;
+
+  unsigned get_response_code() const override;
+  std::string get_response_code_line() const override;
+
+  HttpMethod::type get_method() const override;
+
+  HttpUri &get_uri() const override;
+
+  void send_reply(int status_code) override {
+    send_reply(status_code,
+               HttpStatusCode::get_default_status_text(status_code));
+  }
+  void send_reply(int status_code, std::string status_text) override;
+  void send_reply(int status_code, std::string status_text,
+                  HttpBuffer &buffer) override;
+
+  void send_error(int status_code) override {
+    send_error(status_code,
+               HttpStatusCode::get_default_status_text(status_code));
+  }
+  void send_error(int status_code, std::string status_text) override;
+
+  static void sync_callback(HttpRequestImpl *, void *);
+
+  operator bool() const override;
+
+  int error_code() override;
+  void error_code(int) override;
+  std::string error_msg() override;
+
+  std::error_code socket_error_code() const override;
+  void socket_error_code(std::error_code ec) override;
+
+  /**
+   * is request modified since 'last_modified'.
+   *
+   * @return true, if local content is newer than the clients last known date,
+   * false otherwise
+   */
+  bool is_modified_since(time_t last_modified) override;
+
+  /**
+   * add a Last-Modified-Since header to the response headers.
+   */
+  bool add_last_modified(time_t last_modified) override;
 
  private:
   class impl;
 
-  HttpRequest(std::unique_ptr<impl> &&impl);
+  HttpRequestImpl(std::unique_ptr<impl> &&impl);
 
   std::unique_ptr<impl> pImpl_;
+  mutable std::unique_ptr<HttpHeaders> output_headers_;
+  mutable std::unique_ptr<HttpHeaders> input_headers_;
+  mutable std::unique_ptr<HttpBuffer> output_buffer_;
+  mutable std::unique_ptr<HttpBuffer> input_buffer_;
+  mutable std::unique_ptr<HttpUri> uri_;
 
   friend class HttpClientConnectionBase;
   friend class HttpUri;
@@ -523,7 +580,7 @@ class HTTP_COMMON_EXPORT HttpRequest {
  */
 class HTTP_COMMON_EXPORT EventHttp {
  public:
-  using CallbackRequest = void (*)(HttpRequest *, void *);
+  using CallbackRequest = void (*)(HttpRequestImpl *, void *);
   using CallbackBuffer = EventBuffer (*)(EventBase *, void *);
   using SocketHandle = net::impl::socket::native_handle_type;
 

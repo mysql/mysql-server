@@ -81,6 +81,14 @@ class ROUTING_EXPORT DestinationTlsContext {
    */
   void ciphers(const std::string &ciphers);
 
+  SslVerify get_verify();
+  const std::string &get_ca_file();
+  const std::string &get_ca_path();
+  const std::string &get_crl_file();
+  const std::string &get_crl_path();
+  const std::string &get_curves();
+  const std::string &get_ciphers();
+
   /**
    * get a TlsClientContent for a destination.
    *

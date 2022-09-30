@@ -43,7 +43,7 @@ bool RestRoutingStatus::on_handle_request(
 
   auto &routing_component = MySQLRoutingComponent::get_instance();
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/json");
 
   rapidjson::Document json_doc;

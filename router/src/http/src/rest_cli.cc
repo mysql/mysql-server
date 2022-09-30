@@ -266,7 +266,7 @@ int RestClientFrontend::run() {
           std::cerr << "> " << hdr.first << ": " << hdr.second << std::endl;
         }
       }
-      auto resp_body = req.get_input_buffer();
+      auto &resp_body = req.get_input_buffer();
       auto resp_body_content = resp_body.pop_front(resp_body.length());
 
       std::cout << std::string(resp_body_content.begin(),

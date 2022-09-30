@@ -101,7 +101,7 @@ void request_json(RestClient &rest_client, const std::string &uri,
   if (http_method != HttpMethod::Head &&
       http_status_code != HttpStatusCode::Unauthorized &&
       http_status_code != HttpStatusCode::Forbidden) {
-    auto resp_body = req.get_input_buffer();
+    auto &resp_body = req.get_input_buffer();
     ASSERT_GT(resp_body.length(), 0u);
     auto resp_body_content = resp_body.pop_front(resp_body.length());
 

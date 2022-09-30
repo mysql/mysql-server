@@ -82,6 +82,18 @@ void HttpRequestRouter::append(const std::string &url_regex_str,
       std::move(cb)});
 }
 
+void HttpRequestRouter::remove(const void *handler_id) {
+  std::lock_guard<std::mutex> lock(route_mtx_);
+
+  for (auto it = request_handlers_.begin(); it != request_handlers_.end();
+       ++it) {
+    if (it->handler.get() == handler_id) {
+      request_handlers_.erase(it);
+      break;
+    }
+  }
+}
+
 void HttpRequestRouter::remove(const std::string &url_regex_str) {
   std::lock_guard<std::mutex> lock(route_mtx_);
   for (auto it = request_handlers_.begin(); it != request_handlers_.end();) {
@@ -124,10 +136,10 @@ void HttpRequestRouter::clear_default_route() {
   default_route_ = nullptr;
 }
 
-void HttpRequestRouter::route(HttpRequest req) {
+void HttpRequestRouter::route(HttpRequest &req) {
   std::lock_guard<std::mutex> lock(route_mtx_);
 
-  auto uri = req.get_uri();
+  auto &uri = req.get_uri();
 
   // CONNECT can't be routed to the request handlers as it doesn't have a "path"
   // part.
@@ -140,7 +152,7 @@ void HttpRequestRouter::route(HttpRequest req) {
         std::string(hdr_accept).find("application/problem+json") !=
             std::string::npos) {
       req.get_output_headers().add("Content-Type", "application/problem+json");
-      auto buffers = req.get_output_buffer();
+      auto &buffers = req.get_output_buffer();
       std::string json_problem(R"({
   "title": "Method Not Allowed",
   "status": 405
@@ -156,6 +168,7 @@ void HttpRequestRouter::route(HttpRequest req) {
     return;
   }
 
+  log_debug("uri.get_path()=%s", uri.get_path().c_str());
   for (auto &request_handler : request_handlers_) {
     if (std::regex_search(uri.get_path(), request_handler.url_regex)) {
       request_handler.handler->handle_request(req);
@@ -174,9 +187,9 @@ void HttpRequestThread::accept_socket() {
 
 void HttpRequestThread::set_request_router(HttpRequestRouter &router) {
   event_http_.set_gencb(
-      [](HttpRequest *req, void *user_data) {
+      [](HttpRequestImpl *req, void *user_data) {
         auto *rtr = static_cast<HttpRequestRouter *>(user_data);
-        rtr->route(std::move(*req));
+        rtr->route(*req);
       },
       &router);
 }
@@ -371,6 +384,7 @@ class HttpsServer : public HttpServer {
               uint16_t port)
       : HttpServer(address.c_str(), port), ssl_ctx_{std::move(tls_ctx)} {}
   void start(size_t max_threads) override;
+  bool is_ssl_configured() const override { return true; }
 
  private:
   TlsServerContext ssl_ctx_;
@@ -420,6 +434,11 @@ void HttpServer::remove_route(const std::string &url_regex) {
   } else {
     request_router_.remove(url_regex);
   }
+}
+
+void HttpServer::remove_route(const void *handler_id) {
+  log_debug("removing route for handler_id: %p", handler_id);
+  request_router_.remove(handler_id);
 }
 
 using mysql_harness::IntOption;

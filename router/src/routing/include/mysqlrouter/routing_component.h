@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "connection.h"
+#include "mysql.h"
 #include "mysql/harness/config_parser.h"
 #include "tcp_address.h"
 
@@ -84,6 +85,19 @@ class ROUTING_EXPORT MySQLRoutingAPI {
     time_point_type last_received_from_server;
   };
 
+  struct SslOptions {
+    mysql_ssl_mode ssl_mode;
+    std::string tls_version;
+    std::string ssl_cipher;
+    std::string ca;
+    std::string capath;
+    std::string crl;
+    std::string crlpath;
+    std::string cert;
+    std::string key;
+    std::string curves;
+  };
+
   std::vector<ConnData> get_connections() const;
 
   // status
@@ -91,6 +105,7 @@ class ROUTING_EXPORT MySQLRoutingAPI {
   int get_total_connections() const;
 
   std::vector<mysql_harness::TCPAddress> get_destinations() const;
+  SslOptions get_destination_ssl_options() const;
 
   void start_accepting_connections();
   void restart_accepting_connections();

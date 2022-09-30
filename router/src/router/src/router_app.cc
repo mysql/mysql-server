@@ -56,6 +56,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/process_state_component.h"
+#include "mysql/harness/string_utils.h"
 #include "mysql/harness/signal_handler.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
@@ -92,6 +93,7 @@ IMPORT_LOG_FUNCTIONS()
 using namespace std::string_literals;
 
 using mysql_harness::DIM;
+using mysql_harness::make_upper;
 using mysql_harness::truncate_string;
 using mysql_harness::utility::string_format;
 using mysql_harness::utility::wrap_string;
@@ -870,15 +872,6 @@ void MySQLRouter::assert_option_value_in_range(const std::string &value,
   } catch (const std::invalid_argument &) {
     throw std::invalid_argument{"invalid value: " + value};
   }
-}
-
-/**
- * upper-case a string.
- */
-static std::string make_upper(std::string s) {
-  std::transform(s.begin(), s.end(), s.begin(), ::toupper);
-
-  return s;
 }
 
 /**
