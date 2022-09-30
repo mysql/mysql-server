@@ -2775,7 +2775,7 @@ class THD : public MDL_context_owner,
   */
   bool m_audited;
 
-  THD(bool enable_plugins = true);
+  explicit THD(bool enable_plugins = true);
 
   /*
     The THD dtor is effectively split in two:
