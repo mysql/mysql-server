@@ -69,6 +69,51 @@ std::vector<mysql_harness::TCPAddress> MySQLRoutingAPI::get_destinations()
   return r_->get_destinations();
 }
 
+MySQLRoutingAPI::SslOptions MySQLRoutingAPI::get_destination_ssl_options()
+    const {
+  SslOptions result;
+  auto &ctxt = r_->get_context();
+  auto dest_ssl = ctxt.destination_ssl_config();
+  auto ssl_mode = ctxt.dest_ssl_mode();
+
+  switch (ssl_mode) {
+    case SslMode::kDisabled:
+      result.ssl_mode = SSL_MODE_DISABLED;
+      break;
+
+    case SslMode::kRequired:
+      result.ssl_mode = SSL_MODE_REQUIRED;
+      break;
+
+    case SslMode::kPreferred:
+    case SslMode::kDefault:
+    case SslMode::kAsClient:
+    case SslMode::kPassthrough:
+      result.ssl_mode = SSL_MODE_PREFERRED;
+      break;
+  }
+
+  switch (dest_ssl->get_verify()) {
+    case SslVerify::kDisabled:
+      break;
+    case SslVerify::kVerifyCa:
+      result.ssl_mode = SSL_MODE_VERIFY_CA;
+      break;
+    case SslVerify::kVerifyIdentity:
+      result.ssl_mode = SSL_MODE_VERIFY_IDENTITY;
+      break;
+  }
+
+  result.ca = dest_ssl->get_ca_file();
+  result.capath = dest_ssl->get_ca_path();
+  result.crl = dest_ssl->get_crl_file();
+  result.crlpath = dest_ssl->get_crl_path();
+  result.ssl_cipher = dest_ssl->get_ciphers();
+  result.curves = dest_ssl->get_curves();
+
+  return result;
+}
+
 bool MySQLRoutingAPI::is_accepting_connections() const {
   return r_->is_accepting_connections();
 }

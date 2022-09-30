@@ -71,8 +71,8 @@ class RestRouterPluginConfig : public mysql_harness::BasePluginConfig {
     return {};
   }
 
-  bool is_required(const std::string &option) const override {
-    if (option == "require_realm") return true;
+  bool is_required(const std::string & /*option*/) const override {
+    //    if (option == "require_realm") return true;
     return false;
   }
 };

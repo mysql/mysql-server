@@ -65,10 +65,10 @@ class HTTP_CLIENT_EXPORT HttpClientConnectionBase {
  public:
   ~HttpClientConnectionBase();
 
-  void make_request(HttpRequest *req, HttpMethod::type method,
+  void make_request(HttpRequestImpl *req, HttpMethod::type method,
                     const std::string &uri,
                     std::chrono::seconds timeout = std::chrono::seconds{60});
-  void make_request_sync(HttpRequest *req, HttpMethod::type method,
+  void make_request_sync(HttpRequestImpl *req, HttpMethod::type method,
                          const std::string &uri,
                          std::chrono::seconds timeout = std::chrono::seconds{
                              60});
@@ -136,13 +136,13 @@ class HTTP_CLIENT_EXPORT HttpClient {
    * allows to send out multiple requests on different clients
    * and wait for them in parallel.
    */
-  void make_request(HttpRequest *req, HttpMethod::type method,
+  void make_request(HttpRequestImpl *req, HttpMethod::type method,
                     const std::string &uri);
 
   /**
    * make a request and wait for the response.
    */
-  void make_request_sync(HttpRequest *req, HttpMethod::type method,
+  void make_request_sync(HttpRequestImpl *req, HttpMethod::type method,
                          const std::string &uri);
 
   /**

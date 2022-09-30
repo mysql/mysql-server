@@ -49,7 +49,7 @@ bool RestRouterStatus::on_handle_request(HttpRequest &req,
                                          const std::vector<std::string> &) {
   if (!ensure_no_params(req)) return true;
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/json");
 
   if (!ensure_modified_since(req, last_modified_)) return true;

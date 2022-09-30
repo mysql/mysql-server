@@ -62,13 +62,14 @@ IOContext::~IOContext() = default;
 
 HttpClient::~HttpClient() = default;
 
-void HttpClient::make_request(HttpRequest *req, HttpMethod::type method,
+void HttpClient::make_request(HttpRequestImpl *req, HttpMethod::type method,
                               const std::string &uri) {
   if (!conn_) conn_ = make_connection();
   conn_->make_request(req, method, uri);
 }
 
-void HttpClient::make_request_sync(HttpRequest *req, HttpMethod::type method,
+void HttpClient::make_request_sync(HttpRequestImpl *req,
+                                   HttpMethod::type method,
                                    const std::string &uri) {
   if (!conn_) conn_ = make_connection();
   conn_->make_request_sync(req, method, uri);
@@ -161,7 +162,7 @@ HttpClientConnection::HttpClientConnection(IOContext &io_ctx,
       ev_base(), nullptr, bev, address.c_str(), port));
 }
 
-void HttpClientConnectionBase::make_request(HttpRequest *req,
+void HttpClientConnectionBase::make_request(HttpRequestImpl *req,
                                             HttpMethod::type method,
                                             const std::string &uri,
                                             std::chrono::seconds timeout) {
@@ -179,12 +180,12 @@ void HttpClientConnectionBase::make_request(HttpRequest *req,
     throw std::runtime_error("evhttp_make_request() failed");
   }
 
-  // don't free the evhttp_request() when HttpRequest gets destructed
+  // don't free the evhttp_request() when HttpRequestImpl gets destructed
   // as the eventloop will do it
   req->pImpl_->disown();
 }
 
-void HttpClientConnectionBase::make_request_sync(HttpRequest *req,
+void HttpClientConnectionBase::make_request_sync(HttpRequestImpl *req,
                                                  HttpMethod::type method,
                                                  const std::string &uri,
                                                  std::chrono::seconds timeout) {

@@ -45,7 +45,7 @@
 #include "content_type.h"
 
 void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
-  HttpUri parsed_uri{req.get_uri()};
+  HttpUri &parsed_uri = req.get_uri();
 
   // failed to parse the URI
   if (!parsed_uri) {
@@ -80,7 +80,7 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   const auto unescaped = HttpUri::decode(parsed_uri.get_path(), 1);
   file_path += http_uri_path_canonicalize(unescaped);
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
 
   struct stat st;
   if (-1 == stat(file_path.c_str(), &st)) {
@@ -139,7 +139,7 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
 
     req.add_last_modified(st.st_mtime);
 
-    auto chunk = req.get_output_buffer();
+    auto &chunk = req.get_output_buffer();
     // if the file-size is 0, there is nothing to send ... and it triggers a
     // mmap() error
     if (st.st_size > 0) {

@@ -43,13 +43,14 @@ class HttpRequestRouter {
   void append(const std::string &url_regex_str,
               std::unique_ptr<BaseRequestHandler> cb);
   void remove(const std::string &url_regex_str);
+  void remove(const void *handler);
 
   // if no routes are specified, return 404
   void route_default(HttpRequest &req);
 
   void set_default_route(std::unique_ptr<BaseRequestHandler> cb);
   void clear_default_route();
-  void route(HttpRequest req);
+  void route(HttpRequest &req);
 
   void require_realm(const std::string &realm) { require_realm_ = realm; }
 
@@ -141,8 +142,11 @@ class HttpServer {
   void add_route(const std::string &url_regex,
                  std::unique_ptr<BaseRequestHandler> cb);
   void remove_route(const std::string &url_regex);
+  void remove_route(const void *handler_id);
 
   HttpRequestRouter &request_router() { return request_router_; }
+
+  virtual bool is_ssl_configured() const { return false; }
 
  protected:
   std::vector<HttpRequestThread> thread_contexts_;

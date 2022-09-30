@@ -417,6 +417,34 @@ void MySQLSession::connect(const MySQLSession &other,
           other.read_timeout());
 }
 
+void MySQLSession::reset() {
+  if (mysql_reset_connection(connection_)) {
+    std::stringstream ss;
+    ss << "Error while resetting session, MySQL server at "
+       << connection_address_;
+    ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)
+       << ")";
+    throw Error(ss.str(), mysql_errno(connection_));
+  }
+}
+
+void MySQLSession::change_user(const std::string &user,
+                               const std::string &password,
+                               const std::string &db) {
+  if (mysql_change_user(connection_, user.c_str(), password.c_str(),
+                        db.c_str())) {
+    std::stringstream ss;
+    ss << "Error while changing user, MySQL server at " << connection_address_;
+    ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)
+       << ")";
+    throw Error(ss.str(), mysql_errno(connection_));
+  }
+
+  conn_params_.conn_opts.username = user;
+  conn_params_.conn_opts.password = password;
+  conn_params_.conn_opts.default_schema = db;
+}
+
 void MySQLSession::disconnect() {
   // close the socket and free internal data
   mysql_close(connection_);
@@ -569,6 +597,10 @@ class RealResultRow : public MySQLSession::ResultRow {
 
   ~RealResultRow() override { mysql_free_result(res_); }
 
+  size_t get_data_size(size_t i) const override {
+    return mysql_fetch_lengths(res_)[i];
+  }
+
  private:
   MYSQL_RES *res_;
 };
@@ -615,6 +647,10 @@ std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
 
 uint64_t MySQLSession::last_insert_id() noexcept {
   return mysql_insert_id(connection_);
+}
+
+uint64_t MySQLSession::affected_rows() noexcept {
+  return mysql_affected_rows(connection_);
 }
 
 unsigned MySQLSession::warning_count() noexcept {

@@ -23,13 +23,13 @@
 */
 
 #include "mysqlrouter/rest_client.h"
-#include "base64.h"
+#include "mysqlrouter/base64.h"
 
-HttpRequest RestClient::request_sync(
+HttpRequestImpl RestClient::request_sync(
     HttpMethod::type method, const std::string &uri,
     const std::string &request_body /* = {} */,
     const std::string &content_type /* = "application/json" */) {
-  HttpRequest req{HttpRequest::sync_callback, nullptr};
+  HttpRequestImpl req{HttpRequestImpl::sync_callback, nullptr};
 
   // TRACE forbids a request-body
   if (!request_body.empty()) {
@@ -37,7 +37,7 @@ HttpRequest RestClient::request_sync(
       throw std::logic_error("TRACE can't have request-body");
     }
     req.get_output_headers().add("Content-Type", content_type.c_str());
-    auto out_buf = req.get_output_buffer();
+    auto &out_buf = req.get_output_buffer();
     out_buf.add(request_body.data(), request_body.size());
   }
 

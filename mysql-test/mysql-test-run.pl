@@ -347,6 +347,7 @@ our $start_only;
 
 our $glob_debugger       = 0;
 our $group_replication   = 0;
+our $router_test         = 0;
 our $ndbcluster_enabled  = 0;
 our $ndbcluster_only     = $ENV{'MTR_NDB_ONLY'} || 0;
 our $mysqlbackup_enabled = 0;
@@ -755,11 +756,18 @@ sub main {
   if ($group_replication) {
     $ports_per_thread = $ports_per_thread + 10;
   }
+  
+  if ($router_test) {
+    $ENV{'MTR_ROUTER_PORT_OFFSET'} = $ports_per_thread - 10;
+    $ports_per_thread = $ports_per_thread + 10;
+  }
 
   if ($secondary_engine_support) {
     # Reserve 10 extra ports per worker process
     $ports_per_thread = $ports_per_thread + 10;
   }
+  
+  mtr_report("ports_per_thread:".$ports_per_thread);
 
   create_manifest_file();
 
@@ -2908,6 +2916,15 @@ sub mysqlxtest_arguments() {
   return mtr_args2str($exe, @$args);
 }
 
+sub mysqlrouter_arguments() {
+  my $exe;
+  # mysqlxtest executable may _not_ exist
+  $exe = mtr_exe_maybe_exists("$path_client_bindir/mysqlrouter");
+  return "" unless $exe;
+
+  return $exe;
+}
+
 sub mysql_pump_arguments ($) {
   my ($group_suffix) = @_;
   my $exe = mtr_exe_exists("$path_client_bindir/mysqlpump");
@@ -3263,6 +3280,7 @@ sub environment_setup {
   $ENV{'MYSQL_UPGRADE'}       = client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}          = native_path($exe_mysqladmin);
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
+  $ENV{'MYSQLROUTER'}          = mysqlrouter_arguments();
   $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
   $ENV{'MYSQL_KEYRING_ENCRYPTION_TEST'} = $exe_mysql_keyring_encryption_test;
   $ENV{'MYSQL_TEST_EVENT_TRACKING'} = $exe_mysql_test_event_tracking;

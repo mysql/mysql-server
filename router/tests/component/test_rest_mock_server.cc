@@ -142,7 +142,7 @@ TEST_F(RestMockServerRestServerMockTest, get_globals_empty) {
   EXPECT_THAT(req.get_input_headers().get("Content-Type"),
               ::testing::StrEq("application/json"));
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_GT(resp_body.length(), 0u);
   auto resp_body_content = resp_body.pop_front(resp_body.length());
 
@@ -225,7 +225,7 @@ TEST_F(RestMockServerRestServerMockTest, handshake_exec_time_via_global) {
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   SCOPED_TRACE("// slow connect");
@@ -287,7 +287,7 @@ TEST_F(RestMockServerRestServerMockTest, unknown_url_fails) {
   EXPECT_THAT(req.get_input_headers().get("Content-Type"),
               ::testing::StrEq("text/html"));
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_GT(resp_body.length(), 0u);
   auto resp_body_content = resp_body.pop_front(resp_body.length());
 }
@@ -322,7 +322,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_no_json) {
 
   EXPECT_EQ(req.get_response_code(), 415u);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 }
 
@@ -358,7 +358,7 @@ TEST_F(RestMockServerRestServerMockTest, put_root_fails) {
 
   EXPECT_EQ(req.get_response_code(), 404u);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_NE(resp_body.length(), 0u);
 }
 
@@ -583,7 +583,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_ok) {
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 }
 
@@ -647,7 +647,7 @@ TEST_P(RestMockServerRequestTest, request) {
     EXPECT_THAT(get_req.get_input_headers().get("Content-Type"),
                 ::testing::StrEq("application/json"));
 
-    auto get_resp_body = get_req.get_input_buffer();
+    auto &get_resp_body = get_req.get_input_buffer();
     EXPECT_GT(get_resp_body.length(), 0u);
     auto get_resp_body_content =
         get_resp_body.pop_front(get_resp_body.length());
@@ -723,7 +723,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_and_read_back) {
 
   EXPECT_EQ(put_req.get_response_code(), 204u);
 
-  auto put_resp_body = put_req.get_input_buffer();
+  auto &put_resp_body = put_req.get_input_buffer();
   EXPECT_EQ(put_resp_body.length(), 0u);
 
   // GET request
@@ -742,7 +742,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_and_read_back) {
   EXPECT_THAT(get_req.get_input_headers().get("Content-Type"),
               ::testing::StrEq("application/json"));
 
-  auto get_resp_body = get_req.get_input_buffer();
+  auto &get_resp_body = get_req.get_input_buffer();
   EXPECT_GT(get_resp_body.length(), 0u);
   auto get_resp_body_content = get_resp_body.pop_front(get_resp_body.length());
 
@@ -809,7 +809,7 @@ TEST_F(RestMockServerRestServerMockTest, delete_all_connections) {
 
   EXPECT_EQ(req.get_response_code(), 200u);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   SCOPED_TRACE("// check connection is killed");
@@ -849,7 +849,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user_and_pass) {
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   // mysql query
@@ -890,7 +890,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_succeeds_require_user) {
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   // mysql query
@@ -986,7 +986,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_empty_password) {
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   // mysql query
@@ -1039,7 +1039,7 @@ TEST_F(RestMockServerRestServerMockTest, auth_fails_wrong_username) {
 
   EXPECT_EQ(req.get_response_code(), 204u);
 
-  auto resp_body = req.get_input_buffer();
+  auto &resp_body = req.get_input_buffer();
   EXPECT_EQ(resp_body.length(), 0u);
 
   // mysql query

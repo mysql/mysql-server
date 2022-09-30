@@ -68,6 +68,19 @@ void DestinationTlsContext::ciphers(const std::string &ciphers) {
   ciphers_ = ciphers;
 }
 
+SslVerify DestinationTlsContext::get_verify() { return ssl_verify_; }
+const std::string &DestinationTlsContext::get_ca_file() { return ca_file_; }
+
+const std::string &DestinationTlsContext::get_ca_path() { return ca_path_; }
+
+const std::string &DestinationTlsContext::get_crl_file() { return crl_file_; }
+
+const std::string &DestinationTlsContext::get_crl_path() { return crl_path_; }
+
+const std::string &DestinationTlsContext::get_curves() { return curves_; }
+
+const std::string &DestinationTlsContext::get_ciphers() { return ciphers_; }
+
 TlsClientContext *DestinationTlsContext::get(const std::string &dest_id,
                                              const std::string &hostname) {
   std::lock_guard<std::mutex> lk(mtx_);

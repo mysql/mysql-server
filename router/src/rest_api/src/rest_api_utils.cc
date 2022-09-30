@@ -38,7 +38,7 @@
 void send_json_document(HttpRequest &req, HttpStatusCode::key_type status_code,
                         const rapidjson::Document &json_doc) {
   // serialize json-document into a string
-  auto chunk = req.get_output_buffer();
+  auto &chunk = req.get_output_buffer();
 
   {
     rapidjson::StringBuffer json_buf;
@@ -59,7 +59,7 @@ void send_json_document(HttpRequest &req, HttpStatusCode::key_type status_code,
 
 void send_rfc7807_error(HttpRequest &req, HttpStatusCode::key_type status_code,
                         const std::map<std::string, std::string> &fields) {
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/problem+json");
 
   rapidjson::Document json_doc;
@@ -111,7 +111,7 @@ bool ensure_http_method(HttpRequest &req, HttpMethod::Bitset allowed_methods) {
   if ((allowed_methods & HttpMethod::Bitset(HttpMethod::Delete)).any())
     allowed_method_names.push_back("DELETE");
 
-  auto out_hdrs = req.get_output_headers();
+  auto &out_hdrs = req.get_output_headers();
   out_hdrs.add("Allow", mysql_harness::join(allowed_method_names, ",").c_str());
 
   send_rfc7807_error(

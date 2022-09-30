@@ -150,7 +150,7 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
       req.send_reply(HttpStatusCode::UnsupportedMediaType);
       return;
     }
-    auto body = req.get_input_buffer();
+    auto &body = req.get_input_buffer();
     auto data = body.pop_front(body.length());
     std::string str_data(data.begin(), data.end());
 
@@ -160,8 +160,8 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
     body_doc.Parse(str_data.c_str());
 
     if (body_doc.HasParseError()) {
-      auto out_hdrs = req.get_output_headers();
-      auto out_buf = req.get_output_buffer();
+      auto &out_hdrs = req.get_output_headers();
+      auto &out_buf = req.get_output_buffer();
       out_hdrs.add("Content-Type", "text/plain");
 
       std::string parse_error(
@@ -202,7 +202,7 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
   }
 
   void handle_global_get_all(HttpRequest &req) {
-    auto chunk = req.get_output_buffer();
+    auto &chunk = req.get_output_buffer();
 
     {
       rapidjson::StringBuffer json_buf;
@@ -242,7 +242,7 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
       log_debug("HTTP[%d]< %s", HttpStatusCode::Ok, json_buf.GetString());
     }  // free json_buf early
 
-    auto out_hdrs = req.get_output_headers();
+    auto &out_hdrs = req.get_output_headers();
     out_hdrs.add("Content-Type", "application/json");
 
     req.send_reply(HttpStatusCode::Ok, "Ok", chunk);

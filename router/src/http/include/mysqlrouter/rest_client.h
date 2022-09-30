@@ -52,7 +52,7 @@ class HTTP_CLIENT_EXPORT RestClient {
   RestClient(std::unique_ptr<HttpClient> &&http_client)
       : http_client_{std::move(http_client)} {}
 
-  HttpRequest request_sync(
+  HttpRequestImpl request_sync(
       HttpMethod::type method, const std::string &uri,
       const std::string &request_body = {},
       const std::string &content_type = "application/json");

@@ -290,6 +290,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
     virtual ~ResultRow() = default;
     size_t size() const { return row_.size(); }
     const char *&operator[](size_t i) { return row_[i]; }
+    virtual size_t get_data_size(size_t i) const { return strlen(row_[i]); }
 
    private:
     Row row_;
@@ -409,6 +410,11 @@ class ROUTER_LIB_EXPORT MySQLSession {
   /**
    * Connect using the same settings and parameters that were used for the last
    * other.connect() using provided credentials.
+  virtual void change_user(const std::string &user, const std::string &password,
+                           const std::string &db);
+
+  virtual void reset();
+
    */
   virtual void connect(const MySQLSession &other, const std::string &username,
                        const std::string &password);
@@ -431,6 +437,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
   }
 
   virtual uint64_t last_insert_id() noexcept;
+  virtual uint64_t affected_rows() noexcept;
 
   virtual unsigned warning_count() noexcept;
 
