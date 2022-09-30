@@ -4766,7 +4766,7 @@ static MYSQL_SYSVAR_BOOL(
     ov.enforce_update_everywhere_checks_var, /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
         PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | no set default */
-    "Enable/Disable strict consistency checks for multi-master "
+    "Enable/Disable strict consistency checks for multi-primary "
     "update everywhere. Default: FALSE.",
     check_enforce_update_everywhere_checks, /* check func*/
     nullptr,                                /* update func*/
