@@ -1545,9 +1545,10 @@ void Window::apply_temp_table(THD *thd, const Func_ptr_array &items_to_copy) {
       thd->change_item_tree(left_ptr, new_item);
 
       Item_cache *cache = FindCacheInComparator(cmp);
-      cache->store(FindReplacementOrReplaceMaterializedItems(
+      Item *new_cache_item = FindReplacementOrReplaceMaterializedItems(
           thd, cache->get_example()->real_item(), items_to_copy,
-          /*need_exact_match=*/true));
+          /*need_exact_match=*/true);
+      thd->change_item_tree(cache->get_example_ptr(), new_cache_item);
     }
   }
 }
