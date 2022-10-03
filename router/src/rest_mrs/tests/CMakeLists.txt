@@ -48,3 +48,6 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_handler_object.cc
   LIB_DEPENDS rest_mrs test-helpers
   )
+
+MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
+
