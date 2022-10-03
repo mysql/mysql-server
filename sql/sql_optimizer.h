@@ -863,6 +863,33 @@ class JOIN {
   */
   bool optimize_fts_query();
 
+  /**
+    Checks if the chosen plan suffers from a problem related to full-text search
+    and streaming aggregation, which is likely to cause wrong results or make
+    the query misbehave in other ways, and raises an error if so. Only to be
+    called for queries with full-text search and GROUP BY WITH ROLLUP.
+
+    If there are calls to MATCH in the SELECT list (including the hidden
+    elements lifted there from other clauses), and they are not inside an
+    aggregate function, the results of the MATCH clause need to be materialized
+    before streaming aggregation is performed. The hypergraph optimizer adds a
+    materialization step before aggregation if needed (see
+    CreateStreamingAggregationPath()), but the old optimizer only does that for
+    implicitly grouped queries. For explicitly grouped queries, it instead
+    disables streaming aggregation for the queries that would need a
+    materialization step to work correctly (see JOIN::test_skip_sort()).
+
+    For explicitly grouped queries WITH ROLLUP, however, streaming aggregation
+    is currently the only alternative. In many cases it still works correctly
+    because an intermediate materialization step has been added for some other
+    reason, typically for a sort. For now, in those cases where a
+    materialization step has not been added, we raise an error instead of going
+    ahead with an invalid execution plan.
+
+    @return true if an error was raised.
+  */
+  bool check_access_path_with_fts() const;
+
   bool prune_table_partitions();
   /**
     Initialize key dependencies for join tables.

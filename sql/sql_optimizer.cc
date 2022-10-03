@@ -249,6 +249,55 @@ static void SaveCondEqualLists(COND_EQUAL *cond_equal) {
   SaveCondEqualLists(cond_equal->upper_levels);
 }
 
+bool JOIN::check_access_path_with_fts() const {
+  // Only relevant to the old optimizer.
+  assert(!thd->lex->using_hypergraph_optimizer);
+
+  assert(query_block->has_ft_funcs());
+  assert(rollup_state != RollupState::NONE);
+
+  // Find all tables referenced from non-aggregated MATCH calls in the SELECT
+  // list or in any hidden items lifted to the SELECT list from other clauses.
+  table_map fulltext_tables = 0;
+  for (Item *field : *fields) {
+    WalkItem(field, enum_walk::PREFIX | enum_walk::POSTFIX,
+             NonAggregatedFullTextSearchVisitor(
+                 [&fulltext_tables](Item_func_match *item) {
+                   fulltext_tables |= item->used_tables();
+                   return false;
+                 }));
+  }
+
+  if (fulltext_tables == 0) return false;
+
+  // See if any of those tables is accessed without materialization between the
+  // table access path and the aggregate access path.
+  bool found = false;
+  WalkAccessPaths(
+      root_access_path(), this, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [fulltext_tables, &found](const AccessPath *path, const JOIN *) {
+        if (path->type == AccessPath::AGGREGATE) {
+          // Does the aggregate path access any of "fulltext_tables" without an
+          // intermediate materialization step? GetUsedTableMap() does not see
+          // through materialization and returns RAND_TABLE_BIT instead of the
+          // actual tables if "path" reads materialized results.
+          found |=
+              Overlaps(fulltext_tables,
+                       GetUsedTableMap(path, /*include_pruned_tables=*/true));
+        }
+        return found;
+      });
+
+  if (found) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "reading non-aggregated results of the MATCH full-text search "
+             "function after GROUP BY WITH ROLLUP");
+    return true;
+  }
+
+  return false;
+}
+
 /**
   Optimizes one query block into a query execution plan (QEP.)
 
@@ -946,23 +995,17 @@ bool JOIN::optimize(bool finalize_access_paths) {
     need_tmp_before_win = true;
 
   /*
-    If we have full-text columns involved in aggregation, we need to
-    materialize it, as the saving and loading of rows in AggregateIterator
-    does not include FTS information. If we have multiple tables, we'll
-    have a materialization (either because we're aggregating into a temporary
-    table, or because we always materialize before further operations),
-    and if we have a GROUP BY, we'll either have an aggregate-to-table
-    or a sort, which also fixes the issue. However, in the case of a single
-    table and implicit grouping, we need to force the temporary table here.
+    If we have full-text columns involved in aggregation, we may need to
+    materialize them. Materialization is needed if the result of a full-text
+    search (the MATCH function) is accessed after aggregation, as the saving and
+    loading of rows in AggregateIterator does not include FTS information. If we
+    have a GROUP BY, we'll either have an aggregate-to-table or a sort, which
+    fixes the issue. However, in the case of implicit grouping, we need to force
+    the temporary table here.
    */
   if (!need_tmp_before_win && implicit_grouping &&
-      primary_tables - const_tables == 1 && order.empty() &&
-      best_ref[const_tables]->table_ref->is_fulltext_searched()) {
-    for (Item *item : *fields) {
-      need_tmp_before_win |=
-          contains_function_of_type(item, Item_func::FT_FUNC);
-      if (need_tmp_before_win) break;
-    }
+      contains_non_aggregated_fts()) {
+    need_tmp_before_win = true;
   }
 
   if (!plan_is_const())  // (2)
@@ -1014,6 +1057,12 @@ bool JOIN::optimize(bool finalize_access_paths) {
   // Creating iterators may evaluate a constant hash join condition, which may
   // fail:
   if (thd->is_error()) return true;
+
+  if (rollup_state != RollupState::NONE && query_block->has_ft_funcs()) {
+    if (check_access_path_with_fts()) {
+      return true;
+    }
+  }
 
   /*
     At this stage, we have set up an AccessPath 'plan'. Traverse the
@@ -1626,14 +1675,18 @@ void JOIN::test_skip_sort() {
                             // (DISTINCT was rewritten to GROUP BY if skippable)
   {
     /*
-      When there is SQL_BIG_RESULT or a JSON aggregation function,
-      do not sort using index for GROUP BY, and thus force sorting on disk
-      unless a group min-max optimization is going to be used as it is applied
-      now only for one table queries with covering indexes.
+      If the SQL_BIG_RESULT option is set on the query block or a JSON
+      aggregation function is used, check if it is possible to sort using index
+      for GROUP BY and thus avoid materializing the row set to disk, unless:
+
+      1. A group min-max optimization will be used, or
+      2. Some non-aggregated full-text search results must be accessible after
+         aggregation.
     */
     if (!(query_block->active_options() & SELECT_BIG_RESULT || with_json_agg) ||
         (tab->range_scan() &&
-         tab->range_scan()->type == AccessPath::GROUP_INDEX_SKIP_SCAN)) {
+         tab->range_scan()->type == AccessPath::GROUP_INDEX_SKIP_SCAN) ||
+        contains_non_aggregated_fts()) {
       if (simple_group &&    // GROUP BY is possibly skippable
           !select_distinct)  // .. if not preceded by a DISTINCT
       {
