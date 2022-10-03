@@ -93,6 +93,7 @@ std::string to_string(ColumnJsonTypes type) {
     case kJson:
       return "json";
   }
+  return "null";
 }
 
 }  // namespace helper
