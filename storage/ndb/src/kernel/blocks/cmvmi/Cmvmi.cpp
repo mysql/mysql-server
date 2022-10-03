@@ -24,6 +24,7 @@
 
 #include "Cmvmi.hpp"
 
+#include <signal.h>
 #include <Configuration.hpp>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
@@ -228,8 +229,17 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
 
   if(ERROR_INSERTED(9006)){
     g_eventLogger->info("Activating error 9006 for SEGV of all nodes");
-    int *invalid_ptr = (int*) 123;
-    printf("%u", *invalid_ptr); // SEGV
+    /*
+     * Disable this injected crash to generate core files. We can not use the
+     * CRASH_INSERTION macro here since it modifies the node start type in an
+     * unwanted way when testing fix for Bug #24945638 STOPONERROR = 0 WITH
+     * UNCONTROLLED EXIT RESTARTS IN SAME WAY AS PREVIOUS RESTART.
+     * Instead we explicitly turn off core file generation by directly
+     * modifying the opt_core variable of main.cpp.
+     */
+    extern int opt_core;
+    opt_core = 0;
+    raise(SIGSEGV);
   }
 #endif
 
