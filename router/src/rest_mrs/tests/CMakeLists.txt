@@ -30,6 +30,7 @@ add_test_file(test_rest_mrs_plugin.cc
   	./test_helper_json.cc
   	./test_collector_mysql_cache_manager.cc
   	./test_database_rest_table.cc
+  	./test_mrs_database_filter_object_generator.cc
   	./test_helper_media_detector.cc
     ./test_helper_plugin_monitor.cc
     ./test_http_utilities.cc

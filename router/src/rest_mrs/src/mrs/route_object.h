@@ -72,6 +72,7 @@ class RouteObject : public std::enable_shared_from_this<RouteObject>,
   const std::string &get_schema_name() override;
   const std::vector<Column> &get_cached_columnes() override;
   const std::string &get_cached_primary() override;
+  const std::string &get_options() override;
   uint32_t get_on_page() override;
   Format get_format() const override;
   Media get_media_type() const override;

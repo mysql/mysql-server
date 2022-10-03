@@ -39,7 +39,7 @@ namespace rest {
 class Handler : public interface::RestHandler {
  public:
   Handler(const std::string &url, const std::string &rest_path_matcher,
-          interface::AuthManager *auth_manager);
+          const std::string &options, interface::AuthManager *auth_manager);
   ~Handler() override;
 
   bool request_begin(RequestContext *ctxt) override;
@@ -55,7 +55,10 @@ class Handler : public interface::RestHandler {
    */
   bool request_error(RequestContext *ctxt, const http::Error &e) override;
 
+  const Parameters &get_headers_parameters() const override;
+
  private:
+  const Parameters parameters_;
   const std::string url_;
   const std::string rest_path_matcher_;
   void *handler_id_;

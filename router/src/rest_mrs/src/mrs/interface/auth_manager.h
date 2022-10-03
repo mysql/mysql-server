@@ -44,7 +44,6 @@ namespace interface {
 
 class AuthManager {
  public:
-  using AuthHandler = AuthHandler;
   using HandlerPtr = std::shared_ptr<AuthHandler>;
   using AuthHandlers = std::vector<HandlerPtr>;
   using AuthApp = database::entry::AuthApp;

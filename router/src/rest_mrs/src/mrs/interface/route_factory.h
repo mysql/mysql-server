@@ -66,7 +66,7 @@ class RouteFactory {
       const std::string &service, const std::string &name, const bool is_ssl,
       const std::string &host, const bool requires_authentication,
       const uint64_t service_id, const uint64_t schema_id,
-      AuthManager *auth_manager) = 0;
+      const std::string &options, AuthManager *auth_manager) = 0;
 };
 
 }  // namespace interface

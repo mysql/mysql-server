@@ -41,7 +41,7 @@ using Result = Handler::Result;
 HandlerMetadata::HandlerMetadata(Route *route,
                                  mrs::interface::AuthManager *auth_manager)
     : Handler(route->get_rest_canonical_url(), route->get_rest_canonical_path(),
-              auth_manager),
+              route->get_options(), auth_manager),
       route_{route} {}
 
 // TODO(lkotula): remove or finish (Shouldn't be in review)

@@ -207,6 +207,8 @@ const std::string &RouteObject::get_object_path() { return pe_.object_path; }
 const std::string &RouteObject::get_object_name() { return object_name_; }
 const std::string &RouteObject::get_schema_name() { return schema_name_; }
 
+const std::string &RouteObject::get_options() { return pe_.options_json; }
+
 bool RouteObject::requires_authentication() const {
   return pe_.requires_authentication || pe_.schema_requires_authentication;
 }

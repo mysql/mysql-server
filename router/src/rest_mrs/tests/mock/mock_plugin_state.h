@@ -34,8 +34,8 @@ class MockPluginState : public mysql_harness::PluginState {
   using PluginStateObserver = mysql_harness::PluginStateObserver;
   MockPluginState() = default;
 
-  MOCK_METHOD(Plugins, get_loaded_plugins, (), (const override));
-  MOCK_METHOD(Plugins, get_running_plugins, (), (const override));
+  MOCK_METHOD(Plugins, get_loaded_plugins, (), (const, override));
+  MOCK_METHOD(Plugins, get_running_plugins, (), (const, override));
   MOCK_METHOD(std::vector<ObserverId>, push_back_observers,
               (const std::vector<std::weak_ptr<PluginStateObserver>> &),
               (override));

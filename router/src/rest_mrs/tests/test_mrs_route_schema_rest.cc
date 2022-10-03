@@ -66,8 +66,8 @@ class RouteSchemaRestTests : public Test {
                 const std::string &host = "127.0.0.1") {
     sut_ = std::make_shared<RouteSchemaRest>(
         &mock_route_manager_, &mock_mysqlcache_, service_name, schema_name,
-        is_ssl, host, require_auth, service_id, schema_id, &mock_auth_manager_,
-        mock_handler_factory_);
+        is_ssl, host, require_auth, service_id, schema_id, "",
+        &mock_auth_manager_, mock_handler_factory_);
   }
 
   StrictMock<MockRouteManager> mock_route_manager_;

@@ -29,6 +29,7 @@
 #include "helper/mysql_row.h"
 #include "mrs/database/helper/query_audit_log_maxid.h"
 #include "mrs/database/query_entry_group_row_security.h"
+#include "mrs/database/query_entry_parameter.h"
 
 namespace mrs {
 namespace database {
@@ -54,7 +55,10 @@ QueryEntryDbObject::QueryEntryDbObject() {
       " o.auto_detect_media_type, "
       "    s.id as service_id, o.id as db_object_id, db.id as db_schema_id, "
       "    h.id as url_host_id, o.object_type, o.row_user_ownership_enforced,"
-      "    o.row_user_ownership_column"
+      "    o.row_user_ownership_column,"
+      "    IF(o.options IS NOT NULL, o.options, IF(db.options IS NOT NULL, "
+      "       db.options, s.options)) as options,"
+      "    IF(db.options IS NOT NULL, db.options, s.options) as db_options"
       " FROM mysql_rest_service_metadata.`db_object` as o "
       "  JOIN mysql_rest_service_metadata.`db_schema` as db on "
       "      o.db_schema_id = db.id "
@@ -74,10 +78,13 @@ void QueryEntryDbObject::query_entries(MySQLSession *session) {
   auto audit_log_id = query_audit_id.query(session);
   query(session);
 
-  QueryEntryGroupRowSecurity gs;
+  QueryEntryGroupRowSecurity qg;
+  QueryEntryParameter qp;
   for (auto &e : entries) {
-    gs.query_group_row_security(session, e.id);
-    e.row_group_security = std::move(gs.get_result());
+    qg.query_group_row_security(session, e.id);
+    e.row_group_security = std::move(qg.get_result());
+    qp.query_parameters(session, e.id);
+    e.parameters = std::move(qp.get_result());
   }
 
   query(session, "COMMIT");
@@ -133,6 +140,8 @@ void QueryEntryDbObject::on_row(const Row &row) {
   mysql_row.unserialize_with_converter(&entry.type, path_type_converter);
   mysql_row.unserialize(&entry.row_security.user_ownership_enforced);
   mysql_row.unserialize(&entry.row_security.user_ownership_column);
+  mysql_row.unserialize(&entry.options_json);
+  mysql_row.unserialize(&entry.options_json_schema);
 
   QueryEntryGroupRowSecurity group_security;
   //  group_security.

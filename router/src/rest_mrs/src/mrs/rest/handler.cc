@@ -33,11 +33,14 @@
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/rest_api_utils.h"
 
-#include "collector/mysql_cache_manager.h"
 #include "mrs/authentication/www_authentication_handler.h"
 #include "mrs/http/error.h"
 #include "mrs/interface/route.h"
 #include "mrs/rest/handler_request_context.h"
+
+#include "collector/mysql_cache_manager.h"
+#include "helper/json/rapid_json_to_map.h"
+#include "helper/json/text_to.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -47,6 +50,7 @@ namespace rest {
 using AuthHandler = mrs::interface::AuthManager::HandlerPtr;
 using AuthHandlers = mrs::interface::AuthManager::AuthHandlers;
 using WwwAuthenticationHandler = mrs::authentication::WwwAuthenticationHandler;
+using Parameters = mrs::interface::RestHandler::Parameters;
 
 template <typename T>
 std::string to_string(const helper::Optional<T> &v) {
@@ -229,6 +233,11 @@ class RestRequestHandler : public BaseRequestHandler {
         }
       }
 
+      for (auto &kv : rest_handler_->get_headers_parameters()) {
+        auto &oh = request_ctxt.request->get_output_headers();
+        oh.add(kv.first.c_str(), kv.second.c_str());
+      }
+
       log_debug("RestRequestHandler(service_id:%i): dispatch",
                 static_cast<int>(id.second));
       switch (method) {
@@ -318,9 +327,21 @@ class RestRequestHandler : public BaseRequestHandler {
   }
 };
 
+static Parameters get_json(const std::string &txt, const std::string key_name) {
+  using namespace helper::json;
+  RapidReaderHandlerToMapOfSimpleValues sub_object;
+  ExtractSubObjectHandler<RapidReaderHandlerToMapOfSimpleValues> extractor{
+      key_name, sub_object};
+  text_to(&extractor, txt);
+  return sub_object.get_result();
+}
+
 Handler::Handler(const std::string &url, const std::string &rest_path_matcher,
+                 const std::string &options,
                  mrs::interface::AuthManager *auth_manager)
-    : url_{url}, rest_path_matcher_{rest_path_matcher} {
+    : parameters_{get_json(options, "header")},
+      url_{url},
+      rest_path_matcher_{rest_path_matcher} {
   auto handler = std::make_unique<RestRequestHandler>(this, auth_manager);
 
   log_debug("Handling new URL: '%s'", url_.c_str());
@@ -339,6 +360,10 @@ void Handler::request_end(RequestContext *) {}
 
 bool Handler::request_error(RequestContext *, const http::Error &) {
   return false;
+}
+
+const Parameters &Handler::get_headers_parameters() const {
+  return parameters_;
 }
 
 }  // namespace rest

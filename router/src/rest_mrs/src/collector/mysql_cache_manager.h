@@ -25,10 +25,12 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_CONNECTION_CACHE_MANAGER_H_
 #define ROUTER_SRC_REST_MRS_SRC_CONNECTION_CACHE_MANAGER_H_
 
-#include "mysqlrouter/mysql_session.h"
+#include <cassert>
 
 #include "collector/cache_manager.h"
 #include "mrs/configuration.h"
+
+#include "mysqlrouter/mysql_session.h"
 
 namespace collector {
 
@@ -111,6 +113,9 @@ class MysqlCacheManager {
         return {&cache_manager_metadata_};
       case collector::kMySQLConnectionUserdata:
         return {&cache_manager_userdata_};
+      default:
+        assert(nullptr && "Shouldn't happen");
+        return {};
     }
   }
   virtual CachedObject get_instance(collector::MySQLConnection type) {
@@ -119,6 +124,9 @@ class MysqlCacheManager {
         return cache_manager_metadata_.get_instance();
       case collector::kMySQLConnectionUserdata:
         return cache_manager_userdata_.get_instance();
+      default:
+        assert(nullptr && "Shouldn't happen");
+        return {};
     }
   }
 

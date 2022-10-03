@@ -40,8 +40,9 @@ using Route = mrs::interface::Route;
 
 HandlerAuthorize::HandlerAuthorize(const uint64_t id, const std::string &url,
                                    const std::string &rest_path_matcher,
+                                   const std::string &options,
                                    interface::AuthManager *auth_manager)
-    : Handler(url, rest_path_matcher, auth_manager), id_{id} {}
+    : Handler(url, rest_path_matcher, options, auth_manager), id_{id} {}
 
 Handler::Authorization HandlerAuthorize::requires_authentication() const {
   return Authorization::kRequires;

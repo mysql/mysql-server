@@ -140,7 +140,7 @@ RouteManager::RouteSchemaPtr RouteManager::handle_schema(
   auto value = factory_->create_router_schema(
       this, cache_, pe.service_path, pe.schema_path, is_ssl_, pe.host,
       pe.requires_authentication, pe.service_id, pe.content_set_id,
-      auth_manager_);
+      pe.options_json_schema, auth_manager_);
 
   value->turn(state_);
 
@@ -191,7 +191,7 @@ RouteManager::RouteSchemaPtr RouteManager::handle_schema(const DbObject &pe) {
   auto value = factory_->create_router_schema(
       this, cache_, pe.service_path, pe.schema_path, is_ssl_, pe.host,
       pe.schema_requires_authentication, pe.service_id, pe.schema_id,
-      auth_manager_);
+      pe.options_json_schema, auth_manager_);
 
   value->turn(state_);
 
