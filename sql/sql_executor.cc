@@ -472,9 +472,9 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
              down_cast<Item_func *>(cond)->functype() ==
                  Item_func::MULT_EQUAL_FUNC) {
     Item_equal *item_equal = (Item_equal *)cond;
-    bool contained_const = item_equal->get_const() != nullptr;
+    bool contained_const = item_equal->const_arg() != nullptr;
     if (item_equal->update_const(thd)) return true;
-    if (!contained_const && item_equal->get_const()) {
+    if (!contained_const && item_equal->const_arg()) {
       /* Update keys for range analysis */
       for (Item_field &item_field : item_equal->get_fields()) {
         const Field *field = item_field.field;

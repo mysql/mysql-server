@@ -6723,41 +6723,34 @@ bool Item_func_comparison::cast_incompatible_args(uchar *) {
   return cmp.inject_cast_nodes();
 }
 
-Item_equal::Item_equal(Item_field *f1, Item_field *f2)
-    : Item_bool_func(),
-      const_item(nullptr),
-      eval_item(nullptr),
-      cond_false(false),
-      compare_as_dates(false) {
+Item_equal::Item_equal(Item_field *f1, Item_field *f2) : Item_bool_func() {
   fields.push_back(f1);
   fields.push_back(f2);
 }
 
-Item_equal::Item_equal(Item *c, Item_field *f)
-    : Item_bool_func(), eval_item(nullptr), cond_false(false) {
+Item_equal::Item_equal(Item *c, Item_field *f) : Item_bool_func() {
   fields.push_back(f);
-  const_item = c;
+  m_const_arg = c;
   compare_as_dates = f->is_temporal_with_date();
 }
 
-Item_equal::Item_equal(Item_equal *item_equal)
-    : Item_bool_func(), eval_item(nullptr), cond_false(false) {
+Item_equal::Item_equal(Item_equal *item_equal) : Item_bool_func() {
   List_iterator_fast<Item_field> li(item_equal->fields);
   Item_field *item;
   while ((item = li++)) {
     fields.push_back(item);
   }
-  const_item = item_equal->const_item;
+  m_const_arg = item_equal->m_const_arg;
   compare_as_dates = item_equal->compare_as_dates;
   cond_false = item_equal->cond_false;
 }
 
 bool Item_equal::compare_const(THD *thd, Item *c) {
   if (compare_as_dates) {
-    cmp.set_datetime_cmp_func(this, &c, &const_item);
+    cmp.set_datetime_cmp_func(this, &c, &m_const_arg);
     cond_false = cmp.compare();
   } else {
-    Item_func_eq *func = new Item_func_eq(c, const_item);
+    Item_func_eq *func = new Item_func_eq(c, m_const_arg);
     if (func == nullptr) return true;
     if (func->set_cmp_func()) return true;
     func->quick_fix_field();
@@ -6771,9 +6764,9 @@ bool Item_equal::compare_const(THD *thd, Item *c) {
 
 bool Item_equal::add(THD *thd, Item *c, Item_field *f) {
   if (cond_false) return false;
-  if (!const_item) {
+  if (m_const_arg == nullptr) {
     assert(f);
-    const_item = c;
+    m_const_arg = c;
     compare_as_dates = f->is_temporal_with_date();
     return false;
   }
@@ -6782,8 +6775,8 @@ bool Item_equal::add(THD *thd, Item *c, Item_field *f) {
 
 bool Item_equal::add(THD *thd, Item *c) {
   if (cond_false) return false;
-  if (!const_item) {
-    const_item = c;
+  if (m_const_arg == nullptr) {
+    m_const_arg = c;
     return false;
   }
   return compare_const(thd, c);
@@ -6830,7 +6823,7 @@ bool Item_equal::contains(const Field *field) const {
 
 bool Item_equal::merge(THD *thd, Item_equal *item) {
   fields.concat(&item->fields);
-  Item *c = item->const_item;
+  Item *c = item->m_const_arg;
   if (c) {
     /*
       The flag cond_false will be set to 1 after this, if
@@ -6932,7 +6925,7 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
   bool found_comparable = false;
 
   // Is there a constant that this multiple equality is equal to?
-  if (const_item) found_comparable = true;
+  if (m_const_arg != nullptr) found_comparable = true;
 
   List_iterator<Item_field> it(fields);
 
@@ -6984,7 +6977,7 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
             cases.
           */
           if (cur_filter >= 1.0) cur_filter = 1.0f;
-        } else if (const_item) {
+        } else if (m_const_arg != nullptr) {
           /*
             If index statistics is not available, see if we can use any
             available histogram statistics.
@@ -6993,14 +6986,14 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
               cur_field->field->table->s->find_histogram(
                   cur_field->field->field_index());
           if (histogram != nullptr) {
-            std::array<Item *, 2> items{{cur_field, const_item}};
+            std::array<Item *, 2> items{{cur_field, m_const_arg}};
             double selectivity;
             if (!histogram->get_selectivity(
                     items.data(), items.size(),
                     histograms::enum_operator::EQUALS_TO, &selectivity)) {
               if (unlikely(thd->opt_trace.is_started())) {
                 Item_func_eq *eq_func =
-                    new (thd->mem_root) Item_func_eq(cur_field, const_item);
+                    new (thd->mem_root) Item_func_eq(cur_field, m_const_arg);
                 write_histogram_to_trace(thd, eq_func, selectivity);
               }
               cur_filter = static_cast<float>(selectivity);
@@ -7027,14 +7020,14 @@ void Item_equal::update_used_tables() {
     not_null_tables_cache |= item->not_null_tables();
     add_accum_properties(item);
   }
-  if (const_item != nullptr) used_tables_cache |= const_item->used_tables();
+  if (m_const_arg != nullptr) used_tables_cache |= m_const_arg->used_tables();
 }
 
 longlong Item_equal::val_int() {
   Item_field *item_field;
   if (cond_false) return 0;
   List_iterator_fast<Item_field> it(fields);
-  Item *item = const_item ? const_item : it++;
+  Item *item = m_const_arg != nullptr ? m_const_arg : it++;
   eval_item->store_value(item);
   if ((null_value = item->null_value)) return 0;
   while ((item_field = it++)) {
@@ -7081,9 +7074,9 @@ void Item_equal::print(const THD *thd, String *str,
   str->append(func_name());
   str->append('(');
 
-  if (const_item != nullptr) const_item->print(thd, str, query_type);
+  if (m_const_arg != nullptr) m_const_arg->print(thd, str, query_type);
 
-  bool first = (const_item == nullptr);
+  bool first = (m_const_arg == nullptr);
   for (auto &item_field : fields) {
     if (!first) str->append(STRING_WITH_LEN(", "));
     item_field.print(thd, str, query_type);
@@ -7097,11 +7090,11 @@ bool Item_equal::eq(const Item *item, bool binary_cmp) const {
     return false;
   }
   const Item_equal *item_eq = down_cast<const Item_equal *>(item);
-  if ((const_item != nullptr) != (item_eq->const_item != nullptr)) {
+  if ((m_const_arg != nullptr) != (item_eq->m_const_arg != nullptr)) {
     return false;
   }
-  if (const_item != nullptr &&
-      !const_item->eq(item_eq->const_item, binary_cmp)) {
+  if (m_const_arg != nullptr &&
+      !m_const_arg->eq(item_eq->m_const_arg, binary_cmp)) {
     return false;
   }
 

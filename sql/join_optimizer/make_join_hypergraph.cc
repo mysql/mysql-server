@@ -191,13 +191,13 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
         // to be "true", as that could happen only when const table
         // optimization is used (It is currently not done for
         // hypergraph).
-        if (item->const_item() && !equal->val_int()) {
+        if (equal->const_item() && !equal->val_int()) {
           eq_items.push_back(new Item_func_false);
-        } else if (equal->get_const() != nullptr) {
+        } else if (equal->const_arg() != nullptr) {
           // If there is a constant element, do a simple expansion.
           for (Item_field &field : equal->get_fields()) {
             if (IsSubset(field.used_tables(), tables_in_subtree)) {
-              eq_items.push_back(MakeEqItem(&field, equal->get_const(), equal));
+              eq_items.push_back(MakeEqItem(&field, equal->const_arg(), equal));
             }
           }
         } else if (my_count_bits(equal->used_tables() & tables_in_subtree) >
@@ -1213,7 +1213,7 @@ Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
           return item;
         }
         Item_equal *equal = down_cast<Item_equal *>(item);
-        assert(equal->get_const() == nullptr);
+        assert(equal->const_arg() == nullptr);
         List<Item> eq_items;
         FullyConcretizeMultipleEquals(equal, allowed_tables, &eq_items);
         assert(!eq_items.is_empty());
@@ -2035,7 +2035,7 @@ bool ShouldCompleteMeshForCondition(
                                   table_num_to_companion_set) == -1) {
     return false;
   }
-  if (item_equal->get_const() != nullptr) {
+  if (item_equal->const_arg() != nullptr) {
     return false;
   }
   return true;
@@ -2259,7 +2259,7 @@ bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
               Item_equal *item_equal =
                   down_cast<Item_field *>(item)->item_equal;
               if (item_equal) {
-                Item *const_item = item_equal->get_const();
+                Item *const_item = item_equal->const_arg();
                 if (is_filter && const_item != nullptr &&
                     item->has_compatible_context(const_item)) {
                   return const_item;

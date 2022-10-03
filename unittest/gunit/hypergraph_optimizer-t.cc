@@ -3088,7 +3088,7 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant2) {
                              &query_block->cond_value));
   EXPECT_EQ(1, cond_equal->current_level.size());
   const Item_equal *eq = cond_equal->current_level.head();
-  EXPECT_EQ(nullptr, eq->get_const());
+  EXPECT_EQ(nullptr, eq->const_arg());
   EXPECT_EQ(4, eq->get_fields().size());
 
   string trace;
@@ -3152,7 +3152,7 @@ TEST_F(HypergraphOptimizerTest, SemijoinToInnerWithSargable) {
                              &query_block->cond_value));
   EXPECT_EQ(1, cond_equal->current_level.size());
   const Item_equal *eq = cond_equal->current_level.head();
-  EXPECT_EQ(nullptr, eq->get_const());
+  EXPECT_EQ(nullptr, eq->const_arg());
   EXPECT_EQ(3, eq->get_fields().size());
 
   string trace;

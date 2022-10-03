@@ -2560,25 +2560,26 @@ class Item_cond : public Item_bool_func {
   object represents f1=f2= ...=fn to the projection of known fields fi1=...=fik.
 */
 class Item_equal final : public Item_bool_func {
-  List<Item_field> fields; /* list of equal field items                    */
-  Item *const_item;        /* optional constant item equal to fields items */
-  cmp_item *eval_item;
+  /// List of equal field items.
+  List<Item_field> fields;
+  /// Optional constant item equal to all the field items.
+  Item *m_const_arg{nullptr};
+  /// Helper for comparing the fields.
+  cmp_item *eval_item{nullptr};
+  /// Helper for comparing constants.
   Arg_comparator cmp;
-  bool cond_false;
-  bool compare_as_dates;
+  /// Flag set to true if the equality is known to be always false.
+  bool cond_false{false};
+  /// Should constants be compared as datetimes?
+  bool compare_as_dates{false};
 
  public:
-  inline Item_equal()
-      : Item_bool_func(),
-        const_item(nullptr),
-        eval_item(nullptr),
-        cond_false(false) {}
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
-  Item_equal(Item_equal *item_equal);
+  explicit Item_equal(Item_equal *item_equal);
 
-  Item *get_const() const { return const_item; }
-  void set_const(Item *c) { const_item = c; }
+  Item *const_arg() const { return m_const_arg; }
+  void set_const_arg(Item *c) { m_const_arg = c; }
   bool compare_const(THD *thd, Item *c);
   bool add(THD *thd, Item *c, Item_field *f);
   bool add(THD *thd, Item *c);
@@ -2606,7 +2607,7 @@ class Item_equal final : public Item_bool_func {
     return false;
   }
   bool contains_only_equi_join_condition() const override {
-    return get_const() == nullptr;
+    return const_arg() == nullptr;
   }
 
   /**

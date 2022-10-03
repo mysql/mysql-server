@@ -4551,9 +4551,9 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
                                   Item_equal *item_equal) {
   List<Item> eq_list;
   Item *eq_item = nullptr;
-  if (((Item *)item_equal)->const_item() && !item_equal->val_int())
+  if (item_equal->const_item() && !item_equal->val_int())
     return new Item_func_false();
-  Item *const item_const = item_equal->get_const();
+  Item *const item_const = item_equal->const_arg();
   auto it = item_equal->get_fields().begin();
   if (!item_const) {
     /*
@@ -4573,7 +4573,7 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
     Item_equal *const upper = item_field->find_item_equal(upper_levels);
     if (upper)  // item_field is in this upper equality
     {
-      if (item_const && upper->get_const())
+      if (item_const && upper->const_arg())
         continue;  // Const at both levels, no need to generate at current level
       /*
         If the upper-level multiple equality contains this item, there is no
@@ -7616,7 +7616,7 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
       break;
     case Item_func::OPTIMIZE_EQUAL:
       Item_equal *item_equal = (Item_equal *)cond;
-      Item *const_item = item_equal->get_const();
+      Item *const_item = item_equal->const_arg();
       if (const_item) {
         /*
           For each field field1 from item_equal consider the equality

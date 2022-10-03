@@ -1316,7 +1316,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
     const auto equal = down_cast<Item_equal *>(func);
     // Use first field:  any one will do: they have the same type
     equal->m_const_folding[0] = equal->get_first();
-    equal->m_const_folding[1] = equal->get_const();
+    equal->m_const_folding[1] = equal->const_arg();
     args = equal->m_const_folding;
   }
 
@@ -1440,7 +1440,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         // The constant may have been modified, update the multi-equal
         const auto equal = down_cast<Item_equal *>(func);
         assert(equal->m_const_folding[1] != nullptr);  // the constant
-        equal->set_const(equal->m_const_folding[1]);
+        equal->set_const_arg(equal->m_const_folding[1]);
       }
       break;
     case Item_func::LT_FUNC:

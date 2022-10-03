@@ -149,7 +149,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   if (is_function_of_type(condition, Item_func::EQ_FUNC)) {
     Item_func_eq *eq = down_cast<Item_func_eq *>(condition);
     if (eq->source_multiple_equality != nullptr &&
-        eq->source_multiple_equality->get_const() == nullptr) {
+        eq->source_multiple_equality->const_arg() == nullptr) {
       // To get consistent selectivities, we want all equalities that come from
       // the same multiple equality to use information from all of the tables.
       condition = eq->source_multiple_equality;
@@ -227,7 +227,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
     Item_equal *equal = down_cast<Item_equal *>(condition);
 
     // These should have been expanded early, before we get here.
-    assert(equal->get_const() == nullptr);
+    assert(equal->const_arg() == nullptr);
 
     double selectivity = -1.0;
     for (Item_field &field : equal->get_fields()) {
