@@ -958,7 +958,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
   if (!need_tmp_before_win && implicit_grouping &&
       primary_tables - const_tables == 1 && order.empty() &&
       best_ref[const_tables]->table_ref->is_fulltext_searched()) {
-    for (Item *item : VisibleFields(*fields)) {
+    for (Item *item : *fields) {
       need_tmp_before_win |=
           contains_function_of_type(item, Item_func::FT_FUNC);
       if (need_tmp_before_win) break;
@@ -10705,6 +10705,15 @@ bool JOIN::fts_index_access(JOIN_TAB *tab) {
   }
 
   return true;
+}
+
+bool JOIN::contains_non_aggregated_fts() const {
+  return query_block->has_ft_funcs() &&
+         std::any_of(fields->begin(), fields->end(), [](Item *item) {
+           return WalkItem(item, enum_walk::PREFIX | enum_walk::POSTFIX,
+                           NonAggregatedFullTextSearchVisitor(
+                               [](Item_func_match *) { return true; }));
+         });
 }
 
 /**

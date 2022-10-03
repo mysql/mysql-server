@@ -103,10 +103,6 @@ static void ReplaceUpdateValuesWithTempTableFields(
   Instead we collect the root item of every largest possible subtree where none
   of the items in the subtree have rollup.
 
-  TODO(tlchrist): Consider merging this function with the logic for adding
-  additional items to temporary tables for full-text aggregation. See
-  CollectItemsToMaterializeForFullTextAggregation().
-
   @param root  The root item of the tree to search.
   @param items A collection of items. We add items that satisfy the search
                criteria to this collection.

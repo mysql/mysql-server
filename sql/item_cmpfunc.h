@@ -766,7 +766,7 @@ class Item_func_match_predicate final : public Item_bool_func {
  public:
   explicit Item_func_match_predicate(Item *a) : Item_bool_func(a) {}
 
-  longlong val_int() override { return args[0]->val_int(); }
+  longlong val_int() override;
   enum Functype functype() const override { return MATCH_FUNC; }
   const char *func_name() const override { return "match"; }
   void print(const THD *thd, String *str,

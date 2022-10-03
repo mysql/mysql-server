@@ -3747,6 +3747,24 @@ class Item_func_match final : public Item_real_func {
   }
 };
 
+/**
+  A visitor that calls the specified function on every non-aggregated full-text
+  search function (Item_func_match) it encounters when it is used in a
+  PREFIX+POSTFIX walk with WalkItem(). It skips every item that is wrapped in an
+  aggregate function, and also every item wrapped in a reference, as the items
+  behind the reference are already handled elsewhere (in another query block or
+  in another element of the SELECT list).
+ */
+class NonAggregatedFullTextSearchVisitor : private Item_tree_walker {
+ public:
+  explicit NonAggregatedFullTextSearchVisitor(
+      std::function<bool(Item_func_match *)> func);
+  bool operator()(Item *item);
+
+ private:
+  std::function<bool(Item_func_match *)> m_func;
+};
+
 class Item_func_is_free_lock final : public Item_int_func {
   typedef Item_int_func super;
 

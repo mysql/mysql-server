@@ -2431,7 +2431,7 @@ class Item : public Parse_tree_node {
     return (this->*processor)(arg);
   }
 
-  /** @see WalkItem, CompileItem */
+  /** @see WalkItem, CompileItem, TransformItem */
   template <class T>
   auto walk_helper_thunk(uchar *arg) {
     return (*reinterpret_cast<std::remove_reference_t<T> *>(arg))(this);
@@ -3565,6 +3565,17 @@ inline Item *CompileItem(Item *item, T &&analyzer, U &&transformer) {
   return item->compile(&Item::analyze_helper_thunk<T>, &analyzer_ptr,
                        &Item::walk_helper_thunk<U>,
                        reinterpret_cast<uchar *>(&transformer));
+}
+
+/**
+  Same as WalkItem, but for Item::transform(). Use as e.g.:
+
+      Item *item = TransformItem(root_item, [](Item *item) { return item; });
+ */
+template <class T>
+Item *TransformItem(Item *item, T &&transformer) {
+  return item->transform(&Item::walk_helper_thunk<T>,
+                         pointer_cast<uchar *>(&transformer));
 }
 
 class sp_head;

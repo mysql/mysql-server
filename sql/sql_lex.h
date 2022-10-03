@@ -2272,6 +2272,17 @@ class Query_block : public Query_term {
   bool check_only_full_group_by(THD *thd);
   bool is_row_count_valid_for_semi_join();
 
+  /**
+    Copies all non-aggregated calls to the full-text search MATCH function from
+    the HAVING clause to the SELECT list (as hidden items), so that we can
+    materialize their result and not only their input. This is needed when the
+    result will be accessed after aggregation, as the result from MATCH cannot
+    be recalculated from its input alone. It also needs the underlying scan to
+    be positioned on the correct row. Storing the value before aggregation
+    removes the need for evaluating MATCH again after materialization.
+  */
+  bool lift_fulltext_from_having_to_select_list(THD *thd);
+
   //
   // Members:
   //

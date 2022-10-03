@@ -8037,6 +8037,54 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
     hints->set_hint_limit(ft_limit);
 }
 
+NonAggregatedFullTextSearchVisitor::NonAggregatedFullTextSearchVisitor(
+    std::function<bool(Item_func_match *)> func)
+    : m_func(std::move(func)) {}
+
+bool NonAggregatedFullTextSearchVisitor::operator()(Item *item) {
+  if (is_stopped(item)) {
+    // Inside a skipped subtree.
+    return false;
+  }
+
+  switch (item->type()) {
+    case Item::SUM_FUNC_ITEM:
+      // We're only visiting non-aggregated expressions, so skip subtrees under
+      // aggregate functions.
+      stop_at(item);
+      return false;
+    case Item::REF_ITEM:
+      switch (down_cast<Item_ref *>(item)->ref_type()) {
+        case Item_ref::REF:
+        case Item_ref::OUTER_REF:
+        case Item_ref::AGGREGATE_REF:
+          // Skip all these. REF means the expression is already handled
+          // elsewhere in the SELECT list. OUTER_REF is already handled in an
+          // outer query block. AGGREGATE_REF means it's aggregated, and we're
+          // only interested in non-aggregated expressions.
+          stop_at(item);
+          break;
+        case Item_ref::VIEW_REF:
+          // These are references to items in the SELECT list of a query block
+          // that has been merged into this one. Might not be in the SELECT list
+          // of the query block it was merged into, so we need to look into its
+          // sub-items.
+          break;
+      }
+      return false;
+    case Item::FUNC_ITEM:
+      if (down_cast<Item_func *>(item)->functype() == Item_func::FT_FUNC) {
+        if (m_func(down_cast<Item_func_match *>(item))) {
+          return true;
+        }
+        stop_at(item);
+      }
+      return false;
+    default:
+      return false;
+  }
+}
+
 /***************************************************************************
   System variables
 ****************************************************************************/
