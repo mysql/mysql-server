@@ -46,11 +46,11 @@ RouteSchemaRest::RouteSchemaRest(
     : manager_{manager},
       service_{service},
       name_{name},
+      options_{options},
       cache_{cache},
       requires_authentication_{requires_authentication},
       service_id_{service_id},
       schema_id_{schema_id},
-      options_{options},
       auth_manager_{auth_manager},
       handler_factory_{handler_factory} {
   url_path_ = "^" + service_ + name_ + "/metadata-catalog/?$";

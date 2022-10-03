@@ -204,7 +204,7 @@ void FilterObjectGenerator::parse_complex_and(Value *value) {
   if (!value->IsArray())
     throw std::runtime_error("Complex operations requires and array argument.");
 }
-void FilterObjectGenerator::parse_complex_or(Value *value) {}
+void FilterObjectGenerator::parse_complex_or(Value * /*value*/) {}
 
 void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   using namespace std::literals::string_literals;
@@ -217,7 +217,7 @@ void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   argument_.pop_back();
 }
 
-void FilterObjectGenerator::parse_asof(Value *value) {
+void FilterObjectGenerator::parse_asof(Value * /*value*/) {
   throw std::runtime_error("`asof` attribute not supported.");
 }
 
