@@ -90,7 +90,8 @@ using Result = Handler::Result;
 // review)
 HandlerObject::HandlerObject(Route *route,
                              mrs::interface::AuthManager *auth_manager)
-    : Handler(route->get_rest_url(), route->get_rest_path(), auth_manager),
+    : Handler(route->get_rest_url(), route->get_rest_path(),
+              route->get_options(), auth_manager),
       route_{route} {}
 
 Result HandlerObject::handle_get(rest::RequestContext *ctxt) {

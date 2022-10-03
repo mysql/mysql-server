@@ -37,7 +37,8 @@ class HandlerSP : public rest::Handler {
 
  public:
   HandlerSP(Route *r, mrs::interface::AuthManager *auth_manager)
-      : Handler{r->get_rest_url(), r->get_rest_path(), auth_manager},
+      : Handler{r->get_rest_url(), r->get_rest_path(), r->get_options(),
+                auth_manager},
         route_{r},
         auth_manager_{auth_manager} {}
 

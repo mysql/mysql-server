@@ -52,6 +52,8 @@ class AuthApp {
   std::string url_access_token;
   bool limit_to_registered_users;
   helper::Optional<uint64_t> default_role_id;
+  std::string auth_path;
+  std::string options;
 };
 
 inline std::string to_string(const AuthApp &entry) {

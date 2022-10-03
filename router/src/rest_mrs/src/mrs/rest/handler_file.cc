@@ -66,7 +66,8 @@ namespace rest {
 
 HandlerFile::HandlerFile(Route *route,
                          mrs::interface::AuthManager *auth_manager)
-    : Handler(route->get_rest_url(), route->get_rest_path(), auth_manager),
+    : Handler(route->get_rest_url(), route->get_rest_path(),
+              route->get_options(), auth_manager),
       route_{route} {}
 
 std::pair<IdType, uint64_t> HandlerFile::get_id() const {

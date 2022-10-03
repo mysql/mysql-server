@@ -60,10 +60,10 @@ std::shared_ptr<RouteFactory::RouteSchema> RouteFactory::create_router_schema(
     const std::string &service, const std::string &name, const bool is_ssl,
     const std::string &host, const bool requires_authentication,
     const uint64_t service_id, const uint64_t schema_id,
-    mrs::interface::AuthManager *auth_manager) {
+    const std::string &options, mrs::interface::AuthManager *auth_manager) {
   return std::make_shared<RouteSchemaRest>(
       manager, cache, service, name, is_ssl, host, requires_authentication,
-      service_id, schema_id, auth_manager, handler_factory_);
+      service_id, schema_id, options, auth_manager, handler_factory_);
 }
 
 }  // namespace mrs

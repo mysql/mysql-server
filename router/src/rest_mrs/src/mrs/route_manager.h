@@ -62,10 +62,10 @@ class RouteManager : public mrs::interface::RouteManager {
                mrs::interface::AuthManager *auth_manager);
   ~RouteManager();
 
-  void turn(const State state);
-  void update(const std::vector<DbObject> &paths);
-  void update(const std::vector<ContentFile> &contents);
-  void schema_not_used(RouteSchema *route);
+  void turn(const State state) override;
+  void update(const std::vector<DbObject> &paths) override;
+  void update(const std::vector<ContentFile> &contents) override;
+  void schema_not_used(RouteSchema *route) override;
 
  private:
   void handle_new_route(const DbObject &pe);

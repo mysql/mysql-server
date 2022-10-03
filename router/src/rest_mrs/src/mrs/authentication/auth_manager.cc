@@ -66,16 +66,18 @@ void AuthManager::update(const Entries &entries) {
       if (!auth) container_.erase(it);
     } else {
       if (auth) {
-        std::string path1 = "^" + e.service_name + "/authorize/login$";
-        std::string path2 = "^" + e.service_name + "/authorize/status$";
-        std::string path3 = "^" + e.service_name + "/authorize/logout$";
+        std::string auth_path =
+            !e.auth_path.empty() ? e.auth_path : "/authorize";
+        std::string path1 = "^" + e.service_name + auth_path + "/login$";
+        std::string path2 = "^" + e.service_name + auth_path + "/status$";
+        std::string path3 = "^" + e.service_name + auth_path + "/logout$";
 
         auto rest_handler = std::make_shared<mrs::rest::HandlerAuthorize>(
-            e.id, e.service_name, path1, this);
+            e.id, e.service_name, path1, e.options, this);
         auto status_handler = std::make_shared<mrs::rest::HandlerIsAuthorized>(
-            e.id, e.service_name, path2, this);
+            e.id, e.service_name, path2, e.options, this);
         auto unauth_handler = std::make_shared<mrs::rest::HandlerUnauthorize>(
-            e.id, e.service_name, path3, this);
+            e.id, e.service_name, path3, e.options, this);
         container_.emplace_back(rest_handler, auth, status_handler,
                                 unauth_handler);
       }

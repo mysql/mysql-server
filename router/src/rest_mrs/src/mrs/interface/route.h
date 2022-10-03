@@ -73,6 +73,7 @@ class Route {
   virtual const std::string &get_object_path() = 0;
   virtual const std::string &get_schema_name() = 0;
   virtual const std::string &get_object_name() = 0;
+  virtual const std::string &get_options() = 0;
   virtual const std::string &get_version() {
     static std::string empty;
     return empty;

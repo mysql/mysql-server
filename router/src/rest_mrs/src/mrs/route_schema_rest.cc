@@ -41,7 +41,7 @@ RouteSchemaRest::RouteSchemaRest(
     const std::string &service, const std::string &name, const bool is_ssl,
     const std::string &host, const bool requires_authentication,
     const uint64_t service_id, const uint64_t schema_id,
-    mrs::interface::AuthManager *auth_manager,
+    const std::string &options, mrs::interface::AuthManager *auth_manager,
     std::shared_ptr<HandlerFactory> handler_factory)
     : manager_{manager},
       service_{service},
@@ -50,6 +50,7 @@ RouteSchemaRest::RouteSchemaRest(
       requires_authentication_{requires_authentication},
       service_id_{service_id},
       schema_id_{schema_id},
+      options_{options},
       auth_manager_{auth_manager},
       handler_factory_{handler_factory} {
   url_path_ = "^" + service_ + name_ + "/metadata-catalog/?$";
@@ -92,6 +93,8 @@ void RouteSchemaRest::route_register(Route *r) {
 const std::string &RouteSchemaRest::get_path() const { return url_path_; }
 
 const std::string &RouteSchemaRest::get_name() const { return name_; }
+
+const std::string &RouteSchemaRest::get_options() const { return options_; }
 
 const std::string RouteSchemaRest::get_full_path() const {
   return service_ + name_;

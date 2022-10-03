@@ -40,6 +40,7 @@ class HandlerIsAuthorized : public Handler {
  public:
   HandlerIsAuthorized(const uint64_t id, const std::string &url,
                       const std::string &rest_path_matcher,
+                      const std::string &options,
                       interface::AuthManager *auth_manager);
 
   Authorization requires_authentication() const override;

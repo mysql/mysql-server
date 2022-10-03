@@ -39,6 +39,7 @@ namespace mrs {
 namespace authentication {
 
 class AuthManager : public mrs::interface::AuthManager {
+  using AuthHandler = mrs::interface::AuthHandler;
   using RestHandler = mrs::interface::RestHandler;
   using AuthHandlerFactoryPtr =
       std::shared_ptr<mrs::interface::AuthHandlerFactory>;

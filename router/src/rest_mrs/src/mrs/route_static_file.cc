@@ -116,6 +116,8 @@ const std::string &RouteStaticFile::get_object_name() {
 
 const std::string &RouteStaticFile::get_version() { return version_; }
 
+const std::string &RouteStaticFile::get_options() { return cse_.options_json; }
+
 const std::vector<Column> &RouteStaticFile::get_cached_columnes() {
   static std::vector<Column> empty;
   return empty;

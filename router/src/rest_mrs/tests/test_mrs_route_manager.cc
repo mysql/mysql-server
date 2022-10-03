@@ -88,7 +88,7 @@ class RouteManagerTests : public Test {
                             bool track_destruction = false) {
     EXPECT_CALL(*mock_route_factory_,
                 create_router_schema(_, _, _, _, _, _, _, obj.service_id,
-                                     get_schema_id(obj), _))
+                                     get_schema_id(obj), _, _))
         .WillOnce(Return(ByMove(std::shared_ptr<RouteSchema>(
             &return_mock, [track_destruction](RouteSchema *r) {
               if (track_destruction)

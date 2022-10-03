@@ -54,7 +54,7 @@ class RouteSchemaRest : public std::enable_shared_from_this<RouteSchemaRest>,
                   const std::string &service, const std::string &name,
                   const bool is_ssl, const std::string &host,
                   const bool requires_authentication, const uint64_t service_id,
-                  const uint64_t schema_id,
+                  const uint64_t schema_id, const std::string &options,
                   mrs::interface::AuthManager *auth_manager,
                   std::shared_ptr<HandlerFactory> handler_factory);
 
@@ -66,6 +66,7 @@ class RouteSchemaRest : public std::enable_shared_from_this<RouteSchemaRest>,
   const std::string &get_name() const override;
   const std::string &get_url() const override;
   const std::string &get_path() const override;
+  const std::string &get_options() const override;
   const VectorOfRoutes &get_routes() const override;
   bool requires_authentication() const override;
   uint64_t get_service_id() const override;
@@ -78,6 +79,7 @@ class RouteSchemaRest : public std::enable_shared_from_this<RouteSchemaRest>,
   std::string name_;
   std::string url_;
   std::string url_path_;
+  std::string options_;
   collector::MysqlCacheManager *cache_;
   VectorOfRoutes routes_;
   std::unique_ptr<Handler> rest_handler_schema_;

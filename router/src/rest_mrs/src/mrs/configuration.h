@@ -27,6 +27,9 @@
 
 #include <set>
 #include <string>
+#include <vector>
+
+#include <mysql.h>
 
 namespace mrs {
 

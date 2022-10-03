@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,45 +22,32 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_SCHEMA_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_SCHEMA_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_PARAMETER_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_PARAMETER_H_
 
-#include <cstdint>
-#include <string>
 #include <vector>
 
-#include "mrs/interface/rest_handler.h"
-#include "mrs/state.h"
+#include "mrs/database/entry/parameter.h"
+#include "mrs/database/helper/query.h"
 
 namespace mrs {
-namespace interface {
+namespace database {
 
-class Route;
-
-class RouteSchema {
+class QueryEntryParameter : private Query {
  public:
-  using VectorOfRoutes = std::vector<Route *>;
-  using Handler = mrs::interface::RestHandler;
+  using Parameters = std::vector<entry::Parameter>;
 
-  virtual ~RouteSchema() = default;
+  virtual bool query_parameters(MySQLSession *session, uint64_t db_object_id);
 
- public:
-  virtual void turn(const State state) = 0;
-  virtual void route_unregister(Route *r) = 0;
-  virtual void route_register(Route *r) = 0;
+  virtual Parameters &get_result();
 
-  virtual const std::string &get_name() const = 0;
-  virtual const std::string &get_url() const = 0;
-  virtual const std::string &get_path() const = 0;
-  virtual const std::string &get_options() const = 0;
-  virtual const std::string get_full_path() const = 0;
-  virtual const VectorOfRoutes &get_routes() const = 0;
-  virtual bool requires_authentication() const = 0;
-  virtual uint64_t get_service_id() const = 0;
-  virtual uint64_t get_id() const = 0;
+ private:
+  void on_row(const Row &r) override;
+
+  Parameters parameters_;
 };
 
-}  // namespace interface
+}  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_SCHEMA_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_PARAMETER_H_

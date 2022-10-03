@@ -25,6 +25,7 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_REST_HANDLER_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_REST_HANDLER_H_
 
+#include <map>
 #include <optional>
 #include <string>
 #include <utility>
@@ -53,6 +54,7 @@ class RestHandler {
  public:
   using SqlSession = mysqlrouter::MySQLSession;
   using RequestContext = rest::RequestContext;
+  using Parameters = std::map<std::string, std::string>;
 
   struct Result {
     using Type = helper::MediaType;
@@ -82,6 +84,7 @@ class RestHandler {
   virtual uint64_t get_db_object_id() const = 0;
   virtual uint64_t get_schema_id() const = 0;
   virtual uint32_t get_access_rights() const = 0;
+  virtual const Parameters &get_headers_parameters() const = 0;
   virtual bool is_json_response() const { return true; }
 
   virtual bool request_begin(RequestContext *ctxt) = 0;

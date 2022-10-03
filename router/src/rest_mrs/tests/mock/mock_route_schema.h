@@ -38,6 +38,7 @@ class MockRouteSchema : public mrs::interface::RouteSchema {
   MOCK_METHOD(const std::string &, get_name, (), (const, override));
   MOCK_METHOD(const std::string &, get_url, (), (const, override));
   MOCK_METHOD(const std::string &, get_path, (), (const, override));
+  MOCK_METHOD(const std::string &, get_options, (), (const, override));
   MOCK_METHOD(const std::string, get_full_path, (), (const, override));
   MOCK_METHOD(const VectorOfRoutes &, get_routes, (), (const, override));
   MOCK_METHOD(bool, requires_authentication, (), (const, override));

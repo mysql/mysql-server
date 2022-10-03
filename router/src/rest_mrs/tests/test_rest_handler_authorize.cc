@@ -72,7 +72,7 @@ class HandlerAuthorizeTests : public Test {
               return request_handler_.get();
             }));
     sut_ = std::make_unique<HandlerAuthorize>(service_id, rest_url, rest_path,
-                                              &mock_auth_);
+                                              "", &mock_auth_);
     ASSERT_NE(nullptr, request_handler_.get());
   }
 

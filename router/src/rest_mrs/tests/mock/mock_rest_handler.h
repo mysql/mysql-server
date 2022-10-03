@@ -30,6 +30,7 @@
 class MockRestHandler : public mrs::interface::RestHandler {
  public:
   using RequestContext = mrs::rest::RequestContext;
+  using Parameters = std::map<std::string, std::string>;
 
   MOCK_METHOD(Authorization, requires_authentication, (), (const, override));
   MOCK_METHOD((std::pair<mrs::IdType, uint64_t>), get_id, (),
@@ -51,6 +52,7 @@ class MockRestHandler : public mrs::interface::RestHandler {
   MOCK_METHOD(void, request_end, (RequestContext * ctxt), (override));
   MOCK_METHOD(bool, request_error,
               (RequestContext * ctxt, const mrs::http::Error &e), (override));
+  MOCK_METHOD(Parameters &, get_headers_parameters, (), (const, override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_REST_HANDLER_H_

@@ -554,7 +554,15 @@ const char *const ARCHITECTURE_DESCRIPTOR =
 using OnPluginReadyFunction = void (*)(PluginFuncEnv *);
 using OnPluginReadyHandler = std::function<void (PluginFuncEnv *)>;
 
-const char ** HARNESS_EXPORT get_ready_services();
+// On some GCC compilers setting attribute on function with pointer return type
+// causes a compilation error. For example, this is going to fail:
+//
+//      const char** HARNESS_EXPORT get_ready_services();
+//
+// As workaround for those compilers, lets create a typedef for it. 
+typedef const char** RawCStringArray;
+RawCStringArray HARNESS_EXPORT get_ready_services();
+
 void HARNESS_EXPORT on_service_ready(const std::string &name);
 void HARNESS_EXPORT on_service_ready(PluginFuncEnv *plugin_env);
 uint32_t HARNESS_EXPORT

@@ -66,6 +66,7 @@ class RouteStaticFile : public mrs::interface::Route {
   const std::string &get_object_name() override;
   const std::string &get_schema_name() override;
   const std::string &get_version() override;
+  const std::string &get_options() override;
   const std::vector<Column> &get_cached_columnes() override;
   const std::string &get_cached_primary() override;
   uint32_t get_on_page() override;

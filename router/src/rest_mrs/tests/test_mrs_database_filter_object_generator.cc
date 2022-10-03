@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,39 +22,23 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_CONTENT_FILE_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_CONTENT_FILE_H_
-
-#include <cstdint>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <string>
 
-#include "mrs/database/entry/entry.h"
+#include "mrs/database/filter_object_generator.h"
 
-namespace mrs {
-namespace database {
-namespace entry {
+#include "helper/json/text_to.h"
 
-struct ContentFile {
-  EntryKey get_key() const { return {key_static, id}; }
+using namespace mrs::database;
 
-  uint64_t id;
-  uint64_t content_set_id;
-  uint64_t service_id;
-  uint64_t size;
-  std::string host;
-  std::string service_path;
-  std::string schema_path;
-  std::string file_path;
-  bool active;
-  bool set_requires_authentication;
-  bool requires_authentication;
-  bool deleted;
-  std::string options_json;
-  std::string options_json_schema;
-};
+static rapidjson::Document json(const std::string &j) {
+  rapidjson::Document result;
+  helper::json::text_to_raw(&result, j);
+  return result;
+}
 
-}  // namespace entry
-}  // namespace database
-}  // namespace mrs
-
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_CONTENT_FILE_H_
+TEST(FilterObjectGen, first) {
+  FilterObjectGenerator fog;
+  fog.parse(json(""));
+}

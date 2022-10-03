@@ -50,7 +50,8 @@ class MockRouteFactory : public mrs::interface::RouteFactory {
                const std::string &service, const std::string &name,
                const bool is_ssl, const std::string &host,
                const bool requires_authentication, const uint64_t service_id,
-               const uint64_t schema_id, AuthManager *auth_manager),
+               const uint64_t schema_id, const std::string &options,
+               AuthManager *auth_manager),
               (override));
 };
 
