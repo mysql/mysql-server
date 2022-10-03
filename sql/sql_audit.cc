@@ -362,6 +362,7 @@ void thd_get_audit_query(THD *thd, MYSQL_LEX_CSTRING *query,
   }
   else
   {
+    DBUG_PRINT("print_query", ("%.*s\n", (int)query->length, query->str));
     query->str= thd->query().str;
     query->length= thd->query().length;
     *charset= thd->charset();
