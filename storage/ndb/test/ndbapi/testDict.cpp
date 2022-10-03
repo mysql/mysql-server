@@ -10580,7 +10580,7 @@ struct Fkdef {
   static const int colmax = 5;
   static const int indmax = 5;
   static const int keymax = tabmax * 5;
-  static const int strmax = 10;
+  static const int strmax = 32; // at least 2 dec (10 chars) aligned up
   struct Ob {
     bool retrieved;
     int id;
