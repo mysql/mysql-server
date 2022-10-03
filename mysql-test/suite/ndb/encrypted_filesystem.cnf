@@ -1,0 +1,5 @@
+[cluster_config.1]
+EncryptedFileSystem=1
+
+[ndbd]
+filesystem-password=topsecret

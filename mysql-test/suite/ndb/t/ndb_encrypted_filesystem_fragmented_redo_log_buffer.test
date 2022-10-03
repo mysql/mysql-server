@@ -1,0 +1,2 @@
+source include/have_ndb.inc;
+source ndb_fragmented_redo_log_buffer.test;

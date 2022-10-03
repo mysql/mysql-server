@@ -1,0 +1,2 @@
+!include ndb_fragmented_redo_log_buffer.cnf
+!include ../encrypted_filesystem.cnf
