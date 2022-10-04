@@ -75,6 +75,29 @@ std::unique_ptr<MySQLSession::ResultRow> Query::query_one(
 }
 
 void Query::query(MySQLSession *session) { query(session, query_); }
+void Query::prepare_and_execute(MySQLSession *session, const std::string &q,
+                                std::vector<enum_field_types> pt) {
+  log_debug("Prepare: %s", q.c_str());
+  auto id = session->prepare(q);
+
+  try {
+    log_debug("Execute");
+    session->prepare_execute(
+        id, pt,
+        [this](const auto &r) {
+          on_row(r);
+          return true;
+        },
+        [this](unsigned number, MYSQL_FIELD *fields) {
+          on_metadata(number, fields);
+        });
+    session->prepare_remove(id);
+  } catch (mysqlrouter::MySQLSession::Error &e) {
+    session->prepare_remove(id);
+    log_debug("Following query failed: '%s'", e.message().c_str());
+    throw;
+  }
+}
 
 void Query::on_row([[maybe_unused]] const Row &r) {}
 

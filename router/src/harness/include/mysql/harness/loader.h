@@ -756,6 +756,8 @@ class HARNESS_EXPORT Loader {
    */
   Loader(const std::string &program, LoaderConfig &config);
   Loader(const Loader &) = delete;
+  ~Loader();
+
   Loader &operator=(const Loader &) = delete;
 
   /**

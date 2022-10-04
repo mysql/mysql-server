@@ -86,6 +86,10 @@ class Url {
     return result;
   }
 
+  bool is_query_parameter(const std::string &key) const {
+    return 0 != parameters_.count(key);
+  }
+
   static std::string get_query_parameter(HttpUri &uri, const std::string &key) {
     Url url(uri);
     return url.get_query_parameter(key);
@@ -159,7 +163,7 @@ class Url {
     return {};
   }
 
- private:
+ public:
   Parameaters parameters_;
 };
 

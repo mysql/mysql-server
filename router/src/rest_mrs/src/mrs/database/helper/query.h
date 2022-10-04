@@ -41,6 +41,8 @@ class Query {
 
   void query(MySQLSession *session);
   void query(MySQLSession *session, const std::string &q);
+  void prepare_and_execute(MySQLSession *session, const std::string &q,
+                           std::vector<enum_field_types> pt);
 
   std::unique_ptr<MySQLSession::ResultRow> query_one(MySQLSession *session);
   std::unique_ptr<MySQLSession::ResultRow> query_one(MySQLSession *session,

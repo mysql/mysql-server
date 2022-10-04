@@ -55,7 +55,8 @@ class QueryRestTable : private Query {
       const std::string &primary, const bool is_default_limit,
       const RowUserOwnership &user_ownership = {}, uint64_t *user_id = nullptr,
       const VectorOfRowGroupOwnershp &row_groups = {},
-      const std::set<uint64_t> &user_groups = {});
+      const std::set<uint64_t> &user_groups = {},
+      const std::string &query = {});
 
   std::string response;
 
@@ -77,7 +78,8 @@ class QueryRestTable : private Query {
                    const std::string &url, const std::string &primary,
                    const RowUserOwnership &user_row, uint64_t *user_id,
                    const std::vector<RowGroupOwnership> &row_groups,
-                   const std::set<uint64_t> &user_groups);
+                   const std::set<uint64_t> &user_groups,
+                   const std::string &query);
 };
 
 }  // namespace database

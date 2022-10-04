@@ -32,13 +32,113 @@
 
 using namespace mrs::database;
 
-static rapidjson::Document json(const std::string &j) {
-  rapidjson::Document result;
-  helper::json::text_to_raw(&result, j);
-  return result;
+using testing::Test;
+
+class FilterObjectsTest : public Test {
+ public:
+  static rapidjson::Document json(const std::string &j) {
+    rapidjson::Document result;
+    helper::json::text_to(&result, j);
+    return result;
+  }
+
+  FilterObjectGenerator sut_;
+};
+
+TEST_F(FilterObjectsTest, empty_json_throws) {
+  ASSERT_THROW(sut_.parse(json("")), std::exception);
 }
 
-TEST(FilterObjectGen, first) {
-  FilterObjectGenerator fog;
-  fog.parse(json(""));
+TEST_F(FilterObjectsTest, int_json_throws) {
+  ASSERT_THROW(sut_.parse(json("10")), std::exception);
+}
+
+TEST_F(FilterObjectsTest, string_json_throws) {
+  ASSERT_THROW(sut_.parse(json("\"value\"")), std::exception);
+}
+
+TEST_F(FilterObjectsTest, bool_json_throws) {
+  ASSERT_THROW(sut_.parse(json("true")), std::exception);
+}
+
+TEST_F(FilterObjectsTest, array_json_throws) {
+  ASSERT_THROW(sut_.parse(json("")), std::exception);
+}
+
+TEST_F(FilterObjectsTest, empty_object_accepted) {
+  sut_.parse(json("{}"));
+  ASSERT_EQ("", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, orderby_field_must_be_an_object) {
+  ASSERT_THROW(sut_.parse(json("{\"$orderby\":1}")), std::exception);
+}
+
+TEST_F(FilterObjectsTest, orderby_field_must_be_an_object_with_fields) {
+  ASSERT_THROW(sut_.parse(json("{\"$orderby\":{}}")), std::exception);
+}
+
+TEST_F(FilterObjectsTest, orderby_one_field_asc) {
+  sut_.parse(json("{\"$orderby\":{\"test_field\":1}}"));
+  ASSERT_EQ(" ORDER BY test_field ASC", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, orderby_two_fields_asc) {
+  sut_.parse(json("{\"$orderby\":{\"test_field\":1, \"field2\":-1}}"));
+  ASSERT_EQ(" ORDER BY test_field ASC, field2 DESC", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, match_field_by_int_value) {
+  sut_.parse(json("{\"f1\":1}"));
+  ASSERT_EQ(" WHERE f1=1", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, match_field_by_string_value) {
+  sut_.parse(json("{\"f1\":\"abc123\"}"));
+  ASSERT_EQ(" WHERE f1='abc123'", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, match_fields) {
+  sut_.parse(json("{\"f1\":\"abc123\", \"f2\":10}"));
+  ASSERT_EQ(" WHERE f1='abc123' AND f2=10", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, match_field_complex) {
+  sut_.parse(json("{\"f1\":{\"$eq\":1}}"));
+  ASSERT_EQ(" WHERE f1 = 1", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, match_field_complex_greater) {
+  sut_.parse(json("{\"f1\":{\"$gt\":1}}"));
+  ASSERT_EQ(" WHERE f1 > 1", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, match_field_complex_between) {
+  sut_.parse(json("{\"f1\":{\"$between\":[1,100]}}"));
+  ASSERT_EQ(" WHERE  BETWEEN(f1, 1, 100) ", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, not_supported_match_field_complex_less_and_greater) {
+  ASSERT_THROW(sut_.parse(json("{\"f1\":{\"$gt\":1, \"$lt\":100}}")),
+               std::exception);
+}
+
+TEST_F(FilterObjectsTest, complex_and_one_element) {
+  sut_.parse(json("{\"$and\":[{\"v1\":1}]}"));
+  ASSERT_EQ(" WHERE(( v1=1))", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, complex_and_two_elements) {
+  sut_.parse(json("{\"$and\":[{\"v1\":1},{\"v2\":\"a\"}]}"));
+  ASSERT_EQ(" WHERE(( v1=1) AND( v2='a'))", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, complex_or_one_element) {
+  sut_.parse(json("{\"$or\":[{\"v1\":1}]}"));
+  ASSERT_EQ(" WHERE(( v1=1))", sut_.get_result());
+}
+
+TEST_F(FilterObjectsTest, complex_or_two_elements) {
+  sut_.parse(json("{\"$or\":[{\"v1\":1},{\"v2\":\"a\"}]}"));
+  ASSERT_EQ(" WHERE(( v1=1) OR( v2='a'))", sut_.get_result());
 }

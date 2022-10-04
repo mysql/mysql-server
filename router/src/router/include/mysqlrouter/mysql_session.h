@@ -419,6 +419,12 @@ class ROUTER_LIB_EXPORT MySQLSession {
   virtual void connect(const MySQLSession &other, const std::string &username,
                        const std::string &password);
 
+  virtual uint64_t prepare(const std::string &query);
+  virtual void prepare_execute(
+      uint64_t ps_id, std::vector<enum_field_types> pt,
+      const RowProcessor &processor,
+      const FieldValidator &validator = null_field_validator);
+  virtual void prepare_remove(uint64_t ps_id);
   virtual void execute(
       const std::string &query);  // throws Error, std::logic_error
   virtual void query(
@@ -466,6 +472,8 @@ class ROUTER_LIB_EXPORT MySQLSession {
     std::string default_schema;
   } connect_params_;
 
+  uint64_t last_stmt_id{0};
+  std::map<uint64_t, MYSQL_STMT *> stmts_;
   MYSQL *connection_;
   bool connected_;
   std::string connection_address_;

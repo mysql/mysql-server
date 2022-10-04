@@ -187,7 +187,10 @@ class RestRequestHandler : public BaseRequestHandler {
 
       auto required_access = get_access_right_from_http_method(method);
       if (!(required_access & rest_handler_->get_access_rights())) {
-        log_debug("'required_access' denied");
+        log_debug(
+            "'required_access' denied, required_access:%i, "
+            "access:%i",
+            required_access, rest_handler_->get_access_rights());
         throw http::Error{HttpStatusCode::Forbidden};
       }
 

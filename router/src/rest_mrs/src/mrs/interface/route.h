@@ -32,6 +32,7 @@
 
 #include "collector/mysql_cache_manager.h"
 #include "helper/mysql_column.h"
+#include "mrs/database/entry/parameter.h"
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
 #include "mrs/interface/rest_handler.h"
@@ -49,6 +50,7 @@ class Route {
   using RowUserOwnership = database::entry::RowUserOwnership;
   using VectorOfRowGroupOwnership =
       std::vector<database::entry::RowGroupOwnership>;
+  using Parameters = std::vector<database::entry::Parameter>;
 
   enum Access { kCreate = 1, kRead = 2, kUpdate = 4, kDelete = 8 };
   enum Format { kFeed = 1, kItem = 2, kMedia = 3 };
@@ -78,6 +80,7 @@ class Route {
     static std::string empty;
     return empty;
   }
+  virtual const Parameters &get_parameters() = 0;
   virtual const std::vector<Column> &get_cached_columnes() = 0;
   virtual const std::string &get_cached_primary() = 0;
   virtual uint32_t get_on_page() = 0;

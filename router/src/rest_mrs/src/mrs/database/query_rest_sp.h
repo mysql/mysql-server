@@ -30,6 +30,7 @@
 #include "helper/mysql_column.h"
 #include "mrs/database/helper/query.h"
 #include "mrs/json/response_json_template.h"
+#include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {
 namespace database {
@@ -38,7 +39,9 @@ class QueryRestSP : private Query {
  public:
   virtual void query_entries(MySQLSession *session, const std::string &schema,
                              const std::string &object, const std::string &url,
-                             const std::string &ignore_column);
+                             const std::string &ignore_column,
+                             const mysqlrouter::sqlstring &values = {},
+                             std::vector<enum_field_types> pt = {});
 
   std::string response;
 
