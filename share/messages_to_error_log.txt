@@ -12122,6 +12122,29 @@ ER_NOTE_COMPONENT_SLOT_DEREGISTRATION_SUCCESS
 
 ER_WARN_CANNOT_FREE_COMPONENT_DATA_DEALLOCATION_FAILED
   eng "Cannot free resources stored by component '%s' in thread with ID: '%d'. Component failed to free required resources."
+ER_IB_RESURRECT_TRX_INSERT
+  eng "Transaction ID: %lu found for resurrecting inserts"
+
+ER_IB_RESURRECT_TRX_UPDATE
+  eng "Transaction ID: %lu found for resurrecting updates"
+
+ER_IB_RESURRECT_IDENTIFY_TABLE_TO_LOCK
+  eng "Identified table ID: %lu to acquire lock"
+
+ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK
+  eng "Acquired lock on table ID: %lu, name: %s"
+
+ER_IB_RESURRECT_RECORD_PROGRESS
+  eng "Records read: %lu - Pages read: %lu"
+
+ER_IB_RESURRECT_RECORD_COMPLETE
+  eng "Total records resurrected: %lu - Total pages read: %lu - Total tables acquired: %lu"
+
+ER_IB_RESURRECT_TRX_INSERT_COMPLETE
+  eng "Resurrected %lu transactions doing inserts."
+
+ER_IB_RESURRECT_TRX_UPDATE_COMPLETE
+  eng "Resurrected %lu transactions doing updates."
 
 ER_AUTHENTICATION_OCI_INVALID_TOKEN
   eng "Invalid security token provided by '%s' for '%s'@'%s': %s."
