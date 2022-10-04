@@ -1486,8 +1486,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
   param->func_count = param->items_to_copy->size();
   assert(param->func_count <= copy_func_count);  // Used <= allocated
   sort_copy_func(thd->lex->current_query_block(), param->items_to_copy);
-  uchar *bitmaps = static_cast<uchar *>(
-      share->mem_root.Alloc(bitmap_buffer_size(field_count + 1) * 3));
+  uchar *bitmaps = static_cast<uchar *>(share->mem_root.Alloc(
+      bitmap_buffer_size(field_count + extra_fields) * 3));
   if (bitmaps == nullptr) return nullptr;
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
