@@ -6088,8 +6088,7 @@ static void convert_zerofill_number_to_string(Item **item,
 Item *Item_field::equal_fields_propagator(uchar *arg) {
   if (no_constant_propagation) return this;
   item_equal = find_item_equal((COND_EQUAL *)arg);
-  Item *item = nullptr;
-  if (item_equal != nullptr) item = item_equal->get_const();
+  Item *item = item_equal != nullptr ? item_equal->const_arg() : nullptr;
   /*
     Disable const propagation if the constant is nullable and this item is not.
     If propagation was allowed in this case, it would also be necessary to
@@ -6170,7 +6169,7 @@ Item *Item_field::replace_item_field(uchar *arg) {
 
 Item *Item_field::replace_equal_field(uchar *) {
   if (item_equal) {
-    Item *const_item = item_equal->get_const();
+    Item *const_item = item_equal->const_arg();
     if (const_item) {
       if (!has_compatible_context(const_item)) return this;
       return const_item;

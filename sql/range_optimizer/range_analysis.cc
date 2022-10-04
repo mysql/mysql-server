@@ -969,7 +969,7 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
 
     case Item_func::MULT_EQUAL_FUNC: {
       Item_equal *item_equal = down_cast<Item_equal *>(cond);
-      Item *value = item_equal->get_const();
+      Item *value = item_equal->const_arg();
       if (value == nullptr) return nullptr;
       table_map ref_tables = value->used_tables();
       for (Item_field &field_item : item_equal->get_fields()) {

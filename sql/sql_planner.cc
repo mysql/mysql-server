@@ -1571,7 +1571,7 @@ static ulonglong get_bound_sj_equalities(const JOIN_TAB *tab,
         (2) or a column from an available table
         then the semi-join equality is bound.
       */
-      if (item_equal->get_const() ||                            // (1)
+      if (item_equal->const_arg() ||                            // (1)
           (item_equal->used_tables() & ~not_available_tables))  // (2)
         bound_sj_equalities |= 1ULL << i;
     }

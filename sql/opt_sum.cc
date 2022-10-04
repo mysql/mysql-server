@@ -633,7 +633,7 @@ bool is_simple_predicate(Item_func *func_item, Item **args, bool *inv_order) {
         Item_equal *item_equal = down_cast<Item_equal *>(func_item);
         args[0] = item_equal->get_first();
         if (item_equal->members() > 1) return false;
-        if (!(args[1] = item_equal->get_const())) return false;
+        if (!(args[1] = item_equal->const_arg())) return false;
       }
       break;
     case 1:
