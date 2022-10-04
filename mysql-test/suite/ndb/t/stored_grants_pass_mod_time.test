@@ -1,7 +1,22 @@
+--source include/have_ndb.inc
+
+# Bug#34626727 Password for stored user is expired on remote SQL nodes
+#              when the password is not set
+
+CREATE USER t346;
+GRANT NDB_STORED_USER ON *.* TO t346;
+SELECT password_expired FROM mysql.user WHERE USER = 't346';
+
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+
+--echo server 2:
+SELECT password_expired FROM mysql.user WHERE USER = 't346';
+
+connection default;
+
 # Bug#33172887 password_last_changed is geting updated on sql node restart
 #              for user with NDB_STORED_USER privilege
 
---source include/have_ndb.inc
 --disable_result_log
 --disable_query_log
 
@@ -47,4 +62,5 @@ query_vertical SHOW CREATE USER t331@localhost;
 set print_identified_with_as_hex = false;
 
 ## Cleanup
+DROP USER t346;
 DROP USER t331@localhost;

@@ -32,14 +32,11 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 
 [Test 1D: Server D binlog events]
-**   Expect 7 Query events: 1 CREATE USER, 1 REVOKE, 2 ALTERs, 3 GRANTs.
+**   Expect 4 Query events: 1 CREATE USER + 3 GRANTs.
 **   These must have server_id = 1.
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	#	Query	1	#	CREATE USER IF NOT EXISTS 'ndb_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
-#	#	Query	1	#	REVOKE ALL ON *.* FROM 'ndb_u1'@'localhost'
-#	#	Query	1	#	ALTER USER 'ndb_u1'@'localhost' WITH MAX_QUERIES_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 MAX_CONNECTIONS_PER_HOUR 0 MAX_USER_CONNECTIONS 0
-#	#	Query	1	#	ALTER USER 'ndb_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+#	#	Query	1	#	CREATE USER 'ndb_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 #	#	Query	1	#	GRANT USAGE ON *.* TO 'ndb_u1'@'localhost'
 #	#	Query	1	#	GRANT NDB_STORED_USER ON *.* TO 'ndb_u1'@'localhost'
 #	#	Query	1	#	GRANT SELECT ON `auth_test_db`.`t1` TO 'ndb_u1'@'localhost'

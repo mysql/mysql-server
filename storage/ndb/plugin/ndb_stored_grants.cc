@@ -643,15 +643,23 @@ int ThreadContext::drop_users(ChangeNotice *notice,
    matches the snapshot, then return without doing anything, so that the
    last_mod timestamp on the user's password does not get unnecessarily reset.
 
-   Otherwise apply the statement to create the user. For idempotence, it
-   must be rewritten as several statements. The final result is:
-      CREATE USER IF NOT EXISTS user@host;
+   Otherwise, try to apply the statement as-is. This can fail for several
+   reasons (some of which are tested in the apply_stored_grants test case),
+   but if might succeed.
+
+   If running the CREATE USER statement failed, it must be rewritten as
+   several statements. The final result is:
+      CREATE USER IF NOT EXISTS user@host  IDENTIFIED BY RANDOM PASSWORD;
       REVOKE ALL ON *.* FROM user@host;
       ALTER USER user@host ...;   [CLEAR RESOURCE LIMITS]
       ALTER USER user@host ...;   [SET VALUES FROM SHOW CREATE USER]
+      ALTER USER user@host DEFAULT ROLE ... ;
+
+  The DEFAULT ROLE statement is pushed to the end of a list and run later,
+  after some other statement in the snapshot possibly creates the named role.
 */
 void ThreadContext::create_user(std::string &name, std::string &statement) {
-  const std::string create_user("CREATE USER IF NOT EXISTS ");
+  const std::string create_user_if_ne("CREATE USER IF NOT EXISTS ");
   const std::string random_pass(" IDENTIFIED BY RANDOM PASSWORD");
   const std::string alter_user("ALTER USER ");
   const std::string revoke_all("REVOKE ALL ON *.* FROM ");
@@ -659,9 +667,9 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
       " WITH MAX_QUERIES_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 "
       " MAX_CONNECTIONS_PER_HOUR 0 MAX_USER_CONNECTIONS 0");
 
-  const bool exists_local = get_local_user(name);
+  const bool exists_in_cache = get_local_user(name);
 
-  if (exists_local) {
+  if (exists_in_cache) {
     /* Compare the snapshot user to the local one. Before comparing, we must
        detect whether the password hash stored in the snapshot used hex encoding
        or a plain string.  In statement.find(), 36 characters skips past
@@ -671,15 +679,20 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
     bool is_hex = (statement.find(" AS 0x", 36) != std::string::npos);
     if (show_create_user(name, show_create, is_hex) && show_create == statement)
       return;  // Current SHOW CREATE USER already matches snapshot
-  }
-
-  if (!exists_local) {
-    /* Create the user with a random password and add it to the local cache */
-    ndb_log_info("From stored snapshot, adding NDB stored user: %s",
-                 name.c_str());
-    run_acl_statement(create_user + name + random_pass);
+  } else {
     local_granted_users.insert(name);
   }
+
+  ndb_log_info("From stored snapshot, adding NDB stored user: %s",
+               name.c_str());
+
+  /* Try to run the CREATE USER statement stored in the snapshot.
+     If this succeeds, we are done; but there are several reasons it might fail.
+  */
+  if (try_create_user(statement) == false) return;
+
+  /* Create the user with a random password (unless the user already exists) */
+  run_acl_statement(create_user_if_ne + name + random_pass);
 
   /* Revoke any privileges the user may have had prior to this snapshot. */
   run_acl_statement(revoke_all + name);
