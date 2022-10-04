@@ -2352,4 +2352,19 @@ SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY 
 --error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
 SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#33910786 Scalar subquery transformation combined with
+--echo # WHERE clause optimization lead to reject_multiple_rows being
+--echo # ineffective
+--echo #
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (1);
+
+let $query = SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval EXPLAIN FORMAT=tree $query;
+DROP TABLE t;
+
 SET optimizer_switch='subquery_to_derived=default';

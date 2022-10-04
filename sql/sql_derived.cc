@@ -966,6 +966,8 @@ bool Table_ref::setup_table_function(THD *thd) {
   5. If the derived query block has any user variable assignments -
   would affect the result of evaluating assignments to user variables
   in SELECT list of the derived table.
+  6. The derived table stems from a scalar to derived table transformation
+  which relies on cardinality check.
 */
 
 bool Table_ref::can_push_condition_to_derived(THD *thd) {
@@ -976,8 +978,9 @@ bool Table_ref::can_push_condition_to_derived(THD *thd) {
          !is_inner_table_of_outer_join() &&                                // 3
          !(common_table_expr() &&
            (common_table_expr()->references.size() >= 2 ||
-            common_table_expr()->recursive)) &&   // 4
-         (thd->lex->set_var_list.elements == 0);  // 5
+            common_table_expr()->recursive)) &&     // 4
+         (thd->lex->set_var_list.elements == 0) &&  // 5
+         !unit->m_reject_multiple_rows;             // 6
 }
 
 /**

@@ -4665,4 +4665,23 @@ ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list 
 SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
 ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1;
+#
+# Bug#33910786 Scalar subquery transformation combined with
+# WHERE clause optimization lead to reject_multiple_rows being
+# ineffective
+#
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (1);
+SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
+ERROR 21000: Subquery returns more than 1 row
+EXPLAIN FORMAT=tree SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
+EXPLAIN
+-> Nested loop inner join  (cost=0.80 rows=2)
+    -> Table scan on t  (cost=0.35 rows=1)
+    -> Constant row from derived_1_2  (cost=0.55..0.55 rows=1)
+        -> Union materialize with deduplication  (cost=0.20..0.20 rows=2)
+            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+
+DROP TABLE t;
 SET optimizer_switch='subquery_to_derived=default';
