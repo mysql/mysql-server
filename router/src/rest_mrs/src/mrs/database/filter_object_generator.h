@@ -51,7 +51,7 @@ class FilterObjectGenerator {
   void parse_complex_or(Value *value);
   void parse_complex_and(Value *value);
   bool parse_simple_object(Value *value);
-  bool parse_complex_object(Value *value);
+  bool parse_complex_object(const char *name, Value *value);
   void parse_orderby_asof_wmember(Object object);
   void prase_order(Object object);
   void parse_asof(Value *value);

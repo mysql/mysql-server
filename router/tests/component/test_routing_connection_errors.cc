@@ -103,7 +103,7 @@ TEST_F(RoutingConnectionErrorTest, connect_successful) {
 
   EXPECT_EQ(resp.get_response_code(), 200) << resp.get_response_code_line();
   if (resp.get_response_code() == 200) {
-    auto http_buf = resp.get_input_buffer();
+    auto &http_buf = resp.get_input_buffer();
     auto buf = http_buf.pop_front(http_buf.length());
 
     rapidjson::Document json_doc;
@@ -185,7 +185,7 @@ TEST_F(RoutingConnectionErrorTest, connect_backend_not_reachable) {
   EXPECT_EQ(resp.get_response_code(), 200) << resp.get_response_code_line();
 
   if (resp.get_response_code() == 200) {
-    auto http_buf = resp.get_input_buffer();
+    auto &http_buf = resp.get_input_buffer();
     auto buf = http_buf.pop_front(http_buf.length());
 
     rapidjson::Document json_doc;
@@ -294,7 +294,7 @@ TEST_F(RoutingConnectionErrorTest, connect_from_connection_pool) {
   EXPECT_EQ(resp.get_response_code(), 200) << resp.get_response_code_line();
 
   if (resp.get_response_code() == 200) {
-    auto http_buf = resp.get_input_buffer();
+    auto &http_buf = resp.get_input_buffer();
     auto buf = http_buf.pop_front(http_buf.length());
 
     rapidjson::Document json_doc;

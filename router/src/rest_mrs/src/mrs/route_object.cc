@@ -264,4 +264,8 @@ RouteObject::get_group_row_ownership() const {
   return pe_.row_group_security;
 }
 
+const mrs::interface::Route::Parameters &RouteObject::get_parameters() {
+  return pe_.parameters;
+}
+
 }  // namespace mrs

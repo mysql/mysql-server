@@ -103,15 +103,15 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   auto columns = route_->get_cached_columnes();
-  http::Url::Parameaters query_parameters;
 
-  http::Url::parse_query(requests_uri.get_query().c_str(), &query_parameters);
+  http::Url uri_param(requests_uri);
 
-  auto it_f = query_parameters.find("f");
-  auto it_raw = query_parameters.find("raw");
+  auto it_f = uri_param.is_query_parameter("f");
+  auto it_raw = uri_param.is_query_parameter("raw");
 
-  if (it_f != query_parameters.end()) {
-    auto filter_columns = mysql_harness::split_string(it_f->second, ',', false);
+  if (it_f) {
+    auto filter_columns = mysql_harness::split_string(
+        uri_param.get_query_parameter("f"), ',', false);
     columns.erase(std::remove_if(columns.begin(), columns.end(),
                                  [&filter_columns](auto &item) {
                                    return std::find(filter_columns.begin(),
@@ -122,8 +122,7 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
                   columns.end());
   }
 
-  std::string raw_value =
-      it_raw != query_parameters.end() ? it_raw->second : "";
+  std::string raw_value = it_raw ? uri_param.get_query_parameter("raw") : "";
 
   if (columns.empty()) throw http::Error(HttpStatusCode::BadRequest);
   if (!raw_value.empty() && columns.size() != 1) {
@@ -133,7 +132,7 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   if (last_path.empty()) {
     uint32_t offset = 0;
     uint32_t limit = route_->get_on_page();
-    http::Url::parse_offset_limit(query_parameters, &offset, &limit);
+    http::Url::parse_offset_limit(uri_param.parameters_, &offset, &limit);
 
     if (raw_value.empty()) {
       database::QueryRestTable rest;
@@ -148,7 +147,8 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
           route_->get_object_name(), offset, limit, route_->get_rest_url(),
           route_->get_cached_primary(), route_->get_on_page() == limit,
           route_->get_user_row_ownership(), row_ownershop_user_id,
-          route_->get_group_row_ownership(), ctxt->user.groups);
+          route_->get_group_row_ownership(), ctxt->user.groups,
+          uri_param.get_query_parameter("q"));
 
       return std::move(rest.response);
     }

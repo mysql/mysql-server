@@ -60,7 +60,7 @@ class RouteManager : public mrs::interface::RouteManager {
                std::shared_ptr<::mrs::interface::RouteFactory> factory);
   RouteManager(collector::MysqlCacheManager *cache, const bool is_ssl,
                mrs::interface::AuthManager *auth_manager);
-  ~RouteManager();
+  ~RouteManager() override;
 
   void turn(const State state) override;
   void update(const std::vector<DbObject> &paths) override;

@@ -27,7 +27,9 @@
 #include <map>
 #include <stdexcept>
 
+#include "helper/json/text_to.h"
 #include "helper/mysql_column.h"
+#include "mrs/database/filter_object_generator.h"
 
 #include "mysql/harness/logging/logging.h"
 
@@ -63,10 +65,10 @@ void QueryRestTable::query_entries(
     const std::string &primary, const bool is_default_limit,
     const RowUserOwnership &row_user, uint64_t *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
-    const std::set<uint64_t> &user_groups) {
+    const std::set<uint64_t> &user_groups, const std::string &q) {
   if (columns.empty()) throw std::invalid_argument("Empty column list.");
   build_query(columns, schema, object, offset, limit + 1, url_route, primary,
-              row_user, user_id, row_groups, user_groups);
+              row_user, user_id, row_groups, user_groups, q);
 
   serializer_.begin(offset, limit, is_default_limit, url_route);
   query(session);
@@ -209,14 +211,37 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
   return where_;
 }
 
+static rapidjson::Document json(const std::string &j) {
+  rapidjson::Document result;
+  helper::json::text_to(&result, j);
+  return result;
+}
+
+void extend_where(mysqlrouter::sqlstring &where, const std::string &query) {
+  using namespace std::literals::string_literals;
+  if (query.empty()) return;
+  FilterObjectGenerator fog;
+  fog.parse(json(query));
+  auto result = fog.get_result();
+  if (result.empty()) return;
+
+  bool is_empty = where.str().empty();
+
+  mysqlrouter::sqlstring r{"? ? ?"};
+  r << where << mysqlrouter::sqlstring(is_empty ? "" : "AND")
+    << mysqlrouter::sqlstring(result.c_str());
+  where = r;
+}
+
 void QueryRestTable::build_query(
     const std::vector<Column> &columns, const std::string &schema,
     const std::string &object, const uint32_t offset, const uint32_t limit,
     const std::string &url, const std::string &primary,
     const RowUserOwnership &row_user, uint64_t *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
-    const std::set<uint64_t> &user_groups) {
-  const auto &where = build_where(row_user, user_id, row_groups, user_groups);
+    const std::set<uint64_t> &user_groups, const std::string &query) {
+  auto where = build_where(row_user, user_id, row_groups, user_groups);
+  extend_where(where, query);
   query_ = {"SELECT JSON_OBJECT(?, ?) FROM !.! ? LIMIT ?,?"};
   query_ << ColumnDefinitionIterator::from_container(columns);
 

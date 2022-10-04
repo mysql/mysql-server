@@ -37,11 +37,11 @@ namespace helper {
 
 namespace json {
 
-class Iterable {
+template <typename Object = rapidjson::Document::ConstObject>
+class IterableObject {
  public:
-  using Object = rapidjson::Document::ConstObject;
   using Value = rapidjson::Document::ValueType;
-  using MemberIterator = Object::MemberIterator;
+  using MemberIterator = typename Object::MemberIterator;
   using Pair = std::pair<const char *, const Value *>;
 
   class It {
@@ -60,13 +60,38 @@ class Iterable {
   };
 
  public:
-  Iterable(Object &object) : obj_{object} {}
+  IterableObject(Object &object) : obj_{object} {}
 
   It begin() { return It{obj_.MemberBegin()}; }
   It end() { return It{obj_.MemberEnd()}; }
 
   Object &obj_;
 };
+
+template <typename Array = rapidjson::Document::ConstArray>
+class IterableArray {
+ public:
+  using Value = rapidjson::Document::ValueType;
+  using Iterator = typename Array::ValueIterator;
+
+ public:
+  IterableArray(Array &a) : arr_{a} {}
+
+  Iterator begin() { return arr_.Begin(); }
+  Iterator end() { return arr_.End(); }
+
+  Array &arr_;
+};
+
+template <typename Obj>
+auto member_iterator(Obj &o) {
+  return IterableObject<Obj>(o);
+}
+
+template <typename Array>
+auto array_iterator(Array &o) {
+  return IterableArray<Array>(o);
+}
 
 }  // namespace json
 

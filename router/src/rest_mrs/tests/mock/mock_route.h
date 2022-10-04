@@ -45,6 +45,7 @@ class MockRoute : public mrs::interface::Route {
   MOCK_METHOD(const std::string &, get_options, (), (override));
   MOCK_METHOD(const std::vector<Column> &, get_cached_columnes, (), (override));
   MOCK_METHOD(const std::string &, get_cached_primary, (), (override));
+  MOCK_METHOD(const Parameters &, get_parameters, (), (override));
   MOCK_METHOD(uint32_t, get_on_page, (), (override));
   MOCK_METHOD(bool, requires_authentication, (), (override, const));
   MOCK_METHOD(uint64_t, get_service_id, (), (override, const));

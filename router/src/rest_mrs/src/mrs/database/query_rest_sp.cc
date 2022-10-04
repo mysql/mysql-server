@@ -27,17 +27,19 @@
 namespace mrs {
 namespace database {
 
-void QueryRestSP::query_entries(MySQLSession *session,
-                                const std::string &schema,
-                                const std::string &object,
-                                const std::string &url,
-                                const std::string &ignore_column) {
+void QueryRestSP::query_entries(
+    MySQLSession *session, const std::string &schema, const std::string &object,
+    const std::string &url, const std::string &ignore_column,
+    const mysqlrouter::sqlstring &values, std::vector<enum_field_types> pt) {
   ignore_column_ = ignore_column.c_str();
-  query_ = {"CALL !.!"};
-  query_ << schema << object;
+  query_ = {"CALL !.!(!)"};
+  query_ << schema << object << values;
 
   response_template.begin(url);
-  query(session);
+  if (!pt.empty())
+    prepare_and_execute(session, query_, pt);
+  else
+    query(session);
   response_template.end();
 
   response = response_template.get_result();

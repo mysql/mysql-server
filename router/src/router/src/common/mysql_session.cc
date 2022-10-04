@@ -25,6 +25,7 @@
 #include "mysqlrouter/mysql_session.h"
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <functional>
 #include <map>
@@ -527,6 +528,138 @@ MySQLSession::logged_real_query(const std::string &q) {
   logging_strategy_->log(msg);
 
   return query_res;
+}
+
+uint64_t MySQLSession::prepare(const std::string &query) {
+  auto current = last_stmt_id++;
+  auto stmt = stmts_[current] = mysql_stmt_init(connection_);
+  if (mysql_stmt_prepare(stmt, query.c_str(), query.length())) {
+    // non zero is an error.
+    auto err_no = mysql_stmt_errno(stmt);
+    auto err_msg = mysql_stmt_error(stmt);
+    std::stringstream ss;
+    ss << "Error preparing MySQL query \"" << log_filter_.filter(query);
+    ss << "\": " << err_msg << " (" << err_no << ")";
+    prepare_remove(current);
+    throw Error(ss.str(), err_no, err_msg);
+  }
+
+  return current;
+}
+
+char *allocate_buffer(MYSQL_BIND *bind) {
+  const int k_string_size = 1000;
+  char *buffer = nullptr;
+  switch (bind->buffer_type) {
+    case MYSQL_TYPE_STRING:
+      bind->buffer = buffer = new char[bind->buffer_length = 2 * k_string_size];
+      break;
+
+    case MYSQL_TYPE_LONGLONG:
+      bind->buffer = buffer =
+          new char[bind->buffer_length = 2 * sizeof(long long)];
+      break;
+
+    case MYSQL_TYPE_DOUBLE:
+      bind->buffer = buffer =
+          new char[bind->buffer_length = 2 * sizeof(double)];
+      break;
+    case MYSQL_TYPE_BOOL:
+      bind->buffer = buffer = new char[bind->buffer_length = 2 * sizeof(int)];
+      break;
+    case MYSQL_TYPE_LONG:
+      bind->buffer = buffer = new char[bind->buffer_length = 2 * sizeof(long)];
+      break;
+    case MYSQL_TYPE_TIMESTAMP:
+      bind->buffer = buffer = new char[bind->buffer_length = 2 * k_string_size];
+      break;
+
+    default:
+      assert(nullptr && "should not happen");
+  }
+  return buffer;
+}
+
+void MySQLSession::prepare_execute(uint64_t ps_id,
+                                   std::vector<enum_field_types> pt,
+                                   const RowProcessor &processor,
+                                   const FieldValidator &validator) {
+  auto stmt = stmts_[ps_id];
+
+  std::vector<std::unique_ptr<char[]>> buffers;
+  std::unique_ptr<MYSQL_BIND[]> ps_params{new MYSQL_BIND[pt.size() + 1]};
+  memset(ps_params.get(), 0, sizeof(MYSQL_BIND) * pt.size());
+  auto bind = ps_params.get();
+  for (auto type : pt) {
+    bind->buffer_type = type;
+    buffers.emplace_back(allocate_buffer(bind));
+    ++bind;
+  }
+
+  if (mysql_stmt_bind_param(stmt, ps_params.get())) {
+    // non zero is an error.
+    auto err_no = mysql_stmt_errno(stmt);
+    auto err_msg = mysql_stmt_error(stmt);
+    std::stringstream ss;
+    ss << "Binding output-parameters for stmt id:" << ps_id;
+    ss << "\": " << err_msg << " (" << err_no << ")";
+    throw Error(ss.str(), err_no, err_msg);
+  }
+
+  if (mysql_stmt_execute(stmt)) {
+    // non zero is an error.
+    auto err_no = mysql_stmt_errno(stmt);
+    auto err_msg = mysql_stmt_error(stmt);
+    std::stringstream ss;
+    ss << "Error executing prepared statement with id:" << ps_id;
+    ss << "\": " << err_msg << " (" << err_no << ")";
+    throw Error(ss.str(), err_no, err_msg);
+  }
+
+  int status;
+  do {
+    unsigned int nfields = mysql_stmt_field_count(stmt);
+    MYSQL_RES *rs_metadata = mysql_stmt_result_metadata(stmt);
+    MYSQL_FIELD *fields =
+        rs_metadata ? mysql_fetch_fields(rs_metadata) : nullptr;
+    std::unique_ptr<MYSQL_BIND[]> my_bind{new MYSQL_BIND[nfields]};
+    std::unique_ptr<ulong[]> length{new ulong[nfields]};
+    std::unique_ptr<bool[]> is_null{new bool[nfields]};
+    memset(my_bind.get(), 0, sizeof(MYSQL_BIND) * nfields);
+
+    validator(nfields, fields);
+    for (unsigned int i = 0; i < nfields; ++i) {
+      size_t max_length = fields[i].max_length + 1;
+      my_bind[i].buffer_type = MYSQL_TYPE_STRING;
+      my_bind[i].buffer = new char[max_length];
+      my_bind[i].buffer_length = static_cast<ulong>(max_length);
+      my_bind[i].is_null = &is_null[i];
+      my_bind[i].length = &length[i];
+    }
+
+    mysql_stmt_bind_result(stmt, my_bind.get());
+
+    std::vector<const char *> outrow;
+    outrow.resize(nfields);
+    while (true) {
+      status = mysql_stmt_fetch(stmt);
+      if (status == 1 || status == MYSQL_NO_DATA) break;
+      for (unsigned int i = 0; i < nfields; i++) {
+        outrow[i] = reinterpret_cast<const char *>(my_bind[i].buffer);
+      }
+      if (!processor(outrow)) break;
+    }
+    mysql_free_result(rs_metadata);
+    for (unsigned int i = 0; i < nfields; ++i) {
+      delete[] reinterpret_cast<char *>(my_bind[i].buffer);
+    }
+    status = mysql_stmt_next_result(stmt);
+  } while (status == 0);
+}
+
+void MySQLSession::prepare_remove(uint64_t ps_id) {
+  mysql_stmt_close(stmts_[ps_id]);
+  stmts_.erase(ps_id);
 }
 
 void MySQLSession::execute(const std::string &q) {

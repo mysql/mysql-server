@@ -123,6 +123,11 @@ const std::vector<Column> &RouteStaticFile::get_cached_columnes() {
   return empty;
 }
 
+const mrs::interface::Route::Parameters &RouteStaticFile::get_parameters() {
+  static mrs::interface::Route::Parameters empty;
+  return empty;
+}
+
 const std::string &RouteStaticFile::get_cached_primary() {
   static std::string empty;
   return empty;

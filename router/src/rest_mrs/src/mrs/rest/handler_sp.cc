@@ -24,9 +24,15 @@
 
 #include "mrs/rest/handler_sp.h"
 
+#include <string>
+
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/http_request.h"
 
+#include "helper/container/generic.h"
+#include "helper/json/rapid_json_interator.h"
+#include "helper/json/text_to.h"
+#include "helper/json/to_string.h"
 #include "helper/media_detector.h"
 #include "mrs/database/query_rest_sp.h"
 #include "mrs/database/query_rest_sp_media.h"
@@ -52,8 +58,81 @@ Result HandlerSP::handle_delete([[maybe_unused]] rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::NotImplemented);
 }
 
+enum_field_types to_mysql_type(
+    mrs::database::entry::Parameter::ParameterDataType pdt) {
+  using Pdt = mrs::database::entry::Parameter::ParameterDataType;
+  switch (pdt) {
+    case Pdt::parameterString:
+      return MYSQL_TYPE_STRING;
+    case Pdt::parameterInt:
+      return MYSQL_TYPE_LONGLONG;
+    case Pdt::parameterDouble:
+      return MYSQL_TYPE_DOUBLE;
+    case Pdt::parameterBoolean:
+      return MYSQL_TYPE_BOOL;
+    case Pdt::parameterLong:
+      return MYSQL_TYPE_LONG;
+    case Pdt::parameterTimestamp:
+      return MYSQL_TYPE_TIMESTAMP;
+
+    default:
+      return MYSQL_TYPE_NULL;
+  }
+}
 Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
-  throw http::Error(HttpStatusCode::NotImplemented);
+  using namespace std::string_literals;
+  auto session =
+      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+  auto &input_buffer = ctxt->request->get_input_buffer();
+  auto size = input_buffer.length();
+  auto data = input_buffer.pop_front(size);
+  rapidjson::Document doc;
+  doc.Parse(reinterpret_cast<const char *>(&data[0]), data.size());
+
+  if (!doc.IsObject()) throw http::Error(HttpStatusCode::BadRequest);
+
+  auto &p = route_->get_parameters();
+  for (auto el : helper::json::member_iterator(doc)) {
+    auto key = el.first;
+    const database::entry::Parameter *param;
+    if (!helper::container::get_if(
+            p, [key](auto &v) { return v.name == key; }, param)) {
+      throw http::Error(HttpStatusCode::BadRequest,
+                        "Not allowed parameter:"s + key);
+    }
+  }
+
+  std::string result;
+  std::vector<enum_field_types> variables;
+  auto &ownership = route_->get_user_row_ownership();
+  for (auto &el : p) {
+    if (!result.empty()) result += ",";
+
+    if (ownership.user_ownership_enforced &&
+        (ownership.user_ownership_column == el.bind_column_name)) {
+      result += std::to_string(ctxt->user.user_id);
+    } else if (el.operation & mrs::database::entry::Operation::valueRead) {
+      auto it = doc.FindMember(el.name.c_str());
+      if (it == doc.MemberEnd())
+        throw http::Error(HttpStatusCode::BadRequest,
+                          "Parameter not set:"s + el.name);
+      result +=
+          (mysqlrouter::sqlstring("?") << helper::json::to_string(&it->value))
+              .str();
+    } else {
+      result += "?";
+      variables.push_back(to_mysql_type(el.parameter_data_type));
+    }
+  }
+
+  database::QueryRestSP db;
+
+  db.query_entries(session.get(), route_->get_schema_name(),
+                   route_->get_object_name(), route_->get_rest_url(),
+                   route_->get_user_row_ownership().user_ownership_column,
+                   result.c_str(), variables);
+
+  return {std::move(db.response)};
 }
 
 Result HandlerSP::handle_post(
@@ -122,7 +201,9 @@ uint64_t HandlerSP::get_schema_id() const {
   return route_->get_schema()->get_id();
 }
 
-uint32_t HandlerSP::get_access_rights() const { return Route::kRead; }
+uint32_t HandlerSP::get_access_rights() const {
+  return Route::kRead | Route::kUpdate;
+}
 
 }  // namespace rest
 }  // namespace mrs

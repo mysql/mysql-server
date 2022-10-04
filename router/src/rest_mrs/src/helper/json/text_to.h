@@ -35,32 +35,6 @@
 namespace helper {
 namespace json {
 
-/* Convert text representation of json object/value to type defined by
- * 'Handler'.
- *
- * The 'Handler' must be a child class of `rapidjson::BaseReaderHandler`. The
- * child class must contain type/alias definition of returned result, under
- * "Result" alias and `get_result` method. For example:
- *
- *     class HandlerSomeExample
- *          : rapidjson::BaseReaderHandler<rapidjson::UTF8<>,HandlerSomeExample>
- * { public: using Result = std::string;
- *
- *         ...
- *      };
- */
-template <typename Handler, typename Container>
-void text_to_raw(Handler *handler, const Container &c) {
-  static_assert(
-      std::is_same<typename Container::value_type, char>::value ||
-      std::is_same<typename Container::value_type, unsigned char>::value);
-  rapidjson::MemoryStream memory_stream{
-      reinterpret_cast<const char *>(&*c.begin()), c.size()};
-  rapidjson::Reader read;
-
-  read.Parse<rapidjson::kParseNumbersAsStringsFlag>(memory_stream, *handler);
-}
-
 /**
  * Convert text representation of json object/value to type defined by
  * 'Handler'.
@@ -78,8 +52,19 @@ void text_to_raw(Handler *handler, const Container &c) {
  */
 template <typename Handler, typename Container>
 auto text_to(Handler *handler, const Container &c) {
-  text_to_raw(handler, c);
+  static_assert(
+      std::is_same<typename Container::value_type, char>::value ||
+      std::is_same<typename Container::value_type, unsigned char>::value);
+  rapidjson::MemoryStream memory_stream{
+      reinterpret_cast<const char *>(&*c.begin()), c.size()};
+  rapidjson::Reader read;
+
+  read.Parse<rapidjson::kParseNumbersAsStringsFlag>(memory_stream, *handler);
   return handler->get_result();
+}
+
+inline void text_to(rapidjson::Document *doc, const std::string &str) {
+  doc->Parse(str.c_str());
 }
 
 /**
