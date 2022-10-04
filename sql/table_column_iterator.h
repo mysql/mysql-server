@@ -185,7 +185,7 @@ class Table_columns_view {
 
     @return a reference to this object.
    */
-  Table_columns_view &set_table(const TABLE *rhs);
+  virtual Table_columns_view &set_table(const TABLE *rhs);
   /**
     Setter which initializes the internal filtering predicate of type
     `ExclusionFilter`.
@@ -194,7 +194,7 @@ class Table_columns_view {
 
     @return a reference to this object.
    */
-  Table_columns_view &set_filter(ExclusionFilter rhs);
+  virtual Table_columns_view &set_filter(ExclusionFilter rhs);
 
   // --> Deleted constructors and methods to remove default move/copy semantics
   Table_columns_view(const Table_columns_view &rhs) = delete;
@@ -228,6 +228,25 @@ class Table_columns_view {
       @param col initial local table field set position.
      */
     explicit iterator(Table_columns_view &parent, long pos, long col);
+    /**
+      Constructor for the iterator. It takes the parent Table_columns_view
+      object and the initial positions for the replicated table and for the
+      local table. It also includes a translation factor so we can get the
+      iterated position in relation to a different set of columns.
+
+      @note When this iterator is used in the context of a replica that is
+      applying an event, the translation offset represents the number of extra
+      columns that the event has to the left of other columns, which the table
+      does not have (if any). So, for example, when the event has a GIPK column
+      to the left, and the replica does not have that, then the offset is 1.
+
+      @param parent reference to the target Table_columns_view object.
+      @param pos initial replicated table field set position.
+      @param col initial local table field set position.
+      @param translation_offset the translation offset for translated_pos()
+     */
+    explicit iterator(Table_columns_view &parent, long pos, long col,
+                      long translation_offset);
     /**
       Copy constructor.
 
@@ -271,13 +290,25 @@ class Table_columns_view {
      */
     size_t absolute_pos();
     /**
-      Returns the position this iterator object is pointing to, within the
-      replicated table field set.
+      Returns the position this iterator relative to the set of table columns
+      which are not excluded by the associated filters
 
-      @return the position this object is pointing to, within the replicated
-              table field set.
+      @return the position this object is pointing to considering the non
+              filtered columns
      */
     size_t filtered_pos();
+    /**
+      Returns the position this iterator object is pointing to, within the
+      replicated table field set plus the translation_offset
+
+      @note When this iterator is used in the context of a replica that is
+      applying an event, use translated_pos to get the position within the
+      event."
+
+      @return the position this object is pointing to, within the replicated
+              table field set adjusted to another frame of reference.
+     */
+    size_t translated_pos();
 
     friend struct TABLE;
     friend class Table_columns_view;
@@ -295,6 +326,16 @@ class Table_columns_view {
       iterator is pointing to.
     */
     long m_filtered_pos;
+    /**
+      Translation unit used on top of the iterator filtered position, so
+      we can adjust the position to another frame of reference.
+
+      When this iterator is used in the context of a replica that is applying an
+      event, use translated_pos to get the position within the event. This
+      number should be set to N when the event has N extra columns to the left,
+      which do not exist in the replica table.
+    */
+    long m_translation_offset;
   };
 
   /**
@@ -315,13 +356,13 @@ class Table_columns_view {
 
     @return an iterator pointing to the beginning of the field set.
   */
-  iterator begin();
+  virtual iterator begin();
   /**
     Creates an iterator object, pointing at the end of the table field set.
 
     @return an iterator pointing to the end of the field set.
   */
-  iterator end();
+  virtual iterator end();
   /**
     Returns whether or not the field at `index` is to be excluded from the field
     set iteration process.
@@ -359,15 +400,25 @@ class Table_columns_view {
   */
   Table_columns_view &translate_bitmap(MY_BITMAP &source,
                                        MY_BITMAP &destination);
+
   /**
-    Translates a position in the received replicated table into a position in
-    the local table.
+    For the absolute position on the table that equals the given position given
+    as a parameter, return the translated position.
 
-    @param source the position in the received replicated table
+    @param source the position in the local table
 
-    @return the relative position within the local table.
+    @return the translated position within the local table.
   */
   size_t translate_position(size_t source);
+
+  /**
+    Returns the iterator for the (absolute) position in the table.
+
+    @param absolute_pos the position in the local table
+
+    @return the iterator for the position, if found
+  */
+  iterator find_by_absolute_pos(size_t absolute_pos);
 
  protected:
   /**
@@ -517,13 +568,12 @@ Table_columns_view<F> &Table_columns_view<F>::translate_bitmap(
 
   bitmap_init(&destination, nullptr, this->m_table->s->fields);
 
-  for (size_t d = 0, s = 0; d != destination.n_bits && s != source.n_bits;
-       ++d) {
-    if (!this->is_excluded(d)) {
-      if (bitmap_is_set(&source, static_cast<uint>(s))) {
-        bitmap_set_bit(&destination, static_cast<uint>(d));
-      }
-      ++s;
+  for (auto it = begin(); it != end(); ++it) {
+    size_t source_pos = it.translated_pos();
+    size_t abs_pos = it.absolute_pos();
+    if (source_pos >= source.n_bits) break;
+    if (bitmap_is_set(&source, static_cast<uint>(source_pos))) {
+      bitmap_set_bit(&destination, static_cast<uint>(abs_pos));
     }
   }
 
@@ -531,15 +581,20 @@ Table_columns_view<F> &Table_columns_view<F>::translate_bitmap(
 }
 
 template <typename F>
-size_t Table_columns_view<F>::translate_position(size_t source) {
-  if (this->m_table == nullptr) return source;
-  size_t d = 0;
-  for (size_t s = 0; s != source; ++d) {
-    if (!this->is_excluded(d)) {
-      ++s;
-    }
+typename Table_columns_view<F>::iterator
+Table_columns_view<F>::find_by_absolute_pos(size_t absolute_pos) {
+  return std::find_if(begin(), end(), [absolute_pos](auto it) {
+    return it->field_index() == absolute_pos;
+  });
+}
+
+template <typename F>
+size_t Table_columns_view<F>::translate_position(size_t orig_pos) {
+  for (auto it = begin(); it != end(); ++it) {
+    size_t abs_pos = it.absolute_pos();
+    if (abs_pos == orig_pos) return it.translated_pos();
   }
-  return d;
+  return orig_pos;
 }
 
 template <typename F>
@@ -587,7 +642,17 @@ Table_columns_view<F>::iterator::iterator(Table_columns_view &parent,
                                           long absolute_pos, long filtered_pos)
     : m_parent{&parent},
       m_absolute_pos{absolute_pos},
-      m_filtered_pos{filtered_pos} {}
+      m_filtered_pos{filtered_pos},
+      m_translation_offset{0} {}
+
+template <typename F>
+Table_columns_view<F>::iterator::iterator(Table_columns_view &parent,
+                                          long absolute_pos, long filtered_pos,
+                                          long translation_offset)
+    : m_parent{&parent},
+      m_absolute_pos{absolute_pos},
+      m_filtered_pos{filtered_pos},
+      m_translation_offset{translation_offset} {}
 
 template <typename F>
 Table_columns_view<F>::iterator::iterator(const iterator &rhs) {
@@ -601,6 +666,7 @@ Table_columns_view<F>::iterator::operator=(
   this->m_parent = rhs.m_parent;
   this->m_absolute_pos = rhs.m_absolute_pos;
   this->m_filtered_pos = rhs.m_filtered_pos;
+  this->m_translation_offset = rhs.m_translation_offset;
   return (*this);
 }
 
@@ -687,6 +753,11 @@ size_t Table_columns_view<F>::iterator::absolute_pos() {
 template <typename F>
 size_t Table_columns_view<F>::iterator::filtered_pos() {
   return static_cast<size_t>(this->m_filtered_pos);
+}
+
+template <typename F>
+size_t Table_columns_view<F>::iterator::translated_pos() {
+  return static_cast<size_t>(this->m_filtered_pos + this->m_translation_offset);
 }
 
 #endif  // _table_column_iterator_h

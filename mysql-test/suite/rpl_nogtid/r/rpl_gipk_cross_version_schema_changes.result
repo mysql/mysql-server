@@ -1,0 +1,75 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##################################################
+# 1. Create table t1 with a GIPK
+[connection slave]
+SET SESSION sql_generate_invisible_primary_key = ON;
+CREATE TABLE t1 (c1 BIGINT, c2 TEXT);
+SET SESSION sql_generate_invisible_primary_key = OFF;
+
+##################################################
+# 2. Simulate replication from version 8.0.28 using a generated relay log from that version
+#    The table on the source only has 1 column, leading to an applier error
+include/setup_fake_relay_log.inc
+Setting up fake replication from MYSQL_TEST_DIR/std_data/rpl_no_gipk_low_column_number.000001
+START REPLICA SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=13964]
+include/cleanup_fake_relay_log.inc
+
+##################################################
+# 3. Simulate replication from version 5.7.41 using a generated relay log from that version
+#    The table on the source has 4 column, leading to an applier error
+include/setup_fake_relay_log.inc
+Setting up fake replication from MYSQL_TEST_DIR/std_data/rpl_no_gipk_high_column_number.000001
+START REPLICA SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=13964]
+include/cleanup_fake_relay_log.inc
+
+##################################################
+# 4. Simulate replication from version 8.0.28 using a generated relay log from that version
+#    The table on the source has 3 column, one extra on the right with a INT type, leading to an applier error
+include/setup_fake_relay_log.inc
+Setting up fake replication from MYSQL_TEST_DIR/std_data/rpl_no_gipk_schema_divergence.000001
+START REPLICA SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/cleanup_fake_relay_log.inc
+
+##################################################
+# 5. Simulate replication from version 8.0.28 using a generated relay log from that version
+#    The table on the source has 2 column, same fields as the replica but no GIPK
+include/setup_fake_relay_log.inc
+Setting up fake replication from MYSQL_TEST_DIR/std_data/rpl_no_gipk_minus_one_column_number.000001
+START REPLICA SQL_THREAD;
+include/assert.inc [Table t1 contains the inserted values]
+include/stop_slave_sql.inc
+include/cleanup_fake_relay_log.inc
+
+##################################################
+# 6. Simulate replication from version 5.7.41 using a generated relay log from that version
+#    The table on the source has 3 column, with a compatible key similar to a GIPK
+include/setup_fake_relay_log.inc
+Setting up fake replication from MYSQL_TEST_DIR/std_data/rpl_gipk_equivalent_key.000001
+START REPLICA SQL_THREAD;
+include/assert.inc [Table t1 contains the inserted values]
+
+##################################################
+# 7. # Clean up
+DROP TABLE t1;
+STOP SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+include/cleanup_fake_relay_log.inc
+include/start_slave.inc
+include/suppress_messages.inc
+# Connection 2 suppresses message <Slave SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Failed to apply row event with 1 columns,>.
+# Connection 2 suppresses message <Slave SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Failed to apply row event with 4 columns>.
+# Connection 2 suppresses message <Slave SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Column 2 of table 'test.t1' cannot be converted from type>.
+# Connection 2 suppresses message <Slave SQL for channel .*: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 2 suppresses message <Slave SQL for channel .*: Failed to apply row event with 1 columns, originating from a server of version 8.0.28>.
+# Connection 2 suppresses message <Slave SQL for channel .*: Failed to apply row event with 4 columns, originating from a server of version unknown>.
+# Connection 2 suppresses message <Slave SQL for channel .*: Column 2 of table 'test.t1' cannot be converted from type>.
+include/rpl_end.inc

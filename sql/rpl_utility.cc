@@ -52,6 +52,7 @@ struct TYPELIB;
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysqld_error.h"
+#include "sql/changestreams/misc/replicated_columns_view_factory.h"  // get_columns_view
 #include "sql/create_field.h"
 #include "sql/dd/dd.h"          // get_dictionary
 #include "sql/dd/dictionary.h"  // is_dd_table_access_allowed
@@ -66,7 +67,8 @@ struct TYPELIB;
 #include "sql/rpl_rli.h"    // Relay_log_info
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
-#include "sql/sql_lex.h"  // LEX
+#include "sql/sql_gipk.h"  // table_has_generated_invisible_primary_key
+#include "sql/sql_lex.h"   // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
@@ -462,7 +464,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
                 master table is not compatible with slave table.
 */
 bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
-                                TABLE **conv_table_var) const {
+                                TABLE **conv_table_var) {
   /*
     Prohibit replication into dictionary internal tables. We know this is
     not DDL (which will be replicated as statements, and rejected by the
@@ -485,16 +487,54 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
     return false;
   }
 
+  if (compute_source_table_gipk_info(*thd, table)) {
+    rli->report(ERROR_LEVEL, ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK,
+                ER_THD(thd, ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK),
+                size(),
+                decimal_numeric_version_to_string(
+                    thd->variables.immediate_server_version)
+                    .c_str(),
+                table->s->db.str, table->s->table_name.str, table->s->fields);
+    thd->is_slave_error = true;
+    return false;
+  }
+
+  bool replica_has_gipk = table_has_generated_invisible_primary_key(table);
+  std::unique_ptr<cs::util::ReplicatedColumnsView> fields =
+      cs::util::ReplicatedColumnsViewFactory::
+          get_columns_view_with_inbound_filters(rli->info_thd, table, this);
+
   /*
-    We only check the initial columns for the tables.
+    We only count columns which exist both in the table and in the event. The
+    computation depends on the following possible differences in table columns
+    and event columns:
+     1. If the table has generated columns, there are extra columns at the right
+        end of the table, which are excluded in the event from 8.0.18 and up.
+     2. It is possible for the replica-side table to have an extra GIPK, when
+        the source has no GIPK.
+     3. It is possible for the source-side table to have an extra GIPK, when the
+        replica has no GIPK.
+
+     4. For the remaining columns, not counting generated columns or differences
+        in GIPK columns, it is allowed that either the source or the replica has
+        less columns at the right of the table.
+
+    To account for cases 1 and 2, we use fields->filtered_size(), which
+    retrieves the number of columns on the replica, not counting generated
+    columns or extra GIPK columns. To account for case 3, we use
+    filtered_size(replica_has_gipk), which retrieves the number of columns in
+    the event, not counting any extra GIPK column in the event. To account for
+    case 4, we compute the minimum of these two numbers.
   */
-  Replicated_columns_view fields{table, Replicated_columns_view::INBOUND, thd};
-  uint const cols_to_check = min<ulong>(fields.filtered_size(), size());
+
+  uint const cols_to_check =
+      min<ulong>(fields->filtered_size(), filtered_size(replica_has_gipk));
   TABLE *tmp_table = nullptr;
 
-  for (auto it = fields.begin(); it.filtered_pos() < cols_to_check; ++it) {
+  for (auto it = fields->begin(); it.filtered_pos() < cols_to_check; ++it) {
     Field *const field = *it;
-    size_t col = it.filtered_pos();
+    size_t col = it.translated_pos();
+    size_t absolute_col_pos = it.absolute_pos();
     int order;
     if (can_convert_field_to(field, type(col), field_metadata(col),
                              is_array(col), rli, m_flags, &order)) {
@@ -513,15 +553,17 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
           This will create the full table with all fields. This is
           necessary to ge the correct field lengths for the record.
         */
-        tmp_table = create_conversion_table(thd, rli, table);
+        tmp_table = create_conversion_table(thd, rli, table, replica_has_gipk);
         if (tmp_table == nullptr) return false;
         /*
           Clear all fields up to, but not including, this column.
         */
-        for (unsigned int i = 0; i < col; ++i) tmp_table->field[i] = nullptr;
+        for (unsigned int i = 0; i < absolute_col_pos; ++i)
+          tmp_table->field[i] = nullptr;
       }
 
-      if (order == 0 && tmp_table != nullptr) tmp_table->field[col] = nullptr;
+      if (order == 0 && tmp_table != nullptr)
+        tmp_table->field[absolute_col_pos] = nullptr;
     } else {
       DBUG_PRINT("debug",
                  ("Checking column %lu -"
@@ -602,17 +644,12 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
  */
 
 TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
-                                          TABLE *target_table) const {
+                                          TABLE *target_table,
+                                          bool replica_has_gipk) const {
   DBUG_TRACE;
 
   List<Create_field> field_list;
   TABLE *conv_table = nullptr;
-  /*
-    At slave, columns may differ. So we should create
-    min(columns@master, columns@slave) columns in the
-    conversion table.
-  */
-  uint const cols_to_create = min<ulong>(target_table->s->fields, size());
 
   // Default value : treat all values signed
   bool unsigned_flag = false;
@@ -626,28 +663,57 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
       unsigned_flag && !(replica_type_conversions_options &
                          (1ULL << REPLICA_TYPE_CONVERSIONS_ALL_SIGNED));
 
-  for (uint col = 0; col < cols_to_create; ++col) {
+  std::unique_ptr<cs::util::ReplicatedColumnsView> fields = cs::util::
+      ReplicatedColumnsViewFactory::get_columns_view_with_inbound_filters(
+          rli->info_thd, target_table, this);
+
+  /*
+    At the replica, columns may differ. So we should create
+    min(columns@source, columns@replica) columns in the
+    conversion table.
+  */
+  uint const cols_to_create =
+      min<ulong>(fields->filtered_size(), filtered_size(replica_has_gipk));
+
+  bool source_has_gipk = is_gipk_present_on_source_table();
+
+  // When the GIPK is only on the replica, add a GIPK to the conv table
+  if (replica_has_gipk && !source_has_gipk) {
+    Create_field *field_def = new (thd->mem_root) Create_field();
+    if (field_list.push_back(field_def)) return nullptr;
+    field_def->init_for_tmp_table(MYSQL_TYPE_LONGLONG, 20, 0,
+                                  true,           // maybe_null
+                                  unsigned_flag,  // unsigned_flag
+                                  0);
+    field_def->charset = default_charset_info;
+    field_def->interval = 0;
+  }
+
+  for (auto it = fields->begin(); it.filtered_pos() < cols_to_create; ++it) {
+    size_t col_i = it.translated_pos();
+
     Create_field *field_def = new (thd->mem_root) Create_field();
     if (field_list.push_back(field_def)) return nullptr;
 
     uint decimals = 0;
     TYPELIB *interval = nullptr;
     uint pack_length_override = 0;  // 0 => NA. Only assigned below when needed.
-    enum_field_types field_type = type(col);
+    enum_field_types field_type = type(col_i);
     uint32 max_length =
-        max_display_length_for_field(field_type, field_metadata(col));
+        max_display_length_for_field(field_type, field_metadata(col_i));
 
     switch (field_type) {
       uint precision;
       case MYSQL_TYPE_ENUM:
       case MYSQL_TYPE_SET:
-        interval = static_cast<Field_enum *>(target_table->field[col])->typelib;
+
+        interval = static_cast<Field_enum *>(*it)->typelib;
         /*
           Number of elements in interval on master and slave might differ.
           Use pack length from binary log instead of one calculated from
           number of interval elements on slave.
         */
-        pack_length_override = field_metadata(col) & 0x00ff;
+        pack_length_override = field_metadata(col_i) & 0x00ff;
         break;
 
       case MYSQL_TYPE_NEWDECIMAL:
@@ -656,15 +722,15 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
           length that should be supplied to make_field, so we correct
           the length here.
          */
-        precision = field_metadata(col) >> 8;
-        decimals = field_metadata(col) & 0x00ff;
+        precision = field_metadata(col_i) >> 8;
+        decimals = field_metadata(col_i) & 0x00ff;
         max_length = my_decimal_precision_to_length(precision, decimals, false);
         break;
 
       case MYSQL_TYPE_DECIMAL:
         LogErr(ERROR_LEVEL, ER_RPL_INCOMPATIBLE_DECIMAL_IN_RBR,
                target_table->s->db.str, target_table->s->table_name.str,
-               target_table->field[col]->field_name);
+               it->field_name);
         goto err;
 
       case MYSQL_TYPE_BLOB:
@@ -677,7 +743,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
           derived from the exact type, i.e. for ENUM and SET (see
           above).
         */
-        field_type = blob_type_from_pack_length(field_metadata(col) & 0x00ff);
+        field_type = blob_type_from_pack_length(field_metadata(col_i) & 0x00ff);
         break;
 
       default:
@@ -688,13 +754,13 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
         "debug",
         ("sql_type: %d, target_field: '%s', max_length: %d, decimals: %d,"
          " maybe_null: %d, unsigned_flag: %d",
-         binlog_type(col), target_table->field[col]->field_name, max_length,
-         decimals, true, unsigned_flag));
+         binlog_type(col_i), it->field_name, max_length, decimals, true,
+         unsigned_flag));
     field_def->init_for_tmp_table(field_type, max_length, decimals,
                                   true,           // maybe_null
                                   unsigned_flag,  // unsigned_flag
                                   pack_length_override);
-    field_def->charset = target_table->field[col]->charset();
+    field_def->charset = it->charset();
     field_def->interval = interval;
   }
 
@@ -716,6 +782,53 @@ err:
                   target_table->s->db.str, target_table->s->table_name.str);
   }
   return conv_table;
+}
+
+bool table_def::is_gipk_present_on_source_table() const {
+  assert(m_is_gipk_set);
+  return m_is_gipk_on_table;
+}
+
+bool table_def::compute_source_table_gipk_info(THD &thd, TABLE *table) {
+  m_is_gipk_set = true;
+
+  // Check if source signals the use of GIPKs on tables
+  if (is_immediate_server_gipk_ready(thd)) {
+    m_is_gipk_on_table =
+        (m_flags & Table_map_log_event::TM_GENERATED_INVISIBLE_PK_F);
+    return false;
+  }
+
+  // If the replica has no GIPK assume the source doesn't also
+  if (!table_has_generated_invisible_primary_key(table)) {
+    m_is_gipk_on_table = false;
+    return false;
+  }
+
+  // column difference = number of columns in source - replica
+  longlong column_difference = size() - table->s->fields;
+
+  // if there is no difference assume the source has a GIPK
+  if (0 == column_difference) {
+    m_is_gipk_on_table = true;
+    return false;
+  }
+  /*
+    Here it is known the replica has a GIPK.
+    - If the replica has exactly 1 column more than the source,
+      then assume the source does not contain a GIPK
+    - If the replica has less columns than the source
+      or the replica has 2 or more columns extra in relation to the source,
+      we consider that an error
+  */
+  if (-1 == column_difference) {
+    m_is_gipk_on_table = false;
+    return false;
+  }
+
+  m_is_gipk_on_table = false;
+  m_is_gipk_set = false;
+  return true;
 }
 
 #endif /* MYSQL_SERVER */
@@ -823,7 +936,9 @@ table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
       m_flags(flags),
       m_memory(nullptr),
       m_json_column_count(-1),
-      m_is_array(nullptr) {
+      m_is_array(nullptr),
+      m_is_gipk_set(false),
+      m_is_gipk_on_table(false) {
   m_memory = (uchar *)my_multi_malloc(
       key_memory_table_def_memory, MYF(MY_WME), &m_type, size,
       &m_field_metadata, size * sizeof(uint), &m_is_array, size * sizeof(bool),
@@ -1308,6 +1423,31 @@ void rename_fields_use_old_replica_source_terms(
     auto itr = deprecated_field_map.find(name);
     if (itr != deprecated_field_map.end()) name = itr->second;
     item->rename(thd->mem_strdup(name.c_str()));
+  }
+}
+
+bool is_immediate_server_gipk_ready(THD &thd) {
+  return thd.variables.immediate_server_version != UNDEFINED_SERVER_VERSION &&
+         thd.variables.immediate_server_version >= 80030;
+}
+
+bool does_source_table_contain_gipk(Relay_log_info const *rli, TABLE *table) {
+  table_def *tabledef = nullptr;
+  TABLE *conv_table = nullptr;
+  rli->get_table_data(table, &tabledef, &conv_table);
+  assert(tabledef != nullptr);
+  return tabledef->is_gipk_present_on_source_table();
+}
+
+std::string decimal_numeric_version_to_string(uint32 version) {
+  if (version == UNDEFINED_SERVER_VERSION ||
+      version == UNKNOWN_SERVER_VERSION) {
+    return "unknown";
+  } else {
+    std::stringstream version_str;
+    version_str << (version / 10000) << "." << ((version / 100) % 100) << "."
+                << (version % 100);
+    return version_str.str();
   }
 }
 

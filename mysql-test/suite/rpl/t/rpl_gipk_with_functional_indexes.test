@@ -1,0 +1,188 @@
+# === Purpose ===
+#
+# This test validates that replication between tables that have only GIPKs
+# on source or replica can also diverge in their functional indexes
+#
+# ==== Requirements ====
+#
+# R1.The presence of function indexes should not affect the replication of data
+#    even when GIPKs exist in tables and diverge from source to replica
+#
+# === Implementation ====
+#
+# Phase 1: Tests with a GIPK only on the source
+#
+# 1. Enable the generation of GIPKs in the source
+#    With the binary log temporarily disabled, create table t1, t2 and t3
+#    The same tables were created early on the replica with
+#      - t1 doesn't have a functional index in source but it has one in the replica
+#      - t2 has a functional index in the source but not in the replica
+#      - t3 has a functional index on source and replica but also an extra column
+# 2. Add a row to each table
+#    Check the rows are correctly applied in the replica
+#
+# Phase 2: Tests with a GIPK only on the replica
+#
+# 3. Enable the generation of GIPKs in the replica
+#    Create tables t4, t5 and t6 on the source
+#    On the replica drop the index on t4 and add a index to t5
+#    On the replica add an index and an extra column to t6
+# 4. Add a row to each table
+#    Check the rows are correctly applied in the replica
+#
+# 5. Cleanup
+#
+# === References ===
+#
+# Wl#14639: Row-based replication between tables that differ in the existence of a generated invisible primary key
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo # Phase 1: Tests with a GIPK only on the source
+
+--echo
+--echo ##################################################
+--echo # 1. Enable the generation of GIPKs in the source
+--echo #    With the binary log temporarily disabled, create table t1, t2 and t3
+--echo #    The same tables were created early on the replica with
+--echo #      - t1 doesn't have a functional index in source but it has one in the replica
+--echo #      - t2 has a functional index in the source but not in the replica
+--echo #      - t3 has a functional index on source and replica but also an extra column
+
+--source include/rpl_connection_slave.inc
+
+CREATE TABLE t1 (f1 BIGINT UNSIGNED, f2 TEXT, INDEX ((f1*1)));
+
+CREATE TABLE t2 (f1 CHAR(25), f2 INT);
+
+CREATE TABLE t3 (f1 INT, f2 CHAR(25), f3 BIGINT, INDEX ((f1+2)));
+
+--source include/rpl_connection_master.inc
+
+# Set at the session level, so no restore needed for MTR
+SET SESSION sql_generate_invisible_primary_key = ON;
+
+--source include/disable_binlog.inc
+CREATE TABLE t1 (f1 BIGINT UNSIGNED, f2 TEXT);
+CREATE TABLE t2 (f1 CHAR(25), f2 INT, INDEX ((f1+1)));
+CREATE TABLE t3 (f1 INT, f2 CHAR(25), INDEX ((f1+2)));
+--source include/restore_binlog.inc
+
+SET SESSION sql_generate_invisible_primary_key = OFF;
+
+--echo
+--echo ##################################################
+--echo # 2. Add a row to each table
+--echo #    Check the rows are correctly applied in the replica
+
+INSERT INTO t1 VALUES (1, '1');
+
+INSERT INTO t2 VALUES ('2', 2);
+
+INSERT INTO t3 VALUES (3, '3');
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE  f1 = 1 AND f2 = '1';`
+--let $assert_text= Table t1 contains the inserted values
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t2 WHERE  f1 = '2' AND f2 = 2;`
+--let $assert_text= Table t2 contains the inserted values
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t3 WHERE  f1 = 3 AND f2 = '3';`
+--let $assert_text= Table t3 contains the inserted values
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--echo # Phase 2: Tests with a GIPK only on the replica
+
+--echo
+--echo ##################################################
+--echo # 3. Enable the generation of GIPKs in the replica
+--echo #    Create tables t4, t5 and t6 on the source
+--echo #    On the replica drop the index on t4 and add a index to t5
+--echo #    On the replica add an index and an extra column to t6
+
+--source include/rpl_connection_slave.inc
+
+--let $sysvars_to_save = ["GLOBAL.replica_generate_invisible_primary_key"]
+--source include/save_sysvars.inc
+
+--source include/stop_slave.inc
+
+SET GLOBAL replica_generate_invisible_primary_key = ON;
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t4 (f1 INT UNSIGNED, INDEX idx1 ((f1*1)));
+
+CREATE TABLE t5 (f1 VARCHAR(20), f2 TINYINT);
+
+CREATE TABLE t6 (f1 BIGINT UNSIGNED);
+
+--source include/sync_slave_sql_with_master.inc
+
+DROP INDEX `idx1` ON t4;
+
+ALTER TABLE t5 ADD INDEX ((f2 * 40) DESC);
+
+ALTER TABLE t6 ADD INDEX ((f1 + 30) DESC);
+
+ALTER TABLE t6 ADD f3 INT;
+
+--echo
+--echo ##################################################
+--echo # 4. Add a row to each table
+--echo #    Check the rows are correctly applied in the replica
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t4 VALUES (40);
+
+INSERT INTO t5 VALUES ('text', 5);
+
+INSERT INTO t6 VALUES (6);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t4 WHERE my_row_id = 1 AND f1 = 40;`
+--let $assert_text= Table t4 contains the inserted values
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t5 WHERE  my_row_id = 1 AND f1 = 'text' AND f2 = 5;`
+--let $assert_text= Table t5 contains the inserted values
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t6 WHERE  my_row_id = 1 AND f1 = 6;`
+--let $assert_text= Table t6 contains the inserted values
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--echo
+--echo ##################################################
+--echo # 5. Cleanup
+
+--source include/rpl_connection_slave.inc
+
+--source include/restore_sysvars.inc
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+
+--source include/rpl_end.inc

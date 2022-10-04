@@ -1730,6 +1730,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
       case binary_log::ANONYMOUS_GTID_LOG_EVENT:
       case binary_log::GTID_LOG_EVENT: {
         seen_gtid = true;
+        print_event_info->immediate_server_version =
+            down_cast<Gtid_log_event *>(ev)->immediate_server_version;
         if (print_event_info->skipped_event_in_transaction == true)
           fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n",
                   print_event_info->delimiter);
@@ -2431,6 +2433,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv) {
   print_event_info.skip_gtids = opt_skip_gtids;
   print_event_info.print_table_metadata = opt_print_table_metadata;
   print_event_info.require_row_format = opt_require_row_format;
+  print_event_info.immediate_server_version = UNDEFINED_SERVER_VERSION;
 
   // Dump all logs.
   my_off_t save_stop_position = stop_position;

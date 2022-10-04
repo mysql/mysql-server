@@ -47,7 +47,7 @@ INSERT INTO aliases(name) VALUES
 ('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
 ('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc [Expect 114 variables in the table.]
+include/assert.inc [Expect 115 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -144,6 +144,7 @@ SET PERSIST_ONLY replica_checkpoint_group = @@GLOBAL.replica_checkpoint_group;
 SET PERSIST_ONLY replica_checkpoint_period = @@GLOBAL.replica_checkpoint_period;
 SET PERSIST_ONLY replica_compressed_protocol = @@GLOBAL.replica_compressed_protocol;
 SET PERSIST_ONLY replica_exec_mode = @@GLOBAL.replica_exec_mode;
+SET PERSIST_ONLY replica_generate_invisible_primary_key = @@GLOBAL.replica_generate_invisible_primary_key;
 SET PERSIST_ONLY replica_load_tmpdir = @@GLOBAL.replica_load_tmpdir;
 ERROR HY000: Variable 'replica_load_tmpdir' is a non persistent read only variable
 SET PERSIST_ONLY replica_max_allowed_packet = @@GLOBAL.replica_max_allowed_packet;
@@ -262,16 +263,16 @@ SET PERSIST_ONLY sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST_ONLY sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
 SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 101 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 102 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 101 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 101 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 101 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 102 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 102 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 102 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
@@ -345,6 +346,7 @@ RESET PERSIST replica_checkpoint_group;
 RESET PERSIST replica_checkpoint_period;
 RESET PERSIST replica_compressed_protocol;
 RESET PERSIST replica_exec_mode;
+RESET PERSIST replica_generate_invisible_primary_key;
 RESET PERSIST replica_load_tmpdir;
 ERROR HY000: Variable replica_load_tmpdir does not exist in persisted config file
 RESET PERSIST replica_max_allowed_packet;

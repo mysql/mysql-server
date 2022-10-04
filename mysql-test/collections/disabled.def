@@ -91,6 +91,7 @@ rpl_gtid.rpl_start_replica_until_pos_with_gtid_only      : Bug#33119241 START RE
 # rpl_nogtid suite tests
 rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
 rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG INJECTION WITH SELF LOGGING ENGINES IS BROKEN
+rpl_nogtid.rpl_gipk_cross_version_schema_changes  : BUG#34668313 Fix rpl_gipk_cross_version_schema_changes & binlog_mysqlbinlog_source_gipk_info
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.

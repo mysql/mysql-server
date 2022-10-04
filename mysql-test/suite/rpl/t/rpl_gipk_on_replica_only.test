@@ -1,0 +1,150 @@
+# === Purpose ===
+#
+# This test validate that replication works when the replica has a GIPK
+# and the source does not.
+#
+# ==== Requirements ====
+#
+# R1. If the replica contains a GIPK, replication from a source with no GIPK
+#     should work seamlessly.
+#
+# === Implementation ====
+#
+# 1. Enable the generation of GIPKs in the replica
+# 2. Create a table with no primary key in the source
+#    Check it was created with a GIPK in the replica
+# 3. Add some rows to the table in the source
+#    Check they are present in the replica with the expected auto generated values
+# 4. Update one of the row in the source and delete another
+#    Check the changes are correctly propagated
+# 5. Cleanup
+#
+# === References ===
+#
+# Wl#14639: Row-based replication between tables that differ in the existence of a generated invisible primary key
+#
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo
+--echo ##################################################
+--echo # 1. Enable the generation of GIPKs in the replica
+
+--source include/rpl_connection_slave.inc
+
+--let $sysvars_to_save = [ "GLOBAL.replica_generate_invisible_primary_key", "GLOBAL.replica_parallel_workers" ]
+--source include/save_sysvars.inc
+
+SET GLOBAL replica_generate_invisible_primary_key = ON;
+
+--source include/start_slave.inc
+
+--echo
+--echo #####################################################
+--echo # 2. Create a table with no primary key in the source
+--echo #    Check it was created with a GIPK in the replica
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1(f1 INT, f2 INT);
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $column_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t1';`
+--let $assert_text= The table contains 3 columns
+--let $assert_cond= $column_count = 3
+--source include/assert.inc
+
+--let $pk_count= `SELECT COUNT(*) FROM information_schema.columns WHERE table_name='t1' and column_name='my_row_id';`
+--let $assert_text= The table contains a generated invisilble primary key
+--let $assert_cond= $pk_count = 1
+--source include/assert.inc
+
+--echo
+--echo #############################################
+--echo # 3. Add some rows to the table in the source
+--echo #    Check they are present in the replica with the expected auto generated values
+
+# Make the applier deterministic by having only 1 thread
+--source include/stop_slave_sql.inc
+SET @@GLOBAL.replica_parallel_workers= 1;
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (1, 10);
+INSERT INTO t1 VALUES (2, 20);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE my_row_id = 1 AND f1 = 1 AND f2 = 10;`
+--let $assert_text= The table contains a row with generated key 1
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE my_row_id = 2 AND f1 = 2 AND f2 = 20;`
+--let $assert_text= The table contains a row with generated key 2
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+# Add a row on the replica to make the auto increment value jump to 4
+INSERT INTO t1 (my_row_id,f1,f2) VALUES (3, 3, 30);
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (4, 40);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE my_row_id = 3 AND f1 = 3 AND f2 = 30;`
+--let $assert_text= The table contains a row with generated key 3
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE my_row_id = 4 AND f1 = 4 AND f2 = 40;`
+--let $assert_text= The table contains a row with generated key 4
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--echo
+--echo ###########################################################
+--echo # 4. Update one of the row in the source and delete another
+--echo #    Check the changes are correctly propagated
+
+--source include/rpl_connection_master.inc
+
+UPDATE t1 SET t1.f2 = 60 WHERE t1.f1=2;
+
+DELETE FROM t1 WHERE t1.f1=1;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1;`
+--let $assert_text= The table contains 3 row
+--let $assert_cond= $row_count = 3
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE t1.f2 = 60 ;`
+--let $assert_text= The table was updated
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--echo
+--echo ###########################################################
+--echo # 5. Cleanup
+
+--disable_warnings
+--source include/restore_sysvars.inc
+--enable_warnings
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc
+

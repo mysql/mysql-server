@@ -1,0 +1,55 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##################################################
+# 0. This test requires the source to execute its transactions with
+#    binlog_row_image = minimal
+[connection master]
+SET @@SESSION.binlog_row_image = 'MINIMAL';
+
+##################################################
+# 1. Enable the generation of GIPKs in the source
+#    With the binary log temporarily disabled, create table t1
+#    Create the same table on the replica
+#    Add a row to the table on the source
+[connection slave]
+CREATE TABLE t1(f1 INT, f2 INT);
+[connection master]
+SET SESSION sql_generate_invisible_primary_key = ON;
+include/disable_binlog.inc
+CREATE TABLE t1(f1 INT, f2 INT);
+include/restore_binlog.inc
+SET SESSION sql_generate_invisible_primary_key = OFF;
+INSERT INTO t1 VALUES (1, 1);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The table t1 contains the inserted row]
+
+##################################################
+# 2. Update the row on the source
+#    Check the replica applier fails as it cannot locate the key
+[connection master]
+UPDATE t1 SET t1.f1 = 3 WHERE t1.f1=1;
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1032]
+include/assert.inc [The table t1 contains no rows on the replica]
+
+##################################################
+# 3. Cleanup
+[connection master]
+RESET MASTER;
+[connection slave]
+include/stop_slave.inc
+include/rpl_reset_slave.inc
+RESET MASTER;
+include/start_slave.inc
+include/suppress_messages.inc
+# Connection 2 suppresses message <Slave SQL for channel .*: Worker .* failed executing transaction .* at master log master-bin.000001, end_log_pos .* Could not execute Update_rows event on table test>.
+# Connection 2 suppresses message <Slave SQL for channel .*: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 2 suppresses message <Slave SQL for channel .*: Could not execute Update_rows event on table test.t1>.
+# Connection 2 suppresses message <Slave: Can.* find record in 't1'>.
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

@@ -1,0 +1,119 @@
+# === Purpose ===
+#
+# This test checks that when binlog_row_image is set to minimal and the source has tables with GIPKs
+# and the replica does not, updates/deletes on those tables will fail as the GIPK is used to identify the
+# rows.
+#
+# ==== Requirements ====
+#
+# R1. If binlog_row_image is set to a value different from full it might prevent a replica table without a key
+#     from locating rows to be updated as the source uses its GIPK to identify those rows.
+#
+# === Implementation ====
+#
+# 0. This test requires the source to execute its transactions with
+#    binlog_row_image = minimal
+# 1. Enable the generation of GIPKs in the source
+#    With the binary log temporarily disabled, create table t1
+#    Create the same table on the replica
+#    Add a row to the table on the source
+# 2. Update the row on the source
+#    Check the replica applier fails as it cannot locate the key
+# 3. Cleanup
+#
+# === References ===
+#
+# Wl#14639: Row-based replication between tables that differ in the existence of a generated invisible primary key
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo
+--echo ##################################################
+--echo # 0. This test requires the source to execute its transactions with
+--echo #    binlog_row_image = minimal
+
+--source include/rpl_connection_master.inc
+
+SET @@SESSION.binlog_row_image = 'MINIMAL';
+
+--echo
+--echo ##################################################
+--echo # 1. Enable the generation of GIPKs in the source
+--echo #    With the binary log temporarily disabled, create table t1
+--echo #    Create the same table on the replica
+--echo #    Add a row to the table on the source
+
+--source include/rpl_connection_slave.inc
+
+CREATE TABLE t1(f1 INT, f2 INT);
+
+--source include/rpl_connection_master.inc
+
+# Set at the session level, so no restore needed for MTR
+SET SESSION sql_generate_invisible_primary_key = ON;
+
+--source include/disable_binlog.inc
+CREATE TABLE t1(f1 INT, f2 INT);
+--source include/restore_binlog.inc
+
+SET SESSION sql_generate_invisible_primary_key = OFF;
+
+INSERT INTO t1 VALUES (1, 1);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1;`
+--let $assert_text= The table t1 contains the inserted row
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--echo
+--echo ##################################################
+--echo # 2. Update the row on the source
+--echo #    Check the replica applier fails as it cannot locate the key
+
+--source include/rpl_connection_master.inc
+
+UPDATE t1 SET t1.f1 = 3 WHERE t1.f1=1;
+
+--source include/rpl_connection_slave.inc
+
+--let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
+--source include/wait_for_slave_sql_error.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE t1.f1=3;`
+--let $assert_text= The table t1 contains no rows on the replica
+--let $assert_cond= $row_count = 0
+--source include/assert.inc
+
+--echo
+--echo ##################################################
+--echo # 3. Cleanup
+
+--source include/rpl_connection_master.inc
+
+RESET MASTER;
+
+--source include/rpl_connection_slave.inc
+
+--source include/stop_slave.inc
+--source include/rpl_reset_slave.inc
+RESET MASTER;
+--source include/start_slave.inc
+
+let $messages =
+Slave SQL for channel .*: Worker .* failed executing transaction .* at master log master-bin.000001, end_log_pos .* Could not execute Update_rows event on table test
+Slave SQL for channel .*: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.
+Slave SQL for channel .*: Could not execute Update_rows event on table test.t1
+Slave: Can.* find record in 't1'
+;
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc

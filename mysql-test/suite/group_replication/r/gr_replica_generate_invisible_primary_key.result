@@ -1,0 +1,45 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Set replica_generate_invisible_primary_key to true on both members
+[connection server1]
+include/save_sysvars.inc [ "GLOBAL.replica_generate_invisible_primary_key" ]
+SET GLOBAL replica_generate_invisible_primary_key=true;
+[connection server2]
+include/save_sysvars.inc [ "GLOBAL.replica_generate_invisible_primary_key" ]
+SET GLOBAL replica_generate_invisible_primary_key=true;
+
+############################################################
+# 2. Create a table with no primary key
+#    Start both members
+#    Check the second server that recovered still has only 1 column on its table
+[connection server1]
+CREATE TABLE test.t1 (c1 INT);
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [The table only contains one column]
+
+############################################################
+# 3. Create a table with no primary key on server 2
+#    Check that server 1 that replicated it still has only 1 column on its table
+[connection server2]
+CREATE TABLE test.t2 (c1 INT);
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc [The table only contains one column]
+
+############################################################
+# 4. Cleanup
+#
+[connection server1]
+include/restore_sysvars.inc
+[connection server2]
+include/restore_sysvars.inc
+DROP TABLE t1;
+DROP TABLE t2;
+include/group_replication_end.inc

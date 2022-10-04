@@ -1,0 +1,135 @@
+# === Purpose ===
+#
+# This test checks that replication and auto increment logic still works if the
+# source has an extra GIPK, and the replica (not having a GIPK) has an extra
+# AUTO_INCREMENT column to the right
+#
+# ==== Requirements ====
+#
+# R1. Extra auto increment columns on the replica are not affected by GIPKS on source tables.
+#
+# === Implementation ====
+#
+# 1. Enable the generation of GIPKs in the source
+#    With the binary log temporarily disabled, create table t1
+#    Create the same table on the replica with an extra auto inc column at the end
+# 2. Add 3 rows to the table on the source
+#    Check the generated values on the replica are the expected
+# 3. Update/Delete rows on the source
+# 4. Cleanup
+#
+# === References ===
+#
+# Wl#14639: Row-based replication between tables that differ in the existence of a generated invisible primary key
+#
+
+--source include/have_binlog_format_row.inc
+# This test needs --binlog-row-image = full
+--let $option_name = binlog_row_image
+--let $option_value = 'full'
+--source include/only_with_option.inc
+--source include/master-slave.inc
+
+--echo
+--echo ##################################################
+--echo # 1. Enable the generation of GIPKs in the source
+--echo #    With the binary log temporarily disabled, create table t1
+--echo #    Create the same table on the replica with an extra auto inc column at the end
+
+--source include/rpl_connection_slave.inc
+
+CREATE TABLE t1(f1 INT, f2 INT, extra_column INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (extra_column));
+
+--source include/rpl_connection_master.inc
+
+# Set at the session level, so no restore needed for MTR
+SET SESSION sql_generate_invisible_primary_key = ON;
+
+--source include/disable_binlog.inc
+CREATE TABLE t1(f1 INT, f2 INT);
+--source include/restore_binlog.inc
+
+SET SESSION sql_generate_invisible_primary_key = OFF;
+
+--echo
+--echo ##################################################
+--echo # 2. Add 3 rows to the table on the source
+--echo #    Check the generated values on the replica are the expected
+
+--source include/rpl_connection_slave.inc
+
+--let $sysvars_to_save = [ "GLOBAL.replica_parallel_workers" ]
+--source include/save_sysvars.inc
+
+# Make the applier deterministic by having only 1 thread
+--source include/stop_slave_sql.inc
+SET @@GLOBAL.replica_parallel_workers= 1;
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (1, 1);
+
+INSERT INTO t1 VALUES (2, 2);
+
+INSERT INTO t1 VALUES (3, 3);
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE  f1 = 1 AND f2 = 1 AND extra_column = 1;`
+--let $assert_text= The table contains a row with generated key 1
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE  f1 = 2 AND f2 = 2 AND extra_column = 2;`
+--let $assert_text= The table contains a row with generated key 2
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE  f1 = 3 AND f2 = 3 AND extra_column = 3;`
+--let $assert_text= The table contains a row with generated key 3
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--echo
+--echo ##################################################
+--echo # 3. Update/Delete rows on the source
+
+--source include/rpl_connection_master.inc
+
+UPDATE t1 SET t1.f2 = 60 WHERE t1.f1=2;
+
+DELETE FROM t1 WHERE t1.f1=1;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1;`
+--let $assert_text= The table contains 2 rows
+--let $assert_cond= $row_count = 2
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE  f1 = 2 AND f2 = 60 AND extra_column = 2;`
+--let $assert_text= The table contains a row with generated key 2
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE  f1 = 3 AND f2 = 3 AND extra_column = 3;`
+--let $assert_text= The table contains a row with generated key 3
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--echo
+--echo ##################################################
+--echo # 4. Cleanup
+
+--disable_warnings
+--source include/restore_sysvars.inc
+--enable_warnings
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc
