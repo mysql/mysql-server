@@ -63,6 +63,7 @@
 #         Replica: Verify that table t4 is replicated and has same column values   #
 #                  as table in source.                                             #
 ####################################################################################
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');

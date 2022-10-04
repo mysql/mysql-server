@@ -11967,6 +11967,9 @@ ER_IB_BUFFER_POOL_FULL
 ER_IB_DUPLICATE_KEY
   eng "%s: table=%s, index=%s, n_uniq=%zu, n_fields=%zu, lhs=(%s), rhs=(%s)"
 
+ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK
+  eng "Failed to apply row event with %d columns, originating from a server of version %s on table '%-.192s.%-.192s', which has %d columns, one of which is a generated implicit primary key. Replication is unsupported when the source server is older than 8.0.30, the replica table has a generated implicit primary key, and there is a difference in column count, not counting the replica's generated implicit primary key. Align the table schemas on source and replica, and restart replication."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

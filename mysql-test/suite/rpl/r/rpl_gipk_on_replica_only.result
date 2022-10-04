@@ -1,0 +1,59 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##################################################
+# 1. Enable the generation of GIPKs in the replica
+[connection slave]
+include/save_sysvars.inc [ "GLOBAL.replica_generate_invisible_primary_key", "GLOBAL.replica_parallel_workers" ]
+SET GLOBAL replica_generate_invisible_primary_key = ON;
+include/start_slave.inc
+
+#####################################################
+# 2. Create a table with no primary key in the source
+#    Check it was created with a GIPK in the replica
+[connection master]
+CREATE TABLE t1(f1 INT, f2 INT);
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [The table contains 3 columns]
+include/assert.inc [The table contains a generated invisilble primary key]
+
+#############################################
+# 3. Add some rows to the table in the source
+#    Check they are present in the replica with the expected auto generated values
+include/stop_slave_sql.inc
+SET @@GLOBAL.replica_parallel_workers= 1;
+include/start_slave_sql.inc
+[connection master]
+INSERT INTO t1 VALUES (1, 10);
+INSERT INTO t1 VALUES (2, 20);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The table contains a row with generated key 1]
+include/assert.inc [The table contains a row with generated key 2]
+INSERT INTO t1 (my_row_id,f1,f2) VALUES (3, 3, 30);
+[connection master]
+INSERT INTO t1 VALUES (4, 40);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The table contains a row with generated key 3]
+include/assert.inc [The table contains a row with generated key 4]
+
+###########################################################
+# 4. Update one of the row in the source and delete another
+#    Check the changes are correctly propagated
+[connection master]
+UPDATE t1 SET t1.f2 = 60 WHERE t1.f1=2;
+DELETE FROM t1 WHERE t1.f1=1;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [The table contains 3 row]
+include/assert.inc [The table was updated]
+
+###########################################################
+# 5. Cleanup
+include/restore_sysvars.inc
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

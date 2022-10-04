@@ -1,0 +1,25 @@
+
+##################################################
+# 1. Check the output of mysqlbinlog when the input file is a log
+#    from an old version server where GIPKs are not supported
+#    No info about GIPK should be present
+include/assert_grep.inc [Check the output contains no information GIPK]
+include/assert_grep.inc [Check the output contains no information GIPK]
+
+##################################################
+# 2. Check the output of mysqlbinlog when the input file is a log
+#    created in a server version that supports GIPKs
+#    Info about GIPKs should be present
+include/assert_grep.inc [Check the output contains information about t1 not containing a GIPK]
+include/assert_grep.inc [Check the output contains information about t2 containing a GIPK]
+
+##################################################
+# 3. Check the same binlog file but now with --print-table-metadata
+#    Even with binlog_row_metadata = minimal data about the GIPK columns should be present
+include/assert_grep.inc [Check the output contains complete info about the GIPK column on t2]
+include/assert_grep.inc [Check the output contains info about the GIPK being a PK on t2]
+include/assert_grep.inc [Info about the column really_unique_column_name on t2 is only mentioned once on CREATE]
+include/assert_grep.inc [Check the output contains no info about c1 being a PK on t1]
+
+##################################################
+# 4. Cleanup

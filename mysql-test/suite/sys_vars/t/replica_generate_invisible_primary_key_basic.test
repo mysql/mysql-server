@@ -1,0 +1,143 @@
+# ==== Purpose ====
+#
+# This file contains test cases to validate the behavior of system
+# variable 'replica_generate_invisible_primary_key' with various
+# permission levels
+#
+# ==== Requirements ====
+#
+# For the global replica_generate_invisible_primary_key variable the user
+# needs SYSTEM_VARIABLES_ADMIN or higher in order to change it
+#
+# ==== Implementation ====
+#
+# 0. Create a user and a connection with it
+# 1. Test the use by a regular user
+# 2. Test the use by a user with SYSTEM_VARIABLES_ADMIN privilege.
+# 3. Test the use by a user with SUPER privilege.
+# 4. Test SET PERSIST
+# 5. Test changing the variable to invalid values
+# 6. Cleanup
+#
+#  ==== Related Worklog ====
+#
+# WL#14639: Row-based replication between tables that differ in the existence of a generated invisible primary key
+#
+
+--echo #
+--echo # 0. Create a user and a connection with it
+
+CREATE USER u1@localhost;
+
+GRANT ALL ON db1.* TO u1@localhost;
+connect (con1, localhost, u1);
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # 1. Test the use by a unprivileged user
+
+--let $assert_text= By default the value is set to OFF
+--let $assert_cond= "[SELECT @@GLOBAL.replica_generate_invisible_primary_key]" = 0
+--source include/assert.inc
+
+# Check different types of access
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.replica_generate_invisible_primary_key;
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL replica_generate_invisible_primary_key=true;
+
+# Check priv errors
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL replica_generate_invisible_primary_key=false;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL replica_generate_invisible_primary_key=true;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL replica_generate_invisible_primary_key=DEFAULT;
+
+--echo #
+--echo # 2. Test the use by a user with SESSION_VARIABLES_ADMIN privilege.
+
+connection default;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+SET GLOBAL replica_generate_invisible_primary_key=true;
+
+--let $assert_text= The value is set to 1
+--let $assert_cond= "[SELECT @@GLOBAL.replica_generate_invisible_primary_key]" = 1
+--source include/assert.inc
+
+SET GLOBAL replica_generate_invisible_primary_key=DEFAULT;
+
+--let $assert_text= The value is set to 0
+--let $assert_cond= "[SELECT @@GLOBAL.replica_generate_invisible_primary_key]" = 0
+--source include/assert.inc
+
+--echo #
+--echo # 3. Test the use by a user with SUPER privilege.
+
+connection default;
+disconnect con1;
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM u1@localhost;
+GRANT SUPER ON *.* TO u1@localhost;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connect (con1, localhost, u1);
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+SET GLOBAL replica_generate_invisible_primary_key=true;
+
+--let $assert_text= The value is set to 1
+--let $assert_cond= "[SELECT @@GLOBAL.replica_generate_invisible_primary_key]" = 1
+--source include/assert.inc
+
+SET GLOBAL replica_generate_invisible_primary_key=false;
+
+--let $assert_text= The value is set to 0
+--let $assert_cond= "[SELECT @@GLOBAL.replica_generate_invisible_primary_key]" = 0
+--source include/assert.inc
+
+--echo #
+--echo # 4. Test SET PERSIST
+
+SET PERSIST replica_generate_invisible_primary_key=false;
+
+SET PERSIST_ONLY replica_generate_invisible_primary_key=true;
+
+--echo #
+--echo # 5. Test errors when changing the variable to invalid values
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replica_generate_invisible_primary_key = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replica_generate_invisible_primary_key = 100000000000;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL replica_generate_invisible_primary_key = 10000.01;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replica_generate_invisible_primary_key = 'test';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replica_generate_invisible_primary_key = '';
+
+--echo #
+--echo # 6. Cleanup
+
+connection default;
+disconnect con1;
+
+RESET PERSIST replica_generate_invisible_primary_key;
+
+DROP USER u1@localhost;
+
+SET GLOBAL replica_generate_invisible_primary_key=default;

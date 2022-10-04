@@ -842,5 +842,7 @@ extern Deployed_components *g_deployed_components;
 
 extern bool opt_persist_sensitive_variables_in_plaintext;
 
+extern bool opt_replica_generate_invisible_primary_key;
+
 void persisted_variables_refresh_keyring_support();
 #endif /* MYSQLD_INCLUDED */

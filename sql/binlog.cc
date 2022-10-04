@@ -10857,7 +10857,9 @@ class Row_data_memory {
   size_t max_row_length(TABLE *table, const uchar *data,
                         ulonglong value_options = 0) {
     TABLE_SHARE *table_s = table->s;
-    Replicated_columns_view fields{table, Replicated_columns_view::OUTBOUND};
+    cs::util::ReplicatedColumnsView fields{table};
+    fields.add_filter(
+        cs::util::ColumnFilterFactory::ColumnFilterType::outbound_func_index);
     /*
       The server stores rows using "records".  A record is a sequence of bytes
       which contains values or pointers to values for all fields (columns).  The

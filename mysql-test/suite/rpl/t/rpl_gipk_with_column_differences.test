@@ -1,0 +1,375 @@
+# === Purpose ===
+#
+# This test checks replication with differences in schema between source and replica in two scenarios:
+#  A) The source has a GIPK and the replica has no GIPK
+#  B) The replica has a GIPK and the source has no GIPK
+# For each scenario there is one case where the other (non-GIPK) columns are the same on source and replica;
+# one where replica has an extra column to the right, and one where the source has an extra column to the right.
+#
+# ==== Requirements ====
+#
+# R1. If the source contains a GIPK and the replica does not or vice-versa, replication
+#     should work seamlessly despite acceptable schema differences.
+#
+# === Implementation ====
+#
+# Phase 1: Tests with a GIPK only on the source
+#
+# 1. Enable the generation of GIPKs in the source
+#    With the binary log temporarily disabled, create tables t1, t2 and t3 with no primary keys
+# 2. Create the same tables on the replica
+#    Table t1 has the same number of columns in the replica
+#    Table t2 has less columns in the replica
+#    Table t3 has more columns in the replica
+# 3. Insert some values on the tables
+#    Check they are replicated correctly
+# 4. Update and delete tables in all tables
+#    Check changes are replicated correctly
+#
+# Phase 2: Tests with a GIPK only on the replica
+#
+# 5. Enable the generation of GIPKs on replication
+# 6. Create tables t4, t5 and t6 without primary keys on the source
+#    On the replica, drop a column on t5 and add an extra column on t6
+# 7. Insert some values on the tables
+#    Check they are replicated correctly
+# 8. Update and delete rows in all tables
+#    Check changes are replicated correctly
+#
+# 9. Cleanup
+#
+# === References ===
+#
+# Wl#14639: Row-based replication between tables that differ in the existence of a generated invisible primary key
+#
+
+--source include/have_binlog_format_row.inc
+# This test needs --binlog-row-image = full
+--let $option_name = binlog_row_image
+--let $option_value = 'full'
+--source include/only_with_option.inc
+--source include/master-slave.inc
+
+--echo # Phase 1: Tests with a GIPK only on the source
+
+--echo
+--echo ##################################################
+--echo # 1. Enable the generation of GIPKs in the source
+--echo #    With the binary log temporarily disabled, create tables t1, t2 and t3 with no primary keys
+
+--source include/rpl_connection_master.inc
+
+# Set at the session level, so no restore needed for MTR
+SET SESSION sql_generate_invisible_primary_key = ON;
+
+--source include/disable_binlog.inc
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE TABLE t2(f1 INT, f2 INT);
+CREATE TABLE t3(f1 INT, f2 INT);
+--source include/restore_binlog.inc
+
+SET SESSION sql_generate_invisible_primary_key = OFF;
+
+--echo
+--echo ##################################################
+--echo # 2. Create the same tables on the replica
+--echo #    Table t1 has the same number of columns in the replica
+--echo #    Table t2 has less columns in the replica
+--echo #    Table t3 has more columns in the replica
+
+--source include/rpl_connection_slave.inc
+
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE TABLE t2(f1 INT);
+CREATE TABLE t3(f1 INT, f2 INT, f3 INT);
+
+--echo
+--echo ##################################################
+--echo # 3. Insert some values on the tables
+--echo #    Check they are replicated correctly
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t1 VALUES (11, 11);
+INSERT INTO t1 VALUES (12, 12);
+
+# t2 has an extra row so after the delete we can
+# update a row that can affect either the 2 remaining rows in the
+# the replica
+
+INSERT INTO t2 VALUES (21, 21);
+INSERT INTO t2 VALUES (21, 22);
+INSERT INTO t2 VALUES (21, 23);
+
+INSERT INTO t3 VALUES (31, 31);
+INSERT INTO t3 VALUES (32, 32);
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1;`
+--let $assert_text= The table t1 contains the 2 inserted rows
+--let $assert_cond= $row_count = 2
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t2;`
+--let $assert_text= The table t2 contains the 3 inserted rows
+--let $assert_cond= $row_count = 3
+
+--source include/assert.inc
+--let $row_count= `SELECT COUNT(*) FROM t3;`
+--let $assert_text= The table t3 contains the 2 inserted rows
+--let $assert_cond= $row_count = 2
+--source include/assert.inc
+
+--echo
+--echo ##################################################
+--echo # 4. Update and delete rows in all tables
+--echo #    Check changes are replicated correctly
+
+--source include/rpl_connection_master.inc
+
+# t1
+
+UPDATE t1 SET t1.f2 = 13 WHERE t1.f1=12;
+
+DELETE FROM t1 WHERE t1.f1=11;
+
+# t2
+
+DELETE FROM t2 WHERE t2.f2=21;
+
+UPDATE t2 SET t2.f2 = 24 WHERE t2.f2=23;
+
+# t3
+
+UPDATE t3 SET t3.f2 = 33 WHERE t3.f1=31;
+
+DELETE FROM t3 WHERE t3.f1=32;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+# t1
+
+--let $row_count= `SELECT COUNT(*) FROM t1;`
+--let $assert_text= The table t1 contains 1 row
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE t1.f2 = 13 AND t1.f1 = 12;`
+--let $assert_text= The table t1 was updated
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+# t2
+
+--let $row_count= `SELECT COUNT(*) FROM t2 WHERE t2.f1 = 21`
+--let $assert_text= The table t2 contains 2 rows with value 21
+--let $assert_cond= $row_count = 2
+--source include/assert.inc
+
+# t3
+
+--let $row_count= `SELECT COUNT(*) FROM t3;`
+--let $assert_text= The table t3 contains 1 row
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t3 WHERE t3.f2 = 33 AND t3.f1 = 31;`
+--let $assert_text= The table t3 was updated
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+
+# t2
+
+# Update a f1 on the source, but since the replica does not contain f2
+# this update can update either rows in the replica.
+UPDATE t2 SET t2.f1 = 22 WHERE t2.f2=22;
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t2 WHERE t2.f1 = 21`
+--let $assert_text= The table t2 contains 1 rows with value 21
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t2 WHERE t2.f1 = 22`
+--let $assert_text= The table t2 contains 1 rows with value 22
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--echo # Phase 2: Tests with a GIPK only on the replica
+
+--echo
+--echo ##################################################
+--echo # 5. Enable the generation of GIPKs on replication
+
+--source include/rpl_connection_slave.inc
+
+--let $sysvars_to_save = [ "GLOBAL.replica_generate_invisible_primary_key" ]
+--source include/save_sysvars.inc
+
+SET GLOBAL replica_generate_invisible_primary_key = ON;
+
+--source include/restart_slave_sql.inc
+
+--echo
+--echo ##################################################
+--echo # 6. Create some tables without primary keys on the source
+--echo #    On the replica, drop a column on t5 and add an extra column on t6
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t4(f1 INT, f2 INT);
+
+CREATE TABLE t5(f1 INT, f2 INT);
+
+CREATE TABLE t6(f1 INT, f2 INT);
+
+--source include/sync_slave_sql_with_master.inc
+
+ALTER TABLE t5 DROP COLUMN f2;
+
+ALTER TABLE t6 ADD COLUMN f3 INT AFTER f2;
+
+--echo
+--echo ##################################################
+--echo # 7. Insert some values on the tables
+--echo #    Check they are replicated correctly
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO t4 VALUES (41, 41);
+INSERT INTO t4 VALUES (42, 42);
+
+# t5 has an extra row so after the delete we can
+# update a row that can affect either the 2 remaining rows in the
+# the replica
+
+INSERT INTO t5 VALUES (51, 51);
+INSERT INTO t5 VALUES (51, 52);
+INSERT INTO t5 VALUES (51, 53);
+
+INSERT INTO t6 VALUES (61, 61);
+INSERT INTO t6 VALUES (62, 62);
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t4;`
+--let $assert_text= The table t4 contains the 2 inserted rows
+--let $assert_cond= $row_count = 2
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t5;`
+--let $assert_text= The table t5 contains the 3 inserted rows
+--let $assert_cond= $row_count = 3
+
+--source include/assert.inc
+--let $row_count= `SELECT COUNT(*) FROM t6;`
+--let $assert_text= The table t6 contains the 2 inserted rows
+--let $assert_cond= $row_count = 2
+--source include/assert.inc
+
+--echo
+--echo ##################################################
+--echo # 8. Update and delete rows in all tables
+--echo #    Check changes are replicated correctly
+
+--source include/rpl_connection_master.inc
+
+# t4
+
+UPDATE t4 SET t4.f2 = 43 WHERE t4.f1=42;
+
+DELETE FROM t4 WHERE t4.f1=41;
+
+# t5
+
+DELETE FROM t5 WHERE t5.f2=51;
+
+UPDATE t5 SET t5.f2 = 54 WHERE t5.f2=53;
+
+# t6
+
+UPDATE t6 SET t6.f2 = 63 WHERE t6.f1=61;
+
+DELETE FROM t6 WHERE t6.f1=62;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+# t4
+
+--let $row_count= `SELECT COUNT(*) FROM t4;`
+--let $assert_text= The table t4 contains 1 row
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t4 WHERE t4.f2 = 43 AND t4.f1 = 42;`
+--let $assert_text= The table t4 was updated
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+# t5
+
+--let $row_count= `SELECT COUNT(*) FROM t5 WHERE t5.f1 = 51`
+--let $assert_text= The table t5 contains 2 rows with value 51
+--let $assert_cond= $row_count = 2
+--source include/assert.inc
+
+# t6
+
+--let $row_count= `SELECT COUNT(*) FROM t6;`
+--let $assert_text= The table t6 contains 1 row
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t6 WHERE t6.f2 = 63 AND t6.f1 = 61;`
+--let $assert_text= The table t6 was updated
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+
+# t5
+
+# Update a f1 on the source, but since the replica does not contain f2
+# this update can update either rows in the replica.
+UPDATE t5 SET t5.f1 = 52 WHERE t5.f2=52;
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t5 WHERE t5.f1 = 51`
+--let $assert_text= The table t5 contains 1 rows with value 51
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t5 WHERE t5.f1 = 52`
+--let $assert_text= The table t5 contains 1 rows with value 52
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--echo
+--echo ##################################################
+--echo # 9. Cleanup
+
+--source include/restore_sysvars.inc
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+
+--source include/rpl_end.inc

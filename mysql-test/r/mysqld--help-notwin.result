@@ -1160,6 +1160,16 @@ The following options may be given as the first argument:
  IDEMPOTENT mode, replication will ignore duplicate key
  errors and key not found errors. In STRICT mode,
  replication will stop at those errors.
+ --replica-generate-invisible-primary-key 
+ When set, if a replication applier thread creates a table
+ without a primary key, then the server generates an
+ invisible auto-increment column as a primary key for the
+ table. You can alternatively enable
+ sql_generate_invisible_primary_key in the upstream server
+ where tables are first created, thus ensuring all
+ replicas are consistent among them. This option does not
+ affect the group replication applier and recovery
+ channels.
  --replica-load-tmpdir=name 
  The location where this replica will store temporary
  files when replicating a LOAD DATA INFILE command from a
@@ -1960,6 +1970,7 @@ replica-checkpoint-group 512
 replica-checkpoint-period 300
 replica-compressed-protocol FALSE
 replica-exec-mode STRICT
+replica-generate-invisible-primary-key FALSE
 replica-max-allowed-packet 1073741824
 replica-net-timeout 60
 replica-parallel-type LOGICAL_CLOCK

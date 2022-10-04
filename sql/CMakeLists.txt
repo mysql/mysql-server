@@ -991,6 +991,11 @@ SET(BINLOG_SOURCE
   binlog_istream.cc
   binlog_ostream.cc
   binlog_reader.cc
+  changestreams/misc/replicated_columns_view.cc
+  changestreams/misc/replicated_columns_view_with_gipk_on_source.cc
+  changestreams/misc/column_filters/column_filter_inbound_func_indexes.cc
+  changestreams/misc/column_filters/column_filter_inbound_gipk.cc
+  changestreams/misc/column_filters/column_filter_outbound_func_indexes.cc
   log_event.cc
   rpl_commit_stage_manager.cc
   rpl_filter.cc

@@ -5876,8 +5876,12 @@ static void *handle_slave_worker(void *arg) {
   w->set_require_table_primary_key_check(
       rli->get_require_table_primary_key_check());
 
-  // Replicas shall not create GIPKs if source tables have no PKs
-  thd->variables.sql_generate_invisible_primary_key = false;
+  if (thd->rpl_thd_ctx.get_rpl_channel_type() == GR_APPLIER_CHANNEL ||
+      thd->rpl_thd_ctx.get_rpl_channel_type() == GR_RECOVERY_CHANNEL)
+    thd->variables.sql_generate_invisible_primary_key = false;
+  else
+    thd->variables.sql_generate_invisible_primary_key =
+        opt_replica_generate_invisible_primary_key;
 
   thd_manager->add_thd(thd);
   thd_added = true;
@@ -6903,8 +6907,12 @@ extern "C" void *handle_slave_sql(void *arg) {
           (rli->get_require_table_primary_key_check() ==
            Relay_log_info::PK_CHECK_ON);
 
-    // Replicas shall not create GIPKs if source tables have no PKs
-    thd->variables.sql_generate_invisible_primary_key = false;
+    if (thd->rpl_thd_ctx.get_rpl_channel_type() == GR_APPLIER_CHANNEL ||
+        thd->rpl_thd_ctx.get_rpl_channel_type() == GR_RECOVERY_CHANNEL)
+      thd->variables.sql_generate_invisible_primary_key = false;
+    else
+      thd->variables.sql_generate_invisible_primary_key =
+          opt_replica_generate_invisible_primary_key;
 
     rli->transaction_parser.reset();
 

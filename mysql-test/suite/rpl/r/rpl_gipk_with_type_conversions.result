@@ -1,0 +1,77 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##################################################
+# 0. This test requires the replica to allow some conversions so we set
+#    replica_type_conversions = ALL_NON_LOSSY
+[connection slave]
+include/save_sysvars.inc ["GLOBAL.replica_generate_invisible_primary_key"]
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL replica_type_conversions = 'ALL_NON_LOSSY';
+# Phase 1: Tests with a GIPK only on the source
+
+##################################################
+# 1. Enable the generation of GIPKs in the source
+#    With the binary log temporarily disabled, create table t1 and t2
+#    Create the same tables on the replica with non lossy compatible columns
+[connection slave]
+CREATE TABLE t1 (f1 varchar(800), f2 enum('1','2','3', '4','5'));
+CREATE TABLE t2 (f1 BIGINT UNSIGNED);
+[connection master]
+SET SESSION sql_generate_invisible_primary_key = ON;
+include/disable_binlog.inc
+CREATE TABLE t1 (f1 varchar(100), f2 enum('1','2','3'));
+CREATE TABLE t2 (f1 INT UNSIGNED);
+include/restore_binlog.inc
+SET SESSION sql_generate_invisible_primary_key = OFF;
+
+##################################################
+# 2. Add a row to each table
+#    Check the rows are correctly applied in the replica
+INSERT INTO t1 VALUES ('abbbb xyz', '2');
+INSERT INTO t2 VALUES (1);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Table t1 contains the inserted values]
+include/assert.inc [Table t2 contains the inserted values]
+# Phase 2: Tests with a GIPK only on the replica
+
+##################################################
+# 3. Enable the generation of GIPKs in the replica
+#    Create tables t3 and t4 on the source
+#    On the replica alter the tables so they have non lossy compatible columns
+[connection slave]
+include/stop_slave.inc
+SET GLOBAL replica_generate_invisible_primary_key = ON;
+include/start_slave.inc
+[connection master]
+CREATE TABLE t3 (f1  TINYINT UNSIGNED);
+CREATE TABLE t4 (f1 VARCHAR(20), f2 TINYINT);
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t3 MODIFY f1 INT UNSIGNED;
+ALTER TABLE t4 MODIFY f1 CHAR(25);
+ALTER TABLE t4 MODIFY f2 INT;
+
+##################################################
+# 4. Add a row to each table
+#    Check the rows are correctly applied in the replica
+[connection master]
+INSERT INTO t3 VALUES (30);
+INSERT INTO t4 VALUES ('text', 4);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Table t3 contains the inserted values]
+include/assert.inc [Table t4 contains the inserted values]
+
+##################################################
+# 5. Cleanup
+[connection slave]
+include/restore_sysvars.inc
+SET GLOBAL replica_type_conversions = @saved_replica_type_conversions;
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+include/rpl_end.inc

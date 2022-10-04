@@ -1,0 +1,83 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Phase 1: Tests with a GIPK only on the source
+
+##################################################
+# 1. Enable the generation of GIPKs in the source
+#    With the binary log temporarily disabled, create table t1, t2 and t3
+#    The same tables were created early on the replica with
+#      - t1 doesn't have a functional index in source but it has one in the replica
+#      - t2 has a functional index in the source but not in the replica
+#      - t3 has a functional index on source and replica but also an extra column
+[connection slave]
+CREATE TABLE t1 (f1 BIGINT UNSIGNED, f2 TEXT, INDEX ((f1*1)));
+CREATE TABLE t2 (f1 CHAR(25), f2 INT);
+CREATE TABLE t3 (f1 INT, f2 CHAR(25), f3 BIGINT, INDEX ((f1+2)));
+[connection master]
+SET SESSION sql_generate_invisible_primary_key = ON;
+include/disable_binlog.inc
+CREATE TABLE t1 (f1 BIGINT UNSIGNED, f2 TEXT);
+CREATE TABLE t2 (f1 CHAR(25), f2 INT, INDEX ((f1+1)));
+CREATE TABLE t3 (f1 INT, f2 CHAR(25), INDEX ((f1+2)));
+include/restore_binlog.inc
+SET SESSION sql_generate_invisible_primary_key = OFF;
+
+##################################################
+# 2. Add a row to each table
+#    Check the rows are correctly applied in the replica
+INSERT INTO t1 VALUES (1, '1');
+INSERT INTO t2 VALUES ('2', 2);
+INSERT INTO t3 VALUES (3, '3');
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Table t1 contains the inserted values]
+include/assert.inc [Table t2 contains the inserted values]
+include/assert.inc [Table t3 contains the inserted values]
+# Phase 2: Tests with a GIPK only on the replica
+
+##################################################
+# 3. Enable the generation of GIPKs in the replica
+#    Create tables t4, t5 and t6 on the source
+#    On the replica drop the index on t4 and add a index to t5
+#    On the replica add an index and an extra column to t6
+[connection slave]
+include/save_sysvars.inc ["GLOBAL.replica_generate_invisible_primary_key"]
+include/stop_slave.inc
+SET GLOBAL replica_generate_invisible_primary_key = ON;
+include/start_slave.inc
+[connection master]
+CREATE TABLE t4 (f1 INT UNSIGNED, INDEX idx1 ((f1*1)));
+CREATE TABLE t5 (f1 VARCHAR(20), f2 TINYINT);
+CREATE TABLE t6 (f1 BIGINT UNSIGNED);
+include/sync_slave_sql_with_master.inc
+DROP INDEX `idx1` ON t4;
+ALTER TABLE t5 ADD INDEX ((f2 * 40) DESC);
+ALTER TABLE t6 ADD INDEX ((f1 + 30) DESC);
+ALTER TABLE t6 ADD f3 INT;
+
+##################################################
+# 4. Add a row to each table
+#    Check the rows are correctly applied in the replica
+[connection master]
+INSERT INTO t4 VALUES (40);
+INSERT INTO t5 VALUES ('text', 5);
+INSERT INTO t6 VALUES (6);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Table t4 contains the inserted values]
+include/assert.inc [Table t5 contains the inserted values]
+include/assert.inc [Table t6 contains the inserted values]
+
+##################################################
+# 5. Cleanup
+[connection slave]
+include/restore_sysvars.inc
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+include/rpl_end.inc
