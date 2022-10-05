@@ -180,6 +180,11 @@ class RestRequestHandler : public BaseRequestHandler {
                 static_cast<int>(id.second),
                 request_ctxt.request->get_uri().join().c_str());
 
+      for (auto &kv : rest_handler_->get_headers_parameters()) {
+        auto &oh = request_ctxt.request->get_output_headers();
+        oh.add(kv.first.c_str(), kv.second.c_str());
+      }
+
       if (!rest_handler_->request_begin(&request_ctxt)) {
         log_debug("'request_begin' returned false");
         throw http::Error{HttpStatusCode::Forbidden};
@@ -234,11 +239,6 @@ class RestRequestHandler : public BaseRequestHandler {
                                             HttpStatusCode::Forbidden);
           }
         }
-      }
-
-      for (auto &kv : rest_handler_->get_headers_parameters()) {
-        auto &oh = request_ctxt.request->get_output_headers();
-        oh.add(kv.first.c_str(), kv.second.c_str());
       }
 
       log_debug("RestRequestHandler(service_id:%i): dispatch",
