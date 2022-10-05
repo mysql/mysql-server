@@ -28,6 +28,7 @@
 #include "mysqlrouter/router_export.h"
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
