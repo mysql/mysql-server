@@ -624,7 +624,7 @@ void MySQLSession::prepare_execute(uint64_t ps_id,
     MYSQL_FIELD *fields =
         rs_metadata ? mysql_fetch_fields(rs_metadata) : nullptr;
     std::unique_ptr<MYSQL_BIND[]> my_bind{new MYSQL_BIND[nfields]};
-    std::unique_ptr<ulong[]> length{new ulong[nfields]};
+    std::unique_ptr<unsigned long[]> length{new unsigned long[nfields]};
     std::unique_ptr<bool[]> is_null{new bool[nfields]};
     memset(my_bind.get(), 0, sizeof(MYSQL_BIND) * nfields);
 
@@ -634,7 +634,7 @@ void MySQLSession::prepare_execute(uint64_t ps_id,
           std::max<unsigned long>(fields[i].max_length + 1, 1000);
       my_bind[i].buffer_type = MYSQL_TYPE_STRING;
       my_bind[i].buffer = new char[max_length];
-      my_bind[i].buffer_length = static_cast<ulong>(max_length);
+      my_bind[i].buffer_length = static_cast<unsigned long>(max_length);
       my_bind[i].is_null = &is_null[i];
       my_bind[i].length = &length[i];
     }
