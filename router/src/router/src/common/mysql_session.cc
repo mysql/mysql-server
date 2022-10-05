@@ -584,12 +584,13 @@ void MySQLSession::prepare_execute(uint64_t ps_id,
                                    std::vector<enum_field_types> pt,
                                    const RowProcessor &processor,
                                    const FieldValidator &validator) {
-  auto stmt = stmts_[ps_id];
-
   std::vector<std::unique_ptr<char[]>> buffers;
   std::unique_ptr<MYSQL_BIND[]> ps_params{new MYSQL_BIND[pt.size() + 1]};
-  memset(ps_params.get(), 0, sizeof(MYSQL_BIND) * pt.size());
   auto bind = ps_params.get();
+  auto stmt = stmts_[ps_id];
+
+  memset(ps_params.get(), 0, sizeof(MYSQL_BIND) * pt.size());
+
   for (auto type : pt) {
     bind->buffer_type = type;
     buffers.emplace_back(allocate_buffer(bind));
@@ -629,7 +630,8 @@ void MySQLSession::prepare_execute(uint64_t ps_id,
 
     validator(nfields, fields);
     for (unsigned int i = 0; i < nfields; ++i) {
-      size_t max_length = fields[i].max_length + 1;
+      size_t max_length =
+          std::max<unsigned long>(fields[i].max_length + 1, 1000);
       my_bind[i].buffer_type = MYSQL_TYPE_STRING;
       my_bind[i].buffer = new char[max_length];
       my_bind[i].buffer_length = static_cast<ulong>(max_length);
