@@ -141,6 +141,10 @@ Result HandlerSP::handle_post(
   throw http::Error(HttpStatusCode::NotImplemented);
 }
 
+void HandlerSP::authorization(rest::RequestContext *ctxt) {
+  throw_unauthorize_when_check_auth_fails(ctxt);
+}
+
 Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
@@ -187,7 +191,7 @@ Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
 }
 
 Handler::Authorization HandlerSP::requires_authentication() const {
-  return route_->requires_authentication() ? Authorization::kRequires
+  return route_->requires_authentication() ? Authorization::kCheck
                                            : Authorization::kNotNeeded;
 }
 

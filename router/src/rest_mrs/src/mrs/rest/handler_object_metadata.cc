@@ -54,9 +54,11 @@ HandlerMetadata::HandlerMetadata(Route *route,
 //  Document json_doc_{rapidjson::kObjectType};
 //  Document::AllocatorType &allocator = json_doc_.GetAllocator();
 //};
+void HandlerMetadata::authorization(rest::RequestContext *ctxt) {
+  throw_unauthorize_when_check_auth_fails(ctxt);
+}
 
-Result HandlerMetadata::handle_get([
-    [maybe_unused]] rest::RequestContext *ctxt) {
+Result HandlerMetadata::handle_get(rest::RequestContext *) {
   rapidjson::Document json_doc;
   {
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
@@ -150,7 +152,7 @@ Result HandlerMetadata::handle_put([
 Handler::Authorization HandlerMetadata::requires_authentication() const {
   return (route_->requires_authentication() ||
           route_->get_schema()->requires_authentication())
-             ? Authorization::kRequires
+             ? Authorization::kCheck
              : Authorization::kNotNeeded;
 }
 

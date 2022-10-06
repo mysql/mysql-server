@@ -97,6 +97,10 @@ bool HandlerFile::is_json_response() const { return false; }
 
 uint32_t HandlerFile::get_access_rights() const { return Route::kRead; }
 
+void HandlerFile::authorization(rest::RequestContext *ctxt) {
+  throw_unauthorize_when_check_auth_fails(ctxt);
+}
+
 Handler::Result HandlerFile::handle_get(rest::RequestContext *ctxt) {
   database::QueryEntryContentFile file;
   mysql_harness::Path path{route_->get_object_path()};

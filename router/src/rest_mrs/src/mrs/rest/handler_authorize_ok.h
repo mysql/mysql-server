@@ -22,43 +22,48 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_REST_HANDLER_OBJECT_METADATA_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_REST_HANDLER_OBJECT_METADATA_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_AUTHORIZE_OK_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_AUTHORIZE_OK_H_
 
+#include <optional>
 #include <string>
+#include <vector>
 
-#include "mrs/interface/route.h"
+#include "helper/media_type.h"
+#include "mrs/interface/auth_manager.h"
 #include "mrs/rest/handler.h"
 
 namespace mrs {
 namespace rest {
 
-class HandlerMetadata : public Handler {
+class HandlerAuthorizeOk : public Handler {
  public:
-  using Route = mrs::interface::Route;
-
- public:
-  HandlerMetadata(Route *route, mrs::interface::AuthManager *auth_manager);
+  HandlerAuthorizeOk(const uint64_t id, const std::string &url,
+                     const std::string &rest_path_matcher,
+                     const std::string &options,
+                     const std::string &page_content_custom,
+                     interface::AuthManager *auth_manager);
 
   Authorization requires_authentication() const override;
   std::pair<IdType, uint64_t> get_id() const override;
   uint64_t get_db_object_id() const override;
   uint64_t get_schema_id() const override;
-
   uint32_t get_access_rights() const override;
 
-  void authorization(rest::RequestContext *ctxt) override;
-
-  Result handle_get(rest::RequestContext *ctxt) override;
-  Result handle_post(rest::RequestContext *ctxt,
+  Result handle_get(RequestContext *ctxt) override;
+  Result handle_post(RequestContext *ctxt,
                      const std::vector<uint8_t> &document) override;
-  Result handle_delete(rest::RequestContext *ctxt) override;
-  Result handle_put(rest::RequestContext *ctxt) override;
+  Result handle_delete(RequestContext *ctxt) override;
+  Result handle_put(RequestContext *ctxt) override;
 
-  Route *route_;
+ private:
+  uint64_t id_;
+  const std::string page_content_custom_;
+  std::string copy_url_;
+  std::string copy_path_;
 };
 
 }  // namespace rest
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_REST_HANDLER_OBJECT_METADATA_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_AUTHORIZE_OK_H_

@@ -44,8 +44,9 @@ QueryEntriesAuthApp::QueryEntriesAuthApp() {
       "    h.id=a.url_host_id limit 1)) as host_alias,"
       "  a.url_direct_auth,"
       "  a.limit_to_registered_users, a.default_auth_role_id,"
-      "  a.id as auth_app_id, auth_vendor_id, h.id as url_host_id,"
-      "  a.auth_path, s.options"
+      "  a.auth_path, s.options, a.redirect_after_auth_url, "
+      "a.login_success_page_content, "
+      "  a.id as auth_app_id, auth_vendor_id, h.id as url_host_id"
       " FROM mysql_rest_service_metadata.auth_app as a "
       "JOIN mysql_rest_service_metadata.`auth_vendor` as v on a.auth_vendor_id "
       "= v.id "
@@ -88,6 +89,8 @@ void QueryEntriesAuthApp::on_row(const Row &row) {
   mysql_row.unserialize(&entry.default_role_id);
   mysql_row.unserialize(&entry.auth_path);
   mysql_row.unserialize(&entry.options);
+  mysql_row.unserialize(&entry.redirect);
+  mysql_row.unserialize(&entry.redirection_default_page);
 
   entry.deleted = false;
 }

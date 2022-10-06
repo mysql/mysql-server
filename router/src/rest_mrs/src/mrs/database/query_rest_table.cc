@@ -115,7 +115,7 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
 
     where_.reset(
         "WHERE ! IN (WITH RECURSIVE cte As ("
-        "SELECT a.id as id FROM mysql_rest_service_metadata.auth_user a WHERE"
+        "SELECT a.id as id FROM mysql_rest_service_metadata.auth_user a WHERE "
         "a.id = ? "
         "UNION ALL "
         "SELECT h.auth_user_id as id FROM "

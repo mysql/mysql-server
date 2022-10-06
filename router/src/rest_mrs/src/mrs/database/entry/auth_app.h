@@ -54,6 +54,8 @@ class AuthApp {
   helper::Optional<uint64_t> default_role_id;
   std::string auth_path;
   std::string options;
+  std::string redirect;
+  std::string redirection_default_page;
 };
 
 inline std::string to_string(const AuthApp &entry) {

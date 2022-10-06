@@ -44,7 +44,6 @@ struct RequestContext {
   HttpRequest *request{nullptr};
   SqlSessionCached sql_session_cache;
   AuthUser user;
-  std::string handler_authentication_redirection;
   AuthHandlerPtr selected_handler;
 };
 

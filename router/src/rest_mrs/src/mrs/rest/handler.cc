@@ -226,6 +226,8 @@ class RestRequestHandler : public BaseRequestHandler {
           request_ctxt.selected_handler->is_authorized(&request_ctxt);
         }
 
+        rest_handler_->authorization(&request_ctxt);
+
         const bool needs_access_priviliges =
             id.first == IdType::k_id_type_service_id;
         if (needs_access_priviliges) {
@@ -368,6 +370,15 @@ bool Handler::request_error(RequestContext *, const http::Error &) {
 const Parameters &Handler::get_headers_parameters() const {
   return parameters_;
 }
+
+void Handler::throw_unauthorize_when_check_auth_fails(RequestContext *ctxt) {
+  if (this->requires_authentication() != Authorization::kNotNeeded) {
+    if (!ctxt->user.has_user_id)
+      throw http::Error(HttpStatusCode::Unauthorized);
+  }
+}
+
+void Handler::authorization(RequestContext *) {}
 
 }  // namespace rest
 }  // namespace mrs

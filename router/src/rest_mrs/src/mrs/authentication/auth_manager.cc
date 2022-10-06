@@ -26,6 +26,7 @@
 
 #include "mrs/authentication/auth_handler_factory.h"
 #include "mrs/rest/handler_authorize.h"
+#include "mrs/rest/handler_authorize_ok.h"
 #include "mrs/rest/handler_is_authorized.h"
 #include "mrs/rest/handler_unauthorize.h"
 
@@ -71,15 +72,24 @@ void AuthManager::update(const Entries &entries) {
         std::string path1 = "^" + e.service_name + auth_path + "/login$";
         std::string path2 = "^" + e.service_name + auth_path + "/status$";
         std::string path3 = "^" + e.service_name + auth_path + "/logout$";
+        std::string path4 =
+            "^" + e.service_name + auth_path + "/login_success$";
+        std::string redirect = e.redirect;
+        if (redirect.empty()) {
+          redirect = e.host + e.service_name + auth_path + "/login_success";
+        }
 
         auto rest_handler = std::make_shared<mrs::rest::HandlerAuthorize>(
-            e.id, e.service_name, path1, e.options, this);
+            e.id, e.service_name, path1, e.options, redirect, this);
         auto status_handler = std::make_shared<mrs::rest::HandlerIsAuthorized>(
             e.id, e.service_name, path2, e.options, this);
         auto unauth_handler = std::make_shared<mrs::rest::HandlerUnauthorize>(
             e.id, e.service_name, path3, e.options, this);
+        auto auth_ok_handler = std::make_shared<mrs::rest::HandlerAuthorizeOk>(
+            e.id, e.service_name, path4, e.options, e.redirection_default_page,
+            this);
         container_.emplace_back(rest_handler, auth, status_handler,
-                                unauth_handler);
+                                unauth_handler, auth_ok_handler);
       }
     }
   }

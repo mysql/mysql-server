@@ -42,6 +42,7 @@ class Handler : public interface::RestHandler {
           const std::string &options, interface::AuthManager *auth_manager);
   ~Handler() override;
 
+  void authorization(RequestContext *ctxt) override;
   bool request_begin(RequestContext *ctxt) override;
   void request_end(RequestContext *ctxt) override;
   /**
@@ -56,6 +57,8 @@ class Handler : public interface::RestHandler {
   bool request_error(RequestContext *ctxt, const http::Error &e) override;
 
   const Parameters &get_headers_parameters() const override;
+
+  void throw_unauthorize_when_check_auth_fails(RequestContext *);
 
  private:
   const Parameters parameters_;

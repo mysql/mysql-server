@@ -41,8 +41,11 @@ using Route = mrs::interface::Route;
 HandlerAuthorize::HandlerAuthorize(const uint64_t id, const std::string &url,
                                    const std::string &rest_path_matcher,
                                    const std::string &options,
+                                   const std::string &redirection,
                                    interface::AuthManager *auth_manager)
-    : Handler(url, rest_path_matcher, options, auth_manager), id_{id} {}
+    : Handler(url, rest_path_matcher, options, auth_manager),
+      id_{id},
+      redirection_{redirection} {}
 
 Handler::Authorization HandlerAuthorize::requires_authentication() const {
   return Authorization::kRequires;
@@ -88,37 +91,6 @@ Result HandlerAuthorize::handle_put(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-bool HandlerAuthorize::request_begin(RequestContext *ctxt) {
-  const char *kMrsRedirection = "mrs_auth_redirect";
-  auto &url = ctxt->request->get_uri();
-  http::Url url_parser(url);
-  auto &redirection_value = ctxt->handler_authentication_redirection;
-
-  redirection_value = url_parser.get_query_parameter("mrs_redirect");
-  bool has_mrs_redirect = !redirection_value.empty();
-
-  if (has_mrs_redirect) {
-    using namespace std::literals::chrono_literals;
-
-    http::Cookie::set(ctxt->request, kMrsRedirection, redirection_value, 15min);
-  } else {
-    redirection_value = http::Cookie::get(ctxt->request, kMrsRedirection);
-  }
-
-  if (redirection_value.empty()) {
-    return false;
-  }
-
-  // We do not want any parameters on callback from Oauth2
-  // Its the first redirect, oauth2 handlers on provider side
-  // doesn't like custom query parameters.
-  if (has_mrs_redirect) url.set_query("");
-
-  return true;
-}
-
-void HandlerAuthorize::request_end(RequestContext *) {}
-
 const char *get_authentication_status(HttpStatusCode::key_type code) {
   switch (code) {
     case HttpStatusCode::Ok:
@@ -132,7 +104,7 @@ const char *get_authentication_status(HttpStatusCode::key_type code) {
 
 std::string HandlerAuthorize::append_status_parameters(
     RequestContext *ctxt, const http::Error &error) {
-  auto uri = HttpUri::parse(ctxt->handler_authentication_redirection);
+  auto uri = HttpUri::parse(redirection_);
 
   http::Url::append_query_parameter(uri, "status",
                                     get_authentication_status(error.status));
@@ -152,12 +124,6 @@ bool HandlerAuthorize::request_error(RequestContext *ctxt,
                                      const http::Error &error) {
   // Oauth2 authentication may redirect, allow it.
   if (error.status == HttpStatusCode::TemporaryRedirect) return false;
-  // If handler_authentication_redirection is empthy then the flow is broken,
-  // just return an error to the user.
-  if (ctxt->handler_authentication_redirection.empty()) {
-    ctxt->request->send_error(error.status, error.message);
-    return true;
-  }
 
   // Redirect to original/first page that redirected to us.
   auto uri = append_status_parameters(ctxt, error);

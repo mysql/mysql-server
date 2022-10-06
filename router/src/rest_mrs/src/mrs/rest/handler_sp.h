@@ -48,6 +48,7 @@ class HandlerSP : public rest::Handler {
   Result handle_post(rest::RequestContext *ctxt,
                      const std::vector<uint8_t> &document) override;
 
+  void authorization(rest::RequestContext *ctxt) override;
   Authorization requires_authentication() const override;
   std::pair<IdType, uint64_t> get_id() const override;
   uint64_t get_db_object_id() const override;

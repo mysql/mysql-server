@@ -51,16 +51,19 @@ class AuthManager : public mrs::interface::AuthManager {
     ContainerItem(RestHandlerPtr rest_handler) : rest_handler_{rest_handler} {}
     ContainerItem(HandlerPtr auth_handler) : auth_handler_{auth_handler} {}
     ContainerItem(RestHandlerPtr rest_handler, HandlerPtr auth_handler,
-                  RestHandlerPtr status_handler, RestHandlerPtr unauth_handler)
+                  RestHandlerPtr status_handler, RestHandlerPtr unauth_handler,
+                  RestHandlerPtr auth_ok_handler)
         : rest_handler_{rest_handler},
           auth_handler_{auth_handler},
           status_handler_{status_handler},
-          unauth_handler_{unauth_handler} {}
+          unauth_handler_{unauth_handler},
+          auth_ok_handler_{auth_ok_handler} {}
 
     RestHandlerPtr rest_handler_;
     HandlerPtr auth_handler_;
     RestHandlerPtr status_handler_;
     RestHandlerPtr unauth_handler_;
+    RestHandlerPtr auth_ok_handler_;
   };
 
   using Container = std::vector<ContainerItem>;
