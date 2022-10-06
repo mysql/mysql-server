@@ -781,6 +781,8 @@ struct ArrayHelper< C * > {
     ccreate(int32_t p0) {
         TRACE("C * ArrayHelper::ccreate(int32_t)");
         // ISO C++: 'new' throws std::bad_alloc if unsuccessful
+        if (p0 < 0 || uint32_t(p0) > SIZE_MAX / sizeof(C))
+            throw std::bad_alloc();
         return new C[p0];
     }
 

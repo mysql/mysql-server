@@ -16690,7 +16690,7 @@ void Dbtc::unlinkAndReleaseGcp(Ptr<GcpRecord> tmpGcpPtr)
   ndbrequire(c_gcpRecordList.getFirst() == tmpGcpPtr.i);
 
   LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
-  gcp_list.removeFirst(tmpGcpPtr);
+  ndbrequire(gcp_list.removeFirst(tmpGcpPtr));
   c_gcpRecordPool.release(tmpGcpPtr);
   checkPoolShrinkNeed(DBTC_GCP_RECORD_TRANSIENT_POOL_INDEX,
                       c_gcpRecordPool);
