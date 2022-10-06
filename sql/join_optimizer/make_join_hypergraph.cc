@@ -1232,6 +1232,23 @@ Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
   return condition;
 }
 
+// Split any conditions that have been transformed into a conjunction (typically
+// by expansion of multiple equalities or removal of constant subconditions).
+Mem_root_array<Item *> ResplitConditions(
+    THD *thd, const Mem_root_array<Item *> &conditions) {
+  Mem_root_array<Item *> new_conditions(thd->mem_root);
+  for (Item *condition : conditions) {
+    ExtractConditions(condition, &new_conditions);
+  }
+  return new_conditions;
+}
+
+bool IsConjunction(const Item *item) {
+  return item->type() == Item::COND_ITEM &&
+         down_cast<const Item_cond *>(item)->functype() ==
+             Item_func::COND_AND_FUNC;
+}
+
 // Calls CanonicalizeCondition() for each condition in the given array.
 bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
                             Mem_root_array<Item *> *conditions) {
@@ -1241,20 +1258,14 @@ bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
     if (condition == nullptr) {
       return true;
     }
-    if (condition->type() == Item::COND_ITEM &&
-        down_cast<Item_cond *>(condition)->functype() ==
-            Item_func::COND_AND_FUNC) {
+    if (IsConjunction(condition)) {
       // Canonicalization converted something (probably an Item_equal) to a
       // conjunction, which we need to split back to new conditions again.
       need_resplit = true;
     }
   }
   if (need_resplit) {
-    Mem_root_array<Item *> new_join_conditions(thd->mem_root);
-    for (Item *condition : *conditions) {
-      ExtractConditions(condition, &new_join_conditions);
-    }
-    *conditions = std::move(new_join_conditions);
+    *conditions = ResplitConditions(thd, *conditions);
   }
   return false;
 }
@@ -2199,11 +2210,7 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
     }
   }
   if (need_resplit) {
-    Mem_root_array<Item *> new_join_conditions(thd->mem_root);
-    for (Item *condition : *conditions) {
-      ExtractConditions(condition, &new_join_conditions);
-    }
-    *conditions = std::move(new_join_conditions);
+    *conditions = ResplitConditions(thd, *conditions);
   }
 }
 
@@ -2215,6 +2222,7 @@ bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
                               Mem_root_array<Item *> *conditions,
                               bool *always_false) {
   CSEConditions(thd, conditions);
+  bool need_resplit = false;
   for (auto it = conditions->begin(); it != conditions->end();) {
     /**
       For simple filters, propagate constants if there are any
@@ -2274,23 +2282,40 @@ bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
             return item;
           });
     }
+
+    const Item *const old_item = *it;
     Item::cond_result res;
     if (remove_eq_conds(thd, *it, &*it, &res)) {
       return true;
     }
 
     if (res == Item::COND_TRUE) {
+      // Remove always true conditions from the conjunction.
       it = conditions->erase(it);
     } else if (res == Item::COND_FALSE) {
+      // One always false condition makes the entire conjunction always false.
       conditions->clear();
       conditions->push_back(new Item_func_false);
       *always_false = true;
       return false;
     } else {
-      if (*it != nullptr) (*it)->update_used_tables();
+      assert(*it != nullptr);
+      // If the condition was replaced by a conjunction, we need to split it and
+      // add its children to conditions, so that its individual elements can be
+      // considered for condition pushdown later.
+      if (*it != old_item && IsConjunction(*it)) {
+        need_resplit = true;
+      }
+
+      (*it)->update_used_tables();
       ++it;
     }
   }
+
+  if (need_resplit) {
+    *conditions = ResplitConditions(thd, *conditions);
+  }
+
   return false;
 }
 

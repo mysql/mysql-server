@@ -1477,6 +1477,47 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
   EXPECT_TRUE(found_predicate);
 }
 
+TEST_F(MakeHypergraphTest, EqualityPropagationExpandsTopConjunction) {
+  // The WHERE clause of the query is a subjunction in which the second leg is
+  // found to be always false during equality propagation and removed.
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 WHERE "
+      "(t1.x = t2.x AND t1.x < 10) OR (t1.y = t2.y AND t1.y < t2.y)",
+      /*nullable=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->m_table_nest,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  SortNodes(&graph);
+
+  ASSERT_EQ(2, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+
+  // Expect to find a simple equijoin condition and a table filter. The table
+  // filter used to be part of the join condition, but it should not be.
+  ASSERT_EQ(1, graph.edges.size());
+  EXPECT_EQ("(t1.x = t2.x)",
+            ItemsToString(graph.edges[0].expr->equijoin_conditions));
+  EXPECT_EQ("(none)", ItemsToString(graph.edges[0].expr->join_conditions));
+  ASSERT_EQ(1, graph.num_where_predicates);
+  EXPECT_EQ("(t1.x < 10)", ItemToString(graph.predicates[0].condition));
+}
+
 // Sets up a nonsensical query, but the point is that the multiple equality
 // on the antijoin can be resolved to either t1.x or t2.x, and it should choose
 // the same as is already there due to the inequality in order to not create
