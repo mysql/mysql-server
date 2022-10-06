@@ -25,6 +25,7 @@
 #include "sql/dd/impl/utils.h"
 
 #include <assert.h>
+#include <regex>
 #include <set>
 
 #include "mysql/components/services/log_builtins.h"
@@ -198,6 +199,7 @@ void establish_table_name_sets(std::set<String_type> *create_set,
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it) {
     if (is_non_inert_dd_or_ddse_table((*it)->property())) {
+      bool ignore_equivalent_utf8_declarations = false;
       /*
         In this context, all tables should have an Object_table. Minor
         downgrade is the only situation where an Object_table may not exist,
@@ -227,12 +229,45 @@ void establish_table_name_sets(std::set<String_type> *create_set,
         actual_ddl_statement = actual_table_def->get_ddl();
       }
 
+      // These changes can be ignored:
+      //   utf8     <=> utf8mb3
+      //   utf8_bin <=> utf8mb3_bin
+      // In the dictionary these are equivalent.
+      String_type target_ddl_copy = target_ddl_statement;
+      if (actual_table_def && target_table_def &&
+          actual_ddl_statement.length() != target_ddl_statement.length()) {
+        // See definition of innodb_ddl_log in innobase_ddse_dict_init()
+        std::regex regexp("COLLATE UTF8MB3_BIN");
+        target_ddl_copy =
+            std::regex_replace(target_ddl_copy, regexp, "COLLATE UTF8_BIN");
+
+        // See Object_table_impl::Object_table_impl()
+        regexp = "COLLATE=utf8mb3_bin";
+        target_ddl_copy =
+            std::regex_replace(target_ddl_copy, regexp, "COLLATE=utf8_bin");
+
+        regexp = "DEFAULT CHARSET=utf8mb3";
+        target_ddl_copy =
+            std::regex_replace(target_ddl_copy, regexp, "DEFAULT CHARSET=utf8");
+
+        if (target_ddl_copy == actual_ddl_statement)
+          ignore_equivalent_utf8_declarations = true;
+      }
       /*
         Remove and/or create as needed. If the definitions are non-null
         and equal, no change has been done, and hence upgrade of the table
         is irrelevant.
       */
-      if (target_table_def == nullptr && actual_table_def != nullptr)
+      if (ignore_equivalent_utf8_declarations) {
+        // Nothing, "utf8_bin" and "utf8mb3_bin" are equivalent in the data
+        // dictionary. If we take changes here into account and create new
+        // target tables, migrate the data, and then delete the old tables,
+        // then we will run into problems with innodb internal tables such as
+        // 'innodb_ddl_log' which are held open across transactions. A fix of
+        // this issue must close the innodb internal tables and associated
+        // data structures, and reopen them using the target tables that are
+        // created. See Bug#34608061.
+      } else if (target_table_def == nullptr && actual_table_def != nullptr)
         remove_set->insert((*it)->entity()->name());
       else if (target_table_def != nullptr && actual_table_def == nullptr)
         create_set->insert((*it)->entity()->name());

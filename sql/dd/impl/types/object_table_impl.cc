@@ -38,12 +38,10 @@ Object_table_impl::Object_table_impl()
       m_hidden(true) {
   m_target_def.add_option(static_cast<int>(Common_option::ENGINE), "ENGINE",
                           "ENGINE=INNODB");
-  // TODO(Bug #33688509) This should be "DEFAULT CHARSET=utf8mb3".
   m_target_def.add_option(static_cast<int>(Common_option::CHARSET), "CHARSET",
-                          "DEFAULT CHARSET=utf8");
-  // TODO(Bug #33688509) This should be "COLLATE=utf8mb3_bin".
+                          "DEFAULT CHARSET=utf8mb3");
   m_target_def.add_option(static_cast<int>(Common_option::COLLATION),
-                          "COLLATION", "COLLATE=utf8_bin");
+                          "COLLATION", "COLLATE=utf8mb3_bin");
   m_target_def.add_option(static_cast<int>(Common_option::ROW_FORMAT),
                           "ROW_FORMAT", "ROW_FORMAT=DYNAMIC");
   m_target_def.add_option(static_cast<int>(Common_option::STATS_PERSISTENT),

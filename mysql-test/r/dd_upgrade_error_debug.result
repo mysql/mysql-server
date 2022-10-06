@@ -47,9 +47,9 @@ mysql.indexes.table_id = mysql.tables.id AND
 mysql.schemata.id = mysql.tables.schema_id;
 name	name	name	options
 test	users	PRIMARY	flags=0;
-test	users	id_str	flags=32;
-test	users	id_str_UNIQUE	flags=32;
-test	users	ix_screen_name	flags=32;
+test	users	id_str	flags=0;
+test	users	id_str_UNIQUE	flags=0;
+test	users	ix_screen_name	flags=0;
 # Rebuild table
 ALTER TABLE users ENGINE = INNODB;
 # Index options should now be 0

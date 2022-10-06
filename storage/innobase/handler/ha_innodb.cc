@@ -13003,9 +13003,9 @@ static bool innobase_ddse_dict_init(
   def->add_field(5, "index_id", "index_id BIGINT UNSIGNED");
   def->add_field(6, "table_id", "table_id BIGINT UNSIGNED");
   def->add_field(7, "old_file_path",
-                 "old_file_path VARCHAR(512) COLLATE UTF8_BIN");
+                 "old_file_path VARCHAR(512) COLLATE UTF8MB3_BIN");
   def->add_field(8, "new_file_path",
-                 "new_file_path VARCHAR(512) COLLATE UTF8_BIN");
+                 "new_file_path VARCHAR(512) COLLATE UTF8MB3_BIN");
   def->add_index(0, "index_pk", "PRIMARY KEY(id)");
   def->add_index(1, "index_k_thread_id", "KEY(thread_id)");
   /* Options and tablespace are set at the SQL layer. */

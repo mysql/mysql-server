@@ -75,12 +75,9 @@ class Object_table {
 
     The new instance has the predefined options that all DD tables share:
 
-    TODO(Bug #33688509) This should be "DEFAULT CHARSET=utf8mb3".
-    TODO(Bug #33688509) This should be "COLLATE=utf8mb3_bin".
-
       ENGINE=INNODB
-      DEFAULT CHARSET=utf8
-      COLLATE=utf8_bin
+      DEFAULT CHARSET=utf8mb3
+      COLLATE=utf8mb3_bin
       ROW_FORMAT=DYNAMIC
       STATS_PERSISTENT=0
       TABLESPACE=mysql
