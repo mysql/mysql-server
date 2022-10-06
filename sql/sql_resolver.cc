@@ -4990,41 +4990,6 @@ bool Query_block::resolve_rollup(THD *thd) {
     }
     *it = new_item;
   }
-
-  /*
-    ORDER BY items haven't been induced into select list yet, so need to
-    process these items too
-  */
-
-  // Allow local set functions in ORDER BY
-  const bool saved_allow = thd->lex->allow_sum_func;
-  thd->lex->allow_sum_func |= (nesting_map)1 << nest_level;
-  thd->where = "order clause";
-
-  for (ORDER *order = order_list.first; order; order = order->next) {
-    Item *order_item = *order->item;
-
-    order->in_field_list = false;
-    bool ret =
-        (!order_item->fixed && (order_item->fix_fields(thd, order->item) ||
-                                (order_item = *order->item)->check_cols(1)));
-    if (ret) return true; /* Wrong field. */
-
-    if (Item_sum * item_sum; order_item->type() == Item::SUM_FUNC_ITEM &&
-                             !order_item->const_item() &&
-                             (item_sum = down_cast<Item_sum *>(order_item),
-                              item_sum->aggr_query_block == this)) {
-      // This is a top level aggregate, which must be replaced with
-      // a different one for each rollup level.
-      *order->item =
-          create_rollup_switcher(thd, this, item_sum, send_group_parts);
-    } else {
-      *order->item = resolve_rollup_item(thd, order_item);
-    }
-    if (*order->item == nullptr) return true;
-  }
-
-  thd->lex->allow_sum_func = saved_allow;
   return false;
 }
 
@@ -5038,7 +5003,7 @@ static bool fulltext_uses_rollup_column(const Query_block *query_block) {
     return false;
   }
 
-  // References to ROLLUP columns in SELECT, HAVING and ORDER BY are represented
+  // References to ROLLUP columns in SELECT and HAVING are represented
   // by Item_rollup_group_items. So we can just check if any of the MATCH
   // functions has such an argument.
   for (Item_func_match &match : *query_block->ftfunc_list) {
@@ -5047,8 +5012,26 @@ static bool fulltext_uses_rollup_column(const Query_block *query_block) {
     }
   }
 
-  // The references in GROUP BY are not wrapped in Item_rollup_group_item, so we
-  // need to search for them.
+  // The references in ORDER BY and GROUP BY are not wrapped in
+  // Item_rollup_group_item, so we need to search for them.
+  for (ORDER *order = query_block->order_list.first; order != nullptr;
+       order = order->next) {
+    if (WalkItem(*order->item, enum_walk::PREFIX, [query_block](Item *item) {
+          if (is_function_of_type(item, Item_func::FT_FUNC)) {
+            Item_func_match *match = down_cast<Item_func_match *>(item);
+            for (unsigned i = 0; i < match->arg_count; ++i) {
+              if (query_block->find_in_group_list(match->get_arg(i),
+                                                  /*rollup_level=*/nullptr) !=
+                  nullptr) {
+                return true;
+              }
+            }
+          }
+          return false;
+        })) {
+      return true;
+    }
+  }
   for (ORDER *group = query_block->group_list.first; group != nullptr;
        group = group->next) {
     if (WalkItem(*group->item, enum_walk::PREFIX, [query_block](Item *item) {

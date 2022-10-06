@@ -3536,6 +3536,19 @@ void JOIN::cleanup() {
     }
   }
 
+  if (rollup_state != RollupState::NONE) {
+    for (size_t i = 0; i < fields->size(); i++) {
+      Item *inner = unwrap_rollup_group(query_block->base_ref_items[i]);
+      if (inner->type() == Item::SUM_FUNC_ITEM) {
+        Item_sum *sum = down_cast<Item_sum *>(inner);
+        if (sum->is_rollup_sum_wrapper()) {
+          // unwrap sum switcher to restore original Item_sum
+          inner = down_cast<Item_rollup_sum_switcher *>(sum)->unwrap_sum();
+        }
+      }
+      query_block->base_ref_items[i] = inner;
+    }
+  }
   /* Restore ref array to original state */
   set_ref_item_slice(REF_SLICE_SAVED_BASE);
 }

@@ -6202,6 +6202,30 @@ longlong Item_func_grouping::val_int() {
 }
 
 /**
+  Used by Distinct_check::check_query to determine whether an
+  error should be returned if the GROUPING item from the ORDER
+  is not present in the select list.
+
+  @retval
+    true  if error
+  @retval
+    false on success
+*/
+bool Item_func_grouping::aggregate_check_distinct(uchar *arg) {
+  assert(fixed);
+  Distinct_check *dc = reinterpret_cast<Distinct_check *>(arg);
+
+  /**
+    If the GROUPING function in ORDER BY is not in the SELECT list, it
+    might not be functionally dependent on all selected expressions, and thus
+    might produce random order in combination with DISTINCT; so we reject
+    it.
+  */
+  if (dc->is_stopped(this)) return false;
+  return true;
+}
+
+/**
   This function is expected to check if GROUPING function with
   its arguments is "group-invariant".
   However, GROUPING function produces only one value per

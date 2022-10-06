@@ -8238,6 +8238,11 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
         }
       }
     } else if (!table_name) {
+      if (item->type() == Item::FUNC_ITEM &&
+          down_cast<const Item_func *>(item)->functype() ==
+              Item_func::ROLLUP_GROUP_ITEM_FUNC) {
+        item = down_cast<const Item_rollup_group_item *>(item)->inner_item();
+      }
       if (is_ref_by_name && item->item_name.eq_safe(find->item_name)) {
         found = &*it;
         *counter = i;
@@ -8272,6 +8277,15 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
         found = &*it;
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
+        break;
+      }
+    } else if (item->type() == Item::FUNC_ITEM &&
+               down_cast<const Item_func *>(item)->functype() ==
+                   Item_func::ROLLUP_GROUP_ITEM_FUNC) {
+      if (is_ref_by_name && item->item_name.eq_safe(find->item_name)) {
+        found = &*it;
+        *counter = i;
+        *resolution = RESOLVED_AGAINST_ALIAS;
         break;
       }
     }

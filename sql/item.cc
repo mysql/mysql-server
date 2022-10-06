@@ -10846,6 +10846,16 @@ bool ItemsAreEqual(const Item *a, const Item *b, bool binary_cmp) {
   if (real_b->type() == Item::CACHE_ITEM) {
     real_b = down_cast<const Item_cache *>(real_b)->get_example();
   }
+  if (real_a->type() == Item::FUNC_ITEM &&
+      down_cast<const Item_func *>(real_a)->functype() ==
+          Item_func::ROLLUP_GROUP_ITEM_FUNC) {
+    real_a = down_cast<const Item_rollup_group_item *>(real_a)->inner_item();
+  }
+  if (real_b->type() == Item::FUNC_ITEM &&
+      down_cast<const Item_func *>(real_b)->functype() ==
+          Item_func::ROLLUP_GROUP_ITEM_FUNC) {
+    real_b = down_cast<const Item_rollup_group_item *>(real_b)->inner_item();
+  }
   return real_a->eq(real_b, binary_cmp);
 }
 

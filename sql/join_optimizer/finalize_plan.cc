@@ -632,7 +632,6 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
   // (e.g., we don't need to include it in later materializations, too), but the
   // situation should be fairly rare.
   Mem_root_array<std::pair<Item *, bool>> extra_fields_needed(thd->mem_root);
-  mem_root_deque<Item *> *base_fields = query_block->join->fields;
   WalkAccessPaths(
       root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
       [&extra_fields_needed](AccessPath *path, JOIN *join) {
@@ -713,7 +712,7 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
 
   for (const std::pair<Item *, bool> &item_and_hidden : extra_fields_needed) {
     item_and_hidden.first->hidden = item_and_hidden.second;
-    base_fields->pop_front();
+    query_block->join->fields->pop_front();
   }
 
   if (query_block->join->push_to_engines()) return true;
