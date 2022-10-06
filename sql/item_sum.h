@@ -2697,6 +2697,7 @@ class Item_func_grouping : public Item_int_func {
   bool aggregate_check_group(uchar *arg) override;
   bool fix_fields(THD *thd, Item **ref) override;
   void update_used_tables() override;
+  bool aggregate_check_distinct(uchar *arg) override;
 };
 
 /**

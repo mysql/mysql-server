@@ -548,6 +548,7 @@ class Distinct_check : public Item_tree_walker {
      privileged access to it.
   */
   friend bool Item_sum::aggregate_check_distinct(uchar *arg);
+  friend bool Item_func_grouping::aggregate_check_distinct(uchar *arg);
   friend bool Item_ident::aggregate_check_distinct(uchar *arg);
   friend bool Item_func_any_value::aggregate_check_distinct(uchar *arg);
 };
