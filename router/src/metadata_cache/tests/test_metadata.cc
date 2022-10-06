@@ -59,6 +59,8 @@ using mysqlrouter::MySQLSession;
 using State = GroupReplicationMember::State;
 using Role = GroupReplicationMember::Role;
 
+constexpr auto GR = metadata_cache::InstanceType::GroupMember;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // These tests focus on testing functionality implemented in
@@ -285,7 +287,7 @@ class MetadataTest : public ::testing::Test {
 
   void connect_to_first_metadata_server() {
     std::vector<ManagedInstance> metadata_servers{
-        {"instance-1", ServerMode::ReadWrite, "localhost", 3310, 33100},
+        {GR, "instance-1", ServerMode::ReadWrite, "localhost", 3310, 33100},
     };
     session_factory.get(0).set_good_conns(
         {"localhost:3310", "localhost:3320", "localhost:3330"});
@@ -396,9 +398,9 @@ class MetadataTest : public ::testing::Test {
       {
           // will be set ----------------------vvvvvvvvvvvvvvvvvvvvvvv
           // v--v--vv--- ignored at the time of writing
-          {"instance-1", ServerMode::Unavailable, "localhost", 3310, 33100},
-          {"instance-2", ServerMode::Unavailable, "localhost", 3320, 33200},
-          {"instance-3", ServerMode::Unavailable, "localhost", 3330, 33300},
+          {GR, "instance-1", ServerMode::Unavailable, "localhost", 3310, 33100},
+          {GR, "instance-2", ServerMode::Unavailable, "localhost", 3320, 33200},
+          {GR, "instance-3", ServerMode::Unavailable, "localhost", 3330, 33300},
           // ignored at time of writing
           // -^^^^--------------------------------------------------------^^^^^
           // TODO: ok to ignore xport?
@@ -413,8 +415,8 @@ class MetadataTest : public ::testing::Test {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_F(MetadataTest, ConnectToMetadataServer_Succeed) {
-  ManagedInstance metadata_server{"instance-1", ServerMode::ReadWrite,
-                                  "localhost", 3310, 33100};
+  ManagedInstance metadata_server{
+      GR, "instance-1", ServerMode::ReadWrite, "localhost", 3310, 33100};
   session_factory.get(0).set_good_conns({"localhost:3310"});
 
   // should connect successfully
@@ -425,8 +427,8 @@ TEST_F(MetadataTest, ConnectToMetadataServer_Succeed) {
 }
 
 TEST_F(MetadataTest, ConnectToMetadataServer_Failed) {
-  ManagedInstance metadata_server{"instance-1", ServerMode::ReadWrite,
-                                  "localhost", 3310, 33100};
+  ManagedInstance metadata_server{
+      GR, "instance-1", ServerMode::ReadWrite, "localhost", 3310, 33100};
 
   // connection attempt should fail
   EXPECT_CALL(session_factory.get(0), flag_fail(_, 3310)).Times(1);
@@ -478,22 +480,22 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
       EXPECT_EQ(4u, cluster.members.size());  // not set/checked
       // -------------------vvvvvvvvvvvvvvvvvvvvvvv
-      EXPECT_TRUE(
-          cmp_mi_FIFMS(ManagedInstance{"instance-1", ServerMode::Unavailable,
-                                       "localhost", 3310, 33100},
-                       cluster.members.at(0)));
-      EXPECT_TRUE(
-          cmp_mi_FIFMS(ManagedInstance{"instance-2", ServerMode::Unavailable,
-                                       "localhost", 3320, 33200},
-                       cluster.members.at(1)));
-      EXPECT_TRUE(
-          cmp_mi_FIFMS(ManagedInstance{"instance-3", ServerMode::Unavailable,
-                                       "localhost", 3306, 33060},
-                       cluster.members.at(2)));
-      EXPECT_TRUE(
-          cmp_mi_FIFMS(ManagedInstance{"instance-4", ServerMode::Unavailable,
-                                       "", 3306, 33060},
-                       cluster.members.at(3)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{GR, "instance-1", ServerMode::Unavailable,
+                          "localhost", 3310, 33100},
+          cluster.members.at(0)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{GR, "instance-2", ServerMode::Unavailable,
+                          "localhost", 3320, 33200},
+          cluster.members.at(1)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{GR, "instance-3", ServerMode::Unavailable,
+                          "localhost", 3306, 33060},
+          cluster.members.at(2)));
+      EXPECT_TRUE(cmp_mi_FIFMS(
+          ManagedInstance{GR, "instance-4", ServerMode::Unavailable, "", 3306,
+                          33060},
+          cluster.members.at(3)));
       // TODO is this really right behavior?
       // ---------------------------------------------------------------------------------------------------^^
     });
@@ -565,7 +567,7 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 TEST_F(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata) {
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ---vvvvv
-      {"instance-1", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-1", ServerMode::Unavailable, "", 0, 0},
   };
   bool metadata_gr_discrepancy{false};
 
@@ -594,9 +596,9 @@ TEST_F(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata) {
 TEST_F(MetadataTest, CheckClusterStatus_3NodeSetup) {
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"instance-1", ServerMode::Unavailable, "", 0, 0},
-      {"instance-2", ServerMode::Unavailable, "", 0, 0},
-      {"instance-3", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-1", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-2", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-3", ServerMode::Unavailable, "", 0, 0},
   };
   bool metadata_gr_discrepancy{false};
 
@@ -881,13 +883,13 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
   {
     std::vector<ManagedInstance> servers_in_metadata{
         // ServerMode doesn't matter ------vvvvvvvvvvv
-        {"instance-1", ServerMode::Unavailable, "", 0, 0},
-        {"instance-2", ServerMode::Unavailable, "", 0, 0},
-        {"instance-3", ServerMode::Unavailable, "", 0, 0},
-        {"instance-4", ServerMode::Unavailable, "", 0, 0},
-        {"instance-5", ServerMode::Unavailable, "", 0, 0},
-        {"instance-6", ServerMode::Unavailable, "", 0, 0},
-        {"instance-7", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-1", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-2", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-3", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-4", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-5", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-6", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-7", ServerMode::Unavailable, "", 0, 0},
     };
     EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
@@ -903,10 +905,10 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
   // 4-node setup according to metadata
   {
     std::vector<ManagedInstance> servers_in_metadata{
-        {"instance-1", ServerMode::Unavailable, "", 0, 0},
-        {"instance-2", ServerMode::Unavailable, "", 0, 0},
-        {"instance-3", ServerMode::Unavailable, "", 0, 0},
-        {"instance-4", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-1", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-2", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-3", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-4", ServerMode::Unavailable, "", 0, 0},
     };
     EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
@@ -933,8 +935,8 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
   // count
   {
     std::vector<ManagedInstance> servers_in_metadata{
-        {"instance-1", ServerMode::Unavailable, "", 0, 0},
-        {"instance-2", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-1", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-2", ServerMode::Unavailable, "", 0, 0},
     };
     EXPECT_EQ(GRClusterStatus::AvailableWritable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
@@ -950,7 +952,7 @@ TEST_F(MetadataTest, CheckClusterStatus_VariableNodeSetup) {
   // counts
   {
     std::vector<ManagedInstance> servers_in_metadata{
-        {"instance-1", ServerMode::Unavailable, "", 0, 0},
+        {GR, "instance-1", ServerMode::Unavailable, "", 0, 0},
     };
     EXPECT_EQ(GRClusterStatus::Unavailable,
               metadata.check_cluster_status(servers_in_metadata, server_status,
@@ -994,9 +996,9 @@ TEST_F(MetadataTest, CheckClusterStatus_VariousStatuses) {
 
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"instance-1", ServerMode::Unavailable, "", 0, 0},
-      {"instance-2", ServerMode::Unavailable, "", 0, 0},
-      {"instance-3", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-1", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-2", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-3", ServerMode::Unavailable, "", 0, 0},
   };
 
   for (State state :
@@ -1072,9 +1074,9 @@ TEST_F(MetadataTest, CheckClusterStatus_Recovering) {
 
   std::vector<ManagedInstance> servers_in_metadata{
       // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"instance-1", ServerMode::Unavailable, "", 0, 0},
-      {"instance-2", ServerMode::Unavailable, "", 0, 0},
-      {"instance-3", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-1", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-2", ServerMode::Unavailable, "", 0, 0},
+      {GR, "instance-3", ServerMode::Unavailable, "", 0, 0},
   };
 
   // 1 node recovering, 1 RW, 1 RO
@@ -1270,9 +1272,9 @@ TEST_F(MetadataTest, CheckClusterStatus_Cornercase2of5Alive) {
 
   // MD defines 3 nodes
   std::vector<ManagedInstance> servers_in_metadata{
-      {"node-A", ServerMode::Unavailable, "", 0, 0},
-      {"node-B", ServerMode::Unavailable, "", 0, 0},
-      {"node-C", ServerMode::Unavailable, "", 0, 0},
+      {GR, "node-A", ServerMode::Unavailable, "", 0, 0},
+      {GR, "node-B", ServerMode::Unavailable, "", 0, 0},
+      {GR, "node-C", ServerMode::Unavailable, "", 0, 0},
   };
 
   // GR reports 5 nodes, of which only 2 are alive (no qourum), BUT from
@@ -1347,9 +1349,9 @@ TEST_F(MetadataTest, CheckClusterStatus_Cornercase3of5Alive) {
 
   // MD defines 3 nodes
   std::vector<ManagedInstance> servers_in_metadata{
-      {"node-A", ServerMode::Unavailable, "", 0, 0},
-      {"node-B", ServerMode::Unavailable, "", 0, 0},
-      {"node-C", ServerMode::Unavailable, "", 0, 0},
+      {GR, "node-A", ServerMode::Unavailable, "", 0, 0},
+      {GR, "node-B", ServerMode::Unavailable, "", 0, 0},
+      {GR, "node-C", ServerMode::Unavailable, "", 0, 0},
   };
 
   // GR reports 5 nodes, of which 3 are alive (have qourum), BUT from
@@ -1423,9 +1425,9 @@ TEST_F(MetadataTest, CheckClusterStatus_Cornercase1Common) {
 
   // MD defines 3 nodes
   std::vector<ManagedInstance> servers_in_metadata{
-      {"node-A", ServerMode::Unavailable, "", 0, 0},
-      {"node-B", ServerMode::Unavailable, "", 0, 0},
-      {"node-C", ServerMode::Unavailable, "", 0, 0},
+      {GR, "node-A", ServerMode::Unavailable, "", 0, 0},
+      {GR, "node-B", ServerMode::Unavailable, "", 0, 0},
+      {GR, "node-C", ServerMode::Unavailable, "", 0, 0},
   };
 
   // GR reports 3 nodes, of which 3 are alive (have qourum), BUT from
@@ -1531,13 +1533,13 @@ TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailConnectOnNode2) {
       cluster);
 
   EXPECT_EQ(3u, cluster.members.size());
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-1", ServerMode::ReadWrite,
                                         "localhost", 3310, 33100},
                         cluster.members.at(0)));
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-2", ServerMode::ReadOnly,
                                         "localhost", 3320, 33200},
                         cluster.members.at(1)));
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-3", ServerMode::ReadOnly,
                                         "localhost", 3330, 33300},
                         cluster.members.at(2)));
 
@@ -1658,13 +1660,13 @@ TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailQueryOnNode1) {
 
   // query_status reported back from instance-2
   EXPECT_EQ(3u, cluster.members.size());
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-1", ServerMode::ReadWrite,
                                         "localhost", 3310, 33100},
                         cluster.members.at(0)));
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-2", ServerMode::ReadOnly,
                                         "localhost", 3320, 33200},
                         cluster.members.at(1)));
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-3", ServerMode::ReadOnly,
                                         "localhost", 3330, 33300},
                         cluster.members.at(2)));
 }
@@ -1801,13 +1803,13 @@ TEST_F(MetadataTest, UpdateClusterStatus_Status_FailQueryOnNode1) {
 
   // query_status reported back from instance-1
   EXPECT_EQ(3u, cluster.members.size());
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-1", ServerMode::ReadWrite,
                                         "localhost", 3310, 33100},
                         cluster.members.at(0)));
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-2", ServerMode::ReadOnly,
                                         "localhost", 3320, 33200},
                         cluster.members.at(1)));
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-3", ServerMode::ReadOnly,
                                         "localhost", 3330, 33300},
                         cluster.members.at(2)));
 }
@@ -1943,13 +1945,13 @@ TEST_F(MetadataTest, UpdateClusterStatus_SimpleSunnyDayScenario) {
 
   // query_status reported back from instance-1
   EXPECT_EQ(3u, cluster.members.size());
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-1", ServerMode::ReadWrite,
                                         "localhost", 3310, 33100},
                         cluster.members.at(0)));
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-2", ServerMode::ReadOnly,
                                         "localhost", 3320, 33200},
                         cluster.members.at(1)));
-  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{GR, "instance-3", ServerMode::ReadOnly,
                                         "localhost", 3330, 33300},
                         cluster.members.at(2)));
 }
@@ -2029,15 +2031,18 @@ TEST_F(MetadataTest, FetchInstances_ok) {
     const auto topology = res.value();
 
     EXPECT_EQ(3u, topology.cluster_data.members.size());
-    EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
-                                          "localhost", 3310, 33100},
-                          topology.cluster_data.members.at(0)));
-    EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
-                                          "localhost", 3320, 33200},
-                          topology.cluster_data.members.at(1)));
-    EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
-                                          "localhost", 3330, 33300},
-                          topology.cluster_data.members.at(2)));
+    EXPECT_TRUE(
+        cmp_mi_FI(ManagedInstance{GR, "instance-1", ServerMode::ReadWrite,
+                                  "localhost", 3310, 33100},
+                  topology.cluster_data.members.at(0)));
+    EXPECT_TRUE(
+        cmp_mi_FI(ManagedInstance{GR, "instance-2", ServerMode::ReadOnly,
+                                  "localhost", 3320, 33200},
+                  topology.cluster_data.members.at(1)));
+    EXPECT_TRUE(
+        cmp_mi_FI(ManagedInstance{GR, "instance-3", ServerMode::ReadOnly,
+                                  "localhost", 3330, 33300},
+                  topology.cluster_data.members.at(2)));
   });
 }
 
