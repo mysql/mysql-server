@@ -237,8 +237,8 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
      * Instead we explicitly turn off core file generation by directly
      * modifying the opt_core variable of main.cpp.
      */
-    extern int opt_core;
-    opt_core = 0;
+    extern bool opt_core;
+    opt_core = false;
     raise(SIGSEGV);
   }
 #endif
