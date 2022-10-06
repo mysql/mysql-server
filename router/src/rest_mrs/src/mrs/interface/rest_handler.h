@@ -63,6 +63,8 @@ class RestHandler {
     Result(std::string &&r) : response{r} {}
     Result(std::string &&r, Type t, std::string e = {})
         : response{r}, type{t}, etag{std::move(e)} {}
+    Result(const std::string &r, Type t, std::string e = {})
+        : response{r}, type{t}, etag{std::move(e)} {}
     Result(std::string &&r, std::string t, std::string e = {})
         : response{r}, type_text{t}, etag{std::move(e)} {}
 
@@ -87,6 +89,7 @@ class RestHandler {
   virtual const Parameters &get_headers_parameters() const = 0;
   virtual bool is_json_response() const { return true; }
 
+  virtual void authorization(RequestContext *ctxt) = 0;
   virtual bool request_begin(RequestContext *ctxt) = 0;
   virtual void request_end(RequestContext *ctxt) = 0;
   virtual bool request_error(RequestContext *ctxt, const http::Error &e) = 0;

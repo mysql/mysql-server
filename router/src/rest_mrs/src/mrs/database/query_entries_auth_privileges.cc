@@ -35,7 +35,7 @@ void QueryEntriesAuthPrivileges::query_user(MySQLSession *session,
   privileges_->clear();
   query_ =
       "SELECT p.service_id, p.db_schema_id, p.db_object_id, "
-      "BIT_OR(p.crud_operation) as crud FROM "
+      "BIT_OR(p.crud_operations) as crud FROM "
       "mysql_rest_service_metadata.auth_privilege as p "
       "  WHERE p.auth_role_id in ( "
       "    WITH recursive cte As "

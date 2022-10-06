@@ -47,6 +47,8 @@ class HandlerFile : public mrs::rest::Handler {
   Authorization requires_authentication() const override;
   bool is_json_response() const override;
 
+  void authorization(rest::RequestContext *ctxt) override;
+
   Handler::Result handle_delete(rest::RequestContext *ctxt) override;
   Handler::Result handle_put(rest::RequestContext *ctxt) override;
   Handler::Result handle_post(rest::RequestContext *ctxt,

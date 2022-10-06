@@ -94,6 +94,10 @@ HandlerObject::HandlerObject(Route *route,
               route->get_options(), auth_manager),
       route_{route} {}
 
+void HandlerObject::authorization(rest::RequestContext *ctxt) {
+  throw_unauthorize_when_check_auth_fails(ctxt);
+}
+
 Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   auto path = requests_uri.get_path();
@@ -270,7 +274,7 @@ Result HandlerObject::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
 }
 
 Handler::Authorization HandlerObject::requires_authentication() const {
-  return route_->requires_authentication() ? Authorization::kRequires
+  return route_->requires_authentication() ? Authorization::kCheck
                                            : Authorization::kNotNeeded;
 }
 

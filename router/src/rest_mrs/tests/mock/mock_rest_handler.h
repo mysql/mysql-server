@@ -48,6 +48,7 @@ class MockRestHandler : public mrs::interface::RestHandler {
 
   MOCK_METHOD(void, destroy, (), ());
 
+  MOCK_METHOD(void, authorization, (RequestContext * ctxt), (override));
   MOCK_METHOD(bool, request_begin, (RequestContext * ctxt), (override));
   MOCK_METHOD(void, request_end, (RequestContext * ctxt), (override));
   MOCK_METHOD(bool, request_error,

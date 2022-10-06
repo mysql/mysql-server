@@ -45,6 +45,8 @@ class HandlerObject : public Handler {
   uint64_t get_db_object_id() const override;
   uint64_t get_schema_id() const override;
 
+  void authorization(rest::RequestContext *ctxt) override;
+
   Result handle_get(rest::RequestContext *ctxt) override;
   Result handle_post(rest::RequestContext *ctxt,
                      const std::vector<uint8_t> &document) override;

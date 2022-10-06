@@ -40,7 +40,7 @@ class HandlerAuthorize : public Handler {
  public:
   HandlerAuthorize(const uint64_t id, const std::string &url,
                    const std::string &rest_path_matcher,
-                   const std::string &options,
+                   const std::string &options, const std::string &redirection,
                    interface::AuthManager *auth_manager);
 
   Authorization requires_authentication() const override;
@@ -49,8 +49,6 @@ class HandlerAuthorize : public Handler {
   uint64_t get_schema_id() const override;
   uint32_t get_access_rights() const override;
 
-  bool request_begin(RequestContext *ctxt) override;
-  void request_end(RequestContext *ctxt) override;
   bool request_error(RequestContext *ctxt, const http::Error &e) override;
 
   Result handle_get(RequestContext *ctxt) override;
@@ -64,6 +62,7 @@ class HandlerAuthorize : public Handler {
                                        const http::Error &error);
 
   uint64_t id_;
+  const std::string redirection_;
   std::string copy_url_;
   std::string copy_path_;
 };

@@ -49,7 +49,7 @@ QueryEntryDbObject::QueryEntryDbObject() {
       "    COALESCE(o.items_per_page, db.items_per_page) as `on_page`, "
       "    db.name as `db_schema`, "
       "    o.name as `db_table`, "
-      " o.crud_operation + 0, "
+      " o.crud_operations + 0, "
       " o.format + 0, "
       " o.media_type, "
       " o.auto_detect_media_type, "

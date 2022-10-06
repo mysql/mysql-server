@@ -35,7 +35,7 @@ bool QueryEntryParameter::query_parameters(MySQLSession *session,
                                            uint64_t db_object_id) {
   parameters_.clear();
   query_ = {
-      "SELECT id, name, crud_operation + 0, "
+      "SELECT id, name, crud_operations + 0, "
       "bind_column_name, param_datatype FROM "
       "mysql_rest_service_metadata.parameter WHERE "
       "db_object_id=?"};
