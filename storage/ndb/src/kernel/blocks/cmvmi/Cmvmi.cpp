@@ -50,6 +50,7 @@
 #include <signaldata/AllocMem.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
 #include <signaldata/GetConfig.hpp>
+#include "util/ndb_opts.h"
 
 #ifdef ERROR_INSERT
 #include <signaldata/FsOpenReq.hpp>
@@ -237,7 +238,6 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
      * Instead we explicitly turn off core file generation by directly
      * modifying the opt_core variable of main.cpp.
      */
-    extern int opt_core;
     opt_core = 0;
     raise(SIGSEGV);
   }
