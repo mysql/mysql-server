@@ -9802,17 +9802,6 @@ ER_DROP_PK_COLUMN_TO_DROP_GIPK
 
 ER_CREATE_SELECT_WITH_GIPK_DISALLOWED_IN_SBR
   eng "Generating an invisible primary key for a table created using CREATE TABLE ... SELECT ... is disallowed when binlog_format=STATEMENT. It cannot be guaranteed that the SELECT retrieves rows in the same order on source and replica. Therefore, it cannot be guaranteed that the value generated for the generated implicit primary key column will be the same on source and replica for all rows. Use binlog_format=ROW or MIXED to execute this statement."
-ER_SRS_INVALID_HEIGHT SR002
-  eng "Height parameter must be non negative."
-
-ER_SRS_INVALID_SCALING SR002
-  eng "Scaling parameter must be non negative."
-
-ER_SRS_INVALID_ZONE_WIDTH SR002
-  eng "Zone width parameter must be an integer between 1-60."
-
-ER_SRS_INVALID_LATITUDE_POLAR_STERE_VAR_A SR002
-  eng "Latitude of origin must be +-90 degrees, specified in the SRS angular unit, in Polar Stereographic (variant A) projection method (EPSG:9810)."
 
 ER_DA_EXPIRE_LOGS_DAYS_IGNORED
   eng "The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds. To set one, first unset the other by setting it to 0."
@@ -9846,6 +9835,18 @@ ER_BAD_TIMESTAMP_FORMAT
 
 ER_SHAPE_PRIDICTION_UDF
   eng "SHAPE_PREDICTION UDF %s got error because of %s."
+
+ER_SRS_INVALID_HEIGHT SR002
+  eng "Height parameter must be non negative."
+
+ER_SRS_INVALID_SCALING SR002
+  eng "Scaling parameter must be non negative."
+
+ER_SRS_INVALID_ZONE_WIDTH SR002
+  eng "Zone width parameter must be an integer between 1-60."
+
+ER_SRS_INVALID_LATITUDE_POLAR_STERE_VAR_A SR002
+  eng "Latitude of origin must be +-90 degrees, specified in the SRS angular unit, in Polar Stereographic (variant A) projection method (EPSG:9810)."
 
 ER_WARN_DEPRECATED_CLIENT_NO_SCHEMA_OPTION
   eng "The client is using a deprecated CLIENT_NO_SCHEMA client option. CLIENT_NO_SCHEMA will be removed in a future release."
