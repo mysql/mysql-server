@@ -96,6 +96,7 @@ FOREACH(tests
     LogBuffer
     testSimpleProperties
     testProp
+    testSecureSocket
     )
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbmgmapi ndbgeneral ndbportlib)
 ENDFOREACH(tests)
