@@ -780,9 +780,16 @@ struct ArrayHelper< C * > {
     static C *
     ccreate(int32_t p0) {
         TRACE("C * ArrayHelper::ccreate(int32_t)");
-        // ISO C++: 'new' throws std::bad_alloc if unsuccessful
-        if (p0 < 0 || uint32_t(p0) > SIZE_MAX / sizeof(C))
+#if UINT64_MAX == SIZE_MAX
+        NDB_STATIC_ASSERT(INT32_MAX <= SIZE_MAX / sizeof(C));
+        if (p0 < 0) throw std::bad_alloc();
+#elif UINT32_MAX == SIZE_MAX
+        if (p0 < 0 || uint32(p0) > SIZE_MAX / sizeof(C))
             throw std::bad_alloc();
+#else
+#error size_t should be same as either uint32_t or uint64_t
+#endif
+        // ISO C++: 'new' throws std::bad_alloc if unsuccessful
         return new C[p0];
     }
 
