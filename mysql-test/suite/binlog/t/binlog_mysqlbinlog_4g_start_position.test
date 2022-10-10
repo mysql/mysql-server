@@ -32,8 +32,8 @@
 #
 ###############################################################################
 
---source include/have_util_sed.inc
---source include/have_grep.inc
+# Bug #34847851	
+--source include/not_windows.inc 
 --source include/big_test.inc
 --source include/have_binlog_format_row.inc
 
