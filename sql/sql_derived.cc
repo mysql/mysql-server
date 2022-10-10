@@ -550,9 +550,9 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
 static Item *parse_expression(THD *thd, Item *item, Query_block *query_block) {
   // Set up for parsing item
   LEX *const old_lex = thd->lex;
-  LEX *new_lex = new (thd->mem_root) st_lex_local;
+  LEX new_lex;
+  thd->lex = &new_lex;
 
-  thd->lex = new_lex;
   if (lex_start(thd)) {
     thd->lex = old_lex;
     return nullptr;  // OOM
@@ -618,11 +618,6 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block) {
   bool result = parse_sql(thd, &parser_state, nullptr);
 
   thd->lex->reparse_derived_table_condition = false;
-  // Delete the vector contents:
-  std::vector<uint>().swap(thd->lex->reparse_derived_table_params_at);
-  // thd->lex is now in a MEM_ROOT, so we need to delete:
-  delete thd->lex->sroutines.release();
-
   // lex_end() would try to destroy sphead if set. So we reset it.
   thd->lex->set_sp_current_parsing_ctx(nullptr);
   thd->lex->sphead = nullptr;
