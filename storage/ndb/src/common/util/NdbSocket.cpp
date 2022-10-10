@@ -360,12 +360,13 @@ int NdbSocket::send_several_iov(const struct iovec * vec,
    Used in InputStream / OutputStream
 */
 
+namespace {
 class Timer {
   int * m_elapsed;
   const NDB_TICKS m_start;
 
 public:
-  Timer(int * elapsed) :
+  explicit Timer(int * elapsed) :
     m_elapsed(elapsed), m_start(NdbTick_getCurrentTicks())  {}
 
   ~Timer() {  // record the elapsed time when the Timer goes out of scope
@@ -373,6 +374,7 @@ public:
     *m_elapsed = *m_elapsed + NdbTick_Elapsed(m_start,now).milliSec();
   }
 };
+}
 
 /* Read with timeout
 */
