@@ -1,0 +1,38 @@
+#
+# Bug #34207811 : Audit plugin does not log multiqueries correctly.
+#
+INSTALL PLUGIN null_audit SONAME 'adt_null.so';
+CREATE USER multiqueries_test_user34207811 IDENTIFIED BY 'secret_pswd';
+GRANT CREATE USER, SELECT, SESSION_VARIABLES_ADMIN ON *.* TO multiqueries_test_user34207811;
+set @con1_tid = (select thread_id from performance_schema.threads
+where processlist_user = 'multiqueries_test_user34207811');
+SET DEBUG="+d, print_query"|
+select 1; select 2; CREATE USER u1 IDENTIFIED BY 'p1'; select 3; ALTER USER 'u1' IDENTIFIED BY 'new_pswd' PASSWORD EXPIRE; select 4;|
+1
+1
+2
+2
+3
+3
+4
+4
+SET DEBUG="-d, print_query"|
+# Check the error log if multiqueries are not logged.
+Occurrences of 'select 1; select 2; CREATE USER u1 IDENTIFIED BY 'p1'; select 3; ALTER USER 'u1' IDENTIFIED BY 'new_pswd' PASSWORD EXPIRE; select 4' in the input file: 0
+SELECT SQL_TEXT from performance_schema.events_statements_history_long where (thread_id = @con1_tid);
+SQL_TEXT
+set @con1_tid = (select thread_id from performance_schema.threads
+where processlist_user = 'multiqueries_test_user34207811')
+SET DEBUG="+d, print_query"
+select 1
+select 2
+CREATE USER 'u1'@'%' IDENTIFIED BY <secret>
+select 3
+ALTER USER 'u1'@'%' IDENTIFIED BY <secret> PASSWORD EXPIRE
+select 4
+SET DEBUG="-d, print_query"
+UNINSTALL PLUGIN null_audit;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+DROP USER u1;
+DROP USER multiqueries_test_user34207811;

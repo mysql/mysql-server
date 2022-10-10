@@ -1,0 +1,40 @@
+--echo #
+--echo # Bug #34207811 : Audit plugin does not log multiqueries correctly.
+--echo #
+--source include/have_debug.inc
+--source include/have_null_audit_plugin.inc
+--source include/no_protocol.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
+
+CREATE USER multiqueries_test_user34207811 IDENTIFIED BY 'secret_pswd';
+GRANT CREATE USER, SELECT, SESSION_VARIABLES_ADMIN ON *.* TO multiqueries_test_user34207811;
+
+--connect(con1,localhost,multiqueries_test_user34207811,secret_pswd)
+
+set @con1_tid = (select thread_id from performance_schema.threads
+  where processlist_user = 'multiqueries_test_user34207811');
+
+delimiter |;
+SET DEBUG="+d, print_query"|
+select 1; select 2; CREATE USER u1 IDENTIFIED BY 'p1'; select 3; ALTER USER 'u1' IDENTIFIED BY 'new_pswd' PASSWORD EXPIRE; select 4;|
+SET DEBUG="-d, print_query"|
+delimiter ;|
+
+--echo # Check the error log if multiqueries are not logged.
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_output=print_count
+--let $grep_pattern=select 1; select 2; CREATE USER u1 IDENTIFIED BY 'p1'; select 3; ALTER USER 'u1' IDENTIFIED BY 'new_pswd' PASSWORD EXPIRE; select 4
+--source include/grep_pattern.inc
+
+# Verify the fix for the bug:
+# Bug #34569180 : P_S.events_statements_history tables store wrongdata when executing multiqueries
+SELECT SQL_TEXT from performance_schema.events_statements_history_long where (thread_id = @con1_tid);
+
+# Clean up
+connection default;
+--disconnect con1
+UNINSTALL PLUGIN null_audit;
+DROP USER u1;
+DROP USER multiqueries_test_user34207811;
