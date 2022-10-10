@@ -1961,7 +1961,7 @@ static struct my_option my_long_options[] = {
      &start_position, &start_position, nullptr, GET_ULL, REQUIRED_ARG,
      BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
      /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
-     (ulonglong)(~(uint32)0), nullptr, 0, nullptr},
+     (ulonglong)(~(uint64)0), nullptr, 0, nullptr},
     {"stop-datetime", OPT_STOP_DATETIME,
      "Stop reading the binlog at first event having a datetime equal or "
      "posterior to the argument; the argument must be a date and time "
@@ -3117,7 +3117,15 @@ static int args_post_process(void) {
         "BINLOG-DUMP-NON-GTIDS");
     return ERROR_STOP;
   }
-
+  if (opt_remote_proto != BINLOG_LOCAL &&
+      start_position > (ulonglong)(~(uint32)0)) {
+    error(
+        "The option --start-position cannot be used with values greater than 4 "
+        "GiB (4294967854), "
+        "when one of read-from-remote-server or read-from-remote-source "
+        "is used.");
+    return ERROR_STOP;
+  }
   if (raw_mode) {
     if (one_database)
       warning("The --database option is ignored with --raw mode");
