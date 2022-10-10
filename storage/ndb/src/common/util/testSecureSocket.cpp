@@ -217,7 +217,7 @@ TlsService::TlsService(bool sink) : m_sink(sink) {
   static constexpr const char * common_name = "Test Certificate";
 
   /* Create a key and certificate */
-  EVP_PKEY * tls_key = EVP_EC_gen("P-256");
+  EVP_PKEY * tls_key = EVP_EC_generate("P-256");
   X509 * tls_cert = X509_new();
   X509_set_version(tls_cert, 2);
   X509_set_pubkey(tls_cert, tls_key);

@@ -25,13 +25,14 @@
 
 /*
   Enable NDB code to use OpenSSL 3 APIs unconditionally
+  with any OpenSSL version starting from 1.0.2
 */
 
 #include "util/ndb_openssl3_compat.h"
 
 #include <openssl/ssl.h>
 
-#if OPENSSL_VERSION_NUMBER < 0x30000000L
+#if OPENSSL_VERSION_NUMBER < 0x30000000L && OPENSSL_VERSION_NUMBER > 0x10002000L
 
 #include <openssl/err.h>
 #include <openssl/pem.h>
@@ -76,7 +77,7 @@ EVP_PKEY * EVP_RSA_gen(unsigned int bits) {
   return nullptr;
 }
 
-EVP_PKEY * EVP_EC_gen(const char * curve) {
+EVP_PKEY * EVP_EC_generate(const char * curve) {
   int nid = EC_curve_nist2nid(curve);
   if(nid != NID_undef) {
     EC_KEY * ec_key = EC_KEY_new_by_curve_name(nid);
