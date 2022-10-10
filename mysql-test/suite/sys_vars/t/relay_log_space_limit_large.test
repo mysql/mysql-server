@@ -1,0 +1,19 @@
+# === Purpose ===
+# Check that it is possible to set relay_log_space_limit to larger value than 4G
+#
+# ==== Requirements ====
+# R1. It should be possible to set relay_log_space_limit to a value greater than 4 GB.
+#
+# === Implementation ====
+# We set relay-log-space-limit to 16 GiB in the -master.opt file.
+# The test asserts that the values 16 GiB is observed when selecting the variable
+#
+# === References ===
+# Bug 33799840 - relay_log_space_limit VALID_RANGE improperly defined
+#
+--source include/big_test.inc
+
+--let $assert_text= 'Checking expected value of the 'relay_log_space_limit' (16GB)'
+--let $assert_variable_name= relay_log_space_limit
+--let $assert_variable_value= 17179869184
+--source include/assert_variable.inc
