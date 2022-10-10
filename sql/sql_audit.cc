@@ -309,6 +309,7 @@ inline const CHARSET_INFO *thd_get_audit_query(THD *thd,
   } else {
     query->str = thd->query().str;
     query->length = thd->query().length;
+    DBUG_PRINT("print_query", ("%.*s\n", (int)query->length, query->str));
     return thd->charset();
   }
 }

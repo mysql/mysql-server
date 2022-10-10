@@ -165,14 +165,12 @@ relative_event_id	relative_end_event_id	event_name	comment	nesting_event_type	re
 48	49	stage/sql/cleaning up	(stage)	STATEMENT	34
 49	49	wait/synch/mutex/sql/THD::LOCK_thd_query	lock	STAGE	48
 50	50	idle	idle	NULL	NULL
-51	65	statement/sql/select	select "This is the first part of a multi query" as payload;
-select "And this is the second part of a multi query" as payload;
-select "With a third part to make things complete" as payload	NULL	NULL
+51	65	statement/sql/select	select "This is the first part of a multi query" as payload	NULL	NULL
 52	56	stage/sql/starting	(stage)	STATEMENT	51
 53	53	wait/synch/mutex/sql/THD::LOCK_thd_data	lock	STAGE	52
 54	54	wait/synch/mutex/sql/THD::LOCK_thd_query	lock	STAGE	52
-55	55	wait/io/file/sql/query_log	write	STAGE	52
-56	56	wait/synch/mutex/sql/THD::LOCK_thd_query	lock	STAGE	52
+55	55	wait/synch/mutex/sql/THD::LOCK_thd_query	lock	STAGE	52
+56	56	wait/io/file/sql/query_log	write	STAGE	52
 57	57	stage/sql/checking permissions	(stage)	STATEMENT	51
 58	58	stage/sql/Opening tables	(stage)	STATEMENT	51
 59	59	stage/sql/init	(stage)	STATEMENT	51
@@ -182,13 +180,12 @@ select "With a third part to make things complete" as payload	NULL	NULL
 63	63	stage/sql/query end	(stage)	STATEMENT	51
 64	64	stage/sql/closing tables	(stage)	STATEMENT	51
 65	65	stage/sql/freeing items	(stage)	STATEMENT	51
-66	80	statement/sql/select	select "And this is the second part of a multi query" as payload;
-select "With a third part to make things complete" as payload	NULL	NULL
+66	80	statement/sql/select	select "And this is the second part of a multi query" as payload	NULL	NULL
 67	71	stage/sql/starting	(stage)	STATEMENT	66
 68	68	wait/synch/mutex/sql/THD::LOCK_thd_query	lock	STAGE	67
 69	69	wait/synch/mutex/sql/THD::LOCK_thd_data	lock	STAGE	67
-70	70	wait/io/file/sql/query_log	write	STAGE	67
-71	71	wait/synch/mutex/sql/THD::LOCK_thd_query	lock	STAGE	67
+70	70	wait/synch/mutex/sql/THD::LOCK_thd_query	lock	STAGE	67
+71	71	wait/io/file/sql/query_log	write	STAGE	67
 72	72	stage/sql/checking permissions	(stage)	STATEMENT	66
 73	73	stage/sql/Opening tables	(stage)	STATEMENT	66
 74	74	stage/sql/init	(stage)	STATEMENT	66
