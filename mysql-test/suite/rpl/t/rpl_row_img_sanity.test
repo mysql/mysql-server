@@ -25,9 +25,9 @@
 -- source include/master-slave.inc
 
 -- connection slave
-call mtr.add_suppression("Slave: Can\'t find record in \'t\' Error_code: MY-001032");
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Update_rows event on table test.t; Can.t find record in .t.* Error_code: MY-001032");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica: Can\'t find record in \'t\' Error_code: MY-001032");
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Update_rows event on table test.t; Can.t find record in .t.* Error_code: MY-001032");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 -- connection master
 

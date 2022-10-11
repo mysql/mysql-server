@@ -42,7 +42,7 @@
 --source include/rpl_connection.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.");
 set session sql_log_bin=1;
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -57,7 +57,7 @@ set session sql_log_bin=1;
 --source include/rpl_connection.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.");
 set session sql_log_bin=1;
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 

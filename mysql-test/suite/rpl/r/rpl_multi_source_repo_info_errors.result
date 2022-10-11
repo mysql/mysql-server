@@ -1,12 +1,12 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-CALL mtr.add_suppression("Got fatal error .* from master .* slave with the same server_uuid/server_id");
+CALL mtr.add_suppression("Got fatal error .* from source .* replica with the same server_uuid/server_id");
 CALL mtr.add_suppression("Error during --relay-log-recovery.*");
-CALL mtr.add_suppression("Server was not able to find a rotate event from master server.*");
+CALL mtr.add_suppression("Server was not able to find a rotate event from source server.*");
 include/stop_slave.inc
 RESET SLAVE ALL;
 Warnings:
@@ -37,9 +37,9 @@ include/start_slave.inc
 include/rpl_restart_server.inc [server_number=2]
 [connection master]
 [connection slave]
-call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
-call mtr.add_suppression("Recovery from master pos");
+call mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Recovery from source pos");
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
 include/stop_slave.inc
 Warnings:

@@ -55,7 +55,7 @@
 # 3) Ensure that the message in the log contains the user info.
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
 --let $assert_count = 1
---let $assert_select = .*Slave SQL thread.*user: 'u1'@'localhost'.*
+--let $assert_select = .*Replica SQL thread.*user: 'u1'@'localhost'.*
 --let $assert_text = Start slave message found in log contains applier user info
 --source include/assert_grep.inc
 
@@ -79,7 +79,7 @@
 # 3) Ensure that the message in the log contains the user info.
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_priv_checks_user_start_info.2.err
 --let $assert_count = 2
---let $assert_select = .*Slave SQL thread.*user: 'u1'@'localhost'.*
+--let $assert_select = .*Replica SQL thread.*user: 'u1'@'localhost'.*
 --let $assert_text = Start slave message with user info found twice in log, after restart
 --source include/assert_grep.inc
 

@@ -79,14 +79,14 @@ SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 call mtr.add_suppression("Could not execute Update_rows_partial event on table test.t");
 call mtr.add_suppression("Can't find record in 't'");
 # When mts is enabled
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-call mtr.add_suppression("Slave: Could not apply JSON diff");
-call mtr.add_suppression("Slave: Corrupted JSON diff");
-call mtr.add_suppression("Slave: Corrupted replication event was detected");
-call mtr.add_suppression("Slave: Got error 1610 - ");
-call mtr.add_suppression("Slave: Got error 3648 - ");
-call mtr.add_suppression("Slave: Got error 3649 - ");
-call mtr.add_suppression("Slave: Got error 5 - ");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica: Could not apply JSON diff");
+call mtr.add_suppression("Replica: Corrupted JSON diff");
+call mtr.add_suppression("Replica: Corrupted replication event was detected");
+call mtr.add_suppression("Replica: Got error 1610 - ");
+call mtr.add_suppression("Replica: Got error 3648 - ");
+call mtr.add_suppression("Replica: Got error 3649 - ");
+call mtr.add_suppression("Replica: Got error 5 - ");
 
 --echo ######## Test ########
 
@@ -112,7 +112,7 @@ while ($mode < 3)
     --let $er_key_not_found= convert_error(ER_KEY_NOT_FOUND)
     --let $er_could_not_apply_json_diff= convert_error(ER_COULD_NOT_APPLY_JSON_DIFF)
     --let $er_corrupted_json_diff= convert_error(ER_CORRUPTED_JSON_DIFF)
-    --let $er_slave_corrupt_event= convert_error(ER_SLAVE_CORRUPT_EVENT)
+    --let $er_slave_corrupt_event= convert_error(ER_REPLICA_CORRUPT_EVENT)
     --let $rpl_server_parameters= --replica_skip_errors=$er_dup_entry,$er_key_not_found,$er_could_not_apply_json_diff,$er_corrupted_json_diff,$er_slave_corrupt_event,5
     --source include/rpl_restart_server.inc
     --source include/rpl_connection_slave.inc
@@ -243,7 +243,7 @@ while ($mode < 3)
   # 2. Other simulated error cases error.
   #    This uses a different error and a different debug symbol prefix,
   #    so execute outside the loop.
-  --let $error= convert_error(ER_SLAVE_CORRUPT_EVENT)
+  --let $error= convert_error(ER_REPLICA_CORRUPT_EVENT)
   --let $master_debug_symbol= binlog_omit_last_column_from_table_map_event
   --source extra/rpl_tests/rpl_row_jsondiff_error_scenario.inc
 

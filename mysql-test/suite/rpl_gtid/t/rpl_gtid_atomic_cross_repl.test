@@ -28,8 +28,8 @@ DROP TABLE IF EXISTS t1;
 
 --source include/sync_slave_sql_with_master.inc
 # --source include/rpl_connection_slave.inc
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
-call mtr.add_suppression("Query caused different errors on master and slave");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Query caused different errors on source and replica");
 
 SET @@global.debug="+d,simulate_error_in_ddl";
 

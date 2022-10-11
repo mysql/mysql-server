@@ -37,7 +37,7 @@ CREATE FUNCTION func_retval_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUE
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 VALUES (func_retval_1());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -52,7 +52,7 @@ CREATE FUNCTION func_retval_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUE
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 VALUES (func_retval_2());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -68,7 +68,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -82,7 +82,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 VALUES (func_retval_1()); INSERT 
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -96,7 +96,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -110,7 +110,7 @@ CREATE VIEW view_retval_2 AS SELECT func_retval_1();
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_retval_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -127,7 +127,7 @@ CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 SELECT func_sidef_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -140,7 +140,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -154,7 +154,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INT
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -168,7 +168,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -182,7 +182,7 @@ CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -197,7 +197,7 @@ CREATE PROCEDURE proc_1() BEGIN INSERT INTO t0 VALUES (UUID()); INSERT INTO ta1 
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -210,7 +210,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -224,7 +224,7 @@ CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -238,7 +238,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -253,7 +253,7 @@ CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_1 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -266,7 +266,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -280,7 +280,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT I
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -294,7 +294,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -309,7 +309,7 @@ CREATE VIEW view_retval_1 AS SELECT UUID();
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 SELECT * FROM view_retval_1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -324,7 +324,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -338,7 +338,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT * FROM view_retval_1; INSE
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -352,7 +352,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -366,7 +366,7 @@ CREATE VIEW view_retval_2 AS SELECT * FROM view_retval_1;
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_retval_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -383,7 +383,7 @@ PREPARE prep_1 FROM "INSERT INTO t0 VALUES (UUID())";
 * binlog_format = STATEMENT: expect 1 warnings.
 EXECUTE prep_1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -399,7 +399,7 @@ CREATE FUNCTION func_retval_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUE
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 VALUES (func_retval_1());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -414,7 +414,7 @@ CREATE FUNCTION func_retval_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUE
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 VALUES (func_retval_2());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -430,7 +430,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -444,7 +444,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 VALUES (func_retval_1()); INSERT 
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -458,7 +458,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -472,7 +472,7 @@ CREATE VIEW view_retval_2 AS SELECT func_retval_1();
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_retval_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -489,7 +489,7 @@ CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 SELECT func_sidef_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -502,7 +502,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -516,7 +516,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INT
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -530,7 +530,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -544,7 +544,7 @@ CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -559,7 +559,7 @@ CREATE PROCEDURE proc_1() BEGIN INSERT INTO t0 VALUES (@@hostname); INSERT INTO 
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -572,7 +572,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -586,7 +586,7 @@ CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -600,7 +600,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -615,7 +615,7 @@ CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_1 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -628,7 +628,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -642,7 +642,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT I
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -656,7 +656,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -671,7 +671,7 @@ PREPARE prep_1 FROM "INSERT INTO t0 VALUES (@@hostname)";
 * binlog_format = STATEMENT: expect 1 warnings.
 EXECUTE prep_1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1157,7 +1157,7 @@ CREATE FUNCTION func_retval_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUE
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 VALUES (func_retval_1());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1172,7 +1172,7 @@ CREATE FUNCTION func_retval_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUE
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 VALUES (func_retval_2());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1188,7 +1188,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1202,7 +1202,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 VALUES (func_retval_1()); INSERT 
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1216,7 +1216,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1230,7 +1230,7 @@ CREATE VIEW view_retval_2 AS SELECT func_retval_1();
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_retval_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1247,7 +1247,7 @@ CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 SELECT func_sidef_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1260,7 +1260,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1274,7 +1274,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INT
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1288,7 +1288,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1302,7 +1302,7 @@ CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1317,7 +1317,7 @@ CREATE PROCEDURE proc_1() BEGIN INSERT INTO t0 VALUES (myfunc_int(10)); INSERT I
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1330,7 +1330,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1344,7 +1344,7 @@ CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1358,7 +1358,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1373,7 +1373,7 @@ CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_1 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1386,7 +1386,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1400,7 +1400,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT I
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1414,7 +1414,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1429,7 +1429,7 @@ CREATE VIEW view_sidef_1 AS SELECT myfunc_int(10);
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 SELECT * FROM view_sidef_1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1442,7 +1442,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1456,7 +1456,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT * FROM view_sidef_1; INSER
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1470,7 +1470,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1484,7 +1484,7 @@ CREATE VIEW view_sidef_2 AS SELECT * FROM view_sidef_1;
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1499,7 +1499,7 @@ PREPARE prep_1 FROM "INSERT INTO t0 VALUES (myfunc_int(10))";
 * binlog_format = STATEMENT: expect 1 warnings.
 EXECUTE prep_1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1515,7 +1515,7 @@ CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 SELECT func_sidef_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1528,7 +1528,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1542,7 +1542,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INT
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1556,7 +1556,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1570,7 +1570,7 @@ CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1585,7 +1585,7 @@ CREATE PROCEDURE proc_1() BEGIN INSERT INTO t0 SELECT COUNT(*) FROM mysql.genera
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1598,7 +1598,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1612,7 +1612,7 @@ CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1626,7 +1626,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1641,7 +1641,7 @@ CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_1 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1654,7 +1654,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1668,7 +1668,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT I
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1682,7 +1682,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1697,7 +1697,7 @@ CREATE VIEW view_retval_1 AS SELECT COUNT(*) FROM mysql.general_log;
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t1 SELECT * FROM view_retval_1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1712,7 +1712,7 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1726,7 +1726,7 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT * FROM view_retval_1; INSE
 * binlog_format = STATEMENT: expect 1 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1740,7 +1740,7 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1754,7 +1754,7 @@ CREATE VIEW view_retval_2 AS SELECT * FROM view_retval_1;
 * binlog_format = STATEMENT: expect 1 warnings.
 INSERT INTO t2 SELECT * FROM view_retval_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1771,7 +1771,7 @@ PREPARE prep_1 FROM "INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log";
 * binlog_format = STATEMENT: expect 1 warnings.
 EXECUTE prep_1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 include/assert.inc [There should be 1 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1788,12 +1788,12 @@ CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES
 INSERT INTO t1 SELECT func_sidef_1();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1807,12 +1807,12 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1827,12 +1827,12 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INT
 CALL proc_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1847,12 +1847,12 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1867,12 +1867,12 @@ CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1888,12 +1888,12 @@ CREATE PROCEDURE proc_1() BEGIN INSERT INTO double_autoinc_table SELECT CONCAT(U
 CALL proc_1();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1907,12 +1907,12 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1927,12 +1927,12 @@ CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
 CALL proc_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1947,12 +1947,12 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1968,12 +1968,12 @@ CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT
 INSERT INTO trigger_table_1 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -1987,12 +1987,12 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2007,12 +2007,12 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT I
 CALL proc_2();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2027,12 +2027,12 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2048,12 +2048,12 @@ PREPARE prep_1 FROM "INSERT INTO double_autoinc_table SELECT CONCAT(UUID(), @@ho
 EXECUTE prep_1;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica.
 include/assert.inc [There should be 7 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2069,8 +2069,8 @@ CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t1 SELECT func_sidef_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2083,8 +2083,8 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2098,8 +2098,8 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INT
 * binlog_format = STATEMENT: expect 2 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2113,8 +2113,8 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2128,8 +2128,8 @@ CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2144,8 +2144,8 @@ CREATE PROCEDURE proc_1() BEGIN INSERT INTO ta0 VALUES (multi_unsafe_func()); IN
 * binlog_format = STATEMENT: expect 2 warnings.
 CALL proc_1();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2158,8 +2158,8 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2173,8 +2173,8 @@ CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
 * binlog_format = STATEMENT: expect 2 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2188,8 +2188,8 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2204,8 +2204,8 @@ CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO trigger_table_1 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2218,8 +2218,8 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2233,8 +2233,8 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT I
 * binlog_format = STATEMENT: expect 2 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2248,8 +2248,8 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2264,8 +2264,8 @@ CREATE VIEW view_sidef_1 AS SELECT multi_unsafe_func();
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t1 SELECT * FROM view_sidef_1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2278,8 +2278,8 @@ CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t2 SELECT func_sidef_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2293,8 +2293,8 @@ CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT * FROM view_sidef_1; INSER
 * binlog_format = STATEMENT: expect 2 warnings.
 CALL proc_2();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2308,8 +2308,8 @@ CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO trigger_table_2 VALUES (1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2323,8 +2323,8 @@ CREATE VIEW view_sidef_2 AS SELECT * FROM view_sidef_1;
 * binlog_format = STATEMENT: expect 2 warnings.
 INSERT INTO t2 SELECT * FROM view_sidef_2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2339,8 +2339,8 @@ PREPARE prep_1 FROM "INSERT INTO ta0 VALUES (multi_unsafe_func())";
 * binlog_format = STATEMENT: expect 2 warnings.
 EXECUTE prep_1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 include/assert.inc [There should be 2 warning(s)]
 * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
 include/assert.inc [There should be 0 warning(s)]
@@ -2383,10 +2383,10 @@ INSERT INTO autoinc_table VALUES (NULL);
 The following variables *should* give a warning, despite they are replicated.
 INSERT INTO t1 VALUES (@@session.sql_mode);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 INSERT INTO t1 VALUES (@@session.insert_id);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 DROP TABLE t1, autoinc_table;
 CREATE TABLE t1(a INT, b INT, KEY(a), PRIMARY KEY(b));
 INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
@@ -2395,7 +2395,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on source and the replica.
 UPDATE t1 SET a=1 LIMIT 1;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -2412,7 +2412,7 @@ END|
 CALL p1();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on source and the replica.
 DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
@@ -2441,7 +2441,7 @@ END|
 "Should issue message Statement may not be safe to log in statement format only once"
 INSERT INTO t3 VALUES(func6(), UUID());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 "Check whether SET @@SQL_LOG_BIN = 0/1 doesn't work in substatements"
 CREATE FUNCTION fun_check_log_bin() RETURNS INT
 BEGIN
@@ -2512,7 +2512,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 INSERT INTO t1 VALUES(@@global.sync_binlog);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 UPDATE t1 SET i = 999 LIMIT 1;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -2607,68 +2607,68 @@ SET SESSION binlog_format = STATEMENT;
 CREATE TABLE t1 (a VARCHAR(1000)) charset latin1;
 INSERT INTO t1 VALUES (CURRENT_USER());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (FOUND_ROWS());
 Warnings:
 Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat'));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (SOURCE_POS_WAIT('dummy arg', 4711, 1));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (ROW_COUNT());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (SESSION_USER());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (SLEEP(1));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (SYSDATE());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (SYSTEM_USER());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (USER());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (UUID());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (UUID_SHORT());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (VERSION());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (RAND());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (RANDOM_BYTES(16));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (AES_ENCRYPT('a', 'a'));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t1 VALUES (AES_DECRYPT('a', 'a'));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 DELETE FROM t1;
 SET TIMESTAMP=1000000;
 INSERT INTO t1 VALUES
@@ -2711,28 +2711,28 @@ INSERT INTO insert_2_keys values (1, 1);
 INSERT IGNORE INTO insert_table SELECT * FROM filler_table;
 Warnings:
 Warning	1062	Duplicate entry '1' for key 'insert_table.PRIMARY'
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on source and the replica.
 TRUNCATE TABLE insert_table;
 INSERT INTO insert_table SELECT * FROM filler_table ON DUPLICATE KEY UPDATE a = 1;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on source and the replica.
 TRUNCATE TABLE insert_table;
 REPLACE INTO replace_table SELECT * FROM filler_table;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on source and the replica.
 UPDATE IGNORE update_table SET a=2;
 Warnings:
 Warning	1062	Duplicate entry '2' for key 'update_table.PRIMARY'
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on source and the replica.
 CREATE TABLE create_ignore_test (a INT, b INT, PRIMARY KEY(b)) IGNORE SELECT * FROM filler_table;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on source and the replica.
 CREATE TABLE create_replace_test (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT * FROM filler_table;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on source and the replica.
 CREATE TEMPORARY TABLE temp1 (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT * FROM filler_table;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on source and the replica.
 INSERT INTO insert_2_keys VALUES (1, 2) 
 ON DUPLICATE KEY UPDATE a=VALUES(a)+10, b=VALUES(b)+10;
 Warnings:
@@ -2759,7 +2759,7 @@ SELECT f();
 f()
 123
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the replica.
 DROP FUNCTION f;
 DROP TABLE t;
 SET GLOBAL log_output=@old_log_output;

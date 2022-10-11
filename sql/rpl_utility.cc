@@ -582,7 +582,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       show_sql_type(type(col), is_array(col), field_metadata(col),
                     &source_type);
       field->sql_type(target_type);
-      if (!ignored_error_code(ER_SERVER_SLAVE_CONVERSION_FAILED)) {
+      if (!ignored_error_code(ER_SERVER_REPLICA_CONVERSION_FAILED)) {
         report_level = ERROR_LEVEL;
         thd->is_slave_error = true;
       } else if (log_error_verbosity >= 2)
@@ -602,8 +602,8 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
         field->sql_type(target_type);
 
       if (report_level != INFORMATION_LEVEL)
-        rli->report(report_level, ER_SERVER_SLAVE_CONVERSION_FAILED,
-                    ER_THD(thd, ER_SERVER_SLAVE_CONVERSION_FAILED), col,
+        rli->report(report_level, ER_SERVER_REPLICA_CONVERSION_FAILED,
+                    ER_THD(thd, ER_SERVER_REPLICA_CONVERSION_FAILED), col,
                     db_name, tbl_name, source_type.c_ptr_safe(),
                     target_type.c_ptr_safe());
       return false;
@@ -770,15 +770,15 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
 err:
   if (conv_table == nullptr) {
     enum loglevel report_level = INFORMATION_LEVEL;
-    if (!ignored_error_code(ER_SLAVE_CANT_CREATE_CONVERSION)) {
+    if (!ignored_error_code(ER_REPLICA_CANT_CREATE_CONVERSION)) {
       report_level = ERROR_LEVEL;
       thd->is_slave_error = true;
     } else if (log_error_verbosity >= 2)
       report_level = WARNING_LEVEL;
 
     if (report_level != INFORMATION_LEVEL)
-      rli->report(report_level, ER_SLAVE_CANT_CREATE_CONVERSION,
-                  ER_THD(thd, ER_SLAVE_CANT_CREATE_CONVERSION),
+      rli->report(report_level, ER_REPLICA_CANT_CREATE_CONVERSION,
+                  ER_THD(thd, ER_REPLICA_CANT_CREATE_CONVERSION),
                   target_table->s->db.str, target_table->s->table_name.str);
   }
   return conv_table;

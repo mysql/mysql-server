@@ -2817,7 +2817,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @retval ER_* On error, it is guaranteed that the error has been
     reported through my_error, and the corresponding ER_* code is
     returned.  Currently the error codes are: EE_OUTOFMEMORY,
-    ER_SLAVE_CORRUPT_EVENT, or various JSON errors when applying JSON
+    ER_REPLICA_CORRUPT_EVENT, or various JSON errors when applying JSON
     diffs (ER_COULD_NOT_APPLY_JSON_DIFF, ER_INVALID_JSON_BINARY_DATA,
     and maybe others).
   */

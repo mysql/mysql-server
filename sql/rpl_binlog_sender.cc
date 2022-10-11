@@ -277,7 +277,7 @@ void Binlog_sender::init() {
   }
 
   if (DBUG_EVALUATE_IF("simulate_no_server_id", true, server_id == 0)) {
-    set_fatal_error("Misconfigured master - master server_id is 0");
+    set_fatal_error("Misconfigured source - source server_id is 0");
     return;
   }
 
@@ -350,7 +350,7 @@ void Binlog_sender::init() {
 #ifndef NDEBUG
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
     set_unknown_error(
-        "Master fails in COM_BINLOG_DUMP because of "
+        "Source fails in COM_BINLOG_DUMP because of "
         "--sporadic-binlog-dump-fail");
   m_event_count = 0;
 #endif
@@ -467,8 +467,8 @@ void Binlog_sender::run() {
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
   if (was_killed_by_duplicate_slave_id)
     set_fatal_error(
-        "A slave with the same server_uuid/server_id as this slave "
-        "has connected to the master");
+        "A replica with the same server_uuid/server_id as this replica "
+        "has connected to the source");
 
   if (reader.is_open()) {
     if (is_fatal_error()) {
@@ -815,7 +815,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos) {
     Scope_guard lock([]() { mysql_bin_log.lock_binlog_end_pos(); });
 #ifndef NDEBUG
     if (hb_info_counter < 3) {
-      LogErr(INFORMATION_LEVEL, ER_RPL_BINLOG_MASTER_SENDS_HEARTBEAT);
+      LogErr(INFORMATION_LEVEL, ER_RPL_BINLOG_SOURCE_SENDS_HEARTBEAT);
       hb_info_counter++;
       if (hb_info_counter == 3)
         LogErr(INFORMATION_LEVEL,
@@ -893,7 +893,7 @@ int Binlog_sender::check_start_file() {
                                            gtid_state->get_server_sidno(),
                                            subset_sidno)) {
       global_sid_lock->unlock();
-      set_fatal_error(ER_THD(m_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER));
+      set_fatal_error(ER_THD(m_thd, ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE));
       return 1;
     }
     /*
@@ -919,7 +919,7 @@ int Binlog_sender::check_start_file() {
       is not set by the user, the following if condition cannot catch it.
       But that is not a problem because in find_first_log_not_in_gtid_set()
       while checking for subset previous_gtids binary log, the logic
-      will not find one and an error ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
+      will not find one and an error ER_SOURCE_HAS_PURGED_REQUIRED_GTIDS
       is thrown from there.
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid)) {
@@ -967,7 +967,7 @@ int Binlog_sender::check_start_file() {
 
   if (m_start_pos < BIN_LOG_HEADER_SIZE) {
     set_fatal_error(
-        "Client requested master to start replication "
+        "Client requested source to start replication "
         "from position < 4");
     return 1;
   }
@@ -981,7 +981,7 @@ int Binlog_sender::check_start_file() {
 
   if (m_start_pos > binlog_ifile.length()) {
     set_fatal_error(
-        "Client requested master to start replication from "
+        "Client requested source to start replication from "
         "position > file size");
     return 1;
   }
@@ -1129,10 +1129,10 @@ int Binlog_sender::send_format_description_event(File_reader &reader,
   if (m_slave_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
       event_checksum_on()) {
     set_fatal_error(
-        "Slave can not handle replication events with the "
-        "checksum that master is configured to log");
+        "Replica can not handle replication events with the "
+        "checksum that source is configured to log");
 
-    LogErr(WARNING_LEVEL, ER_RPL_BINLOG_MASTER_USES_CHECKSUM_AND_SLAVE_CANT);
+    LogErr(WARNING_LEVEL, ER_RPL_BINLOG_SOURCE_USES_CHECKSUM_AND_REPLICA_CANT);
     return 1;
   }
 
@@ -1197,12 +1197,12 @@ const char *Binlog_sender::log_read_error_msg(
       return "bogus data in log event";
     case Binlog_read_error::EVENT_TOO_LARGE:
       return "log event entry exceeded max_allowed_packet; Increase "
-             "max_allowed_packet on master";
+             "max_allowed_packet on source";
     case Binlog_read_error::MEM_ALLOCATE:
       return "memory allocation failed reading log event";
     case Binlog_read_error::TRUNC_EVENT:
       return "binlog truncated in the middle of event; consider out of disk "
-             "space on master";
+             "space on source";
     case Binlog_read_error::CHECKSUM_FAILURE:
       return "event read from binlog did not pass crc check";
     default:

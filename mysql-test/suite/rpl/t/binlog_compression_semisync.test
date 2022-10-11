@@ -33,11 +33,11 @@
 # Setup
 #
 --source include/rpl_connection_master.inc
-CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
 --source include/install_semisync_source.inc
 
 --source include/rpl_connection_slave.inc
-CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
 --source include/install_semisync_replica.inc
 
 #

@@ -8,7 +8,7 @@
 --disable_query_log
 #Suppress following messages from myslqd log
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find masterkey, please check the keyring is loaded.");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find sourcekey, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression (" New redo log files created");

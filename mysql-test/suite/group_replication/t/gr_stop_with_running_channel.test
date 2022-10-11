@@ -31,10 +31,10 @@
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
-call mtr.add_suppression("Slave SQL for channel 'ch1': Worker 1 failed executing transaction.*");
-call mtr.add_suppression("Slave SQL for channel 'ch1': ... The slave coordinator and worker threads are stopped.*");
-call mtr.add_suppression("Slave SQL for channel 'ch1': Error 'Error on observer while running replication hook 'before_commit'.'.*");
-call mtr.add_suppression("Slave: Error on observer while running replication hook 'before_commit'. Error_code: MY-003100");
+call mtr.add_suppression("Replica SQL for channel 'ch1': Worker 1 failed executing transaction.*");
+call mtr.add_suppression("Replica SQL for channel 'ch1': ... The replica coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Replica SQL for channel 'ch1': Error 'Error on observer while running replication hook 'before_commit'.'.*");
+call mtr.add_suppression("Replica: Error on observer while running replication hook 'before_commit'. Error_code: MY-003100");
 SET SESSION sql_log_bin = 1;
 
 --source include/start_and_bootstrap_group_replication.inc

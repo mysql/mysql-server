@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 # 1. Deploy a group in single-primary mode.
@@ -9,17 +9,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    Create and start asynchronous connection with server3 as source and server1 as replica.
 [connection server1]
 set session sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.");
 set session sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_3_PORT FOR CHANNEL 'gr_channel';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'gr_channel']
 [connection server2]
 set session sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.");
 set session sql_log_bin=1;
 include/start_group_replication.inc
 
@@ -40,7 +40,7 @@ INSERT INTO t1 values(1);
 SET DEBUG_SYNC= "now wait_for signal.group_replication_wait_on_observer_trans_waiting";
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';
 SELECT group_replication_set_as_primary("SERVER2_UUID", 0);;
-ERROR HY000: The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.
+ERROR HY000: The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.
 [connection server1]
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
 include/gr_assert_primary_member.inc
@@ -59,7 +59,7 @@ INSERT INTO t1 values(2);
 SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 [connection server2]
 SELECT group_replication_set_as_primary("SERVER2_UUID", 0);;
-ERROR HY000: The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.
+ERROR HY000: The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.
 [connection server1]
 SET DEBUG_SYNC= "now SIGNAL signal.group_replication_wait_on_observer_trans_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_observer_trans';

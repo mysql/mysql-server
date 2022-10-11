@@ -1060,7 +1060,7 @@ CREATE TABLE pk_t1(i INT NOT NULL);
 INSERT INTO pk_t1 VALUES (1),(2),(3),(4);
 ALTER TABLE pk_t1 ADD COLUMN
 (`id` BINARY(16) DEFAULT (uuid_to_bin(uuid())) PRIMARY KEY NOT NULL);
-ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
+ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the replica.
 ALTER TABLE pk_t1 ADD COLUMN
 (`id` INT DEFAULT (10 + i) PRIMARY KEY NOT NULL);
 SHOW CREATE TABLE pk_t1;

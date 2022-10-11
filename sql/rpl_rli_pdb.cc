@@ -191,8 +191,8 @@ const char *info_slave_worker_fields[] = {
       are really necessary. However, the additional information is kept to
       ease debugging.
     */
-    "group_relay_log_name", "group_relay_log_pos", "group_master_log_name",
-    "group_master_log_pos",
+    "group_relay_log_name", "group_relay_log_pos", "group_source_log_name",
+    "group_source_log_pos",
 
     /*
       These positions identify what a worker knew about the coordinator at
@@ -200,7 +200,7 @@ const char *info_slave_worker_fields[] = {
       kept to ease debugging.
     */
     "checkpoint_relay_log_name", "checkpoint_relay_log_pos",
-    "checkpoint_master_log_name", "checkpoint_master_log_pos",
+    "checkpoint_source_log_name", "checkpoint_source_log_pos",
 
     /*
       Identify the greatest job, i.e. group, processed by a worker.
@@ -449,7 +449,7 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase) {
 err:
   // todo: handler->end_info(uidx, nidx);
   inited = false;
-  LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_SLAVE_WORKER_CONFIGURATION);
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_REPLICA_WORKER_CONFIGURATION);
   return 1;
 }
 
@@ -694,8 +694,8 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
   strmake(group_master_log_name, c_rli->get_group_master_log_name(),
           sizeof(group_master_log_name) - 1);
 
-  DBUG_PRINT("mts", ("Committing worker-id %lu group master log pos %llu "
-                     "group master log name %s checkpoint sequence number %lu.",
+  DBUG_PRINT("mta", ("Committing worker-id %lu group source log pos %llu "
+                     "group source log name %s checkpoint sequence number %lu.",
                      id, group_master_log_pos, group_master_log_name,
                      worker_checkpoint_seqno));
 
@@ -1334,9 +1334,9 @@ bool Slave_committed_queue::count_done(Relay_log_info *rli) {
   assert(cnt <= capacity);
   assert(cnt <= get_length());
 
-  DBUG_PRINT("mts",
+  DBUG_PRINT("mta",
              ("Checking if it can simulate a crash:"
-              " mta_checkpoint_group %u counter %zu parallel slaves %lu\n",
+              " mta_checkpoint_group %u counter %zu parallel replicas %lu\n",
               opt_mta_checkpoint_group, cnt, rli->replica_parallel_workers));
 
   return (cnt == (rli->replica_parallel_workers * opt_mta_checkpoint_group));
@@ -1555,7 +1555,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
                "Coordinator stopped because there were error(s) in the "
                "worker(s). "
                "The most recent failure being: Worker %u failed executing "
-               "transaction '%s' at master log %s, end_log_pos %llu. "
+               "transaction '%s' at source log %s, end_log_pos %llu. "
                "See error log and/or "
                "performance_schema.replication_applier_status_by_worker "
                "table for "
@@ -1581,7 +1581,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   } else {
     snprintf(buff_coord, sizeof(buff_coord),
              "Worker %u failed executing transaction '%s' at "
-             "master log %s, end_log_pos %llu",
+             "source log %s, end_log_pos %llu",
              internal_id, buff_gtid, log_name, log_pos);
   }
 
@@ -2115,7 +2115,7 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
     thd->EXIT_COND(&old_stage);
     if (thd->killed) return true;
     if (rli->wq_size_waits_cnt % 10 == 1)
-      LogErr(INFORMATION_LEVEL, ER_RPL_MTS_SLAVE_COORDINATOR_HAS_WAITED,
+      LogErr(INFORMATION_LEVEL, ER_RPL_MTA_REPLICA_COORDINATOR_HAS_WAITED,
              rli->wq_size_waits_cnt, ev_size);
     mysql_mutex_lock(&rli->pending_jobs_lock);
 
@@ -2357,7 +2357,7 @@ void report_error_to_coordinator(Slave_worker *worker) {
           When another worker that should commit before the current worker
           being evaluated has failed and the commit order should be preserved
           the current worker was asked to roll back and would stop with the
-          ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR not yet reported to the
+          ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR not yet reported to the
           coordinator. Reporting this error to the coordinator would be a
           mistake and would mask the real issue that lead to the MTS stop as
           the coordinator reports only the last error reported to it as the
@@ -2369,7 +2369,7 @@ void report_error_to_coordinator(Slave_worker *worker) {
           transaction was waiting to be committed.
         */
         thd->get_stmt_da()->mysql_errno() !=
-            ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR) {
+            ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR) {
       /*
         This function is reporting an error which was not reported
         while executing exec_relay_log_event().
@@ -2529,14 +2529,14 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
   }
 
 #ifndef NDEBUG
-  DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mta_checkpoint_group"
+  DBUG_PRINT("mta", ("Check_replica_debug_group worker %lu mta_checkpoint_group"
                      " %u processed %lu debug %d\n",
                      worker->id, opt_mta_checkpoint_group, worker->groups_done,
                      DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)));
 
   if (DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0) &&
       opt_mta_checkpoint_group == worker->groups_done) {
-    DBUG_PRINT("mts", ("Putting worker %lu in busy wait.", worker->id));
+    DBUG_PRINT("mta", ("Putting worker %lu in busy wait.", worker->id));
     while (true) my_sleep(6000000);
   }
 #endif

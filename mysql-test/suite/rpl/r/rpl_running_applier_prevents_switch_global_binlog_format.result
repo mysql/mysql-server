@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 #
@@ -9,14 +9,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # must be disallowed if any replication channel applier is running.
 #
 SET @@global.binlog_format=STATEMENT;
-ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again.
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP REPLICA SQL_THREAD and try again.
 SET @@persist.binlog_format=STATEMENT;
-ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again.
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP REPLICA SQL_THREAD and try again.
 include/stop_slave_io.inc
 SET @@global.binlog_format=STATEMENT;
-ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again.
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP REPLICA SQL_THREAD and try again.
 SET @@persist.binlog_format=STATEMENT;
-ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again.
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP REPLICA SQL_THREAD and try again.
 include/start_slave_io.inc
 #
 # Verify that SET @@global.binlog_format takes effect if

@@ -68,7 +68,7 @@ SET GLOBAL innodb_lock_wait_timeout = 300;
 --echo # 2.4 Add error suppressions.
 --echo #
 call mtr.add_suppression("Worker .* failed executing transaction");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 
 --echo #
 --echo # 2.5 An extra connection needed on Slave.
@@ -164,7 +164,7 @@ COMMIT;
 --echo #      to fail with 'ER_DUP_ENTRY' error (after the worker2
 --echo #      detected the 'commit order deadlock').
 --echo #
---let $slave_sql_errno=1062,3030 # ER_DUP_ENTRY, ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
+--let $slave_sql_errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --source include/wait_for_slave_sql_error.inc
 
 --echo #

@@ -23,7 +23,7 @@
 
 connection slave;
 --echo [ON SLAVE]
-call mtr.add_suppression('The slave I/O thread was stopped because a fatal error is encountered');
+call mtr.add_suppression('The replica I/O thread was stopped because a fatal error is encountered');
 --source include/stop_slave.inc
 
 --let $debug_point= undefined_algorithm_on_replica

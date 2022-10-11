@@ -31,10 +31,10 @@ INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
 SELECT * FROM t1 order by 1;
 connection slave;
 
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --let $slave_sql_errno= convert_error(ER_UNKNOWN_ERROR)
-call mtr.add_suppression("Slave SQL.*suffer.*http:..bugs.mysql.com.bug.php.id=24432");
+call mtr.add_suppression("Replica SQL.*suffer.*http:..bugs.mysql.com.bug.php.id=24432");
 --source include/wait_for_slave_sql_error.inc
 # show that it was not replicated
 SELECT * FROM t1 order by 1;

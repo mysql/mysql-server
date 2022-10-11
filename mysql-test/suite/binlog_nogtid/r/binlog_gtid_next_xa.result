@@ -12,7 +12,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 XA START '1';
 INSERT INTO t1 VALUES(1);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '1';
 XA PREPARE '1';
 include/assert.inc [Thread should not own any GTID.]
@@ -34,7 +34,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 XA START '2';
 INSERT INTO t1 VALUES(2);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '2';
 XA PREPARE '2';
 include/assert.inc [Thread should not own any GTID.]
@@ -56,7 +56,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 XA START '3';
 INSERT INTO t1 VALUES(3);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '3';
 XA PREPARE '3';
 include/assert.inc [Thread should not own any GTID.]
@@ -78,7 +78,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 XA START '4';
 INSERT INTO t1 VALUES(4);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '4';
 XA PREPARE '4';
 include/assert.inc [Thread should not own any GTID.]
@@ -99,7 +99,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:5';
 XA START '5';
 INSERT INTO t1 VALUES(5);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '5';
 XA PREPARE '5';
 include/assert.inc [Thread should not own any GTID.]
@@ -121,7 +121,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:6';
 XA START '6';
 INSERT INTO t1 VALUES(6);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '6';
 XA PREPARE '6';
 include/assert.inc [Thread should not own any GTID.]
@@ -143,7 +143,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:7';
 XA START '7';
 INSERT INTO t1 VALUES(7);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '7';
 XA PREPARE '7';
 include/assert.inc [Thread should not own any GTID.]
@@ -165,7 +165,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:8';
 XA START '8';
 INSERT INTO t1 VALUES(8);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '8';
 XA PREPARE '8';
 include/assert.inc [Thread should not own any GTID.]
@@ -193,7 +193,7 @@ SET GTID_NEXT= 'ANONYMOUS';
 XA START '9';
 INSERT INTO t1 VALUES(9);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '9';
 XA PREPARE '9';
 include/assert.inc [Thread should not own any GTID.]
@@ -215,7 +215,7 @@ SET GTID_NEXT= 'ANONYMOUS';
 XA START '10';
 INSERT INTO t1 VALUES(10);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '10';
 XA PREPARE '10';
 include/assert.inc [Thread should not own any GTID.]
@@ -237,7 +237,7 @@ SET GTID_NEXT= 'ANONYMOUS';
 XA START '11';
 INSERT INTO t1 VALUES(11);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '11';
 XA PREPARE '11';
 include/assert.inc [Thread should not own any GTID.]
@@ -259,7 +259,7 @@ SET GTID_NEXT= 'ANONYMOUS';
 XA START '12';
 INSERT INTO t1 VALUES(12);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '12';
 XA PREPARE '12';
 include/assert.inc [Thread should not own any GTID.]
@@ -280,7 +280,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
 XA START '13';
 INSERT INTO t1 VALUES(13);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '13';
 XA COMMIT '13' one phase;
 include/assert.inc [Thread should not own any GTID.]
@@ -295,7 +295,7 @@ SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:14';
 XA START '14';
 INSERT INTO t1 VALUES(14);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '14';
 SET @@SESSION.debug = "+d,simulate_xa_rm_error";
 XA COMMIT '14' one phase;
@@ -315,7 +315,7 @@ SET @@SESSION.debug = "+d,simulate_xa_failure_prepare";
 XA START '15';
 INSERT INTO t1 VALUES(15);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '15';
 XA PREPARE '15';
 ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
@@ -346,7 +346,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:16';
 XA START '16';
 INSERT INTO t1 VALUES(16);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '16';
 XA PREPARE '16';
 include/assert.inc [Thread should not own any GTID.]
@@ -373,7 +373,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:17';
 XA START '17';
 INSERT INTO t1 VALUES(17);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '17';
 XA PREPARE '17';
 include/assert.inc [Thread should not own any GTID.]
@@ -411,7 +411,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 XA START '18';
 INSERT INTO t1 VALUES(18);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '18';
 XA PREPARE '18';
 include/assert.inc [Thread should not own any GTID.]
@@ -433,7 +433,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 XA START '19';
 INSERT INTO t1 VALUES(19);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '19';
 XA PREPARE '19';
 include/assert.inc [Thread should not own any GTID.]
@@ -455,7 +455,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 XA START '20';
 INSERT INTO t1 VALUES(20);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '20';
 XA PREPARE '20';
 include/assert.inc [Thread should not own any GTID.]
@@ -477,7 +477,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 XA START '21';
 INSERT INTO t1 VALUES(21);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '21';
 XA PREPARE '21';
 include/assert.inc [Thread should not own any GTID.]
@@ -498,7 +498,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22';
 XA START '22';
 INSERT INTO t1 VALUES(22);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '22';
 XA PREPARE '22';
 include/assert.inc [Thread should not own any GTID.]
@@ -520,7 +520,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:23';
 XA START '23';
 INSERT INTO t1 VALUES(23);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '23';
 XA PREPARE '23';
 include/assert.inc [Thread should not own any GTID.]
@@ -542,7 +542,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:24';
 XA START '24';
 INSERT INTO t1 VALUES(24);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '24';
 XA PREPARE '24';
 include/assert.inc [Thread should not own any GTID.]
@@ -564,7 +564,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:25';
 XA START '25';
 INSERT INTO t1 VALUES(25);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '25';
 XA PREPARE '25';
 include/assert.inc [Thread should not own any GTID.]
@@ -592,7 +592,7 @@ SET GTID_NEXT= 'ANONYMOUS';
 XA START '26';
 INSERT INTO t1 VALUES(26);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '26';
 XA PREPARE '26';
 include/assert.inc [Thread should not own any GTID.]
@@ -614,7 +614,7 @@ SET GTID_NEXT= 'ANONYMOUS';
 XA START '27';
 INSERT INTO t1 VALUES(27);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '27';
 XA PREPARE '27';
 include/assert.inc [Thread should not own any GTID.]
@@ -636,7 +636,7 @@ SET GTID_NEXT= 'ANONYMOUS';
 XA START '28';
 INSERT INTO t1 VALUES(28);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '28';
 XA PREPARE '28';
 include/assert.inc [Thread should not own any GTID.]
@@ -658,7 +658,7 @@ SET GTID_NEXT= 'ANONYMOUS';
 XA START '29';
 INSERT INTO t1 VALUES(29);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '29';
 XA PREPARE '29';
 include/assert.inc [Thread should not own any GTID.]
@@ -679,7 +679,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:30';
 XA START '30';
 INSERT INTO t1 VALUES(30);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '30';
 XA ROLLBACK '30' ;
 include/assert.inc [Thread should not own any GTID.]
@@ -694,7 +694,7 @@ SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:31';
 XA START '31';
 INSERT INTO t1 VALUES(31);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '31';
 SET @@SESSION.debug = "+d,simulate_xa_rm_error";
 XA ROLLBACK '31' ;
@@ -714,7 +714,7 @@ SET @@SESSION.debug = "+d,simulate_xa_failure_prepare";
 XA START '32';
 INSERT INTO t1 VALUES(32);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '32';
 XA PREPARE '32';
 ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
@@ -745,7 +745,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:33';
 XA START '33';
 INSERT INTO t1 VALUES(33);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '33';
 XA PREPARE '33';
 include/assert.inc [Thread should not own any GTID.]
@@ -772,7 +772,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:34';
 XA START '34';
 INSERT INTO t1 VALUES(34);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END '34';
 XA PREPARE '34';
 include/assert.inc [Thread should not own any GTID.]

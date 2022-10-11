@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
 # TC1. Execute Begin_load_query and Execute_load with and without the
@@ -14,7 +14,7 @@ LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 include/save_master_pos.inc
 [connection slave]
 CALL mtr.add_suppression("The PRIVILEGE_CHECKS_USER for channel '' would need FILE");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 CREATE TABLE t1(word CHAR(20) NOT NULL);
 START SLAVE;
 Warnings:
@@ -33,7 +33,7 @@ SET @@GLOBAL.DEBUG = "+d,skip_the_priv_check_in_begin_load";
 CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = 'u1'@'localhost', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -47,7 +47,7 @@ GRANT FILE, INSERT  ON *.* TO 'u1'@'localhost';
 CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = 'u1'@'localhost', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -88,7 +88,7 @@ SET @@GLOBAL.DEBUG = "+d,skip_the_priv_check_in_begin_load";
 CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = 'u1'@'localhost', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -102,7 +102,7 @@ GRANT FILE  ON *.* TO 'u1'@'localhost';
 CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=MASTER_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = 'u1'@'localhost', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

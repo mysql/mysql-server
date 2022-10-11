@@ -1,15 +1,15 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 CALL mtr.add_suppression('Cannot execute statement because it needs to be written to the binary log as multiple statements');
 CALL mtr.add_suppression('DROP DATABASE failed; some tables may have been dropped but the database directory remains.');
 CALL mtr.add_suppression("Error dropping database");
 CALL mtr.add_suppression("Can't drop database '.*'; database doesn't exist");
-CALL mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: MY-001756");
-CALL mtr.add_suppression("Slave SQL for channel '': .* Error_code: MY-001105");
+CALL mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: MY-001756");
+CALL mtr.add_suppression("Replica SQL for channel '': .* Error_code: MY-001105");
 ==== Case 2: DROP TABLES ====
 ==== Case 2D: Failing DROP TABLES for base tables with and without atomic DDL support ====
 CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;

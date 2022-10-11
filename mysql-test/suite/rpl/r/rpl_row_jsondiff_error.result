@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ######## Configure ########
 # Configure slave_rows_search_algorithms on master
@@ -19,14 +19,14 @@ SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 [connection slave]
 call mtr.add_suppression("Could not execute Update_rows_partial event on table test.t");
 call mtr.add_suppression("Can't find record in 't'");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-call mtr.add_suppression("Slave: Could not apply JSON diff");
-call mtr.add_suppression("Slave: Corrupted JSON diff");
-call mtr.add_suppression("Slave: Corrupted replication event was detected");
-call mtr.add_suppression("Slave: Got error 1610 - ");
-call mtr.add_suppression("Slave: Got error 3648 - ");
-call mtr.add_suppression("Slave: Got error 3649 - ");
-call mtr.add_suppression("Slave: Got error 5 - ");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica: Could not apply JSON diff");
+call mtr.add_suppression("Replica: Corrupted JSON diff");
+call mtr.add_suppression("Replica: Corrupted replication event was detected");
+call mtr.add_suppression("Replica: Got error 1610 - ");
+call mtr.add_suppression("Replica: Got error 3648 - ");
+call mtr.add_suppression("Replica: Got error 3649 - ");
+call mtr.add_suppression("Replica: Got error 5 - ");
 ######## Test ########
 [connection slave]
 include/stop_slave.inc

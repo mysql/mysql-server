@@ -38,7 +38,7 @@
 
 --source include/rpl_connection_slave.inc
 
-call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]*\.*[0-9]* for channel ''*");
+call mtr.add_suppression("Recovery from source pos [0-9]+ and file [a-zA-Z-]*\.*[0-9]* for channel ''*");
 call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
 
@@ -109,7 +109,7 @@ DROP TABLE t1;
 
 --source include/stop_slave.inc
 
---replace_result $save_rli_repo_type SAVE_RLI_REPO_TYPE
+--replace_result $save_rli_repo_type SAVE_AM_REPO_TYPE
 --eval SET @@GLOBAL.relay_log_info_repository='$save_rli_repo_type'
 
 # Start again to make rpl_end happy

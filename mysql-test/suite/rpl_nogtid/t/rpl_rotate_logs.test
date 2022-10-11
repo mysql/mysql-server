@@ -28,31 +28,31 @@ chmod 0000 $MYSQLD_SLAVE_DATADIR/master.info;
 --disable_result_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 CALL mtr.add_suppression("Failed to open the existing info file");
-CALL mtr.add_suppression("Error while reading from master info file");
+CALL mtr.add_suppression("Error while reading from connection metadata repository");
 CALL mtr.add_suppression("Failed to create a new info file");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --enable_result_log
 --disable_query_log ONCE
-CALL mtr.add_suppression("Error reading master configuration");
+CALL mtr.add_suppression("Error reading source configuration");
 
 
 # START SLAVE will fail because it can't read the file (mode 000)
 # (system error 13)
 --replace_result $MYSQL_TEST_DIR TESTDIR
---error ER_MASTER_INFO, 29
+--error ER_CONNECTION_METADATA, 29
 start slave;
 chmod 0600  $MYSQLD_SLAVE_DATADIR/master.info;
 # It will fail again because the file is empty so the slave cannot get valuable
 # info about how to connect to the master from it (failure in
 # init_strvar_from_file() in init_master_info()).
---error ER_MASTER_INFO
+--error ER_CONNECTION_METADATA
 start slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 
 # CHANGE MASTER will fail because it first parses master.info before changing
 # it (so when master.info is bad, people have to use RESET SLAVE first).
 --replace_column 2 ####
---error ER_MASTER_INFO
+--error ER_CONNECTION_METADATA
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
 reset slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -120,7 +120,7 @@ set insert_id=1234;
 insert into t2 values(NULL);
 connection slave;
 # 1062 = ER_DUP_ENTRY
-call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .1234. for key .t2.PRIMARY.. on query.* Error_code: MY-001062");
+call mtr.add_suppression("Replica SQL.*Error .Duplicate entry .1234. for key .t2.PRIMARY.. on query.* Error_code: MY-001062");
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error_and_skip.inc
 

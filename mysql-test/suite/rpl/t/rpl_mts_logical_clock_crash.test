@@ -79,7 +79,7 @@ LOCK TABLE t1 WRITE;
 UNLOCK TABLES;
 
 # Workers encounter duplicate error(ER_DUP_ENTRY), rollback signalled
-# (ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR) and abort coordinator
+# (ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR) and abort coordinator
 --let $slave_sql_errno=1062,3030
 --source include/wait_for_slave_sql_to_stop.inc
 

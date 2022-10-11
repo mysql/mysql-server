@@ -1,9 +1,9 @@
 include/rpl_init.inc [topology=1->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl_default_connections.inc
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
 SET @save.innodb_lock_wait_timeout=@@GLOBAL.innodb_lock_wait_timeout;
 SET @@global.innodb_lock_wait_timeout=1;
 SET @save.replica_transaction_retries= @@global.replica_transaction_retries;

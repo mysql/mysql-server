@@ -60,7 +60,7 @@ SET sql_log_bin=1;
 
 --echo # Asserting that CHANGE MASTER is not logged in the binary log of the server 2.
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/change_master_server2.sql
---let $grep_pattern= CHANGE MASTER
+--let $grep_pattern= CHANGE REPLICATION SOURCE
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
@@ -76,7 +76,7 @@ SET sql_log_bin=1;
 
 --echo # Asserting that CHANGE MASTER is not replicated in the binary log of the server.
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/change_master_server1.sql
---let $grep_pattern= CHANGE MASTER
+--let $grep_pattern= CHANGE REPLICATION SOURCE
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 

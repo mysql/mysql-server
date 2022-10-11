@@ -81,7 +81,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 
 START SLAVE;
 
---let $slave_io_errno= 13114 # ER_MASTER_FATAL_ERROR_READING_BINLOG
+--let $slave_io_errno= 13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
 
@@ -99,8 +99,8 @@ START SLAVE;
 
 # Verify that an error about the missing transactions are logged into the slave's error log.
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_match= .*Replicate the missing transactions from elsewhere, or provision a new slave from backup.*the missing transactions are '.*:1'.*
---let $assert_select= Replicate the missing transactions from elsewhere, or provision a new slave from backup
+--let $assert_match= .*Replicate the missing transactions from elsewhere, or provision a new replica from backup.*the missing transactions are '.*:1'.*
+--let $assert_select= Replicate the missing transactions from elsewhere, or provision a new replica from backup
 --let $assert_text= Found warning containing lost GTIDs in the slave error log.
 --source include/assert_grep.inc
 
@@ -127,7 +127,7 @@ CALL mtr.add_suppression("Could not open log");
 
 # Suppress the error on slave.
 --source include/rpl_connection_slave.inc
-CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missing transactions from elsewhere");
+CALL mtr.add_suppression("Got fatal error 1236 from source.*Replicate the missing transactions from elsewhere");
 
 --echo #
 --echo # 7) Cleanup.

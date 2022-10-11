@@ -205,7 +205,7 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
---error ER_SLAVE_RLI_INIT_REPOSITORY
+--error ER_REPLICA_AM_INIT_REPOSITORY
 START SLAVE;
 
 #invalid value
@@ -214,7 +214,7 @@ START SLAVE;
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
---error ER_SLAVE_RLI_INIT_REPOSITORY
+--error ER_REPLICA_AM_INIT_REPOSITORY
 START SLAVE;
 
 # invalid value for assign_gtids_to_anonymous_transactions_value with default
@@ -225,7 +225,7 @@ START SLAVE;
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
---error ER_SLAVE_RLI_INIT_REPOSITORY
+--error ER_REPLICA_AM_INIT_REPOSITORY
 START SLAVE;
 
 # invalid value for assign_gtids_to_anonymous_transactions_value with
@@ -236,7 +236,7 @@ START SLAVE;
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
---error ER_SLAVE_RLI_INIT_REPOSITORY
+--error ER_REPLICA_AM_INIT_REPOSITORY
 START SLAVE;
 
 # starting the file repository with no value for assign_gtids_to_anonymous_transactions_value
@@ -247,7 +247,7 @@ START SLAVE;
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
---error ER_SLAVE_RLI_INIT_REPOSITORY
+--error ER_REPLICA_AM_INIT_REPOSITORY
 START SLAVE;
 
 # 3. File to Table upgrades
@@ -419,9 +419,9 @@ RESET SLAVE ALL;
 --remove_file $MYSQL_TMP_DIR/check_assign_gtids_to_anonymous_transactions_in_file_repo.inc
 
 CALL mtr.add_suppression("Error reading relay log configuration.");
-CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel ''; its record may still be present in 'mysql.slave_master_info' table*");
+CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel ''; its record may still be present in 'mysql.slave_master_info' table*");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
-CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize relay log info structure from the repository,*");
+CALL mtr.add_suppression("Replica SQL for channel '': Replica failed to initialize applier metadata structure from the repository,*");
 CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology*");
 CALL mtr.add_suppression("If you intend to use GTID_MODE = ON everywhere*");
 CALL mtr.add_suppression("Variable 'assign_gtids_to_anonymous_transactions_value'");

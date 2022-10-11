@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 INT, c2 TEXT);
 include/sync_slave_sql_with_master.inc
@@ -10,12 +10,12 @@ CALL mtr.add_suppression("Retry in 60 secs");
 CALL mtr.add_suppression("Relay log write failure");
 CALL mtr.add_suppression("Could not parse relay log event entry.");
 CALL mtr.add_suppression("Turning logging off for the whole duration of the MySQL server process");
-CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Recovery from source pos");
 CALL mtr.add_suppression("Error reading relay log event for channel");
 CALL mtr.add_suppression("next log error");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
-CALL mtr.add_suppression("Error writing master configuration");
-CALL mtr.add_suppression("Failed to flush master info file");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Error writing source configuration");
+CALL mtr.add_suppression("Failed to flush connection metadata repository");
 # Adding debug point 'simulate_random_io_thd_wait_for_disk_space' to @@GLOBAL.debug
 # Generating events to be replicated to the slave
 [connection master]

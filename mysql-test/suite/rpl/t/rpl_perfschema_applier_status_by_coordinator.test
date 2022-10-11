@@ -48,7 +48,7 @@ source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
 
 call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 
 let $assert_text= On master, the table should return an empty set.;
 let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 0;

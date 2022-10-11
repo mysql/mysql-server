@@ -45,8 +45,8 @@
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
-call mtr.add_suppression("Slave worker thread has failed to apply an event");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("Error writing relay log configuration");
 call mtr.add_suppression("Table 't_2' already exists");
 call mtr.add_suppression("Operating system error number .* in a file operation");

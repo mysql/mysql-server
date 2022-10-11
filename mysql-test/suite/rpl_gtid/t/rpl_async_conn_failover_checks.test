@@ -83,7 +83,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_count = 1
---let $assert_select = Detected misconfiguration: replication channel '' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1, but the server was started with a value other then --gtid-mode = ON. Either reconfigure replication using CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 0 FOR CHANNEL '', or change GTID_MODE to value ON, before starting the replica receiver thread.
+--let $assert_select = Detected misconfiguration: replication channel '' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1, but the server was started with a value other then --gtid-mode = ON. Either reconfigure replication using CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0 FOR CHANNEL '', or change GTID_MODE to value ON, before starting the replica receiver thread.
 --let $assert_text = Replication channel '' could not be started as GTID_MODE was not ON.
 --source include/assert_grep.inc
 

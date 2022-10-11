@@ -113,11 +113,11 @@ call mtr.add_suppression("Fatal error during execution on the Applier process of
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check *.*");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Could not execute Write_rows event on table");
 call mtr.add_suppression("Error writing relay log configuration.");
 call mtr.add_suppression("There was a previous plugin error while the member joined the group. The member will now exit the group.");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped,*");
 call mtr.add_suppression("Can't evaluate the group replication applier execution status. Group replication recovery will shutdown to avoid data corruption.");
 call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("It was not possible to identify the group replication applier thread");

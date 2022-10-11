@@ -200,7 +200,7 @@ Log_event *Rpl_applier_reader::read_next_event() {
       if ((m_rli->is_time_for_mta_checkpoint() ||
            DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)) &&
           mta_checkpoint_routine(m_rli, false)) {
-        m_errmsg = "Failed to compute mts checkpoint";
+        m_errmsg = "Failed to compute mta checkpoint";
         mysql_mutex_lock(&m_rli->data_lock);
         return nullptr;
       }
@@ -239,7 +239,7 @@ Log_event *Rpl_applier_reader::read_next_event() {
     if (!move_to_next_log()) return read_next_event();
   }
 
-  LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ERROR_READING_RELAY_LOG_EVENTS,
+  LogErr(ERROR_LEVEL, ER_RPL_REPLICA_ERROR_READING_RELAY_LOG_EVENTS,
          m_rli->get_for_channel_str(),
          m_errmsg ? m_errmsg : m_relaylog_file_reader.get_error_str());
   return nullptr;
@@ -265,8 +265,8 @@ Rotate_log_event *Rpl_applier_reader::generate_rotate_event() {
   m_rli->ign_master_log_name_end[0] = 0;
   if (unlikely(!ev)) {
     m_errmsg =
-        "Slave SQL thread failed to create a Rotate event "
-        "(out of memory?), SHOW SLAVE STATUS may be inaccurate";
+        "Replica SQL thread failed to create a Rotate event "
+        "(out of memory?), SHOW REPLICA STATUS may be inaccurate";
     return nullptr;
   }
   ev->server_id = 0;  // don't be ignored by slave SQL thread
@@ -386,7 +386,7 @@ bool Rpl_applier_reader::move_to_next_log() {
 
   /* Reset the relay-log-change-notified status of slave workers */
   if (m_rli->is_parallel_exec()) {
-    DBUG_PRINT("info", ("next_event: MTS group relay log changes to %s %lu\n",
+    DBUG_PRINT("info", ("next_event: MTA group relay log changes to %s %lu\n",
                         m_rli->get_group_relay_log_name(),
                         (ulong)m_rli->get_group_relay_log_pos()));
     m_rli->reset_notified_relay_log_change();
@@ -522,7 +522,7 @@ void Rpl_applier_reader::debug_print_next_event_positions() {
 
   DBUG_PRINT(
       "info",
-      ("next_event group master %s %lu group relay %s %lu event %s %lu\n",
+      ("next_event group source %s %lu group relay %s %lu event %s %lu\n",
        m_rli->get_group_master_log_name(),
        (ulong)m_rli->get_group_master_log_pos(),
        m_rli->get_group_relay_log_name(),

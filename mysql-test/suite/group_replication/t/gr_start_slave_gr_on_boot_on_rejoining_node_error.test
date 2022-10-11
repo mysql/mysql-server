@@ -203,11 +203,11 @@ SET GLOBAL read_only= OFF;
 --echo # 13. Verify that channel ch3_1 is not running
 
 --let $rpl_channel_name= 'ch3_1'
---let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --source include/wait_for_slave_sql_error.inc
 --let rpl_channel_name=
 
---let $grep_pattern= The slave applier thread of channel 'ch3_1' will error out as the member failed to come ONLINE
+--let $grep_pattern= The replica applier thread of channel 'ch3_1' will error out as the member failed to come ONLINE
 --let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_start_slave_gr_on_boot_on_rejoining_node_error.err
 --let $grep_output= boolean
 --source include/grep_pattern.inc
@@ -238,10 +238,10 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
 call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check *.*");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Could not execute Write_rows event on table");
 call mtr.add_suppression("There was a previous plugin error while the member joined the group. The member will now exit the group.");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped,*");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going");
 SET SESSION sql_log_bin= 1;

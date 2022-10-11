@@ -3,7 +3,7 @@ SET @saved_master_info_repository = @@GLOBAL.master_info_repository;
 SET @saved_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
 include/install_replication_observers_example.inc
 CALL mtr.add_suppression('For the creation of replication channels the server *');
-CALL mtr.add_suppression('For the creation of replication channels the master *');
+CALL mtr.add_suppression('For the creation of replication channels the connection metadata *');
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 SET @original_slave_server_id= @@GLOBAL.server_id;
 SET @debug_saved= @@GLOBAL.DEBUG;

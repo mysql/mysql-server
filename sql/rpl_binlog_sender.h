@@ -430,11 +430,11 @@ class Binlog_sender {
   }
 
   inline void set_fatal_error(const char *errmsg) {
-    set_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, errmsg);
+    set_error(ER_SOURCE_FATAL_ERROR_READING_BINLOG, errmsg);
   }
 
   inline bool is_fatal_error() {
-    return m_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG;
+    return m_errno == ER_SOURCE_FATAL_ERROR_READING_BINLOG;
   }
 
   inline bool event_checksum_on() {

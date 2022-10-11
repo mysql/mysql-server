@@ -1,28 +1,28 @@
 include/rpl_init.inc [topology=1->2, 1->3, 1->4, 1->5, 1->6, 1->7, 1->8, 1->9]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 #
 # 1. Initial data.
 #
@@ -33,31 +33,31 @@ include/rpl_sync.inc
 # 2. Install semisync on all the 9 servers.
 #
 [connection server_1]
-CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
 include/install_semisync_source.inc
 [connection server_2]
-CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
 include/install_semisync_replica.inc
 [connection server_3]
-CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
 include/install_semisync_replica.inc
 [connection server_4]
-CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
 include/install_semisync_replica.inc
 [connection server_5]
-CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
 include/install_semisync_replica.inc
 [connection server_6]
-CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
 include/install_semisync_replica.inc
 [connection server_7]
-CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
 include/install_semisync_replica.inc
 [connection server_8]
-CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
 include/install_semisync_replica.inc
 [connection server_9]
-CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+CALL mtr.add_suppression("Semi-sync replica net_flush.*");
 include/install_semisync_replica.inc
 #
 # 3. Make Master aware of 8 semisync slaves.

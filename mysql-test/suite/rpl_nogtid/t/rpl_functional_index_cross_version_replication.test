@@ -43,7 +43,7 @@
 # 1) Stop the slave.
 #
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
+call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
 
 #
 # 2) Setup the previous saved log as the slave relay log which contains:

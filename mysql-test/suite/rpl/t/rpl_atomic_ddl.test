@@ -49,8 +49,8 @@
 # Simulated data inconsistency on slave causes few errors
 call mtr.add_suppression("Operation CREATE USER failed");
 call mtr.add_suppression("Operation RENAME USER failed");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
-call mtr.add_suppression("Slave worker thread has failed to apply an event");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("Error writing relay log configuration");
 call mtr.add_suppression("Error 'Unknown error' on query");
 --disable_query_log

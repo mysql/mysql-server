@@ -23,9 +23,9 @@
 
 --source include/rpl_connection_slave.inc
 
-CALL mtr.add_suppression('Slave failed to initialize master info structure from the repository');
-CALL mtr.add_suppression('This operation cannot be performed with a running slave');
-CALL mtr.add_suppression('Could not find target log file mentioned in relay log info in the index file');
+CALL mtr.add_suppression('Replica failed to initialize connection metadata structure from the repository');
+CALL mtr.add_suppression('This operation cannot be performed with a running replica');
+CALL mtr.add_suppression('Could not find target log file mentioned in applier metadata in the index file');
 # For case:
 # STOP SLAVE SQL_THREAD; // IO_THREAD is running
 # CHANGE MASTER TO relay_log_name = 'non-existing relay log name',...;
@@ -33,7 +33,7 @@ CALL mtr.add_suppression('Could not find target log file mentioned in relay log 
 # non-existing file name.
 # START SLAVE SQL_THREAD; // It will log below error.
 CALL mtr.add_suppression('Could not find relay log file');
-CALL mtr.add_suppression('A slave with the same server_uuid/server_id as this slave has connected to the master');
+CALL mtr.add_suppression('A replica with the same server_uuid/server_id as this replica has connected to the source');
 
 # Save current event scheduler status
 SET @saved_event_scheduler= @@GLOBAL.event_scheduler;
@@ -121,7 +121,7 @@ SET @@GLOBAL.event_scheduler= OFF;
 --let $c= $num_channels
 while ($c > 0)
 {
-  --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+  --error 0, ER_REPLICA_CHANNEL_DOES_NOT_EXIST
   --eval STOP SLAVE FOR CHANNEL 'ch$c'
   --dec $c
 }

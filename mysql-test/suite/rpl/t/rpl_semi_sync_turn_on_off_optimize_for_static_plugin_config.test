@@ -66,14 +66,14 @@ while ($i <= $servers)
   if ($i == 2)
   {
     SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
-    CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+    CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
     CALL mtr.add_suppression(".* Timeout waiting for reply of binlog .*");
     --source include/install_semisync_source.inc
   }
   if ($i != 2)
   {
     SHOW VARIABLES LIKE 'rpl_semi_sync_replica_enabled';
-    CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+    CALL mtr.add_suppression("Semi-sync replica net_flush.*");
     --source include/install_semisync_replica.inc
   }
   --inc $i

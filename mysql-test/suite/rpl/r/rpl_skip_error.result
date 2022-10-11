@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ==== Test Without sql_mode=strict_trans_tables ====
 [on master]
@@ -69,7 +69,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SQL_LOG_BIN=1;
-call mtr.add_suppression("Slave SQL.*Could not execute .*te_rows event on table test.t.; Duplicate entry.* Error_code: 1062");
+call mtr.add_suppression("Replica SQL.*Could not execute .*te_rows event on table test.t.; Duplicate entry.* Error_code: 1062");
 CREATE TABLE t1(id INT NOT NULL PRIMARY KEY, data INT) Engine=InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table

@@ -7,11 +7,11 @@
 
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
-CALL mtr.add_suppression("Slave SQL.*:.* Could not execute Write_rows event on table.*");
-CALL mtr.add_suppression("Slave SQL.*:.*Duplicate entry '3' for key.*");
-CALL mtr.add_suppression("Slave SQL.*:.*Slave worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
-CALL mtr.add_suppression("Slave SQL .*Deadlock found when trying to get lock; try restarting transaction.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression("Replica SQL.*:.* Could not execute Write_rows event on table.*");
+CALL mtr.add_suppression("Replica SQL.*:.*Duplicate entry '3' for key.*");
+CALL mtr.add_suppression("Replica SQL.*:.*Replica worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
+CALL mtr.add_suppression("Replica SQL .*Deadlock found when trying to get lock; try restarting transaction.*");
 
 --echo # Check EEREE
 --let $exec_trx2 = 1

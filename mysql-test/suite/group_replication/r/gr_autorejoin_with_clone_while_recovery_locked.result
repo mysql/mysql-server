@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 # 1. Create table t1 on server1 with binlog disabled and bootstrap the
@@ -119,9 +119,9 @@ call mtr.add_suppression("Error when stopping the group replication incremental 
 call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
-call mtr.add_suppression("Relay log information for channel '' was found after a clone operation. Relay log recovery will be executed to adjust positions and file information for this new server.*");
-call mtr.add_suppression("Error during --relay-log-recovery: Could not locate rotate event from the master.");
-call mtr.add_suppression("Server was not able to find a rotate event from master server to initialize relay log recovery for channel ''. Skipping relay log recovery for the channel.");
+call mtr.add_suppression("Applier metadata information for channel '' was found after a clone operation. Relay log recovery will be executed to adjust positions and file information for this new server.*");
+call mtr.add_suppression("Error during --relay-log-recovery: Could not locate rotate event from the source.");
+call mtr.add_suppression("Server was not able to find a rotate event from source server to initialize relay log recovery for channel ''. Skipping relay log recovery for the channel.");
 SET sql_log_bin=1;
 RESET REPLICA ALL FOR CHANNEL "";
 include/clean_monitoring_process.inc

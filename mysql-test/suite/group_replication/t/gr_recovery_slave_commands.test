@@ -29,12 +29,12 @@
 # 1. Bootstrap start GR on M1. Test above mentioned 11 RPL(slave) commands
 #    for recovery channel:-
 #  - MEMBER_STATE: ONLINE and recovery channel is ABSENT.
-#  - Expect ER_SLAVE_CHANNEL_DOES_NOT_EXIST.
+#  - Expect ER_REPLICA_CHANNEL_DOES_NOT_EXIST.
 #
 # 2. Add some data for recovery on M1. Start GR on M2. Test above mentioned
 #    11 RPL(slave) commands for recovery channel:-
 #  - MEMBER_STATE: ONLINE and recovery channel is PRESENT but INACTIVE.
-#  - Expect ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED in most of the cases.
+#  - Expect ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED in most of the cases.
 #
 # 3. Stop GR on M2. Add data on M1. Lock table on M2 to block recovery.
 #    Start GR on M2.
@@ -42,12 +42,12 @@
 # 4. Now when M2 is in RECOVERING state, test above mentioned 11 RPL(slave)
 #    commands on recovery channel:-
 #  - MEMBER_STATE: RECOVERING and recovery channel is ACTIVE.
-#  - Expect ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED in most of the cases.
+#  - Expect ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED in most of the cases.
 #
 # 5. Unlock tables on M2 and drop table t1 on M1. Stop GR on M2. Test above
 #    mentioned 11 RPL(slave) commands:-
 #  - MEMBER_STATE: OFFLINE and recovery channel is PRESENT but INACTIVE.
-#  - Expect ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED in most of the cases.
+#  - Expect ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED in most of the cases.
 ###############################################################################
 
 # Skip configuration of recovery channel
@@ -67,7 +67,7 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 set session sql_log_bin=0;
-call mtr.add_suppression("Slave channel 'group_replication_recovery' does not exist.*");
+call mtr.add_suppression("Replica channel 'group_replication_recovery' does not exist.*");
 set session sql_log_bin=1;
 
 --source include/start_and_bootstrap_group_replication.inc
@@ -75,68 +75,68 @@ set session sql_log_bin=1;
 --echo
 --echo # CHM for 'group_replication_recovery' channel won't accept parameters other than
 --echo # MASTER_USER and MASTER_PASSWORD
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
 
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";
 
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # ERROR when executing STOP SLAVE on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 STOP SLAVE FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # ERROR when executing START SLAVE on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 START SLAVE FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # ERROR when executing STOP SLAVE IO_THREAD on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # ERROR when executing START SLAVE IO_THREAD on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # ERROR when executing STOP SLAVE SQL_THREAD on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # ERROR when executing START SLAVE SQL_THREAD on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # ERROR when executing SHOW SLAVE STATUS on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 --query_vertical SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery'
 
 --echo
 --echo # ERROR when executing SHOW RELAYLOG EVENTS on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 SHOW RELAYLOG EVENTS  FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # ERROR when executing FLUSH RELAY LOGS on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # ERROR when executing RESET SLAVE command on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 RESET SLAVE FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # ERROR when executing RESET SLAVE ALL command on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
 
 # Phase 2
@@ -168,32 +168,32 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_r
 
 --echo
 --echo # STOP SLAVE is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # START SLAVE is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # STOP SLAVE IO_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # START SLAVE IO_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # STOP SLAVE SQL_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # START SLAVE SQL_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
@@ -266,47 +266,47 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_r
 
 --echo
 --echo # STOP SLAVE is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # START SLAVE is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # STOP SLAVE IO_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # START SLAVE IO_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # START SLAVE IO_THREAD with UNTIL option is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE IO_THREAD UNTIL SOURCE_LOG_FILE = 'server-binary-log.000001', SOURCE_LOG_POS = 754 FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # STOP SLAVE SQL_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # START SLAVE SQL_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # START SLAVE SQL_THREAD with UNTIL option is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE SQL_THREAD UNTIL SQL_AFTER_GTIDS='11111111-1111-1111-1111-111111111111:1-23' FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # START SLAVE SQL_THREAD with UNTIL option is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_recovery.000001', RELAY_LOG_POS = 854 FOR CHANNEL 'group_replication_recovery';
 
 --echo
@@ -331,12 +331,12 @@ FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # RESET SLAVE command is blocked only when recovery channel is active.
---error ER_SLAVE_CHANNEL_MUST_STOP
+--error ER_REPLICA_CHANNEL_MUST_STOP
 RESET SLAVE FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # RESET SLAVE [ALL] command is blocked only when recovery channel is active.
---error ER_SLAVE_CHANNEL_MUST_STOP
+--error ER_REPLICA_CHANNEL_MUST_STOP
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
 
 
@@ -362,32 +362,32 @@ DROP TABLE t1;
 
 --echo
 --echo # STOP SLAVE is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # START SLAVE is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # STOP SLAVE IO_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # START SLAVE IO_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # STOP SLAVE SQL_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # START SLAVE SQL_THREAD is blocked on GR recovery channel
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 
 --echo
@@ -411,12 +411,12 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # ERROR when executing RESET SLAVE on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 RESET SLAVE FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # ERROR when executing FLUSH RELAY LOGS on GR recovery channel
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 
 --source include/group_replication_end.inc

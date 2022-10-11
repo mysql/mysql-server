@@ -37,7 +37,7 @@ let $databases = 16;
 
 connection slave;
 
-call mtr.add_suppression('Slave: Error dropping database'); ## todo: fix
+call mtr.add_suppression('Replica: Error dropping database'); ## todo: fix
 
 source include/stop_slave.inc;
 start slave;

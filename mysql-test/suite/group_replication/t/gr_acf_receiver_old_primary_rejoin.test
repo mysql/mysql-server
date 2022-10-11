@@ -27,13 +27,13 @@
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("The 'slave applier' thread of channel 'ch1' will error out as this server is a group secondary.");
-call mtr.add_suppression("The 'slave IO' thread of channel 'ch1' will error out as this server is a group secondary.");
+call mtr.add_suppression("The 'replica applier' thread of channel 'ch1' will error out as this server is a group secondary.");
+call mtr.add_suppression("The 'replica IO' thread of channel 'ch1' will error out as this server is a group secondary.");
 call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
 call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
-call mtr.add_suppression("Slave SQL for channel 'ch1': Fatal error: Failed to run 'applier_start' hook, Error_code: MY-013117");
-call mtr.add_suppression("Slave I/O for channel 'ch1': Fatal error: Failed to run 'thread_start' hook, Error_code: MY-013117");
-call mtr.add_suppression("Plugin group_replication reported: 'Can't start slave IO THREAD of channel 'ch1' when group replication is running with single-primary mode on a secondary member.");
+call mtr.add_suppression("Replica SQL for channel 'ch1': Fatal error: Failed to run 'applier_start' hook, Error_code: MY-013117");
+call mtr.add_suppression("Replica I/O for channel 'ch1': Fatal error: Failed to run 'thread_start' hook, Error_code: MY-013117");
+call mtr.add_suppression("Plugin group_replication reported: 'Can't start replica IO THREAD of channel 'ch1' when group replication is running with single-primary mode on a secondary member.");
 SET SESSION sql_log_bin= 1;
 
 --source include/start_and_bootstrap_group_replication.inc

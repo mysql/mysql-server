@@ -15,7 +15,7 @@
 CREATE TABLE t1 (c1 INT);
 
 --source include/sync_slave_sql_with_master.inc
-CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Recovery from source pos");
 
 # stop the slave applier thread
 --source include/stop_slave_sql.inc
@@ -70,7 +70,7 @@ INSERT INTO t1 VALUES (1);
 # Assert that the entry in the log contains the old relay log positions as well
 --let $assert_text= Assert that the expected entry is in the error log
 --let $assert_file= $slave_error_log
---let $assert_select= Recovery from master pos $exec_master_log_pos and file $binlog_file for channel ''. Previous relay log pos and relay log file had been set to $relay_log_pos, .*$relay_log respectively.
+--let $assert_select= Recovery from source pos $exec_master_log_pos and file $binlog_file for channel ''. Previous relay log pos and relay log file had been set to $relay_log_pos, .*$relay_log respectively.
 --let $assert_count= 1
 --source include/assert_grep.inc
 

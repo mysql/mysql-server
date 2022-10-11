@@ -235,7 +235,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_DELAY = -1;
 --echo # Expect that it's ok to set delay of 2^31-1
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 2147483647;
 --echo # Expect error for setting delay between 2^31 and 2^32-1
---error ER_MASTER_DELAY_VALUE_OUT_OF_RANGE
+--error ER_SOURCE_DELAY_VALUE_OUT_OF_RANGE
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 2147483648;
 
 --echo # Expect error for setting delay to nonsense

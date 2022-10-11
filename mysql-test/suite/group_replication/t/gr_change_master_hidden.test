@@ -14,7 +14,7 @@
 
 --echo # MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
 --let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
---let $grep_pattern= master_password
+--let $grep_pattern= source_password
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 

@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 # 1. Start GR on server1 & 2
@@ -15,7 +15,7 @@ include/start_group_replication.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SERVER_3_PORT for channel 'ch3_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 
 # 3. Add some data to server1 & 3
 [connection server1]
@@ -27,7 +27,7 @@ INSERT INTO test.t2 VALUES (1);
 
 # 4. Verify the error scenarios.
 
-# 4.1 start slave and verify for error ER_SLAVE_FATAL_ERROR
+# 4.1 start slave and verify for error ER_REPLICA_FATAL_ERROR
 [connection server2]
 START SLAVE FOR CHANNEL 'ch3_2';
 Warnings:
@@ -35,21 +35,21 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
-# 4.2 start slave io and verify for error ER_SLAVE_FATAL_ERROR
+# 4.2 start slave io and verify for error ER_REPLICA_FATAL_ERROR
 START SLAVE IO_THREAD FOR CHANNEL 'ch3_2';
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
-# 4.3 start slave sql and verify for error ER_SLAVE_FATAL_ERROR
+# 4.3 start slave sql and verify for error ER_REPLICA_FATAL_ERROR
 START SLAVE SQL_THREAD FOR CHANNEL 'ch3_2';
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 5. Verify occurrence of error message
-Occurrences of 'Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
-Occurrences of 'Can't start slave SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
+Occurrences of 'Can't start replica IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
+Occurrences of 'Can't start replica SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
 
 # 6. Verify channel ch3_2 IO & SQL THREAD is OFF
 include/assert.inc [Verify channel ch3_2 IO_THREAD is OFF]

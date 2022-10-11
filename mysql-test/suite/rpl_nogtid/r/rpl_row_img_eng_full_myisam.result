@@ -1,10 +1,10 @@
 include/rpl_init.inc [topology=1->2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 CON: 'server_1', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
@@ -3646,9 +3646,9 @@ SELECT * FROM t1;
 c1	c2
 300	1
 SET SQL_LOG_BIN=0;
-call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: MY-001032");
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Update_rows event on table test.t1; Can.t find record in .t1.* Error_code: MY-001032");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica: Can\'t find record in \'t1\' Error_code: MY-001032");
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Update_rows event on table test.t1; Can.t find record in .t1.* Error_code: MY-001032");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SET SQL_LOG_BIN=1;
 include/wait_for_slave_sql_error_and_skip.inc [errno=1032]
 DROP TABLE t1;

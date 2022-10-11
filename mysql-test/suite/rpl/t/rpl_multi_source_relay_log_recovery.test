@@ -75,7 +75,7 @@ SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
-CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Recovery from source pos");
 # Kill the slave server
 --source include/kill_mysqld.inc
 

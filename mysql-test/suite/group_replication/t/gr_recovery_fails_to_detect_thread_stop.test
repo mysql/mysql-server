@@ -139,7 +139,7 @@ SET SESSION sql_log_bin= 1;
 
 --connection server3
 SET SESSION sql_log_bin= 0;
-CALL mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Got fatal error 1236*");
+CALL mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Got fatal error 1236*");
 CALL mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached");
 CALL mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 CALL mtr.add_suppression("Already leaving or joining a group");

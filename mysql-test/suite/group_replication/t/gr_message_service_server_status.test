@@ -380,7 +380,7 @@ call mtr.add_suppression("Plugin group_replication reported: 'The server was aut
 call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'");
 call mtr.add_suppression("Plugin group_replication reported: '\\[GCS\\] Timeout while waiting for the group communication engine to exit!'");
 call mtr.add_suppression("Plugin group_replication reported: '\\[GCS\\] The member has failed to gracefully leave the group.'");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped,*");
 set session sql_log_bin=1;
 
 set session sql_log_bin=0;

@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 show global variables like 'ndb_applier_conflict_role';
 Variable_name	Value
@@ -204,7 +204,7 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 include/rpl_end.inc
 
 # Reboot server setting with both ndb_slave_conflict_role & ndb_applier_conflict_role variable.
-call mtr.add_suppression("mysqld startup An incident event has been written to the binary log which will stop the slaves");
+call mtr.add_suppression("mysqld startup An incident event has been written to the binary log which will stop the replicas");
 # restart:--ndb_slave_conflict_role=PRIMARY --ndb_applier_conflict_role=SECONDARY
 include/assert_grep.inc [Deprecation warning is logged during startup.]
 

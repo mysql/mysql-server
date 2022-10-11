@@ -7,10 +7,10 @@
 
 disable_query_log;
 call mtr.add_suppression(".* 'replica_parallel_workers = 2' is not supported when applying to Ndb");
-call mtr.add_suppression("Slave SQL.*: Request to stop slave SQL Thread");
-call mtr.add_suppression("Slave SQL.*: Worker 1 failed");
-call mtr.add_suppression("Slave SQL.*: Worker 2 failed");
-call mtr.add_suppression("Slave SQL.*: ... The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("Replica SQL.*: Request to stop replica SQL Thread");
+call mtr.add_suppression("Replica SQL.*: Worker 1 failed");
+call mtr.add_suppression("Replica SQL.*: Worker 2 failed");
+call mtr.add_suppression("Replica SQL.*: ... The replica coordinator and worker threads are stopped");
 enable_query_log;
 
 connection slave;

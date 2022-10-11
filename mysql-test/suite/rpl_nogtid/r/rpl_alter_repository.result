@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 include/stop_slave.inc
 SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -56,10 +56,10 @@ include/start_slave.inc
 CREATE TABLE t_innodb (id INTEGER) engine= Innodb;
 call mtr.add_suppression("Error writing relay log configuration.");
 call mtr.add_suppression("Column count of mysql.slave_relay_log_info is wrong.");
-call mtr.add_suppression("Error running query, slave SQL thread aborted.");
+call mtr.add_suppression("Error running query, replica SQL thread aborted.");
 call mtr.add_suppression("Info table is not ready to be used.");
-call mtr.add_suppression("Error writing master configuration.");
-call mtr.add_suppression("Failed to flush master info.");
+call mtr.add_suppression("Error writing source configuration.");
+call mtr.add_suppression("Failed to flush connection metadata.");
 call mtr.add_suppression(" Error while checking replication metadata.");
 call mtr.add_suppression("Failed to create or recover replication info repository.");
 call mtr.add_suppression("Error in checking.* repository info type of");
@@ -67,7 +67,7 @@ call mtr.add_suppression("Error creating.*: Error checking repositories");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
-call mtr.add_suppression("Failed to initialize the master info structure for channel ''");
+call mtr.add_suppression("Failed to initialize the connection metadata structure for channel ''");
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
@@ -77,7 +77,7 @@ Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 
 include/stop_slave_io.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 START SLAVE SQL_THREAD;
-ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
+ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
@@ -103,17 +103,17 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_io_error.inc [errno=13117]
-Last_IO_Error = 'Fatal error: Failed to flush master info.'
+Last_IO_Error = 'Fatal error: Failed to flush connection metadata.'
 include/stop_slave_sql.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 START SLAVE SQL_THREAD;
-ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
+ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
 ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
@@ -121,7 +121,7 @@ include/start_slave.inc
 ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_io_error.inc [errno=13117]
-Last_IO_Error = 'Fatal error: Failed to flush master info.'
+Last_IO_Error = 'Fatal error: Failed to flush connection metadata.'
 include/stop_slave_sql.inc
 START SLAVE SQL_THREAD;
 ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 33, found 32. The table is probably corrupted
@@ -137,7 +137,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT, SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_LOG_POS;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 ANALYZE TABLE mysql.slave_master_info, mysql.slave_relay_log_info;

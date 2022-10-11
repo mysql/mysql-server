@@ -498,11 +498,11 @@ int add_new_channel(Master_info **mi, const char *channel);
 
   @return the operation status
     @retval 0    OK
-    @retval ER_SLAVE_NOT_RUNNING
+    @retval ER_REPLICA_NOT_RUNNING
       The slave is already stopped
-    @retval ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
+    @retval ER_STOP_REPLICA_SQL_THREAD_TIMEOUT
       There was a timeout when stopping the SQL thread
-    @retval ER_STOP_SLAVE_IO_THREAD_TIMEOUT
+    @retval ER_STOP_REPLICA_IO_THREAD_TIMEOUT
       There was a timeout when stopping the IO thread
     @retval ER_ERROR_DURING_FLUSH_LOGS
       There was an error while flushing the log/repositories

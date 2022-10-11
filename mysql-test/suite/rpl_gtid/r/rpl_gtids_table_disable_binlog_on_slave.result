@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE IF NOT EXISTS t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT) ENGINE=MyISAM;
@@ -45,12 +45,12 @@ include/sync_slave_sql_with_master.inc
 # connection slave
 #
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
-call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Commit could not "
+call mtr.add_suppression("Replica SQL for channel '': Error in Xid_log_event: Commit could not "
                          "be completed, 'Got error -1 - 'Unknown error.*' from storage engine', "
                          "Error_code: MY-001030");
-call mtr.add_suppression("Slave.*Got error -1 .* from storage engine.*Error_code: MY-001030");
-call mtr.add_suppression("Slave: An error occurred at storing the GTID value");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("Replica.*Got error -1 .* from storage engine.*Error_code: MY-001030");
+call mtr.add_suppression("Replica: An error occurred at storing the GTID value");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 include/assert.inc [committed gtids MASTER_UUID:1-6:17-18]
 #
 # Verify that the transaction is skiped if its specified gtid
@@ -131,7 +131,7 @@ INSERT INTO t1 VALUES(1);
 XA END     'xid_1';
 XA PREPARE 'xid_1';
 XA ROLLBACK 'xid_1';
-ERROR HY000: When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK. Please check GTID_NEXT variable manual page for detailed explanation. Current @@SESSION.GTID_NEXT is 'MASTER_UUID:22'.
+ERROR HY000: When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK. Please check GTID_NEXT variable manual page for detailed explanation. Current @@SESSION.GTID_NEXT is 'SOURCE_UUID:22'.
 SET @@SESSION.GTID_NEXT = 'automatic';
 XA ROLLBACK 'xid_1';
 SET @@SESSION.GTID_NEXT = 'automatic';

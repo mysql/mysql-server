@@ -1,19 +1,19 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 CALL mtr.add_suppression("Error reading relay log configuration");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories");
-CALL mtr.add_suppression("Slave SQL for channel '': Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository");
+CALL mtr.add_suppression("Replica SQL for channel '': Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository");
 CALL mtr.add_suppression("PRIVILEGE_CHECKS_USER for replication channel '' was set to `replication_applier_nonexist`@`localhost`, but this is not an existing user");
-CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel '';");
-CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize relay log info structure from the repository");
-CALL mtr.add_suppression("Slave SQL for channel 'ch1': Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository");
+CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel '';");
+CALL mtr.add_suppression("Replica SQL for channel '': Replica failed to initialize applier metadata structure from the repository");
+CALL mtr.add_suppression("Replica SQL for channel 'ch1': Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository");
 CALL mtr.add_suppression("PRIVILEGE_CHECKS_USER for replication channel 'ch1' was set to `replication_applier_nonexist`@`localhost`, but this is not an existing user");
-CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel 'ch1';");
-CALL mtr.add_suppression("Slave SQL for channel 'ch1': Slave failed to initialize relay log info structure from the repository");
+CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel 'ch1';");
+CALL mtr.add_suppression("Replica SQL for channel 'ch1': Replica failed to initialize applier metadata structure from the repository");
 CREATE USER 'replication_applier'@'localhost' IDENTIFIED BY 'password';
 GRANT REPLICATION_APPLIER ON * . * TO 'replication_applier'@'localhost';
 FLUSH PRIVILEGES;
@@ -66,7 +66,7 @@ CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_username_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -84,7 +84,7 @@ CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_hostname_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -107,7 +107,7 @@ CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABL
 	0	<INVALID>	NO	STREAM	OFF	NULL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -124,7 +124,7 @@ CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABL
 	0	<INVALID>	NO	STREAM	OFF	NULL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -147,7 +147,7 @@ CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABL
 	0	<INVALID>	NO	STREAM	OFF	NULL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -220,7 +220,7 @@ include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-rep
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_username_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "ch1";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -237,7 +237,7 @@ include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-rep
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_hostname_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "ch1";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -253,7 +253,7 @@ COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "ch1";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -267,7 +267,7 @@ COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "ch1";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -283,7 +283,7 @@ COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "ch1";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -299,7 +299,7 @@ COMMIT;
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start]
 include/assert.inc [Check entry for channel "ch1" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "ch1";
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -317,6 +317,6 @@ Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in 
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST="127.0.0.1", SOURCE_PORT=MASTER_MYPORT;;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/rpl_end.inc

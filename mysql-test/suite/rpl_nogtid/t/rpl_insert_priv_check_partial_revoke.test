@@ -53,7 +53,7 @@ INSERT INTO t VALUES(10);
 SET GLOBAL partial_revokes = ON;
 
 CALL mtr.add_suppression(".*command denied to user.");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 CREATE TABLE t(c INT);
 
 # 3) Grant INSERT globally and partially revoke for current database.

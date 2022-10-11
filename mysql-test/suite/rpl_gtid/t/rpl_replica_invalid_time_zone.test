@@ -53,10 +53,10 @@ CREATE USER u1 IDENTIFIED BY 'Root@123';
 --echo #
 --echo # 6. Start replica
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped.*");
-call mtr.add_suppression("Slave SQL for channel '':.*failed executing transaction.*");
-call mtr.add_suppression("Slave SQL for channel '': Error 'Table 'mysql.time_zone' doesn't exist' on query.*");
-call mtr.add_suppression("Slave: Unknown or incorrect time zone: 'UTC'.*");
+call mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Replica SQL for channel '':.*failed executing transaction.*");
+call mtr.add_suppression("Replica SQL for channel '': Error 'Table 'mysql.time_zone' doesn't exist' on query.*");
+call mtr.add_suppression("Replica: Unknown or incorrect time zone: 'UTC'.*");
 --source include/start_slave_io.inc
 --source include/wait_for_slave_io_to_start.inc
 START REPLICA SQL_THREAD;

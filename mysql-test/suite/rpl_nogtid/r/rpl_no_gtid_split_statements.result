@@ -1,12 +1,12 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 CALL mtr.add_suppression("Error dropping database");
 CALL mtr.add_suppression("Can't drop database '.*'; database doesn't exist");
-CALL mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: 1756");
+CALL mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: 1756");
 ==== Case 1: CALL is split on master ====
 ---- Initialize ----
 CREATE TABLE t (a INT);
@@ -142,7 +142,7 @@ include/rpl_sync.inc
 ---- GTID_MODE=AUTOMATIC ----
 CALL create_tables();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/gtid_step_reset.inc
 DROP TABLE base, temp_t;
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -152,7 +152,7 @@ include/rpl_sync.inc
 include/rpl_reset.inc
 CALL create_tables();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/gtid_step_reset.inc
 DROP TABLE base, temp_n;
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -162,7 +162,7 @@ include/rpl_sync.inc
 include/rpl_reset.inc
 CALL create_tables();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/gtid_step_reset.inc
 DROP TABLE temp_t, temp_n;
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -172,7 +172,7 @@ include/rpl_sync.inc
 include/rpl_reset.inc
 CALL create_tables();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/gtid_step_reset.inc
 DROP TABLE base, temp_t, temp_n;
 include/gtid_step_assert.inc [count=1, only_count=0]

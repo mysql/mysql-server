@@ -1,14 +1,14 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 CALL mtr.add_suppression('Cannot execute statement because it needs to be written to the binary log as multiple statements');
 CALL mtr.add_suppression('DROP DATABASE failed; some tables may have been dropped but the database directory remains.');
 CALL mtr.add_suppression("Error dropping database");
 CALL mtr.add_suppression("Can't drop database '.*'; database doesn't exist");
-CALL mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: 1756");
+CALL mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: 1756");
 ==== Case 1: CALL is split on master ====
 ---- Initialize ----
 CREATE TABLE t (a INT);
@@ -27,7 +27,7 @@ DELETE FROM t;
 include/gtid_step_reset.inc
 SET GTID_NEXT = '#';
 CALL proc();
-ERROR HY000: When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK. Please check GTID_NEXT variable manual page for detailed explanation. Current @@SESSION.GTID_NEXT is 'MASTER_UUID:9'.
+ERROR HY000: When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK. Please check GTID_NEXT variable manual page for detailed explanation. Current @@SESSION.GTID_NEXT is 'SOURCE_UUID:9'.
 SET GTID_NEXT= 'AUTOMATIC';
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/assert.inc [One row inserted if GTID_MODE=ON, two if GTID_MODE=OFF]
@@ -153,7 +153,7 @@ include/rpl_sync.inc
 ---- GTID_MODE=AUTOMATIC ----
 CALL create_tables();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/gtid_step_reset.inc
 DROP TABLE base, temp_t;
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -163,7 +163,7 @@ include/rpl_sync.inc
 include/rpl_reset.inc
 CALL create_tables();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/gtid_step_reset.inc
 DROP TABLE base, temp_n;
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -173,7 +173,7 @@ include/rpl_sync.inc
 include/rpl_reset.inc
 CALL create_tables();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/gtid_step_reset.inc
 DROP TABLE temp_t, temp_n;
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -183,7 +183,7 @@ include/rpl_sync.inc
 include/rpl_reset.inc
 CALL create_tables();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
 include/gtid_step_reset.inc
 DROP TABLE base, temp_t, temp_n;
 include/gtid_step_assert.inc [count=1, only_count=0]

@@ -51,8 +51,8 @@ CREATE TABLE t1 (a INT UNIQUE);
 
 # add suppressions for when MTS is enabled
 if ($is_mts) {
-  CALL mtr.add_suppression(".*Slave SQL for channel 'channel_1': worker thread retried transaction 10 time.*");
-  CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+  CALL mtr.add_suppression(".*Replica SQL for channel 'channel_1': worker thread retried transaction 10 time.*");
+  CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 }
 
 # check that the values are empty as expected

@@ -259,7 +259,8 @@ bool Async_conn_failover_manager::set_channel_conn_details(
   /* If the receiver is stopped, flush master_info to disk. */
   if ((thread_mask & SLAVE_IO) == 0 && flush_master_info(mi, true)) {
     error = true;
-    my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
+    my_error(ER_RELAY_LOG_INIT, MYF(0),
+             "Failed to flush connection metadata repository");
   }
 
   unlock_slave_threads(mi);

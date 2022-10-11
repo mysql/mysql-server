@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 server1
 include/start_and_bootstrap_group_replication.inc
@@ -18,12 +18,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE
 include/assert.inc ['The group replication applier channel is present']
 include/assert.inc ['The slave channel is present']
 RESET SLAVE ALL;
-ERROR HY000: RESET SLAVE ALL FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+ERROR HY000: RESET REPLICA ALL FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 include/assert.inc ['The group replication applier channel is still present']
 include/assert.inc ['The group replication applier channel is ON']
 include/assert.inc ['The slave channel is not present']
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-ERROR HY000: RESET SLAVE [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+ERROR HY000: RESET REPLICA [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 Warnings:
@@ -58,7 +58,7 @@ include/assert.inc ['mysql.slave_master_info does not contrain group replication
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_group_replication.inc
 DROP TABLE t1;
 include/group_replication_end.inc

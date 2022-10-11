@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ==== Configure ====
 call mtr.add_suppression("Hostname .* does not resolve to");
@@ -11,7 +11,7 @@ include/rpl_restart_server.inc [server_number=1 parameters: --bind-address=127.0
 # Add a bind address in the 'blue' network namespace to the slave
 include/rpl_restart_server.inc [server_number=2 parameters: --bind-address=127.0.0.1,10.0.1.1/blue]
 [connection slave]
-call mtr.add_suppression("Slave I/O for channel '': Master command COM_REGISTER_SLAVE failed: .*");
+call mtr.add_suppression("Replica I/O for channel '': Source command COM_REGISTER_REPLICA failed: .*");
 include/start_slave.inc
 ==== Scenario 1: without namespaces ====
 [connection master]

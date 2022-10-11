@@ -3665,7 +3665,7 @@ static int find_uniq_filename(char *name, uint32 new_index_number) {
   if (new_index_number > 0) {
     /*
       If "new_index_number" was specified, this means we are handling a
-      "RESET MASTER TO" command and the binary log was already purged
+      "RESET SOURCE TO" command and the binary log was already purged
       so max_found should be 0.
     */
     assert(max_found == 0);
@@ -4152,7 +4152,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
   }
 
 #ifndef NDEBUG
-  LogErr(INFORMATION_LEVEL, ER_BINLOG_EVENTS_READ_FROM_RELAY_LOG_INFO,
+  LogErr(INFORMATION_LEVEL, ER_BINLOG_EVENTS_READ_FROM_APPLIER_METADATA,
          event_counter, filename);
 #endif
 
@@ -6746,8 +6746,8 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
   // Flush and sync
   bool error = flush_and_sync(false);
   if (error) {
-    mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-               ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+    mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
+               ER_THD(current_thd, ER_REPLICA_RELAY_LOG_WRITE_FAILURE),
                "failed to flush event to relay log file");
     truncate_relaylog_file(mi, atomic_binlog_end_pos);
   } else {
@@ -6831,8 +6831,8 @@ bool MYSQL_BIN_LOG::write_event(Log_event *ev, Master_info *mi) {
     bytes_written += ev->common_header->data_written;
     error = after_write_to_relay_log(mi);
   } else {
-    mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-               ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+    mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
+               ER_THD(current_thd, ER_REPLICA_RELAY_LOG_WRITE_FAILURE),
                "failed to write event to the relay log file");
     truncate_relaylog_file(mi, atomic_binlog_end_pos);
     error = true;
@@ -6854,8 +6854,8 @@ bool MYSQL_BIN_LOG::write_buffer(const char *buf, uint len, Master_info *mi) {
     bytes_written += len;
     error = after_write_to_relay_log(mi);
   } else {
-    mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-               ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+    mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
+               ER_THD(current_thd, ER_REPLICA_RELAY_LOG_WRITE_FAILURE),
                "failed to write event to the relay log file");
     truncate_relaylog_file(mi, atomic_binlog_end_pos);
     error = true;
@@ -7392,7 +7392,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
       to be alerted and explore incident details.
     */
     if (!error)
-      LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES, err_msg);
+      LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_REPLICAS, err_msg);
   } else  // (cache_mngr != NULL)
   {
     if (!cache_mngr->stmt_cache.is_binlog_empty()) {
@@ -7438,7 +7438,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
     to be alerted and explore incident details.
   */
   if (!error && cache_mngr != nullptr)
-    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES, err_msg);
+    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_REPLICAS, err_msg);
 
   return error;
 }
@@ -7945,13 +7945,13 @@ bool MYSQL_BIN_LOG::truncate_relaylog_file(Master_info *mi,
 
   if (truncate_pos > 0 && truncate_pos < relaylog_file_size) {
     if (m_binlog_file->truncate(truncate_pos)) {
-      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                 ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+      mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
+                 ER_THD(current_thd, ER_REPLICA_RELAY_LOG_WRITE_FAILURE),
                  "failed to truncate relay log file");
       error = true;
     } else {
-      LogErr(INFORMATION_LEVEL, ER_SLAVE_RELAY_LOG_TRUNCATE_INFO, log_file_name,
-             relaylog_file_size, truncate_pos);
+      LogErr(INFORMATION_LEVEL, ER_REPLICA_RELAY_LOG_TRUNCATE_INFO,
+             log_file_name, relaylog_file_size, truncate_pos);
 
       // Re-init the SQL thread IO_CACHE
       assert(strcmp(rli->get_event_relay_log_name(), log_file_name) ||
@@ -9112,9 +9112,9 @@ void MYSQL_BIN_LOG::report_missing_purged_gtids(
      purged GTIDs to slave if the message is less than MYSQL_ERRMSG_SIZE.
   */
   std::ostringstream gtid_info;
-  gtid_info << "The GTID set sent by the slave is '" << slave_executed_gtids
+  gtid_info << "The GTID set sent by the replica is '" << slave_executed_gtids
             << "', and the missing transactions are '" << missing_gtids << "'";
-  errmsg.assign(ER_THD(thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS));
+  errmsg.assign(ER_THD(thd, ER_SOURCE_HAS_PURGED_REQUIRED_GTIDS));
 
   /* Don't consider the "%s" in the format string. Subtract 2 from the
      total length */
@@ -9127,7 +9127,7 @@ void MYSQL_BIN_LOG::report_missing_purged_gtids(
     gtid_info.str(
         "The GTID sets and the missing purged transactions are too"
         " long to print in this message. For more information,"
-        " please see the master's error log or the manual for"
+        " please see the source's error log or the manual for"
         " GTID_SUBTRACT");
 
   /* Buffer for formatting the message about the missing GTIDs. */
@@ -9177,9 +9177,9 @@ void MYSQL_BIN_LOG::report_missing_gtids(
      purged GTIDs to slave if the message is less than MYSQL_ERRMSG_SIZE.
   */
   std::ostringstream gtid_info;
-  gtid_info << "The GTID set sent by the slave is '" << slave_executed_gtids
+  gtid_info << "The GTID set sent by the replica is '" << slave_executed_gtids
             << "', and the missing transactions are '" << missing_gtids << "'";
-  errmsg.assign(ER_THD(thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS));
+  errmsg.assign(ER_THD(thd, ER_SOURCE_HAS_PURGED_REQUIRED_GTIDS));
 
   /* Don't consider the "%s" in the format string. Subtract 2 from the
      total length */
@@ -9187,7 +9187,7 @@ void MYSQL_BIN_LOG::report_missing_gtids(
     gtid_info.str(
         "The GTID sets and the missing purged transactions are too"
         " long to print in this message. For more information,"
-        " please see the master's error log or the manual for"
+        " please see the source's error log or the manual for"
         " GTID_SUBTRACT");
   /* Buffer for formatting the message about the missing GTIDs. */
   char buff[MYSQL_ERRMSG_SIZE] = {0};
@@ -9567,8 +9567,8 @@ void THD::add_to_binlog_accessed_dbs(const char *db_param) {
 
   if (binlog_accessed_db_names->elements > MAX_DBS_IN_EVENT_MTS) {
     push_warning_printf(
-        this, Sql_condition::SL_WARNING, ER_MTS_UPDATED_DBS_GREATER_MAX,
-        ER_THD(this, ER_MTS_UPDATED_DBS_GREATER_MAX), MAX_DBS_IN_EVENT_MTS);
+        this, Sql_condition::SL_WARNING, ER_MTA_UPDATED_DBS_GREATER_MAX,
+        ER_THD(this, ER_MTA_UPDATED_DBS_GREATER_MAX), MAX_DBS_IN_EVENT_MTS);
     return;
   }
 

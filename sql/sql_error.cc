@@ -97,7 +97,7 @@ using std::min;
   When invoking my_error(), the error number and message is typically
   provided like this:
   - my_error(ER_WRONG_DB_NAME, MYF(0), ...);
-  - my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+  - my_message(ER_REPLICA_IGNORED_TABLE, ER(ER_REPLICA_IGNORED_TABLE), MYF(0));
 
   In both cases, the message is retrieved from ER(ER_XXX), which in turn
   is read from the resource file errmsg.sys at server startup.

@@ -114,7 +114,7 @@ bool validate_compression_attributes(std::string algorithm_names,
   if (!total_names) {
 #ifdef MYSQL_SERVER
     if (!ignore_errors) {
-      my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
+      my_error(ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
                algorithm_names.c_str(), channel_name.c_str());
     }
 #endif
@@ -123,7 +123,7 @@ bool validate_compression_attributes(std::string algorithm_names,
   if (total_names > COMPRESSION_ALGORITHM_COUNT_MAX) {
 #ifdef MYSQL_SERVER
     if (!ignore_errors) {
-      my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT, MYF(0),
+      my_error(ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT, MYF(0),
                algorithm_names.c_str(), channel_name.c_str());
     }
 #endif
@@ -139,7 +139,7 @@ bool validate_compression_attributes(std::string algorithm_names,
     if (method == enum_compression_algorithm::MYSQL_INVALID) {
 #ifdef MYSQL_SERVER
       if (!ignore_errors) {
-        my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
+        my_error(ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
                  algorithm_name.c_str(), channel_name.c_str());
       }
 #endif

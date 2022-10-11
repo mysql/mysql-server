@@ -38,7 +38,7 @@
 --source include/rpl_connection.inc
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
---error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
+--error ER_REPLICA_NEW_CHANNEL_WRONG_REPOSITORY
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
 --echo #  Convert only master_info_repository to table.
@@ -46,10 +46,10 @@
 --source include/stop_slave.inc
 SET @@GLOBAL.master_info_repository ="TABLE";
 
-call mtr.add_suppression("Slave: Cannot create new master info structure when repositories are of type FILE. Convert slave repositories to TABLE to replicate from multiple sources.");
+call mtr.add_suppression("Replica: Cannot create new connection metadata structure when repositories are of type FILE. Convert replica repositories to TABLE to replicate from multiple sources.");
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
---error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
+--error ER_REPLICA_NEW_CHANNEL_WRONG_REPOSITORY
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root", SOURCE_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
 --echo #  Convert only relay log info repository to TABLE
@@ -59,7 +59,7 @@ SET @@GLOBAL.relay_log_info_repository = "TABLE";
 
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
---error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
+--error ER_REPLICA_NEW_CHANNEL_WRONG_REPOSITORY
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root", SOURCE_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
 --echo #
@@ -75,7 +75,7 @@ SET @@GLOBAL.master_info_repository = "TABLE";
 --echo # Slave now is a multisourced slave.
 --echo # Restart the slave and check that slave threads are not started because
 --echo # the repositories are of type FILE
-call mtr.add_suppression("Slave: This slave was a multisourced slave previously*");
+call mtr.add_suppression("Replica: This replica was a multisourced replica previously*");
 call mtr.add_suppression("Failed to create or recover replication info repositories");
 
 --let $rpl_server_number=2
@@ -87,10 +87,10 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration] =0;
 --source include/assert.inc
 
-# subsequent commands shall fail with ER_SLAVE_CONFIGURATION i.e slave not setup
+# subsequent commands shall fail with ER_REPLICA_CONFIGURATION i.e slave not setup
 # but due to bug19344559 is setup. The error currently fails with
-#  ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
-# --error ER_SLAVE_CONFIGURATION
+#  ER_REPLICA_NEW_CHANNEL_WRONG_REPOSITORY
+# --error ER_REPLICA_CONFIGURATION
 # --eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3"
 
 --echo #

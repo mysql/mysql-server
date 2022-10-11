@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #######################################################################
 ####################### PART 1: MASTER TESTS ##########################
@@ -234,7 +234,7 @@ include/start_slave.inc
 ####################### PART 2: SLAVE TESTS ###########################
 #######################################################################
 include/rpl_reset.inc
-call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: could not queue event from master.*");
+call mtr.add_suppression("Replica I/O for channel '': Relay log write failure: could not queue event from source.*");
 call mtr.add_suppression("Error writing file .*");
 call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
@@ -246,7 +246,7 @@ include/stop_slave.inc
 SET GLOBAL debug="+d,error_unique_log_filename";
 START REPLICA io_thread;
 include/wait_for_slave_io_error.inc [errno=13122]
-Last_IO_Error = 'Relay log write failure: could not queue event from master'
+Last_IO_Error = 'Relay log write failure: could not queue event from source'
 SET GLOBAL debug="-d,error_unique_log_filename";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
@@ -257,7 +257,7 @@ include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 START REPLICA io_thread;
 include/wait_for_slave_io_error.inc [errno=13122]
-Last_IO_Error = 'Relay log write failure: could not queue event from master'
+Last_IO_Error = 'Relay log write failure: could not queue event from source'
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
@@ -268,7 +268,7 @@ include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_registering_index";
 START REPLICA io_thread;
 include/wait_for_slave_io_error.inc [errno=13122]
-Last_IO_Error = 'Relay log write failure: could not queue event from master'
+Last_IO_Error = 'Relay log write failure: could not queue event from source'
 SET GLOBAL debug="-d,fault_injection_registering_index";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
@@ -279,7 +279,7 @@ include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_openning_index";
 START REPLICA io_thread;
 include/wait_for_slave_io_error.inc [errno=13122]
-Last_IO_Error = 'Relay log write failure: could not queue event from master'
+Last_IO_Error = 'Relay log write failure: could not queue event from source'
 SET GLOBAL debug="-d,fault_injection_openning_index";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]

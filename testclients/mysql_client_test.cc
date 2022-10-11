@@ -20291,17 +20291,17 @@ static void test_mysql_binlog() {
   rc = test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE - 1,
                                  0, 0, 0, nullptr);
   DIE_UNLESS(rc == 2 &&
-             mysql_errno(mysql1) == ER_MASTER_FATAL_ERROR_READING_BINLOG);
+             mysql_errno(mysql1) == ER_SOURCE_FATAL_ERROR_READING_BINLOG);
   rc = test_mysql_binlog_perform(mysql1, binlog_name, BIN_LOG_HEADER_SIZE + 1,
                                  0, 0, 0, nullptr);
   DIE_UNLESS(rc == 2 &&
-             mysql_errno(mysql1) == ER_MASTER_FATAL_ERROR_READING_BINLOG);
+             mysql_errno(mysql1) == ER_SOURCE_FATAL_ERROR_READING_BINLOG);
 
   /* Non-existing binlog file. */
   rc = test_mysql_binlog_perform(mysql1, "Xfile", BIN_LOG_HEADER_SIZE, 0, 0, 0,
                                  nullptr);
   DIE_UNLESS(rc == 2 &&
-             mysql_errno(mysql1) == ER_MASTER_FATAL_ERROR_READING_BINLOG);
+             mysql_errno(mysql1) == ER_SOURCE_FATAL_ERROR_READING_BINLOG);
 
   /* Two readers. */
   if (!opt_silent) fprintf(stdout, "Two readers\n");

@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 create table t1 (a int, unique(a)) engine=myisam;
 set sql_log_bin=0;
@@ -10,8 +10,8 @@ set sql_log_bin=1;
 insert into t1 values(1),(2);
 ERROR 23000: Duplicate entry '2' for key 't1.a'
 drop table t1;
-call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: MY-013113");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Query caused different errors on source and replica.*Error on source:.* error code=1062.*Error on replica:.* Error_code: MY-013113");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 (expect different error codes on master and slave)
 include/wait_for_slave_sql_error.inc [errno=13113]
 drop table t1;

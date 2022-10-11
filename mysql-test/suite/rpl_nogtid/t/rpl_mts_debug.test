@@ -77,9 +77,9 @@ SET @@global.debug= @save.debug;
 
 connection slave;
 
-call mtr.add_suppression('Error reading slave worker configuration');
-call mtr.add_suppression('Failed during slave workers initialization');
-call mtr.add_suppression('Failed during slave worker thread creation for channel ''');
+call mtr.add_suppression('Error reading replica worker configuration');
+call mtr.add_suppression('Failed during replica workers initialization');
+call mtr.add_suppression('Failed during replica worker thread creation for channel ''');
 
 source include/stop_slave.inc;
 set @save.replica_checkpoint_group= @@global.replica_checkpoint_group;
@@ -129,8 +129,8 @@ set @@global.debug= @save.debug;
 --connection slave
 --source include/stop_slave.inc
 call mtr.add_suppression("option 'replica_checkpoint_group': unsigned value 524281 adjusted to 524280");
-call mtr.add_suppression("Failed during slave worker thread create");
-call mtr.add_suppression("Slave SQL for channel '': Failed during slave workers initialization, Error_code: MY-13117");
+call mtr.add_suppression("Failed during replica worker thread create");
+call mtr.add_suppression("Replica SQL for channel '': Failed during replica workers initialization, Error_code: MY-13117");
 call mtr.add_suppression("Mismatch between the number of bytes configured to store checkpoint information and the previously stored information");
 
 set @save.replica_checkpoint_group= @@global.replica_checkpoint_group;
@@ -181,7 +181,7 @@ set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 
 ## Rpl_info_factory::reset_workers() error branch
 
-call mtr.add_suppression("Could not delete from Slave Workers info repository.");
+call mtr.add_suppression("Could not delete from Replica Workers info repository.");
 # restart slave with workers
 --source include/stop_slave.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
@@ -194,7 +194,7 @@ set @@global.debug= "+d,mta_debug_reset_workers_fails";
 let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
 --replace_regex /relay_log_file=[^,]+/RELAY_LOG_FILE=FILE/ /relay_log_pos=[0-9]+/ RELAY_LOG_POS= POS/
---error ER_MTS_RESET_WORKERS
+--error ER_MTA_RESET_WORKERS
 eval CHANGE REPLICATION SOURCE to relay_log_file='$relay_file', relay_log_pos=$relay_pos;
 
 ## Relay_log_info::reset_workers_recovered() error branch
@@ -202,7 +202,7 @@ eval CHANGE REPLICATION SOURCE to relay_log_file='$relay_file', relay_log_pos=$r
 set @@global.debug= "-d,mta_debug_reset_workers_fails";
 set @@global.debug= "+d,mta_debug_recovery_reset_fails";
 start slave sql_thread;
-# ER_SLAVE_FATAL_ERROR
+# ER_REPLICA_FATAL_ERROR
 --let $slave_sql_errno=13117
 --source include/wait_for_slave_sql_error.inc
 
@@ -216,10 +216,10 @@ set @@global.replica_parallel_workers= 2;
 --source include/start_slave.inc
 --source include/stop_slave.inc
 
-call mtr.add_suppression("Error creating relay log info: Failed to initialize the worker info structure.");
+call mtr.add_suppression("Error creating applier metadata: Failed to initialize the worker info structure.");
 
 set @@global.debug= "+d,mta_replica_worker_init_at_gaps_fails";
---error ER_MASTER_INFO
+--error ER_CONNECTION_METADATA
 start slave sql_thread;
 
 #

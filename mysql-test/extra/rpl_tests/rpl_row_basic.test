@@ -420,10 +420,10 @@ source include/diff_tables.inc;
 
 connection slave;
 SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
-call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 1 size mismatch.* Error_code: MY-001535");
-call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: MY-001032");
-call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t.. cannot be converted from type.*, Error_code: MY-013146");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Table definition on source and replica does not match: Column 1 size mismatch.* Error_code: MY-001535");
+call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: MY-001032");
+call mtr.add_suppression("Replica SQL.*Column 1 of table .test.t.. cannot be converted from type.*, Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
@@ -443,7 +443,7 @@ INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED) # 13146
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED) # 13146
 --source include/wait_for_slave_sql_error.inc
 
 --source include/rpl_reset.inc
@@ -454,7 +454,7 @@ INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED) # 13146
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED) # 13146
 --source include/wait_for_slave_sql_error.inc
 
 --source include/rpl_reset.inc

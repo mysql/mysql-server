@@ -1,19 +1,19 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t (name VARCHAR(25) DEFAULT NULL) ENGINE=InnoDB;
 include/sync_slave_sql_with_master.inc
-call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
-call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t. cannot be converted from type.* Error_code: MY-013146");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
+call mtr.add_suppression("Replica SQL.*Column 0 of table .test.t. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Got error 149 - .Lock deadlock; Retry transaction. during COMMIT");
 ALTER TABLE t CHANGE name name VARCHAR(255);
 [connection master]
 INSERT INTO t VALUE ('Amy');
 # Sync should be successful. Slave should not stop with an error
-# ER_SLAVE_CONVERSION_FAILED. It should be up and running in spite
+# ER_REPLICA_CONVERSION_FAILED. It should be up and running in spite
 # of errors as we have set slave_skip_error=all.
 include/sync_slave_sql_with_master.inc
 DROP TABLE t;

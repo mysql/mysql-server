@@ -3036,7 +3036,7 @@ source_def:
             Lex->mi.password = $3.str;
             if (strlen($3.str) > 32)
             {
-              my_error(ER_CHANGE_MASTER_PASSWORD_LENGTH, MYF(0));
+              my_error(ER_CHANGE_SOURCE_PASSWORD_LENGTH, MYF(0));
               MYSQL_YYABORT;
             }
             Lex->contains_plaintext_password= true;
@@ -3059,7 +3059,7 @@ source_def:
             if ($3 > MASTER_DELAY_MAX)
             {
               const char *msg= YYTHD->strmake(@3.cpp.start, @3.cpp.end - @3.cpp.start);
-              my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
+              my_error(ER_SOURCE_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
                        msg, MASTER_DELAY_MAX);
             }
             else
@@ -3130,22 +3130,22 @@ source_def:
                const char format[]= "%d";
                char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
                sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
-               my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE, MYF(0), buf);
+               my_error(ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE, MYF(0), buf);
                MYSQL_YYABORT;
             }
             if (Lex->mi.heartbeat_period > replica_net_timeout)
             {
               push_warning(YYTHD, Sql_condition::SL_WARNING,
-                           ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                           ER_THD(YYTHD, ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+                           ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                           ER_THD(YYTHD, ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
             if (Lex->mi.heartbeat_period < 0.001)
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
                 push_warning(YYTHD, Sql_condition::SL_WARNING,
-                             ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
-                             ER_THD(YYTHD, ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
+                             ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
+                             ER_THD(YYTHD, ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
               }
               Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;
@@ -9293,7 +9293,7 @@ start_replica_stmt:
                  Lex->slave_connection.plugin_auth ||
                  Lex->slave_connection.plugin_dir))
             {
-              my_error(ER_SQLTHREAD_WITH_SECURE_SLAVE, MYF(0));
+              my_error(ER_SQLTHREAD_WITH_SECURE_REPLICA, MYF(0));
               MYSQL_YYABORT;
             }
           }
@@ -9453,7 +9453,7 @@ opt_replica_until:
                   || lex->mi.relay_log_pos || lex->mi.gtid)
                  && lex->mi.until_after_gaps))
             {
-               my_error(ER_BAD_SLAVE_UNTIL_COND, MYF(0));
+               my_error(ER_BAD_REPLICA_UNTIL_COND, MYF(0));
                MYSQL_YYABORT;
             }
             lex->mi.slave_until= true;
@@ -14254,7 +14254,7 @@ source_reset_options:
           {
             if ($2 == 0 || $2 > MAX_ALLOWED_FN_EXT_RESET_MASTER)
             {
-              my_error(ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE, MYF(0),
+              my_error(ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE, MYF(0),
                        $2, MAX_ALLOWED_FN_EXT_RESET_MASTER);
               MYSQL_YYABORT;
             }

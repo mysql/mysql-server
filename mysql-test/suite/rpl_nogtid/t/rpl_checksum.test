@@ -6,13 +6,13 @@
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 
-call mtr.add_suppression('Slave can not handle replication events with the checksum that master is configured to log');
+call mtr.add_suppression('Replica can not handle replication events with the checksum that source is configured to log');
 call mtr.add_suppression('Replication event checksum verification failed');
 # due to C failure simulation
-call mtr.add_suppression('Relay log write failure: could not queue event from master');
+call mtr.add_suppression('Relay log write failure: could not queue event from source');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
-call mtr.add_suppression("Slave SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
-call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
+call mtr.add_suppression("Replica SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
+call mtr.add_suppression('Source is configured to log replication events with checksum, but will not send such events to replicas that cannot process');
 # A. read/write access to the global vars:
 # binlog_checksum source_verify_checksum replica_sql_verify_checksum
 
@@ -101,7 +101,7 @@ insert into t1 values (1) /* will not be applied on slave due to simulation */;
 connection slave;
 set @@global.debug='+d,simulate_replica_unaware_checksum';
 start slave;
-let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+let $slave_io_errno= 13114; # ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 --let $show_slave_io_error= 1
 # Mask line numbers
 --let $slave_io_error_replace= / at [0-9]*/ at XXX/
@@ -150,7 +150,7 @@ connection slave;
 # instruction to io threadwait_for_slave_param.inc
 set @@global.debug='+d,simulate_checksum_test_failure';
 start slave io_thread;
-# ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+# ER_REPLICA_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 let $slave_io_errno= 13122, 13115;
 --let $show_slave_io_error= 0
 source include/wait_for_slave_io_error.inc;
@@ -167,7 +167,7 @@ start slave io_thread;
 set @@global.replica_sql_verify_checksum = 1;
 set @@global.debug='+d,simulate_checksum_test_failure';
 start slave sql_thread;
-let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
+let $slave_sql_errno= 13117; # ER_REPLICA_FATAL_ERROR
 --let $show_slave_sql_error= 1
 source include/wait_for_slave_sql_error.inc;
 --source include/stop_slave.inc

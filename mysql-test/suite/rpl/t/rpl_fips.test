@@ -16,7 +16,7 @@
 --source include/master-slave.inc
 
 CALL mtr.add_suppression("Failed to set up SSL because of the following *");
-CALL mtr.add_suppression("Slave SQL for channel '': Request to stop slave SQL Thread received while *");
+CALL mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQL Thread received while *");
 
 --echo [on master]
 connection master;

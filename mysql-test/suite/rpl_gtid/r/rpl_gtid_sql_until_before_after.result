@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1(c1 INTEGER) ENGINE= Innodb;
 include/sync_slave_sql_with_master.inc
@@ -19,11 +19,11 @@ INSERT INTO t1 VALUES(9);
 INSERT INTO t1 VALUES(10);
 [connection slave]
 START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5", SOURCE_LOG_FILE= 'foo.bin', SOURCE_LOG_POS= 100;
-ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5", SOURCE_LOG_FILE= 'foo.bin', SOURCE_LOG_POS= 100;
-ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START SLAVE IO_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5", SOURCE_LOG_FILE= 'foo.bin', SOURCE_LOG_POS= 100;
-ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START SLAVE FOO UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5";
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOO UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5"' at line 1
 Check that START SLAVE IO_THREAD UNTIL ... maintains old behaviour, condition is ignored.

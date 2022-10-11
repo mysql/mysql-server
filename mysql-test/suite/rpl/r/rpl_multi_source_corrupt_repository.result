@@ -1,12 +1,12 @@
 include/rpl_init.inc [topology=1->4,2->4,3->4]
 [connection server_4]
 CALL mtr.add_suppression("Failed to open the relay log");
-CALL mtr.add_suppression("Could not find target log file mentioned in relay log info in the index file");
-CALL mtr.add_suppression(".*Failed to initialize the master info structure for channel.*");
+CALL mtr.add_suppression("Could not find target log file mentioned in applier metadata in the index file");
+CALL mtr.add_suppression(".*Failed to initialize the connection metadata structure for channel.*");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
-CALL mtr.add_suppression("Slave failed to initialize relay log info structure from the repository");
-CALL mtr.add_suppression("Failed to start slave threads for channel");
-CALL mtr.add_suppression("Could not start slave for channel");
+CALL mtr.add_suppression("Replica failed to initialize applier metadata structure from the repository");
+CALL mtr.add_suppression("Failed to start replica threads for channel");
+CALL mtr.add_suppression("Could not start replica for channel");
 CALL mtr.add_suppression("file .* was not purged because it was being read by thread");
 [connection server_1]
 RESET MASTER;
@@ -14,7 +14,7 @@ RESET MASTER;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL '';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL '']
 [connection server_1]
 CREATE DATABASE db1;
@@ -28,7 +28,7 @@ RESET MASTER;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 CREATE DATABASE db2;
@@ -42,7 +42,7 @@ RESET MASTER;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 CREATE DATABASE db3;
@@ -72,7 +72,7 @@ include/assert.inc [All the channel's IO thread should be in OFF state.]
 include/assert.inc [All the channel's SQL thread should be in OFF state.]
 ===== START SLAVE without 'FOR CHANNEL' clause.
 START SLAVE;
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 === Assert that all channels IO and SQL threads are in expected state ===
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
@@ -80,16 +80,16 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause should throw error.
 SHOW RELAYLOG EVENTS;
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
 ===== Executing few basic commands on channel ''.
@@ -110,7 +110,7 @@ Slave_SQL_Running_State = ''
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '13124'
-Last_SQL_Error = 'Slave failed to initialize relay log info structure from the repository'
+Last_SQL_Error = 'Replica failed to initialize applier metadata structure from the repository'
 Channel_Name = ''
 ===== Executing STOP SLAVE FOR CHANNEL on channel ''.
 include/stop_slave.inc [FOR CHANNEL '']
@@ -223,7 +223,7 @@ RESET MASTER;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL '';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL '']
 [connection server_1]
 CREATE DATABASE db1;
@@ -237,7 +237,7 @@ RESET MASTER;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 CREATE DATABASE db2;
@@ -251,7 +251,7 @@ RESET MASTER;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 CREATE DATABASE db3;
@@ -281,7 +281,7 @@ include/assert.inc [All the channel's IO thread should be in OFF state.]
 include/assert.inc [All the channel's SQL thread should be in OFF state.]
 ===== START SLAVE without 'FOR CHANNEL' clause.
 START SLAVE;
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 === Assert that all channels IO and SQL threads are in expected state ===
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
@@ -289,16 +289,16 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause should throw error.
 SHOW RELAYLOG EVENTS;
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
 ===== Executing few basic commands on channel ''.
@@ -362,7 +362,7 @@ Slave_SQL_Running_State = ''
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '13124'
-Last_SQL_Error = 'Slave failed to initialize relay log info structure from the repository'
+Last_SQL_Error = 'Replica failed to initialize applier metadata structure from the repository'
 Channel_Name = 'channel_2'
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
 include/stop_slave.inc [FOR CHANNEL 'channel_2']
@@ -432,7 +432,7 @@ RESET MASTER;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL '';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL '']
 [connection server_1]
 CREATE DATABASE db1;
@@ -446,7 +446,7 @@ RESET MASTER;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 CREATE DATABASE db2;
@@ -460,7 +460,7 @@ RESET MASTER;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 CREATE DATABASE db3;
@@ -490,7 +490,7 @@ include/assert.inc [All the channel's IO thread should be in OFF state.]
 include/assert.inc [All the channel's SQL thread should be in OFF state.]
 ===== START SLAVE without 'FOR CHANNEL' clause.
 START SLAVE;
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 === Assert that all channels IO and SQL threads are in expected state ===
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
@@ -498,16 +498,16 @@ include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
 ===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause should throw error.
 SHOW RELAYLOG EVENTS;
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
 ===== Executing few basic commands on channel ''.
@@ -614,7 +614,7 @@ Slave_SQL_Running_State = ''
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '13124'
-Last_SQL_Error = 'Slave failed to initialize relay log info structure from the repository'
+Last_SQL_Error = 'Replica failed to initialize applier metadata structure from the repository'
 Channel_Name = 'channel_3'
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']

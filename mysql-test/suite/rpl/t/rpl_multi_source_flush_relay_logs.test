@@ -38,7 +38,7 @@
 --echo # Flush relay logs for a nonexistent channel.
 --echo # A error will be returned.
 --echo #
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 
 
@@ -92,7 +92,7 @@ INSERT INTO t1 VALUES (1);
 --echo # despite a warning being logged and replication is working.
 --echo #
 --connection server_3
-call mtr.add_suppression("Slave channel 'channel_1' does not exist.");
+call mtr.add_suppression("Replica channel 'channel_1' does not exist.");
 
 --connection server_2
 FLUSH RELAY LOGS FOR CHANNEL 'channel_1';

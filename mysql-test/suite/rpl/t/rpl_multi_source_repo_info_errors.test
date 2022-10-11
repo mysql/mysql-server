@@ -16,9 +16,9 @@
 # backward compatibility.
 
 --source include/rpl_connection_slave.inc
-CALL mtr.add_suppression("Got fatal error .* from master .* slave with the same server_uuid/server_id");
+CALL mtr.add_suppression("Got fatal error .* from source .* replica with the same server_uuid/server_id");
 CALL mtr.add_suppression("Error during --relay-log-recovery.*");
-CALL mtr.add_suppression("Server was not able to find a rotate event from master server.*");
+CALL mtr.add_suppression("Server was not able to find a rotate event from source server.*");
 --source include/stop_slave.inc
 
 # On the slave
@@ -37,7 +37,7 @@ RESET SLAVE ALL;
 --let $rpl_server_parameters= --relay-log-recovery --skip-replica-start --replica-parallel-workers=4 --relay-log-purge=0
 --source include/rpl_restart_server.inc
 
-# This command earlier failed with error ER_MASTER_INFO and the server would
+# This command earlier failed with error ER_CONNECTION_METADATA and the server would
 # crash when start slave was issued in the later stages.
 #
 --disable_warnings
@@ -71,7 +71,7 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 START SLAVE;
 
 # clean up
---let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 RESET SLAVE ALL;
 --replace_result $save_replica_parallel_workers SAVE_PARALLEL_WORKERS
@@ -101,9 +101,9 @@ RESET SLAVE ALL;
 #
 
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
-call mtr.add_suppression("Recovery from master pos");
+call mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Recovery from source pos");
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
 --source include/stop_slave.inc
 RESET SLAVE ALL;

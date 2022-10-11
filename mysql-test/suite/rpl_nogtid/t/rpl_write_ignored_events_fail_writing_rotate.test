@@ -35,11 +35,11 @@ DROP TABLE t1;
 
 --source include/sync_slave_io_with_master.inc
 SET @@GLOBAL.debug="+d,fail_generating_rotate_event_on_write_rotate_to_source_pos";
---let $slave_io_errno= convert_error(ER_SLAVE_CREATE_EVENT_FAILURE)
+--let $slave_io_errno= convert_error(ER_REPLICA_CREATE_EVENT_FAILURE)
 --source include/stop_slave_io.inc
 SET @@GLOBAL.debug="-d,fail_generating_rotate_event_on_write_rotate_to_source_pos";
 
---let $slave_io_errno= convert_error(ER_SLAVE_CREATE_EVENT_FAILURE)
+--let $slave_io_errno= convert_error(ER_REPLICA_CREATE_EVENT_FAILURE)
 --let $show_slave_io_error= 1
 --disable_warnings
 --source include/wait_for_slave_io_error.inc
@@ -71,11 +71,11 @@ DROP TABLE t1;
 
 --source include/sync_slave_io_with_master.inc
 SET @@GLOBAL.debug="+d,fail_to_write_ignored_event_to_relay_log";
---let $slave_io_errno= convert_error(ER_SLAVE_RELAY_LOG_WRITE_FAILURE)
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
 --source include/stop_slave_io.inc
 SET @@GLOBAL.debug="-d,fail_to_write_ignored_event_to_relay_log";
 
---let $slave_io_errno= convert_error(ER_SLAVE_RELAY_LOG_WRITE_FAILURE)
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
 --let $show_slave_io_error= 1
 --disable_warnings
 --source include/wait_for_slave_io_error.inc
@@ -96,7 +96,7 @@ DROP TABLE t1;
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 # Suppression of error messages
-CALL mtr.add_suppression('Failed to flush master info file');
+CALL mtr.add_suppression('Failed to flush connection metadata repository');
 CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1);
 --source include/start_slave_io.inc
 

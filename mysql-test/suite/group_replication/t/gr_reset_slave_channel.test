@@ -164,7 +164,7 @@ INSERT INTO t1 VALUES (3);
 
 # Global RESET SLAVE ALL command will not work on group replication channels
 # when the group memeber is ONLINE.
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 RESET SLAVE ALL;
 
 --let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
@@ -198,7 +198,7 @@ RESET SLAVE ALL;
 # The command should not be allowed on group replication is running
 #
 
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 
 --source include/stop_group_replication.inc

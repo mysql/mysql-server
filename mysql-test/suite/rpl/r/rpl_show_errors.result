@@ -1,15 +1,15 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (a INT, b blob, PRIMARY KEY(b(512)));
 include/sync_slave_sql_with_master.inc
 DROP TABLE t1;
 DROP TABLE t1;
-call mtr.add_suppression("Slave SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: MY-001051");
+call mtr.add_suppression("Replica SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: MY-001051");
 call mtr.add_suppression("Unknown table .test.t1. Error_code: MY-001051");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/wait_for_slave_sql_error.inc [errno=1051]
 include/assert.inc [Last_SQL_Error_Timestamp is not null and matches the expected format]
 include/stop_slave.inc

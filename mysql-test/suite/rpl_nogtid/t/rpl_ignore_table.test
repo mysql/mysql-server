@@ -136,7 +136,7 @@ show grants for mysqltest4@localhost;
 # where mysqltest1 does not have some grants,
 # to succeed on slave the mode is temporarily changed
 set global replica_exec_mode='IDEMPOTENT';
-call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table mysql.* Error_code: 1032");
+call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table mysql.* Error_code: 1032");
 
 connection master;
 drop table t1, mysqltest2.t2;

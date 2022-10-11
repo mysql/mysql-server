@@ -4,12 +4,12 @@
 include/rpl_init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server_2]
-call mtr.add_suppression("Slave: Could not start slave for channel");
+call mtr.add_suppression("Replica: Could not start replica for channel");
 #
 # Verify that Setting sql_replica_skip_counter doesn't effect running
 # channels
@@ -37,9 +37,9 @@ include/assert.inc [check that sql_replica_skip_counter is 0]
 #
 SET GLOBAL sql_replica_skip_counter = 1;
 START SLAVE;
-ERROR HY000: When sql_replica_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_replica_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_replica_skip_counter.
+ERROR HY000: When sql_replica_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START REPLICA [SQL_THREAD]'. Value of sql_replica_skip_counter can only be used by one SQL thread at a time. Please use 'START REPLICA [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_replica_skip_counter.
 START SLAVE SQL_THREAD;
-ERROR HY000: When sql_replica_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_replica_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_replica_skip_counter.
+ERROR HY000: When sql_replica_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START REPLICA [SQL_THREAD]'. Value of sql_replica_skip_counter can only be used by one SQL thread at a time. Please use 'START REPLICA [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_replica_skip_counter.
 #
 # START SLAVE IO_THREAD should not fail.
 #

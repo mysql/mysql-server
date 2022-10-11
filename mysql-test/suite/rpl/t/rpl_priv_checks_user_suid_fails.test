@@ -46,7 +46,7 @@
 --source include/master-slave.inc
 
 CALL mtr.add_suppression(".*Access denied. you need .at least one of. the SYSTEM_USER.*");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 
 #
 # 2) On the master, create a user with privileges to create a procedure, named

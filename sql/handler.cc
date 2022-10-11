@@ -1563,7 +1563,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
     during statement rollback, though some like GRANT may continue until
     this point.
     When applying a DDL statement on a slave and the statement is filtered
-    out by a table filter, we report an error "ER_SLAVE_IGNORED_TABLE" to
+    out by a table filter, we report an error "ER_REPLICA_IGNORED_TABLE" to
     warn slave applier thread. We need to save the DDL statement's gtid
     into mysql.gtid_executed system table if the binary log is disabled
     on the slave and gtids are enabled.
@@ -1571,7 +1571,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
   if (is_real_trans && is_atomic_ddl_commit_on_slave(thd) &&
       (!thd->is_error() ||
        (thd->is_operating_gtid_table_implicitly &&
-        thd->get_stmt_da()->mysql_errno() == ER_SLAVE_IGNORED_TABLE))) {
+        thd->get_stmt_da()->mysql_errno() == ER_REPLICA_IGNORED_TABLE))) {
     run_slave_post_commit = true;
     error = error || thd->rli_slave->pre_commit();
 

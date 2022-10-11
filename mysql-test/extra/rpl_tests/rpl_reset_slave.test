@@ -11,7 +11,7 @@
 -- source include/master-slave.inc
 sync_slave_with_master;
 --disable_query_log
-call mtr.add_suppression('Slave I/O: Get master BINLOG_CHECKSUM failed with error');
+call mtr.add_suppression('Replica I/O: Get source BINLOG_CHECKSUM failed with error');
 --enable_query_log
 let $status_items= Master_User, Master_Host;
 source include/show_slave_status.inc;
@@ -118,7 +118,7 @@ reset slave;
 --let $_slave_master_port= query_get_value(SHOW SLAVE STATUS, Master_Port, 1)
 
 reset slave all;
---error ER_BAD_SLAVE
+--error ER_BAD_REPLICA
 start slave;
 
 --let $_show_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
@@ -159,7 +159,7 @@ if ($_show_master_host != No such row)
 
 START SLAVE IO_THREAD;
 
---let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --source include/wait_for_slave_io_error.inc
 
 --echo # Check the user is still empty
@@ -178,6 +178,6 @@ START SLAVE IO_THREAD;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --source include/start_slave.inc
 
-call mtr.add_suppression("Slave I/O for channel '': Fatal error: Invalid .* username when attempting to connect to the master server*");
+call mtr.add_suppression("Replica I/O for channel '': Fatal error: Invalid .* username when attempting to connect to the source server*");
 
 --source include/rpl_end.inc

@@ -27,10 +27,10 @@ CREATE TABLE t_innodb (id INTEGER) engine= Innodb;
 --connection slave
 call mtr.add_suppression("Error writing relay log configuration.");
 call mtr.add_suppression("Column count of mysql.slave_relay_log_info is wrong.");
-call mtr.add_suppression("Error running query, slave SQL thread aborted.");
+call mtr.add_suppression("Error running query, replica SQL thread aborted.");
 call mtr.add_suppression("Info table is not ready to be used.");
-call mtr.add_suppression("Error writing master configuration.");
-call mtr.add_suppression("Failed to flush master info.");
+call mtr.add_suppression("Error writing source configuration.");
+call mtr.add_suppression("Failed to flush connection metadata.");
 call mtr.add_suppression(" Error while checking replication metadata.");
 call mtr.add_suppression("Failed to create or recover replication info repository.");
 call mtr.add_suppression("Error in checking.* repository info type of");
@@ -38,7 +38,7 @@ call mtr.add_suppression("Error creating.*: Error checking repositories");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
-call mtr.add_suppression("Failed to initialize the master info structure for channel ''");
+call mtr.add_suppression("Failed to initialize the connection metadata structure for channel ''");
 
 ###############################################################################
 #           Checking if replication can fail safely (SQL Thread)
@@ -79,7 +79,7 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 --let $rpl_server_parameters= --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 --connection slave
---error ER_SLAVE_CONFIGURATION
+--error ER_REPLICA_CONFIGURATION
 START SLAVE SQL_THREAD;
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
@@ -157,7 +157,7 @@ ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
-# ER_SLAVE_FATAL_ERROR
+# ER_REPLICA_FATAL_ERROR
 --let $slave_io_errno= 13117
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
@@ -171,7 +171,7 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 --let $rpl_server_parameters= --sync-source-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 --connection slave
---error ER_SLAVE_CONFIGURATION
+--error ER_REPLICA_CONFIGURATION
 START SLAVE SQL_THREAD;
 ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
@@ -196,7 +196,7 @@ ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
-# ER_SLAVE_FATAL_ERROR
+# ER_REPLICA_FATAL_ERROR
 --let $slave_io_errno= 13117
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc

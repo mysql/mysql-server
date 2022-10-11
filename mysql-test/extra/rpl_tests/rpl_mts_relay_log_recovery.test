@@ -43,7 +43,7 @@
 # should be successful.
 
 --source extra/rpl_tests/rpl_generate_mts_gap.test
-CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Recovery from source pos");
 
 --source include/rpl_connection_slave.inc
 # Kill the slave server

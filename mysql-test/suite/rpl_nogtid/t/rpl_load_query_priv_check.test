@@ -77,7 +77,7 @@ LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("The PRIVILEGE_CHECKS_USER for channel '' would need FILE");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 CREATE TABLE t1(word CHAR(20) NOT NULL);
 
 START SLAVE;

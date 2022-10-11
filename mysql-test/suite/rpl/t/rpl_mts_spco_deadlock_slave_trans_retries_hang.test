@@ -51,7 +51,7 @@
 #         thread (DELETE) is in the middle of transaction and is handled
 #         properly.
 #    3.5. Wait till server to handle the deadlock and till the co-ordinator
-#         thread to error out with ER_MTS_INCONSISTENT_DATA.
+#         thread to error out with ER_MTA_INCONSISTENT_DATA.
 #    3.6. Restart the replication threads, sync the replica and verify that
 #         table data is consistent.
 #
@@ -237,8 +237,8 @@ ROLLBACK;
 ROLLBACK;
 
 --echo #
---echo # 3.5. Wait till the co-ordinator thread to error out with ER_MTS_INCONSISTENT_DATA.
---let $slave_sql_errno = convert_error(ER_MTS_INCONSISTENT_DATA)
+--echo # 3.5. Wait till the co-ordinator thread to error out with ER_MTA_INCONSISTENT_DATA.
+--let $slave_sql_errno = convert_error(ER_MTA_INCONSISTENT_DATA)
 --source include/wait_for_slave_sql_error.inc
 
 --echo #
@@ -256,7 +256,7 @@ DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
 # Add Test suppressions
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 
 --source include/stop_slave.inc
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;

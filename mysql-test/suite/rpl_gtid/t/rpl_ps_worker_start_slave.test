@@ -29,7 +29,7 @@
 
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression(".*worker thread retried transaction 5 time.*");
-call mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+call mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 
 SET @saved_replica_parallel_workers= @@GLOBAL.replica_parallel_workers;
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;

@@ -1,7 +1,7 @@
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 [connection server1]
 # Creating a connection on the first server to be used by the recovery channel
@@ -25,12 +25,12 @@ FLUSH PRIVILEGES;
 SET sql_log_bin=1;
 include/start_group_replication.inc
 # Asserting that CHANGE MASTER is not logged in the binary log of the server 2.
-Occurrences of 'CHANGE MASTER' in the input file: 0
+Occurrences of 'CHANGE REPLICATION SOURCE' in the input file: 0
 # Ensuring the the two members are online.
 [connection server1]
 include/rpl_gr_wait_for_number_of_members.inc
 # Asserting that CHANGE MASTER is not replicated in the binary log of the server.
-Occurrences of 'CHANGE MASTER' in the input file: 0
+Occurrences of 'CHANGE REPLICATION SOURCE' in the input file: 0
 [connection server2]
 RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
 Warnings:

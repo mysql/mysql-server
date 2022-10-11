@@ -106,8 +106,8 @@ SET global debug="+d,simulate_stop_when_mta_in_group";
 # Multi Threaded Slave.
 --let $assert_text= Assert that the expected entry is in the error log during STOP SLAVE
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events
---let $assert_select= Slave SQL thread for channel '' exiting, replication stopped in log '$exec_master_log_file' at position $exec_master_log_pos
+--let $assert_only_after = Coordinator thread of multi-threaded replica is being stopped in the middle of assigning a group of events
+--let $assert_select= Replica SQL thread for channel '' exiting, replication stopped in log '$exec_master_log_file' at position $exec_master_log_pos
 --let $assert_count= 1
 --source include/assert_grep.inc
 
@@ -120,8 +120,8 @@ set @@GLOBAL.replica_checkpoint_period= @save_replica_checkpoint_period;
 # START SLAVE are the same as the positions reported during STOP SLAVE.
 --let $assert_text= Assert that the expected entry is in the error log during START SLAVE
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = Slave SQL thread exiting, replication stopped in log
---let $assert_select= Slave SQL thread for channel '' initialized, starting replication in log '$exec_master_log_file' at position $exec_master_log_pos
+--let $assert_only_after = Replica SQL thread exiting, replication stopped in log
+--let $assert_select= Replica SQL thread for channel '' initialized, starting replication in log '$exec_master_log_file' at position $exec_master_log_pos
 --let $assert_count= 1
 --source include/assert_grep.inc
 

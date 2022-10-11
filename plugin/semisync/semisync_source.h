@@ -530,7 +530,7 @@ class AckContainer : public Trace {
       else if (m_ack_array[i].is_server(server_id)) {
         m_ack_array[i].update(log_file_name, log_file_pos);
         if (trace_level_ & kTraceDetail)
-          LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UPDATE_EXISTING_SLAVE_ACK, i);
+          LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UPDATE_EXISTING_REPLICA_ACK, i);
         break;
       }
     }

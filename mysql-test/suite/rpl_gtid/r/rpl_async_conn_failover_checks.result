@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 call mtr.add_suppression("Detected misconfiguration: replication channel '' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1.*");
@@ -15,7 +15,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
 #    ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
 #
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=1;
-ERROR HY000: Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when MASTER_AUTO_POSITION option of CHANGE MASTER TO is enabled.
+ERROR HY000: Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when SOURCE_AUTO_POSITION option of CHANGE REPLICATION SOURCE TO is enabled.
 #
 # 3. Verify Asynchronous Replication Connection Failover is disabled and
 #    Auto_position is enabled.
@@ -38,7 +38,7 @@ include/check_slave_param.inc [Slave_IO_Running FOR CHANNEL '']
 #    ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF error.
 #
 START SLAVE;
-ERROR HY000: Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when @@GLOBAL.GTID_MODE = ON.
+ERROR HY000: Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when @@GLOBAL.GTID_MODE = ON.
 #
 # 6. Clean up.
 #

@@ -78,12 +78,12 @@ SET SESSION sql_log_bin= 1;
 DROP TABLE t1;
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.t1*.*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.t1*.*");
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker .* failed executing transaction .*");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,.*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Worker .* failed executing transaction .*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped,.*");
 SET SESSION sql_log_bin= 1;
 
 --source include/group_replication_end.inc

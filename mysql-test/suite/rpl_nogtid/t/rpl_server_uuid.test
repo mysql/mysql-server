@@ -19,13 +19,13 @@
 --let $rpl_server_count= 3
 --source include/master-slave.inc
 
-call mtr.add_suppression("Slave I/O thread .* register on master");
-call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
-CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
-CALL mtr.add_suppression("Master's UUID has changed, although this should not happen unless you have changed it manually");
-CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
-CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
-CALL mtr.add_suppression("A slave with the same server_uuid/server_id as this slave has connected to the master");
+call mtr.add_suppression("Replica I/O thread .* register on source");
+call mtr.add_suppression("Replica I/O: Source command COM_REGISTER_REPLICA failed: .*");
+CALL mtr.add_suppression(".*source and replica have equal MySQL server UUIDs.*");
+CALL mtr.add_suppression("Source's UUID has changed, although this should not happen unless you have changed it manually");
+CALL mtr.add_suppression("Replica I/O: SET @master_heartbeat_period to source failed with error: Lost connection to MySQL server during query");
+CALL mtr.add_suppression("Notifying source by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
+CALL mtr.add_suppression("A replica with the same server_uuid/server_id as this replica has connected to the source");
 
 --let $old_log_error_verbosity= `SELECT @@GLOBAL.LOG_ERROR_VERBOSITY`
 SET @@GLOBAL.LOG_ERROR_VERBOSITY= 3;
@@ -245,7 +245,7 @@ eval CHANGE REPLICATION SOURCE TO
 
 # Get current server_2 thread_id at master
 --connection server_1
---let $slave_thread_id= query_get_value(SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND='Binlog Dump', ID, 1)
+--let $replica_thread_id= query_get_value(SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND='Binlog Dump', ID, 1)
 
 # Step-1: Copy server 2(S1)'s auto.cnf into server 3 (S2)'s data directory.
 --connection server_2
@@ -262,12 +262,12 @@ eval CHANGE REPLICATION SOURCE TO
 # Notice that the other slave has stopped with an error
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
---let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 # Grep only after the message that the server_2 has connected to the master
---let $assert_only_after=Start binlog_dump to master_thread_id\($slave_thread_id\)
+--let $assert_only_after=Start binlog_dump to source_thread_id\($replica_thread_id\)
 --let $assert_count= 1
 --let $assert_select=found a zombie dump thread with the same UUID
 --let $assert_text= Found the expected line in master's error log for server 2 disconnection
@@ -275,7 +275,7 @@ eval CHANGE REPLICATION SOURCE TO
 
 # Get current server_3 thread_id at master
 --connection server_1
---let $slave_thread_id= query_get_value(SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND='Binlog Dump', ID, 1)
+--let $replica_thread_id= query_get_value(SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND='Binlog Dump', ID, 1)
 
 # Step-3: Connect server 2 and notice that the slave server 3 will error
 --connection server_2
@@ -283,19 +283,19 @@ eval CHANGE REPLICATION SOURCE TO
 # Notice that the other slave has stopped with an error
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
---let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --source include/wait_for_slave_io_error.inc
 
 # Grep only after the message that the server_3 has connected to the master
---let $assert_only_after=Start binlog_dump to master_thread_id\($slave_thread_id\)
+--let $assert_only_after=Start binlog_dump to source_thread_id\($replica_thread_id\)
 --let $assert_text= Found the expected line in master's error log for server 3 disconnection
 --source include/assert_grep.inc
 
 # Step-4: Check for error messages on slaves
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Assert only the occurrences after the last CHANGE MASTER
---let $assert_only_after=CHANGE MASTER .* executed
---let $assert_select= Slave .* Got fatal error .* from master .* slave with the same server_uuid/server_id as this slave
+--let $assert_only_after=CHANGE REPLICATION SOURCE .* executed
+--let $assert_select= Replica .* Got fatal error .* from source .* replica with the same server_uuid/server_id as this replica
 --let $assert_text= Found the expected line in server 2 error log
 --source include/assert_grep.inc
 

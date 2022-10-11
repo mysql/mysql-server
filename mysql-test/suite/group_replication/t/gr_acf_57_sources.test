@@ -104,7 +104,7 @@ SELECT * FROM performance_schema.replication_asynchronous_connection_failover OR
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.");
+call mtr.add_suppression("The source's UUID has changed, although this should not happen unless you have changed it manually.");
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_channel_name='ch1'

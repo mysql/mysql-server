@@ -84,11 +84,11 @@ call dml_operations(1,100);
 
 set sql_log_bin=0;
 --disable_query_log
-call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
+call mtr.add_suppression(".*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Database page corruption or a failed file read of page");
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column.*");
-call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Fatal error: Invalid (empty) username .*Connection attempt terminated. Error_code: MY-013117");
-call mtr.add_suppression(".*For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Fatal error: Invalid (empty) username .*Connection attempt terminated. Error_code: MY-013117");
+call mtr.add_suppression(".*For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 --enable_query_log
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;

@@ -57,7 +57,7 @@ delimiter ;$$
 --source include/rpl_connection.inc
 
 set sql_log_bin=0;
-call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
+call mtr.add_suppression(".*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 set sql_log_bin=1;
 

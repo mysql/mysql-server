@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 #
 # Start a new member with some group data but no replication user
@@ -46,15 +46,15 @@ FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 'lost_test_table'*");
-call mtr.add_suppression("Slave: Table 'lost_test_table' already exists Error_code:*");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker .* failed executing transaction .*; Error 'Table 'lost_test_table' already exists' on query.");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Error 'Table 'lost_test_table'*");
+call mtr.add_suppression("Replica: Table 'lost_test_table' already exists Error_code:*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Worker .* failed executing transaction .*; Error 'Table 'lost_test_table' already exists' on query.");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': ... The replica coordinator and worker threads are stopped.*");
 call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
-call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: Access denied for user 'recovery_user'.*");
-call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
-call mtr.add_suppression("Slave I/O thread couldn't register on master");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed: Access denied for user 'recovery_user'.*");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed: failed registering on source, reconnecting to try again.*");
+call mtr.add_suppression("Replica I/O thread couldn't register on source");
 call mtr.add_suppression(".*This member has more executed transactions *.*");
 call mtr.add_suppression("The member contains transactions not present in the group. It is only allowed to *.*");
 SET SESSION sql_log_bin= 1;

@@ -20,10 +20,10 @@
 # add suppressions to the slave for expected errors/warnings
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("Unknown table");
-CALL mtr.add_suppression("A commit for an atomic DDL statement was unsuccessful on the master and the slave");
-CALL mtr.add_suppression("Query caused different errors on master and slave.");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
-CALL mtr.add_suppression("Slave worker thread has failed to apply an event. As a consequence, the coordinator thread is stopping execution.");
+CALL mtr.add_suppression("A commit for an atomic DDL statement was unsuccessful on the source and the replica");
+CALL mtr.add_suppression("Query caused different errors on source and replica.");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+CALL mtr.add_suppression("Replica worker thread has failed to apply an event. As a consequence, the coordinator thread is stopping execution.");
 
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 
@@ -118,7 +118,7 @@ DROP VIEW v1;
 # atomic ddl
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_count= 2
---let $assert_select= (Slave:|Worker).*A commit for an atomic DDL statement was unsuccessful on the master and the slave
+--let $assert_select= (Replica:|Worker).*A commit for an atomic DDL statement was unsuccessful on the source and the replica
 --let $assert_text= There shall be an error when the master is 5.7-, the slave is 8.0+, and the latter fails to apply an atomic DDL
 --source include/assert_grep.inc
 

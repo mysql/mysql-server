@@ -55,18 +55,18 @@ start slave;
 # slave is going to stop because of emulated failures
 # but there won't be any crashes nor asserts hit.
 #
---let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed during slave.* thread initialization");
+call mtr.add_suppression("Failed during replica.* thread initialization");
 SET SESSION sql_log_bin= 1;
 
 # Bug#11765758 - 58754
 # above tests part logics make sure the IO thread is down to allow 
 # safe updating to @@global.debug
---let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 
@@ -85,7 +85,7 @@ reset slave;
 SET GLOBAL init_replica= "garbage";
 
 start slave;
-# 13145 = ER_SERVER_SLAVE_INIT_QUERY_FAILED
+# 13145 = ER_SERVER_REPLICA_INIT_QUERY_FAILED
 --let $slave_sql_errno= 13145
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc

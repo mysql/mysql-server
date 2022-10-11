@@ -121,7 +121,7 @@ show grants for rpl_do_grant2@localhost;
 # BUG42217  mysql.procs_priv does not get replicated
 #####################################################
 connection master; 
-call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+call mtr.add_suppression("Replica: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
 sync_slave_with_master;
 connection master;
 

@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 
 *** Preparing data ***
@@ -33,8 +33,8 @@ a	b
 SELECT * FROM t3 ORDER BY a;
 a	b
 1	ZZ
-call mtr.add_suppression("Slave SQL.*Table .test.t3. doesn.t exist.*, Error_code: MY-001146");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Table .test.t3. doesn.t exist.*, Error_code: MY-001146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/wait_for_slave_sql_to_stop.inc
 SHOW TABLES LIKE 't%';
 Tables_in_test (t%)

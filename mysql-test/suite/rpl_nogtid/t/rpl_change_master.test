@@ -97,7 +97,7 @@ connection slave;
 --source include/check_slave_param.inc
 
 # Now, prove 1 char oversized password is rejected
---error ER_CHANGE_MASTER_PASSWORD_LENGTH
+--error ER_CHANGE_SOURCE_PASSWORD_LENGTH
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='rpl', SOURCE_PASSWORD='x$passwd', SOURCE_SSL=1
 
 # Cleanup Bug #11752299

@@ -98,7 +98,7 @@ START REPLICA SQL_THREAD;
 
 START REPLICA SQL_THREAD;
 
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error.inc
 
 --let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-0$slave_sql_errno' AND data LIKE "%Column 2 of table 'test.t1' cannot be converted from type 'bigint' to type 'text'%"

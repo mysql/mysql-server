@@ -35,7 +35,7 @@
 --source include/have_myisam.inc
 
 call mtr.add_suppression('Attempting backtrace');
-call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]*\.*[0-9]* for channel ''*");
+call mtr.add_suppression("Recovery from source pos [0-9]+ and file [a-zA-Z-]*\.*[0-9]* for channel ''*");
 call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 call mtr.add_suppression("Binlog has bad magic number;  It's not a binary log file that can be used by this version of MySQL");
 CREATE TABLE t1(a INT, PRIMARY KEY(a)) engine=innodb;

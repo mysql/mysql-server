@@ -54,9 +54,9 @@ START SLAVE;
 --echo #
 --echo # Wait for SQL thread error.
 --echo #
-call mtr.add_suppression("Slave.* @@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON.");
-call mtr.add_suppression("Slave worker thread has failed to apply an event");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("Replica.* @@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON.");
+call mtr.add_suppression("Replica worker thread has failed to apply an event");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 --let $slave_sql_errno= convert_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON)
 --source include/wait_for_slave_sql_error.inc
 

@@ -10,7 +10,7 @@
 # ------------------------------------------------------
 # 1) Execute `LOCK INSTANCE FOR BACKUP`.
 # 2) Execute `STOP SLAVE` and expect a
-#    `ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP` error.
+#    `ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP` error.
 # 3) Check that the slave hasn't stop.
 # 4) Unlock the instance.
 #
@@ -18,7 +18,7 @@
 # -----------------------------------------------------------------
 # 1) Execute `LOCK INSTANCE FOR BACKUP`.
 # 2) Execute `STOP SLAVE SQL_THREAD` and expect a
-#    `ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP` error.
+#    `ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP` error.
 # 3) Check that the slave hasn't stop.
 # 4) Unlock the instance.
 #
@@ -42,14 +42,14 @@
   }
 
   --source include/rpl_connection_slave.inc
-  CALL mtr.add_suppression("Cannot stop the slave SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.");
+  CALL mtr.add_suppression("Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.");
 
   # 1) Execute `LOCK INSTANCE FOR BACKUP`.
   LOCK INSTANCE FOR BACKUP;
 
   # 2) Execute `STOP SLAVE` and expect a
-  #    `ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP` error.
-  --error ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP
+  #    `ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP` error.
+  --error ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP
   --eval $statement
 
   # 3) Check that the slave hasn't stop.

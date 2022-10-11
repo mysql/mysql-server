@@ -844,7 +844,7 @@ DROP USER u2@l;
 # C.5. Tests for 'GRANT' and 'REVOKE' statement
 ####################################################################
 call mtr.add_suppression("Did not write failed .*");
-call mtr.add_suppression("REVOKE/GRANT failed .* An incident event has been written to the binary log which will stop the slaves.");
+call mtr.add_suppression("REVOKE/GRANT failed .* An incident event has been written to the binary log which will stop the replicas.");
 CREATE TABLE t1(a INT, b INT);
 CREATE USER u1@h, u3@h;
 GRANT SELECT(a) ON t1 TO u1@h, u3@h;

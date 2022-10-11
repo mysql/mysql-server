@@ -12,12 +12,12 @@
 #####################################################################
 
 --source include/master-slave.inc
-CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Unknown storage engine 'MOCK'' on query");
-CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Secondary engine operation failed. No secondary engine defined");
-CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Unknown storage engine 'MOCK'");
-CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Secondary engine operation failed. No secondary engine defined");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Replica SQL for channel '':.*Error 'Unknown storage engine 'MOCK'' on query");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Replica SQL for channel '':.*Error 'Secondary engine operation failed. No secondary engine defined");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Replica: Unknown storage engine 'MOCK'");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Replica: Secondary engine operation failed. No secondary engine defined");
 CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Server\\] Unsafe statement written to the binary log using statement format");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
 
 --connection master
 --echo [ Connection Master ]

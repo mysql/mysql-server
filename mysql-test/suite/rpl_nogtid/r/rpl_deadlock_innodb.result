@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 *** Prepare tables and data ***
 CREATE TABLE t1 (a INT NOT NULL, KEY(a)) ENGINE=innodb;
@@ -150,6 +150,6 @@ include/start_slave.inc
 DROP TABLE t1,t2,t3;
 SET global max_relay_log_size= @my_max_relay_log_size;
 CALL mtr.add_suppression(".*worker thread retried transaction.*");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 End of 5.1 tests
 include/rpl_end.inc

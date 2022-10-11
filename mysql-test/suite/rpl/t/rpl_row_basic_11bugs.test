@@ -64,7 +64,7 @@ DROP TABLE t1;
 
 --echo **** On Slave **** 
 connection slave;
-call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1.* Error_code: 1032");
+call mtr.add_suppression("Replica SQL.*Could not execute Update_rows event on table test.t1.* Error_code: 1032");
 
 --echo **** On Master **** 
 connection master;

@@ -41,8 +41,8 @@ source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
 
 call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
-call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes;");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("Request to stop replica SQL Thread received while applying a group that has non-transactional changes;");
 
 let $assert_text= On master, the table should return an empty set.;
 let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_worker] = 0;

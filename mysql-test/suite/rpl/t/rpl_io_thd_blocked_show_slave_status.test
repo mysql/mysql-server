@@ -48,7 +48,7 @@ SET DEBUG_SYNC="now WAIT_FOR receiver_reached_pause_on_queue_event";
 --source include/assert.inc
 
 # We can even stop SQL thread
---let $slave_sql_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
+--let $slave_sql_errno= convert_error(ER_MTA_INCONSISTENT_DATA)
 --source include/stop_slave_sql.inc
 
 # And we also can start SQL thread again

@@ -70,7 +70,7 @@
 --source include/rpl_connection_slave.inc
 
 CALL mtr.add_suppression(".PRIVILEGE_CHECKS_USER for replication channel.");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 
 CREATE USER 'u1'@'localhost';
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL '';

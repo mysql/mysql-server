@@ -3108,7 +3108,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
       if (all_tables_not_ok(thd, all_tables)) {
         /* we warn the slave SQL thread */
-        my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+        my_error(ER_REPLICA_IGNORED_TABLE, MYF(0));
         binlog_gtid_end_transaction(thd);
         return 0;
       }
@@ -3136,7 +3136,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
           lex->drop_if_exists) &&
         all_tables_not_ok(thd, all_tables)) {
       /* we warn the slave SQL thread */
-      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+      my_error(ER_REPLICA_IGNORED_TABLE, MYF(0));
       binlog_gtid_end_transaction(thd);
       return 0;
     }

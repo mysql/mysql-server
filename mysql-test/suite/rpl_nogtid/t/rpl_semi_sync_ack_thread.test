@@ -19,7 +19,7 @@
 --source include/rpl_connection.inc
 # Suppress warning:
 # "Semi-sync master failed on net_flush() before waiting for replica reply"
-CALL mtr.add_suppression("Semi-sync master failed on net_flush().*");
+CALL mtr.add_suppression("Semi-sync source failed on net_flush().*");
 
 --echo ####################################################################
 --echo # Test Case: semisync master can be enabled and disabled sucessfully
@@ -180,7 +180,7 @@ SET GLOBAL rpl_semi_sync_source_enabled= OFF;
 --echo ############################################
 SET @save_debug = @@GLOBAL.debug;
 CALL mtr.add_suppression("Failed to start semi-sync ACK receiver thread.*");
-CALL mtr.add_suppression("Failed to register slave to semi-sync ACK receiver thread.*");
+CALL mtr.add_suppression("Failed to register replica to semi-sync ACK receiver thread.*");
 CALL mtr.add_suppression("Failed to stop ack receiver thread on my_thread_join.*");
 CALL mtr.add_suppression("Run function 'transmit_start' .* failed");
 

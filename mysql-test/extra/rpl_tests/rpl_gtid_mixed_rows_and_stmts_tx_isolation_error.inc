@@ -78,7 +78,7 @@ if ($use_xa)
 --source include/sync_slave_io_with_master.inc
 
 # Wait until the slave reports the error
---let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --source include/wait_for_slave_sql_error.inc
 
 --source include/remove_debug_point.inc

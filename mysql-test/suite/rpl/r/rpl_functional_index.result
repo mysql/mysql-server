@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 # Create a table with functional index
 CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
@@ -94,9 +94,9 @@ SET @@session.binlog_row_image= @start_row_image_value;
 CREATE TABLE t1 (col1 INT, UNIQUE INDEX idx ((col1 + col1)));
 include/sync_slave_sql_with_master.inc
 INSERT INTO t1 (col1) VALUES (1);
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table test.t1");
-call mtr.add_suppression("Slave SQL for channel '': .*Error 'Duplicate entry '2'");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Write_rows event on table test.t1");
+call mtr.add_suppression("Replica SQL for channel '': .*Error 'Duplicate entry '2'");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 INSERT INTO t1 (col1) VALUES (1), (2);
 include/wait_for_slave_sql_error.inc [errno=1062]
 DELETE FROM t1;

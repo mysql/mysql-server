@@ -73,12 +73,12 @@
 
 --echo
 --echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
 
 --echo
@@ -88,50 +88,50 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='user' FOR CHANNEL "group_rep
 
 --echo
 --echo # error when executing START SLAVE IO_THREAD FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing STOP SLAVE IO_THREAD FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing START SLAVE IO_THREAD FOR CHANNEL with UNTIL option
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE IO_THREAD UNTIL SOURCE_LOG_FILE = 'server-binary-log.000001', SOURCE_LOG_POS = 781 FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing START SLAVE FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing STOP SLAVE FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing SHOW SLAVE STATUS FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # START SLAVE SQL_THREAD command will not work for group_replication_applier
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # STOP SLAVE SQL_THREAD command will not work for group_replication_applier
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --echo # START SLAVE SQL_THREAD with UNTIL option will not work for group_replication_applier
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS='11111111-1111-1111-1111-111111111111:1-23' FOR CHANNEL 'group_replication_applier';
 
 --echo # START SLAVE SQL_THREAD with UNTIL option will not work for group_replication_applier
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_applier.000002', RELAY_LOG_POS = 10000 FOR CHANNEL 'group_replication_applier';
 
 --echo
@@ -149,12 +149,12 @@ START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replicatio
 
 --echo
 --echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_applier";
 
 --echo
 --echo # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
 
 --echo
@@ -172,27 +172,27 @@ SET SESSION sql_log_bin= 1;
 
 --echo
 --echo # error when executing START SLAVE IO_THREAD FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing STOP SLAVE IO_THREAD FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing START SLAVE FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 START SLAVE FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing STOP SLAVE FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 STOP SLAVE FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # error when executing SHOW SLAVE STATUS FOR CHANNEL
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
 
 --echo
@@ -222,10 +222,10 @@ SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
 
 --echo
 --echo # RESET SLAVE [ALL] command is blocked only when channel is running.
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 RESET SLAVE FOR CHANNEL "group_replication_applier";
 
 --echo
@@ -243,12 +243,12 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 --source include/start_group_replication.inc
 --echo # RESET SLAVE should not be allowed when GR is ONLINE.
 --echo # So this command will fail.
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 RESET SLAVE FOR CHANNEL "group_replication_applier";
 
 --echo # RESET SLAVE ALL should not be allowed when GR is ONLINE.
 --echo # So this command will fail.
---error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 
 --echo # stop the channel and try reset slave for channel again. It should work.
@@ -256,7 +256,7 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 RESET SLAVE FOR CHANNEL "group_replication_applier";
 
 --source include/group_replication_end.inc

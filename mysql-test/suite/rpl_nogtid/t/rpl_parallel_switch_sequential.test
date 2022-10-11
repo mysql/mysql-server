@@ -15,8 +15,8 @@ eval SET GLOBAL replica_parallel_workers= $max_workers;
 # before issuing STOP SLAVE in the non-deterministic activity, there is a
 # chance that the slave applier be in MTS mode and in a condition that it
 # will throw the following error message:
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Request to stop replica SQL Thread received while applying a group that has non-transactional changes");
 
 --source include/stop_slave.inc
 --source include/start_slave.inc

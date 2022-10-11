@@ -146,14 +146,14 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_applier_thread";
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/gr_start_slave_gr_on_boot_on_rejoining_node.err
 
 --let $assert_text= The slave IO thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now
---let $assert_select= The slave IO thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now.
---let $assert_match= The slave IO thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now.*
+--let $assert_select= The replica IO thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now.
+--let $assert_match= The replica IO thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now.*
 --source include/assert_grep.inc
 
 
 --let $assert_text= The slave applier thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now
---let $assert_select= The slave applier thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now.
---let $assert_match= The slave applier thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now.*
+--let $assert_select= The replica applier thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now.
+--let $assert_match= The replica applier thread of channel 'ch3_1' is unblocked as the member is declared ONLINE now.*
 --source include/assert_grep.inc
 
 

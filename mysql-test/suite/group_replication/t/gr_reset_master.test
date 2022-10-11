@@ -113,7 +113,7 @@ while ($server_count)
 }
 
 --echo # Run RESET MASTER while Group Replication is running must fail
---error ER_CANT_RESET_MASTER
+--error ER_CANT_RESET_SOURCE
 RESET MASTER;
 
 --echo # Clean up

@@ -234,8 +234,8 @@ if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
   # field, the server will complain. We need to suppress these 
   # warnings so that the test does not fail.
   call mtr.add_suppression("Failed to open the relay log");
-  call mtr.add_suppression("Could not find target log file mentioned in relay log info in the index file");
-  call mtr.add_suppression("Failed to initialize the master info structure");
+  call mtr.add_suppression("Could not find target log file mentioned in applier metadata in the index file");
+  call mtr.add_suppression("Failed to initialize the connection metadata structure");
   call mtr.add_suppression("Failed to create or recover replication info repositories.");
 
   --let $path_separator=/

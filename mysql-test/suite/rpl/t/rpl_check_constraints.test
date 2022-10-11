@@ -5,7 +5,7 @@
 --source include/master-slave.inc
 
 CALL mtr.add_suppression("Check constraint 't1_chk_2' is violated.");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 CREATE TABLE t1 (f1 int primary key, CHECK(f1 < 100));
 SHOW CREATE TABLE t1;

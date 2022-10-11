@@ -35,17 +35,17 @@ while ($i != 11)
 
 # Incorrect START SLAVE UNTIL SQL_BEFORE_GTIDS
 --replace_result $master_uuid MASTER_UUID
---error ER_BAD_SLAVE_UNTIL_COND
+--error ER_BAD_REPLICA_UNTIL_COND
 --eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5", SOURCE_LOG_FILE= 'foo.bin', SOURCE_LOG_POS= 100
 
 # Incorrect START SLAVE UNTIL SQL_BEFORE_GTIDS
 --replace_result $master_uuid MASTER_UUID
---error ER_BAD_SLAVE_UNTIL_COND
+--error ER_BAD_REPLICA_UNTIL_COND
 --eval START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5", SOURCE_LOG_FILE= 'foo.bin', SOURCE_LOG_POS= 100
 
 # Incorrect START SLAVE UNTIL SQL_BEFORE_GTIDS
 --replace_result $master_uuid MASTER_UUID
---error ER_BAD_SLAVE_UNTIL_COND
+--error ER_BAD_REPLICA_UNTIL_COND
 --eval START SLAVE IO_THREAD UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5", SOURCE_LOG_FILE= 'foo.bin', SOURCE_LOG_POS= 100
 
 # Incorrect START SLAVE UNTIL SQL_BEFORE_GTIDS
@@ -74,7 +74,7 @@ while ($i != 11)
 
 --echo SQL thread must stop *after* INSERT 5
 # SQL_AFTER_GTIDS is not working fine with MTS which is 'TODO'.  Hence post
-# BUG14767986 fix 'ER_MTS_FEATURE_IS_NOT_SUPPORTED' warning will be thrown
+# BUG14767986 fix 'ER_MTA_FEATURE_IS_NOT_SUPPORTED' warning will be thrown
 # when MTS is enabled and server will be started in single threaded mode.
 --disable_warnings
 --replace_result $master_uuid MASTER_UUID
@@ -96,7 +96,7 @@ while ($i != 11)
 --echo SQL thread must stop *after* INSERT 5
 --echo 1-5 are already applied so it will stop immediately
 # SQL_AFTER_GTIDS is not working fine with MTS which is 'TODO'.  Hence post
-# BUG14767986 fix 'ER_MTS_FEATURE_IS_NOT_SUPPORTED' warning will be thrown
+# BUG14767986 fix 'ER_MTA_FEATURE_IS_NOT_SUPPORTED' warning will be thrown
 # when MTS is enabled and server will be started in single threaded mode.
 --disable_warnings
 --replace_result $master_uuid MASTER_UUID

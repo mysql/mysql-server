@@ -21,11 +21,11 @@
 
 # Block legal errors for MTR 
 call mtr.add_suppression('Found invalid event in binary log');
-call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: could not queue event from master");
+call mtr.add_suppression("Replica I/O for channel '': Relay log write failure: could not queue event from source");
 call mtr.add_suppression('event read from binlog did not pass crc check');
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
-call mtr.add_suppression("Slave SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
+call mtr.add_suppression("Replica SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
 
 SET @old_source_verify_checksum = @@source_verify_checksum;
 
@@ -83,7 +83,7 @@ reap;
 --echo # 3. Master read a corrupted event from binlog and send the error to slave
 --connection slave
 START SLAVE IO_THREAD;
-let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+let $slave_io_errno= 13114; # ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 --source include/wait_for_slave_io_error.inc
 --connection master
 
@@ -93,7 +93,7 @@ let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 SET GLOBAL source_verify_checksum=0;
 --connection slave
 START SLAVE IO_THREAD;
-let $slave_io_errno= 13122,13115; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+let $slave_io_errno= 13122,13115; # ER_REPLICA_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 --source include/wait_for_slave_io_error.inc
 --connection master
 
@@ -110,7 +110,7 @@ SET GLOBAL source_verify_checksum=1;
 --source include/add_debug_point.inc
 
 START SLAVE IO_THREAD;
-let $slave_io_errno= 13122,13115; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+let $slave_io_errno= 13122,13115; # ER_REPLICA_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 --source include/wait_for_slave_io_error.inc
 
 # Emulate corruption in relay log
@@ -120,7 +120,7 @@ let $slave_io_errno= 13122,13115; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK
 --source include/add_debug_point.inc
 
 START SLAVE SQL_THREAD;
-let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
+let $slave_sql_errno= 13117; # ER_REPLICA_FATAL_ERROR
 --source include/wait_for_slave_sql_error.inc
 
 # Start normal replication and compare same table on master

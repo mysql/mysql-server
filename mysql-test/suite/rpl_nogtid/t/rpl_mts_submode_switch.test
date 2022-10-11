@@ -6,7 +6,7 @@
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 -- source include/only_mts_replica_parallel_workers.inc
-call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
+call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the replica");
 -- sync_slave_with_master
 -- connection master
 -- let $saved_debug=`SELECT @@global.DEBUG`
@@ -18,7 +18,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 -- let $saved_submode= `SELECT @@replica_parallel_type`
 
 # must error out since the slave is running
--- error ER_SLAVE_SQL_THREAD_MUST_STOP
+-- error ER_REPLICA_SQL_THREAD_MUST_STOP
 SET GLOBAL replica_parallel_type=LOGICAL_CLOCK;
 
 -- source include/stop_slave.inc

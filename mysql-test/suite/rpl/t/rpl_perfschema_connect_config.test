@@ -38,7 +38,7 @@
 source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
 
-call mtr.add_suppression("Master command COM_REGISTER_SLAVE failed.");
+call mtr.add_suppression("Source command COM_REGISTER_REPLICA failed.");
 # This warning supression is added here to  avoid the test failing
 # due to Bug#16580366. The warning supression can be removed after
 # the bug is fixed.

@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE DATABASE db_1;
 CREATE DATABASE db_2;
@@ -31,9 +31,9 @@ include/stop_slave.inc
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 SET @@global.debug= @save.debug;
 include/start_slave.inc
-call mtr.add_suppression('Error reading slave worker configuration');
-call mtr.add_suppression('Failed during slave workers initialization');
-call mtr.add_suppression('Failed during slave worker thread creation for channel ''');
+call mtr.add_suppression('Error reading replica worker configuration');
+call mtr.add_suppression('Failed during replica workers initialization');
+call mtr.add_suppression('Failed during replica worker thread creation for channel ''');
 include/stop_slave.inc
 set @save.replica_checkpoint_group= @@global.replica_checkpoint_group;
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
@@ -52,8 +52,8 @@ include/start_slave.inc
 include/rpl_reset.inc
 include/stop_slave.inc
 call mtr.add_suppression("option 'replica_checkpoint_group': unsigned value 524281 adjusted to 524280");
-call mtr.add_suppression("Failed during slave worker thread create");
-call mtr.add_suppression("Slave SQL for channel '': Failed during slave workers initialization, Error_code: MY-13117");
+call mtr.add_suppression("Failed during replica worker thread create");
+call mtr.add_suppression("Replica SQL for channel '': Failed during replica workers initialization, Error_code: MY-13117");
 call mtr.add_suppression("Mismatch between the number of bytes configured to store checkpoint information and the previously stored information");
 set @save.replica_checkpoint_group= @@global.replica_checkpoint_group;
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
@@ -74,7 +74,7 @@ include/wait_for_slave_sql_error.inc [errno=13117]
 SET @@global.debug= @save.debug;
 set @@global.replica_checkpoint_group= @save.replica_checkpoint_group;
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
-call mtr.add_suppression("Could not delete from Slave Workers info repository.");
+call mtr.add_suppression("Could not delete from Replica Workers info repository.");
 include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
@@ -95,10 +95,10 @@ set @@global.debug= @save.debug;
 set @@global.replica_parallel_workers= 2;
 include/start_slave.inc
 include/stop_slave.inc
-call mtr.add_suppression("Error creating relay log info: Failed to initialize the worker info structure.");
+call mtr.add_suppression("Error creating applier metadata: Failed to initialize the worker info structure.");
 set @@global.debug= "+d,mta_replica_worker_init_at_gaps_fails";
 start slave sql_thread;
-ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
+ERROR HY000: Could not initialize connection metadata structure; more error messages can be found in the MySQL error log
 set @@global.debug= "-d,mta_replica_worker_init_at_gaps_fails";
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 include/start_slave.inc

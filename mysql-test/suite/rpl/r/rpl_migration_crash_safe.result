@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 include/stop_slave.inc
 CREATE TABLE test(id INTEGER NOT NULL PRIMARY KEY);
@@ -22,9 +22,9 @@ Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 include/start_slave.inc
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
-ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
 SET @@GLOBAL.master_info_repository= "TABLE";
-ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
 include/sync_slave_sql_with_master.inc
 DROP TABLE test;
 include/sync_slave_sql_with_master.inc

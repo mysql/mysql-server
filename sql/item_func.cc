@@ -5048,7 +5048,7 @@ longlong Item_source_pos_wait::val_int() {
   } else {
     if (channel_map.get_num_instances() > 1) {
       mi = nullptr;
-      my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+      my_error(ER_REPLICA_MULTIPLE_CHANNELS_CMD, MYF(0));
     } else
       mi = channel_map.get_default_channel_mi();
   }
@@ -5240,7 +5240,7 @@ longlong Item_master_gtid_set_wait::val_int() {
     if (channel_map.get_num_instances() > 1) {
       channel_map.unlock();
       mi = nullptr;
-      my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+      my_error(ER_REPLICA_MULTIPLE_CHANNELS_CMD, MYF(0));
       return error_int();
     } else
       mi = channel_map.get_default_channel_mi();

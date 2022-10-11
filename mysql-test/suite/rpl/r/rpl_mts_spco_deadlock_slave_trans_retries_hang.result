@@ -3,7 +3,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
 # 2. Setup testing environment.
@@ -105,7 +105,7 @@ ROLLBACK;
 [connection server_2_1]
 ROLLBACK;
 #
-# 3.5. Wait till the co-ordinator thread to error out with ER_MTS_INCONSISTENT_DATA.
+# 3.5. Wait till the co-ordinator thread to error out with ER_MTA_INCONSISTENT_DATA.
 include/wait_for_slave_sql_error.inc [errno=1756]
 #
 # 3.6. Restart replication threads, sync the replica and verify that table
@@ -118,7 +118,7 @@ include/rpl_diff.inc
 [connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 include/stop_slave.inc
 SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
 SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;

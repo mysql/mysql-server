@@ -173,7 +173,7 @@ start slave sql_thread;
 
 --echo
 --echo # Reboot server setting with both ndb_slave_conflict_role & ndb_applier_conflict_role variable.
-call mtr.add_suppression("mysqld startup An incident event has been written to the binary log which will stop the slaves");
+call mtr.add_suppression("mysqld startup An incident event has been written to the binary log which will stop the replicas");
 --let $mysqld_name=mysqld.1.1
 --let $restart_parameters=restart:--ndb_slave_conflict_role="PRIMARY" --ndb_applier_conflict_role="SECONDARY"
 --source include/restart_mysqld.inc

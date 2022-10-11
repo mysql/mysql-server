@@ -1,4 +1,4 @@
-call mtr.add_suppression("An incident event has been written to the binary log which will stop the slaves");
+call mtr.add_suppression("An incident event has been written to the binary log which will stop the replicas");
 SET SESSION binlog_transaction_compression = ON;
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
 RESET MASTER;

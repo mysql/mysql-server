@@ -53,8 +53,8 @@ SELECT * FROM mysql.role_edges;
 # STOP SLAVE
 --source include/stop_slave.inc
 set sql_log_bin=0;
-call mtr.add_suppression(".*Slave I/O for channel '': Master command COM_REGISTER_SLAVE failed.*");
-call mtr.add_suppression(".*Slave I/O thread couldn't register on master");
+call mtr.add_suppression(".*Replica I/O for channel '': Source command COM_REGISTER_REPLICA failed.*");
+call mtr.add_suppression(".*Replica I/O thread couldn't register on source");
 set sql_log_bin=1;
 
 # Create role,user on master for replication
@@ -73,8 +73,8 @@ START SLAVE;
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE service_state='OFF'
 --source include/wait_condition_or_abort.inc
 
-# Error ER_SLAVE_MASTER_COM_FAILURE as user 'u1' doesn't have REPLICATION SLAVE privilege
---let $slave_io_errno=convert_error(ER_SLAVE_MASTER_COM_FAILURE)
+# Error ER_REPLICA_SOURCE_COM_FAILURE as user 'u1' doesn't have REPLICATION SLAVE privilege
+--let $slave_io_errno=convert_error(ER_REPLICA_SOURCE_COM_FAILURE)
 --source include/wait_for_slave_io_error.inc
 
 # Enable role 'r4' for user 'u1'

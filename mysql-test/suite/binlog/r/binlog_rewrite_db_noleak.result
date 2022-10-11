@@ -13,7 +13,7 @@ INSERT INTO db2.t1 VALUES(4);
 INSERT INTO db2.t1 VALUES(5);
 UPDATE db2.t1 SET i= i+1;
 DELETE FROM db2.t1 WHERE i=4;
-call mtr.add_suppression("Slave SQL: Error executing row event:*");
+call mtr.add_suppression("Replica SQL: Error executing row event:*");
 Dropping the database db1 creating the new database db3.
 DROP DATABASE db1;
 CREATE DATABASE db3;

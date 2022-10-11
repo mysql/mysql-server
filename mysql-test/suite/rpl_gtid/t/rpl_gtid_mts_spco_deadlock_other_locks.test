@@ -82,7 +82,7 @@
 #      Client B --commit lock--> Worker 2 --commit order lock--> Worker 1
 #      --global read lock--> Client B.
 #   4. Wait for the replication applier to error out with
-#      ER_LOCK_DEADLOCK or ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
+#      ER_LOCK_DEADLOCK or ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR.
 #   5. On the replica, using client connection B, execute `SET GLOBAL
 #      READ_ONLY=OFF` to let the applier worker threads to finish after
 #      restart of the applier.
@@ -100,7 +100,7 @@
 #      Client B --commit lock--> Worker 2 --commit order lock--> Worker 1
 #      --global read lock--> Client B.
 #   4. Wait for the replication applier to error out with
-#      ER_LOCK_DEADLOCK or ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
+#      ER_LOCK_DEADLOCK or ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR.
 #   5. On the replica, using client connection B, execute `SET GLOBAL
 #      READ_ONLY=OFF` to let the applier worker threads to finish.
 #
@@ -118,7 +118,7 @@
 #      Client B --commit lock--> Worker 2 --commit order lock--> Worker 1
 #      --global read lock--> Client B.
 #   4. Wait for the replication applier to error out with
-#      ER_LOCK_DEADLOCK or ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
+#      ER_LOCK_DEADLOCK or ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR.
 #   5. On the replica, using client connection B, execute `UNLOCK TABLES`
 #      to let the applier worker threads to finish.
 #
@@ -136,7 +136,7 @@
 #      Client B --commit lock--> Worker 2 --commit order lock--> Worker 1
 #      --global read lock--> Client B.
 #   4. Wait for the replication applier to error out with
-#      ER_LOCK_DEADLOCK or ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR.
+#      ER_LOCK_DEADLOCK or ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR.
 #   5. On the replica, using client connection B, execute `UNLOCK TABLES`
 #      to let the applier worker threads to finish.
 #
@@ -220,7 +220,7 @@ INSERT INTO t1 VALUES(13, 13);
 --let $mts_spco_gd_worker_3_only_runs_after_deadlock = 1
 --let $mts_spco_gd_trx_blocking_client = SET GLOBAL read_only = ON
 --let $mts_spco_gd_state_blocking_client = Waiting for commit lock
---let $mts_spco_gd_error_expected_replica = ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
+--let $mts_spco_gd_error_expected_replica = ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = SET GLOBAL read_only = OFF
 --source extra/rpl_tests/mts_spco_generate_deadlock.inc
 
@@ -250,7 +250,7 @@ INSERT INTO t1 VALUES(20, 20);
 --let $mts_spco_gd_trx_assigned_worker_3 = INSERT INTO t1 VALUES(23, NULL)
 --let $mts_spco_gd_worker_3_only_runs_after_deadlock = 1
 --let $mts_spco_gd_trx_blocking_client = SET GLOBAL read_only = ON
---let $mts_spco_gd_error_expected_replica = ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
+--let $mts_spco_gd_error_expected_replica = ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = SET GLOBAL read_only = OFF
 --source extra/rpl_tests/mts_spco_generate_deadlock.inc
 
@@ -283,7 +283,7 @@ INSERT INTO t1 VALUES(27, 27);
 --let $mts_spco_gd_trx_blocking_client = FLUSH TABLES WITH READ LOCK
 --let $mts_spco_gd_state_blocking_client = Waiting for commit lock
 --let $mts_spco_gd_wait_for_coordinator_running_state = Replica has read all relay log; waiting for more updates
---let $mts_spco_gd_error_expected_replica = ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
+--let $mts_spco_gd_error_expected_replica = ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = UNLOCK TABLES
 --source extra/rpl_tests/mts_spco_generate_deadlock.inc
 
@@ -316,7 +316,7 @@ INSERT INTO t1 VALUES(34, 34);
 --let $mts_spco_gd_trx_blocking_client = FLUSH TABLES WITH READ LOCK
 --let $mts_spco_gd_state_blocking_client = Waiting for commit lock
 --let $mts_spco_gd_wait_for_coordinator_running_state = Replica has read all relay log; waiting for more updates
---let $mts_spco_gd_error_expected_replica = ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
+--let $mts_spco_gd_error_expected_replica = ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --let $mts_spco_gd_trx_to_client_unblocking_workers = UNLOCK TABLES
 --source extra/rpl_tests/mts_spco_generate_deadlock.inc
 

@@ -31,7 +31,7 @@ RELEASE_LOCK('Bug#34306')
 1
 # con2
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 SELECT RELEASE_LOCK('Bug#34306');
 RELEASE_LOCK('Bug#34306')
 1

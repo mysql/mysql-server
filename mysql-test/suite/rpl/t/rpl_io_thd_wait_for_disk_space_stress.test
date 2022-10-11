@@ -30,12 +30,12 @@ CALL mtr.add_suppression("Retry in 60 secs");
 CALL mtr.add_suppression("Relay log write failure");
 CALL mtr.add_suppression("Could not parse relay log event entry.");
 CALL mtr.add_suppression("Turning logging off for the whole duration of the MySQL server process");
-CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Recovery from source pos");
 CALL mtr.add_suppression("Error reading relay log event for channel");
 CALL mtr.add_suppression("next log error");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
-CALL mtr.add_suppression("Error writing master configuration");
-CALL mtr.add_suppression("Failed to flush master info file");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Error writing source configuration");
+CALL mtr.add_suppression("Failed to flush connection metadata repository");
 
 --let $sleep_freq= 10
 --let $sleep_time= `SELECT 1.0 / $sleep_freq`

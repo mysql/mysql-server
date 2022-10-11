@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 # Create tables on master
@@ -17,15 +17,15 @@ INSERT INTO v1(i,j) VALUES ("a",DEFAULT);
 # Warning expected as i is non-deterministic
 INSERT INTO v1(j) VALUES ("b");
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 # Warning expected as i is non-deterministic
 INSERT INTO v1(i,j) VALUES (DEFAULT,"b");
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 # Warning expected as i is non-deterministic
 INSERT INTO v1() VALUES();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 DROP TABLE v1;
 CREATE TABLE t1(
 id INTEGER NOT NULL AUTO_INCREMENT,
@@ -36,7 +36,7 @@ KEY token (token)
 # Warning expected as token is non-deterministic
 INSERT INTO t1 VALUES (3, "abc"), (DEFAULT, DEFAULT);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 # No warning expected as token is defined
 INSERT INTO t1 VALUES (1, "abc"), (2, "def");
 DROP TABLE t1;
@@ -46,10 +46,10 @@ INSERT INTO t2(i) VALUES('MySQL');
 # Making sure that warnings are shown
 INSERT INTO t2(i) VALUES(DEFAULT);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 INSERT INTO t2() VALUES();
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 SELECT COUNT(*) from t2;
 COUNT(*)
 3
@@ -57,7 +57,7 @@ create table t1 ( i double DEFAULT ( RAND() ) ) ;
 insert into t1 values (1),(2) ;
 update t1 set i = DEFAULT where i = 2 ;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 drop table t1;
 SET @start_enforce_gtid_consistency = @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;

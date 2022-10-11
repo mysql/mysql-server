@@ -52,7 +52,7 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 
 --source include/rpl_connection_slave.inc
 --source include/gtid_utils.inc
-CALL mtr.add_suppression(".*slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*replica coordinator and worker threads are stopped.*");
 CALL mtr.add_suppression("Could not execute Write_rows event on table test.*");
 CALL mtr.add_suppression("Worker .* failed executing transaction");
 

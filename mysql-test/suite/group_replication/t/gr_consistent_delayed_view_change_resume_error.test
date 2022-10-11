@@ -85,7 +85,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_pre
 # Supress log errors since they are expected
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 SET SESSION sql_log_bin= 1;
 
 --let $sysvars_to_save = [ "GLOBAL.group_replication_recovery_reconnect_interval" ]

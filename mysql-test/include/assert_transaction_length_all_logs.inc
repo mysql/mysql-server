@@ -61,7 +61,7 @@ while ($_atlal_channel_counter)
   # Get channel name
   --let $_atlal_channel_name=query_get_value(SELECT CHANNEL_NAME FROM performance_schema.replication_connection_configuration, CHANNEL_NAME, $_atlal_channel_counter)
   # Check if it is a GR channel
-  --error 0, ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+  --error 0, ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
   --let $_atlal_current_relaylog_file= query_get_value(SHOW SLAVE STATUS FOR CHANNEL '$_atlal_channel_name', Relay_Log_File, 1)
   --let $_atlal_error= query_get_value(SHOW ERRORS, Code, 1)
   # Skip GR channels assertion

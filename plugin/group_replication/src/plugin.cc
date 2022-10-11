@@ -2813,13 +2813,14 @@ static int check_if_server_properly_configured() {
 
   if (startup_pre_reqs.mi_repository_type != 1)  // INFO_REPOSITORY_TABLE
   {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MASTER_INFO_REPO_MUST_BE_TABLE);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_CONNECTION_METADATA_REPO_MUST_BE_TABLE);
     return 1;
   }
 
   if (startup_pre_reqs.rli_repository_type != 1)  // INFO_REPOSITORY_TABLE
   {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RELAY_LOG_INFO_REPO_MUST_BE_TABLE);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_METADATA_REPO_MUST_BE_TABLE);
     return 1;
   }
 

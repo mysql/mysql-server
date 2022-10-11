@@ -45,7 +45,7 @@ select count(*) from t1;
 # Errors from epoch sequence checking :
 call mtr.add_suppression(".*NDB Replica: SQL thread stopped as attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
 call mtr.add_suppression(".*Could not execute Write_rows event on table.*");
-call mtr.add_suppression(".*Slave: Got error 173 'Unknown error code' from NDBCLUSTER.*");
+call mtr.add_suppression(".*Replica: Got error 173 'Unknown error code' from NDBCLUSTER.*");
 call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 
 --echo Make a replica side change

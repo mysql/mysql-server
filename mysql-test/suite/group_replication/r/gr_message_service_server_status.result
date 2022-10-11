@@ -2,7 +2,7 @@ include/have_replication_observers_example_plugin.inc
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 [connection server2]
@@ -170,7 +170,7 @@ call mtr.add_suppression("Plugin group_replication reported: 'The server was aut
 call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'");
 call mtr.add_suppression("Plugin group_replication reported: '\\[GCS\\] Timeout while waiting for the group communication engine to exit!'");
 call mtr.add_suppression("Plugin group_replication reported: '\\[GCS\\] The member has failed to gracefully leave the group.'");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped,*");
 set session sql_log_bin=1;
 set session sql_log_bin=0;
 DROP TABLE t1;

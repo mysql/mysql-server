@@ -1369,7 +1369,7 @@ DROP USER u2@l;
 # Suppress server log like "Did not write failed 'GRANT SELECT ON ...' into
 # binary log while granting/revoking privileges in databases.
 call mtr.add_suppression("Did not write failed .*");
-call mtr.add_suppression("REVOKE/GRANT failed .* An incident event has been written to the binary log which will stop the slaves.");
+call mtr.add_suppression("REVOKE/GRANT failed .* An incident event has been written to the binary log which will stop the replicas.");
 
 # It is not possible to execute a GRANT statement only for some users
 # (unlike 'DROP USER' which drops only existing users from the lists).

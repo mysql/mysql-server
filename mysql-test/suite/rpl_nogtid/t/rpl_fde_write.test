@@ -49,8 +49,8 @@ if (!$is_windows)
 --source include/rpl_start_server.inc
 
 --source include/rpl_connection_slave.inc
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-CALL mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log:");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CALL mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log:");
 START SLAVE;
 let $wait_binlog_event= DROP;
 --source include/wait_for_binlog_event.inc

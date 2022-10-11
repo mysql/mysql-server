@@ -2,7 +2,7 @@ include/only_with_option.inc [GLOBAL.replica_parallel_workers > 1]
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
 # 1. Initial data
@@ -34,7 +34,7 @@ SET GLOBAL innodb_lock_wait_timeout = 300;
 # 2.4 Add error suppressions.
 #
 call mtr.add_suppression("Worker .* failed executing transaction");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 #
 # 2.5 An extra connection needed on Slave.
 #
@@ -108,7 +108,7 @@ COMMIT;
 #      to fail with 'ER_DUP_ENTRY' error (after the worker2
 #      detected the 'commit order deadlock').
 #
-include/wait_for_slave_sql_error.inc [errno=1062,3030 # ER_DUP_ENTRY, ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR]
+include/wait_for_slave_sql_error.inc [errno=1062,3030 # ER_DUP_ENTRY, ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR]
 #
 # 3.13 Check that worker 2 did not *retry* transaction-2
 #      before throwing ER_DUP_ENTRY error (non-temporary error).

@@ -904,7 +904,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     This function also informs slave about the GTID set sent by the slave,
     transactions missing on the master and few suggestions to recover from
     the error. This message shall be wrapped by
-    ER_MASTER_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
+    ER_SOURCE_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
     error.
 
     This function will be called from mysql_binlog_send() function.
@@ -925,7 +925,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     This function also informs slave about the GTID set sent by the slave,
     transactions missing on the master and few suggestions to recover from
     the error. This message shall be wrapped by
-    ER_MASTER_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
+    ER_SOURCE_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
     error.
 
     This function will be called from find_first_log_not_in_gtid_set()

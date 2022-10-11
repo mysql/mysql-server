@@ -80,6 +80,6 @@ drop table t1, t2, t3;
 set @@global.replica_exec_mode= @prior_replica_exec_mode;
 set @@global.slave_rows_search_algorithms= @prior_slave_rows_search_algorithms;
 set @@global.replica_allow_batching= @prior_replica_allow_batching;
-call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t.* Error_code: 1032");
+call mtr.add_suppression("Replica SQL.*Could not execute Delete_rows event on table test.t.* Error_code: 1032");
 
 --source include/rpl_end.inc
