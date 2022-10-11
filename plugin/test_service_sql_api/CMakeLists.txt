@@ -60,14 +60,8 @@ MYSQL_ADD_PLUGIN(test_session_attach
   MODULE_ONLY
   MODULE_OUTPUT_NAME "libtest_session_attach"
   TEST_ONLY
+  WIN_DEF_FILE "${CMAKE_CURRENT_SOURCE_DIR}/test_session_attach.def"
   )
-
-# MYSQL_ADD_PLUGIN may have decided not to build it.
-IF(WIN32 AND TARGET test_session_attach)
-  MY_TARGET_LINK_OPTIONS(test_session_attach
-    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/test_session_attach.def"
-    )
-ENDIF()
 
 # Test SQL API
 MYSQL_ADD_PLUGIN(test_sql_complex
