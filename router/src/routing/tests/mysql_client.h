@@ -665,13 +665,25 @@ class MysqlClient {
 
     class ResultSet {
      public:
+      // construct a ResultSet from a resultset.
+      //
+      // takes ownership of the MYSQL_RES
+      //
+      ResultSet(MYSQL *m, MYSQL_RES *res) : m_{m}, res_{res} {}
+
+      // construct a ResultSet of the current connection.
+      //
+      // assumes that the query has been executed.
       ResultSet(MYSQL *m)
-          : m_{m}, res_{m_ != nullptr ? mysql_use_result(m_) : nullptr} {}
+          : ResultSet(m, m != nullptr ? mysql_use_result(m) : nullptr) {}
 
       ResultSet(const ResultSet &) = delete;
-      ResultSet(ResultSet &&other) : res_{std::exchange(other.res_, nullptr)} {}
+      ResultSet(ResultSet &&other)
+          : m_{std::exchange(other.m_, nullptr)},
+            res_{std::exchange(other.res_, nullptr)} {}
       ResultSet &operator=(const ResultSet &) = delete;
       ResultSet &operator=(ResultSet &&other) {
+        m_ = std::exchange(other.m_, nullptr);
         res_ = std::exchange(other.res_, nullptr);
 
         return *this;
@@ -841,17 +853,17 @@ class MysqlClient {
     return {};
   }
 
-  stdx::expected<Statement::Rows, MysqlError> list_dbs() {
+  stdx::expected<Statement::ResultSet, MysqlError> list_dbs() {
     const auto res = mysql_list_dbs(m_.get(), nullptr);
 
     if (res == nullptr) {
       return stdx::make_unexpected(make_mysql_error_code(m_.get()));
     }
 
-    return {res};
+    return {std::in_place, m_.get(), res};
   }
 
-  stdx::expected<Statement::Result, MysqlError> list_fields(
+  stdx::expected<Statement::ResultSet, MysqlError> list_fields(
       std::string tablename) {
     const auto res = mysql_list_fields(m_.get(), tablename.c_str(), nullptr);
 
@@ -859,7 +871,7 @@ class MysqlClient {
       return stdx::make_unexpected(make_mysql_error_code(m_.get()));
     }
 
-    return {m_.get()};
+    return {std::in_place, m_.get(), res};
   }
 
   template <class T, class N>
