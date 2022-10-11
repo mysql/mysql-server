@@ -1396,24 +1396,17 @@ ADD_DEPENDENCIES(clang_tidy_prerequisites
   )
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
-  MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example"
+  MODULE_ONLY
+  TEST_ONLY
+  MODULE_OUTPUT_NAME "udf_example"
+  WIN_DEF_FILE "${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def"
   )
-# MYSQL_ADD_PLUGIN may have decided not to build it.
-IF(WIN32 AND TARGET udf_example)
-  SET_TARGET_PROPERTIES(udf_example
-    PROPERTIES LINK_FLAGS
-    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
-ENDIF()
 
 MYSQL_ADD_PLUGIN(locking_service locking_service_udf.cc
-  MODULE_ONLY MODULE_OUTPUT_NAME "locking_service"
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "locking_service"
+  WIN_DEF_FILE "${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def"
   )
-# MYSQL_ADD_PLUGIN may have decided not to build it.
-IF(WIN32 AND TARGET locking_service)
-  SET_TARGET_PROPERTIES(locking_service
-    PROPERTIES LINK_FLAGS
-    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def")
-ENDIF()
 
 FOREACH(tool gtar tar git)
   STRING(TOUPPER ${tool}  TOOL)
