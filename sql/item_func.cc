@@ -8601,9 +8601,9 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
   if (Item_func::fix_fields(thd, ref)) return true;
 
   for (uint i = 0; i < arg_count; i++) {
-    if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
+    if (args[i]->data_type() == MYSQL_TYPE_INVALID) {
       sp_variable *var = sp_ctx->find_variable(i);
-      if (args[0]->propagate_type(
+      if (args[i]->propagate_type(
               thd,
               is_numeric_type(var->type)
                   ? Type_properties(var->type, var->field_def.is_unsigned)
