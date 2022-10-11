@@ -190,6 +190,13 @@ extern char empty_c_string[1];
 */
 constexpr size_t PREALLOC_NUM_HA = 15;
 
+#ifndef NDEBUG
+// Used to sample certain debug flags when a query is read but before the reply
+// is sent.
+enum class TDM { ANY, ON, ZERO, NOT_AVAILABLE };
+inline thread_local TDM expected_from_debug_flag = TDM::ANY;
+#endif /* not defined NDEBUG */
+
 /**
   To be used for pool-of-threads (implemented differently on various OSs)
 */

@@ -1417,6 +1417,10 @@ bool do_command(THD *thd) {
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("Command on %s = %d (%s)", desc, command,
                       Command_names::str_notranslate(command).c_str()));
+  expected_from_debug_flag = TDM::ANY;
+  DBUG_EXECUTE_IF("tdon", { expected_from_debug_flag = TDM::ON; });
+  DBUG_EXECUTE_IF("tdzero", { expected_from_debug_flag = TDM::ZERO; });
+  DBUG_EXECUTE_IF("tdna", { expected_from_debug_flag = TDM::NOT_AVAILABLE; });
 #endif  // NDEBUG
   DBUG_PRINT("info", ("packet: '%*.s'; command: %d",
                       (int)thd->get_protocol_classic()->get_packet_length(),
