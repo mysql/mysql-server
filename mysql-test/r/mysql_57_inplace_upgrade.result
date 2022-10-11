@@ -38,8 +38,8 @@ Pattern "The system table mysql\.global_grants is missing. Please perform the My
 Pattern "System table \'func\' is expected to be transactional\." found
 Pattern "Info table is not ready to be used\. Table \'mysql.slave_master_info\' cannot be opened\." found
 Pattern "Error in checking mysql\.slave_master_info repository info type of TABLE\." found
-Pattern "Error creating master info\: Error checking repositories\." found
-Pattern "Slave: Failed to initialize the master info structure for channel \'\'; its record may still be present in \'mysql.slave_master_info\' table, consider deleting it\." found
+Pattern "Error creating connection metadata\: Error checking repositories\." found
+Pattern "Replica: Failed to initialize the connection metadata structure for channel \'\'; its record may still be present in the applier metadata repository, consider deleting it\." found
 Pattern "Failed to create or recover replication info repositories\." found
 Pattern "Server upgrade is required, but skipped by command line option \'--upgrade=MINIMAL\'\." found
 ###########################################################################

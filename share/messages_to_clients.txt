@@ -6251,7 +6251,7 @@ ER_NEED_REPREPARE
 OBSOLETE_ER_DELAYED_NOT_SUPPORTED
   eng "DELAYED option not supported for table '%-.192s'"
   ger "Die DELAYED-Option wird für Tabelle '%-.192s' nicht unterstützt"
-WARN_NO_MASTER_INFO
+WARN_NO_CONNECTION_METADATA
   eng "The connection metadata structure does not exist"
   ger "Die Master-Info-Struktur existiert nicht"
 WARN_OPTION_IGNORED
@@ -7128,7 +7128,7 @@ ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
   eng "Cannot execute statement because it needs to be written to the binary log as multiple statements, and this is not allowed when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 
 ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE
-  eng "Replica has more GTIDs than the source has, using the source's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The source may or may not have rolled back transactions that were already replicated to the replica. Suggest to replicate any transactions that source has rolled back from replica to source, and/or commit empty transactions on source to account for transactions that have been committed on source but are not included in GTID_EXECUTED."
+  eng "Replica has more GTIDs than the source has, using the source's SERVER_UUID. This may indicate that the the last binary log file was truncated or lost, e.g., after a power failure when sync_binlog != 1. The source may have rolled back transactions that were already replicated to the replica. Replicate any transactions that source has rolled back from replica to source, and/or commit empty transactions on source to account for transactions that have been committed on source but are not included in GTID_EXECUTED."
 
 ER_MISSING_KEY
   eng "The table '%s.%s' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly."

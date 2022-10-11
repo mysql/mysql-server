@@ -32,7 +32,7 @@ START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13114]
-Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Replica has more GTIDs than the source has, using the source's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The source may or may not have rolled back transactions that were already replicated to the replica. Suggest to replicate any transactions that source has rolled back from replica to source, and/or commit empty transactions on source to account for transactions that have been''
+Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Replica has more GTIDs than the source has, using the source's SERVER_UUID. This may indicate that the the last binary log file was truncated or lost, e.g., after a power failure when sync_binlog != 1. The source may have rolled back transactions that were already replicated to the replica. Replicate any transactions that source has rolled back from replica to source, and/or commit empty transactions on source to account for transactions that have been committed on source but are not included in GTID_EXECU''
 call mtr.add_suppression(".*Replica has more GTIDs than the source has.*");
 SET GLOBAL GTID_PURGED= "master_uuid:1-2";
 include/start_slave.inc

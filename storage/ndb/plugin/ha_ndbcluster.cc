@@ -4328,7 +4328,7 @@ int ha_ndbcluster::prepare_conflict_detection(
           "NDB Replica: Malformed event received on table %s "
           "cannot parse. Stopping SQL thread.",
           m_share->key_string());
-      return ER_SLAVE_CORRUPT_EVENT;
+      return ER_REPLICA_CORRUPT_EVENT;
     }
 
     if (extra_row_info.getFlags() &
@@ -4376,7 +4376,7 @@ int ha_ndbcluster::prepare_conflict_detection(
               "table %s requires ndb_applier_conflict_role variable "
               "to be set. Stopping SQL thread.",
               conflict_fn->name, m_share->key_string());
-          return ER_SLAVE_CONFIGURATION;
+          return ER_REPLICA_CONFIGURATION;
         }
         case SCR_PASS: {
           pass_mode = true;
@@ -4452,7 +4452,7 @@ int ha_ndbcluster::prepare_conflict_detection(
         "upstream Cluster.",
         m_share->key_string());
     /* This is a user error, but we want them to notice, so treat seriously */
-    return ER_SLAVE_CORRUPT_EVENT;
+    return ER_REPLICA_CORRUPT_EVENT;
   }
 
   bool prepare_interpreted_program = false;
@@ -4551,7 +4551,7 @@ int ha_ndbcluster::prepare_conflict_detection(
           "info necessary for conflict detection.  "
           "Check binlog format options on upstream cluster.",
           m_share->key_string());
-      return ER_SLAVE_CORRUPT_EVENT;
+      return ER_REPLICA_CORRUPT_EVENT;
     }
   }
 
@@ -7984,7 +7984,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
            exec_relay_log_event()
         */
         push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_SLAVE_SILENT_RETRY_TRANSACTION,
+                     ER_REPLICA_SILENT_RETRY_TRANSACTION,
                      "Replica transaction rollback requested");
         /*
           Set retry count to zero to:

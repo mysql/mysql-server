@@ -101,16 +101,16 @@ include/start_slave.inc
 include/restore_sysvars.inc
 DROP TABLE t2;
 include/suppress_messages.inc
-# Connection 2 suppresses message <Slave SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Duplicate column name 'my_row_id''>.
-# Connection 2 suppresses message <Slave SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Multiple primary key defined' on query.>.
-# Connection 2 suppresses message <Slave SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Failed to generate invisible primary key. Column 'my_row_id' already exists.'>.
-# Connection 2 suppresses message <Slave SQL for channel .*: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
-# Connection 2 suppresses message <Slave SQL for channel '': Error 'Duplicate column name 'my_row_id'' on query.>.
-# Connection 2 suppresses message <Slave: Duplicate column name 'my_row_id' Error_code:>.
-# Connection 2 suppresses message <Slave SQL for channel '': Error 'Multiple primary key defined' on query.>.
-# Connection 2 suppresses message <Slave: Multiple primary key defined Error_code:>.
-# Connection 2 suppresses message <Slave SQL for channel '': Error 'Failed to generate invisible primary key. Column 'my_row_id' already exists.'>.
-# Connection 2 suppresses message <Slave: Failed to generate invisible primary key. Column 'my_row_id' already exists.>.
+# Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Duplicate column name 'my_row_id''>.
+# Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Multiple primary key defined' on query.>.
+# Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Failed to generate invisible primary key. Column 'my_row_id' already exists.'>.
+# Connection 2 suppresses message <Replica SQL for channel .*: ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 2 suppresses message <Replica SQL for channel '': Error 'Duplicate column name 'my_row_id'' on query.>.
+# Connection 2 suppresses message <Replica: Duplicate column name 'my_row_id' Error_code:>.
+# Connection 2 suppresses message <Replica SQL for channel '': Error 'Multiple primary key defined' on query.>.
+# Connection 2 suppresses message <Replica: Multiple primary key defined Error_code:>.
+# Connection 2 suppresses message <Replica SQL for channel '': Error 'Failed to generate invisible primary key. Column 'my_row_id' already exists.'>.
+# Connection 2 suppresses message <Replica: Failed to generate invisible primary key. Column 'my_row_id' already exists.>.
 [connection master]
 DROP TABLE t1;
 DROP TABLE t3;

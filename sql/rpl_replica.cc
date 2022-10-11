@@ -1659,7 +1659,8 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
     DBUG_PRINT("info", ("Terminating SQL thread"));
     mi->rli->abort_slave = true;
 
-    DEBUG_SYNC(current_thd, "terminate_replica_threads_after_set_abort_replica");
+    DEBUG_SYNC(current_thd,
+               "terminate_replica_threads_after_set_abort_replica");
 
     if ((error = terminate_slave_thread(
              mi->rli->info_thd, sql_lock, &mi->rli->stop_cond,
@@ -2235,7 +2236,8 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli) {
           "ignores duplicate key, key not found, and similar errors (see "
           "documentation for details).";
       char msg_stopped_mts[] =
-          "... The replica coordinator and worker threads are stopped, possibly "
+          "... The replica coordinator and worker threads are stopped, "
+          "possibly "
           "leaving data in inconsistent state. A restart should "
           "restore consistency automatically, although using non-transactional "
           "storage for data or info tables or DDL queries could lead to "
@@ -2401,10 +2403,11 @@ static enum_command_status io_thread_init_command(
         uint err{mysql_errno(mysql)};
         if (is_network_error(err)) mi->set_network_error();
         mysql_free_result(*master_res);
-        mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                   "The replica IO thread stops because the initialization query "
-                   "'%s' did not return any row.",
-                   query);
+        mi->report(
+            WARNING_LEVEL, mysql_errno(mysql),
+            "The replica IO thread stops because the initialization query "
+            "'%s' did not return any row.",
+            query);
         return COMMAND_STATUS_ERROR;
       }
     }
@@ -2738,7 +2741,8 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   }
   if (mi->master_id == 0 && mi->ignore_server_ids->dynamic_ids.size() > 0) {
     errmsg =
-        "Replica configured with server id filtering could not detect the source "
+        "Replica configured with server id filtering could not detect the "
+        "source "
         "server id.";
     err_code = ER_REPLICA_FATAL_ERROR;
     sprintf(err_buff, ER_THD(current_thd, ER_REPLICA_FATAL_ERROR), errmsg);
@@ -2825,7 +2829,8 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
           goto network_err;
         } else {
           errmsg =
-              "The replica I/O thread stops because a fatal error is encountered "
+              "The replica I/O thread stops because a fatal error is "
+              "encountered "
               "when it tried to SET @source_binlog_checksum on source.";
           err_code = ER_REPLICA_FATAL_ERROR;
           sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
@@ -5108,16 +5113,22 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
   mysql_mutex_unlock(&rli->data_lock);
   rli->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_READ_FAILURE,
               ER_THD(thd, ER_REPLICA_RELAY_LOG_READ_FAILURE),
-              "\
-Could not parse relay log event entry. The possible reasons are: the master's \
-binary log is corrupted (you can check this by running 'mysqlbinlog' on the \
-binary log), the slave's relay log is corrupted (you can check this by running \
-'mysqlbinlog' on the relay log), a network problem, the server was unable to \
-fetch a keyring key required to open an encrypted relay log file, or a bug in \
-the master's or slave's MySQL code. If you want to check the master's binary \
-log or slave's relay log, you will be able to know their names by issuing \
-'SHOW SLAVE STATUS' on this slave.\
-");
+              "Could not parse relay log event entry. The possible reasons "
+              "are: the source's "
+              "binary log is corrupted (you can check this by running "
+              "'mysqlbinlog' on the "
+              "binary log), the replica's relay log is corrupted (you can "
+              "check this by running "
+              "'mysqlbinlog' on the relay log), a network problem, the server "
+              "was unable to "
+              "fetch a keyring key required to open an encrypted relay log "
+              "file, or a bug in "
+              "the source's or replica's MySQL code. If you want to check the "
+              "source's binary "
+              "log or replica's relay log, you will be able to know their "
+              "names by issuing "
+              "'SHOW REPLICA STATUS' on this replica.");
+
   return SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR;
 }
 
@@ -5299,10 +5310,10 @@ extern "C" void *handle_slave_io(void *arg) {
     THD_STAGE_INFO(thd, stage_connecting_to_source);
 
     if (!safe_connect(thd, mysql, mi)) {
-      LogErr(SYSTEM_LEVEL, ER_RPL_REPLICA_CONNECTED_TO_SOURCE_REPLICATION_STARTED,
-             mi->get_for_channel_str(), mi->get_user(), mi->host, mi->port,
-             mi->get_io_rpl_log_name(),
-             llstr(mi->get_master_log_pos(), llbuff));
+      LogErr(
+          SYSTEM_LEVEL, ER_RPL_REPLICA_CONNECTED_TO_SOURCE_REPLICATION_STARTED,
+          mi->get_for_channel_str(), mi->get_user(), mi->host, mi->port,
+          mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
     } else {
       LogErr(INFORMATION_LEVEL, ER_RPL_REPLICA_IO_THREAD_KILLED,
              mi->get_for_channel_str());
@@ -5553,8 +5564,9 @@ extern "C" void *handle_slave_io(void *arg) {
             rli->log_space_limit < rli->log_space_total &&
             !rli->ignore_log_space_limit)
           if (wait_for_relay_log_space(rli)) {
-            LogErr(ERROR_LEVEL,
-                   ER_RPL_REPLICA_IO_THREAD_ABORTED_WAITING_FOR_RELAY_LOG_SPACE);
+            LogErr(
+                ERROR_LEVEL,
+                ER_RPL_REPLICA_IO_THREAD_ABORTED_WAITING_FOR_RELAY_LOG_SPACE);
             goto err;
           }
         DBUG_EXECUTE_IF("flush_after_reading_user_var_event", {
@@ -6772,8 +6784,8 @@ static int report_apply_event_error(THD *thd, Relay_log_info *rli) {
   bool udf_error = false;
   while ((err = it++)) {
     if (err->mysql_errno() == ER_CANT_OPEN_LIBRARY) udf_error = true;
-    LogErr(WARNING_LEVEL, ER_RPL_REPLICA_ERROR_INFO_FROM_DA, err->message_text(),
-           err->mysql_errno());
+    LogErr(WARNING_LEVEL, ER_RPL_REPLICA_ERROR_INFO_FROM_DA,
+           err->message_text(), err->mysql_errno());
   }
   if (udf_error)
     slave_errno = ER_RPL_REPLICA_ERROR_LOADING_USER_DEFINED_LIBRARY;
@@ -6976,7 +6988,8 @@ extern "C" void *handle_slave_sql(void *arg) {
       mysql_cond_broadcast(&rli->start_cond);
       mysql_mutex_unlock(&rli->run_lock);
       rli->report(
-          ERROR_LEVEL, ER_REPLICA_FATAL_ERROR, ER_THD(thd, ER_REPLICA_FATAL_ERROR),
+          ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+          ER_THD(thd, ER_REPLICA_FATAL_ERROR),
           "Error checking if the relay log repository is transactional.");
       goto err;
     }
@@ -8356,10 +8369,11 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
 
     if (reconnect) {
       if (!suppress_warnings)
-        LogErr(
-            SYSTEM_LEVEL, ER_RPL_REPLICA_CONNECTED_TO_SOURCE_REPLICATION_RESUMED,
-            mi->get_for_channel_str(), mi->get_user(), tmp_host, tmp_port,
-            mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
+        LogErr(SYSTEM_LEVEL,
+               ER_RPL_REPLICA_CONNECTED_TO_SOURCE_REPLICATION_RESUMED,
+               mi->get_for_channel_str(), mi->get_user(), tmp_host, tmp_port,
+               mi->get_io_rpl_log_name(),
+               llstr(mi->get_master_log_pos(), llbuff));
     } else {
       query_logger.general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
                                      mi->get_user(), tmp_host, tmp_port);
@@ -8554,7 +8568,8 @@ bool flush_relay_logs_cmd(THD *thd) {
         /*
           Log warning on SQL or worker threads.
         */
-        LogErr(WARNING_LEVEL, ER_RPL_REPLICA_INCORRECT_CHANNEL, lex->mi.channel);
+        LogErr(WARNING_LEVEL, ER_RPL_REPLICA_INCORRECT_CHANNEL,
+               lex->mi.channel);
       } else {
         /*
           Return error on client sessions.
@@ -9202,7 +9217,8 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
               opt_mi_repository_id, opt_rli_repository_id,
               channel_map.get_default_channel(), true, &channel_map)) {
         error = ER_CONNECTION_METADATA;
-        my_message(ER_CONNECTION_METADATA, ER_THD(thd, ER_CONNECTION_METADATA), MYF(0));
+        my_message(ER_CONNECTION_METADATA, ER_THD(thd, ER_CONNECTION_METADATA),
+                   MYF(0));
       }
     }
   } else {
@@ -10501,7 +10517,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   /* With an execute thread running, we don't allow changing execute options. */
   if (have_execute_option && (thread_mask & SLAVE_SQL)) {
     error = ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP;
-    my_error(ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0), mi->get_channel());
+    my_error(ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0),
+             mi->get_channel());
     goto err;
   }
 
@@ -10618,7 +10635,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   /* If the receiver is stopped, flush master_info to disk. */
   if ((thread_mask & SLAVE_IO) == 0 && flush_master_info(mi, true)) {
     error = ER_RELAY_LOG_INIT;
-    my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush connection metadata repository");
+    my_error(ER_RELAY_LOG_INIT, MYF(0),
+             "Failed to flush connection metadata repository");
     goto err;
   }
 
@@ -10922,7 +10940,8 @@ bool change_master_cmd(THD *thd) {
     LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
     if (is_invalid_change_master_for_group_replication_applier(lex_mi)) {
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-               "CHANGE REPLICATION SOURCE with the given parameters", lex->mi.channel);
+               "CHANGE REPLICATION SOURCE with the given parameters",
+               lex->mi.channel);
       res = true;
       goto err;
     }
@@ -10948,7 +10967,8 @@ bool change_master_cmd(THD *thd) {
     LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
     if (is_invalid_change_master_for_group_replication_recovery(lex_mi)) {
       my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-               "CHANGE REPLICATION SOURCE with the given parameters", lex->mi.channel);
+               "CHANGE REPLICATION SOURCE with the given parameters",
+               lex->mi.channel);
       res = true;
       goto err;
     }
