@@ -41,9 +41,9 @@ class MockNG : public GRClusterMetadata {
   /**
    * Objects representing the servers that are part of the topology.
    */
-  metadata_cache::ManagedInstance ms1;
-  metadata_cache::ManagedInstance ms2;
-  metadata_cache::ManagedInstance ms3;
+  metadata_cache::ManagedInstance ms1{GR};
+  metadata_cache::ManagedInstance ms2{GR};
+  metadata_cache::ManagedInstance ms3{GR};
 
   /**
    * Server list for the cluster. Each server object
@@ -115,6 +115,8 @@ class MockNG : public GRClusterMetadata {
    */
   unsigned int fetch_ttl() override;
 #endif
+ private:
+  static constexpr auto GR = metadata_cache::InstanceType::GroupMember;
 };
 
 #endif  // MOCK_METADATA_INCLUDED

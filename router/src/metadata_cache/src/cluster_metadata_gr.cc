@@ -1135,7 +1135,8 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
           std::to_string(row.size()));
     }
 
-    metadata_cache::ManagedInstance s;
+    metadata_cache::ManagedInstance s{
+        metadata_cache::InstanceType::GroupMember};
     s.mysql_server_uuid = get_string(row[1]);
     if (!set_instance_ports(s, row, 2, 3)) {
       return true;  // next row
@@ -1224,7 +1225,8 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
           std::to_string(row.size()));
     }
 
-    metadata_cache::ManagedInstance instance;
+    metadata_cache::ManagedInstance instance{
+        metadata_cache::InstanceType::GroupMember};
     instance.mysql_server_uuid = get_string(row[0]);
     if (!set_instance_ports(instance, row, 1, 2)) {
       return true;  // next row
@@ -1439,7 +1441,8 @@ void GRClusterSetMetadataBackend::
           mysqlrouter::URI uri_classic("mysql://" + node_addr_classic);
           mysqlrouter::URI uri_x("mysql://" + node_addr_x);
           result.clusters_data.back().members.emplace_back(
-              node_uuid, metadata_cache::ServerMode::ReadOnly, uri_classic.host,
+              metadata_cache::InstanceType::GroupMember, node_uuid,
+              metadata_cache::ServerMode::ReadOnly, uri_classic.host,
               uri_classic.port, uri_x.port);
 
           set_instance_attributes(result.clusters_data.back().members.back(),

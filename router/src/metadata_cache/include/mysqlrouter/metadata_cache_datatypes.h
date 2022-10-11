@@ -98,6 +98,7 @@ constexpr const bool kNodeTagHiddenDefault{false};
 constexpr const bool kNodeTagDisconnectWhenHiddenDefault{true};
 
 enum class ServerMode { ReadWrite, ReadOnly, Unavailable };
+enum class InstanceType { GroupMember, AsyncMember, ReadReplica };
 
 /** @class ManagedInstance
  *
@@ -105,16 +106,18 @@ enum class ServerMode { ReadWrite, ReadOnly, Unavailable };
  */
 class METADATA_CACHE_EXPORT ManagedInstance {
  public:
-  ManagedInstance() = default;
-  ManagedInstance(const std::string &p_mysql_server_uuid,
+  ManagedInstance(InstanceType p_type, const std::string &p_mysql_server_uuid,
                   const ServerMode p_mode, const std::string &p_host,
                   const uint16_t p_port, const uint16_t p_xport);
 
   using TCPAddress = mysql_harness::TCPAddress;
-  explicit ManagedInstance(const TCPAddress &addr);
+  explicit ManagedInstance(InstanceType p_type);
+  explicit ManagedInstance(InstanceType p_type, const TCPAddress &addr);
   operator TCPAddress() const;
   bool operator==(const ManagedInstance &other) const;
 
+  /** @brief Instance type */
+  InstanceType type;
   /** @brief The uuid of the MySQL server */
   std::string mysql_server_uuid;
   /** @brief The mode of the server */

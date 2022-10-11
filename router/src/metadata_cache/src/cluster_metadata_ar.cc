@@ -188,7 +188,8 @@ ARClusterMetadata::fetch_instances_from_member(
           std::to_string(row.size()));
     }
 
-    metadata_cache::ManagedInstance instance;
+    metadata_cache::ManagedInstance instance{
+        metadata_cache::InstanceType::AsyncMember};
     instance.mysql_server_uuid = get_string(row[0]);
 
     if (!set_instance_ports(instance, row, 1, 2)) {

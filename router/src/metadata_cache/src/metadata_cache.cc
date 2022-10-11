@@ -235,15 +235,23 @@ bool metadata_cache::ManagedInstance::operator==(
 }
 
 metadata_cache::ManagedInstance::ManagedInstance(
-    const std::string &p_mysql_server_uuid, const ServerMode p_mode,
-    const std::string &p_host, const uint16_t p_port, const uint16_t p_xport)
-    : mysql_server_uuid(p_mysql_server_uuid),
+    InstanceType p_type, const std::string &p_mysql_server_uuid,
+    const ServerMode p_mode, const std::string &p_host, const uint16_t p_port,
+    const uint16_t p_xport)
+    : type(p_type),
+      mysql_server_uuid(p_mysql_server_uuid),
       mode(p_mode),
       host(p_host),
       port(p_port),
       xport(p_xport) {}
 
-metadata_cache::ManagedInstance::ManagedInstance(const TCPAddress &addr) {
+metadata_cache::ManagedInstance::ManagedInstance(InstanceType p_type) {
+  type = p_type;
+}
+
+metadata_cache::ManagedInstance::ManagedInstance(InstanceType p_type,
+                                                 const TCPAddress &addr)
+    : ManagedInstance(p_type) {
   host = addr.address();
   port = addr.port();
 }
