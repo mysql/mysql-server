@@ -3096,30 +3096,43 @@ String *Item_func_set_collation::val_str(String *str) {
   return str;
 }
 
-bool Item_func_set_collation::resolve_type(THD *) {
+bool Item_func_set_collation::resolve_type(THD *thd) {
   CHARSET_INFO *set_collation;
-  const char *colname;
   String tmp;
   assert(args[1]->basic_const_item());
   String *str = args[1]->val_str(&tmp);
-  colname = str->c_ptr();
-  if (colname == binary_keyword)
+  const char *colname = str->c_ptr();
+  if (colname == binary_keyword) {
     set_collation = get_charset_by_csname(args[0]->collation.collation->csname,
                                           MY_CS_BINSORT, MYF(0));
-  else {
-    if (!(set_collation = mysqld_collation_get_by_name(colname))) return true;
+    if (set_collation == nullptr) {
+      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), colname,
+               args[0]->collation.collation->csname);
+      return true;
+    }
+  } else {
+    set_collation = mysqld_collation_get_by_name(colname);
+    if (set_collation == nullptr) return true;
   }
 
-  if (set_collation == nullptr ||
-      (!my_charset_same(args[0]->collation.collation, set_collation) &&
-       args[0]->collation.derivation != DERIVATION_NUMERIC)) {
+  if (args[0]->data_type() == MYSQL_TYPE_INVALID &&
+      args[0]->propagate_type(
+          thd, Type_properties(MYSQL_TYPE_VARCHAR, set_collation))) {
+    return true;
+  }
+
+  if (!my_charset_same(args[0]->collation.collation, set_collation) &&
+      args[0]->collation.derivation != DERIVATION_NUMERIC) {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), colname,
              args[0]->collation.collation->csname);
     return true;
   }
+
   collation.set(set_collation, DERIVATION_EXPLICIT,
                 args[0]->collation.repertoire);
+
   set_data_type_string(args[0]->max_char_length());
+
   return false;
 }
 
