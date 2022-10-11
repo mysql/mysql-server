@@ -1416,7 +1416,14 @@ class ShareConnectionTestWithRestartedServer
         std::make_unique<SharedRouter>(test_env->port_pool(), 128, false);
   }
 
-  static void TearDownTestSuite() { shared_router_.reset(); }
+  static void TearDownTestSuite() {
+    // stop and destroy all routers.
+    shared_router_.reset();
+
+    for (auto &inter : intermediate_routers_) {
+      inter.reset();
+    }
+  }
 
   static std::array<SharedServer *, kNumServers> shared_servers() {
     auto s = test_env->servers();
