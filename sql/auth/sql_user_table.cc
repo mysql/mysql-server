@@ -573,11 +573,11 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
 
 */
 Acl_change_notification::Acl_change_notification(
-    THD *thd, enum_sql_command op, const List<LEX_USER> *users,
+    THD *thd, enum_sql_command op, const List<LEX_USER> *stmt_users,
     std::set<LEX_USER *> *rewrite_users, const List<LEX_CSTRING> *dynamic_privs)
     : db{thd->db().str, thd->db().length},
       operation(op),
-      users(users ? *users : empty_users),
+      users(stmt_users ? *stmt_users : empty_users),
       rewrite_user_params(rewrite_users),
       dynamic_privs(dynamic_privs ? *dynamic_privs : empty_dynamic_privs) {}
 
