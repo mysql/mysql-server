@@ -482,6 +482,25 @@ static dd::Column *get_renamed_col(const Alter_inplace_info *ha_alter_info,
   return nullptr;
 }
 
+/** Get the number of columns being added using ALTER TABLE.
+@param[in]      ha_alter_info   inplace alter info
+@return number of columns added using ALTER TABLE */
+static uint32_t get_num_cols_added(const Alter_inplace_info *ha_alter_info) {
+  uint32_t n_cols_added = 0;
+
+  /* create_list is list of old columns (CREATE) and new columns (ALTER .. ADD)
+   */
+  for (const Create_field &new_field : ha_alter_info->alter_info->create_list) {
+    /* field contains column information for old columns (CREATE) */
+    /* field is nullptr for new columns (ALTER .. ADD) */
+    if (new_field.field == nullptr) {
+      n_cols_added++;
+    }
+  }
+
+  return n_cols_added;
+}
+
 /** Copy metadata of dd::Table and dd::Columns from old table to new table.
 This is done during inplce alter table when table is not rebuilt.
 @param[in]      ha_alter_info   inplace alter info
@@ -1024,6 +1043,16 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
         if (ha_alter_info->alter_info->requested_algorithm ==
             Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) {
           /* Still fall back to INPLACE since the behaviour is different */
+          break;
+        } else if (!((m_prebuilt->table->n_def +
+                      get_num_cols_added(ha_alter_info)) < REC_MAX_N_FIELDS)) {
+          if (ha_alter_info->alter_info->requested_algorithm ==
+              Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+            my_error(ER_TOO_MANY_FIELDS, MYF(0),
+                     m_prebuilt->table->name.m_name);
+            return HA_ALTER_ERROR;
+          }
+          /* INSTANT can't be done any more. Fall back to INPLACE. */
           break;
         } else if (m_prebuilt->table->current_row_version == MAX_ROW_VERSION) {
           if (ha_alter_info->alter_info->requested_algorithm ==
@@ -10121,6 +10150,15 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
     case Instant_Type::INSTANT_ADD_DROP_COLUMN:
       if (ha_alter_info->alter_info->requested_algorithm ==
           Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) {
+        break;
+      } else if (!((m_prebuilt->table->n_def +
+                    get_num_cols_added(ha_alter_info)) < REC_MAX_N_FIELDS)) {
+        if (ha_alter_info->alter_info->requested_algorithm ==
+            Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+          my_error(ER_TOO_MANY_FIELDS, MYF(0), m_prebuilt->table->name.m_name);
+          return HA_ALTER_ERROR;
+        }
+        /* INSTANT can't be done any more. Fall back to INPLACE. */
         break;
       } else if (m_prebuilt->table->current_row_version == MAX_ROW_VERSION) {
         if (ha_alter_info->alter_info->requested_algorithm ==
