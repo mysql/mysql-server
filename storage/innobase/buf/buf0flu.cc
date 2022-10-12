@@ -1833,6 +1833,7 @@ static ulint buf_flush_LRU_list_batch(buf_pool_t *buf_pool, ulint max) {
 
     free_len = UT_LIST_GET_LEN(buf_pool->free);
     lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
+    withdraw_depth = buf_get_withdraw_depth(buf_pool);
   }
 
   buf_pool->lru_hp.set(nullptr);
