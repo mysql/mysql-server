@@ -4273,6 +4273,9 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       return true;
     }
     order->item = &ref_item_array[count - 1];
+    // Order by is now referencing select expression, so increment the reference
+    // count for the select expression.
+    (*order->item)->increment_ref_count();
     order->in_field_list = true;
     return false;
   }
@@ -4351,6 +4354,9 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
                    pointer_cast<uchar *>(&ctx));
       }
       order->item = &ref_item_array[counter];
+      // Order by is now referencing select expression, so increment the
+      // reference count for the select expression.
+      (*order->item)->increment_ref_count();
       order->in_field_list = true;
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
         order->used_alias = true;
@@ -4390,6 +4396,9 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       if (item_ref->cached_table->is_merged() &&
           order_item->eq(item_ref->ref_item(), false)) {
         order->item = &ref_item_array[counter];
+        // Order by is now referencing select expression, so increment the
+        // reference count for the select expression.
+        (*order->item)->increment_ref_count();
         order->in_field_list = true;
         return false;
       }
@@ -5187,31 +5196,17 @@ void Query_block::delete_unused_merged_columns(
       for (Field_translator *transl = tl->field_translation;
            transl < tl->field_translation_end; transl++) {
         Item *const item = transl->item;
+        // Decrement the ref count as its no more used in
+        // select list.
+        if (item->decrement_ref_count()) continue;
 
+        // Cleanup the item since its not referenced from
+        // anywhere.
         assert(item->fixed);
-        if (!item->has_subquery()) continue;
-
-        /*
-          All used columns selected from derived tables are already marked
-          as such. But unmarked columns may still refer to other columns
-          from underlying derived tables, and in that case we cannot
-          delete these columns as they share the same items.
-          Thus, dive into the expression and mark such columns as "used".
-          (This is a bit incorrect, as only a part of its underlying expression
-          is "used", but that has no practical meaning.)
-        */
-        if (!item->is_derived_used() &&
-            item->walk(&Item::propagate_derived_used, enum_walk::POSTFIX,
-                       nullptr))
-          item->walk(&Item::propagate_set_derived_used,
-                     enum_walk::SUBQUERY_POSTFIX, nullptr);
-
-        if (!item->is_derived_used()) {
-          Item::Cleanup_after_removal_context ctx(this);
-          item->walk(&Item::clean_up_after_removal, walk_options,
-                     pointer_cast<uchar *>(&ctx));
-          transl->item = nullptr;
-        }
+        Item::Cleanup_after_removal_context ctx(this);
+        item->walk(&Item::clean_up_after_removal, walk_options,
+                   pointer_cast<uchar *>(&ctx));
+        transl->item = nullptr;
       }
     }
     delete_unused_merged_columns(&tl->nested_join->m_tables);
@@ -7644,6 +7639,8 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
             if (base_ref_items[i] == prev_value)
               base_ref_items[i] = unwrapped_select_expr;
           }
+          // All items in select list must have a positive ref count.
+          unwrapped_select_expr->increment_ref_count();
         }
         if (fields.size() != old_size) {
           // The (implicit) iterator over fields has been invalidated,

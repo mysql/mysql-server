@@ -146,7 +146,6 @@ Item::Item()
       null_value(false),
       unsigned_flag(false),
       m_is_window_function(false),
-      derived_used(false),
       m_accum_properties(0) {
 #ifndef NDEBUG
   contextualized = true;
@@ -174,7 +173,6 @@ Item::Item(THD *thd, const Item *item)
       null_value(item->null_value),
       unsigned_flag(item->unsigned_flag),
       m_is_window_function(item->m_is_window_function),
-      derived_used(item->derived_used),
       m_accum_properties(item->m_accum_properties) {
 #ifndef NDEBUG
   assert(item->contextualized);
@@ -203,7 +201,6 @@ Item::Item(const POS &)
       null_value(false),
       unsigned_flag(false),
       m_is_window_function(false),
-      derived_used(false),
       m_accum_properties(0) {}
 
 bool Item::may_eval_const_item(const THD *thd) const {
