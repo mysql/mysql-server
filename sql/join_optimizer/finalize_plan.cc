@@ -273,6 +273,82 @@ void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
   }
 }
 
+#ifndef NDEBUG
+namespace {
+/// Checks if an Item references columns in any tables outside of the provided
+/// set of available tables.
+class AvailableTablesChecker : private Item_tree_walker {
+ public:
+  explicit AvailableTablesChecker(
+      const Mem_root_array<TABLE *> &available_tables)
+      : m_available_tables(&available_tables) {}
+
+  bool operator()(const Item *item) {
+    if (is_stopped(item)) {
+      return false;
+    }
+
+    if (item->used_tables() == OUTER_REF_TABLE_BIT) {
+      // Ignore outer references, and any items inside such references. The
+      // outer tables are always available down the tree, even if they are not
+      // in m_available_tables.
+      stop_at(item);
+      return false;
+    }
+
+    if (item->type() == Item::FIELD_ITEM) {
+      // Is the field from a table outside of the available tables?
+      return std::find(m_available_tables->begin(), m_available_tables->end(),
+                       down_cast<const Item_field *>(item)->field->table) ==
+             m_available_tables->end();
+    }
+
+    return false;
+  }
+
+ private:
+  const Mem_root_array<TABLE *> *m_available_tables;
+};
+
+/**
+  Checks if the order items in a SORT access path reference any column that is
+  not available to it. Specifically, it tests that all columns referenced in the
+  order items belong to tables that are available from a child of "sort_path",
+  without any intermediate materialization step between the child and
+  "sort_path".
+
+  Say we have an access path tree such as this:
+
+      -> Sort
+          -> Nested loop join
+              -> Table scan on t1
+              -> Materialize
+                  -> Table scan on t2
+
+  Here, the ordering elements in the sort node may reference columns from t1 or
+  from the materialize node, but not from t2. If they reference columns from t2
+  directly, it means that something is missing from the set of expressions to
+  materialize from t2. Or that something has gone wrong when rewriting the
+  expressions in the ordering elements to point into the temporary table.
+ */
+bool OrderItemsReferenceUnavailableTables(
+    const AccessPath *sort_path,
+    const Mem_root_array<TABLE *> &available_tables) {
+  // Check if any of the order items contains a reference to a column in a table
+  // outside of the available tables.
+  for (const ORDER *order = sort_path->sort().order; order != nullptr;
+       order = order->next) {
+    if (WalkItem(*order->item, enum_walk::PREFIX | enum_walk::POSTFIX,
+                 AvailableTablesChecker(available_tables))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+}  // namespace
+#endif
+
 // If the AccessPath is an operation that copies items into a temporary
 // table (MATERIALIZE, STREAM or WINDOW) within the same query block,
 // returns the items it's copying (in the form of temporary table parameters).
@@ -361,6 +437,7 @@ static void UpdateReferencesToMaterializedItems(
 
     // Set up a Filesort object for this sort.
     Mem_root_array<TABLE *> tables = CollectTables(thd, path);
+    assert(!OrderItemsReferenceUnavailableTables(path, tables));
     path->sort().filesort = new (thd->mem_root)
         Filesort(thd, std::move(tables),
                  /*keep_buffers=*/false, path->sort().order, path->sort().limit,
@@ -492,19 +569,6 @@ static void FinalizeWindowPath(
   window->make_special_rows_cache(thd, path->window().temp_table);
 }
 
-static bool ContainsMaterialization(AccessPath *path) {
-  bool found = false;
-  WalkAccessPaths(path, /*join=*/nullptr,
-                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-                  [&found](AccessPath *sub_path, JOIN *) {
-                    if (sub_path->type == AccessPath::MATERIALIZE) {
-                      found = true;
-                    }
-                    return found;
-                  });
-  return found;
-}
-
 static Item *AddCachesAroundConstantConditions(Item *item) {
   cache_const_expr_arg cache_arg;
   cache_const_expr_arg *analyzer_arg = &cache_arg;
@@ -629,33 +693,6 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
       },
       /*post_order_traversal=*/true);
 
-  // If we have a sort node (e.g. for GROUP BY) with a materialization under it,
-  // we need to make sure that what we sort on is included in the
-  // materialization. (We do this by putting it into the field list, and then
-  // removing it at the end of the function.) This is a bit overconservative
-  // (e.g., we don't need to include it in later materializations, too), but the
-  // situation should be fairly rare.
-  Mem_root_array<std::pair<Item *, bool>> extra_fields_needed(thd->mem_root);
-  WalkAccessPaths(
-      root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [&extra_fields_needed](AccessPath *path, JOIN *join) {
-        if (path->type == AccessPath::SORT && ContainsMaterialization(path)) {
-          for (ORDER *order = path->sort().order; order != nullptr;
-               order = order->next) {
-            Item *item = *order->item;
-            if (std::none_of(join->fields->begin(), join->fields->end(),
-                             [item](Item *other_item) {
-                               return item->eq(other_item, /*binary_cmp=*/true);
-                             })) {
-              extra_fields_needed.push_back(std::make_pair(item, item->hidden));
-              item->hidden = true;
-              join->fields->push_front(item);
-            }
-          }
-        }
-        return false;
-      });
-
   Mem_root_array<const Func_ptr_array *> applied_replacements(thd->mem_root);
   TABLE *last_window_temp_table = nullptr;
   unsigned num_windows_seen = 0;
@@ -713,11 +750,6 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
         return false;
       },
       /*post_order_traversal=*/true);
-
-  for (const std::pair<Item *, bool> &item_and_hidden : extra_fields_needed) {
-    item_and_hidden.first->hidden = item_and_hidden.second;
-    query_block->join->fields->pop_front();
-  }
 
   if (query_block->join->push_to_engines()) return true;
 

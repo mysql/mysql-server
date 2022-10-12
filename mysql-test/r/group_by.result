@@ -4449,3 +4449,18 @@ HAVING (COUNT(*) = 3 AND COUNT(*) > 6) OR t1.x = 2;
 x
 2
 DROP TABLE t1, t2;
+#
+# Bug#34682586: MySQL server crash, segmentation fault: count_field_types
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, x INT);
+INSERT INTO t1(pk) VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 (x INT);
+PREPARE ps FROM
+'SELECT 1 FROM t1, (SELECT DISTINCT x FROM t2) AS ot2
+ WHERE t1.pk = ot2.x GROUP BY ot2.x, t1.x';
+EXECUTE ps;
+1
+EXECUTE ps;
+1
+DEALLOCATE PREPARE ps;
+DROP TABLE t1, t2;
