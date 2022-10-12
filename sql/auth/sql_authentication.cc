@@ -155,20 +155,19 @@ struct MEM_ROOT;
   "Authentication method switch" --> [ Client does not know requested auth method ] DISCONNECT
   "Authentication method switch" --> "Authentication exchange continuation"
 
+  "Authentication exchange continuation" --> "Server Response"
   "Authentication exchange continuation" --> [ No more factors to authenticate] OK
   "Authentication exchange continuation" --> ERR
 
   "Server Response" --> "Authenticate 2nd Factor"
-  "Client Response" --> "Authentication exchange continuation"
-
-  "Authentication exchange continuation" --> [ No more factors to authenticate] OK
-  "Authentication exchange continuation" --> ERR
-
   "Server Response" --> "Authenticate 3rd Factor"
-  "Client Response" --> "Authentication exchange continuation"
 
-  "Authentication exchange continuation" --> OK
-  "Authentication exchange continuation" --> ERR
+  "Authenticate 2nd Factor" --> "MFA Authentication Client Response"
+
+  "Authenticate 3rd Factor" --> "MFA Authentication Client Response"
+
+  "MFA Authentication Client Response" --> "Authentication exchange continuation"
+  "MFA Authentication Client Response" --> [ Client does not know requested auth method ] DISCONNECT
 
   @enduml
 
@@ -3420,6 +3419,8 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
   10.Z authentication method packets are exchanged
   11.The server responds with an @ref page_protocol_basic_ok_packet
 
+  @note At any point, if the Nth Authentication Method fails, the server can return ERR and disconnect.
+    And the client can just disconnect.
 
   @startuml
   Client -> Server: Connect
