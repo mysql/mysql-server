@@ -122,6 +122,11 @@ TEST(TemplateUtilsTest, FindTrimmedRangeString) {
   s = " ba  r   ";
   EXPECT_EQ(std::make_pair(s.begin() + 1, s.begin() + 6),
             myu::FindTrimmedRange(s.begin(), s.end(), myu::IsSpace));
+
+  auto begin_end = myu::FindTrimmedRange(s.cbegin(), s.cend(), myu::IsSpace);
+  EXPECT_NE(begin_end.first, begin_end.second);
+  EXPECT_EQ(std::string("ba  r"),
+            std::string(begin_end.first, begin_end.second));
 }
 
 using StrVec = std::vector<std::string>;

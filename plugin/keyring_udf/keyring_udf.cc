@@ -21,10 +21,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <algorithm>  // std::min
+#include <optional>
 
 #include <stdio.h>
 #include <sys/types.h>
-#include <boost/optional/optional.hpp>
 #include <memory>
 #include <new>
 
@@ -274,7 +274,7 @@ static bool validate_run_time(UDF_ARGS *args, int to_validate) {
 
 static bool keyring_udf_func_init(
     UDF_INIT *initid, UDF_ARGS *args, char *message, int to_validate,
-    const boost::optional<size_t> max_lenth_to_return,
+    const std::optional<size_t> max_lenth_to_return,
     const size_t size_of_memory_to_allocate) {
   initid->ptr = nullptr;
   uint expected_arg_count = get_args_count_from_validation_request(to_validate);
@@ -282,11 +282,12 @@ static bool keyring_udf_func_init(
   if (validate_compile_time(args, expected_arg_count, to_validate, message))
     return true;
 
-  if (max_lenth_to_return)
-    initid->max_length = *max_lenth_to_return;  // if no max_length_to_return
-                                                // passed to the function  it
-                                                // means that max_length stays
-                                                // default
+  if (max_lenth_to_return.has_value())
+    initid->max_length =
+        max_lenth_to_return.value();  // if no max_length_to_return
+                                      // passed to the function  it
+                                      // means that max_length stays
+                                      // default
   initid->maybe_null = true;
 
   if (size_of_memory_to_allocate != 0) {
@@ -538,7 +539,7 @@ PLUGIN_EXPORT
 bool keyring_key_length_fetch_init(UDF_INIT *initid, UDF_ARGS *args,
                                    char *message) {
   return keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
-                               boost::none, 0);
+                               std::optional<size_t>(), 0);
 }
 
 PLUGIN_EXPORT
