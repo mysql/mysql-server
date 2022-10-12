@@ -916,8 +916,6 @@ DECLARE_THREAD(recv_writer_thread)(
 		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
-	recv_writer_thread_active = true;
-
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		os_thread_sleep(100000);
@@ -4026,6 +4024,7 @@ recv_init_crash_recovery_spaces(void)
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 		/* Spawn the background thread to flush dirty pages
 		from the buffer pools. */
+		recv_writer_thread_active = true;
 		os_thread_create(recv_writer_thread, 0, 0);
 	}
 
