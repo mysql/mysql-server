@@ -2956,6 +2956,154 @@ prepare s from 'select YEARWEEK(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["DATETIME decimals=6", "LONGLONG"]]
+CREATE FUNCTION f(a INTEGER) RETURNS INTEGER DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a INTEGER UNSIGNED) RETURNS INTEGER UNSIGNED DETERMINISTIC
+RETURN a + 1;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a BIGINT) RETURNS BIGINT DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a MEDIUMINT) RETURNS MEDIUMINT DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a SMALLINT) RETURNS SMALLINT DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a TINYINT) RETURNS TINYINT DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a DECIMAL(38,12)) RETURNS DECIMAL(38,12) DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["NEWDECIMAL decimals=30"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a FLOAT) RETURNS FLOAT DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a DOUBLE) RETURNS DOUBLE DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a DATE) RETURNS DATE DETERMINISTIC
+RETURN a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATE"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a TIME(6)) RETURNS TIME(6) DETERMINISTIC
+RETURN a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["TIME decimals=6"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a DATETIME(6)) RETURNS DATETIME(6) DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a TIMESTAMP(6)) RETURNS TIMESTAMP(6) DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a YEAR) RETURNS YEAR DETERMINISTIC
+RETURN a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["YEAR"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a CHAR(8)) RETURNS CHAR(8) DETERMINISTIC
+RETURN a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a VARCHAR(255)) RETURNS VARCHAR(255) DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a BINARY(8)) RETURNS BINARY(8) DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a VARBINARY(255)) RETURNS VARBINARY(255) DETERMINISTIC
+RETURN - a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+DROP FUNCTION f;
+CREATE FUNCTION f(a BIT(64)) RETURNS BIT(64) DETERMINISTIC
+RETURN a;
+prepare s from 'select f(?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["BIT"]]
+DROP FUNCTION f;
+CREATE FUNCTION f2(a INTEGER, b INTEGER) RETURNS INTEGER DETERMINISTIC
+RETURN a + b;
+CREATE FUNCTION f3(a INTEGER, b INTEGER, c VARCHAR(100)) RETURNS INTEGER
+DETERMINISTIC
+RETURN a + b + CAST(c AS SIGNED);
+prepare s from 'select f2(?, ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select f3(?, ?, ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG", "VARCHAR"]]
+DROP FUNCTION f2;
+DROP FUNCTION f3;
 DROP TABLE t1,t2;
 CREATE TABLE t1
 (i1 TINYINT,
