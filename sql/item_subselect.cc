@@ -2691,6 +2691,9 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
   assert(marker == MARKER_TRAVERSAL);
   marker = MARKER_NONE;
 
+  // There may be loops in the AST so make sure a part is not removed twice:
+  if (unit->outer_query_block() == nullptr) return false;
+
   // Notify flatten_subqueries() that subquery has been removed.
   notify_removal();
 

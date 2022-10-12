@@ -2209,3 +2209,10 @@ c0	dt_c0
 4	NULL
 SET optimizer_switch = default;
 DROP TABLE ot, it1, it2;
+# Bug#34630459: Mysqld failure : Query_expression::exclude_tree()
+CREATE TABLE t (c INTEGER);
+SELECT c
+FROM t
+WHERE ((SELECT c FROM t), 0) IN (SELECT 1, 2 UNION SELECT 3, 4) AND FALSE;
+c
+DROP TABLE t;
