@@ -124,35 +124,6 @@ ADD_CUSTOM_TARGET(test-mtr
 ##          ${VS_CONFIG} ${DEBUG_SERVER} ${EXP})
 
 
-# Process .in files with includes in collections/
-
-MACRO(PROCESS_COLLECTION_INCLUDE collin collection)
-  FILE(STRINGS ${collin} inlines)
-  FOREACH(line ${inlines})
-    IF(${line} MATCHES "#include .*")
-      STRING(REPLACE "#include " "collections/" incfile ${line})
-      FILE(READ ${incfile} contents)
-      FILE(APPEND ${collection} "${contents}")
-    ELSE()
-      FILE(APPEND ${collection} "${line}\n")
-    ENDIF()
-  ENDFOREACH()
-ENDMACRO()
-
-# For internal testing in PB2, append collections files
-IF(DEFINED ENV{PB2WORKDIR})
-  FILE(GLOB infiles "collections/*.in")
-  FOREACH(collin ${infiles})
-    STRING(REPLACE ".in" "" collection ${collin})
-    STRING(REPLACE ".in" ".done" colldone ${collin})
-    # Only generate file once
-    IF(NOT EXISTS ${colldone})
-      PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
-      FILE(APPEND ${colldone} "${collin}\n")
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
-
 # With different MAX_INDEXES values, server might behave differently in
 # certain cases. 'max_indexes.inc' file should be updated accordingly to
 # reflect the current MAX_INDEXES value. This file helps MTR to decide on
