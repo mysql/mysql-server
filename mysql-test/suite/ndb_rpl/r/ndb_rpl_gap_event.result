@@ -22,7 +22,7 @@ Last_SQL_Error = 'The incident LOST_EVENTS occurred on the source. Message: mysq
 Slave_IO_Running = 'Yes'
 Slave_SQL_Running = 'No'
 Last_Errno = '13119'
-Last_Error = 'The incident LOST_EVENTS occurred on the master. Message: mysqld startup'
+Last_Error = 'The incident LOST_EVENTS occurred on the source. Message: mysqld startup'
 drop table if exists t1;
 include/stop_slave_io.inc
 RESET SLAVE;
