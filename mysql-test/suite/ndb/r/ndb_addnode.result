@@ -34,10 +34,12 @@ create table t2(id int NOT NULL PRIMARY KEY, data char(8))
 TABLESPACE ts_1 STORAGE DISK engine=ndb;
 create table t5(id int NOT NULL PRIMARY KEY, data char(8)) max_rows=50000000 engine=ndb;
 create table t6(id int not null primary key, dat blob, txt text) engine=ndb;
+create table t10 (id int primary key, data int, other int, unique(other)) engine=ndb;
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n' (id, @data) set data = @data, id2 = repeat(@data,10);
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n';
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t5 fields terminated by ' ' lines terminated by '\n';
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t6 fields terminated by ' ' lines terminated by '\n' (id, @data) set dat = repeat(@data, 100), txt = repeat(@data,100);
+insert into t10 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5), (6,6,6),(7,7,7), (8,8,8);
 "Table t1 Partition info"
 TABLE_INFO
 PartitionCount: 8
@@ -56,6 +58,57 @@ PartitionCount: 8
 "Table t6 blob txt Partition info"
 TABLE_INFO
 PartitionCount: 8
+select parent_fq_name, type, table_id, node_id, block_instance, fragment_num
+from ndbinfo.memory_per_fragment where parent_fq_name like '%t10%';
+parent_fq_name	type	table_id	node_id	block_instance	fragment_num
+test/def/t10	Ordered index	28	1	1	0
+test/def/t10	Ordered index	28	1	1	4
+test/def/t10	Ordered index	29	1	1	0
+test/def/t10	Ordered index	29	1	1	4
+test/def/t10	Unique hash index	30	1	1	0
+test/def/t10	Unique hash index	30	1	1	4
+test/def/t10	Ordered index	28	1	2	1
+test/def/t10	Ordered index	28	1	2	5
+test/def/t10	Ordered index	29	1	2	1
+test/def/t10	Ordered index	29	1	2	5
+test/def/t10	Unique hash index	30	1	2	1
+test/def/t10	Unique hash index	30	1	2	5
+test/def/t10	Ordered index	28	1	3	2
+test/def/t10	Ordered index	28	1	3	6
+test/def/t10	Ordered index	29	1	3	2
+test/def/t10	Ordered index	29	1	3	6
+test/def/t10	Unique hash index	30	1	3	2
+test/def/t10	Unique hash index	30	1	3	6
+test/def/t10	Ordered index	28	1	4	3
+test/def/t10	Ordered index	28	1	4	7
+test/def/t10	Ordered index	29	1	4	3
+test/def/t10	Ordered index	29	1	4	7
+test/def/t10	Unique hash index	30	1	4	3
+test/def/t10	Unique hash index	30	1	4	7
+test/def/t10	Ordered index	28	2	1	0
+test/def/t10	Ordered index	28	2	1	4
+test/def/t10	Ordered index	29	2	1	0
+test/def/t10	Ordered index	29	2	1	4
+test/def/t10	Unique hash index	30	2	1	0
+test/def/t10	Unique hash index	30	2	1	4
+test/def/t10	Ordered index	28	2	2	1
+test/def/t10	Ordered index	28	2	2	5
+test/def/t10	Ordered index	29	2	2	1
+test/def/t10	Ordered index	29	2	2	5
+test/def/t10	Unique hash index	30	2	2	1
+test/def/t10	Unique hash index	30	2	2	5
+test/def/t10	Ordered index	28	2	3	2
+test/def/t10	Ordered index	28	2	3	6
+test/def/t10	Ordered index	29	2	3	2
+test/def/t10	Ordered index	29	2	3	6
+test/def/t10	Unique hash index	30	2	3	2
+test/def/t10	Unique hash index	30	2	3	6
+test/def/t10	Ordered index	28	2	4	3
+test/def/t10	Ordered index	28	2	4	7
+test/def/t10	Ordered index	29	2	4	3
+test/def/t10	Ordered index	29	2	4	7
+test/def/t10	Unique hash index	30	2	4	3
+test/def/t10	Unique hash index	30	2	4	7
 Nodegroup 1 created
 ndbd(s)
 id=1	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
@@ -94,6 +147,218 @@ alter table t1 reorganize partition;
 alter table t2 reorganize partition;
 alter table t5 algorithm=inplace, max_rows=300000000;
 alter table t6 reorganize partition;
+alter table t10 reorganize partition;
+select parent_fq_name, type, table_id, node_id, block_instance, fragment_num
+from ndbinfo.memory_per_fragment where parent_fq_name like '%t10%';
+parent_fq_name	type	table_id	node_id	block_instance	fragment_num
+test/def/t10	Ordered index	28	1	1	0
+test/def/t10	Ordered index	28	1	1	4
+test/def/t10	Ordered index	29	1	1	0
+test/def/t10	Ordered index	29	1	1	4
+test/def/t10	Unique hash index	30	1	1	0
+test/def/t10	Unique hash index	30	1	1	4
+test/def/t10	Ordered index	28	1	2	1
+test/def/t10	Ordered index	28	1	2	5
+test/def/t10	Ordered index	29	1	2	1
+test/def/t10	Ordered index	29	1	2	5
+test/def/t10	Unique hash index	30	1	2	1
+test/def/t10	Unique hash index	30	1	2	5
+test/def/t10	Ordered index	28	1	3	2
+test/def/t10	Ordered index	28	1	3	6
+test/def/t10	Ordered index	29	1	3	2
+test/def/t10	Ordered index	29	1	3	6
+test/def/t10	Unique hash index	30	1	3	2
+test/def/t10	Unique hash index	30	1	3	6
+test/def/t10	Ordered index	28	1	4	3
+test/def/t10	Ordered index	28	1	4	7
+test/def/t10	Ordered index	29	1	4	3
+test/def/t10	Ordered index	29	1	4	7
+test/def/t10	Unique hash index	30	1	4	3
+test/def/t10	Unique hash index	30	1	4	7
+test/def/t10	Ordered index	28	2	1	0
+test/def/t10	Ordered index	28	2	1	4
+test/def/t10	Ordered index	29	2	1	0
+test/def/t10	Ordered index	29	2	1	4
+test/def/t10	Unique hash index	30	2	1	0
+test/def/t10	Unique hash index	30	2	1	4
+test/def/t10	Ordered index	28	2	2	1
+test/def/t10	Ordered index	28	2	2	5
+test/def/t10	Ordered index	29	2	2	1
+test/def/t10	Ordered index	29	2	2	5
+test/def/t10	Unique hash index	30	2	2	1
+test/def/t10	Unique hash index	30	2	2	5
+test/def/t10	Ordered index	28	2	3	2
+test/def/t10	Ordered index	28	2	3	6
+test/def/t10	Ordered index	29	2	3	2
+test/def/t10	Ordered index	29	2	3	6
+test/def/t10	Unique hash index	30	2	3	2
+test/def/t10	Unique hash index	30	2	3	6
+test/def/t10	Ordered index	28	2	4	3
+test/def/t10	Ordered index	28	2	4	7
+test/def/t10	Ordered index	29	2	4	3
+test/def/t10	Ordered index	29	2	4	7
+test/def/t10	Unique hash index	30	2	4	3
+test/def/t10	Unique hash index	30	2	4	7
+test/def/t10	Ordered index	28	3	1	8
+test/def/t10	Ordered index	28	3	1	12
+test/def/t10	Ordered index	29	3	1	8
+test/def/t10	Ordered index	29	3	1	12
+test/def/t10	Unique hash index	30	3	1	8
+test/def/t10	Unique hash index	30	3	1	12
+test/def/t10	Ordered index	28	3	2	9
+test/def/t10	Ordered index	28	3	2	13
+test/def/t10	Ordered index	29	3	2	9
+test/def/t10	Ordered index	29	3	2	13
+test/def/t10	Unique hash index	30	3	2	9
+test/def/t10	Unique hash index	30	3	2	13
+test/def/t10	Ordered index	28	3	3	10
+test/def/t10	Ordered index	28	3	3	14
+test/def/t10	Ordered index	29	3	3	10
+test/def/t10	Ordered index	29	3	3	14
+test/def/t10	Unique hash index	30	3	3	10
+test/def/t10	Unique hash index	30	3	3	14
+test/def/t10	Ordered index	28	3	4	11
+test/def/t10	Ordered index	28	3	4	15
+test/def/t10	Ordered index	29	3	4	11
+test/def/t10	Ordered index	29	3	4	15
+test/def/t10	Unique hash index	30	3	4	11
+test/def/t10	Unique hash index	30	3	4	15
+test/def/t10	Ordered index	28	4	1	8
+test/def/t10	Ordered index	28	4	1	12
+test/def/t10	Ordered index	29	4	1	8
+test/def/t10	Ordered index	29	4	1	12
+test/def/t10	Unique hash index	30	4	1	8
+test/def/t10	Unique hash index	30	4	1	12
+test/def/t10	Ordered index	28	4	2	9
+test/def/t10	Ordered index	28	4	2	13
+test/def/t10	Ordered index	29	4	2	9
+test/def/t10	Ordered index	29	4	2	13
+test/def/t10	Unique hash index	30	4	2	9
+test/def/t10	Unique hash index	30	4	2	13
+test/def/t10	Ordered index	28	4	3	10
+test/def/t10	Ordered index	28	4	3	14
+test/def/t10	Ordered index	29	4	3	10
+test/def/t10	Ordered index	29	4	3	14
+test/def/t10	Unique hash index	30	4	3	10
+test/def/t10	Unique hash index	30	4	3	14
+test/def/t10	Ordered index	28	4	4	11
+test/def/t10	Ordered index	28	4	4	15
+test/def/t10	Ordered index	29	4	4	11
+test/def/t10	Ordered index	29	4	4	15
+test/def/t10	Unique hash index	30	4	4	11
+test/def/t10	Unique hash index	30	4	4	15
+show create table t10;
+Table	Create Table
+t10	CREATE TABLE `t10` (
+  `id` int NOT NULL,
+  `data` int DEFAULT NULL,
+  `other` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `other` (`other`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t10 add unique(other);
+Warnings:
+Warning	1831	Duplicate index 'other_2' defined on the table 'test.t10'. This is deprecated and will be disallowed in a future release.
+alter table t10 drop index other;
+select parent_fq_name, type, table_id, node_id, block_instance, fragment_num
+from ndbinfo.memory_per_fragment where parent_fq_name like '%t10%';
+parent_fq_name	type	table_id	node_id	block_instance	fragment_num
+test/def/t10	Ordered index	28	1	1	0
+test/def/t10	Ordered index	28	1	1	4
+test/def/t10	Ordered index	36	1	1	0
+test/def/t10	Ordered index	36	1	1	4
+test/def/t10	Unique hash index	37	1	1	0
+test/def/t10	Unique hash index	37	1	1	8
+test/def/t10	Ordered index	28	1	2	1
+test/def/t10	Ordered index	28	1	2	5
+test/def/t10	Ordered index	36	1	2	1
+test/def/t10	Ordered index	36	1	2	5
+test/def/t10	Unique hash index	37	1	2	2
+test/def/t10	Unique hash index	37	1	2	10
+test/def/t10	Ordered index	28	1	3	2
+test/def/t10	Ordered index	28	1	3	6
+test/def/t10	Ordered index	36	1	3	2
+test/def/t10	Ordered index	36	1	3	6
+test/def/t10	Unique hash index	37	1	3	4
+test/def/t10	Unique hash index	37	1	3	12
+test/def/t10	Ordered index	28	1	4	3
+test/def/t10	Ordered index	28	1	4	7
+test/def/t10	Ordered index	36	1	4	3
+test/def/t10	Ordered index	36	1	4	7
+test/def/t10	Unique hash index	37	1	4	6
+test/def/t10	Unique hash index	37	1	4	14
+test/def/t10	Ordered index	28	2	1	0
+test/def/t10	Ordered index	28	2	1	4
+test/def/t10	Ordered index	36	2	1	0
+test/def/t10	Ordered index	36	2	1	4
+test/def/t10	Unique hash index	37	2	1	0
+test/def/t10	Unique hash index	37	2	1	8
+test/def/t10	Ordered index	28	2	2	1
+test/def/t10	Ordered index	28	2	2	5
+test/def/t10	Ordered index	36	2	2	1
+test/def/t10	Ordered index	36	2	2	5
+test/def/t10	Unique hash index	37	2	2	2
+test/def/t10	Unique hash index	37	2	2	10
+test/def/t10	Ordered index	28	2	3	2
+test/def/t10	Ordered index	28	2	3	6
+test/def/t10	Ordered index	36	2	3	2
+test/def/t10	Ordered index	36	2	3	6
+test/def/t10	Unique hash index	37	2	3	4
+test/def/t10	Unique hash index	37	2	3	12
+test/def/t10	Ordered index	28	2	4	3
+test/def/t10	Ordered index	28	2	4	7
+test/def/t10	Ordered index	36	2	4	3
+test/def/t10	Ordered index	36	2	4	7
+test/def/t10	Unique hash index	37	2	4	6
+test/def/t10	Unique hash index	37	2	4	14
+test/def/t10	Ordered index	28	3	1	8
+test/def/t10	Ordered index	28	3	1	12
+test/def/t10	Ordered index	36	3	1	8
+test/def/t10	Ordered index	36	3	1	12
+test/def/t10	Unique hash index	37	3	1	1
+test/def/t10	Unique hash index	37	3	1	9
+test/def/t10	Ordered index	28	3	2	9
+test/def/t10	Ordered index	28	3	2	13
+test/def/t10	Ordered index	36	3	2	9
+test/def/t10	Ordered index	36	3	2	13
+test/def/t10	Unique hash index	37	3	2	3
+test/def/t10	Unique hash index	37	3	2	11
+test/def/t10	Ordered index	28	3	3	10
+test/def/t10	Ordered index	28	3	3	14
+test/def/t10	Ordered index	36	3	3	10
+test/def/t10	Ordered index	36	3	3	14
+test/def/t10	Unique hash index	37	3	3	5
+test/def/t10	Unique hash index	37	3	3	13
+test/def/t10	Ordered index	28	3	4	11
+test/def/t10	Ordered index	28	3	4	15
+test/def/t10	Ordered index	36	3	4	11
+test/def/t10	Ordered index	36	3	4	15
+test/def/t10	Unique hash index	37	3	4	7
+test/def/t10	Unique hash index	37	3	4	15
+test/def/t10	Ordered index	28	4	1	8
+test/def/t10	Ordered index	28	4	1	12
+test/def/t10	Ordered index	36	4	1	8
+test/def/t10	Ordered index	36	4	1	12
+test/def/t10	Unique hash index	37	4	1	1
+test/def/t10	Unique hash index	37	4	1	9
+test/def/t10	Ordered index	28	4	2	9
+test/def/t10	Ordered index	28	4	2	13
+test/def/t10	Ordered index	36	4	2	9
+test/def/t10	Ordered index	36	4	2	13
+test/def/t10	Unique hash index	37	4	2	3
+test/def/t10	Unique hash index	37	4	2	11
+test/def/t10	Ordered index	28	4	3	10
+test/def/t10	Ordered index	28	4	3	14
+test/def/t10	Ordered index	36	4	3	10
+test/def/t10	Ordered index	36	4	3	14
+test/def/t10	Unique hash index	37	4	3	5
+test/def/t10	Unique hash index	37	4	3	13
+test/def/t10	Ordered index	28	4	4	11
+test/def/t10	Ordered index	28	4	4	15
+test/def/t10	Ordered index	36	4	4	11
+test/def/t10	Ordered index	36	4	4	15
+test/def/t10	Unique hash index	37	4	4	7
+test/def/t10	Unique hash index	37	4	4	15
 "Table t1 Partition info"
 TABLE_INFO
 PartitionCount: 16
@@ -139,7 +404,7 @@ ndb_mgmd(s)
 id=5	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
 mysqld(s)
 id=16	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
-drop table t1,t2,t3,t4,t5,t6;
+drop table t1,t2,t3,t4,t5,t6,t10;
 Drop Node Group 1 done
 ndbd(s)
 id=1	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)

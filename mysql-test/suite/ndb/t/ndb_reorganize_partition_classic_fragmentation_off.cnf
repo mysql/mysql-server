@@ -1,0 +1,13 @@
+!include suite/ndb/my.cnf
+
+[cluster_config.1]
+NoOfReplicas=2
+ClassicFragmentation=false
+ndbd=,,,
+
+
+[cluster_config.ndbd.3.1]
+Nodegroup=65536
+
+[cluster_config.ndbd.4.1]
+Nodegroup=65536

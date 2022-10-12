@@ -13648,7 +13648,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         ReplicaRecordPtr replicaPtr;
         getFragstore(primTabPtr.p, fragNo, fragPtr);
         Uint32 log_part_id = fragPtr.p->m_log_part_id;
-	fragments[count++] = log_part_id;
+	      fragments[count++] = log_part_id;
         fragments[count++] = fragPtr.p->preferredPrimary;
 
         /* Calculate current primary replica node double array */
@@ -13663,8 +13663,10 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             Uint32 node_index = replicaNo;
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
             ndbrequire(node_index < noOfReplicas);
-            (*next_replica_node)[NGPtr.i][log_part_id] = node_index;
-            tmp_next_replica_node_set[NGPtr.i][log_part_id] = true;
+            Uint32 tmp_log_part_id = (m_use_classic_fragmentation) ? 
+                    log_part_id : 0;
+            (*next_replica_node)[NGPtr.i][tmp_log_part_id] = node_index;
+            tmp_next_replica_node_set[NGPtr.i][tmp_log_part_id] = true;
             break;
           }
         }
@@ -13866,7 +13868,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             primary_node = NGPtr.p->nodesInGroup[node_index];
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
             ndbrequire(node_index < noOfReplicas);
-            (*next_replica_node)[NGPtr.i][logPart] = node_index;
+            (*next_replica_node)[NGPtr.i][logPartIndex] = node_index;
           }
           else
           {
@@ -13874,7 +13876,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             Uint32 node_index = c_next_replica_node[NGPtr.i][logPartIndex];
             primary_node = NGPtr.p->nodesInGroup[node_index];
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
-            c_next_replica_node[NGPtr.i][logPart] = node_index;
+            c_next_replica_node[NGPtr.i][logPartIndex] = node_index;
           }
           ndbrequire(primary_node < MAX_NDB_NODES);
           fragments[count++] = logPart;
