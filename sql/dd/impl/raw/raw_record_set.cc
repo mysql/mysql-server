@@ -60,9 +60,8 @@ bool Raw_record_set::open() {
   }
 
   if (m_key)
-    rc = m_table->file->ha_index_read_idx_map(
-        m_table->record[0], m_key->index_no, m_key->key, m_key->keypart_map,
-        HA_READ_KEY_EXACT);
+    rc = m_table->file->ha_index_read_map(
+        m_table->record[0], m_key->key, m_key->keypart_map, HA_READ_KEY_EXACT);
   else
     rc = m_table->file->ha_index_first(m_table->record[0]);
 

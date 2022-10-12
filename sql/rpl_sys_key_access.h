@@ -41,7 +41,7 @@ class Rpl_sys_key_access {
     RND_POS,
     /*
       Read [part of] row via [part of] index using
-      handler::ha_index_read_idx_map.
+      handler::ha_index_read_map.
     */
     INDEX_NEXT_SAME,
     /* Read all rows of index using handler::ha_index_first. */

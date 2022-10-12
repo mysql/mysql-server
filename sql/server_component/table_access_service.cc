@@ -555,7 +555,7 @@ class TA_key_impl {
   TA_key_impl();
   ~TA_key_impl() {}
 
-  void key_copy(uchar *record);
+  void key_copy(uchar *record, uint key_length);
 
  public:
   /* Metadata */
@@ -564,7 +564,7 @@ class TA_key_impl {
 
   /* Data */
   uchar m_key[MAX_KEY_LENGTH];
-  size_t m_key_length;
+  uint m_key_length;
 };
 
 TA_key_impl::TA_key_impl() {
@@ -574,7 +574,10 @@ TA_key_impl::TA_key_impl() {
   m_key_length = 0;
 }
 
-void TA_key_impl::key_copy(uchar *record) {
+void TA_key_impl::key_copy(uchar *record, uint key_length) {
+  /* Actual key may be a prefix */
+  assert(key_length <= m_key_info->key_length);
+  m_key_length = key_length;
   ::key_copy(m_key, record, m_key_info, m_key_length);
 }
 
@@ -1058,8 +1061,6 @@ int impl_index_read_map(Table_access /* api_ta */, TA_table api_table,
   assert(num_parts > 0);
   assert(num_parts <= key->m_key_info->actual_key_parts);
 
-  key->key_copy(table->record[0]);
-
   /*
     NUM_PARTS | KEY_PART_MAP
     ------------------------
@@ -1071,8 +1072,12 @@ int impl_index_read_map(Table_access /* api_ta */, TA_table api_table,
   */
   key_part_map map = make_prev_keypart_map(num_parts);
 
-  result = table->file->ha_index_read_idx_map(
-      table->record[0], key->m_key_index, key->m_key, map, HA_READ_KEY_EXACT);
+  uint key_len = calculate_key_len(table, key->m_key_index, map);
+
+  key->key_copy(table->record[0], key_len);
+
+  result = table->file->ha_index_read_map(table->record[0], key->m_key, map,
+                                          HA_READ_KEY_EXACT);
 
   if (result == 0) {
     if (table->record[1]) {
