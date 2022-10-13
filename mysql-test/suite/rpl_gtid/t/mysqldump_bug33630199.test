@@ -1,0 +1,142 @@
+# ===== Purpose =====
+#
+# 1) The purpose of this test is to check if the GTIDs, and the data dumped
+#    by mysqldump are consistent. Especially the case when the server has
+#    GTIDs enabled, and there are transactions running in the background,
+#    during the dump.
+# 2) We've to also make sure that the dump file can be restored on a
+#    GTID aware server.
+#
+# ===== Implementation =====
+#
+# Consists of 2 steps
+#
+# - Step 1 -
+# 1) Create a test table 't', in database 'db'
+# 2) Create a stored procedure, which will be called just before mysqldump
+#    is executed. This will help us to mimick a scenario in which there are
+#    transactions going on in the background, while mysqldump is dumping
+#    the databases.
+# 3) Call the procedure, then start mysqldump just after that
+#
+# - Step 2 -
+# 5) Now restore the dump file to the slave
+# 6) Execute some statements on the master
+# 7) Sync master, and slave
+# 8) The slave's GTID_EXECUTED must be equal to the master's one
+#
+# ===== Requirements =====
+#
+# 1) The dump captured by mysqldump with --single-transaction and
+#	 set-gtid-purged=ON must contain the exact set of transaction GTIDs
+#	 that were extracted.
+# 2) The dump file can be restored without any issue
+# 3) The replication is working fine
+# 4) The slave's GTID_EXECUTED must be equal to the master's one
+#    when replication catches up.
+#
+# ===== References =====
+#
+# Bug#33630199 : mysqldump make a non-consistent backup with
+#				 --single-transaction option
+
+--source include/have_binlog_format_row.inc
+--let $rpl_gtid_utils= 1
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# Step 1
+# Running mysqldump, and inserting data into the tables at the same time
+
+# File, which is going to be used by mysqldump
+let $mysqldumpfile = $MYSQLTEST_VARDIR/tmp/bug33630199_dump.sql;
+
+# Create test db
+CREATE DATABASE db;
+
+USE db;
+
+# Create test table
+CREATE TABLE t(num INT, num2 INT);
+
+# Create the stored procedure.
+# We need to keep on sending insert statements to the server,
+# while on the other session, mysqldump is dumping the data.
+DELIMITER $;
+
+CREATE PROCEDURE insertParallely()
+BEGIN
+ DECLARE counter INT DEFAULT 1;
+ WHILE counter <= 10000 DO
+  INSERT INTO db.t VALUES(counter, 1);
+  SET counter = counter + 1;
+ END WHILE;
+END$
+
+DELIMITER ;$
+
+# Start sending insert statements
+--send CALL insertParallely();
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# Dump on fast machines could be empty.
+# Make sure that somethings inserted.
+--let $wait_condition= SELECT COUNT(*) > 10 FROM db.t
+--source include/wait_condition.inc
+
+# Start dump
+--exec $MYSQL_DUMP --compact --single-transaction --set-gtid-purged=ON -ER --databases db > $mysqldumpfile
+
+--source include/rpl_connection_master.inc
+
+--reap
+
+# End of Step 1
+
+# Step 2
+# Restoring the dump file, and syncing master-slave
+
+--source include/rpl_connection_slave.inc
+
+--exec $MYSQL_SLAVE --force < $mysqldumpfile
+--remove_file $mysqldumpfile
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+# Make sure that replication is working.
+# Execute an UPDATE that updates all the table data.
+# If some data is missing from the dump but not from the GTID set,
+# replication errors will occur.
+UPDATE db.t SET num2=2 WHERE num2=1;
+
+--let $masters_gtid_executed=`SELECT @@GLOBAL.gtid_executed`
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+# Conclusion:
+# Executed GTIDs on the master and the slave are equal
+
+# Count the rows in 't' with num2=2 on slave, must be 10000
+--let $row_count = `SELECT 10000 = (SELECT COUNT(*) FROM db.t WHERE num2=2)`
+--let $assert_text= The row count with num2=2 must be 10000 on slave
+--let $assert_cond= $row_count
+--source include/assert.inc
+
+# GTID_EXECUTED must be equal for both master, and slave
+--let $is_equal= `SELECT GTID_IS_EQUAL('$masters_gtid_executed', @@GLOBAL.gtid_executed)`
+--let $assert_text= The slave's GTID_EXECUTED must be equal to the master's one
+--let $assert_cond= $is_equal
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+DROP DATABASE db;
+
+--source include/rpl_end.inc
+
+# End of Step 2
