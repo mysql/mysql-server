@@ -34,14 +34,6 @@ these steps:
    similar system calls. They are not run as a shell script. Shell 
    expansions are not guaranteed to work and most likely won't.
 
-The directory may contain collections that are "super sets" of others,
-identified by a file name suffix ".in". These files may contain lines
-"#include <filename>", or lines with mysql-test-run.pl invocations.
-CMake will create a new file without the .in suffix where
-the include lines are replaced with the contents of the referred
-file. Filename is local to the collections directory, and includes do
-not nest.
-
 Notes on some of the mysql-test-run.pl arguments and how they work in
 our continous intergation test framework. These are mostly for those
 writing or editing such files as they are specific to that setup.
