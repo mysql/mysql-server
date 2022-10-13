@@ -10,7 +10,10 @@
 #
 # The "Part Two" of the test case will have a slave started with
 # server_id = 0 but will be tested also after setting @@GLOBAL.server_id
-# to a value greater than 0.
+# to a value greater than 0. In case server is configured with server_id
+# equal to 0, but @@GLOBAL.server_id was set with the 'PERSIST' option,
+# replica should be initialized according to the persistent variable
+# value.
 #
 # Both parts are testing the default replication channel and a new
 # replication channel in order to evaluate also the multi source slave.
@@ -19,6 +22,8 @@
 #
 # BUG#20753463 HANDLE_FATAL_SIGNAL (SIG=11) IN __STRLEN_SSE2_PMINUB ON
 #              CHANGE MASTER
+#
+# Bug #34412816 Replication ignores the true value of server-id
 #
 # This test case is binlog format agnostic
 --source include/have_binlog_format_row.inc
@@ -141,18 +146,20 @@ START SLAVE FOR CHANNEL 'any_channel';
 # Change master for channel should still fail as slave not configured
 --error ER_SLAVE_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4 FOR CHANNEL 'any_channel';
+
+# Set server_id to 0 with PERSIST option
+SET PERSIST server_id=2;
+
+# Restart the server with server_id=0
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --server-id=0 --skip_replica_start=0
+--source include/rpl_restart_server.inc
+--source include/check_slave_is_running.inc
+--source include/check_slave_no_error.inc
+
 ##
 ## Cleanup
 ##
-
-# Restart the slave with server_id=2
---let $rpl_server_number= 2
---let $rpl_server_parameters= --server-id=2
---source include/rpl_restart_server.inc
-
-# Restart the slave to allow the test case to sync when finishing
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
 
 # Master cleanup
 --source include/rpl_connection_master.inc
