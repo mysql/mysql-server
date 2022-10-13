@@ -353,6 +353,7 @@ class ndbxfrm_file
   bool m_encrypted;
   bool m_compressed;
   bool m_is_estimated_data_size;
+  bool m_have_data_crc32;
   ndb_openssl_evp openssl_evp;
   enum
   {

@@ -1056,7 +1056,13 @@ main(int argc, char * argv[])
 	   << fileHeader.FileType << endl;
     break;
   }
-  fo.close(false);
+  /*
+   * Above error handling is weak, one can not decide if whole file have been
+   * consumed or not.
+   * Closing in abort mode to avoid relax error checking in close (such as
+   * verifying at end of file and checksum is correct).
+   */
+  fo.close(true);
   file.close();
   ndb_end_and_exit(0);
 }

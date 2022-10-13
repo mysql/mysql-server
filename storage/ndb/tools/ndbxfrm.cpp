@@ -387,7 +387,7 @@ int copy_file(const char src[], const char dst[])
   if (r != 0)
   {
     fprintf(stderr, "Error: Can not initialize file %s.\n", dst);
-    src_xfrm.close(false);
+    src_xfrm.close(true);
     src_file.close();
     dst_file.close();
     dst_file.remove(dst);
@@ -432,10 +432,34 @@ int copy_file(const char src[], const char dst[])
     buffer.update_write(rd_it);
   }
  
-  src_xfrm.close(false);
-  dst_xfrm.close(false);
+  if (r != 0)
+  {
+    src_xfrm.close(true);
+    src_file.close();
+  }
+  else
+  {
+    r = src_xfrm.close(false);
+    if (r != 0)
+    {
+      if (src_xfrm.is_encrypted())
+      {
+        fprintf(stderr, "Error: Can not read file %s, bad password?\n", src);
+      }
+      else
+      {
+        fprintf(stderr, "Error: Can not read file %s.\n", src);
+      }
+      r = 2; // read failure
+    }
+    if (src_file.close() != 0 && r == 0)
+    {
+      fprintf(stderr, "Error: Can not read file %s.\n", src);
+      r = 2; // read failure
+    }
+  }
+  dst_xfrm.close((r != 0));
 
-  src_file.close();
   dst_file.sync();
   dst_file.close();
 
