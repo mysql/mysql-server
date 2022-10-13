@@ -6445,7 +6445,7 @@ TEST_P(ShareConnectionTest, classic_protocol_binlog_dump_fail_no_checksum) {
       ASSERT_ERROR(res);
       EXPECT_EQ(res.error().value(), 1236) << res.error();
       EXPECT_THAT(res.error().message(),
-                  ::testing::StartsWith("Slave can not handle"))
+                  ::testing::StartsWith("Replica can not handle"))
           << res.error();
     }
   }
@@ -6539,7 +6539,7 @@ TEST_P(ShareConnectionTest,
       ASSERT_ERROR(res);
       EXPECT_EQ(res.error().value(), 1236) << res.error();
       EXPECT_THAT(res.error().message(),
-                  ::testing::StartsWith("Slave can not handle"))
+                  ::testing::StartsWith("Replica can not handle"))
           << res.error();
     }
   }
@@ -6581,7 +6581,7 @@ TEST_P(ShareConnectionTest,
     EXPECT_THAT(
         res.error().message(),
         ::testing::StartsWith(
-            "Client requested master to start replication from position < 4"))
+            "Client requested source to start replication from position < 4"))
         << res.error();
   }
 
