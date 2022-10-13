@@ -18,6 +18,17 @@ call mtr.add_suppression("option 'thread_stack':");
 
 --source include/gtid_utils.inc
 
+--echo #### NULL values for built-in functions ####
+eval SELECT GTID_SUBSET('$uuida:1', NULL);
+eval SELECT GTID_SUBSET(NULL, '$uuida:1');
+eval SELECT GTID_SUBSET(NULL, NULL);
+eval SELECT GTID_SUBSET(MID(1,NULL),MID(1,NULL));
+
+eval SELECT GTID_SUBTRACT('$uuida:1', NULL);
+eval SELECT GTID_SUBTRACT(NULL, '$uuida:1');
+eval SELECT GTID_SUBTRACT(NULL, NULL);
+eval SELECT GTID_SUBTRACT(MID(1,NULL),MID(1,NULL));
+
 --echo #### Max values for built-in functions ####
 eval SELECT GTID_SUBSET(CONCAT('$uuida:1-', (1 << 63) - 2), '');
 eval SELECT GTID_SUBSET('', CONCAT('$uuida:1-', (1 << 63) - 2));

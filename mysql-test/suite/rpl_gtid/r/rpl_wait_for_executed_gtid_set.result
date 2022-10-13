@@ -33,7 +33,7 @@ set @null = NULL;
 SELECT WAIT_FOR_EXECUTED_GTID_SET(@null, @null);
 ERROR HY000: Malformed GTID set specification 'NULL'.
 SELECT WAIT_FOR_EXECUTED_GTID_SET(5, NULL);
-ERROR HY000: Malformed GTID set specification '5'.
+ERROR HY000: Incorrect arguments to WAIT_FOR_EXECUTED_GTID_SET.
 SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value');
 ERROR HY000: Malformed GTID set specification 'Incorrect_value'.
 SELECT WAIT_FOR_EXECUTED_GTID_SET('Incorrect_value', 5);

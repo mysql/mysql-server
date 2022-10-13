@@ -84,7 +84,7 @@ include/sync_slave_sql_with_master.inc
 # Test that SELECT WAIT_FOR_EXECUTED_GTID_SET() gives an error if
 # gtid-mode=off.
 #
-SELECT WAIT_FOR_EXECUTED_GTID_SET('master_uuid', 1-2);
+SELECT WAIT_FOR_EXECUTED_GTID_SET('master_uuid', 1);
 ERROR HY000: Cannot use WAIT_FOR_EXECUTED_GTID_SET when GTID_MODE = OFF.
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;

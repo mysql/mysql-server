@@ -1,5 +1,30 @@
 call mtr.add_suppression("option 'thread_stack':");
 include/gtid_utils.inc
+#### NULL values for built-in functions ####
+SELECT GTID_SUBSET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', NULL);
+GTID_SUBSET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', NULL)
+NULL
+SELECT GTID_SUBSET(NULL, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1');
+GTID_SUBSET(NULL, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1')
+NULL
+SELECT GTID_SUBSET(NULL, NULL);
+GTID_SUBSET(NULL, NULL)
+NULL
+SELECT GTID_SUBSET(MID(1,NULL),MID(1,NULL));
+GTID_SUBSET(MID(1,NULL),MID(1,NULL))
+NULL
+SELECT GTID_SUBTRACT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', NULL);
+GTID_SUBTRACT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', NULL)
+NULL
+SELECT GTID_SUBTRACT(NULL, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1');
+GTID_SUBTRACT(NULL, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1')
+NULL
+SELECT GTID_SUBTRACT(NULL, NULL);
+GTID_SUBTRACT(NULL, NULL)
+NULL
+SELECT GTID_SUBTRACT(MID(1,NULL),MID(1,NULL));
+GTID_SUBTRACT(MID(1,NULL),MID(1,NULL))
+NULL
 #### Max values for built-in functions ####
 SELECT GTID_SUBSET(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), '');
 GTID_SUBSET(CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-', (1 << 63) - 2), '')

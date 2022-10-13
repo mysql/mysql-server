@@ -133,7 +133,7 @@ SET GLOBAL GTID_MODE = OFF;
 --echo #
 
 --error ER_GTID_MODE_OFF
-eval SELECT WAIT_FOR_EXECUTED_GTID_SET('master_uuid', 1-2);
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('master_uuid', 1);
 
 --connection slave
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
