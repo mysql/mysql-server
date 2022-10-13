@@ -108,9 +108,6 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
 var router_select_metadata =
     common_stmts.get("router_select_metadata_v2_gr", options);
 
-var router_select_metadata_by_cluster_id =
-    common_stmts.get("router_select_metadata_v2_gr_by_cluster_id", options);
-
 var router_start_transaction =
     common_stmts.get("router_start_transaction", options);
 
@@ -134,9 +131,6 @@ var router_start_transaction =
     } else if (stmt === router_select_metadata.stmt) {
       mysqld.global.md_query_count++;
       return router_select_metadata;
-    } else if (stmt === router_select_metadata_by_cluster_id.stmt) {
-      mysqld.global.md_query_count++;
-      return router_select_metadata_by_cluster_id;
     } else if (stmt === "set @@mysqlx_wait_timeout = 28800") {
       if (mysqld.global.mysqlx_wait_timeout_unsupported === 0) return {
           ok: {}

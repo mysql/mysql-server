@@ -109,19 +109,16 @@ struct GRNotificationListener::Impl {
   void listener_thread_func();
   bool read_from_session(const NodeId &node_id, NodeSession &session);
 
-  xcl::XError enable_notices(
-      xcl::XSession &session, const NodeId &node_id,
-      const mysqlrouter::TargetCluster &target_cluster) noexcept;
+  xcl::XError enable_notices(xcl::XSession &session, const NodeId &node_id,
+                             const std::string &cluster_name) noexcept;
   void set_mysqlx_wait_timeout(xcl::XSession &session,
                                const NodeId &node_id) noexcept;
   void check_mysqlx_wait_timeout();
   xcl::XError ping(xcl::XSession &session) noexcept;
   void remove_node_session(const NodeId &node) noexcept;
 
-  void reconfigure(
-      const std::vector<metadata_cache::ManagedInstance> &instances,
-      const mysqlrouter::TargetCluster &target_cluster,
-      const NotificationClb &notification_clb);
+  void reconfigure(const metadata_cache::ClusterTopology &cluster_topology,
+                   const NotificationClb &notification_clb);
 
   // handles the notice from the session
   xcl::Handler_result notice_handler(const xcl::XProtocol *,
@@ -405,9 +402,9 @@ GRNotificationListener::Impl::~Impl() {
  */
 xcl::XError GRNotificationListener::Impl::enable_notices(
     xcl::XSession &session, const NodeId &node_id,
-    const mysqlrouter::TargetCluster &target_cluster) noexcept {
+    const std::string &cluster_name) noexcept {
   log_info("Enabling GR notices for cluster '%s' changes on node %s:%u",
-           target_cluster.c_str(), node_id.host.c_str(), node_id.port);
+           cluster_name.c_str(), node_id.host.c_str(), node_id.port);
   xcl::XError err;
 
   xcl::Argument_value::Object arg_obj;
@@ -478,21 +475,21 @@ xcl::XError GRNotificationListener::Impl::ping(
 }
 
 void GRNotificationListener::Impl::reconfigure(
-    const std::vector<metadata_cache::ManagedInstance> &instances,
-    const mysqlrouter::TargetCluster &target_cluster,
+    const metadata_cache::ClusterTopology &cluster_topology,
     const NotificationClb &notification_clb) {
   std::lock_guard<std::mutex> lock(configuration_data_mtx_);
 
   notification_callback = notification_clb;
 
+  const auto all_nodes = cluster_topology.get_all_members();
   // if there are connections to the nodes that are no longer required, remove
   // them first
   for (auto it = sessions_.cbegin(); it != sessions_.cend();) {
-    if (std::find_if(instances.begin(), instances.end(),
+    if (std::find_if(all_nodes.begin(), all_nodes.end(),
                      [&it](const metadata_cache::ManagedInstance &i) {
                        return it->first.host == i.host &&
                               it->first.port == i.xport;
-                     }) == instances.end()) {
+                     }) == all_nodes.end()) {
       log_info("Removing unused GR notification session to '%s:%d'",
                it->first.host.c_str(), it->first.port);
       sessions_.erase(it++);
@@ -503,33 +500,36 @@ void GRNotificationListener::Impl::reconfigure(
   }
 
   // check if there are some new nodes that we should connect to
-  for (const auto &instance : instances) {
-    NodeId node_id{instance.host, instance.xport, NodeId::kInvalidSocket};
-    if (std::find_if(
-            sessions_.begin(), sessions_.end(),
-            [&node_id](const std::pair<const NodeId, NodeSession> &node) {
-              return node.first.host == node_id.host &&
-                     node.first.port == node_id.port;
-            }) == sessions_.end()) {
+  for (const auto &cluster : cluster_topology.clusters_data) {
+    for (const auto &instance : cluster.members) {
       NodeId node_id{instance.host, instance.xport, NodeId::kInvalidSocket};
-      NodeSession session;
-      // If we could not connect it's not fatal, we only log it and live with
-      // the node not being monitored for GR notifications.
-      if (connect(session, node_id)) continue;
+      if (std::find_if(
+              sessions_.begin(), sessions_.end(),
+              [&node_id](const std::pair<const NodeId, NodeSession> &node) {
+                return node.first.host == node_id.host &&
+                       node.first.port == node_id.port;
+              }) == sessions_.end()) {
+        NodeId node_id{instance.host, instance.xport, NodeId::kInvalidSocket};
+        NodeSession session;
+        // If we could not connect it's not fatal, we only log it and live with
+        // the node not being monitored for GR notifications.
+        if (connect(session, node_id)) continue;
 
-      set_mysqlx_wait_timeout(*session, node_id);
+        set_mysqlx_wait_timeout(*session, node_id);
 
-      if (enable_notices(*session, node_id, target_cluster)) continue;
+        if (enable_notices(*session, node_id, cluster.name)) continue;
 
-      session->get_protocol().add_notice_handler(
-          [this](const xcl::XProtocol *protocol, const bool is_global,
-                 const Mysqlx::Notice::Frame::Type type, const char *data,
-                 const uint32_t data_length) -> xcl::Handler_result {
-            return notice_handler(protocol, is_global, type, data, data_length);
-          });
+        session->get_protocol().add_notice_handler(
+            [this](const xcl::XProtocol *protocol, const bool is_global,
+                   const Mysqlx::Notice::Frame::Type type, const char *data,
+                   const uint32_t data_length) -> xcl::Handler_result {
+              return notice_handler(protocol, is_global, type, data,
+                                    data_length);
+            });
 
-      sessions_[node_id] = std::move(session);
-      sessions_changed_ = true;
+        sessions_[node_id] = std::move(session);
+        sessions_changed_ = true;
+      }
     }
   }
 
@@ -545,8 +545,7 @@ GRNotificationListener::GRNotificationListener(
 GRNotificationListener::~GRNotificationListener() = default;
 
 void GRNotificationListener::setup(
-    const std::vector<metadata_cache::ManagedInstance> &instances,
-    const mysqlrouter::TargetCluster &target_cluster,
+    const metadata_cache::ClusterTopology &cluster_topology,
     const NotificationClb &notification_clb) {
-  impl_->reconfigure(instances, target_cluster, notification_clb);
+  impl_->reconfigure(cluster_topology, notification_clb);
 }

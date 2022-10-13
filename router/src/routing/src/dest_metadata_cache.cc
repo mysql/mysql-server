@@ -228,18 +228,17 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(
 #endif
 
 std::pair<AllowedNodes, bool> DestMetadataCacheGroup::get_available(
-    const metadata_cache::LookupResult &managed_servers,
+    const metadata_cache::cluster_nodes_list_t &instances,
     bool for_new_connections) const {
   AllowedNodes result;
 
   bool primary_fallback{false};
-  const auto &managed_servers_vec = managed_servers.instance_vector;
   if (routing_strategy_ == routing::RoutingStrategy::kRoundRobinWithFallback) {
     // if there are no secondaries available we fall-back to primaries
     std::lock_guard<std::mutex> lock(
         query_quarantined_destinations_callback_mtx_);
     auto secondary = std::find_if(
-        managed_servers_vec.begin(), managed_servers_vec.end(),
+        instances.begin(), instances.end(),
         [&](const metadata_cache::ManagedInstance &i) {
           if (for_new_connections && query_quarantined_destinations_callback_) {
             return i.mode == metadata_cache::ServerMode::ReadOnly &&
@@ -249,7 +248,7 @@ std::pair<AllowedNodes, bool> DestMetadataCacheGroup::get_available(
           }
         });
 
-    primary_fallback = secondary == managed_servers_vec.end();
+    primary_fallback = secondary == instances.end();
   }
   // if we are gathering the nodes for the decision about keeping existing
   // connections we look also at the disconnect_on_promoted_to_primary_ setting
@@ -259,7 +258,7 @@ std::pair<AllowedNodes, bool> DestMetadataCacheGroup::get_available(
     primary_fallback = true;
   }
 
-  for (const auto &it : managed_servers_vec) {
+  for (const auto &it : instances) {
     if (for_new_connections) {
       // for new connections skip (do not include) the node if it is hidden - it
       // is not allowed
@@ -302,11 +301,10 @@ std::pair<AllowedNodes, bool> DestMetadataCacheGroup::get_available(
 }
 
 AllowedNodes DestMetadataCacheGroup::get_available_primaries(
-    const metadata_cache::LookupResult &managed_servers) const {
+    const metadata_cache::cluster_nodes_list_t &managed_servers) const {
   AllowedNodes result;
-  const auto &managed_servers_vec = managed_servers.instance_vector;
 
-  for (const auto &it : managed_servers_vec) {
+  for (const auto &it : managed_servers) {
     if (it.hidden) continue;
 
     auto port = (protocol_ == Protocol::Type::kXProtocol) ? it.xport : it.port;
@@ -626,8 +624,7 @@ Destinations DestMetadataCacheGroup::destinations() {
 
   AllowedNodes available;
   bool primary_failover;
-  const auto &all_replicaset_nodes =
-      cache_api_->get_cluster_nodes().instance_vector;
+  const auto &all_replicaset_nodes = cache_api_->get_cluster_nodes();
 
   std::tie(available, primary_failover) = get_available(all_replicaset_nodes);
 
@@ -637,8 +634,7 @@ Destinations DestMetadataCacheGroup::destinations() {
 Destinations DestMetadataCacheGroup::primary_destinations() {
   if (!cache_api_->is_initialized()) return {};
 
-  const auto &all_replicaset_nodes =
-      cache_api_->get_cluster_nodes().instance_vector;
+  const auto &all_replicaset_nodes = cache_api_->get_cluster_nodes();
 
   auto available = get_available_primaries(all_replicaset_nodes);
 
@@ -650,8 +646,7 @@ DestMetadataCacheGroup::AddrVector DestMetadataCacheGroup::get_destinations()
   // don't call lookup if the cache-api is not ready yet.
   if (!cache_api_->is_initialized()) return {};
 
-  auto available =
-      get_available(cache_api_->get_cluster_nodes().instance_vector).first;
+  auto available = get_available(cache_api_->get_cluster_nodes()).first;
 
   AddrVector addresses;
   for (const auto &dest : available) {
@@ -662,7 +657,7 @@ DestMetadataCacheGroup::AddrVector DestMetadataCacheGroup::get_destinations()
 }
 
 void DestMetadataCacheGroup::on_instances_change(
-    const metadata_cache::LookupResult &instances,
+    const metadata_cache::ClusterTopology &cluster_topology,
     const bool md_servers_reachable) {
   // we got notified that the metadata has changed.
   // If instances is empty then (most like is empty)
@@ -673,6 +668,7 @@ void DestMetadataCacheGroup::on_instances_change(
   const bool disconnect =
       md_servers_reachable || disconnect_on_metadata_unavailable_;
 
+  const auto instances = cluster_topology.get_all_members();
   const std::string reason =
       md_servers_reachable ? "metadata change" : "metadata unavailable";
 
@@ -693,14 +689,13 @@ void DestMetadataCacheGroup::on_instances_change(
 }
 
 void DestMetadataCacheGroup::notify_instances_changed(
-    const metadata_cache::LookupResult &instances,
-    const metadata_cache::metadata_servers_list_t & /*metadata_servers*/,
+    const metadata_cache::ClusterTopology &cluster_topology,
     const bool md_servers_reachable, const uint64_t /*view_id*/) noexcept {
-  on_instances_change(instances, md_servers_reachable);
+  on_instances_change(cluster_topology, md_servers_reachable);
 }
 
 bool DestMetadataCacheGroup::update_socket_acceptor_state(
-    const metadata_cache::LookupResult &instances) noexcept {
+    const metadata_cache::cluster_nodes_list_t &instances) noexcept {
   const auto &nodes_for_new_connections =
       get_available(instances, /*for_new_connections=*/true).first;
 
@@ -723,7 +718,9 @@ bool DestMetadataCacheGroup::update_socket_acceptor_state(
 }
 
 void DestMetadataCacheGroup::on_md_refresh(
-    const bool nodes_changed, const metadata_cache::LookupResult &instances) {
+    const bool nodes_changed,
+    const metadata_cache::ClusterTopology &cluster_topology) {
+  const auto instances = cluster_topology.get_all_members();
   const auto &available_nodes =
       get_available(instances, /*for_new_connections=*/true).first;
   std::lock_guard<std::mutex> lock(md_refresh_callback_mtx_);

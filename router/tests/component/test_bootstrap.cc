@@ -120,7 +120,7 @@ router_id=1)";
   // require tons of escaping
   // user=mysql_router1_daxi69tk9btt
   const char *expected_config_gr_part2 =
-      R"(metadata_cluster=my-cluster
+      R"(metadata_cluster=mycluster
 ttl=0.5
 auth_cache_ttl=-1
 auth_cache_refresh_interval=2
@@ -129,28 +129,28 @@ use_gr_notifications=0
 [routing:bootstrap_rw]
 bind_address=0.0.0.0
 bind_port=6446
-destinations=metadata-cache://my-cluster/?role=PRIMARY
+destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=classic
 
 [routing:bootstrap_ro]
 bind_address=0.0.0.0
 bind_port=6447
-destinations=metadata-cache://my-cluster/?role=SECONDARY
+destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=classic
 
 [routing:bootstrap_x_rw]
 bind_address=0.0.0.0
 bind_port=6448
-destinations=metadata-cache://my-cluster/?role=PRIMARY
+destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=x
 
 [routing:bootstrap_x_ro]
 bind_address=0.0.0.0
 bind_port=6449
-destinations=metadata-cache://my-cluster/?role=SECONDARY
+destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=x)";
 
@@ -162,7 +162,7 @@ router_id=1)";
   // require tons of escaping
   // user=mysql_router1_ritc56yrjz42
   const char *expected_config_ar_part2 =
-      R"(metadata_cluster=my-cluster
+      R"(metadata_cluster=mycluster
 ttl=0.5
 auth_cache_ttl=-1
 auth_cache_refresh_interval=2
@@ -170,28 +170,28 @@ auth_cache_refresh_interval=2
 [routing:bootstrap_rw]
 bind_address=0.0.0.0
 bind_port=6446
-destinations=metadata-cache://my-cluster/?role=PRIMARY
+destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=classic
 
 [routing:bootstrap_ro]
 bind_address=0.0.0.0
 bind_port=6447
-destinations=metadata-cache://my-cluster/?role=SECONDARY
+destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=classic
 
 [routing:bootstrap_x_rw]
 bind_address=0.0.0.0
 bind_port=6448
-destinations=metadata-cache://my-cluster/?role=PRIMARY
+destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=x
 
 [routing:bootstrap_x_ro]
 bind_address=0.0.0.0
 bind_port=6449
-destinations=metadata-cache://my-cluster/?role=SECONDARY
+destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=x)";
 
@@ -254,7 +254,7 @@ void check_bind_port(const std::string &conf_file_content,
       "[routing:"s + route_name + "]\n"
       "bind_address=0.0.0.0\n" +
       "bind_port=" + std::to_string(expected_bind_port) + "\n" +
-      "destinations=metadata-cache://my-cluster/?role=" +  server_role + "\n" +
+      "destinations=metadata-cache://mycluster/?role=" +  server_role + "\n" +
       "routing_strategy=" + routing_strategy + "\n" +
       "protocol=" + protocol_name + "\n";
   // clang-format on
@@ -965,23 +965,16 @@ class RouterBootstrapFailoverSuperReadonly
  */
 TEST_P(RouterBootstrapFailoverSuperReadonly, BootstrapFailoverSuperReadonly) {
   const auto param = GetParam();
-  const std::string cluster_type_specific_id =
-      param.cluster_type == ClusterType::RS_V2
-          ? "00000000-0000-0000-0000-0000000000c1"
-          : "00000000-0000-0000-0000-0000000000g1";
 
   std::vector<Config> config{
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
-       get_data_dir().join(param.trace_file).str(), /*unaccessible=*/false,
-       cluster_type_specific_id},
+       get_data_dir().join(param.trace_file).str()},
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
-       get_data_dir().join(param.trace_file2).str(), /*unaccessible=*/false,
-       cluster_type_specific_id},
+       get_data_dir().join(param.trace_file2).str()},
       {"127.0.0.1", port_pool_.get_next_available(),
-       port_pool_.get_next_available(), "", /*unaccessible=*/false,
-       cluster_type_specific_id},
+       port_pool_.get_next_available(), ""},
   };
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(config, param.cluster_type));
@@ -1030,26 +1023,20 @@ class RouterBootstrapFailoverSuperReadonly2ndNodeDead
 TEST_P(RouterBootstrapFailoverSuperReadonly2ndNodeDead,
        BootstrapFailoverSuperReadonly2ndNodeDead) {
   const auto param = GetParam();
-  const std::string cluster_type_specific_id =
-      param.cluster_type == ClusterType::RS_V2
-          ? "00000000-0000-0000-0000-0000000000c1"
-          : "00000000-0000-0000-0000-0000000000g1";
 
   const auto dead_port = port_pool_.get_next_available();
   std::vector<Config> config{
       // member-1, PRIMARY, fails at first write
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
-       get_data_dir().join(param.trace_file).str(), /*unaccessible=*/false,
-       cluster_type_specific_id},
+       get_data_dir().join(param.trace_file).str()},
       // member-2, unreachable
       {"127.0.0.1", dead_port, port_pool_.get_next_available(), "",
-       /*unaccessible=*/true, cluster_type_specific_id},
+       /*unaccessible=*/true},
       // member-3, succeeds
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
-       get_data_dir().join(param.trace_file2).str(), /*unaccessible=*/false,
-       cluster_type_specific_id},
+       get_data_dir().join(param.trace_file2).str()},
   };
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
@@ -1337,7 +1324,7 @@ INSTANTIATE_TEST_SUITE_P(
 /**
  * @test
  * This test proves that bootstrap will not print out the success message
- * ("MySQL Router configured for the InnoDB cluster 'my-cluster'" and many lines
+ * ("MySQL Router configured for the InnoDB cluster 'mycluster'" and many lines
  *  that follow it) until entire bootstrap succeeds.
  *
  * At the time of writing, the last operation that bootstrap performs is
@@ -1393,7 +1380,7 @@ TEST_F(RouterBootstrapTest,
   // displayed
   EXPECT_THAT(router.get_full_output(), ::testing::Not(::testing::HasSubstr(
                                             "MySQL Router configured for the "
-                                            "InnoDB cluster 'my-cluster'")));
+                                            "InnoDB cluster 'mycluster'")));
 
   server_mock.kill();
 }
@@ -1650,8 +1637,7 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   set_mock_bootstrap_data(
       http_port, "test",
       {{"localhost", server_port}, {"localhost", server_port2}},
-      GetParam().metadata_schema_version,
-      "00000000-0000-0000-0000-0000000000c1");
+      GetParam().metadata_schema_version, "cluster-specific-id");
 
   const auto router_port_rw = port_pool_.get_next_available();
   const auto router_port_ro = port_pool_.get_next_available();
@@ -1700,8 +1686,7 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   // launch mock server that is our metadata server
   launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
-  set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
-                    {server_port});
+  set_mock_metadata(http_port, "cluster-specific-id", {server_port});
 
   ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
 }
@@ -2010,7 +1995,7 @@ TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntry) {
                            false, bootstrap_server_http_port);
   set_mock_bootstrap_data(bootstrap_server_http_port, "test",
                           {{"127.0.0.1", server_port}}, {2, 0, 3},
-                          "00000000-0000-0000-0000-0000000000c1");
+                          "cluster-specific-id");
 
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
@@ -2046,7 +2031,7 @@ TEST_F(RouterBootstrapTest, CheckAuthBackendWhenOldMetadata) {
                            http_port);
 
   set_mock_bootstrap_data(http_port, "test", {{"localhost", server_port}},
-                          {1, 0, 0}, "00000000-0000-0000-0000-0000000000c1");
+                          {1, 0, 0}, "cluster-specific-id");
 
   const auto base_listening_port = port_pool_.get_next_available();
   std::vector<std::string> bootsrtap_params{
@@ -2491,7 +2476,7 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
   set_mock_bootstrap_data(
       http_port, "test",
       {{"localhost", server_port}, {"localhost", server_port2}}, {2, 1, 0},
-      "00000000-0000-0000-0000-0000000000c1");
+      "00000000-0000-0000-0000-0000000000g1");
 
   const auto router_port_rw = port_pool_.get_next_available();
   const auto router_port_ro = port_pool_.get_next_available();

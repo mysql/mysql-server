@@ -52,9 +52,20 @@ using namespace std::string_literals;
 using mysqlrouter::ClusterType;
 
 // for the test with no param
-class RouterClusterSetBootstrapTest : public RouterComponentBootstrapTest,
-                                      public RouterComponentClusterSetTest {
+class RouterClusterSetBootstrapTest : public RouterComponentClusterSetTest {
  protected:
+  ProcessWrapper &launch_router_for_bootstrap(
+      std::vector<std::string> params, int expected_exit_code = EXIT_SUCCESS,
+      const bool disable_rest = true,
+      ProcessWrapper::OutputResponder output_responder =
+          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
+    if (disable_rest) params.push_back("--disable-rest");
+
+    return ProcessManager::launch_router(
+        params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
+        /*wait_for_notify_ready=*/std::chrono::seconds(-1), output_responder);
+  }
+
   using NodeAddress = std::pair<std::string, uint16_t>;
   TempDirectory bootstrap_directory;
   uint64_t view_id{1};

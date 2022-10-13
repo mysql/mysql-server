@@ -93,7 +93,7 @@ class MetadataCachePluginTest : public ::testing::Test {
      */
     while (instance_vector_1.size() != 3) {
       try {
-        instance_vector_1 = cache_api_->get_cluster_nodes().instance_vector;
+        instance_vector_1 = cache_api_->get_cluster_nodes();
       } catch (const std::runtime_error &exc) {
         /**
          * If the lookup fails after 5 attempts it points to an error
@@ -121,7 +121,7 @@ class MetadataCachePluginTest : public ::testing::Test {
  */
 TEST_F(MetadataCachePluginTest, ValidCluserTest_1) {
   std::vector<ManagedInstance> instance_vector_1 =
-      cache_api_->get_cluster_nodes().instance_vector;
+      cache_api_->get_cluster_nodes();
 
   EXPECT_EQ(instance_vector_1[0], mf.ms1);
   EXPECT_EQ(instance_vector_1[1], mf.ms2);

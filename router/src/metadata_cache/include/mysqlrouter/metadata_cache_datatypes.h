@@ -27,6 +27,8 @@
 
 #include "mysqlrouter/metadata_cache_export.h"
 
+#include <algorithm>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -38,8 +40,6 @@ namespace metadata_cache {
 
 enum class metadata_errc {
   ok,
-  no_rw_node_found,
-  no_rw_node_needed,
   no_metadata_server_reached,
   no_metadata_read_successful,
   metadata_refresh_terminated,
@@ -64,10 +64,6 @@ inline const std::error_category &metadata_cache_category() noexcept {
       switch (static_cast<metadata_errc>(ev)) {
         case metadata_errc::ok:
           return "ok";
-        case metadata_errc::no_rw_node_found:
-          return "no RW node found";
-        case metadata_errc::no_rw_node_needed:
-          return "RW node not requested";
         case metadata_errc::no_metadata_server_reached:
           return "no metadata server accessible";
         case metadata_errc::no_metadata_read_successful:
@@ -98,6 +94,7 @@ constexpr const bool kNodeTagHiddenDefault{false};
 constexpr const bool kNodeTagDisconnectWhenHiddenDefault{true};
 
 enum class ServerMode { ReadWrite, ReadOnly, Unavailable };
+enum class ServerRole { Primary, Secondary, Unavailable };
 enum class InstanceType { GroupMember, AsyncMember, ReadReplica };
 
 /** @class ManagedInstance
@@ -107,8 +104,9 @@ enum class InstanceType { GroupMember, AsyncMember, ReadReplica };
 class METADATA_CACHE_EXPORT ManagedInstance {
  public:
   ManagedInstance(InstanceType p_type, const std::string &p_mysql_server_uuid,
-                  const ServerMode p_mode, const std::string &p_host,
-                  const uint16_t p_port, const uint16_t p_xport);
+                  const ServerMode p_mode, const ServerRole p_role,
+                  const std::string &p_host, const uint16_t p_port,
+                  const uint16_t p_xport);
 
   using TCPAddress = mysql_harness::TCPAddress;
   explicit ManagedInstance(InstanceType p_type);
@@ -121,13 +119,17 @@ class METADATA_CACHE_EXPORT ManagedInstance {
   /** @brief The uuid of the MySQL server */
   std::string mysql_server_uuid;
   /** @brief The mode of the server */
-  ServerMode mode;
+  ServerMode mode{ServerMode::Unavailable};
+  /** @brief The role of the server */
+  ServerRole role{ServerRole::Unavailable};
   /** @brief The host name on which the server is running */
   std::string host;
   /** The port number in which the server is running */
-  uint16_t port;
+  uint16_t port{0};
   /** The X protocol port number in which the server is running */
-  uint16_t xport;
+  uint16_t xport{0};
+  /** Node atributes as a json string from metadata */
+  std::string attributes;
   /** Should the node be hidden from the application to use it */
   bool hidden{kNodeTagHiddenDefault};
   /** Should the Router disconnect existing client sessions to the node when it
@@ -156,6 +158,7 @@ class METADATA_CACHE_EXPORT ManagedCluster {
   /** @brief Whether the cluster is in single_primary_mode (from PFS in case of
    * GR) */
   bool single_primary_mode;
+
   /** @brief Metadata for the cluster is not consistent (only applicable for
    * the GR cluster when the data in the GR metadata is not consistent with the
    * cluster metadata)*/
@@ -166,12 +169,6 @@ class METADATA_CACHE_EXPORT ManagedCluster {
   /** @brief Is the Cluster marked as invalid in the metadata */
   bool is_invalidated{false};
 
-  // address of the writable metadata server that can be used for updating the
-  // metadata (router version, last_check_in), error code if not found
-  stdx::expected<metadata_cache::metadata_server_t, std::error_code>
-      writable_server{stdx::make_unexpected(
-          make_error_code(metadata_cache::metadata_errc::no_rw_node_found))};
-
   bool empty() const noexcept { return members.empty(); }
 
   void clear() noexcept { members.clear(); }
@@ -181,12 +178,40 @@ class METADATA_CACHE_EXPORT ManagedCluster {
  * Represents a cluster (a GR group or AR members) and its metadata servers
  */
 struct METADATA_CACHE_EXPORT ClusterTopology {
-  ManagedCluster cluster_data;
+  using clusters_list_t = std::vector<ManagedCluster>;
+
+  clusters_list_t clusters_data;
+  // index of the target cluster in the clusters_data vector
+  std::optional<size_t> target_cluster_pos{};
   metadata_servers_list_t metadata_servers;
 
   /** @brief Id of the view this metadata represents (used for AR and
    * ClusterSets)*/
   uint64_t view_id{0};
+
+  /** @brief name of the ClusterSet or empty in case of standalone Cluster */
+  std::string name{};
+
+  // address of the writable metadata server that can be used for updating the
+  // metadata (router version, last_check_in), nullptr_t if not found
+  std::optional<metadata_cache::metadata_server_t> writable_server{};
+
+  cluster_nodes_list_t get_all_members() const {
+    cluster_nodes_list_t result;
+
+    for (const auto &cluster : clusters_data) {
+      result.insert(result.end(), cluster.members.begin(),
+                    cluster.members.end());
+    }
+
+    return result;
+  }
+
+  void clear_all_members() {
+    for (auto &cluster : clusters_data) {
+      cluster.members.clear();
+    }
+  }
 };
 
 /**

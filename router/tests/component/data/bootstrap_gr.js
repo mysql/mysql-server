@@ -6,16 +6,21 @@ if (mysqld.global.innodb_cluster_instances === undefined) {
 }
 
 if (mysqld.global.cluster_name == undefined) {
-  mysqld.global.cluster_name = "my-cluster";
+  mysqld.global.cluster_name = "mycluster";
 }
 
 if (mysqld.global.metadata_version === undefined) {
   mysqld.global.metadata_version = [2, 0, 3];
 }
 
+if (mysqld.global.gr_id === undefined) {
+  mysqld.global.gr_id = "cluster-specific-id";
+}
+
 var options = {
   metadata_schema_version: mysqld.global.metadata_version,
   cluster_type: "gr",
+  group_replication_name: mysqld.global.gr_id,
   clusterset_present: 0,
   innodb_cluster_name: mysqld.global.cluster_name,
   innodb_cluster_instances: mysqld.global.innodb_cluster_instances,

@@ -30,8 +30,8 @@
 void RouterComponentClusterSetTest::create_clusterset(
     uint64_t view_id, int target_cluster_id, int primary_cluster_id,
     const std::string &tracefile, const std::string &router_options,
-    const std::string &expected_target_cluster,
-    bool simulate_cluster_not_found) {
+    const std::string &expected_target_cluster, bool simulate_cluster_not_found,
+    bool use_gr_notifications) {
   const std::string tracefile_path = get_data_dir().str() + "/" + tracefile;
 
   ClusterSetData clusterset_data;
@@ -57,6 +57,9 @@ void RouterComponentClusterSetTest::create_clusterset(
       cluster_node.host = "127.0.0.1";
       cluster_node.classic_port = port_pool_.get_next_available();
       cluster_node.http_port = port_pool_.get_next_available();
+      if (use_gr_notifications) {
+        cluster_node.x_port = port_pool_.get_next_available();
+      }
 
       cluster_data.nodes.push_back(cluster_node);
     }
@@ -71,9 +74,9 @@ void RouterComponentClusterSetTest::create_clusterset(
     auto &cluster = clusterset_data.clusters[cluster_id];
     for (unsigned node_id = 0; node_id < cluster.nodes.size(); ++node_id) {
       auto &node = cluster.nodes[node_id];
-      node.process =
-          &launch_mysql_server_mock(tracefile_path, node.classic_port,
-                                    EXIT_SUCCESS, false, node.http_port);
+      node.process = &launch_mysql_server_mock(
+          tracefile_path, node.classic_port, EXIT_SUCCESS, false,
+          node.http_port, node.x_port);
 
       set_mock_metadata(view_id, cluster_id, target_cluster_id, node.http_port,
                         clusterset_data, router_options,
@@ -140,6 +143,9 @@ void RouterComponentClusterSetTest::add_clusterset_data_field(
       add_json_str_field(node_obj, "host", node_data.host);
       add_json_int_field(node_obj, "classic_port", node_data.classic_port);
       add_json_int_field(node_obj, "http_port", node_data.http_port);
+      if (node_data.x_port > 0) {
+        add_json_int_field(node_obj, "x_port", node_data.x_port);
+      }
 
       cluster_nodes_array.PushBack(node_obj, json_allocator);
     }

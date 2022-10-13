@@ -6,7 +6,7 @@ if (mysqld.global.innodb_cluster_instances === undefined) {
 }
 
 if (mysqld.global.cluster_name == undefined) {
-  mysqld.global.cluster_name = "my-cluster";
+  mysqld.global.cluster_name = "mycluster";
 }
 
 var options = {

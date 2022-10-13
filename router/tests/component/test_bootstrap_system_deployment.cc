@@ -107,7 +107,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
 
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB Cluster 'my-cluster'"));
+                           "InnoDB Cluster 'mycluster'"));
 }
 
 /*

@@ -55,6 +55,8 @@ static constexpr const char node_3_uuid[] =
     "f0a2079f-8b90-4324-9eec-a0496c4338e0";
 
 static constexpr const char replicaset_name[] = "default";
+static constexpr const char cluster_id[] = "cluster-1-id";
+static constexpr const char cluster_name[] = "cluster-1";
 
 class FailoverTest : public ::testing::Test {
  public:
@@ -116,7 +118,8 @@ class FailoverTest : public ::testing::Test {
                           m.string_or_null("1")},
                      });
     m.expect_query(
-        "SELECT R.replicaset_name, I.mysql_server_uuid, "
+        "SELECT F.cluster_id, F.cluster_name, R.replicaset_name, "
+        "I.mysql_server_uuid, "
         "I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM "
         "mysql_innodb_cluster_metadata.clusters "
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
@@ -126,16 +129,19 @@ class FailoverTest : public ::testing::Test {
         "AND R.attributes->>'$.group_replication_group_name' = "
         "'3e4338a1-2c5d-49ac-8baa-e5a25ba61e76'");
     m.then_return(
-        7,
-        {// replicaset_name, mysql_server_uuid,
-         // location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
-         {m.string_or_null(replicaset_name), m.string_or_null(node_1_uuid),
+        5,
+        {// cluster_id, cluster_name, replicaset_name, mysql_server_uuid,
+         // I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
+         {m.string_or_null(cluster_id), m.string_or_null(cluster_name),
+          m.string_or_null(replicaset_name), m.string_or_null(node_1_uuid),
           m.string_or_null("localhost:3000"),
           m.string_or_null("localhost:30000")},
-         {m.string_or_null(replicaset_name), m.string_or_null(node_2_uuid),
+         {m.string_or_null(cluster_id), m.string_or_null(cluster_name),
+          m.string_or_null(replicaset_name), m.string_or_null(node_2_uuid),
           m.string_or_null("localhost:3001"),
           m.string_or_null("localhost:30010")},
-         {m.string_or_null(replicaset_name), m.string_or_null(node_3_uuid),
+         {m.string_or_null(cluster_id), m.string_or_null(cluster_name),
+          m.string_or_null(replicaset_name), m.string_or_null(node_3_uuid),
           m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
 

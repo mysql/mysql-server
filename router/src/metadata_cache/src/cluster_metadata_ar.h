@@ -83,7 +83,8 @@ class METADATA_CACHE_EXPORT ARClusterMetadata : public ClusterMetadata {
       mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
       bool needs_writable_node, const std::string &cluster_type_specific_id,
-      const std::string & /*clusterset_id*/, std::size_t &instance_id) override;
+      const std::string & /*clusterset_id*/, bool /*whole_topology*/,
+      std::size_t &instance_id) override;
 
   /** @brief Returns cluster type this object is suppsed to handle
    */
@@ -92,8 +93,7 @@ class METADATA_CACHE_EXPORT ARClusterMetadata : public ClusterMetadata {
   }
 
   void setup_notifications_listener(
-      const std::vector<metadata_cache::ManagedInstance> & /*instances*/,
-      const mysqlrouter::TargetCluster & /*target_cluster*/,
+      const metadata_cache::ClusterTopology & /*cluster_topology*/,
       const GRNotificationListener::NotificationClb & /*callback*/) override {}
 
   /** @brief Deinitializes the notifications listener thread
@@ -101,16 +101,18 @@ class METADATA_CACHE_EXPORT ARClusterMetadata : public ClusterMetadata {
   void shutdown_notifications_listener() override {}
 
  private:
-  /** @brief Returns vector of the cluster members according to the metadata of
+  /** @brief Returns the current cluster topology according to the metadata of
    * the given metadata server.
    *
    * @param session active connection to the member that is checked for the
    * metadata
+   * @param view_id last known view_id of the cluster metadata
    * @param cluster_id ID of the cluster this operation refers to
    * @return vector of the cluster members
    */
-  std::vector<metadata_cache::ManagedInstance> fetch_instances_from_member(
-      mysqlrouter::MySQLSession &session, const std::string &cluster_id = "");
+  metadata_cache::ClusterTopology fetch_topology_from_member(
+      mysqlrouter::MySQLSession &session, unsigned view_id,
+      const std::string &cluster_id = "");
 
   /** @brief Returns metadata view id the given member holds
    *

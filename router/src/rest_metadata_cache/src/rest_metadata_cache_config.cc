@@ -40,10 +40,32 @@ static rapidjson::Value json_value_from_string(const std::string &s,
   return {s.data(), s.size(), allocator};
 }
 
+bool handle_params(HttpRequest &req) {
+  auto md_api = metadata_cache::MetadataCacheAPI::instance();
+
+  if (!req.get_uri().get_query().empty()) {
+    const auto q = req.get_uri().get_query();
+    if (q == "fetchWholeTopology=1") {
+      md_api->fetch_whole_topology(true);
+    } else if (q == "fetchWholeTopology=0") {
+      md_api->fetch_whole_topology(false);
+    } else {
+      send_rfc7807_error(req, HttpStatusCode::BadRequest,
+                         {
+                             {"title", "validation error"},
+                             {"detail", "unsupported parameter"},
+                         });
+    }
+    return true;
+  }
+
+  return true;
+}
+
 bool RestMetadataCacheConfig::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
     const std::vector<std::string> &path_matches) {
-  if (!ensure_no_params(req)) return true;
+  if (!handle_params(req)) return true;
 
   if (path_matches[1] !=
       metadata_cache::MetadataCacheAPI::instance()->instance_name()) {
@@ -63,7 +85,7 @@ bool RestMetadataCacheConfig::on_handle_request(
 
     rapidjson::Value members(rapidjson::kArrayType);
 
-    for (auto &member : group_members.instance_vector) {
+    for (auto &member : group_members) {
       members.PushBack(
           rapidjson::Value(rapidjson::kObjectType)
               .AddMember("hostname",

@@ -1128,9 +1128,8 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   // check the state file that was produced, if it contains
   // what the bootstrap server has reported
   const std::string state_file = temp_test_dir.name() + "/data/state.json";
-  check_state_file(state_file, ClusterType::GR_V1,
-                   "00000000-0000-0000-0000-0000000000g1", {5500, 5510, 5520},
-                   0, "localhost");
+  check_state_file(state_file, ClusterType::GR_V1, "cluster-specific-id",
+                   {5500, 5510, 5520}, 0, "localhost");
 
   // check that static file has a proper reference to the dynamic file
   const std::string conf_content =
@@ -1190,9 +1189,8 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   const std::string state_file =
       RouterSystemLayout::tmp_dir_ + "/stage/var/lib/mysqlrouter/state.json";
 
-  check_state_file(state_file, ClusterType::GR_V1,
-                   "00000000-0000-0000-0000-0000000000g1", {5500, 5510, 5520},
-                   0, "localhost");
+  check_state_file(state_file, ClusterType::GR_V1, "cluster-specific-id",
+                   {5500, 5510, 5520}, 0, "localhost");
 }
 
 #endif  // SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
