@@ -576,9 +576,9 @@ static bool auth_verify_password_history(
   }
 
   /* find the first matching record by the first 2 fields of a key */
-  error = table->file->ha_index_read_idx_map(
-      table->record[0], 0, user_key, (key_part_map)((1L << 0) | (1L << 1)),
-      HA_READ_KEY_EXACT);
+  error = table->file->ha_index_read_map(table->record[0], user_key,
+                                         (key_part_map)((1L << 0) | (1L << 1)),
+                                         HA_READ_KEY_EXACT);
 
   /* fetch the current day */
   MYSQL_TIME tm_now;
@@ -768,9 +768,9 @@ static bool handle_password_history_table(THD *thd, Table_ref *tables,
   }
 
   /* find the first matching record by host/user key prefix */
-  error = table->file->ha_index_read_idx_map(
-      table->record[0], 0, user_key, (key_part_map)((1L << 0) | (1L << 1)),
-      HA_READ_KEY_EXACT);
+  error = table->file->ha_index_read_map(table->record[0], user_key,
+                                         (key_part_map)((1L << 0) | (1L << 1)),
+                                         HA_READ_KEY_EXACT);
 
   /* iterate over the password history rows for the user */
   while (!error) {

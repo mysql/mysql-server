@@ -2124,8 +2124,8 @@ int handle_grant_table(THD *, Table_ref *tables, ACL_TABLES table_no, bool drop,
     return result;
   }
 
-  error = table->file->ha_index_read_idx_map(
-      table->record[0], 0, user_key, (key_part_map)3, HA_READ_KEY_EXACT);
+  error = table->file->ha_index_read_map(table->record[0], user_key,
+                                         (key_part_map)3, HA_READ_KEY_EXACT);
   assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
          error != HA_ERR_LOCK_DEADLOCK);
   assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||

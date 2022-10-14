@@ -2362,8 +2362,8 @@ bool read_user_application_user_metadata_from_table(
                                              system_charset_info);
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
-  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
-                                         HA_WHOLE_KEY, HA_READ_KEY_EXACT)) {
+  if (table->file->ha_index_read_map(table->record[0], user_key, HA_WHOLE_KEY,
+                                     HA_READ_KEY_EXACT)) {
     table->file->ha_index_end();
     return false;  // technically we fail, but result should be an empty out
                    // string
