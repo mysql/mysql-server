@@ -34,8 +34,6 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace authentication {
 
-const static char *kBasicSchema = "basic";
-
 static bool extract_user_credentials_from_token(
     [[maybe_unused]] const std::string &token,
     [[maybe_unused]] std::string *user,
@@ -87,8 +85,7 @@ bool BasicHandler::www_authorize(const std::string &token,
     out_user->app_id = entry_.id;
 
     return um_.user_get(out_user, out_cache);
-  } catch (const std::exception &) {
-    add_www_authenticate(kBasicSchema);
+  } catch (const std::exception &e) {
     return false;
   }
 }

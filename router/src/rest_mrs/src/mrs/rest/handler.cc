@@ -270,12 +270,16 @@ class RestRequestHandler : public BaseRequestHandler {
       out_hdrs.add("Content-Type",
                    get_content_type(result.type, result.type_text));
 
-      req.send_reply(
-          HttpStatusCode::Ok,
-          HttpStatusCode::get_default_status_text(HttpStatusCode::Ok), b);
+      req.send_reply(result.status,
+                     HttpStatusCode::get_default_status_text(result.status), b);
       rest_handler_->request_end(&request_ctxt);
     } catch (const http::ErrorChangeResponse &e) {
-      handle_error(&request_ctxt, e.change_response(&req));
+      if (e.retry()) {
+        log_debug("handle_request override");
+        auto r = e.change_response(&req);
+        req.send_reply(r.status, r.message);
+      } else
+        handle_error(&request_ctxt, e.change_response(&req));
     } catch (const http::Error &e) {
       handle_error(&request_ctxt, e);
     } catch (const std::exception &e) {
