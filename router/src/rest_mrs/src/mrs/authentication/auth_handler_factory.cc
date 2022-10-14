@@ -40,18 +40,18 @@ AuthHandlerPtr AuthHandlerFactory::create_basic_auth_handler(
 }
 
 AuthHandlerPtr AuthHandlerFactory::create_facebook_auth_handler(
-    const AuthApp &entry, SessionManager *session_manager) const {
-  return std::make_shared<Oauth2FacebookHandler>(entry, session_manager);
+    const AuthApp &entry) const {
+  return std::make_shared<Oauth2FacebookHandler>(entry);
 }
 
 AuthHandlerPtr AuthHandlerFactory::create_twitter_auth_handler(
-    const AuthApp &entry, SessionManager *session_manager) const {
-  return std::make_shared<Oauth2TwitterHandler>(entry, session_manager);
+    const AuthApp &entry) const {
+  return std::make_shared<Oauth2TwitterHandler>(entry);
 }
 
 AuthHandlerPtr AuthHandlerFactory::create_google_auth_handler(
-    const AuthApp &entry, SessionManager *session_manager) const {
-  return std::make_shared<Oauth2GoogleHandler>(entry, session_manager);
+    const AuthApp &entry) const {
+  return std::make_shared<Oauth2GoogleHandler>(entry);
 }
 
 }  // namespace authentication

@@ -29,14 +29,14 @@
 #include "mrs/http/cookie.h"
 #include "mrs/http/url.h"
 #include "mrs/http/utilities.h"
-#include "mrs/interface/route.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/interface/object.h"
+#include "mrs/rest/request_context.h"
 
 namespace mrs {
 namespace rest {
 
 using Result = HandlerAuthorizeOk::Result;
-using Route = mrs::interface::Route;
+using Route = mrs::interface::Object;
 
 // clang-format off
 const std::string k_page_content_default = R"HEREDOC(
@@ -50,42 +50,104 @@ const std::string k_page_content_default = R"HEREDOC(
             height: 100%;
             overflow: hidden;
         }
+        button {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 6px 26px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+          font-weight: 300;
+          border-radius: 6px;
+          border: none;
+          background: #6E6D70;
+          box-shadow: 0px 0.5px 1px rgba(0, 0, 0, 0.1), inset 0px 0.5px 0.5px rgba(255, 255, 255, 0.5), 0px 0px 0px 0.5px rgba(0, 0, 0, 0.12);
+          color: #DFDEDF;
+          user-select: none;
+          -webkit-user-select: none;
+          touch-action: manipulation;
+        }
+        button:active {
+          box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.3) inset;
+        }
         .main {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100%;
             font-family: Helvetica, Arial, sans-serif;
             font-weight: 200;
         }
+        .hidden {
+          display: none;
+        }
+​
+        @media (prefers-color-scheme: dark) {
+          html, body {
+            background-color: #181818;
+            color: #aaa;
+          }
+          button {
+            box-shadow: 0px 0.5px 1px rgba(0, 0, 0, 0.1);
+            background-color: #ccc;
+            color: #3D3D3D;
+          }
+        }
     </style>
   </head>
   <body>
     <div class="main">
-        <p>Login completed.</p>
+        <p id="loginStatus">Login completed.</p>
+        <button id="closeBtn" class="hidden" onClick="window.close();">Close</button>
     </div>
+    <script>
+      (function() {
+        // Fetch URL parameters
+        const params = new Proxy(new URLSearchParams(window.location.search), {
+          get: (searchParams, prop) => searchParams.get(prop),
+        });
+​
+        // Helper function to check if value is an integer
+        function isInt(value) {
+          return !isNaN(value) && 
+                parseInt(Number(value)) == value && 
+                !isNaN(parseInt(value, 10));
+        }
+​
+        // Handle login parameter values
+        if (params.login === "success") {
+          document.getElementById("loginStatus").innerHTML = "Login completed successfully.";
+        } else if (params.login) {
+          document.getElementById("loginStatus").innerHTML = "Login failed.";
+        }
+​
+        // Handle onCompletionClose parameter values. This only works in popup windows.
+        if (params.onCompletionClose === "manual") {
+          document.getElementById("closeBtn").classList.remove("hidden");
+        } else if (isInt(params.onCompletionClose)) {
+          setTimeout(() => { window.close(); }, 1000 * parseInt(params.onCompletionClose, 10));
+        }
+      }())
+    </script>
   </body>
 </html>
 )HEREDOC";
 // clang-format on
 
-HandlerAuthorizeOk::HandlerAuthorizeOk(const uint64_t id,
-                                       const std::string &url,
-                                       const std::string &rest_path_matcher,
-                                       const std::string &options,
-                                       const std::string &page_content_custom,
-                                       interface::AuthManager *auth_manager)
+HandlerAuthorizeOk::HandlerAuthorizeOk(
+    const uint64_t service_id, const std::string &url,
+    const std::string &rest_path_matcher, const std::string &options,
+    const std::string &page_content_custom,
+    interface::AuthorizeManager *auth_manager)
     : Handler(url, rest_path_matcher, options, auth_manager),
-      id_{id},
+      service_id_{service_id},
       page_content_custom_{page_content_custom} {}
 
 Handler::Authorization HandlerAuthorizeOk::requires_authentication() const {
   return Authorization::kCheck;
 }
 
-std::pair<IdType, uint64_t> HandlerAuthorizeOk::get_id() const {
-  return {IdType::k_id_type_auth_id, id_};
-}
+uint64_t HandlerAuthorizeOk::get_service_id() const { return service_id_; }
 
 uint64_t HandlerAuthorizeOk::get_db_object_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
@@ -118,6 +180,8 @@ Result HandlerAuthorizeOk::handle_delete(RequestContext *) {
 Result HandlerAuthorizeOk::handle_put(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
+
+bool HandlerAuthorizeOk::may_check_access() const { return false; }
 
 }  // namespace rest
 }  // namespace mrs

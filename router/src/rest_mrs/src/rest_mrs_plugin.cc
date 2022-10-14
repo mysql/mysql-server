@@ -43,7 +43,7 @@
 #include <helper/plugin_monitor.h>
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/schema_monitor.h"
-#include "mrs/route_manager.h"
+#include "mrs/object_manager.h"
 #include "mrs_plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -64,11 +64,11 @@ struct MrdsModule {
 
   const ::mrs::Configuration &configuration;
   collector::MysqlCacheManager mysql_connection_cache{configuration};
-  mrs::authentication::AuthManager authentication{&mysql_connection_cache};
-  mrs::RouteManager mrds_route_manager{
+  mrs::authentication::AuthorizeManager authentication{&mysql_connection_cache};
+  mrs::ObjectManager mrds_object_manager{
       &mysql_connection_cache, configuration.is_https_, &authentication};
   mrs::database::SchemaMonitor mrds_monitor{
-      configuration, &mysql_connection_cache, &mrds_route_manager,
+      configuration, &mysql_connection_cache, &mrds_object_manager,
       &authentication};
 };
 

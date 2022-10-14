@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "helper/media_type.h"
-#include "mrs/interface/auth_manager.h"
+#include "mrs/interface/authorize_manager.h"
 #include "mrs/rest/handler.h"
 
 namespace mrs {
@@ -38,14 +38,15 @@ namespace rest {
 
 class HandlerAuthorizeOk : public Handler {
  public:
-  HandlerAuthorizeOk(const uint64_t id, const std::string &url,
+  HandlerAuthorizeOk(const uint64_t service_id, const std::string &url,
                      const std::string &rest_path_matcher,
                      const std::string &options,
                      const std::string &page_content_custom,
-                     interface::AuthManager *auth_manager);
+                     interface::AuthorizeManager *auth_manager);
 
   Authorization requires_authentication() const override;
-  std::pair<IdType, uint64_t> get_id() const override;
+  bool may_check_access() const override;
+  uint64_t get_service_id() const override;
   uint64_t get_db_object_id() const override;
   uint64_t get_schema_id() const override;
   uint32_t get_access_rights() const override;
@@ -57,7 +58,7 @@ class HandlerAuthorizeOk : public Handler {
   Result handle_put(RequestContext *ctxt) override;
 
  private:
-  uint64_t id_;
+  uint64_t service_id_;
   const std::string page_content_custom_;
   std::string copy_url_;
   std::string copy_path_;

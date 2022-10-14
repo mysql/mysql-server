@@ -30,6 +30,19 @@ namespace helper {
 namespace container {
 
 template <typename Container>
+typename Container::mapped_type get_value_default(
+    Container &container, const typename Container::key_type &key,
+    typename Container::mapped_type &&default_value) {
+  auto it = container.find(key);
+
+  if (it == container.end()) {
+    return default_value;
+  }
+
+  return it->second;
+}
+
+template <typename Container>
 bool get_value(Container &container, const typename Container::key_type &key,
                typename Container::mapped_type *out) {
   auto it = container.find(key);

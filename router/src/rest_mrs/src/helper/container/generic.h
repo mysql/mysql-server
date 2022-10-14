@@ -63,21 +63,37 @@ bool remove_if(Container &c, Find_if &&value) {
 }
 
 template <typename Container, typename Find_if>
-bool get_if(const Container &c, Find_if &&find_if,
-            const typename Container::value_type *&out) {
+bool get_ptr_if(const Container &c, Find_if &&find_if,
+                const typename Container::value_type **out) {
   auto it = std::find_if(c.begin(), c.end(), std::forward<Find_if>(find_if));
   if (c.end() == it) return false;
-  out = &(*it);
+  *out = &(*it);
+  return true;
+}
+
+template <typename Container, typename Find_if>
+bool get_if(const Container &c, Find_if &&find_if,
+            const typename Container::value_type *out) {
+  auto it = std::find_if(c.begin(), c.end(), std::forward<Find_if>(find_if));
+  if (c.end() == it) return false;
+  *out = (*it);
   return true;
 }
 
 template <typename Container, typename Find_if>
 bool get_if(Container &c, Find_if &&find_if,
-            typename Container::value_type *&out) {
+            typename Container::value_type *out) {
   auto it = std::find_if(c.begin(), c.end(), std::forward<Find_if>(find_if));
   if (c.end() == it) return false;
-  out = &(*it);
+  *out = (*it);
   return true;
+}
+
+template <typename Container, typename Find_if>
+void copy_if(const Container &input, Find_if &&find_if, Container &output) {
+  for (auto &e : input) {
+    if (find_if(e)) output.push_back(e);
+  }
 }
 
 }  // namespace container

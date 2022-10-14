@@ -35,16 +35,16 @@
 #include "mrs/database/entry/parameter.h"
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
+#include "mrs/interface/object_schema.h"
 #include "mrs/interface/rest_handler.h"
-#include "mrs/interface/route_schema.h"
 
 namespace mrs {
 namespace interface {
 
-class Route {
+class Object {
  public:
   using Handler = mrs::interface::RestHandler;
-  using RouteSchema = mrs::interface::RouteSchema;
+  using RouteSchema = mrs::interface::ObjectSchema;
   using RouteSchemaPtr = std::shared_ptr<RouteSchema>;
   using Column = helper::Column;
   using RowUserOwnership = database::entry::RowUserOwnership;
@@ -61,7 +61,7 @@ class Route {
   };
 
  public:
-  virtual ~Route() = default;
+  virtual ~Object() = default;
 
   virtual void turn(const State state) = 0;
   virtual bool update(const void *pe, RouteSchemaPtr schema) = 0;

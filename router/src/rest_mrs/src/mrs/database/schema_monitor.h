@@ -31,10 +31,10 @@
 #include "mysql/harness/stdx/monitor.h"
 
 #include "collector/mysql_cache_manager.h"
-#include "mrs/authentication/auth_manager.h"
+#include "mrs/authentication/authorize_manager.h"
 #include "mrs/configuration.h"
 #include "mrs/database/entry/db_object.h"
-#include "mrs/route_manager.h"
+#include "mrs/object_manager.h"
 
 namespace mrs {
 namespace database {
@@ -43,8 +43,8 @@ class SchemaMonitor {
  public:
   SchemaMonitor(const mrs::Configuration &configuration,
                 collector::MysqlCacheManager *cache,
-                mrs::RouteManager *router_manager,
-                authentication::AuthManager *auth_manager);
+                mrs::ObjectManager *dbobject_manager,
+                authentication::AuthorizeManager *auth_manager);
   ~SchemaMonitor();
 
   void start();
@@ -59,8 +59,8 @@ class SchemaMonitor {
   std::thread monitor_thread_;
   const mrs::Configuration configuration_;
   collector::MysqlCacheManager *cache_;
-  mrs::RouteManager *router_manager_;
-  mrs::authentication::AuthManager *auth_manager_;
+  mrs::ObjectManager *dbobject_manager_;
+  mrs::authentication::AuthorizeManager *auth_manager_;
   bool running_{false};
   Waitable waitable_{this};
 };

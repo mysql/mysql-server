@@ -25,13 +25,23 @@
 #ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_AUTH_MANAGER_H_
 #define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_AUTH_MANAGER_H_
 
-#include "mrs/authentication/auth_manager.h"
+#include "mrs/authentication/authorize_manager.h"
 
-class MockAuthManager : public mrs::interface::AuthManager {
+class MockAuthManager : public mrs::interface::AuthorizeManager {
  public:
   MOCK_METHOD(void, update, (const Entries &entries), (override));
-  MOCK_METHOD(AuthHandlers, get_handlers_by_id, (const mrs::UniversalId &id),
+
+  MOCK_METHOD(bool, authorize,
+              (ServiceId id, mrs::http::Cookie *cookies, mrs::http::Url *url,
+               SqlSessionCached *sql_session, HttpHeaders &input_headers,
+               AuthUser *out_user),
               (override));
+  MOCK_METHOD(bool, is_authorized,
+              (ServiceId id, mrs::http::Cookie *cookies, AuthUser *user),
+              (override));
+  MOCK_METHOD(bool, unauthorize, (ServiceId id, mrs::http::Cookie *cookies),
+              (override));
+
   MOCK_METHOD(collector::MysqlCacheManager *, get_cache, (), (override));
 };
 

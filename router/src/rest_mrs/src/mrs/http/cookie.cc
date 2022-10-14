@@ -26,6 +26,8 @@
 
 #include <string_view>
 
+#include "helper/container/map.h"
+
 #include "mysql/harness/string_utils.h"
 
 namespace mrs {
@@ -33,31 +35,63 @@ namespace http {
 
 const char *Cookie::kHttpParameterNameCookie = "Cookie";
 
+template <typename Callback>
+static void enum_key_values(const std::string &value, Callback cb) {
+  auto cookies = mysql_harness::split_string(value, ';', true);
+  for (auto &c : cookies) {
+    mysql_harness::left_trim(c);
+    std::string_view key{c.c_str(), c.length()};
+    std::string_view v{c.c_str(), c.length()};
+    key.remove_suffix(key.size() - std::min(key.find('='), key.size()));
+    v.remove_prefix(std::min(v.find("=") + 1, v.size()));
+
+    // TODO(lkotula): Unescape the value (Shouldn't be in review)
+    if (!cb(key, v)) break;
+  }
+}
+
+Cookie::Cookie(HttpRequest *request) : request_{request} {
+  if (nullptr == request_) return;
+
+  auto value = request_->get_input_headers().get(kHttpParameterNameCookie);
+  enum_key_values(value, [this](const auto &key, const auto &value) {
+    cookies_[std::string{key}] = value;
+    return true;
+  });
+}
+
+void Cookie::clear(const char *cookie_name) {
+  clear(request_, cookie_name);
+  cookies_.erase(cookie_name);
+}
+
 void Cookie::clear(HttpRequest *request, const char *cookie_name) {
   std::string cookie = cookie_name;
   cookie += "=; Max-Age=0";
   request->get_output_headers().add("Set-Cookie", cookie.c_str());
 }
 
-std::string Cookie::get(HttpRequest *request, const char *cookie_name) {
-  auto value = request->get_input_headers().get(kHttpParameterNameCookie);
-
-  if (value == nullptr) return {};
-
-  auto cookies = mysql_harness::split_string(value, ';', true);
-  for (auto &c : cookies) {
-    mysql_harness::left_trim(c);
-    std::string_view key{c.c_str(), c.length()};
-    key.remove_suffix(key.size() - std::min(key.find('='), key.size()));
-
-    // TODO(lkotula): Unescape the value (Shouldn't be in review)
-    if (key == cookie_name) {
-      return {c.begin() + key.size() + 1, c.end()};
-    }
-  }
-
-  return {};
+std::string Cookie::get(const std::string &key) {
+  return helper::container::get_value_default(cookies_, key, {});
 }
+
+// std::string Cookie::get(HttpRequest *request, const char *cookie_name) {
+//  auto value = request->get_input_headers().get(kHttpParameterNameCookie);
+//
+//  if (value == nullptr) return {};
+//
+//  std::string result;
+//  enum_key_values(value,
+//                  [&result, cookie_name](auto &key, std::string_view value) {
+//                    if (key == cookie_name) {
+//                      result = value;
+//                      return false;
+//                    }
+//                    return true;
+//                  });
+//
+//  return result;
+//}
 
 void Cookie::set(HttpRequest *request, const std::string &cookie_name,
                  const std::string &value, const duration duration,
@@ -73,6 +107,12 @@ void Cookie::set(HttpRequest *request, const std::string &cookie_name,
     cookie += "; Path=" + path;
   }
   request->get_output_headers().add("Set-Cookie", cookie.c_str());
+}
+
+void Cookie::set(const std::string &cookie_name, const std::string &value,
+                 const duration duration, const std::string &path) {
+  set(request_, cookie_name, value, duration, path);
+  cookies_[cookie_name] = value;
 }
 
 }  // namespace http

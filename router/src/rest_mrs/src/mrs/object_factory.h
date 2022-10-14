@@ -27,32 +27,32 @@
 
 #include <memory>
 
+#include "interface/object_factory.h"
 #include "mrs/interface/query_factory.h"
-#include "mrs/interface/route_factory.h"
 
 namespace mrs {
 
-class RouteFactory : public interface::RouteFactory {
+class ObjectFactory : public interface::ObjectFactory {
  public:
-  RouteFactory();
+  ObjectFactory();
 
-  std::shared_ptr<Route> create_router_object(
-      const DbObject &pe, std::shared_ptr<RouteSchema> schema,
+  std::shared_ptr<Object> create_router_object(
+      const DbObject &pe, std::shared_ptr<ObjectSchema> schema,
       collector::MysqlCacheManager *cache, const bool is_ssl,
-      interface::AuthManager *auth_manager) override;
+      interface::AuthorizeManager *auth_manager) override;
 
-  std::shared_ptr<Route> create_router_static_object(
-      const ContentFile &pe, std::shared_ptr<RouteSchema> schema,
+  std::shared_ptr<Object> create_router_static_object(
+      const ContentFile &pe, std::shared_ptr<ObjectSchema> schema,
       collector::MysqlCacheManager *cache, const bool is_ssl,
-      interface::AuthManager *auth_manager) override;
+      interface::AuthorizeManager *auth_manager) override;
 
-  std::shared_ptr<RouteSchema> create_router_schema(
-      RouteManager *manager, collector::MysqlCacheManager *cache,
+  std::shared_ptr<ObjectSchema> create_router_schema(
+      DbObjectManager *manager, collector::MysqlCacheManager *cache,
       const std::string &service, const std::string &name, const bool is_ssl,
       const std::string &host, const bool requires_authentication,
       const uint64_t service_id, const uint64_t schema_id,
       const std::string &options,
-      interface::AuthManager *auth_manager) override;
+      interface::AuthorizeManager *auth_manager) override;
 
   std::shared_ptr<mrs::interface::HandlerFactory> handler_factory_;
   std::shared_ptr<mrs::interface::QueryFactory> query_factory_;

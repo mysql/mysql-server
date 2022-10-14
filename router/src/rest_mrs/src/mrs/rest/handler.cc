@@ -35,8 +35,8 @@
 
 #include "mrs/authentication/www_authentication_handler.h"
 #include "mrs/http/error.h"
-#include "mrs/interface/route.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/interface/object.h"
+#include "mrs/rest/request_context.h"
 
 #include "collector/mysql_cache_manager.h"
 #include "helper/json/rapid_json_to_map.h"
@@ -47,8 +47,8 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace rest {
 
-using AuthHandler = mrs::interface::AuthManager::HandlerPtr;
-using AuthHandlers = mrs::interface::AuthManager::AuthHandlers;
+using AuthHandler = mrs::interface::AuthorizeManager::AuthorizeHandlerPtr;
+using AuthHandlers = mrs::interface::AuthorizeManager::AuthHandlers;
 using WwwAuthenticationHandler = mrs::authentication::WwwAuthenticationHandler;
 using Parameters = mrs::interface::RestHandler::Parameters;
 
@@ -101,7 +101,7 @@ uint32_t check_privileges(
 }
 
 uint32_t get_access_right_from_http_method(const uint32_t method) {
-  using Route = mrs::interface::Route;
+  using Route = mrs::interface::Object;
 
   switch (method) {
     case HttpMethod::Get:
@@ -161,7 +161,7 @@ class RestRequestHandler : public BaseRequestHandler {
 
  public:
   RestRequestHandler(Handler *rest_handler,
-                     mrs::interface::AuthManager *auth_manager)
+                     mrs::interface::AuthorizeManager *auth_manager)
       : rest_handler_{rest_handler}, auth_manager_{auth_manager} {}
 
   void handle_request(HttpRequest &req) override {
@@ -173,11 +173,11 @@ class RestRequestHandler : public BaseRequestHandler {
           collector::kMySQLConnectionMetadata);
 
       auto &out_hdrs = req.get_output_headers();
-      const auto id = rest_handler_->get_id();
+      const auto service_id = rest_handler_->get_service_id();
       const auto method = req.get_method();
 
       log_debug("RestRequestHandler(service_id:%i): start(url='%s')",
-                static_cast<int>(id.second),
+                static_cast<int>(service_id),
                 request_ctxt.request->get_uri().join().c_str());
 
       for (auto &kv : rest_handler_->get_headers_parameters()) {
@@ -202,49 +202,40 @@ class RestRequestHandler : public BaseRequestHandler {
       auto required_auth = rest_handler_->requires_authentication();
       if (Handler::Authorization::kNotNeeded != required_auth) {
         log_debug("RestRequestHandler(service_id:%i): authenticate",
-                  static_cast<int>(rest_handler_->get_id().second));
-
-        auto handlers = auth_manager_->get_handlers_by_id(id);
-
-        for (auto &h : handlers) {
-          if (h->can_process(&req)) request_ctxt.selected_handler = h;
-        }
-
-        if (!request_ctxt.selected_handler) {
-          log_debug("Authentication handler not found");
-          throw_unauthorized_with_schemas(&req, &handlers);
-        }
+                  static_cast<int>(service_id));
 
         // request_ctxt.user is valid after success of this call
         if (Handler::Authorization::kRequires == required_auth) {
-          if (!request_ctxt.selected_handler->authorize(&request_ctxt)) {
+          http::Url url{request_ctxt.request->get_uri()};
+          if (!auth_manager_->authorize(service_id, &request_ctxt.cookies, &url,
+                                        &request_ctxt.sql_session_cache,
+                                        req.get_input_headers(),
+                                        &request_ctxt.user)) {
             log_debug("Authentication handler returned false");
-            throw_unauthorized_with_schemas(&req, &handlers);
+            throw http::Error(HttpStatusCode::Unauthorized);
           }
         } else {
           // Just check the user
-          request_ctxt.selected_handler->is_authorized(&request_ctxt);
+          auth_manager_->is_authorized(service_id, &request_ctxt.cookies,
+                                       &request_ctxt.user);
         }
 
         rest_handler_->authorization(&request_ctxt);
 
-        const bool needs_access_priviliges =
-            id.first == IdType::k_id_type_service_id;
-        if (needs_access_priviliges) {
+        if (rest_handler_->may_check_access()) {
           log_debug("RestRequestHandler(service_id:%i): required_access:%i",
-                    static_cast<int>(id.second), required_access);
+                    static_cast<int>(service_id), required_access);
           if (!(required_access &
-                check_privileges(request_ctxt.user.privileges, id.second,
+                check_privileges(request_ctxt.user.privileges, service_id,
                                  rest_handler_->get_schema_id(),
                                  rest_handler_->get_db_object_id()))) {
-            throw_unauthorized_with_schemas(&req, &handlers,
-                                            HttpStatusCode::Forbidden);
+            throw http::Error{HttpStatusCode::Forbidden};
           }
         }
       }
 
       log_debug("RestRequestHandler(service_id:%i): dispatch",
-                static_cast<int>(id.second));
+                static_cast<int>(service_id));
       switch (method) {
         case HttpMethod::Get:
           result = rest_handler_->handle_get(&request_ctxt);
@@ -283,6 +274,8 @@ class RestRequestHandler : public BaseRequestHandler {
           HttpStatusCode::Ok,
           HttpStatusCode::get_default_status_text(HttpStatusCode::Ok), b);
       rest_handler_->request_end(&request_ctxt);
+    } catch (const http::ErrorChangeResponse &e) {
+      handle_error(&request_ctxt, e.change_response(&req));
     } catch (const http::Error &e) {
       handle_error(&request_ctxt, e);
     } catch (const std::exception &e) {
@@ -309,7 +302,8 @@ class RestRequestHandler : public BaseRequestHandler {
           break;
         case HttpStatusCode::Unauthorized:
           if (ctxt->selected_handler) {
-            ctxt->selected_handler->unauthorize(ctxt);
+            auth_manager_->unauthorize(rest_handler_->get_service_id(),
+                                       &ctxt->cookies);
           }
           [[fallthrough]];
         default:
@@ -320,16 +314,7 @@ class RestRequestHandler : public BaseRequestHandler {
   }
 
   Handler *rest_handler_;
-  mrs::interface::AuthManager *auth_manager_;
-
-  static void throw_unauthorized_with_schemas(
-      HttpRequest *request, AuthHandlers *handlers,
-      const HttpStatusCode::key_type code = HttpStatusCode::Unauthorized) {
-    for (auto &h : *handlers) {
-      h->mark_response(request);
-    }
-    throw http::Error{code};
-  }
+  mrs::interface::AuthorizeManager *auth_manager_;
 };
 
 static Parameters get_json(const std::string &txt, const std::string key_name) {
@@ -343,10 +328,11 @@ static Parameters get_json(const std::string &txt, const std::string key_name) {
 
 Handler::Handler(const std::string &url, const std::string &rest_path_matcher,
                  const std::string &options,
-                 mrs::interface::AuthManager *auth_manager)
+                 mrs::interface::AuthorizeManager *auth_manager)
     : parameters_{get_json(options, "header")},
       url_{url},
-      rest_path_matcher_{rest_path_matcher} {
+      rest_path_matcher_{rest_path_matcher},
+      authorization_manager_{auth_manager} {
   auto handler = std::make_unique<RestRequestHandler>(this, auth_manager);
 
   log_debug("Handling new URL: '%s'", url_.c_str());
@@ -379,6 +365,8 @@ void Handler::throw_unauthorize_when_check_auth_fails(RequestContext *ctxt) {
 }
 
 void Handler::authorization(RequestContext *) {}
+
+bool Handler::may_check_access() const { return true; }
 
 }  // namespace rest
 }  // namespace mrs

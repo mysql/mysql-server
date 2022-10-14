@@ -22,34 +22,34 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs/route_manager.h"
+#include "mrs/object_manager.h"
 
 #include <vector>
 
 #include "mysql/harness/logging/logging.h"
 
-#include "mrs/route_factory.h"
+#include "mrs/object_factory.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 
-RouteManager::RouteManager(
+ObjectManager::ObjectManager(
     collector::MysqlCacheManager *cache, const bool is_ssl,
-    mrs::interface::AuthManager *auth_manager,
-    std::shared_ptr<::mrs::interface::RouteFactory> factory)
+    mrs::interface::AuthorizeManager *auth_manager,
+    std::shared_ptr<::mrs::interface::ObjectFactory> factory)
     : cache_{cache},
       is_ssl_{is_ssl},
       auth_manager_{auth_manager},
       factory_{factory} {}
 
-RouteManager::RouteManager(collector::MysqlCacheManager *cache,
-                           const bool is_ssl,
-                           mrs::interface::AuthManager *auth_manager)
-    : RouteManager(cache, is_ssl, auth_manager,
-                   std::make_shared<mrs::RouteFactory>()) {}
+ObjectManager::ObjectManager(collector::MysqlCacheManager *cache,
+                             const bool is_ssl,
+                             mrs::interface::AuthorizeManager *auth_manager)
+    : ObjectManager(cache, is_ssl, auth_manager,
+                    std::make_shared<mrs::ObjectFactory>()) {}
 
-RouteManager::~RouteManager() {
+ObjectManager::~ObjectManager() {
   std::vector<EntryKey> route_ids;
   for (auto &r : routes_) {
     route_ids.emplace_back(r.first);
@@ -60,7 +60,7 @@ RouteManager::~RouteManager() {
   }
 }
 
-void RouteManager::turn(const State state) {
+void ObjectManager::turn(const State state) {
   // TODO(lkotula): Mutex required (Shouldn't be in review)
   for (auto &pair : routes_) {
     pair.second->turn(state);
@@ -73,7 +73,7 @@ void RouteManager::turn(const State state) {
   state_ = state;
 }
 
-void RouteManager::update(const std::vector<DbObject> &paths) {
+void ObjectManager::update(const std::vector<DbObject> &paths) {
   if (paths.size()) {
     log_debug("route-rest: Number of updated entries:%i", (int)paths.size());
   }
@@ -88,7 +88,7 @@ void RouteManager::update(const std::vector<DbObject> &paths) {
   }
 }
 
-void RouteManager::update(const std::vector<ContentFile> &contents) {
+void ObjectManager::update(const std::vector<ContentFile> &contents) {
   if (contents.size()) {
     log_debug("route-rest-static: Number of updated entries:%i",
               (int)contents.size());
@@ -104,7 +104,7 @@ void RouteManager::update(const std::vector<ContentFile> &contents) {
   }
 }
 
-void RouteManager::handle_new_route(const ContentFile &pe) {
+void ObjectManager::handle_new_route(const ContentFile &pe) {
   if (pe.deleted) return;
 
   auto schema = handle_schema(pe);
@@ -115,7 +115,7 @@ void RouteManager::handle_new_route(const ContentFile &pe) {
   routes_.emplace(pe.get_key(), route);
 }
 
-void RouteManager::handle_existing_route(const ContentFile &pe) {
+void ObjectManager::handle_existing_route(const ContentFile &pe) {
   if (pe.deleted) {
     handle_delete_route({EntryType::key_static, pe.id});
     return;
@@ -130,7 +130,7 @@ void RouteManager::handle_existing_route(const ContentFile &pe) {
   route->turn(state_);
 }
 
-RouteManager::RouteSchemaPtr RouteManager::handle_schema(
+ObjectManager::RouteSchemaPtr ObjectManager::handle_schema(
     const ContentFile &pe) {
   auto s = schemas_.find(pe.schema_path);
   if (s != schemas_.end()) {
@@ -149,7 +149,7 @@ RouteManager::RouteSchemaPtr RouteManager::handle_schema(
   return value;
 }
 
-void RouteManager::handle_existing_route(const DbObject &pe) {
+void ObjectManager::handle_existing_route(const DbObject &pe) {
   if (pe.deleted) {
     handle_delete_route({EntryType::key_rest, pe.id});
     return;
@@ -164,11 +164,11 @@ void RouteManager::handle_existing_route(const DbObject &pe) {
   route->turn(state_);
 }
 
-void RouteManager::handle_delete_route(const EntryKey &pe_id) {
+void ObjectManager::handle_delete_route(const EntryKey &pe_id) {
   routes_.erase(pe_id);
 }
 
-void RouteManager::handle_new_route(const DbObject &pe) {
+void ObjectManager::handle_new_route(const DbObject &pe) {
   if (pe.deleted) return;
   auto schema = handle_schema(pe);
   auto route = factory_->create_router_object(pe, schema, cache_, is_ssl_,
@@ -181,7 +181,7 @@ void RouteManager::handle_new_route(const DbObject &pe) {
 
 // TODO(lkotula): `schemas_` is not cleaned up from not referenced objects
 // (Shouldn't be in review)
-RouteManager::RouteSchemaPtr RouteManager::handle_schema(const DbObject &pe) {
+ObjectManager::RouteSchemaPtr ObjectManager::handle_schema(const DbObject &pe) {
   auto schema_full_path = pe.service_path + pe.schema_path;
   auto s = schemas_.find(schema_full_path);
   if (s != schemas_.end()) {
@@ -200,7 +200,7 @@ RouteManager::RouteSchemaPtr RouteManager::handle_schema(const DbObject &pe) {
   return value;
 }
 
-void RouteManager::schema_not_used(RouteSchema *route) {
+void ObjectManager::schema_not_used(RouteSchema *route) {
   auto i = schemas_.find(route->get_full_path());
 
   if (i == schemas_.end()) return;

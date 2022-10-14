@@ -33,7 +33,6 @@
 
 #include "helper/media_type.h"
 #include "mrs/http/error.h"
-#include "mrs/id_type.h"
 
 class HttpRequest;
 
@@ -48,7 +47,7 @@ struct RequestContext;
 
 namespace interface {
 
-class AuthManager;
+class AuthorizeManager;
 
 class RestHandler {
  public:
@@ -79,10 +78,10 @@ class RestHandler {
  public:
   virtual ~RestHandler() = default;
 
+  virtual bool may_check_access() const = 0;
   virtual Authorization requires_authentication() const = 0;
 
-  virtual std::pair<IdType, uint64_t> get_id() const = 0;
-
+  virtual uint64_t get_service_id() const = 0;
   virtual uint64_t get_db_object_id() const = 0;
   virtual uint64_t get_schema_id() const = 0;
   virtual uint32_t get_access_rights() const = 0;

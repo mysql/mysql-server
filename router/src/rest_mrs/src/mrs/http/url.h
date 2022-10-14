@@ -52,7 +52,9 @@ class Url {
   using Keys = std::vector<std::string>;
   using Values = std::vector<std::string>;
 
-  Url(HttpUri &uri) { parse_query(uri.get_query().c_str(), &parameters_); }
+  Url(HttpUri &uri) : uri_{uri} {
+    parse_query(uri.get_query().c_str(), &parameters_);
+  }
 
   static std::string escape_uri(const char *str) {
     auto cstr = evhttp_encode_uri(str);
@@ -165,6 +167,7 @@ class Url {
 
  public:
   Parameaters parameters_;
+  HttpUri &uri_;
 };
 
 }  // namespace http

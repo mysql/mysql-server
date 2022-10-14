@@ -36,8 +36,9 @@ namespace http {
 
 class SessionManager {
  public:
-  using SessionIdType = std::string;
+  using SessionId = std::string;
   using steady_clock = std::chrono::steady_clock;
+  using AuthorizationHandlerId = uint64_t;
 
   enum Allocation { OnlyExisting = 0, CreateWhenNotExisting = 1 };
 
@@ -50,7 +51,7 @@ class SessionManager {
     };
 
    public:
-    Session(const SessionIdType id);
+    Session(const SessionId id, const AuthorizationHandlerId authorization);
 
     template <typename Derived>
     Derived *get_data() {
@@ -64,7 +65,11 @@ class SessionManager {
       data_->internal_session = this;
     }
 
-    const SessionIdType &get_id() const { return id_; }
+    AuthorizationHandlerId get_authorization_handler_id() const {
+      return authorization_handler_id_;
+    }
+
+    const SessionId &get_session_id() const { return id_; }
 
     steady_clock::time_point get_access_time() const { return access_time_; }
 
@@ -76,28 +81,33 @@ class SessionManager {
       return access_time_ + timeout <= steady_clock::now();
     }
 
+    std::string users_on_complete_url_redirection;
+    std::string users_on_complete_timeout;
+
    private:
     std::unique_ptr<SessionData> data_;
-    SessionIdType id_;
+    SessionId id_;
     steady_clock::time_point access_time_;
+    AuthorizationHandlerId authorization_handler_id_{0};
   };
 
   using SessionPtr = std::unique_ptr<Session>;
 
  public:
-  Session *get_session(const SessionIdType &id);
-  Session *new_session();
+  Session *get_session(const SessionId &id);
+  Session *new_session(const AuthorizationHandlerId id);
 
   void remove_session(const Session::SessionData *session_data);
   void remove_session(const Session *session);
+  bool remove_session(const SessionId session);
   void remove_timeouted();
   steady_clock::duration get_timeout() { return timeout_; }
 
  private:
   // Methods with postfix "_impl" at end of method name, marks that the methods
   // doesn't use mutexes, thus it should be used after locking `mutex_` object.
-  Session *get_session_impl(const SessionIdType &id);
-  SessionIdType generate_id_impl();
+  Session *get_session_impl(const SessionId &id);
+  SessionId generate_session_id_impl();
   void remove_timeouted_impl();
 
   std::vector<SessionPtr> sessions_;

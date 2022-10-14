@@ -38,7 +38,7 @@
 
 using helper::MakeSharedPtr;
 using helper::SetHttpComponent;
-using mrs::interface::AuthManager;
+using mrs::interface::AuthorizeManager;
 using mrs::rest::HandlerAuthorize;
 using testing::_;
 using testing::AllOf;
@@ -111,9 +111,6 @@ class HandlerAuthorizeTests : public Test {
 TEST_F(HandlerAuthorizeTests, unauthorized_access_when_no_handler) {
   expectGeneric(HttpMethod::Get, "mrs_auth_redirect=localhost");
 
-  EXPECT_CALL(mock_auth_, get_handlers_by_id(mrs::UniversalId{
-                              mrs::IdType::k_id_type_auth_id, k_service_id}));
-
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"), StrEq("localhost?status=unauthorized")));
   EXPECT_CALL(mock_request_, send_reply(HttpStatusCode::TemporaryRedirect));
@@ -157,14 +154,16 @@ TEST_F(HandlerAuthorizeTests, unauthorized_access_when_method_put) {
 TEST_F(HandlerAuthorizeTests, do_the_authentication) {
   expectGeneric(HttpMethod::Get);
 
-  EXPECT_CALL(mock_auth_, get_handlers_by_id(mrs::UniversalId{
-                              mrs::IdType::k_id_type_auth_id, k_service_id}))
-      .WillOnce(Return(AuthManager::AuthHandlers{mock_auth_handler_}));
+  // TODO(lkotula): Fixme/remove (Shouldn't be in review)
+  //  EXPECT_CALL(mock_auth_, get_handlers_by_id(mrs::UniversalId{
+  //                              mrs::IdType::k_id_type_auth_id,
+  //                              k_service_id}))
+  //      .WillOnce(Return(AuthorizeManager::AuthHandlers{mock_auth_handler_}));
 
   EXPECT_CALL(mock_uri_, get_query())
       .WillOnce(Return("mrs_redirect=localhost"));
-  EXPECT_CALL(*mock_auth_handler_, can_process(_)).WillOnce(Return(true));
-  EXPECT_CALL(*mock_auth_handler_, authorize(_)).WillOnce(Return(true));
+  EXPECT_CALL(*mock_auth_handler_, authorize(_, _, _, _, _))
+      .WillOnce(Return(true));
 
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Set-Cookie"),
@@ -180,15 +179,16 @@ TEST_F(HandlerAuthorizeTests, do_the_authentication) {
 TEST_F(HandlerAuthorizeTests, do_the_authentication_fails) {
   expectGeneric(HttpMethod::Get);
 
-  EXPECT_CALL(mock_auth_, get_handlers_by_id(mrs::UniversalId{
-                              mrs::IdType::k_id_type_auth_id, k_service_id}))
-      .WillOnce(Return(AuthManager::AuthHandlers{mock_auth_handler_}));
+  // TODO(lkotula): Fixme/remove (Shouldn't be in review)
+  //  EXPECT_CALL(mock_auth_, get_handlers_by_id(mrs::UniversalId{
+  //                              mrs::IdType::k_id_type_auth_id,
+  //                              k_service_id}))
+  //      .WillOnce(Return(AuthorizeManager::AuthHandlers{mock_auth_handler_}));
 
   EXPECT_CALL(mock_uri_, get_query())
       .WillOnce(Return("mrs_redirect=localhost"));
-  EXPECT_CALL(*mock_auth_handler_, can_process(_)).WillOnce(Return(true));
-  EXPECT_CALL(*mock_auth_handler_, authorize(_)).WillOnce(Return(false));
-  EXPECT_CALL(*mock_auth_handler_, mark_response(_));
+  EXPECT_CALL(*mock_auth_handler_, authorize(_, _, _, _, _))
+      .WillOnce(Return(false));
 
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Set-Cookie"),

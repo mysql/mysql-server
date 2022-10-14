@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REQUEST_ROUTE_SCHEMA_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_REQUEST_ROUTE_SCHEMA_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_SCHEMA_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_SCHEMA_H_
 
 #include <map>
 #include <memory>
@@ -34,29 +34,29 @@
 
 #include "collector/mysql_cache_manager.h"
 #include "mrs/interface/handler_factory.h"
+#include "mrs/interface/object_manager.h"
+#include "mrs/interface/object_schema.h"
 #include "mrs/interface/rest_handler.h"
-#include "mrs/interface/route_manager.h"
-#include "mrs/interface/route_schema.h"
 #include "mrs/state.h"
 
 namespace mrs {
 
-class RouteSchemaRest : public std::enable_shared_from_this<RouteSchemaRest>,
-                        public mrs::interface::RouteSchema {
+class ObjectSchema : public std::enable_shared_from_this<ObjectSchema>,
+                     public mrs::interface::ObjectSchema {
  public:
-  using RouteManager = mrs::interface::RouteManager;
-  using Route = mrs::interface::Route;
+  using DbObjectManager = mrs::interface::ObjectManager;
+  using Route = mrs::interface::Object;
   using VectorOfRoutes = std::vector<Route *>;
   using HandlerFactory = mrs::interface::HandlerFactory;
 
  public:
-  RouteSchemaRest(RouteManager *manager, collector::MysqlCacheManager *cache,
-                  const std::string &service, const std::string &name,
-                  const bool is_ssl, const std::string &host,
-                  const bool requires_authentication, const uint64_t service_id,
-                  const uint64_t schema_id, const std::string &options,
-                  mrs::interface::AuthManager *auth_manager,
-                  std::shared_ptr<HandlerFactory> handler_factory);
+  ObjectSchema(DbObjectManager *manager, collector::MysqlCacheManager *cache,
+               const std::string &service, const std::string &name,
+               const bool is_ssl, const std::string &host,
+               const bool requires_authentication, const uint64_t service_id,
+               const uint64_t schema_id, const std::string &options,
+               mrs::interface::AuthorizeManager *auth_manager,
+               std::shared_ptr<HandlerFactory> handler_factory);
 
   void turn(const State state) override;
   void route_unregister(Route *r) override;
@@ -74,7 +74,7 @@ class RouteSchemaRest : public std::enable_shared_from_this<RouteSchemaRest>,
 
  private:
   State state_{stateOff};
-  RouteManager *manager_;
+  DbObjectManager *manager_;
   std::string service_;
   std::string name_;
   std::string url_;
@@ -86,10 +86,10 @@ class RouteSchemaRest : public std::enable_shared_from_this<RouteSchemaRest>,
   bool requires_authentication_;
   uint64_t service_id_;
   uint64_t schema_id_;
-  mrs::interface::AuthManager *auth_manager_;
+  mrs::interface::AuthorizeManager *auth_manager_;
   std::shared_ptr<HandlerFactory> handler_factory_;
 };
 
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REQUEST_ROUTE_SCHEMA_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_SCHEMA_H_

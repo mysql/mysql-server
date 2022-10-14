@@ -22,32 +22,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_REQUESTCONTEXT_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_REQUESTCONTEXT_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_AUTHORIZE_HANDLER_CALLBACKS_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_AUTHORIZE_HANDLER_CALLBACKS_H_
 
-#include "mysqlrouter/http_request.h"
+#include "mrs/interface/authorize_handler.h"
 
-#include "collector/mysql_cache_manager.h"
-#include "mrs/database/entry/auth_user.h"
-#include "mrs/interface/auth_manager.h"
+namespace helper {
 
-namespace mrs {
-namespace rest {
+class AuthorizeHandlerCallbakcs {
+ public:
+  virtual ~AuthorizeHandlerCallbakcs() = default;
 
-struct RequestContext {
-  using SqlSessionCached = collector::MysqlCacheManager::CachedObject;
-  using AuthHandlerPtr = mrs::interface::AuthManager::HandlerPtr;
-  using AuthUser = database::entry::AuthUser;
-  RequestContext() {}
-  RequestContext(HttpRequest *r) : request{r} {}
-
-  HttpRequest *request{nullptr};
-  SqlSessionCached sql_session_cache;
-  AuthUser user;
-  AuthHandlerPtr selected_handler;
+  virtual void acquire(mrs::interface::AuthorizeHandler *) = 0;
+  virtual void destroy(mrs::interface::AuthorizeHandler *) = 0;
 };
 
-}  // namespace rest
-}  // namespace mrs
+}  // namespace helper
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_REQUESTCONTEXT_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_AUTHORIZE_HANDLER_CALLBACKS_H_

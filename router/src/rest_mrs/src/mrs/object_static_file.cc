@@ -22,7 +22,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "mrs/route_static_file.h"
+#include "mrs/object_static_file.h"
 
 #include <time.h>
 
@@ -30,13 +30,13 @@
 
 namespace mrs {
 
-using Format = RouteStaticFile::Format;
+using Format = ObjectStaticFile::Format;
 using Column = helper::Column;
 
-RouteStaticFile::RouteStaticFile(
+ObjectStaticFile::ObjectStaticFile(
     const ContentFile &pe, RouteSchemaPtr schema,
     collector::MysqlCacheManager *cache, const bool is_ssl,
-    mrs::interface::AuthManager *auth_manager,
+    mrs::interface::AuthorizeManager *auth_manager,
     std::shared_ptr<HandlerFactory> handler_factory)
     : cse_{pe},
       cache_{cache},
@@ -46,7 +46,7 @@ RouteStaticFile::RouteStaticFile(
   update(&pe, schema);
 }
 
-void RouteStaticFile::turn(const State state) {
+void ObjectStaticFile::turn(const State state) {
   if (stateOff == state || !cse_.active) {
     handle_file_.reset();
 
@@ -58,7 +58,7 @@ void RouteStaticFile::turn(const State state) {
   handle_file_ = std::move(handle_file);
 }
 
-bool RouteStaticFile::update(const void *pv, RouteSchemaPtr schema) {
+bool ObjectStaticFile::update(const void *pv, RouteSchemaPtr schema) {
   auto &pe = *reinterpret_cast<const ContentFile *>(pv);
   bool result = false;
   if (schema != schema_) {
@@ -79,93 +79,95 @@ bool RouteStaticFile::update(const void *pv, RouteSchemaPtr schema) {
   return result;
 }
 
-const std::string &RouteStaticFile::get_rest_canonical_url() {
+const std::string &ObjectStaticFile::get_rest_canonical_url() {
   static std::string empty;
   return empty;
 }
 
-const std::string &RouteStaticFile::get_rest_url() { return rest_url_; }
+const std::string &ObjectStaticFile::get_rest_url() { return rest_url_; }
 
-const std::string &RouteStaticFile::get_json_description() {
+const std::string &ObjectStaticFile::get_json_description() {
   static std::string empty;
   return empty;
 }
 
-const std::string &RouteStaticFile::get_rest_path() { return rest_path_; }
+const std::string &ObjectStaticFile::get_rest_path() { return rest_path_; }
 
-const std::string &RouteStaticFile::get_rest_path_raw() {
+const std::string &ObjectStaticFile::get_rest_path_raw() {
   return rest_path_raw_;
 }
 
-const std::string &RouteStaticFile::get_rest_canonical_path() {
+const std::string &ObjectStaticFile::get_rest_canonical_path() {
   static std::string empty;
   return empty;
 }
 
-const std::string &RouteStaticFile::get_object_path() { return cse_.file_path; }
+const std::string &ObjectStaticFile::get_object_path() {
+  return cse_.file_path;
+}
 
-const std::string &RouteStaticFile::get_schema_name() {
+const std::string &ObjectStaticFile::get_schema_name() {
   static std::string empty;
   return empty;
 }
 
-const std::string &RouteStaticFile::get_object_name() {
+const std::string &ObjectStaticFile::get_object_name() {
   static std::string empty;
   return empty;
 }
 
-const std::string &RouteStaticFile::get_version() { return version_; }
+const std::string &ObjectStaticFile::get_version() { return version_; }
 
-const std::string &RouteStaticFile::get_options() { return cse_.options_json; }
+const std::string &ObjectStaticFile::get_options() { return cse_.options_json; }
 
-const std::vector<Column> &RouteStaticFile::get_cached_columnes() {
+const std::vector<Column> &ObjectStaticFile::get_cached_columnes() {
   static std::vector<Column> empty;
   return empty;
 }
 
-const mrs::interface::Route::Parameters &RouteStaticFile::get_parameters() {
-  static mrs::interface::Route::Parameters empty;
+const mrs::interface::Object::Parameters &ObjectStaticFile::get_parameters() {
+  static mrs::interface::Object::Parameters empty;
   return empty;
 }
 
-const std::string &RouteStaticFile::get_cached_primary() {
+const std::string &ObjectStaticFile::get_cached_primary() {
   static std::string empty;
   return empty;
 }
 
-uint32_t RouteStaticFile::get_on_page() { return 1; }
+uint32_t ObjectStaticFile::get_on_page() { return 1; }
 
-bool RouteStaticFile::requires_authentication() const {
+bool ObjectStaticFile::requires_authentication() const {
   return cse_.requires_authentication || cse_.set_requires_authentication;
 }
 
-uint64_t RouteStaticFile::get_id() const { return cse_.id; }
+uint64_t ObjectStaticFile::get_id() const { return cse_.id; }
 
-uint64_t RouteStaticFile::get_service_id() const { return cse_.service_id; }
+uint64_t ObjectStaticFile::get_service_id() const { return cse_.service_id; }
 
-bool RouteStaticFile::has_access(const Access access) const {
+bool ObjectStaticFile::has_access(const Access access) const {
   if (access == kRead) return true;
 
   return false;
 }
 
-uint32_t RouteStaticFile::get_access() const {
+uint32_t ObjectStaticFile::get_access() const {
   return static_cast<uint32_t>(kRead);
 }
 
-Format RouteStaticFile::get_format() const { return Route::kMedia; }
+Format ObjectStaticFile::get_format() const { return Object::kMedia; }
 
-RouteStaticFile::Media RouteStaticFile::get_media_type() const {
+ObjectStaticFile::Media ObjectStaticFile::get_media_type() const {
   return {false, {}};
 }
 
-RouteStaticFile::RouteSchema *RouteStaticFile::get_schema() {
+ObjectStaticFile::RouteSchema *ObjectStaticFile::get_schema() {
   return schema_.get();
 }
 
-collector::MysqlCacheManager *RouteStaticFile::get_cache() { return cache_; }
+collector::MysqlCacheManager *ObjectStaticFile::get_cache() { return cache_; }
 
-void RouteStaticFile::update_variables() {
+void ObjectStaticFile::update_variables() {
   rest_url_ = (is_ssl_ ? "https://" : "http://") + cse_.host +
               cse_.service_path + cse_.schema_path + cse_.file_path;
   rest_path_ = "^" + cse_.service_path + cse_.schema_path + cse_.file_path +
@@ -175,14 +177,14 @@ void RouteStaticFile::update_variables() {
              std::to_string(cse_.size) + "\"";
 }
 
-const RouteStaticFile::RowUserOwnership &
-RouteStaticFile::get_user_row_ownership() const {
+const ObjectStaticFile::RowUserOwnership &
+ObjectStaticFile::get_user_row_ownership() const {
   static RowUserOwnership result{false, {}};
 
   return result;
 }
-const RouteStaticFile::VectorOfRowGroupOwnership &
-RouteStaticFile::get_group_row_ownership() const {
+const ObjectStaticFile::VectorOfRowGroupOwnership &
+ObjectStaticFile::get_group_row_ownership() const {
   static VectorOfRowGroupOwnership result;
 
   return result;

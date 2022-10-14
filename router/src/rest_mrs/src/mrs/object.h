@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REQUEST_ROUTE_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_REQUEST_ROUTE_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_H_
 
 #include <memory>
 #include <string>
@@ -34,29 +34,29 @@
 #include "helper/mysql_column.h"
 #include "mrs/database/entry/db_object.h"
 #include "mrs/interface/handler_factory.h"
+#include "mrs/interface/object.h"
+#include "mrs/interface/object_schema.h"
 #include "mrs/interface/query_factory.h"
 #include "mrs/interface/rest_handler.h"
-#include "mrs/interface/route.h"
-#include "mrs/interface/route_schema.h"
 #include "mrs/state.h"
 
 namespace mrs {
 
-class RouteObject : public std::enable_shared_from_this<RouteObject>,
-                    public mrs::interface::Route {
+class Object : public std::enable_shared_from_this<Object>,
+               public mrs::interface::Object {
  public:
-  using DbObject = database::entry::DbObject;
+  using EntryDbObject = database::entry::DbObject;
   using Column = helper::Column;
   using HandlerFactory = mrs::interface::HandlerFactory;
   using QueryFactory = mrs::interface::QueryFactory;
 
  public:
-  RouteObject(const DbObject &pe, RouteSchemaPtr schema,
-              collector::MysqlCacheManager *cache, const bool is_ssl,
-              mrs::interface::AuthManager *auth_manager,
-              std::shared_ptr<HandlerFactory> handler_factory,
-              std::shared_ptr<QueryFactory> query_factory);
-  ~RouteObject() override;
+  Object(const EntryDbObject &pe, RouteSchemaPtr schema,
+         collector::MysqlCacheManager *cache, const bool is_ssl,
+         mrs::interface::AuthorizeManager *auth_manager,
+         std::shared_ptr<HandlerFactory> handler_factory,
+         std::shared_ptr<QueryFactory> query_factory);
+  ~Object() override;
 
   void turn(const State state) override;
   bool update(const void *pe, RouteSchemaPtr schema) override;
@@ -98,7 +98,7 @@ class RouteObject : public std::enable_shared_from_this<RouteObject>,
   static std::string extract_first_slash(const std::string &value);
 
   RouteSchemaPtr schema_;
-  DbObject pe_;
+  EntryDbObject pe_;
   std::string rest_path_;
   std::string rest_canonical_path_;
   std::string rest_path_raw_;
@@ -116,11 +116,11 @@ class RouteObject : public std::enable_shared_from_this<RouteObject>,
   std::unique_ptr<Handler> handle_object_;
   std::unique_ptr<Handler> handle_metadata_;
   uint32_t access_flags_;
-  mrs::interface::AuthManager *auth_manager_;
+  mrs::interface::AuthorizeManager *auth_manager_;
   std::shared_ptr<HandlerFactory> handler_factory_;
   std::shared_ptr<QueryFactory> query_factory_;
 };
 
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REQUEST_ROUTE_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_H_

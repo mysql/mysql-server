@@ -28,7 +28,7 @@ ADD_HARNESS_PLUGIN(rest_mrs
   helper/media_detector.cc
   helper/json/to_string.cc
   helper/mysql_column_types.cc
-  mrs/authentication/auth_manager.cc
+  mrs/authentication/authorize_manager.cc
   mrs/authentication/auth_handler_factory.cc
   mrs/authentication/basic_handler.cc
   mrs/authentication/oauth2_facebook_handler.cc
@@ -64,13 +64,14 @@ ADD_HARNESS_PLUGIN(rest_mrs
   mrs/http/utilities.cc
   mrs/http/session_manager.cc
   mrs/users/user_manager.cc
-  mrs/route_factory.cc
-  mrs/route_manager.cc
-  mrs/route_schema_rest.cc
-  mrs/route_object.cc
-  mrs/route_static_file.cc
+  mrs/object_factory.cc
+  mrs/object_manager.cc
+  mrs/object.cc
+  mrs/object_schema.cc
+  mrs/object_static_file.cc
   mrs/rest/handler.cc
   mrs/rest/handler_authorize.cc
+  mrs/rest/handler_authorize_common.cc
   mrs/rest/handler_authorize_ok.cc
   mrs/rest/handler_factory.cc
   mrs/rest/handler_file.cc

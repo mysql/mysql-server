@@ -27,7 +27,7 @@
 #include <memory>
 
 #include "helper/set_http_component.h"
-#include "mrs/interface/route.h"
+#include "mrs/interface/object.h"
 #include "mrs/rest/handler_object.h"
 
 #include "mock/mock_auth_manager.h"
@@ -84,7 +84,7 @@ TEST_F(RestHandlerTests, handle_request) {
   StrictMock<MockHttpBuffer> mock_buffer;
 
   EXPECT_CALL(*sut_, get_access_rights())
-      .WillRepeatedly(Return(mrs::interface::Route::kRead));
+      .WillRepeatedly(Return(mrs::interface::Object::kRead));
   EXPECT_CALL(mock_request, get_method())
       .WillRepeatedly(Return(HttpMethod::Get));
   EXPECT_CALL(mock_request, get_output_headers())
@@ -95,9 +95,7 @@ TEST_F(RestHandlerTests, handle_request) {
       .WillRepeatedly(Return(&mock_cache_manager_));
   EXPECT_CALL(mock_cache_manager_,
               get_empty(collector::kMySQLConnectionMetadata));
-  EXPECT_CALL(*sut_, get_id())
-      .WillRepeatedly(
-          Return(std::make_pair(mrs::IdType::k_id_type_service_id, 1)));
+  EXPECT_CALL(*sut_, get_service_id()).WillRepeatedly(Return(1));
   EXPECT_CALL(*sut_, requires_authentication())
       .WillRepeatedly(
           Return(mrs::interface::RestHandler::Authorization::kNotNeeded));

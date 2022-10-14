@@ -29,7 +29,7 @@
 
 #include "helper/make_shared_ptr.h"
 #include "mrs/database/entry/content_file.h"
-#include "mrs/route_static_file.h"
+#include "mrs/object_static_file.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_handler_factory.h"
@@ -41,9 +41,9 @@
 using namespace helper::json;
 
 using helper::MakeSharedPtr;
-using mrs::RouteStaticFile;
+using mrs::ObjectStaticFile;
 using mrs::database::entry::ContentFile;
-using mrs::interface::Route;
+using mrs::interface::Object;
 using testing::_;
 using testing::Eq;
 using testing::Invoke;
@@ -78,12 +78,12 @@ class RouteStaticFileTests : public Test {
   }
 
   void make_sut(const ContentFile &obj, const bool is_https = false) {
-    Route *register_argument = nullptr;
+    Object *register_argument = nullptr;
     EXPECT_CALL(*mock_route_schema_, route_register(_))
         .WillOnce(
-            Invoke([&register_argument](Route *r) { register_argument = r; }));
+            Invoke([&register_argument](Object *r) { register_argument = r; }));
 
-    sut_ = std::make_shared<RouteStaticFile>(
+    sut_ = std::make_shared<ObjectStaticFile>(
         obj, mock_route_schema_, &mock_mysqlcache_, is_https,
         &mock_auth_manager_, mock_handler_factory_);
     ASSERT_EQ(sut_.get(), register_argument);
@@ -100,7 +100,7 @@ class RouteStaticFileTests : public Test {
   StrictMock<MockMysqlCacheManager> mock_mysqlcache_;
   StrictMock<MockMySQLSession> mock_session;
   MakeSharedPtr<StrictMock<MockRouteSchema>> mock_route_schema_;
-  std::shared_ptr<RouteStaticFile> sut_;
+  std::shared_ptr<ObjectStaticFile> sut_;
 
  private:
   uint64_t last_id_{0};
@@ -129,8 +129,8 @@ TEST_F(RouteStaticFileTests, validate_route_generic_parameters) {
   EXPECT_EQ(false, sut_->requires_authentication());
   EXPECT_EQ(mock_route_schema_.get(), sut_->get_schema());
   EXPECT_EQ("", sut_->get_json_description());
-  EXPECT_EQ(Route::kMedia, sut_->get_format());
-  EXPECT_EQ(Route::kRead, sut_->get_access());
+  EXPECT_EQ(Object::kMedia, sut_->get_format());
+  EXPECT_EQ(Object::kRead, sut_->get_access());
 }
 
 TEST_F(RouteStaticFileTests, validate_route_parameters_after_update) {
@@ -164,8 +164,8 @@ TEST_F(RouteStaticFileTests, validate_route_parameters_after_update) {
   EXPECT_EQ("", sut_->get_object_name());
   EXPECT_EQ("", sut_->get_schema_name());
   EXPECT_EQ(1, sut_->get_on_page());
-  EXPECT_EQ(Route::kMedia, sut_->get_format());
-  EXPECT_EQ(Route::kRead, sut_->get_access());
+  EXPECT_EQ(Object::kMedia, sut_->get_format());
+  EXPECT_EQ(Object::kRead, sut_->get_access());
   EXPECT_EQ("", sut_->get_user_row_ownership().user_ownership_column);
   EXPECT_EQ(false, sut_->get_user_row_ownership().user_ownership_enforced);
   EXPECT_EQ(0, sut_->get_group_row_ownership().size());

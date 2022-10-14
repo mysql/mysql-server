@@ -26,15 +26,15 @@
 #include <gtest/gtest.h>
 
 #include "mrs/rest/handler_object.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/rest/request_context.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_http_request.h"
 #include "mock/mock_mysqlcachemanager.h"
-#include "mock/mock_route.h"
+#include "mock/mock_object.h"
 #include "mock/mock_session.h"
 
-using mrs::interface::Route;
+using mrs::interface::Object;
 using testing::_;
 using testing::ByMove;
 using testing::Invoke;
@@ -56,8 +56,8 @@ class HandleObjectTests : public Test {
    public:
     GeneralExceptations(
         HandleObjectTests &parent,
-        const Route::RowUserOwnership &user_row_ownership,
-        const Route::VectorOfRowGroupOwnership &group_row_ownership,
+        const Object::RowUserOwnership &user_row_ownership,
+        const Object::VectorOfRowGroupOwnership &group_row_ownership,
         const std::string &cached_primary, const std::string &schema,
         const std::string &object, const std::string &rest_path,
         const std::string &rest_url,
@@ -109,8 +109,8 @@ class HandleObjectTests : public Test {
     }
 
     HandleObjectTests &parent_;
-    Route::RowUserOwnership user_row_ownership_;
-    Route::VectorOfRowGroupOwnership group_row_ownership_;
+    Object::RowUserOwnership user_row_ownership_;
+    Object::VectorOfRowGroupOwnership group_row_ownership_;
     std::string cached_primary_;
     std::string schema_;
     std::string object_;
@@ -128,8 +128,8 @@ class HandleObjectTests : public Test {
 };
 
 TEST_F(HandleObjectTests, fetch_object_feed) {
-  const Route::RowUserOwnership k_user_row_ownership{false, ""};
-  const Route::VectorOfRowGroupOwnership k_group_row_ownership{};
+  const Object::RowUserOwnership k_user_row_ownership{false, ""};
+  const Object::VectorOfRowGroupOwnership k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
   GeneralExceptations expectations{*this,
                                    k_user_row_ownership,
@@ -154,8 +154,8 @@ TEST_F(HandleObjectTests, fetch_object_feed) {
 }
 
 TEST_F(HandleObjectTests, fetch_object_single) {
-  const Route::RowUserOwnership k_user_row_ownership{false, ""};
-  const Route::VectorOfRowGroupOwnership k_group_row_ownership{};
+  const Object::RowUserOwnership k_user_row_ownership{false, ""};
+  const Object::VectorOfRowGroupOwnership k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
   GeneralExceptations expectations{*this,
                                    k_user_row_ownership,

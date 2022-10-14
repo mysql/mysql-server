@@ -33,9 +33,7 @@
 
 #include "helper/variant_pointer.h"
 #include "mrs/database/entry/auth_app.h"
-#include "mrs/http/local_session_manager.h"
-#include "mrs/interface/auth_handler.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/interface/authorize_handler.h"
 #include "mrs/users/user_manager.h"
 
 #include "mysqlrouter/http_request.h"
@@ -43,7 +41,7 @@
 namespace mrs {
 namespace authentication {
 
-class Oauth2Handler : public interface::AuthHandler {
+class Oauth2Handler : public interface::AuthorizeHandler {
  protected:
   using AuthApp = database::entry::AuthApp;
   using duration = std::chrono::steady_clock::duration;
@@ -53,7 +51,6 @@ class Oauth2Handler : public interface::AuthHandler {
   using HttpMethodType = HttpMethod::type;
   using UserManager = mrs::users::UserManager;
   using SessionManager = mrs::http::SessionManager;
-  using RequestContext = rest::RequestContext;
   using VariantPointer = helper::VariantPointer;
 
  public:
@@ -79,7 +76,7 @@ class Oauth2Handler : public interface::AuthHandler {
     std::string refresh_token;
     std::string auth_code;
     std::string redirection;
-    std::optional<uint64_t> user_id;
+    AuthUser user;
     seconds expires;
     bool session_id_set{false};
     time_point acquired_at;
@@ -87,18 +84,15 @@ class Oauth2Handler : public interface::AuthHandler {
   };
 
  public:
-  Oauth2Handler(const AuthApp &entry, SessionManager *sm)
-      : entry_{entry},
-        sm_{entry.service_name, "session_" + std::to_string(entry_.id), sm} {}
+  Oauth2Handler(const AuthApp &entry) : entry_{entry} {}
 
-  bool can_process(HttpRequest *request) override;
-  void mark_response(HttpRequest *request) override;
-
+  const AuthApp &get_entry() const override;
   uint64_t get_service_id() const override;
   uint64_t get_id() const override;
-  bool is_authorized(RequestContext *ctxt) override;
-  bool authorize(RequestContext *ctxt) override;
-  bool unauthorize(rest::RequestContext *ctxt) override;
+  bool is_authorized(Session *session, AuthUser *user) override;
+  bool authorize(Session *session, http::Url *url,
+                 SqlSessionCached *sql_session, HttpHeaders &input_headers,
+                 AuthUser *out_user) override;
 
   class RequestHandlerJsonSimpleObject : public RequestHandler {
    public:
@@ -116,12 +110,13 @@ class Oauth2Handler : public interface::AuthHandler {
 
  protected:
   virtual std::string get_url_direct_auth() const = 0;
-  virtual std::string get_url_location(RequestContext *data) const = 0;
+  virtual std::string get_url_location(GenericSessionData *data,
+                                       http::Url *url) const = 0;
   virtual std::string get_url_validation(GenericSessionData *data) const = 0;
   virtual RequestHandlerPtr get_request_handler_access_token(
       GenericSessionData *session_data) = 0;
   virtual RequestHandlerPtr get_request_handler_verify_account(
-      GenericSessionData *session_data, rest::RequestContext *ctxt) = 0;
+      GenericSessionData *session_data) = 0;
   virtual std::string get_body_access_token_request(
       GenericSessionData *session_data) const = 0;
 
@@ -131,10 +126,10 @@ class Oauth2Handler : public interface::AuthHandler {
   void set_cookie_session_id(HttpRequest *request,
                              SessionManager::Session *session);
 
-  void new_session_start_login(RequestContext *data);
+  void new_session_start_login(Session *session, http::Url *url);
   bool http_acquire_access_token(GenericSessionData *data);
   bool http_verify_account(GenericSessionData *data,
-                           rest::RequestContext *ctxt);
+                           SqlSessionCached *sql_session);
 
  protected:
   static std::string get_request_path(HttpUri &u);
@@ -144,7 +139,6 @@ class Oauth2Handler : public interface::AuthHandler {
                                 RequestHandler *request_handler = nullptr);
 
   AuthApp entry_;
-  http::LocalSessionManager<GenericSessionData> sm_;
   UserManager um_{entry_.id, entry_.limit_to_registered_users,
                   entry_.default_role_id};
 };

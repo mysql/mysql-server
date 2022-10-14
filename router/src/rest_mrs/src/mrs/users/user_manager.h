@@ -31,7 +31,7 @@
 #include "helper/cache/policy/lru.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/database/query_entry_auth_user.h"
-#include "mrs/interface/auth_handler.h"
+#include "mrs/interface/authorize_handler.h"
 
 namespace mrs {
 namespace users {
@@ -43,8 +43,8 @@ class UserManager {
   using UserId = AuthUser::UserId;
   using UserIndex = AuthUser::UserIndex;
   using Cache = helper::cache::Cache<UserIndex, AuthUser, 100, PolicyLru>;
-  using Handler = mrs::interface::AuthHandler;
-  using SqlSessionCache = Handler::Cached;
+  using Handler = interface::AuthorizeHandler;
+  using SqlSessionCache = Handler::SqlSessionCached;
 
  public:
   UserManager(const uint64_t app_id, const bool limit_to_existing_users,
@@ -53,7 +53,7 @@ class UserManager {
         limit_to_existing_users_{limit_to_existing_users},
         default_role_id_{default_role_id} {}
 
-  bool user_get(AuthUser *out_user, Handler::Cached *out_cache);
+  bool user_get(AuthUser *out_user, SqlSessionCache *out_cache);
   void user_invalidate(const UserId id);
 
  private:

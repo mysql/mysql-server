@@ -31,7 +31,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/rest/request_context.h"
 
 namespace mrs {
 namespace rest {
@@ -39,7 +39,7 @@ namespace rest {
 using Result = Handler::Result;
 
 HandlerMetadata::HandlerMetadata(Route *route,
-                                 mrs::interface::AuthManager *auth_manager)
+                                 mrs::interface::AuthorizeManager *auth_manager)
     : Handler(route->get_rest_canonical_url(), route->get_rest_canonical_path(),
               route->get_options(), auth_manager),
       route_{route} {}
@@ -156,8 +156,8 @@ Handler::Authorization HandlerMetadata::requires_authentication() const {
              : Authorization::kNotNeeded;
 }
 
-std::pair<IdType, uint64_t> HandlerMetadata::get_id() const {
-  return {IdType::k_id_type_service_id, route_->get_service_id()};
+uint64_t HandlerMetadata::get_service_id() const {
+  return route_->get_service_id();
 }
 
 uint64_t HandlerMetadata::get_db_object_id() const { return route_->get_id(); }

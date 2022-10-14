@@ -27,7 +27,7 @@
 
 #include <string>
 
-#include "mrs/interface/route_schema.h"
+#include "mrs/interface/object_schema.h"
 #include "mrs/rest/handler.h"
 
 namespace mrs {
@@ -35,14 +35,14 @@ namespace rest {
 
 class HandlerSchemaMetadata : public Handler {
  public:
-  using RouteSchema = mrs::interface::RouteSchema;
+  using RouteSchema = mrs::interface::ObjectSchema;
 
  public:
   HandlerSchemaMetadata(RouteSchema *schema,
-                        mrs::interface::AuthManager *auth_manager);
+                        mrs::interface::AuthorizeManager *auth_manager);
 
   Authorization requires_authentication() const override;
-  std::pair<IdType, uint64_t> get_id() const override;
+  uint64_t get_service_id() const override;
   uint64_t get_db_object_id() const override;
   uint64_t get_schema_id() const override;
   uint32_t get_access_rights() const override;

@@ -27,9 +27,9 @@
 #include "mysql/harness/logging/logging.h"
 
 #include "mrs/http/url.h"
-#include "mrs/interface/route.h"
+#include "mrs/interface/object.h"
 #include "mrs/json/response_json_template.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/rest/request_context.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -37,10 +37,10 @@ namespace mrs {
 namespace rest {
 
 using Result = Handler::Result;
-using Route = mrs::interface::Route;
+using Route = mrs::interface::Object;
 
 HandlerSchemaMetadata::HandlerSchemaMetadata(
-    RouteSchema *schema, mrs::interface::AuthManager *auth_manager)
+    RouteSchema *schema, mrs::interface::AuthorizeManager *auth_manager)
     : Handler(schema->get_url(), schema->get_path(), schema->get_options(),
               auth_manager),
       schema_{schema} {}
@@ -95,8 +95,8 @@ Handler::Authorization HandlerSchemaMetadata::requires_authentication() const {
                                             : Authorization::kNotNeeded;
 }
 
-std::pair<IdType, uint64_t> HandlerSchemaMetadata::get_id() const {
-  return {IdType::k_id_type_service_id, schema_->get_service_id()};
+uint64_t HandlerSchemaMetadata::get_service_id() const {
+  return schema_->get_service_id();
 }
 
 uint64_t HandlerSchemaMetadata::get_db_object_id() const {

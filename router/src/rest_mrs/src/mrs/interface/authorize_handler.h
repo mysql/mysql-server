@@ -22,45 +22,46 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_SCHEMA_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_SCHEMA_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HANDLER_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HANDLER_H_
 
-#include <cstdint>
-#include <string>
-#include <vector>
+#include "collector/mysql_cache_manager.h"
+#include "mrs/database/entry/auth_app.h"
+#include "mrs/database/entry/auth_user.h"
+#include "mrs/http/session_manager.h"
+#include "mrs/http/url.h"
 
-#include "mrs/interface/rest_handler.h"
-#include "mrs/state.h"
+#include "mysqlrouter/http_request.h"
 
 namespace mrs {
+namespace rest {
+struct RequestContext;
+}  // namespace rest
+
 namespace interface {
 
-class Route;
-
-class RouteSchema {
+class AuthorizeHandler {
  public:
-  using VectorOfRoutes = std::vector<Route *>;
-  using Handler = mrs::interface::RestHandler;
-
-  virtual ~RouteSchema() = default;
+  using SqlSessionCached = collector::MysqlCacheManager::CachedObject;
+  using AuthUser = mrs::database::entry::AuthUser;
+  using AuthApp = mrs::database::entry::AuthApp;
+  using RequestContext = rest::RequestContext;
+  using Session = http::SessionManager::Session;
 
  public:
-  virtual void turn(const State state) = 0;
-  virtual void route_unregister(Route *r) = 0;
-  virtual void route_register(Route *r) = 0;
+  virtual ~AuthorizeHandler() = default;
 
-  virtual const std::string &get_name() const = 0;
-  virtual const std::string &get_url() const = 0;
-  virtual const std::string &get_path() const = 0;
-  virtual const std::string &get_options() const = 0;
-  virtual const std::string get_full_path() const = 0;
-  virtual const VectorOfRoutes &get_routes() const = 0;
-  virtual bool requires_authentication() const = 0;
   virtual uint64_t get_service_id() const = 0;
   virtual uint64_t get_id() const = 0;
+  virtual const AuthApp &get_entry() const = 0;
+
+  virtual bool is_authorized(Session *session, AuthUser *user) = 0;
+  virtual bool authorize(Session *session, http::Url *url,
+                         SqlSessionCached *sql_session,
+                         HttpHeaders &input_headers, AuthUser *out_user) = 0;
 };
 
 }  // namespace interface
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_SCHEMA_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HANDLER_H_

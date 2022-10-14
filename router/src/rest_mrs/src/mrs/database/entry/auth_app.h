@@ -40,6 +40,7 @@ class AuthApp {
   uint64_t service_id;
   std::string service_name;
   std::string name;
+  std::string app_name;
   bool active;
   bool deleted;
   std::string url;

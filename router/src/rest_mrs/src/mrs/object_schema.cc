@@ -22,27 +22,29 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs/route_schema_rest.h"
+#include "mrs/object_schema.h"
 
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/rest_api_utils.h"
 
 #include "mrs/database/helper/query_table_columns.h"
-#include "mrs/route_manager.h"
+#include "mrs/object_manager.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 
-using VectorOfRoutes = RouteSchemaRest::VectorOfRoutes;
+using VectorOfRoutes = ObjectSchema::VectorOfRoutes;
 
-RouteSchemaRest::RouteSchemaRest(
-    RouteManager *manager, collector::MysqlCacheManager *cache,
-    const std::string &service, const std::string &name, const bool is_ssl,
-    const std::string &host, const bool requires_authentication,
-    const uint64_t service_id, const uint64_t schema_id,
-    const std::string &options, mrs::interface::AuthManager *auth_manager,
-    std::shared_ptr<HandlerFactory> handler_factory)
+ObjectSchema::ObjectSchema(DbObjectManager *manager,
+                           collector::MysqlCacheManager *cache,
+                           const std::string &service, const std::string &name,
+                           const bool is_ssl, const std::string &host,
+                           const bool requires_authentication,
+                           const uint64_t service_id, const uint64_t schema_id,
+                           const std::string &options,
+                           mrs::interface::AuthorizeManager *auth_manager,
+                           std::shared_ptr<HandlerFactory> handler_factory)
     : manager_{manager},
       service_{service},
       name_{name},
@@ -58,7 +60,7 @@ RouteSchemaRest::RouteSchemaRest(
          "/metadata-catalog";
 }
 
-void RouteSchemaRest::turn(const State state) {
+void ObjectSchema::turn(const State state) {
   if (state_ == state) return;
   state_ = state;
 
@@ -73,7 +75,7 @@ void RouteSchemaRest::turn(const State state) {
   }
 }
 
-void RouteSchemaRest::route_unregister(Route *r) {
+void ObjectSchema::route_unregister(Route *r) {
   auto i = std::find(routes_.begin(), routes_.end(), r);
 
   if (routes_.end() != i) {
@@ -85,31 +87,31 @@ void RouteSchemaRest::route_unregister(Route *r) {
   }
 }
 
-void RouteSchemaRest::route_register(Route *r) {
+void ObjectSchema::route_register(Route *r) {
   if (std::find(routes_.begin(), routes_.end(), r) == routes_.end())
     routes_.push_back(r);
 }
 
-const std::string &RouteSchemaRest::get_path() const { return url_path_; }
+const std::string &ObjectSchema::get_path() const { return url_path_; }
 
-const std::string &RouteSchemaRest::get_name() const { return name_; }
+const std::string &ObjectSchema::get_name() const { return name_; }
 
-const std::string &RouteSchemaRest::get_options() const { return options_; }
+const std::string &ObjectSchema::get_options() const { return options_; }
 
-const std::string RouteSchemaRest::get_full_path() const {
+const std::string ObjectSchema::get_full_path() const {
   return service_ + name_;
 }
 
-const std::string &RouteSchemaRest::get_url() const { return url_; }
+const std::string &ObjectSchema::get_url() const { return url_; }
 
-const VectorOfRoutes &RouteSchemaRest::get_routes() const { return routes_; }
+const VectorOfRoutes &ObjectSchema::get_routes() const { return routes_; }
 
-bool RouteSchemaRest::requires_authentication() const {
+bool ObjectSchema::requires_authentication() const {
   return requires_authentication_;
 }
 
-uint64_t RouteSchemaRest::get_service_id() const { return service_id_; }
+uint64_t ObjectSchema::get_service_id() const { return service_id_; }
 
-uint64_t RouteSchemaRest::get_id() const { return schema_id_; }
+uint64_t ObjectSchema::get_id() const { return schema_id_; }
 
 }  // namespace mrs

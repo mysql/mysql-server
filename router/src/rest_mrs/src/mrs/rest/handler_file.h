@@ -25,8 +25,8 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_FILE_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_FILE_H_
 
-#include "mrs/interface/auth_manager.h"
-#include "mrs/interface/route.h"
+#include "mrs/interface/authorize_manager.h"
+#include "mrs/interface/object.h"
 #include "mrs/rest/handler.h"
 
 namespace mrs {
@@ -34,12 +34,12 @@ namespace rest {
 
 class HandlerFile : public mrs::rest::Handler {
  public:
-  using Route = mrs::interface::Route;
+  using Route = mrs::interface::Object;
 
  public:
-  HandlerFile(Route *route, mrs::interface::AuthManager *auth_manager);
+  HandlerFile(Route *route, mrs::interface::AuthorizeManager *auth_manager);
 
-  std::pair<IdType, uint64_t> get_id() const override;
+  uint64_t get_service_id() const override;
   uint64_t get_db_object_id() const override;
   uint64_t get_schema_id() const override;
 

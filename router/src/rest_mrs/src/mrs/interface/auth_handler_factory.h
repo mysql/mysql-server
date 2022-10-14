@@ -29,8 +29,7 @@
 
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/entry/auth_app.h"
-#include "mrs/http/session_manager.h"
-#include "mrs/interface/auth_handler.h"
+#include "mrs/interface/authorize_handler.h"
 
 namespace mrs {
 namespace interface {
@@ -39,8 +38,7 @@ class AuthHandlerFactory {
  public:
   using MysqlCacheManager = collector::MysqlCacheManager;
   using AuthApp = mrs::database::entry::AuthApp;
-  using SessionManager = mrs::http::SessionManager;
-  using AuthHandlerPtr = std::shared_ptr<AuthHandler>;
+  using AuthHandlerPtr = std::shared_ptr<AuthorizeHandler>;
 
  public:
   virtual ~AuthHandlerFactory() = default;
@@ -48,11 +46,11 @@ class AuthHandlerFactory {
   virtual AuthHandlerPtr create_basic_auth_handler(
       const AuthApp &entry, MysqlCacheManager *cache_manager) const = 0;
   virtual AuthHandlerPtr create_facebook_auth_handler(
-      const AuthApp &entry, SessionManager *session_manager) const = 0;
+      const AuthApp &entry) const = 0;
   virtual AuthHandlerPtr create_twitter_auth_handler(
-      const AuthApp &entry, SessionManager *session_manager) const = 0;
+      const AuthApp &entry) const = 0;
   virtual AuthHandlerPtr create_google_auth_handler(
-      const AuthApp &entry, SessionManager *session_manager) const = 0;
+      const AuthApp &entry) const = 0;
 };
 
 }  // namespace interface

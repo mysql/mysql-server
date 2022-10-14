@@ -37,7 +37,7 @@
 #include "mrs/database/query_rest_sp.h"
 #include "mrs/database/query_rest_sp_media.h"
 #include "mrs/http/url.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/rest/request_context.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -95,8 +95,8 @@ Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   for (auto el : helper::json::member_iterator(doc)) {
     auto key = el.first;
     const database::entry::Parameter *param;
-    if (!helper::container::get_if(
-            p, [key](auto &v) { return v.name == key; }, param)) {
+    if (!helper::container::get_ptr_if(
+            p, [key](auto &v) { return v.name == key; }, &param)) {
       throw http::Error(HttpStatusCode::BadRequest,
                         "Not allowed parameter:"s + key);
     }
@@ -195,9 +195,7 @@ Handler::Authorization HandlerSP::requires_authentication() const {
                                            : Authorization::kNotNeeded;
 }
 
-std::pair<IdType, uint64_t> HandlerSP::get_id() const {
-  return {IdType::k_id_type_service_id, route_->get_service_id()};
-}
+uint64_t HandlerSP::get_service_id() const { return route_->get_service_id(); }
 
 uint64_t HandlerSP::get_db_object_id() const { return route_->get_id(); }
 

@@ -22,47 +22,47 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_ROUTE_FACTORY_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_ROUTE_FACTORY_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_OBJECT_FACTORY_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_OBJECT_FACTORY_H_
 
 #include <memory>
 
 #include "mrs/database/entry/content_file.h"
 #include "mrs/database/entry/db_object.h"
-#include "mrs/interface/auth_manager.h"
+#include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/handler_factory.h"
-#include "mrs/interface/route.h"
-#include "mrs/interface/route_manager.h"
-#include "mrs/interface/route_schema.h"
+#include "mrs/interface/object.h"
+#include "mrs/interface/object_manager.h"
+#include "mrs/interface/object_schema.h"
 
 namespace mrs {
 
 namespace interface {
 
-class RouteFactory {
+class ObjectFactory {
  public:
-  using Route = mrs::interface::Route;
-  using RouteSchema = mrs::interface::RouteSchema;
+  using Object = mrs::interface::Object;
+  using ObjectSchema = mrs::interface::ObjectSchema;
   using ContentFile = mrs::database::entry::ContentFile;
   using DbObject = mrs::database::entry::DbObject;
-  using AuthManager = mrs::interface::AuthManager;
-  using RouteManager = mrs::interface::RouteManager;
+  using AuthManager = mrs::interface::AuthorizeManager;
+  using DbObjectManager = mrs::interface::ObjectManager;
   using MysqlCacheManager = collector::MysqlCacheManager;
 
  public:
-  virtual ~RouteFactory() = default;
+  virtual ~ObjectFactory() = default;
 
-  virtual std::shared_ptr<Route> create_router_object(
-      const DbObject &pe, std::shared_ptr<RouteSchema> schema,
+  virtual std::shared_ptr<Object> create_router_object(
+      const DbObject &pe, std::shared_ptr<ObjectSchema> schema,
       MysqlCacheManager *cache, const bool is_ssl,
       AuthManager *auth_manager) = 0;
-  virtual std::shared_ptr<Route> create_router_static_object(
-      const ContentFile &pe, std::shared_ptr<RouteSchema> schema,
+  virtual std::shared_ptr<Object> create_router_static_object(
+      const ContentFile &pe, std::shared_ptr<ObjectSchema> schema,
       MysqlCacheManager *cache, const bool is_ssl,
       AuthManager *auth_manager) = 0;
 
-  virtual std::shared_ptr<RouteSchema> create_router_schema(
-      RouteManager *manager, MysqlCacheManager *cache,
+  virtual std::shared_ptr<ObjectSchema> create_router_schema(
+      DbObjectManager *manager, MysqlCacheManager *cache,
       const std::string &service, const std::string &name, const bool is_ssl,
       const std::string &host, const bool requires_authentication,
       const uint64_t service_id, const uint64_t schema_id,
@@ -73,4 +73,4 @@ class RouteFactory {
 
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_ROUTE_FACTORY_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_OBJECT_FACTORY_H_

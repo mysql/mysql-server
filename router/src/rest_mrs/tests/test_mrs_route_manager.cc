@@ -25,18 +25,18 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "mrs/route_manager.h"
+#include "mrs/object_manager.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_mysqlcachemanager.h"
-#include "mock/mock_route.h"
+#include "mock/mock_object.h"
 #include "mock/mock_route_factory.h"
 #include "mock/mock_route_schema.h"
 
 using mrs::database::entry::ContentFile;
 using mrs::database::entry::DbObject;
-using mrs::interface::Route;
-using mrs::interface::RouteSchema;
+using mrs::interface::Object;
+using mrs::interface::ObjectSchema;
 using testing::_;
 using testing::ByMove;
 using testing::InvokeWithoutArgs;
@@ -60,8 +60,8 @@ class RouteManagerTests : public Test {
   void SetUp() override {
     const bool k_is_ssl = true;
     mock_route_factory_ = std::make_shared<MockRouteFactory>();
-    sut_.reset(new mrs::RouteManager(&mock_mysqlcache_, k_is_ssl,
-                                     &mock_auth_manager_, mock_route_factory_));
+    sut_.reset(new mrs::ObjectManager(
+        &mock_mysqlcache_, k_is_ssl, &mock_auth_manager_, mock_route_factory_));
   }
 
   struct EntryId {
@@ -89,8 +89,8 @@ class RouteManagerTests : public Test {
     EXPECT_CALL(*mock_route_factory_,
                 create_router_schema(_, _, _, _, _, _, _, obj.service_id,
                                      get_schema_id(obj), _, _))
-        .WillOnce(Return(ByMove(std::shared_ptr<RouteSchema>(
-            &return_mock, [track_destruction](RouteSchema *r) {
+        .WillOnce(Return(ByMove(std::shared_ptr<ObjectSchema>(
+            &return_mock, [track_destruction](ObjectSchema *r) {
               if (track_destruction)
                 reinterpret_cast<MockRouteSchema *>(r)->destroy();
             }))));
@@ -100,8 +100,8 @@ class RouteManagerTests : public Test {
                      bool track_destruction = false) {
     EXPECT_CALL(*mock_route_factory_,
                 create_router_object(ById(obj.id), _, _, _, _))
-        .WillOnce(Return(ByMove(
-            std::shared_ptr<Route>(&return_mock, [track_destruction](Route *r) {
+        .WillOnce(Return(ByMove(std::shared_ptr<Object>(
+            &return_mock, [track_destruction](Object *r) {
               if (track_destruction)
                 reinterpret_cast<MockRoute *>(r)->destroy();
             }))));
@@ -111,8 +111,8 @@ class RouteManagerTests : public Test {
                      bool track_destruction = false) {
     EXPECT_CALL(*mock_route_factory_,
                 create_router_static_object(ById(obj.id), _, _, _, _))
-        .WillOnce(Return(ByMove(
-            std::shared_ptr<Route>(&return_mock, [track_destruction](Route *r) {
+        .WillOnce(Return(ByMove(std::shared_ptr<Object>(
+            &return_mock, [track_destruction](Object *r) {
               if (track_destruction)
                 reinterpret_cast<MockRoute *>(r)->destroy();
             }))));
@@ -169,7 +169,7 @@ class RouteManagerTests : public Test {
   std::shared_ptr<MockRouteFactory> mock_route_factory_;
   MockAuthManager mock_auth_manager_;
   MockMysqlCacheManager mock_mysqlcache_;
-  std::unique_ptr<mrs::RouteManager> sut_;
+  std::unique_ptr<mrs::ObjectManager> sut_;
 };
 
 using MyTypes = ::testing::Types<DbObject, ContentFile>;

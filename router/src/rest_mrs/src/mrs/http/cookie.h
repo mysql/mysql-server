@@ -26,6 +26,7 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_HTTP_COOKIE_H_
 
 #include <chrono>
+#include <map>
 #include <string>
 
 #include "mysqlrouter/http_request.h"
@@ -36,14 +37,23 @@ namespace http {
 class Cookie {
  public:
   using duration = std::chrono::steady_clock::duration;
+  Cookie(HttpRequest *request);
 
   static void clear(HttpRequest *request, const char *cookie_name);
-  static std::string get(HttpRequest *request, const char *cookie_name);
+  //  static std::string get(HttpRequest *request, const char *cookie_name);
   static void set(HttpRequest *request, const std::string &cookie_name,
                   const std::string &value, const duration duration = {},
                   const std::string &path = {});
 
+  void set(const std::string &cookie_name, const std::string &value,
+           const duration duration = {}, const std::string &path = {});
+  std::string get(const std::string &key);
+  void clear(const char *cookie_name);
+
+ private:
   static const char *kHttpParameterNameCookie;
+  std::map<std::string, std::string> cookies_;
+  HttpRequest *request_;
 };
 
 }  // namespace http

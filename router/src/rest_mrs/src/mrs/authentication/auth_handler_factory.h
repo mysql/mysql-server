@@ -28,8 +28,8 @@
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/http/session_manager.h"
-#include "mrs/interface/auth_handler.h"
 #include "mrs/interface/auth_handler_factory.h"
+#include "mrs/interface/authorize_handler.h"
 
 namespace mrs {
 namespace authentication {
@@ -42,11 +42,11 @@ class AuthHandlerFactory : public interface::AuthHandlerFactory {
   AuthHandlerPtr create_basic_auth_handler(
       const AuthApp &entry, MysqlCacheManager *cache_manager) const override;
   AuthHandlerPtr create_facebook_auth_handler(
-      const AuthApp &entry, SessionManager *session_manager) const override;
+      const AuthApp &entry) const override;
   AuthHandlerPtr create_twitter_auth_handler(
-      const AuthApp &entry, SessionManager *session_manager) const override;
+      const AuthApp &entry) const override;
   AuthHandlerPtr create_google_auth_handler(
-      const AuthApp &entry, SessionManager *session_manager) const override;
+      const AuthApp &entry) const override;
 };
 
 }  // namespace authentication
