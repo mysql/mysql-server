@@ -1009,18 +1009,23 @@ void run_server(bool standalone = false) {
 }
 
 #ifdef _WIN32
-void platform_specific(char * exePath) {
+void platform_specific(char * exePath, char **) {
   GetModuleFileNameA(nullptr, exePath, PATH_MAX);
 }
 #else
+
 void sigpipe_handler(int) {
   printf("\n SIGPIPE received \n");
   exit(-1);
 }
 
-void platform_specific(char * exePath) {
+void platform_specific(char * exePath, char ** argv) {
   signal(SIGPIPE, sigpipe_handler);
-  strncpy(exePath, getenv("_"), PATH_MAX);
+  char * source = getenv("_");
+  if(source == nullptr) source = argv[0];
+  require(source);
+  require(strlen(source) < PATH_MAX);
+  strncpy(exePath, source, PATH_MAX);
 }
 #endif
 
@@ -1033,7 +1038,7 @@ int main(int argc, char** argv) {
   printf("%s\n", OPENSSL_VERSION_TEXT);
 
   /* This executable program file is also the default data source */
-  platform_specific(exePath);
+  platform_specific(exePath, argv);
   opt_data_source = exePath;
 
   int r = opts.handle_options();
