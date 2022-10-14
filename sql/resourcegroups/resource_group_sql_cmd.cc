@@ -41,7 +41,6 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
-#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"    // SUPER_ACL
 #include "sql/auth/auth_common.h"  // check_readonly
 #include "sql/auth/sql_security_ctx.h"
@@ -69,7 +68,6 @@ class Resource_group;
 }  // namespace dd
 
 namespace {
-
 /**
   Acquire an exclusive MDL lock on resource group name.
 
@@ -93,30 +91,6 @@ static bool acquire_exclusive_mdl_for_resource_group(THD *thd,
                                     thd->variables.lock_wait_timeout))
     return true;
 
-  return false;
-}
-
-/**
-  Acquire global exclusive MDL lock on resource group.
-
-  @param        thd                Pointer to THD context.
-  @param        lock_duration      Duration of lock.
-  @param[out]   ticket             reference to ticket object.
-
-  @return true if lock acquisition failed else false.
-*/
-static bool acquire_global_exclusive_mdl_for_resource_group(
-    THD *thd, enum_mdl_duration lock_duration, MDL_ticket **ticket) {
-  DBUG_TRACE;
-
-  MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::RESOURCE_GROUPS_GLOBAL, "", "",
-                   MDL_EXCLUSIVE, lock_duration);
-  if (thd->mdl_context.acquire_lock(&mdl_request,
-                                    thd->variables.lock_wait_timeout))
-    return true;
-
-  if (ticket != nullptr) *ticket = mdl_request.ticket;
   return false;
 }
 
@@ -168,36 +142,27 @@ class Move_thread_to_default_group {
       resourcegroups::Resource_group *resource_group)
       : m_resource_group(resource_group) {}
 
-  void operator()(
-      ulonglong pfs_thread_id,
-      resourcegroups::Resource_group_switch_handler *rg_switch_handler) {
+  void operator()(ulonglong pfs_thread_id) {
     auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
     auto applied_res_grp =
         m_resource_group->type() == resourcegroups::Type::SYSTEM_RESOURCE_GROUP
             ? res_grp_mgr->sys_default_resource_group()
             : res_grp_mgr->usr_default_resource_group();
-
     PSI_thread_attrs pfs_thread_attr;
+
     memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
     if (!res_grp_mgr->get_thread_attributes(&pfs_thread_attr, pfs_thread_id)) {
-      bool is_rg_applied_to_thread = false;
-      rg_switch_handler->apply(applied_res_grp, pfs_thread_attr.m_thread_os_id,
-                               &is_rg_applied_to_thread);
-
-      if (is_rg_applied_to_thread) {
-        applied_res_grp->add_pfs_thread_id(pfs_thread_id, rg_switch_handler);
-#ifdef HAVE_PSI_THREAD_INTERFACE
-        res_grp_mgr->set_res_grp_in_pfs(applied_res_grp->name().c_str(),
-                                        applied_res_grp->name().length(),
-                                        pfs_thread_id);
-#endif
-        if (!pfs_thread_attr.m_system_thread) {
-          Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
-          THD_ptr thd_ptr =
-              Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-          if (thd_ptr)
-            thd_ptr->resource_group_ctx()->m_cur_resource_group = nullptr;
-        }
+      applied_res_grp->controller()->apply_control(
+          pfs_thread_attr.m_thread_os_id);
+      res_grp_mgr->set_res_grp_in_pfs(applied_res_grp->name().c_str(),
+                                      applied_res_grp->name().length(),
+                                      pfs_thread_id);
+      if (!pfs_thread_attr.m_system_thread) {
+        Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
+        THD_ptr thd_ptr =
+            Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+        if (thd_ptr)
+          thd_ptr->resource_group_ctx()->m_cur_resource_group = nullptr;
       }
     }
   }
@@ -364,24 +329,12 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
     return true;
   }
 
-  MDL_ticket *rg_global_ticket = nullptr;
-  auto release_global_rg_lock = create_scope_guard([&]() {
-    if (rg_global_ticket) thd->mdl_context.release_lock(rg_global_ticket);
-    rg_global_ticket = nullptr;
-  });
-  if (acquire_global_exclusive_mdl_for_resource_group(thd, MDL_EXPLICIT,
-                                                      &rg_global_ticket))
-    return true;
-
   if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
       acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
   // Acquire exclusive lock on the resource group name.
   if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str)) return true;
-
-  // Release global exclusive lock on the resoure group.
-  release_global_rg_lock.rollback();
 
   auto resource_group = check_and_load_resource_group(thd, m_name);
 
@@ -441,18 +394,14 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
   */
   if (thr_res_ctrl_change) {
     resource_group->apply_control_func(
-        [resource_group](ulonglong pfs_thread_id,
-                         Resource_group_switch_handler *rg_switch_handler) {
+        [resource_group](ulonglong pfs_thread_id) {
           auto res_grp_mgr_ptr = Resource_group_mgr::instance();
           PSI_thread_attrs pfs_thread_attr;
           memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
-          bool dummy_is_rg_applied_to_thread = false;
           if (!res_grp_mgr_ptr->get_thread_attributes(&pfs_thread_attr,
                                                       pfs_thread_id))
-            // Re-apply controls.
-            rg_switch_handler->apply(resource_group,
-                                     pfs_thread_attr.m_thread_os_id,
-                                     &dummy_is_rg_applied_to_thread);
+            resource_group->controller()->apply_control(
+                pfs_thread_attr.m_thread_os_id);
         });
   }
 
@@ -496,24 +445,12 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd) {
     return true;
   }
 
-  MDL_ticket *rg_global_ticket = nullptr;
-  auto release_global_rg_lock = create_scope_guard([&]() {
-    if (rg_global_ticket) thd->mdl_context.release_lock(rg_global_ticket);
-    rg_global_ticket = nullptr;
-  });
-  if (acquire_global_exclusive_mdl_for_resource_group(thd, MDL_EXPLICIT,
-                                                      &rg_global_ticket))
-    return true;
-
   if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
       acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
   // Acquire exclusive lock on the resource group name.
   if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str)) return true;
-
-  // Release global exclusive lock on the resoure group.
-  release_global_rg_lock.rollback();
 
   auto resource_group = check_and_load_resource_group(thd, m_name);
 
@@ -544,78 +481,12 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd) {
 }
 
 /**
-  Switch resource group for a thread identified by the pfs_thread_id.
-
-  @param  pfs_thread_id        PFS thread id of the thread.
-  @param  thread_os_id         OS thread id.
-  @param  src_resource_grp     Source resource group. Current resource
-                               group applied to a thread.
-  @param  tgt_resource_grp     Target resource group. Apply this resource
-                               group to a thread.
-
-  @returns true if the function fails else false.
-*/
-static inline bool switch_thread_resource_group(
-    ulonglong pfs_thread_id, my_thread_os_id_t thread_os_id,
-    resourcegroups::Resource_group *src_resource_grp,
-    resourcegroups::Resource_group *tgt_resource_grp) {
-  assert(src_resource_grp != nullptr && tgt_resource_grp != nullptr);
-  auto res_grp_mgr [[maybe_unused]] =
-      resourcegroups::Resource_group_mgr::instance();
-
-  resourcegroups::Resource_group_switch_handler *src_rg_switch_handler =
-      src_resource_grp->resource_group_switch_handler(pfs_thread_id);
-
-  if (src_rg_switch_handler == nullptr) {
-    /*
-      Resource group switch handler is not assigned yet. Thread is using
-      default resource group. Switching resource group for the first time.
-    */
-    if ((thread_os_id != 0) &&
-        (tgt_resource_grp->controller()->apply_control(thread_os_id)))
-      return true;
-
-    tgt_resource_grp->add_pfs_thread_id(
-        pfs_thread_id, &resourcegroups::default_rg_switch_handler);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    // Update resource group in the PFS context of a thread.
-    res_grp_mgr->set_res_grp_in_pfs(tgt_resource_grp->name().c_str(),
-                                    tgt_resource_grp->name().length(),
-                                    pfs_thread_id);
-#endif
-  } else {
-    bool is_rg_applied_to_thread = false;
-    if (src_rg_switch_handler->apply(tgt_resource_grp, thread_os_id,
-                                     &is_rg_applied_to_thread))
-      return true;
-
-    DBUG_EXECUTE_IF("make_sure_rg_is_not_in_use",
-                    assert(!tgt_resource_grp->is_bound_to_threads()););
-    if (is_rg_applied_to_thread) {
-      tgt_resource_grp->add_pfs_thread_id(pfs_thread_id, src_rg_switch_handler);
-      src_resource_grp->remove_pfs_thread_id(pfs_thread_id);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-      // Update resource group in the PFS context of a thread.
-      res_grp_mgr->set_res_grp_in_pfs(tgt_resource_grp->name().c_str(),
-                                      tgt_resource_grp->name().length(),
-                                      pfs_thread_id);
-#endif
-    }
-  }
-
-  return false;
-}
-
-/**
   Check if resource group controls can be applied to thread
   identified by PFS thread id. Apply the controls to thread
   if the checks were successful.
 
   @param  thd              THD context
   @param  thread_id        Thread id of the thread.
-  @param  pfs_thread_attr  PSI_thread_attrs instance for thread_id.
   @param  resource_group   Pointer to resource group.
   @param  error            Log error so that error is returned to client.
 
@@ -623,9 +494,22 @@ static inline bool switch_thread_resource_group(
 */
 
 static inline bool check_and_apply_resource_grp(
-    THD *thd, ulonglong thread_id, PSI_thread_attrs &pfs_thread_attr,
+    THD *thd, ulonglong thread_id,
     resourcegroups::Resource_group *resource_group, bool error) {
+  PSI_thread_attrs pfs_thread_attr;
+  memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+
+  if (res_grp_mgr->get_thread_attributes(&pfs_thread_attr, thread_id) ||
+      thread_id != pfs_thread_attr.m_thread_internal_id) {
+    if (error)
+      my_error(ER_INVALID_THREAD_ID, MYF(0), thread_id);
+    else
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_INVALID_THREAD_ID,
+                          ER_THD(current_thd, ER_INVALID_THREAD_ID), thread_id);
+    return true;
+  }
 
   bool res_grp_match = pfs_thread_attr.m_system_thread
                            ? (resource_group->type() ==
@@ -657,12 +541,30 @@ static inline bool check_and_apply_resource_grp(
   // Check if resource group is already bound to this thread.
   if (resource_group->is_pfs_thread_id_exists(thread_id)) return false;
 
+  MDL_ticket *ticket = nullptr;
+  if (res_grp_mgr->acquire_shared_mdl_for_resource_group(
+          thd, pfs_thread_attr.m_groupname, MDL_EXPLICIT, &ticket, true)) {
+    if (error)
+      my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
+               resource_group->name().c_str(), thread_id,
+               "Unable to acquire  MDL lock.");
+    else {
+      thd->clear_error();
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_RESOURCE_GROUP_BIND_FAILED,
+                          ER_THD(current_thd, ER_RESOURCE_GROUP_BIND_FAILED),
+                          resource_group->name().c_str(), thread_id,
+                          "Unable to acquire MDL lock.");
+    }
+    return true;
+  }
+
   resourcegroups::Resource_group *prev_cur_res_grp =
       resourcegroups::Resource_group_mgr::instance()->get_resource_group(
           std::string(pfs_thread_attr.m_groupname));
 
-  if (switch_thread_resource_group(thread_id, pfs_thread_attr.m_thread_os_id,
-                                   prev_cur_res_grp, resource_group)) {
+  if (resource_group->controller()->apply_control(
+          pfs_thread_attr.m_thread_os_id)) {
     if (error)
       my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
                resource_group->name().c_str(), thread_id,
@@ -673,6 +575,7 @@ static inline bool check_and_apply_resource_grp(
                           ER_THD(current_thd, ER_RESOURCE_GROUP_BIND_FAILED),
                           resource_group->name().c_str(), thread_id,
                           "Failed to apply thread controls.");
+    res_grp_mgr->release_shared_mdl_for_resource_group(thd, ticket);
     return true;
   }
 
@@ -685,6 +588,13 @@ static inline bool check_and_apply_resource_grp(
       cur_thd_ptr->resource_group_ctx()->m_cur_resource_group = resource_group;
   }
 
+  if (prev_cur_res_grp != nullptr)
+    prev_cur_res_grp->remove_pfs_thread_id(thread_id);
+  resource_group->add_pfs_thread_id(thread_id);
+
+  res_grp_mgr->set_res_grp_in_pfs(resource_group->name().c_str(),
+                                  resource_group->name().length(), thread_id);
+  res_grp_mgr->release_shared_mdl_for_resource_group(thd, ticket);
   return false;
 }
 
@@ -706,110 +616,11 @@ static bool check_resource_group_set_privilege(Security_context *sctx) {
   return false;
 }
 
-/**
-  Helper method to populate PSI_thread_attrs instance for a thread in the
-  thread_id-PSI_thread_attrs map.
-
-  @param         thd                     Thread handle.
-  @param         pfs_thread_id           PFS thread id.
-  @param[out]    threads_pfs_attr_map    Map of pfs_thread_id-PSI_thread_attrs.
-  @param         report_error            Report an error if flag is set to
-                                         "true". Otherwise report a warning on
-                                         error.
-
-  @retval    false    Success.
-  @retval    true     Failure.
-*/
-static inline bool populate_pfs_thread_attribute_for_thread(
-    THD *thd [[maybe_unused]], ulonglong pfs_thread_id [[maybe_unused]],
-    std::map<ulonglong, PSI_thread_attrs> &threads_pfs_attr_map
-    [[maybe_unused]],
-    bool report_error [[maybe_unused]]) {
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
-  PSI_thread_attrs pfs_thread_attr;
-  memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
-
-  if (res_grp_mgr->get_thread_attributes(&pfs_thread_attr, pfs_thread_id) ||
-      pfs_thread_id != pfs_thread_attr.m_thread_internal_id) {
-    if (report_error) {
-      my_error(ER_INVALID_THREAD_ID, MYF(0), pfs_thread_id);
-      return true;
-    }
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_INVALID_THREAD_ID,
-                        ER_THD(thd, ER_INVALID_THREAD_ID), pfs_thread_id);
-  } else {
-    threads_pfs_attr_map.emplace(pfs_thread_id, pfs_thread_attr);
-  }
-#endif
-
-  return false;
-}
-
-/**
-  Helper method to acquire shared MDL for thread's resource group.
-
-  @param         thd                     Thread handle.
-  @param         pfs_thread_id           PFS thread id.
-  @param         groupname               Resoure group name.
-  @param         resource_group          Resource group to be set for a thread.
-  @param[out]    threads_rg_mdl_tickets  Vector MDL tickets on thread's resource
-                                         groups.
-  @param         report_error            Report an error if flag is set to
-                                         "true". Otherwise report a warning on
-                                         error.
-
-  @retval    false    Success.
-  @retval    true     Failure.
-*/
-static inline bool acquire_shared_mdl_for_thread_resource_group(
-    THD *thd, ulonglong pfs_thread_id, const char *groupname,
-    const resourcegroups::Resource_group *resource_group,
-    std::vector<MDL_ticket *> &threads_rg_mdl_tickets, bool report_error) {
-  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
-  MDL_ticket *ticket = nullptr;
-
-  if (res_grp_mgr->owns_shared_or_stronger_mdl_for_resource_group(thd,
-                                                                  groupname))
-    return false;
-
-  if (res_grp_mgr->acquire_shared_mdl_for_resource_group(
-          thd, groupname, MDL_EXPLICIT, &ticket, true)) {
-    if (report_error) {
-      my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
-               resource_group->name().c_str(), pfs_thread_id,
-               "Unable to acquire MDL lock.");
-      return true;
-    } else {
-      thd->clear_error();
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_RESOURCE_GROUP_BIND_FAILED,
-                          ER_THD(thd, ER_RESOURCE_GROUP_BIND_FAILED),
-                          resource_group->name().c_str(), pfs_thread_id,
-                          "Unable to acquire MDL lock.");
-    }
-  } else {
-    threads_rg_mdl_tickets.push_back(ticket);
-  }
-
-  return false;
-}
-
 bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
   DBUG_TRACE;
 
   Security_context *sctx = thd->security_context();
   if (check_resource_group_set_privilege(sctx)) return true;
-
-  // Acquire global exclusive lock on the resource group.
-  MDL_ticket *rg_global_ticket = nullptr;
-  auto release_global_rg_lock = create_scope_guard([&]() {
-    if (rg_global_ticket) thd->mdl_context.release_lock(rg_global_ticket);
-    rg_global_ticket = nullptr;
-  });
-  if (acquire_global_exclusive_mdl_for_resource_group(thd, MDL_EXPLICIT,
-                                                      &rg_global_ticket))
-    return true;
 
   // Acquire exclusive lock on the resource group name to synchronize with hint.
   if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str)) return true;
@@ -829,48 +640,11 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
     return true;
   }
 
-  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
-  const bool report_error =
-      (m_thread_id_list == nullptr || m_thread_id_list->size() <= 1);
-
-  // Get PSI_thread_attrs instance for all thread_ids.
-  std::map<ulonglong, PSI_thread_attrs> threads_pfs_attr_map;
   if (m_thread_id_list == nullptr || m_thread_id_list->empty()) {
     ulonglong pfs_thread_id = 0;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
 #endif
-    (void)populate_pfs_thread_attribute_for_thread(
-        thd, pfs_thread_id, threads_pfs_attr_map, report_error);
-  } else {
-    for (auto pfs_thread_id : *m_thread_id_list)
-      if (populate_pfs_thread_attribute_for_thread(
-              thd, pfs_thread_id, threads_pfs_attr_map, report_error))
-        return true;
-  }
-
-  // Acquire shared MDL lock on thread's resource group
-  std::vector<MDL_ticket *> threads_rg_mdl_tickets;
-  for (auto &[pfs_thread_id, pfs_thread_attr] : threads_pfs_attr_map) {
-    if (acquire_shared_mdl_for_thread_resource_group(
-            thd, pfs_thread_id, pfs_thread_attr.m_groupname, resource_group,
-            threads_rg_mdl_tickets, report_error))
-      return true;
-  }
-  // Scope guard to release all shared MDL locks.
-  auto release_threads_rg_mdl_tickets = create_scope_guard([&]() {
-    for (MDL_ticket *ticket : threads_rg_mdl_tickets) {
-      res_grp_mgr->release_shared_mdl_for_resource_group(thd, ticket);
-    }
-  });
-
-  // Release global MDL on resource group.
-  release_global_rg_lock.rollback();
-
-  if (m_thread_id_list == nullptr || m_thread_id_list->empty()) {
-    assert(threads_pfs_attr_map.size() == 1);
-    ulonglong pfs_thread_id = threads_pfs_attr_map.begin()->first;
-    PSI_thread_attrs *thread_attr = &(threads_pfs_attr_map.begin()->second);
 
     if (resource_group->type() != Type::USER_RESOURCE_GROUP) {
       my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
@@ -879,15 +653,25 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
       return true;
     }
 
+    auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+    const char *resource_group_name = nullptr;
     mysql_mutex_lock(&thd->LOCK_thd_data);
     auto cur_res_grp = thd->resource_group_ctx()->m_cur_resource_group;
+    if (cur_res_grp != nullptr)
+      resource_group_name = cur_res_grp->name().c_str();
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
-    if (cur_res_grp == nullptr)
-      cur_res_grp = res_grp_mgr->usr_default_resource_group();
+    MDL_ticket *ticket = nullptr;
+    if (resource_group_name != nullptr &&
+        res_grp_mgr->acquire_shared_mdl_for_resource_group(
+            thd, resource_group_name, MDL_EXPLICIT, &ticket, true)) {
+      my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
+               resource_group->name().c_str(), pfs_thread_id,
+               "Unable to acquire MDL lock.");
+      return true;
+    }
 
-    if (switch_thread_resource_group(pfs_thread_id, thread_attr->m_thread_os_id,
-                                     cur_res_grp, resource_group)) {
+    if (resource_group->controller()->apply_control()) {
       my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
                resource_group->name().c_str(), pfs_thread_id,
                "Failed to apply thread resource controls");
@@ -895,14 +679,28 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
     }
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
+    cur_res_grp = thd->resource_group_ctx()->m_cur_resource_group;
     thd->resource_group_ctx()->m_cur_resource_group = resource_group;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    if (cur_res_grp != nullptr)
+      cur_res_grp->remove_pfs_thread_id(pfs_thread_id);
+
+    resourcegroups::Resource_group_mgr::instance()->set_res_grp_in_pfs(
+        resource_group->name().c_str(), resource_group->name().length(),
+        pfs_thread_id);
+    resource_group->add_pfs_thread_id(pfs_thread_id);
+    if (ticket != nullptr)
+      res_grp_mgr->release_shared_mdl_for_resource_group(thd, ticket);
   } else {
-    for (auto &[pfs_thread_id, pfs_thread_attr] : threads_pfs_attr_map) {
-      bool res = check_and_apply_resource_grp(
-          thd, pfs_thread_id, pfs_thread_attr, resource_group, report_error);
-      if (res && report_error) return true;
-    }
+    if (m_thread_id_list->size() == 1 &&
+        check_and_apply_resource_grp(thd, m_thread_id_list->at(0),
+                                     resource_group, true))
+      return true;
+    else
+      for (const auto &thread_id : *m_thread_id_list)
+        (void)check_and_apply_resource_grp(thd, thread_id, resource_group,
+                                           false);
   }
 
   my_ok(thd);

@@ -51,7 +51,6 @@ class Resource_group;
 }  // namespace dd
 namespace resourcegroups {
 class Resource_group;
-class Resource_group_switch_handler;
 }  // namespace resourcegroups
 template <class Key, class Value>
 class collation_unordered_map;
@@ -60,9 +59,6 @@ namespace resourcegroups {
 
 extern const char *SYS_DEFAULT_RESOURCE_GROUP_NAME;
 extern const char *USR_DEFAULT_RESOURCE_GROUP_NAME;
-
-using Resource_group_switch_context =
-    std::pair<Resource_group_switch_handler *, Resource_group_switch_handler *>;
 
 /**
   This is a singleton class that provides various functionalities related to
@@ -294,30 +290,6 @@ class Resource_group_mgr {
   }
 
   /**
-    Acquire global shared MDL lock on resource groups.
-
-    @param        thd                Pointer to THD context.
-    @param        lock_duration      Duration of lock.
-    @param[out]   ticket             reference to ticket object.
-
-    @return true if lock acquisition failed else false.
-  */
-  bool acquire_global_shared_mdl_for_resource_group(
-      THD *thd, enum_mdl_duration lock_duration, MDL_ticket **ticket);
-
-  /**
-    Check if shared or stronger(exclusive) MDL lock is already acquired on
-    the resource group name.
-
-    @param        thd                Pointer to THD context.
-    @param        res_grp_name       Resource group name.
-
-    @return true if shared or stronger MDL lock is already acquired else false.
-  */
-  bool owns_shared_or_stronger_mdl_for_resource_group(THD *thd,
-                                                      const char *res_grp_name);
-
-  /**
     Acquire an shared MDL lock on resource group name.
 
     @param        thd                Pointer to THD context.
@@ -421,38 +393,6 @@ class Resource_group_mgr {
       assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
     };);
   }
-
-  /**
-    Set user thread resource group to the system thread. This method must be
-    called from the system thread.
-
-    @param       thd                            Thread handle.
-    @param       user_thread_pfs_id             PFS thread id of the user
-                                                thread.
-    @param[out]  resource_grp_switch_context    Resource group switch context
-                                                instance.
-
-    @retval   false  On Success.
-    @retval   true   On failure.
-  */
-  bool set_user_thread_resource_group_to_system_thread(
-      THD *thd, ulonglong user_thread_pfs_id,
-      Resource_group_switch_context **resource_grp_switch_context);
-
-  /**
-    If system thread resource group is switched to the user thread resource
-    group then restore original system group's resource group. This method must
-    be called from the system thread.
-
-    @param         thd                            Thread handle.
-    @param[in,out] resource_grp_switch_context    Resource group switch context
-                                                  instance.
-
-    @retval   false  On Success.
-    @retval   true   On failure.
-  */
-  bool restore_system_thread_resource_group(
-      THD *thd, Resource_group_switch_context **resource_grp_switch_context);
 
  private:
   /**

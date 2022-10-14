@@ -57,8 +57,6 @@ static s_object_type_map object_type_map[] = {
     {OBJECT_TYPE_RESOURCE_GROUPS, {STRING_WITH_LEN("RESOURCE_GROUPS")}},
     {OBJECT_TYPE_FOREIGN_KEY, {STRING_WITH_LEN("FOREIGN KEY")}},
     {OBJECT_TYPE_CHECK_CONSTRAINT, {STRING_WITH_LEN("CHECK CONSTRAINT")}},
-    {OBJECT_TYPE_RESOURCE_GROUPS_GLOBAL,
-     {STRING_WITH_LEN("RESOURCE_GROUPS_GLOBAL")}},
     {NO_OBJECT_TYPE, {STRING_WITH_LEN("")}}};
 
 void object_type_to_string(enum_object_type object_type, const char **string,

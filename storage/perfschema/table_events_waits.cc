@@ -382,7 +382,7 @@ int table_events_waits_common::make_metadata_lock_object_columns(
 
   if (safe_metadata_lock->get_version() == wait->m_weak_version) {
     // TODO: remove code duplication with PFS_column_row::make_row()
-    static_assert(MDL_key::NAMESPACE_END == 19,
+    static_assert(MDL_key::NAMESPACE_END == 18,
                   "Adjust performance schema when changing enum_mdl_namespace");
 
     MDL_key *mdl = &safe_metadata_lock->m_mdl_key;
@@ -512,13 +512,6 @@ int table_events_waits_common::make_metadata_lock_object_columns(
         m_row.m_object_type_length = 16;
         set_schema_name(&m_row.m_object_schema, mdl);
         m_row.m_object_name_length = mdl->name_length();
-        break;
-      case MDL_key::RESOURCE_GROUPS_GLOBAL:
-        m_row.m_object_type = "RESOURCE_GROUPS_GLOBAL";
-        m_row.m_object_type_length = 22;
-        m_row.m_object_schema.reset();
-        m_row.m_object_name_length = 0;
-        m_row.m_index_name_length = 0;
         break;
       case MDL_key::NAMESPACE_END:
       default:
