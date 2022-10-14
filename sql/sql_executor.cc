@@ -703,22 +703,11 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
   return false;
 }
 
-void ExtractConditions(Item *condition,
+bool ExtractConditions(Item *condition,
                        Mem_root_array<Item *> *condition_parts) {
-  if (condition == nullptr) {
-    return;
-  }
-  if (condition->type() != Item::COND_ITEM ||
-      down_cast<Item_cond *>(condition)->functype() !=
-          Item_bool_func2::COND_AND_FUNC) {
-    condition_parts->push_back(condition);
-    return;
-  }
-
-  Item_cond_and *and_condition = down_cast<Item_cond_and *>(condition);
-  for (Item &item : *and_condition->argument_list()) {
-    ExtractConditions(&item, condition_parts);
-  }
+  return WalkConjunction(condition, [condition_parts](Item *item) {
+    return condition_parts->push_back(item);
+  });
 }
 
 /**
@@ -749,7 +738,7 @@ Item *CreateConjunction(List<Item> *items) {
   if (items->size() == 1) {
     return items->head();
   }
-  Item *condition = new Item_cond_and(*items);
+  Item_cond_and *condition = new Item_cond_and(*items);
   condition->quick_fix_field();
   condition->update_used_tables();
   condition->apply_is_true();

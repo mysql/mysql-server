@@ -1217,14 +1217,7 @@ Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
         List<Item> eq_items;
         FullyConcretizeMultipleEquals(equal, allowed_tables, &eq_items);
         assert(!eq_items.is_empty());
-        if (eq_items.size() == 1) {
-          return eq_items.head();
-        } else {
-          Item_cond_and *item_and = new Item_cond_and(eq_items);
-          item_and->update_used_tables();
-          item_and->quick_fix_field();
-          return item_and;
-        }
+        return CreateConjunction(&eq_items);
       });
 
   // Account for tables not in allowed_tables having been removed.
@@ -1243,12 +1236,6 @@ Mem_root_array<Item *> ResplitConditions(
   return new_conditions;
 }
 
-bool IsConjunction(const Item *item) {
-  return item->type() == Item::COND_ITEM &&
-         down_cast<const Item_cond *>(item)->functype() ==
-             Item_func::COND_AND_FUNC;
-}
-
 // Calls CanonicalizeCondition() for each condition in the given array.
 bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
                             Mem_root_array<Item *> *conditions) {
@@ -1258,7 +1245,7 @@ bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
     if (condition == nullptr) {
       return true;
     }
-    if (IsConjunction(condition)) {
+    if (IsAnd(condition)) {
       // Canonicalization converted something (probably an Item_equal) to a
       // conjunction, which we need to split back to new conditions again.
       need_resplit = true;
@@ -2303,7 +2290,7 @@ bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
       // If the condition was replaced by a conjunction, we need to split it and
       // add its children to conditions, so that its individual elements can be
       // considered for condition pushdown later.
-      if (*it != old_item && IsConjunction(*it)) {
+      if (*it != old_item && IsAnd(*it)) {
         need_resplit = true;
       }
 
@@ -3326,7 +3313,9 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
     Item *where_cond =
         EarlyExpandMultipleEquals(join->where_cond, tables_in_tree);
     Mem_root_array<Item *> where_conditions(thd->mem_root);
-    ExtractConditions(where_cond, &where_conditions);
+    if (ExtractConditions(where_cond, &where_conditions)) {
+      return true;
+    }
 
     if (EarlyNormalizeConditions(thd, /*join=*/nullptr, &where_conditions,
                                  where_is_always_false)) {
@@ -3422,7 +3411,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   if (join->where_cond != nullptr) {
     Item *where_cond = EarlyExpandMultipleEquals(join->where_cond,
                                                  /*tables_in_subtree=*/~0);
-    ExtractConditions(where_cond, &where_conditions);
+    if (ExtractConditions(where_cond, &where_conditions)) {
+      return true;
+    }
     if (EarlyNormalizeConditions(thd, /*join=*/nullptr, &where_conditions,
                                  where_is_always_false)) {
       return true;

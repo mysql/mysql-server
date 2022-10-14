@@ -34,12 +34,6 @@ namespace {
 Item *OrGroupWithSomeRemoved(Item_cond_or *or_item,
                              const List<Item> &items_to_remove);
 
-bool IsAnd(const Item *item) {
-  return item->type() == Item::COND_ITEM &&
-         down_cast<const Item_cond *>(item)->functype() ==
-             Item_func::COND_AND_FUNC;
-}
-
 bool IsOr(const Item *item) {
   return item->type() == Item::COND_ITEM &&
          down_cast<const Item_cond *>(item)->functype() ==
