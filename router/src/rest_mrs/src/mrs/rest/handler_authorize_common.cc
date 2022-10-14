@@ -47,7 +47,7 @@ HandlerAuthorizeCommon::HandlerAuthorizeCommon(
       redirection_{redirection} {}
 
 Handler::Authorization HandlerAuthorizeCommon::requires_authentication() const {
-  return Authorization::kRequires;
+  return Authorization::kCheck;
 }
 
 uint64_t HandlerAuthorizeCommon::get_service_id() const { return service_id_; }
@@ -64,6 +64,18 @@ uint64_t HandlerAuthorizeCommon::get_schema_id() const {
 
 uint32_t HandlerAuthorizeCommon::get_access_rights() const {
   return Route::kRead;
+}
+
+void HandlerAuthorizeCommon::authorization(RequestContext *) {
+  //  http::Url url{ctxt->request->get_uri()};
+  //  database::entry::AuthUser user;
+  //  if (!authorization_manager_->authorize(
+  //          get_service_id(), &ctxt->cookies, &url, &ctxt->sql_session_cache,
+  //          ctxt->request->get_input_headers(), &user)) {
+  //    auto uri = append_status_parameters(ctxt, {HttpStatusCode::Ok});
+  //    // Generate the response by the default handler.
+  //    http::redirect_and_throw(ctxt->request, uri);
+  //  }
 }
 
 Result HandlerAuthorizeCommon::handle_get(

@@ -101,9 +101,8 @@ AuthorizeManager::Container AuthorizeManager::get_handlers_by_service_id(
 
 bool AuthorizeManager::get_handler_by_id(const uint64_t auth_id,
                                          Container::iterator *out_it) {
-  auto it = std::find_if(
-      container_.begin(), container_.end(),
-      [auth_id](auto &i) { return i->get_service_id() == auth_id; });
+  auto it = std::find_if(container_.begin(), container_.end(),
+                         [auth_id](auto &i) { return i->get_id() == auth_id; });
 
   if (it != container_.end()) {
     *out_it = it;
@@ -164,13 +163,14 @@ void AuthorizeManager::fill_service(const AuthApp &e, ServiceAuthorize &sa) {
   }
 
   auto login_handler = std::make_shared<mrs::rest::HandlerAuthorize>(
-      e.id, e.service_name, path1, e.options, redirect, this);
+      e.service_id, e.service_name, path1, e.options, redirect, this);
   auto status_handler = std::make_shared<mrs::rest::HandlerIsAuthorized>(
-      e.id, e.service_name, path2, e.options, this);
+      e.service_id, e.service_name, path2, e.options, this);
   auto unauth_handler = std::make_shared<mrs::rest::HandlerUnauthorize>(
-      e.id, e.service_name, path3, e.options, this);
+      e.service_id, e.service_name, path3, e.options, this);
   auto auth_ok_handler = std::make_shared<mrs::rest::HandlerAuthorizeOk>(
-      e.id, e.service_name, path4, e.options, e.redirection_default_page, this);
+      e.service_id, e.service_name, path4, e.options,
+      e.redirection_default_page, this);
 
   sa.authorize_handler_ = login_handler;
   sa.status_handler_ = status_handler;
@@ -189,7 +189,8 @@ void AuthorizeManager::acquire(interface::AuthorizeHandler *handler) {
 
     fill_service(handler->get_entry(), *service_authorization);
 
-    service_authorize_[handler->get_service_id()] = service_authorization;
+    service_authorize_[handler->get_service_id()] =
+        service_authorization.copy_base();
     return;
   }
   ++out_service_authorization->references_;
@@ -212,6 +213,16 @@ bool AuthorizeManager::unauthorize(ServiceId service_id,
   if (session_identifier.empty()) return false;
 
   return session_manager_.remove_session(session_identifier);
+}
+
+AuthorizeManager::Session *AuthorizeManager::get_current_session(
+    ServiceId id, http::Cookie *cookies) {
+  auto session_cookie_key = get_session_cookie_key_name(id);
+  auto session_identifier = cookies->get(session_cookie_key);
+
+  if (session_identifier.empty()) return nullptr;
+
+  return session_manager_.get_session(session_identifier);
 }
 
 bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
@@ -275,6 +286,7 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
   }
 
   assert(nullptr != session);
+  session->handler_name = selected_handler->get_entry().app_name;
 
   return selected_handler->authorize(session, url, sql_session, input_headers,
                                      out_user);
@@ -296,6 +308,13 @@ bool AuthorizeManager::is_authorized(ServiceId service_id,
     return false;
 
   return out_handler->is_authorized(session, user);
+}
+
+void AuthorizeManager::discard_current_session(ServiceId id,
+                                               http::Cookie *cookies) {
+  auto session_cookie_key = get_session_cookie_key_name(id);
+  auto session_identifier = cookies->get(session_cookie_key);
+  session_manager_.remove_session(session_identifier);
 }
 
 }  // namespace authentication

@@ -33,7 +33,6 @@
 #include "helper/mysql_time.h"
 #include "mrs/authentication/helper/authorize_handler_callbacks.h"
 #include "mrs/database/entry/auth_app.h"
-#include "mrs/http/session_manager.h"
 #include "mrs/interface/auth_handler_factory.h"
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/rest_handler.h"
@@ -43,7 +42,6 @@ namespace authentication {
 
 class AuthorizeManager : public mrs::interface::AuthorizeManager,
                          private helper::AuthorizeHandlerCallbakcs {
-  using Session = http::SessionManager::Session;
   using AuthHandler = mrs::interface::AuthorizeHandler;
   using RestHandler = mrs::interface::RestHandler;
   using AuthHandlerFactoryPtr =
@@ -78,6 +76,8 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   bool is_authorized(ServiceId id, http::Cookie *cookies,
                      AuthUser *user) override;
 
+  Session *get_current_session(ServiceId id, http::Cookie *cookies) override;
+  void discard_current_session(ServiceId id, http::Cookie *cookies) override;
   collector::MysqlCacheManager *get_cache() override { return cache_manager_; }
 
  private:

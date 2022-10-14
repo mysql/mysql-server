@@ -69,6 +69,10 @@ Oauth2GoogleHandler::Oauth2GoogleHandler(const AuthApp &entry)
   log_debug("Oauth2GoogleHandler for service %s", to_string(entry_).c_str());
 }
 
+Oauth2GoogleHandler::~Oauth2GoogleHandler() {
+  log_debug("~Oauth2GoogleHandler for service %s", to_string(entry_).c_str());
+}
+
 std::string Oauth2GoogleHandler::get_url_location(GenericSessionData *,
                                                   http::Url *url) const {
   std::string result{!entry_.url.empty()

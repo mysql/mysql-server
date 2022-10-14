@@ -44,6 +44,7 @@ class HandlerAuthorizeCommon : public Handler {
                          const std::string &redirection,
                          interface::AuthorizeManager *auth_manager);
 
+  void authorization(RequestContext *ctxt) override;
   bool may_check_access() const override;
   Authorization requires_authentication() const override;
   uint64_t get_service_id() const override;

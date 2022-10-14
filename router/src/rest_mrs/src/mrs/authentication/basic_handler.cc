@@ -53,8 +53,8 @@ static bool extract_user_credentials_from_token(
 
 BasicHandler::BasicHandler(const AuthApp &entry,
                            collector::MysqlCacheManager *cache_manager)
-    : WwwAuthenticationHandler(entry_), cache_manager_{cache_manager} {
-  log_debug("BasicHandler for service %i, %s", (int)entry_.service_id,
+    : WwwAuthenticationHandler(entry), cache_manager_{cache_manager} {
+  log_debug("BasicHandler for service %i, %s", (int)entry.service_id,
             to_string(entry).c_str());
 }
 

@@ -35,7 +35,7 @@ uint64_t QueryEntriesAuthApp::get_last_update() { return audit_log_id_; }
 QueryEntriesAuthApp::QueryEntriesAuthApp() {
   query_ =
       "SELECT * FROM (SELECT a.id, service_id, s.url_context_root, v.name, "
-      "a.name,  "
+      "a.name as app_name,  "
       "  a.enabled and "
       "    v.enabled, a.url, v.validation_url,  a.access_token, a.app_id, "
       "  CONCAT(IF(s.url_protocol=\"HTTPS\",\"https://\",\"http://\"),h.name) "
@@ -45,8 +45,8 @@ QueryEntriesAuthApp::QueryEntriesAuthApp() {
       "    h.id=a.url_host_id limit 1)) as host_alias,"
       "  a.url_direct_auth,"
       "  a.limit_to_registered_users, a.default_auth_role_id,"
-      "  a.auth_path, s.options, a.redirect_after_auth_url, "
-      "a.login_success_page_content, "
+      "  s.auth_path, s.options, s.auth_completed_url, "
+      "s.auth_completed_page_content, "
       "  a.id as auth_app_id, auth_vendor_id, h.id as url_host_id"
       " FROM mysql_rest_service_metadata.auth_app as a "
       "JOIN mysql_rest_service_metadata.`auth_vendor` as v on a.auth_vendor_id "

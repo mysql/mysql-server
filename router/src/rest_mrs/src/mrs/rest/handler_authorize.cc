@@ -93,28 +93,41 @@ Result HandlerAuthorize::handle_put(RequestContext *) {
 static const char *get_authentication_status(HttpStatusCode::key_type code) {
   switch (code) {
     case HttpStatusCode::Ok:
-      return "authorized";
+      return "success";
     case HttpStatusCode::Unauthorized:
-      return "unauthorized";
+      return "fail";
     default:
-      return "error";
+      return "fail";
   }
 }
 
 std::string HandlerAuthorize::append_status_parameters(
     RequestContext *ctxt, const http::Error &error) {
-  auto uri = HttpUri::parse(redirection_);
+  auto session = authorization_manager_->get_current_session(get_service_id(),
+                                                             &ctxt->cookies);
 
-  http::Url::append_query_parameter(uri, "status",
+  http::SessionManager::Session dummy{"", 0};
+  session = session ? session : &dummy;
+
+  auto uri = HttpUri::parse(session->users_on_complete_url_redirection.empty()
+                                ? redirection_
+                                : session->users_on_complete_url_redirection);
+
+  if (!session->handler_name.empty())
+    http::Url::append_query_parameter(uri, "app", session->handler_name);
+  if (!session->users_on_complete_timeout.empty())
+    http::Url::append_query_parameter(uri, "onCompletionClose",
+                                      session->users_on_complete_timeout);
+  http::Url::append_query_parameter(uri, "login",
                                     get_authentication_status(error.status));
 
-  if (HttpStatusCode::Ok == error.status) {
-    http::Url::append_query_parameter(uri, "user_id",
-                                      std::to_string(ctxt->user.user_id));
-    http::Url::append_query_parameter(uri, "user_name", ctxt->user.name);
-  } else if (HttpStatusCode::Unauthorized != error.status) {
-    http::Url::append_query_parameter(uri, "message", error.message);
-  }
+  //  if (HttpStatusCode::Ok == error.status) {
+  //    http::Url::append_query_parameter(uri, "user_id",
+  //                                      std::to_string(ctxt->user.user_id));
+  //    http::Url::append_query_parameter(uri, "user_name", ctxt->user.name);
+  //  } else if (HttpStatusCode::Unauthorized != error.status) {
+  //    http::Url::append_query_parameter(uri, "message", error.message);
+  //  }
 
   return uri.join();
 }
@@ -122,11 +135,24 @@ std::string HandlerAuthorize::append_status_parameters(
 bool HandlerAuthorize::request_error(RequestContext *ctxt,
                                      const http::Error &error) {
   // Oauth2 authentication may redirect, allow it.
+  http::Url url(ctxt->request->get_uri());
+
+  auto session = authorization_manager_->get_current_session(get_service_id(),
+                                                             &ctxt->cookies);
+
+  if (session) {
+    url.get_if_query_parameter("onCompletionRedirect",
+                               &session->users_on_complete_url_redirection);
+    url.get_if_query_parameter("onCompletionClose",
+                               &session->users_on_complete_timeout);
+  }
   if (error.status == HttpStatusCode::TemporaryRedirect) return false;
 
   // Redirect to original/first page that redirected to us.
   auto uri = append_status_parameters(ctxt, error);
   ctxt->request->send_reply(http::redirect(ctxt->request, uri.c_str()));
+  authorization_manager_->discard_current_session(get_service_id(),
+                                                  &ctxt->cookies);
   return true;
 }
 

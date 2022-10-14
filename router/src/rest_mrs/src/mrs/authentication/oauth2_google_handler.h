@@ -41,6 +41,7 @@ class Oauth2GoogleHandler : public Oauth2Handler {
 
  public:
   Oauth2GoogleHandler(const AuthApp &entry);
+  ~Oauth2GoogleHandler() override;
 
  private:
   std::string get_url_direct_auth() const override;

@@ -88,6 +88,11 @@ class Url {
     return result;
   }
 
+  bool get_if_query_parameter(const std::string &key,
+                              std::string *value) const {
+    return helper::container::get_value(parameters_, key, value);
+  }
+
   bool is_query_parameter(const std::string &key) const {
     return 0 != parameters_.count(key);
   }
