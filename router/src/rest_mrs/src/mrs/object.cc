@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs/route_object.h"
+#include "mrs/object.h"
 
 #include <stdexcept>
 #include <string_view>
@@ -39,11 +39,11 @@ using namespace helper;
 
 using Allowed = mrs::database::entry::DbObject::Format;
 
-RouteObject::RouteObject(const DbObject &pe, RouteSchemaPtr schema,
-                         collector::MysqlCacheManager *cache, const bool is_ssl,
-                         mrs::interface::AuthManager *auth_manager,
-                         std::shared_ptr<HandlerFactory> handler_factory,
-                         std::shared_ptr<QueryFactory> query_factory)
+Object::Object(const EntryDbObject &pe, RouteSchemaPtr schema,
+               collector::MysqlCacheManager *cache, const bool is_ssl,
+               mrs::interface::AuthorizeManager *auth_manager,
+               std::shared_ptr<HandlerFactory> handler_factory,
+               std::shared_ptr<QueryFactory> query_factory)
     : schema_{schema},
       pe_{pe},
       cache_{cache},
@@ -55,11 +55,11 @@ RouteObject::RouteObject(const DbObject &pe, RouteSchemaPtr schema,
   update_variables();
 }
 
-RouteObject::~RouteObject() {
+Object::~Object() {
   if (schema_) schema_->route_unregister(this);
 }
 
-void RouteObject::turn(const State state) {
+void Object::turn(const State state) {
   if (stateOff == state || !pe_.active) {
     handle_object_.reset();
     handle_metadata_.reset();
@@ -68,16 +68,16 @@ void RouteObject::turn(const State state) {
   }
 
   switch (pe_.type) {
-    case DbObject::typeTable:
+    case EntryDbObject::typeTable:
       handlers_for_table();
       break;
-    case DbObject::typeProcedure:
+    case EntryDbObject::typeProcedure:
       handlers_for_sp();
       break;
   }
 }
 
-void RouteObject::handlers_for_table() {
+void Object::handlers_for_table() {
   auto handler_obj =
       handler_factory_->create_object_handler(this, auth_manager_);
   auto handler_meta =
@@ -87,7 +87,7 @@ void RouteObject::handlers_for_table() {
   handle_metadata_ = std::move(handler_meta);
 }
 
-void RouteObject::handlers_for_sp() {
+void Object::handlers_for_sp() {
   auto handler_obj = handler_factory_->create_sp_handler(this, auth_manager_);
   auto handler_meta =
       handler_factory_->create_object_metadata_handler(this, auth_manager_);
@@ -96,8 +96,8 @@ void RouteObject::handlers_for_sp() {
   handle_metadata_ = std::move(handler_meta);
 }
 
-bool RouteObject::update(const void *pv, RouteSchemaPtr schema) {
-  auto &pe = *reinterpret_cast<const DbObject *>(pv);
+bool Object::update(const void *pv, RouteSchemaPtr schema) {
+  auto &pe = *reinterpret_cast<const EntryDbObject *>(pv);
   bool result = false;
   if (schema != schema_) {
     if (schema_) schema_->route_unregister(this);
@@ -118,23 +118,21 @@ bool RouteObject::update(const void *pv, RouteSchemaPtr schema) {
   return result;
 }
 
-const std::string &RouteObject::get_rest_canonical_url() {
+const std::string &Object::get_rest_canonical_url() {
   return url_rest_canonical_;
 }
 
-const std::string &RouteObject::get_rest_url() { return url_route_; }
+const std::string &Object::get_rest_url() { return url_route_; }
 
-const std::string &RouteObject::get_json_description() {
-  return json_description_;
-}
+const std::string &Object::get_json_description() { return json_description_; }
 
-const std::string &RouteObject::get_rest_path() { return rest_path_; }
+const std::string &Object::get_rest_path() { return rest_path_; }
 
-const std::string &RouteObject::get_rest_canonical_path() {
+const std::string &Object::get_rest_canonical_path() {
   return rest_canonical_path_;
 }
 
-void RouteObject::update_variables() {
+void Object::update_variables() {
   const static std::string k_metadata = "/metadata-catalog";
   rest_path_ = "^" + pe_.service_path + pe_.schema_path + pe_.object_path +
                "(/[0-9]*/?)?$";
@@ -163,7 +161,7 @@ void RouteObject::update_variables() {
   access_flags_ = pe_.operation;
 }
 
-void RouteObject::cache_columns() {
+void Object::cache_columns() {
   auto table_columns = query_factory_->create_query_table_columns();
   auto session = cache_->get_instance(collector::kMySQLConnectionUserdata);
   table_columns->query_entries(session.get(), schema_name_, object_name_);
@@ -192,7 +190,7 @@ void RouteObject::cache_columns() {
   }
 }
 
-const std::vector<Column> &RouteObject::get_cached_columnes() {
+const std::vector<Column> &Object::get_cached_columnes() {
   if (cached_columns_.empty()) {
     cache_columns();
   }
@@ -200,51 +198,51 @@ const std::vector<Column> &RouteObject::get_cached_columnes() {
   return cached_columns_;
 }
 
-RouteObject::RouteSchema *RouteObject::get_schema() { return schema_.get(); }
+Object::RouteSchema *Object::get_schema() { return schema_.get(); }
 
-const std::string &RouteObject::get_object_path() { return pe_.object_path; }
+const std::string &Object::get_object_path() { return pe_.object_path; }
 
-const std::string &RouteObject::get_object_name() { return object_name_; }
-const std::string &RouteObject::get_schema_name() { return schema_name_; }
+const std::string &Object::get_object_name() { return object_name_; }
+const std::string &Object::get_schema_name() { return schema_name_; }
 
-const std::string &RouteObject::get_options() { return pe_.options_json; }
+const std::string &Object::get_options() { return pe_.options_json; }
 
-bool RouteObject::requires_authentication() const {
+bool Object::requires_authentication() const {
   return pe_.requires_authentication || pe_.schema_requires_authentication;
 }
 
-uint64_t RouteObject::get_id() const { return pe_.id; }
+uint64_t Object::get_id() const { return pe_.id; }
 
-uint64_t RouteObject::get_service_id() const { return pe_.service_id; }
+uint64_t Object::get_service_id() const { return pe_.service_id; }
 
-bool RouteObject::has_access(const Access access) const {
+bool Object::has_access(const Access access) const {
   return access & pe_.operation;
 }
 
-const std::string &RouteObject::get_cached_primary() {
+const std::string &Object::get_cached_primary() {
   return cached_primary_column_;
 }
 
-uint32_t RouteObject::get_on_page() { return pe_.on_page; }
+uint32_t Object::get_on_page() { return pe_.on_page; }
 
-RouteObject::Format RouteObject::get_format() const {
-  static_assert(static_cast<int>(DbObject::formatFeed) == kFeed);
-  static_assert(static_cast<int>(DbObject::formatItem) == kItem);
-  static_assert(static_cast<int>(DbObject::formatMedia) == kMedia);
+Object::Format Object::get_format() const {
+  static_assert(static_cast<int>(EntryDbObject::formatFeed) == kFeed);
+  static_assert(static_cast<int>(EntryDbObject::formatItem) == kItem);
+  static_assert(static_cast<int>(EntryDbObject::formatMedia) == kMedia);
 
-  return static_cast<Route::Format>(pe_.format);
+  return static_cast<Object::Format>(pe_.format);
 }
 
-RouteObject::Media RouteObject::get_media_type() const {
+Object::Media Object::get_media_type() const {
   return {!pe_.media_type.has_value() && pe_.autodetect_media_type,
           pe_.media_type};
 }
 
-collector::MysqlCacheManager *RouteObject::get_cache() { return cache_; }
+collector::MysqlCacheManager *Object::get_cache() { return cache_; }
 
-const std::string &RouteObject::get_rest_path_raw() { return rest_path_raw_; }
+const std::string &Object::get_rest_path_raw() { return rest_path_raw_; }
 
-std::string RouteObject::extract_first_slash(const std::string &value) {
+std::string Object::extract_first_slash(const std::string &value) {
   if (value.length()) {
     if (value[0] == '/') return value.substr(1);
   }
@@ -252,19 +250,18 @@ std::string RouteObject::extract_first_slash(const std::string &value) {
   return value;
 }
 
-uint32_t RouteObject::get_access() const { return access_flags_; }
+uint32_t Object::get_access() const { return access_flags_; }
 
-const RouteObject::RowUserOwnership &RouteObject::get_user_row_ownership()
-    const {
+const Object::RowUserOwnership &Object::get_user_row_ownership() const {
   return pe_.row_security;
 }
 
-const RouteObject::VectorOfRowGroupOwnership &
-RouteObject::get_group_row_ownership() const {
+const Object::VectorOfRowGroupOwnership &Object::get_group_row_ownership()
+    const {
   return pe_.row_group_security;
 }
 
-const mrs::interface::Route::Parameters &RouteObject::get_parameters() {
+const mrs::interface::Object::Parameters &Object::get_parameters() {
   return pe_.parameters;
 }
 

@@ -45,6 +45,26 @@ class Error {
   std::string message;
 };
 
+class ErrorChangeResponse {
+ public:
+  virtual ~ErrorChangeResponse() {}
+
+  virtual Error change_response(HttpRequest *request) const = 0;
+};
+
+class ErrorRedirect : public ErrorChangeResponse {
+ public:
+  ErrorRedirect(const std::string &redirect) : redirect_{redirect} {}
+
+  Error change_response(HttpRequest *request) const override {
+    request->get_output_headers().add("Location", redirect_.c_str());
+    return Error(HttpStatusCode::TemporaryRedirect);
+  }
+
+ private:
+  std::string redirect_;
+};
+
 }  // namespace http
 }  // namespace mrs
 

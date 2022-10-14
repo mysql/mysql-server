@@ -38,7 +38,7 @@
 #include "helper/random_string.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/url.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/rest/request_context.h"
 
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
@@ -118,18 +118,16 @@ class RequestHandlerJsonSubSimpleObject
   const std::string &bearer_;
 };
 
-Oauth2TwitterHandler::Oauth2TwitterHandler(const AuthApp &entry,
-                                           SessionManager *sm)
-    : Oauth2Handler{entry, sm} {
+Oauth2TwitterHandler::Oauth2TwitterHandler(const AuthApp &entry)
+    : Oauth2Handler{entry} {
   log_debug("Oauth2TwitterHandler for service %s", to_string(entry_).c_str());
 }
 
-std::string Oauth2TwitterHandler::get_url_location(RequestContext *ctxt) const {
+std::string Oauth2TwitterHandler::get_url_location(GenericSessionData *data,
+                                                   http::Url *url) const {
   std::string result{!entry_.url.empty()
                          ? entry_.url
                          : "https://twitter.com/i/oauth2/authorize"};
-
-  auto data = sm_.get_session_data(ctxt->request);
 
   result +=
       "?response_type=code&state=first&client_id=" + entry_.app_id +
@@ -167,10 +165,11 @@ std::string Oauth2TwitterHandler::get_body_access_token_request(
 }
 
 RequestHandlerPtr Oauth2TwitterHandler::get_request_handler_verify_account(
-    GenericSessionData *session_data, rest::RequestContext *ctxt) {
+    GenericSessionData *session_data) {
   return RequestHandlerPtr{new RequestHandlerJsonSubSimpleObject{
       session_data->access_token,
-      {{"id", &ctxt->user.vendor_user_id}, {"username", &ctxt->user.name}}}};
+      {{"id", &session_data->user.vendor_user_id},
+       {"username", &session_data->user.name}}}};
 }
 
 RequestHandlerPtr Oauth2TwitterHandler::get_request_handler_access_token(

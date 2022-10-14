@@ -41,11 +41,11 @@ namespace database {
 
 SchemaMonitor::SchemaMonitor(const mrs::Configuration &configuration,
                              collector::MysqlCacheManager *cache,
-                             mrs::RouteManager *router_manager,
-                             authentication::AuthManager *auth_manager)
+                             mrs::ObjectManager *dbobject_manager,
+                             authentication::AuthorizeManager *auth_manager)
     : configuration_{configuration},
       cache_{cache},
-      router_manager_{router_manager},
+      dbobject_manager_{dbobject_manager},
       auth_manager_{auth_manager} {}
 
 SchemaMonitor::~SchemaMonitor() { stop(); }
@@ -87,15 +87,15 @@ void SchemaMonitor::run() {
       content_file_fetcher->query_entries(session.get());
 
       if (turn_state.was_changed()) {
-        router_manager_->turn(turn_state.get_state());
+        dbobject_manager_->turn(turn_state.get_state());
         log_debug("route turn=%s, changed=%s",
                   (turn_state.get_state() == stateOn ? "on" : "off"),
                   turn_state.was_changed() ? "yes" : "no");
       }
 
       auth_manager_->update(authentication_fetcher->entries);
-      router_manager_->update(route_fetcher->entries);
-      router_manager_->update(content_file_fetcher->entries);
+      dbobject_manager_->update(route_fetcher->entries);
+      dbobject_manager_->update(content_file_fetcher->entries);
 
       if (!full_fetch_compleated) {
         full_fetch_compleated = true;

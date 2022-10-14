@@ -22,17 +22,34 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_ID_TYPE_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_ID_TYPE_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_REQUESTCONTEXT_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_REQUESTCONTEXT_H_
 
-#include <utility>
+#include "mysqlrouter/http_request.h"
+
+#include "collector/mysql_cache_manager.h"
+#include "mrs/database/entry/auth_user.h"
+#include "mrs/http/cookie.h"
+#include "mrs/interface/authorize_manager.h"
 
 namespace mrs {
+namespace rest {
 
-enum IdType { k_id_type_service_id, k_id_type_auth_id };
+struct RequestContext {
+  using SqlSessionCached = collector::MysqlCacheManager::CachedObject;
+  using AuthHandlerPtr = mrs::interface::AuthorizeManager::AuthorizeHandlerPtr;
+  using AuthUser = database::entry::AuthUser;
+  RequestContext() {}
+  RequestContext(HttpRequest *r) : request{r} {}
 
-using UniversalId = std::pair<IdType, uint64_t>;
+  HttpRequest *request{nullptr};
+  http::Cookie cookies{request};
+  SqlSessionCached sql_session_cache;
+  AuthUser user;
+  AuthHandlerPtr selected_handler;
+};
 
+}  // namespace rest
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_ID_TYPE_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_REQUESTCONTEXT_H_

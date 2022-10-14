@@ -25,12 +25,12 @@
 #ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_ROUTE_SCHEMA_H_
 #define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_ROUTE_SCHEMA_H_
 
-#include "mrs/interface/route_schema.h"
+#include "mrs/interface/object_schema.h"
 
-class MockRouteSchema : public mrs::interface::RouteSchema {
+class MockRouteSchema : public mrs::interface::ObjectSchema {
  public:
   using State = mrs::State;
-  using Route = mrs::interface::Route;
+  using Route = mrs::interface::Object;
 
   MOCK_METHOD(void, turn, (const State state), (override));
   MOCK_METHOD(void, route_unregister, (Route * r), (override));

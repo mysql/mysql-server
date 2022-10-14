@@ -22,45 +22,45 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_MANAGER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_MANAGER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_MANAGER_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_MANAGER_H_
 
 #include <map>
 #include <memory>
 #include <vector>
 
 #include "collector/mysql_cache_manager.h"
+#include "interface/object.h"
+#include "interface/object_factory.h"
 #include "mrs/database/entry/content_file.h"
 #include "mrs/database/entry/db_object.h"
-#include "mrs/interface/auth_manager.h"
-#include "mrs/interface/route.h"
-#include "mrs/interface/route_factory.h"
-#include "mrs/interface/route_manager.h"
-#include "mrs/interface/route_schema.h"
+#include "mrs/interface/authorize_manager.h"
+#include "mrs/interface/object_manager.h"
+#include "mrs/interface/object_schema.h"
 #include "mrs/state.h"
 
 namespace mrs {
 
-class RouteManager : public mrs::interface::RouteManager {
+class ObjectManager : public mrs::interface::ObjectManager {
  public:
   using EntryKey = database::entry::EntryKey;
   using EntryType = database::entry::EntryType;
   using DbObject = database::entry::DbObject;
   using ContentFile = database::entry::ContentFile;
-  using RoutePtr = std::shared_ptr<mrs::interface::Route>;
-  using RouteSchema = mrs::interface::RouteSchema;
-  using RouteSchemaPtr = std::shared_ptr<mrs::interface::RouteSchema>;
+  using RoutePtr = std::shared_ptr<mrs::interface::Object>;
+  using RouteSchema = mrs::interface::ObjectSchema;
+  using RouteSchemaPtr = std::shared_ptr<mrs::interface::ObjectSchema>;
 
   // TODO(lkotula): This is prototype, thus not every solution done here is
   // thread safe, some workarounded for now by shared_ptr & shared_from_this
   // (Shouldn't be in review)
  public:
-  RouteManager(collector::MysqlCacheManager *cache, const bool is_ssl,
-               mrs::interface::AuthManager *auth_manager,
-               std::shared_ptr<::mrs::interface::RouteFactory> factory);
-  RouteManager(collector::MysqlCacheManager *cache, const bool is_ssl,
-               mrs::interface::AuthManager *auth_manager);
-  ~RouteManager() override;
+  ObjectManager(collector::MysqlCacheManager *cache, const bool is_ssl,
+                mrs::interface::AuthorizeManager *auth_manager,
+                std::shared_ptr<::mrs::interface::ObjectFactory> factory);
+  ObjectManager(collector::MysqlCacheManager *cache, const bool is_ssl,
+                mrs::interface::AuthorizeManager *auth_manager);
+  ~ObjectManager() override;
 
   void turn(const State state) override;
   void update(const std::vector<DbObject> &paths) override;
@@ -82,10 +82,10 @@ class RouteManager : public mrs::interface::RouteManager {
   collector::MysqlCacheManager *cache_;
   bool is_ssl_;
   State state_{stateOff};
-  mrs::interface::AuthManager *auth_manager_;
-  std::shared_ptr<mrs::interface::RouteFactory> factory_;
+  mrs::interface::AuthorizeManager *auth_manager_;
+  std::shared_ptr<mrs::interface::ObjectFactory> factory_;
 };
 
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_MANAGER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_MANAGER_H_

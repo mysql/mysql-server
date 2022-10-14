@@ -25,9 +25,9 @@
 #ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_ROUTE_MANAGER_H_
 #define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_ROUTE_MANAGER_H_
 
-#include "mrs/interface/route_manager.h"
+#include "mrs/interface/object_manager.h"
 
-class MockRouteManager : public mrs::interface::RouteManager {
+class MockRouteManager : public mrs::interface::ObjectManager {
  public:
   MOCK_METHOD(void, turn, (const mrs::State state), (override));
   MOCK_METHOD(void, update, (const std::vector<DbObject> &paths), (override));

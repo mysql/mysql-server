@@ -31,11 +31,12 @@ class PartialMockRestHandler : public mrs::rest::Handler {
  public:
   PartialMockRestHandler(const std::string &url,
                          const std::string &rest_path_matcher,
-                         mrs::interface::AuthManager *auth_manager)
+                         mrs::interface::AuthorizeManager *auth_manager)
       : Handler{url, rest_path_matcher, "", auth_manager} {}
 
+  MOCK_METHOD(bool, may_check_access, (), (const, override));
   MOCK_METHOD(Authorization, requires_authentication, (), (const, override));
-  MOCK_METHOD(mrs::UniversalId, get_id, (), (const, override));
+  MOCK_METHOD(uint64_t, get_service_id, (), (const, override));
   MOCK_METHOD(uint64_t, get_db_object_id, (), (const, override));
   MOCK_METHOD(uint64_t, get_schema_id, (), (const, override));
   MOCK_METHOD(uint32_t, get_access_rights, (), (const, override));

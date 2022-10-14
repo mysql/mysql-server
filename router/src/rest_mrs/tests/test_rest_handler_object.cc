@@ -33,7 +33,7 @@
 #include "mock/mock_http_request.h"
 #include "mock/mock_http_server_component.h"
 #include "mock/mock_mysqlcachemanager.h"
-#include "mock/mock_route.h"
+#include "mock/mock_object.h"
 #include "mock/mock_route_schema.h"
 
 using helper::SetHttpComponent;
@@ -82,12 +82,11 @@ class RestHandlerObjectTests : public Test {
 };
 
 TEST_F(RestHandlerObjectTests, forwards_get_service_id) {
-  const mrs::UniversalId k_service_id{mrs::IdType::k_id_type_service_id, 10101};
+  const uint64_t k_service_id{10101};
 
   make_sut(k_url, k_path);
-  EXPECT_CALL(mock_route_, get_service_id())
-      .WillOnce(Return(k_service_id.second));
-  ASSERT_EQ(k_service_id, sut_->get_id());
+  EXPECT_CALL(mock_route_, get_service_id()).WillOnce(Return(k_service_id));
+  ASSERT_EQ(k_service_id, sut_->get_service_id());
   delete_sut();
 }
 

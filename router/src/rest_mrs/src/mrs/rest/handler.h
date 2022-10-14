@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "helper/media_type.h"
-#include "mrs/interface/auth_manager.h"
+#include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/rest_handler.h"
 
 namespace mrs {
@@ -39,9 +39,11 @@ namespace rest {
 class Handler : public interface::RestHandler {
  public:
   Handler(const std::string &url, const std::string &rest_path_matcher,
-          const std::string &options, interface::AuthManager *auth_manager);
+          const std::string &options,
+          interface::AuthorizeManager *auth_manager);
   ~Handler() override;
 
+  bool may_check_access() const override;
   void authorization(RequestContext *ctxt) override;
   bool request_begin(RequestContext *ctxt) override;
   void request_end(RequestContext *ctxt) override;
@@ -65,6 +67,7 @@ class Handler : public interface::RestHandler {
   const std::string url_;
   const std::string rest_path_matcher_;
   void *handler_id_;
+  interface::AuthorizeManager *authorization_manager_;
 };
 
 }  // namespace rest

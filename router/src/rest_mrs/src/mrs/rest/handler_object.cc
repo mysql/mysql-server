@@ -36,7 +36,7 @@
 #include "mrs/database/query_rest_table_insert.h"
 #include "mrs/database/query_rest_table_single_row.h"
 #include "mrs/http/url.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/rest/request_context.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -89,7 +89,7 @@ using Result = Handler::Result;
 // return supported Authentication methods for given service (Shouldn't be in
 // review)
 HandlerObject::HandlerObject(Route *route,
-                             mrs::interface::AuthManager *auth_manager)
+                             mrs::interface::AuthorizeManager *auth_manager)
     : Handler(route->get_rest_url(), route->get_rest_path(),
               route->get_options(), auth_manager),
       route_{route} {}
@@ -278,8 +278,8 @@ Handler::Authorization HandlerObject::requires_authentication() const {
                                            : Authorization::kNotNeeded;
 }
 
-std::pair<IdType, uint64_t> HandlerObject::get_id() const {
-  return {IdType::k_id_type_service_id, route_->get_service_id()};
+uint64_t HandlerObject::get_service_id() const {
+  return route_->get_service_id();
 }
 
 uint64_t HandlerObject::get_db_object_id() const { return route_->get_id(); }

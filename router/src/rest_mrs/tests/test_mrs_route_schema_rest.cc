@@ -32,13 +32,13 @@
 #include "helper/json/text_to.h"
 #include "helper/make_shared_ptr.h"
 #include "mrs/database/entry/db_object.h"
-#include "mrs/route_schema_rest.h"
+#include "mrs/object_schema.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_handler_factory.h"
 #include "mock/mock_mysqlcachemanager.h"
+#include "mock/mock_object.h"
 #include "mock/mock_rest_handler.h"
-#include "mock/mock_route.h"
 #include "mock/mock_route_manager.h"
 
 using namespace helper::json;
@@ -46,8 +46,8 @@ using namespace helper::json;
 using CachedObject = collector::MysqlCacheManager::CachedObject;
 
 using helper::MakeSharedPtr;
-using mrs::RouteSchemaRest;
-using mrs::interface::Route;
+using mrs::ObjectSchema;
+using mrs::interface::Object;
 using testing::ByMove;
 using testing::Mock;
 using testing::Return;
@@ -64,7 +64,7 @@ class RouteSchemaRestTests : public Test {
                 const std::string &service_name, const std::string &schema_name,
                 const bool is_ssl = false, const bool require_auth = false,
                 const std::string &host = "127.0.0.1") {
-    sut_ = std::make_shared<RouteSchemaRest>(
+    sut_ = std::make_shared<ObjectSchema>(
         &mock_route_manager_, &mock_mysqlcache_, service_name, schema_name,
         is_ssl, host, require_auth, service_id, schema_id, "",
         &mock_auth_manager_, mock_handler_factory_);
@@ -75,7 +75,7 @@ class RouteSchemaRestTests : public Test {
   StrictMock<MockAuthManager> mock_auth_manager_;
   MakeSharedPtr<StrictMock<MockHandlerFactory>> mock_handler_factory_;
 
-  std::shared_ptr<RouteSchemaRest> sut_;
+  std::shared_ptr<ObjectSchema> sut_;
 
  private:
   uint64_t last_id_{0};

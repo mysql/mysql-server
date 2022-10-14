@@ -40,11 +40,12 @@ class Oauth2GoogleHandler : public Oauth2Handler {
   class SessionData;
 
  public:
-  Oauth2GoogleHandler(const AuthApp &entry, SessionManager *sm);
+  Oauth2GoogleHandler(const AuthApp &entry);
 
  private:
   std::string get_url_direct_auth() const override;
-  std::string get_url_location(RequestContext *data) const override;
+  std::string get_url_location(GenericSessionData *data,
+                               http::Url *url) const override;
   std::string get_url_validation(GenericSessionData *data) const override;
 
   std::string get_body_access_token_request(
@@ -53,7 +54,7 @@ class Oauth2GoogleHandler : public Oauth2Handler {
   RequestHandlerPtr get_request_handler_access_token(
       GenericSessionData *session_data) override;
   RequestHandlerPtr get_request_handler_verify_account(
-      GenericSessionData *session_data, rest::RequestContext *ctxt) override;
+      GenericSessionData *session_data) override;
 };
 
 }  // namespace authentication

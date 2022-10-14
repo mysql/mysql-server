@@ -43,18 +43,23 @@ static std::string current_timestamp() {
 }
 
 using Session = SessionManager::Session;
-using SessionIdType = SessionManager::SessionIdType;
+using SessionIdType = SessionManager::SessionId;
 
-SessionManager::Session::Session(const SessionIdType id)
-    : id_{id}, access_time_{steady_clock::now()} {}
+SessionManager::Session::Session(const SessionId id,
+                                 const AuthorizationHandlerId authorization_id)
+    : id_{id},
+      access_time_{steady_clock::now()},
+      authorization_handler_id_{authorization_id} {}
 
-Session *SessionManager::new_session() {
+Session *SessionManager::new_session(
+    const AuthorizationHandlerId authorize_handler_id) {
   std::lock_guard<std::mutex> lck{mutex_};
-  sessions_.push_back(std::make_unique<Session>(generate_id_impl()));
+  sessions_.push_back(std::make_unique<Session>(generate_session_id_impl(),
+                                                authorize_handler_id));
   return sessions_.back().get();
 }
 
-Session *SessionManager::get_session(const SessionIdType &id) {
+Session *SessionManager::get_session(const SessionId &id) {
   std::lock_guard<std::mutex> lck{mutex_};
   auto result = get_session_impl(id);
   if (result) {
@@ -63,6 +68,21 @@ Session *SessionManager::get_session(const SessionIdType &id) {
   }
 
   return result;
+}
+
+bool SessionManager::remove_session(const SessionId session_id) {
+  std::lock_guard<std::mutex> lck{mutex_};
+  auto it = std::find_if(sessions_.begin(), sessions_.end(),
+                         [&session_id](const auto &item) {
+                           return item.get()->get_session_id() == session_id;
+                         });
+
+  if (it != sessions_.end()) {
+    sessions_.erase(it);
+    return true;
+  }
+
+  return false;
 }
 
 void SessionManager::remove_timeouted() {
@@ -84,13 +104,13 @@ void SessionManager::remove_session(const Session *session) {
   if (it != sessions_.end()) sessions_.erase(it);
 }
 
-Session *SessionManager::get_session_impl(const SessionIdType &id) {
+Session *SessionManager::get_session_impl(const SessionId &id) {
   Session *result{nullptr};
 
   remove_timeouted_impl();
 
   for (auto &session : sessions_) {
-    if (session->get_id() == id) {
+    if (session->get_session_id() == id) {
       result = session.get();
       break;
     }
@@ -99,10 +119,10 @@ Session *SessionManager::get_session_impl(const SessionIdType &id) {
   return result;
 }
 
-std::string SessionManager::generate_id_impl() {
+std::string SessionManager::generate_session_id_impl() {
   // TODO(lkotula): We need something random here, that user can't guess.
   // (Shouldn't be in review)
-  SessionIdType new_id;
+  SessionId new_id;
   do {
     new_id = current_timestamp() + "-" + std::to_string(last_session_id_++);
   } while (get_session_impl(new_id));

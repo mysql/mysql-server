@@ -22,35 +22,45 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_ROUTE_MANAGER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_ROUTE_MANAGER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_OBJECT_SCHEMA_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_OBJECT_SCHEMA_H_
 
+#include <cstdint>
+#include <string>
 #include <vector>
 
-#include "mrs/database/entry/content_file.h"
-#include "mrs/database/entry/db_object.h"
-#include "mrs/interface/route_schema.h"
+#include "mrs/interface/rest_handler.h"
 #include "mrs/state.h"
 
 namespace mrs {
 namespace interface {
 
-class RouteManager {
+class Object;
+
+class ObjectSchema {
  public:
-  using DbObject = database::entry::DbObject;
-  using ContentFile = database::entry::ContentFile;
-  using RouteSchema = mrs::interface::RouteSchema;
+  using VectorOfRoutes = std::vector<Object *>;
+  using Handler = mrs::interface::RestHandler;
+
+  virtual ~ObjectSchema() = default;
 
  public:
-  virtual ~RouteManager() = default;
-
   virtual void turn(const State state) = 0;
-  virtual void update(const std::vector<DbObject> &paths) = 0;
-  virtual void update(const std::vector<ContentFile> &contents) = 0;
-  virtual void schema_not_used(RouteSchema *route) = 0;
+  virtual void route_unregister(Object *r) = 0;
+  virtual void route_register(Object *r) = 0;
+
+  virtual const std::string &get_name() const = 0;
+  virtual const std::string &get_url() const = 0;
+  virtual const std::string &get_path() const = 0;
+  virtual const std::string &get_options() const = 0;
+  virtual const std::string get_full_path() const = 0;
+  virtual const VectorOfRoutes &get_routes() const = 0;
+  virtual bool requires_authentication() const = 0;
+  virtual uint64_t get_service_id() const = 0;
+  virtual uint64_t get_id() const = 0;
 };
 
 }  // namespace interface
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_ROUTE_MANAGER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_OBJECT_SCHEMA_H_

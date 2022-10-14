@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs/rest/handler_authorize.h"
+#include "mrs/rest/handler_authorize_common.h"
 
 #include <cassert>
 
@@ -35,38 +35,38 @@
 namespace mrs {
 namespace rest {
 
-using Result = HandlerAuthorize::Result;
+using Result = HandlerAuthorizeCommon::Result;
 using Route = mrs::interface::Object;
 
-HandlerAuthorize::HandlerAuthorize(const uint64_t service_id,
-                                   const std::string &url,
-                                   const std::string &rest_path_matcher,
-                                   const std::string &options,
-                                   const std::string &redirection,
-                                   interface::AuthorizeManager *auth_manager)
+HandlerAuthorizeCommon::HandlerAuthorizeCommon(
+    const uint64_t service_id, const std::string &url,
+    const std::string &rest_path_matcher, const std::string &options,
+    const std::string &redirection, interface::AuthorizeManager *auth_manager)
     : Handler(url, rest_path_matcher, options, auth_manager),
       service_id_{service_id},
       redirection_{redirection} {}
 
-Handler::Authorization HandlerAuthorize::requires_authentication() const {
+Handler::Authorization HandlerAuthorizeCommon::requires_authentication() const {
   return Authorization::kRequires;
 }
 
-uint64_t HandlerAuthorize::get_service_id() const { return service_id_; }
+uint64_t HandlerAuthorizeCommon::get_service_id() const { return service_id_; }
 
-uint64_t HandlerAuthorize::get_db_object_id() const {
+uint64_t HandlerAuthorizeCommon::get_db_object_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
   return 0;
 }
 
-uint64_t HandlerAuthorize::get_schema_id() const {
+uint64_t HandlerAuthorizeCommon::get_schema_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
   return 0;
 }
 
-uint32_t HandlerAuthorize::get_access_rights() const { return Route::kRead; }
+uint32_t HandlerAuthorizeCommon::get_access_rights() const {
+  return Route::kRead;
+}
 
-Result HandlerAuthorize::handle_get(
+Result HandlerAuthorizeCommon::handle_get(
     RequestContext *ctxt) {  // TODO(lkotula): Add status to redirection URL:
                              // (Shouldn't be in review)
   // ?status=ok|failure
@@ -77,16 +77,16 @@ Result HandlerAuthorize::handle_get(
   return {};
 }
 
-Result HandlerAuthorize::handle_post(RequestContext *,
-                                     const std::vector<uint8_t> &) {
+Result HandlerAuthorizeCommon::handle_post(RequestContext *,
+                                           const std::vector<uint8_t> &) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerAuthorize::handle_delete(RequestContext *) {
+Result HandlerAuthorizeCommon::handle_delete(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerAuthorize::handle_put(RequestContext *) {
+Result HandlerAuthorizeCommon::handle_put(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
@@ -101,7 +101,7 @@ static const char *get_authentication_status(HttpStatusCode::key_type code) {
   }
 }
 
-std::string HandlerAuthorize::append_status_parameters(
+std::string HandlerAuthorizeCommon::append_status_parameters(
     RequestContext *ctxt, const http::Error &error) {
   auto uri = HttpUri::parse(redirection_);
 
@@ -119,8 +119,8 @@ std::string HandlerAuthorize::append_status_parameters(
   return uri.join();
 }
 
-bool HandlerAuthorize::request_error(RequestContext *ctxt,
-                                     const http::Error &error) {
+bool HandlerAuthorizeCommon::request_error(RequestContext *ctxt,
+                                           const http::Error &error) {
   // Oauth2 authentication may redirect, allow it.
   if (error.status == HttpStatusCode::TemporaryRedirect) return false;
 
@@ -130,7 +130,7 @@ bool HandlerAuthorize::request_error(RequestContext *ctxt,
   return true;
 }
 
-bool HandlerAuthorize::may_check_access() const { return false; }
+bool HandlerAuthorizeCommon::may_check_access() const { return false; }
 
 }  // namespace rest
 }  // namespace mrs

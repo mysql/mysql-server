@@ -33,7 +33,7 @@
 #include "mysqlrouter/http_request.h"
 
 #include "mrs/database/query_entry_content_file.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/rest/request_context.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -65,13 +65,13 @@ namespace mrs {
 namespace rest {
 
 HandlerFile::HandlerFile(Route *route,
-                         mrs::interface::AuthManager *auth_manager)
+                         mrs::interface::AuthorizeManager *auth_manager)
     : Handler(route->get_rest_url(), route->get_rest_path(),
               route->get_options(), auth_manager),
       route_{route} {}
 
-std::pair<IdType, uint64_t> HandlerFile::get_id() const {
-  return {IdType::k_id_type_service_id, route_->get_service_id()};
+uint64_t HandlerFile::get_service_id() const {
+  return route_->get_service_id();
 }
 
 uint64_t HandlerFile::get_db_object_id() const {

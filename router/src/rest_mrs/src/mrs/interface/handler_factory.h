@@ -27,19 +27,19 @@
 
 #include <memory>
 
-#include "mrs/interface/auth_manager.h"
+#include "mrs/interface/authorize_manager.h"
+#include "mrs/interface/object.h"
+#include "mrs/interface/object_schema.h"
 #include "mrs/interface/rest_handler.h"
-#include "mrs/interface/route.h"
-#include "mrs/interface/route_schema.h"
 
 namespace mrs {
 namespace interface {
 
 class HandlerFactory {
  public:
-  using Route = mrs::interface::Route;
-  using RouteSchema = mrs::interface::RouteSchema;
-  using AuthManager = mrs::interface::AuthManager;
+  using Route = mrs::interface::Object;
+  using RouteSchema = mrs::interface::ObjectSchema;
+  using AuthManager = mrs::interface::AuthorizeManager;
   using Handler = mrs::interface::RestHandler;
 
   virtual ~HandlerFactory() = default;

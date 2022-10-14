@@ -44,17 +44,11 @@ class BasicHandler : public WwwAuthenticationHandler {
   uint64_t get_service_id() const override;
   uint64_t get_id() const override;
 
-  bool can_process(HttpRequest *request) override;
-  void mark_response(HttpRequest *request) override;
-
-  bool www_authorize(const std::string &token, Cached *out_cache,
+  bool www_authorize(const std::string &token, SqlSessionCached *out_cache,
                      AuthUser *out_user) override;
 
  private:
-  AuthApp entry_;
   collector::MysqlCacheManager *cache_manager_;
-  users::UserManager um_{entry_.id, entry_.limit_to_registered_users,
-                         entry_.default_role_id};
 };
 
 }  // namespace authentication

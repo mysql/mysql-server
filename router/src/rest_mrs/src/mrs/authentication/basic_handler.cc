@@ -53,26 +53,17 @@ static bool extract_user_credentials_from_token(
 
 BasicHandler::BasicHandler(const AuthApp &entry,
                            collector::MysqlCacheManager *cache_manager)
-    : entry_{entry}, cache_manager_{cache_manager} {
+    : WwwAuthenticationHandler(entry_), cache_manager_{cache_manager} {
   log_debug("BasicHandler for service %i, %s", (int)entry_.service_id,
             to_string(entry).c_str());
-}
-
-bool BasicHandler::can_process(HttpRequest *request) {
-  bool result = has_schema_is_www_authenticate(request, kBasicSchema);
-  log_debug("BasicHandler::can_process = %s", result ? "true" : "false");
-  return result;
-}
-
-void BasicHandler::mark_response(HttpRequest *request) {
-  add_www_authenticate(request, kBasicSchema);
 }
 
 uint64_t BasicHandler::get_service_id() const { return entry_.service_id; }
 
 uint64_t BasicHandler::get_id() const { return entry_.id; }
 
-bool BasicHandler::www_authorize(const std::string &token, Cached *out_cache,
+bool BasicHandler::www_authorize(const std::string &token,
+                                 SqlSessionCached *out_cache,
                                  AuthUser *out_user) {
   try {
     database::entry::AuthUser mrds_user;
@@ -80,7 +71,7 @@ bool BasicHandler::www_authorize(const std::string &token, Cached *out_cache,
     std::string auth_password;
 
     if (!extract_user_credentials_from_token(token, &auth_user, &auth_password))
-      return false;
+      throw std::runtime_error("extraction failed");
 
     auto default_auth_user =
         out_cache->get()->get_connection_parameters().conn_opts;
@@ -97,6 +88,7 @@ bool BasicHandler::www_authorize(const std::string &token, Cached *out_cache,
 
     return um_.user_get(out_user, out_cache);
   } catch (const std::exception &) {
+    add_www_authenticate(kBasicSchema);
     return false;
   }
 }

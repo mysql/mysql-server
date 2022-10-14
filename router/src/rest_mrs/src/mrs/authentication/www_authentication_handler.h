@@ -25,15 +25,28 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_WWW_AUTHENTICATION_HANDLER_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_WWW_AUTHENTICATION_HANDLER_H_
 
-#include "mrs/interface/auth_handler.h"
+#include "mrs/interface/authorize_handler.h"
+
+#include <optional>
+
+#include "mrs/database/entry/auth_app.h"
+#include "mrs/users/user_manager.h"
 
 #include "mysql/harness/string_utils.h"
 
 namespace mrs {
 namespace authentication {
 
-class WwwAuthenticationHandler : public interface::AuthHandler {
+class WwwAuthenticationHandler : public interface::AuthorizeHandler {
  protected:
+  using SessionManager = mrs::http::SessionManager;
+  using UserManager = mrs::users::UserManager;
+  using Session = mrs::http::SessionManager::Session;
+
+  AuthApp entry_;
+  UserManager um_{entry_.id, entry_.limit_to_registered_users,
+                  entry_.default_role_id};
+
   bool has_schema_is_www_authenticate(HttpRequest *request,
                                       const char *schema) {
     auto www_authorization = request->get_input_headers().get(kAuthorization);
@@ -46,19 +59,22 @@ class WwwAuthenticationHandler : public interface::AuthHandler {
     return auth_schema == schema;
   }
 
-  void add_www_authenticate(HttpRequest *request, const char *schema) {
-    request->get_output_headers().add(kWwwAuthenticate, schema);
-  }
+  void add_www_authenticate(const char *schema);
 
-  bool is_authorized(rest::RequestContext *ctxt) override;
-  bool authorize(rest::RequestContext *ctxt) override;
-  bool unauthorize(rest::RequestContext *ctxt) override;
+  bool is_authorized(Session *session, AuthUser *user) override;
+  bool authorize(Session *session, http::Url *url,
+                 SqlSessionCached *sql_session, HttpHeaders &input_headers,
+                 AuthUser *out_user) override;
+  const AuthApp &get_entry() const override;
 
  public:
+  WwwAuthenticationHandler(const AuthApp &entry) : entry_{entry} {}
+
   constexpr static char kAuthorization[] = "Authorization";
   constexpr static char kWwwAuthenticate[] = "WWW-Authenticate";
 
-  virtual bool www_authorize(const std::string &token, Cached *out_cache,
+  virtual bool www_authorize(const std::string &token,
+                             SqlSessionCached *out_cache,
                              AuthUser *out_user) = 0;
 };
 

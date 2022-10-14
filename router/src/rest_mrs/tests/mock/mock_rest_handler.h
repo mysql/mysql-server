@@ -32,9 +32,9 @@ class MockRestHandler : public mrs::interface::RestHandler {
   using RequestContext = mrs::rest::RequestContext;
   using Parameters = std::map<std::string, std::string>;
 
+  MOCK_METHOD(bool, may_check_access, (), (const, override));
   MOCK_METHOD(Authorization, requires_authentication, (), (const, override));
-  MOCK_METHOD((std::pair<mrs::IdType, uint64_t>), get_id, (),
-              (const, override));
+  MOCK_METHOD(uint64_t, get_service_id, (), (const, override));
   MOCK_METHOD(uint64_t, get_db_object_id, (), (const, override));
   MOCK_METHOD(uint64_t, get_schema_id, (), (const, override));
   MOCK_METHOD(uint32_t, get_access_rights, (), (const, override));

@@ -22,46 +22,49 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs/route_factory.h"
+#include "mrs/object_factory.h"
 
 #include <memory>
 
 #include "mrs/database/query_factory.h"
+#include "mrs/object.h"
+#include "mrs/object_schema.h"
+#include "mrs/object_static_file.h"
 #include "mrs/rest/handler_factory.h"
-#include "mrs/route_object.h"
-#include "mrs/route_schema_rest.h"
-#include "mrs/route_static_file.h"
 
 namespace mrs {
 
-RouteFactory::RouteFactory() {
+ObjectFactory::ObjectFactory() {
   handler_factory_ = std::make_shared<mrs::rest::HandlerFactory>();
   query_factory_ = std::make_shared<mrs::database::QueryFactory>();
 }
 
-std::shared_ptr<RouteFactory::Route> RouteFactory::create_router_object(
-    const DbObject &pe, std::shared_ptr<RouteSchema> schema,
+std::shared_ptr<ObjectFactory::Object> ObjectFactory::create_router_object(
+    const DbObject &pe, std::shared_ptr<ObjectSchema> schema,
     collector::MysqlCacheManager *cache, const bool is_ssl,
-    mrs::interface::AuthManager *auth_manager) {
-  return std::make_shared<RouteObject>(pe, schema, cache, is_ssl, auth_manager,
+    mrs::interface::AuthorizeManager *auth_manager) {
+  return std::make_shared<mrs::Object>(pe, schema, cache, is_ssl, auth_manager,
                                        handler_factory_, query_factory_);
 }
 
-std::shared_ptr<RouteFactory::Route> RouteFactory::create_router_static_object(
-    const ContentFile &pe, std::shared_ptr<RouteSchema> schema,
+std::shared_ptr<ObjectFactory::Object>
+ObjectFactory::create_router_static_object(
+    const ContentFile &pe, std::shared_ptr<ObjectSchema> schema,
     collector::MysqlCacheManager *cache, const bool is_ssl,
-    mrs::interface::AuthManager *auth_manager) {
-  return std::make_shared<RouteStaticFile>(pe, schema, cache, is_ssl,
-                                           auth_manager, handler_factory_);
+    mrs::interface::AuthorizeManager *auth_manager) {
+  return std::make_shared<mrs::ObjectStaticFile>(
+      pe, schema, cache, is_ssl, auth_manager, handler_factory_);
 }
 
-std::shared_ptr<RouteFactory::RouteSchema> RouteFactory::create_router_schema(
-    RouteManager *manager, collector::MysqlCacheManager *cache,
+std::shared_ptr<ObjectFactory::ObjectSchema>
+ObjectFactory::create_router_schema(
+    DbObjectManager *manager, collector::MysqlCacheManager *cache,
     const std::string &service, const std::string &name, const bool is_ssl,
     const std::string &host, const bool requires_authentication,
     const uint64_t service_id, const uint64_t schema_id,
-    const std::string &options, mrs::interface::AuthManager *auth_manager) {
-  return std::make_shared<RouteSchemaRest>(
+    const std::string &options,
+    mrs::interface::AuthorizeManager *auth_manager) {
+  return std::make_shared<mrs::ObjectSchema>(
       manager, cache, service, name, is_ssl, host, requires_authentication,
       service_id, schema_id, options, auth_manager, handler_factory_);
 }

@@ -31,7 +31,7 @@
 #include "helper/json/to_string.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/url.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/rest/request_context.h"
 
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/http_client.h"
@@ -64,18 +64,18 @@ class Oauth2GoogleHandler::SessionData
   steady_clock::time_point acquired_at;
 };
 
-Oauth2GoogleHandler::Oauth2GoogleHandler(const AuthApp &entry,
-                                         SessionManager *sm)
-    : Oauth2Handler{entry, sm} {
+Oauth2GoogleHandler::Oauth2GoogleHandler(const AuthApp &entry)
+    : Oauth2Handler{entry} {
   log_debug("Oauth2GoogleHandler for service %s", to_string(entry_).c_str());
 }
 
-std::string Oauth2GoogleHandler::get_url_location(RequestContext *data) const {
+std::string Oauth2GoogleHandler::get_url_location(GenericSessionData *,
+                                                  http::Url *url) const {
   std::string result{!entry_.url.empty()
                          ? entry_.url
                          : "https://accounts.google.com/o/oauth2/v2/auth"};
 
-  auto &requests_uri = data->request->get_uri();
+  auto &requests_uri = url->uri_;
   std::string uri = entry_.host + requests_uri.get_path();
 
   if (requests_uri.get_query().length()) {
@@ -123,11 +123,11 @@ RequestHandlerPtr Oauth2GoogleHandler::get_request_handler_access_token(
 }
 
 RequestHandlerPtr Oauth2GoogleHandler::get_request_handler_verify_account(
-    GenericSessionData *, rest::RequestContext *ctxt) {
+    GenericSessionData *data) {
   RequestHandler *result =
-      new RequestHandlerJsonSimpleObject{{{"id", &ctxt->user.vendor_user_id},
-                                          {"name", &ctxt->user.name},
-                                          {"email", &ctxt->user.email}}};
+      new RequestHandlerJsonSimpleObject{{{"id", &data->user.vendor_user_id},
+                                          {"name", &data->user.name},
+                                          {"email", &data->user.email}}};
 
   return RequestHandlerPtr{result};
 }

@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_AUTHORIZE_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_AUTHORIZE_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_AUTHORIZE_COMMON_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_AUTHORIZE_COMMON_H_
 
 #include <optional>
 #include <string>
@@ -36,15 +36,16 @@
 namespace mrs {
 namespace rest {
 
-class HandlerAuthorize : public Handler {
+class HandlerAuthorizeCommon : public Handler {
  public:
-  HandlerAuthorize(const uint64_t service_id, const std::string &url,
-                   const std::string &rest_path_matcher,
-                   const std::string &options, const std::string &redirection,
-                   interface::AuthorizeManager *auth_manager);
+  HandlerAuthorizeCommon(const uint64_t service_id, const std::string &url,
+                         const std::string &rest_path_matcher,
+                         const std::string &options,
+                         const std::string &redirection,
+                         interface::AuthorizeManager *auth_manager);
 
-  Authorization requires_authentication() const override;
   bool may_check_access() const override;
+  Authorization requires_authentication() const override;
   uint64_t get_service_id() const override;
   uint64_t get_db_object_id() const override;
   uint64_t get_schema_id() const override;
@@ -61,7 +62,6 @@ class HandlerAuthorize : public Handler {
  private:
   std::string append_status_parameters(RequestContext *ctxt,
                                        const http::Error &error);
-
   uint64_t service_id_;
   const std::string redirection_;
   std::string copy_url_;
@@ -71,4 +71,4 @@ class HandlerAuthorize : public Handler {
 }  // namespace rest
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_AUTHORIZE_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_AUTHORIZE_COMMON_H_

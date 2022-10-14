@@ -28,29 +28,27 @@
 
 #include "helper/json/serializer_to_text.h"
 #include "mrs/http/cookie.h"
-#include "mrs/interface/route.h"
-#include "mrs/rest/handler_request_context.h"
+#include "mrs/interface/object.h"
+#include "mrs/rest/request_context.h"
 
 namespace mrs {
 namespace rest {
 
 using Result = HandlerIsAuthorized::Result;
-using Route = mrs::interface::Route;
+using Route = mrs::interface::Object;
 
-HandlerIsAuthorized::HandlerIsAuthorized(const uint64_t id,
-                                         const std::string &url,
-                                         const std::string &rest_path_matcher,
-                                         const std::string &options,
-                                         interface::AuthManager *auth_manager)
-    : Handler(url, rest_path_matcher, options, auth_manager), id_{id} {}
+HandlerIsAuthorized::HandlerIsAuthorized(
+    const uint64_t service_id, const std::string &url,
+    const std::string &rest_path_matcher, const std::string &options,
+    interface::AuthorizeManager *auth_manager)
+    : Handler(url, rest_path_matcher, options, auth_manager),
+      service_id_{service_id} {}
 
 Handler::Authorization HandlerIsAuthorized::requires_authentication() const {
   return Authorization::kCheck;
 }
 
-std::pair<IdType, uint64_t> HandlerIsAuthorized::get_id() const {
-  return {IdType::k_id_type_auth_id, id_};
-}
+uint64_t HandlerIsAuthorized::get_service_id() const { return service_id_; }
 
 uint64_t HandlerIsAuthorized::get_db_object_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
@@ -101,6 +99,8 @@ void HandlerIsAuthorized::request_end(RequestContext *) {}
 bool HandlerIsAuthorized::request_error(RequestContext *, const http::Error &) {
   return false;
 }
+
+bool HandlerIsAuthorized::may_check_access() const { return false; }
 
 }  // namespace rest
 }  // namespace mrs

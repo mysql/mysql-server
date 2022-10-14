@@ -32,7 +32,7 @@
 #include "helper/json/text_to.h"
 #include "helper/make_shared_ptr.h"
 #include "mrs/database/entry/db_object.h"
-#include "mrs/route_object.h"
+#include "mrs/object.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_handler_factory.h"
@@ -48,11 +48,10 @@ using namespace helper::json;
 using CachedObject = collector::MysqlCacheManager::CachedObject;
 
 using helper::MakeSharedPtr;
-using mrs::RouteObject;
-using mrs::database::entry::DbObject;
+using mrs::interface::Object;
+using EntryDbObject = mrs::database::entry::DbObject;
 using mrs::database::entry::Operation;
 using mrs::database::entry::RowGroupOwnership;
-using mrs::interface::Route;
 using testing::_;
 using testing::ByMove;
 using testing::Eq;
@@ -64,7 +63,7 @@ using testing::StrictMock;
 using testing::Test;
 
 const uint64_t kDefaultInPage = 24;
-const auto kDefaultForamt = DbObject::formatFeed;
+const auto kDefaultForamt = EntryDbObject::formatFeed;
 const auto kDefaultOperation = Operation::valueRead;
 
 template <typename T>
@@ -83,7 +82,7 @@ class RouteObjectTests : public Test {
                       const std::string &service, const std::string &schema,
                       const std::string &object) {
     using namespace std::string_literals;
-    DbObject obj;
+    EntryDbObject obj;
 
     obj.id = ++last_id_;
     obj.active = true;
@@ -100,7 +99,7 @@ class RouteObjectTests : public Test {
     obj.requires_authentication = false;
     obj.schema_requires_authentication = false;
     obj.deleted = false;
-    obj.type = DbObject::typeTable;
+    obj.type = EntryDbObject::typeTable;
     obj.operation = kDefaultOperation;
     obj.autodetect_media_type = false;
     obj.host = "mysql.com";
@@ -114,13 +113,14 @@ class RouteObjectTests : public Test {
     sut_.reset();
   }
 
-  void make_sut(const DbObject &obj, const bool is_https = false) {
-    Route *register_argument = nullptr;
+  void make_sut(const EntryDbObject &obj, const bool is_https = false) {
+    Object *register_argument = nullptr;
     EXPECT_CALL(*mock_route_schema_, route_register(_))
-        .WillOnce(
-            Invoke([&register_argument](Route *r) { register_argument = r; }));
+        .WillOnce(Invoke([&register_argument](mrs::interface::Object *r) {
+          register_argument = r;
+        }));
 
-    sut_ = std::make_shared<RouteObject>(
+    sut_ = std::make_shared<mrs::Object>(
         obj, mock_route_schema_, &mock_mysqlcache_, is_https,
         &mock_auth_manager_, mock_handler_factory_, mock_query_factory_);
     ASSERT_EQ(sut_.get(), register_argument);
@@ -136,7 +136,7 @@ class RouteObjectTests : public Test {
   StrictMock<MockMysqlCacheManager> mock_mysqlcache_;
   StrictMock<MockMySQLSession> mock_session;
   MakeSharedPtr<StrictMock<MockRouteSchema>> mock_route_schema_;
-  std::shared_ptr<RouteObject> sut_;
+  std::shared_ptr<Object> sut_;
 
  private:
   uint64_t last_id_{0};
@@ -207,7 +207,7 @@ TEST_F(RouteObjectTests, validate_route_parameters_after_update) {
   const uint64_t kServiceId = 33;
   const uint64_t kSchemaId = 44;
   const uint64_t kNewInPage = 1232;
-  const auto kNewFormat = DbObject::formatItem;
+  const auto kNewFormat = EntryDbObject::formatItem;
   const auto kNewOperation = Operation::valueUpdate;
   const std::string kNewHost = "abc.de";
   const std::string kNewServicePath = "/mrs";

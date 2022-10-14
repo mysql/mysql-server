@@ -25,7 +25,7 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_SP_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_SP_H_
 
-#include "mrs/interface/route.h"
+#include "mrs/interface/object.h"
 #include "mrs/rest/handler.h"
 
 namespace mrs {
@@ -33,10 +33,10 @@ namespace rest {
 
 class HandlerSP : public rest::Handler {
  public:
-  using Route = mrs::interface::Route;
+  using Route = mrs::interface::Object;
 
  public:
-  HandlerSP(Route *r, mrs::interface::AuthManager *auth_manager)
+  HandlerSP(Route *r, mrs::interface::AuthorizeManager *auth_manager)
       : Handler{r->get_rest_url(), r->get_rest_path(), r->get_options(),
                 auth_manager},
         route_{r},
@@ -50,7 +50,7 @@ class HandlerSP : public rest::Handler {
 
   void authorization(rest::RequestContext *ctxt) override;
   Authorization requires_authentication() const override;
-  std::pair<IdType, uint64_t> get_id() const override;
+  uint64_t get_service_id() const override;
   uint64_t get_db_object_id() const override;
   uint64_t get_schema_id() const override;
 
@@ -58,7 +58,7 @@ class HandlerSP : public rest::Handler {
 
  private:
   Route *route_;
-  mrs::interface::AuthManager *auth_manager_;
+  mrs::interface::AuthorizeManager *auth_manager_;
 };
 
 }  // namespace rest

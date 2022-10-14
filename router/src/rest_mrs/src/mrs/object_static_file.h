@@ -22,36 +22,36 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_STATIC_FILE_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_STATIC_FILE_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_STATIC_FILE_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_STATIC_FILE_H_
 
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "interface/object.h"
 #include "mrs/database/entry/content_file.h"
-#include "mrs/interface/auth_manager.h"
+#include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/handler_factory.h"
 #include "mrs/interface/rest_handler.h"
-#include "mrs/interface/route.h"
 #include "mrs/state.h"
 
 namespace mrs {
 
-class RouteStaticFile : public mrs::interface::Route {
+class ObjectStaticFile : public mrs::interface::Object {
  public:
-  using RouteSchema = mrs::interface::RouteSchema;
+  using RouteSchema = mrs::interface::ObjectSchema;
   using ContentFile = database::entry::ContentFile;
   using HandlerFactory = mrs::interface::HandlerFactory;
-  using AuthManager = mrs::interface::AuthManager;
+  using AuthManager = mrs::interface::AuthorizeManager;
   using MysqlCacheManager = collector::MysqlCacheManager;
 
  public:
-  RouteStaticFile(const ContentFile &pe, RouteSchemaPtr schema,
-                  MysqlCacheManager *cache, const bool is_ssl,
-                  AuthManager *auth_manager,
-                  std::shared_ptr<HandlerFactory> handler_factory);
+  ObjectStaticFile(const ContentFile &pe, RouteSchemaPtr schema,
+                   MysqlCacheManager *cache, const bool is_ssl,
+                   AuthManager *auth_manager,
+                   std::shared_ptr<HandlerFactory> handler_factory);
 
   void turn(const State state) override;
   bool update(const void *pe, RouteSchemaPtr schema) override;
@@ -105,4 +105,4 @@ class RouteStaticFile : public mrs::interface::Route {
 
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_ROUTE_STATIC_FILE_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_OBJECT_STATIC_FILE_H_

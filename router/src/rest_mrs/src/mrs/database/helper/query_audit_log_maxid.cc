@@ -22,9 +22,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "query_audit_log_maxid.h"
-
-#include "query_audit_log_maxid.h"
+#include "mrs/database/helper/query_audit_log_maxid.h"
 
 namespace mrs {
 namespace database {

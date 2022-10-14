@@ -23,28 +23,83 @@
 */
 
 #include "mrs/authentication/www_authentication_handler.h"
-#include "mrs/rest/handler_request_context.h"
+
+#include "mrs/http/error.h"
 
 namespace mrs {
 namespace authentication {
 
-bool WwwAuthenticationHandler::is_authorized(rest::RequestContext *ctxt) {
-  if (!authorize(ctxt)) {
-    ctxt->user.has_user_id = false;
-    return false;
+using AuthApp = mrs::database::entry::AuthApp;
+using AuthUser = mrs::database::entry::AuthUser;
+using Session = mrs::http::SessionManager::Session;
+
+struct WwwAuthSessionData : mrs::http::SessionManager::Session::SessionData {
+  enum State { kWaitingForToken, kUserVerified };
+
+  State state{kWaitingForToken};
+  AuthUser user;
+};
+
+bool WwwAuthenticationHandler::is_authorized(Session *session, AuthUser *user) {
+  auto session_data = session->get_data<WwwAuthSessionData>();
+  if (!session_data) return false;
+  if (session_data->state != WwwAuthSessionData::kUserVerified) return false;
+
+  *user = session_data->user;
+
+  return true;
+}
+
+static WwwAuthSessionData *get_session_data(Session *session) {
+  auto session_data = session->get_data<WwwAuthSessionData>();
+  if (session_data) return session_data;
+
+  session_data = new WwwAuthSessionData();
+  session->set_data(session_data);
+
+  return session_data;
+}
+
+bool WwwAuthenticationHandler::authorize(Session *session, http::Url *,
+                                         SqlSessionCached *sql_session,
+                                         HttpHeaders &input_headers,
+                                         AuthUser *out_user) {
+  auto session_data = get_session_data(session);
+
+  if (session_data->state == WwwAuthSessionData::kUserVerified) {
+    *out_user = session_data->user;
+    return true;
   }
-  return true;
-}
 
-bool WwwAuthenticationHandler::authorize(rest::RequestContext *ctxt) {
-  auto authorization = ctxt->request->get_input_headers().get(kAuthorization);
+  auto authorization = input_headers.get(kAuthorization);
   auto args = mysql_harness::split_string(authorization, ' ', false);
+  std::string value = args.size() > 1 ? args[1] : "";
+  auto result = www_authorize(value, sql_session, out_user);
 
-  return www_authorize(args[1], &ctxt->sql_session_cache, &ctxt->user);
+  if (result) {
+    session_data->user = *out_user;
+  }
+
+  return result;
 }
 
-bool WwwAuthenticationHandler::unauthorize(rest::RequestContext *) {
-  return true;
+const AuthApp &WwwAuthenticationHandler::get_entry() const { return entry_; }
+
+void WwwAuthenticationHandler::add_www_authenticate(const char *schema) {
+  class ErrorAddWwwBasicAuth : public http::ErrorChangeResponse {
+   public:
+    ErrorAddWwwBasicAuth(const std::string &schema) : schema_{schema} {}
+
+    http::Error change_response(HttpRequest *request) const override {
+      request->get_output_headers().add(kWwwAuthenticate, schema_.c_str());
+
+      return http::Error{HttpStatusCode::Unauthorized};
+    }
+
+    const std::string schema_;
+  };
+
+  throw ErrorAddWwwBasicAuth(schema);
 }
 
 }  // namespace authentication

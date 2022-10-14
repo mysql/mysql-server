@@ -35,6 +35,7 @@ uint64_t QueryEntriesAuthApp::get_last_update() { return audit_log_id_; }
 QueryEntriesAuthApp::QueryEntriesAuthApp() {
   query_ =
       "SELECT * FROM (SELECT a.id, service_id, s.url_context_root, v.name, "
+      "a.name,  "
       "  a.enabled and "
       "    v.enabled, a.url, v.validation_url,  a.access_token, a.app_id, "
       "  CONCAT(IF(s.url_protocol=\"HTTPS\",\"https://\",\"http://\"),h.name) "
@@ -75,6 +76,7 @@ void QueryEntriesAuthApp::on_row(const Row &row) {
   mysql_row.unserialize(&entry.service_id);
   mysql_row.unserialize(&entry.service_name);
   mysql_row.unserialize(&entry.name);
+  mysql_row.unserialize(&entry.app_name);
   mysql_row.unserialize(&entry.active);
   mysql_row.unserialize(&entry.url);
   mysql_row.unserialize(&entry.url_validation);

@@ -25,18 +25,19 @@
 #ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_AUTH_HANDLER_H_
 #define ROUTER_SRC_REST_MRS_TESTS_MOCK_AUTH_HANDLER_H_
 
-#include "mrs/interface/auth_handler.h"
+#include "mrs/interface/authorize_handler.h"
 
-class MockAuthHandler : public mrs::interface::AuthHandler {
+class MockAuthHandler : public mrs::interface::AuthorizeHandler {
  public:
   MOCK_METHOD(uint64_t, get_service_id, (), (const, override));
+  MOCK_METHOD(const AuthApp &, get_entry, (), (const, override));
   MOCK_METHOD(uint64_t, get_id, (), (const, override));
-  MOCK_METHOD(bool, can_process, (HttpRequest * request), (override));
-  MOCK_METHOD(void, mark_response, (HttpRequest * request), (override));
-  MOCK_METHOD(bool, authorize, (mrs::rest::RequestContext * ctxt), (override));
-  MOCK_METHOD(bool, unauthorize, (mrs::rest::RequestContext * ctxt),
+  MOCK_METHOD(bool, authorize,
+              (Session * session, mrs::http::Url *url,
+               SqlSessionCached *sql_session, HttpHeaders &input_headers,
+               AuthUser *out_user),
               (override));
-  MOCK_METHOD(bool, is_authorized, (mrs::rest::RequestContext * ctxt),
+  MOCK_METHOD(bool, is_authorized, (Session * session, AuthUser *user),
               (override));
 };
 

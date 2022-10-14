@@ -22,16 +22,18 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTH_MANAGER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTH_MANAGER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTHORIZE_MANAGER_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTHORIZE_MANAGER_H_
 
 #include <memory>
 #include <vector>
 
 #include "helper/mysql_time.h"
 #include "mrs/database/entry/auth_app.h"
-#include "mrs/id_type.h"
-#include "mrs/interface/auth_handler.h"
+#include "mrs/database/entry/auth_user.h"
+#include "mrs/http/cookie.h"
+#include "mrs/http/url.h"
+#include "mrs/interface/authorize_handler.h"
 
 namespace collector {
 
@@ -42,22 +44,31 @@ class MysqlCacheManager;
 namespace mrs {
 namespace interface {
 
-class AuthManager {
+class AuthorizeManager {
  public:
-  using HandlerPtr = std::shared_ptr<AuthHandler>;
-  using AuthHandlers = std::vector<HandlerPtr>;
+  using SqlSessionCached = collector::MysqlCacheManager::CachedObject;
+  using AuthorizeHandlerPtr = std::shared_ptr<AuthorizeHandler>;
+  using AuthHandlers = std::vector<AuthorizeHandlerPtr>;
   using AuthApp = database::entry::AuthApp;
+  using AuthUser = database::entry::AuthUser;
   using Entries = std::vector<AuthApp>;
+  using ServiceId = uint64_t;
 
-  virtual ~AuthManager() = default;
+  virtual ~AuthorizeManager() = default;
 
   virtual void update(const Entries &entries) = 0;
-  virtual AuthHandlers get_handlers_by_id(
-      const std::pair<IdType, uint64_t> &id) = 0;
+
+  virtual bool authorize(ServiceId id, http::Cookie *cookies, http::Url *url,
+                         SqlSessionCached *sql_session,
+                         HttpHeaders &input_headers, AuthUser *out_user) = 0;
+  virtual bool is_authorized(ServiceId id, http::Cookie *cookies,
+                             AuthUser *user) = 0;
+  virtual bool unauthorize(ServiceId id, http::Cookie *cookies) = 0;
+
   virtual collector::MysqlCacheManager *get_cache() = 0;
 };
 
 }  // namespace interface
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTH_MANAGER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTHORIZE_MANAGER_H_

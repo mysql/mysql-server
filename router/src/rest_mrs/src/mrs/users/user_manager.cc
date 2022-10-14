@@ -70,8 +70,7 @@ AuthUser *UserManager::cache_get(AuthUser *out_user, bool *out_is_different) {
   return nullptr;
 }
 
-bool UserManager::user_get(AuthUser *out_user,
-                           mrs::interface::AuthHandler::Cached *out_cache) {
+bool UserManager::user_get(AuthUser *out_user, SqlSessionCache *out_cache) {
   AuthUser tmp_user;
   AuthUser *found_user = nullptr;
   bool needs_update = false;

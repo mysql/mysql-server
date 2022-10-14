@@ -38,10 +38,11 @@ class Oauth2TwitterHandler : public Oauth2Handler {
   class SessionData;
 
  public:
-  Oauth2TwitterHandler(const AuthApp &entry, SessionManager *sm);
+  Oauth2TwitterHandler(const AuthApp &entry);
 
  private:
-  std::string get_url_location(RequestContext *data) const override;
+  std::string get_url_location(GenericSessionData *,
+                               http::Url *url) const override;
   std::string get_url_direct_auth() const override;
   std::string get_url_validation(GenericSessionData *data) const override;
 
@@ -51,7 +52,7 @@ class Oauth2TwitterHandler : public Oauth2Handler {
   RequestHandlerPtr get_request_handler_access_token(
       GenericSessionData *session_data) override;
   RequestHandlerPtr get_request_handler_verify_account(
-      GenericSessionData *session_data, rest::RequestContext *ctxt) override;
+      GenericSessionData *session_data) override;
 };
 
 }  // namespace authentication
