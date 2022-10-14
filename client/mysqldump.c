@@ -6484,12 +6484,11 @@ int main(int argc, char **argv)
       /* store the gtids in to the gtid_array */
       for (idx = 0; idx < gtid_arr->num_rows; idx++)
       {
-          gtid_arr->gtid_array[idx] = (char*)my_malloc(PSI_NOT_INSTRUMENTED,
-                                             sizeof(char)*80,
-                                             MYF(0));
+          MYSQL_ROW current_gtid_row = NULL;
+          current_gtid_row = mysql_fetch_row(gtid_executed);
 
           gtid_arr->gtid_array[idx] = my_strdup(PSI_NOT_INSTRUMENTED,
-                                      *mysql_fetch_row(gtid_executed),
+                                      ((char*)current_gtid_row[0]),
                                       MYF(0));
       }
 
