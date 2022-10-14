@@ -556,7 +556,6 @@ bool is_gtid_committed(const Gtid &gtid) {
 bool wait_for_gtid_set_committed(const char *gtid_set_text, double timeout,
                                  bool update_thd_status) {
   THD *thd = current_thd;
-  assert(!thd->slave_thread);
   Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
 
   global_sid_lock->rdlock();
