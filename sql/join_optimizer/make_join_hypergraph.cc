@@ -56,6 +56,7 @@
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/nested_join.h"
 #include "sql/sql_class.h"
+#include "sql/sql_const.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"
@@ -3297,6 +3298,83 @@ table_map GetTablesInnerToOuterJoinOrAntiJoin(
   return 0;
 }
 
+/**
+  Fully expand a multiple equality for a single table as simple equalities and
+  append each equality to the array of conditions. Only expected to be called on
+  multiple equalities that do not have an already known value, as such
+  equalities should be eliminated by constant folding instead of being expanded.
+ */
+bool ExpandMultipleEqualsForSingleTable(Item_equal *equal,
+                                        Mem_root_array<Item *> *conditions) {
+  assert(!equal->const_item());
+  assert(IsSingleBitSet(equal->used_tables() & ~PSEUDO_TABLE_BITS));
+  Item *const_arg = equal->const_arg();
+  if (const_arg != nullptr) {
+    for (Item_field &field : equal->get_fields()) {
+      if (conditions->push_back(MakeEqItem(&field, const_arg, equal))) {
+        return true;
+      }
+    }
+  } else {
+    Item_field *prev = nullptr;
+    for (Item_field &field : equal->get_fields()) {
+      if (prev != nullptr) {
+        if (conditions->push_back(MakeEqItem(prev, &field, equal))) {
+          return true;
+        }
+      }
+      prev = &field;
+    }
+  }
+  return false;
+}
+
+/**
+  Extract all WHERE conditions in a single-table query. Multiple equalities are
+  fully expanded unconditionally, since there is only one way to expand them
+  when there is only a single table (no need to consider that they should be
+  pushable to joins). Normalization will also be performed if necessary.
+ */
+bool ExtractWhereConditionsForSingleTable(THD *thd, Item *condition,
+                                          Mem_root_array<Item *> *conditions,
+                                          bool *where_is_always_false) {
+  bool need_normalization = false;
+  if (WalkConjunction(condition, [conditions, &need_normalization](Item *cond) {
+        if (IsMultipleEquals(cond)) {
+          Item_equal *equal = down_cast<Item_equal *>(cond);
+          if (equal->const_item()) {
+            // This equality is known to evaluate to a constant value. Don't
+            // expand it, but rather let constant folding remove it. Flag that
+            // normalization is needed, so that constant folding kicks in.
+            need_normalization = true;
+            return conditions->push_back(equal);
+          } else {
+            // Expand the multiple equality. Normalization does not do anything
+            // useful if all conditions are multiple equalities.
+            return ExpandMultipleEqualsForSingleTable(equal, conditions);
+          }
+        } else {
+          // Some other kind of condition. We might be able to simplify it in
+          // normalization, so flag that we need normalization.
+          need_normalization = true;
+          return ExtractConditions(
+              EarlyExpandMultipleEquals(cond, TablesBetween(0, MAX_TABLES)),
+              conditions);
+        }
+      })) {
+    return true;
+  }
+
+  if (need_normalization) {
+    if (EarlyNormalizeConditions(thd, /*join=*/nullptr, conditions,
+                                 where_is_always_false)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /// Fast path for MakeJoinHypergraph() when the query accesses a single table.
 bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
                                string *trace, JoinHypergraph *graph,
@@ -3307,22 +3385,11 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
   RelationalExpression *root = MakeRelationalExpression(thd, table_ref);
   MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
 
-  const JOIN *join = query_block->join;
-  if (join->where_cond != nullptr) {
-    const table_map tables_in_tree = table_ref->map();
-    Item *where_cond =
-        EarlyExpandMultipleEquals(join->where_cond, tables_in_tree);
+  if (Item *const where_cond = query_block->join->where_cond;
+      where_cond != nullptr) {
     Mem_root_array<Item *> where_conditions(thd->mem_root);
-    if (ExtractConditions(where_cond, &where_conditions)) {
-      return true;
-    }
-
-    if (EarlyNormalizeConditions(thd, /*join=*/nullptr, &where_conditions,
-                                 where_is_always_false)) {
-      return true;
-    }
-
-    if (CanonicalizeConditions(thd, tables_in_tree, &where_conditions)) {
+    if (ExtractWhereConditionsForSingleTable(thd, where_cond, &where_conditions,
+                                             where_is_always_false)) {
       return true;
     }
 
