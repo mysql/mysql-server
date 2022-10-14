@@ -229,11 +229,29 @@ Sasl_client::~Sasl_client() {
   m_sasl_mechanism = nullptr;
 }
 
+/**
+ * send SASL request to the server and read the servers reply.
+ *
+ * wraps the SASL message in a MySQL packet and sends it to the server.
+ *
+ * if sending to the server fails, the function fails. But if reading
+ * the reply fails, the *response_len will be 0.
+ *
+ * @param[in] request pointer to the SASL request payload
+ * @param[in] request_len length of the request
+ * @param[out] response pointer to a location where the response buffers
+ * location shall be stored.
+ * @param[out] response_len pointer to a location where the length of the
+ * response buffer shall be stored.
+ *
+ * @retval 1 write failed.
+ * @retval 0 write succeeded, but read may have failed.
+ */
 int Sasl_client::send_sasl_request_to_server(const unsigned char *request,
                                              int request_len,
                                              unsigned char **response,
                                              int *response_len) {
-  int rc_server = CR_ERROR;
+  int rc_server = 1;
   std::stringstream log_stream;
 
   if (m_vio == nullptr) {
@@ -364,6 +382,16 @@ static int initialize_plugin(char *, size_t, int, va_list) SUPPRESS_UBSAN;
 static int deinitialize_plugin() SUPPRESS_UBSAN;
 #endif  // __clang__
 
+/*
+ * authenticate via SASL.
+ *
+ * executes the SASL full handshake.
+ *
+ * @returns one of the CR_xxx codes.
+ * @retval CR_OK on auth success
+ * @retval CR_ERROR on generic auth failure
+ * @retval CR_AUTH_HANDSHAKE on handshake failure
+ */
 static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   int rc_sasl = SASL_FAIL;
   int rc_auth = CR_ERROR;
@@ -424,10 +452,12 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   do {
     server_packet = nullptr;
     server_packet_len = 0;
-    rc_auth = sasl_client.send_sasl_request_to_server(
+    const int send_res = sasl_client.send_sasl_request_to_server(
         (const unsigned char *)sasl_client_output, sasl_client_output_len,
         &server_packet, &server_packet_len);
-    if (rc_auth < 0) {
+    if (send_res != 0) {
+      rc_auth = CR_AUTH_HANDSHAKE;
+
       goto EXIT;
     }
     sasl_client_output = nullptr;
@@ -442,6 +472,7 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   if (rc_sasl == SASL_OK) {
     rc_auth = CR_OK;
+
     log_dbg("sasl_authenticate authentication successful");
     /**
       Kerberos authentication is concluded by the LDAP/SASL server,
@@ -451,7 +482,7 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     */
     if (strcmp(sasl_client.get_method().c_str(), SASL_GSSAPI) == 0) {
       server_packet = nullptr;
-      rc_auth = sasl_client.send_sasl_request_to_server(
+      /* int send_res = */ sasl_client.send_sasl_request_to_server(
           (const unsigned char *)sasl_client_output, sasl_client_output_len,
           &server_packet, &server_packet_len);
       rc_auth = CR_OK;
