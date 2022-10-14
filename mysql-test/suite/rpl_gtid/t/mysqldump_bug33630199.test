@@ -43,7 +43,9 @@
 --source include/have_binlog_format_row.inc
 --let $rpl_gtid_utils= 1
 --let $rpl_skip_start_slave= 1
+--disable_warnings
 --source include/master-slave.inc
+--enable_warnings
 
 # Step 1
 # Running mysqldump, and inserting data into the tables at the same time
