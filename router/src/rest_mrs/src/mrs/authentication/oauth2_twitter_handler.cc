@@ -124,7 +124,7 @@ Oauth2TwitterHandler::Oauth2TwitterHandler(const AuthApp &entry)
 }
 
 std::string Oauth2TwitterHandler::get_url_location(GenericSessionData *data,
-                                                   http::Url *url) const {
+                                                   http::Url *) const {
   std::string result{!entry_.url.empty()
                          ? entry_.url
                          : "https://twitter.com/i/oauth2/authorize"};

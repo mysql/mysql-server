@@ -83,6 +83,7 @@ class SessionManager {
 
     std::string users_on_complete_url_redirection;
     std::string users_on_complete_timeout;
+    std::string handler_name;
 
    private:
     std::unique_ptr<SessionData> data_;

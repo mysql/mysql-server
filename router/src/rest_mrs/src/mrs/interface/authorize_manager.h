@@ -32,6 +32,7 @@
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/cookie.h"
+#include "mrs/http/session_manager.h"
 #include "mrs/http/url.h"
 #include "mrs/interface/authorize_handler.h"
 
@@ -46,6 +47,7 @@ namespace interface {
 
 class AuthorizeManager {
  public:
+  using Session = http::SessionManager::Session;
   using SqlSessionCached = collector::MysqlCacheManager::CachedObject;
   using AuthorizeHandlerPtr = std::shared_ptr<AuthorizeHandler>;
   using AuthHandlers = std::vector<AuthorizeHandlerPtr>;
@@ -64,6 +66,10 @@ class AuthorizeManager {
   virtual bool is_authorized(ServiceId id, http::Cookie *cookies,
                              AuthUser *user) = 0;
   virtual bool unauthorize(ServiceId id, http::Cookie *cookies) = 0;
+  virtual Session *get_current_session(ServiceId id, http::Cookie *cookies) = 0;
+
+  // TODO(lkotula): = 0 (Shouldn't be in review)
+  virtual void discard_current_session(ServiceId, http::Cookie *) {}
 
   virtual collector::MysqlCacheManager *get_cache() = 0;
 };

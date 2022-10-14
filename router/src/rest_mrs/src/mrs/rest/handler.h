@@ -62,7 +62,7 @@ class Handler : public interface::RestHandler {
 
   void throw_unauthorize_when_check_auth_fails(RequestContext *);
 
- private:
+ protected:
   const Parameters parameters_;
   const std::string url_;
   const std::string rest_path_matcher_;

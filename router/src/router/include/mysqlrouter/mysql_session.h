@@ -35,6 +35,7 @@
 #include <vector>
 
 #include <mysql.h>  // enum mysql_ssl_mode
+#include <string.h>
 
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/log_filter.h"

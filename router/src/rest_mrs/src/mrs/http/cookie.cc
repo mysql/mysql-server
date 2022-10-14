@@ -53,7 +53,8 @@ static void enum_key_values(const std::string &value, Callback cb) {
 Cookie::Cookie(HttpRequest *request) : request_{request} {
   if (nullptr == request_) return;
 
-  auto value = request_->get_input_headers().get(kHttpParameterNameCookie);
+  auto value_c = request_->get_input_headers().get(kHttpParameterNameCookie);
+  std::string value = value_c ? value_c : "";
   enum_key_values(value, [this](const auto &key, const auto &value) {
     cookies_[std::string{key}] = value;
     return true;

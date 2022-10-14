@@ -41,6 +41,7 @@ class Oauth2FacebookHandler : public Oauth2Handler {
 
  public:
   Oauth2FacebookHandler(const AuthApp &entry);
+  ~Oauth2FacebookHandler() override;
 
  private:
   std::string get_url_direct_auth() const override;

@@ -75,13 +75,14 @@ class CycleBuffer {
  public:
   template <typename Pos = Position, typename Buffer = CycleBuffer,
             typename Reference = Creference>
-  class Iterator : public std::iterator<
-                       std::bidirectional_iterator_tag,  // iterator_category
-                       value_type,                       // value_type
-                       long,                             // difference_type
-                       Cpointer,                         // pointer
-                       Creference> {
+  class Iterator {
    public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = CycleBuffer::value_type;
+    using difference_type = long;
+    using pointer = Cpointer;
+    using reference = Creference;
+
     explicit Iterator(Pos position, Buffer *buffer)
         : position_(position), buffer_{buffer} {}
 

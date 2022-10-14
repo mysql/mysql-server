@@ -42,6 +42,8 @@ class MockAuthManager : public mrs::interface::AuthorizeManager {
   MOCK_METHOD(bool, unauthorize, (ServiceId id, mrs::http::Cookie *cookies),
               (override));
 
+  MOCK_METHOD(Session *, get_current_session,
+              (ServiceId id, mrs::http::Cookie *cookies), (override));
   MOCK_METHOD(collector::MysqlCacheManager *, get_cache, (), (override));
 };
 

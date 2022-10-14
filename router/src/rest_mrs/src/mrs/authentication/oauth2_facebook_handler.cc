@@ -69,7 +69,11 @@ Oauth2FacebookHandler::Oauth2FacebookHandler(const AuthApp &entry)
   log_debug("Oauth2FacebookHandler for service %s", to_string(entry_).c_str());
 }
 
-std::string Oauth2FacebookHandler::get_url_location(GenericSessionData *data,
+Oauth2FacebookHandler::~Oauth2FacebookHandler() {
+  log_debug("~Oauth2FacebookHandler for service %s", to_string(entry_).c_str());
+}
+
+std::string Oauth2FacebookHandler::get_url_location(GenericSessionData *,
                                                     http::Url *url) const {
   std::string result{!entry_.url.empty()
                          ? entry_.url
