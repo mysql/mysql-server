@@ -1,0 +1,92 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Create 2 tables on server1, which will be a outside source
+#    to a group.
+[connection server1]
+CREATE TABLE t1(c1 INT PRIMARY KEY);
+CREATE TABLE t2(c1 INT PRIMARY KEY);
+
+############################################################
+# 2. Bootstrap a group on server2, configuring its consistency
+#    to BEFORE_AND_AFTER.
+#    Add server3 to the group.
+#    Configure server2 to be a replica of server1.
+[connection server2]
+SET @@GLOBAL.group_replication_consistency= 'BEFORE_AND_AFTER';
+include/start_and_bootstrap_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_1_PORT FOR CHANNEL 'ch1';
+include/start_slave.inc [FOR CHANNEL 'ch1']
+[connection server1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL ch1]
+[connection server1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL ch1]
+
+############################################################
+# 3. Lock table t2 on server2 to block a future update.
+[connection server_2]
+LOCK table t2 READ;
+
+############################################################
+# 4. On server3, commit a transaction (T1) that will update
+#    tables t1 and t2.
+#    On server2, it will wait until t2 is released.
+[connection server3]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO t2 VALUES (3);
+COMMIT;
+[connection server2]
+
+############################################################
+# 5. Execute a transaction on server1, once it is replicated
+#    to server2 it will wait for transaction T1.
+[connection server1]
+INSERT INTO t1 VALUES (1);
+[connection server2]
+include/assert.inc ['There is no 1 in table t1']
+
+############################################################
+# 6. Unblock T1 on server2.
+[connection server_2]
+UNLOCK TABLES;
+
+############################################################
+# 7. Wait until all data is replicated from server1 to the group.
+#    Ensure that asynchronous replication and group replication
+#    are working.
+[connection server1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL ch1]
+[connection server1]
+include/sync_slave_sql_with_master.inc
+[connection server2]
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
+include/assert.inc [Assert 2 servers are ONLINE]
+include/assert.inc ['There is a 1 in table t1']
+
+############################################################
+# 8. Clean up.
+[connection server1]
+DROP TABLE t1;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL ch1]
+[connection server1]
+include/sync_slave_sql_with_master.inc
+include/stop_group_replication.inc
+RESET MASTER;
+[connection server2]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_consistency= DEFAULT;
+RESET MASTER;
+[connection server1]
+RESET MASTER;
+include/group_replication_end.inc
