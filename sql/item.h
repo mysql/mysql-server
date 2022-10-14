@@ -5922,7 +5922,7 @@ class Item_view_ref final : public Item_ref {
     Takes into account whether an Item in a derived table / view is part of an
     inner table of an outer join.
 
-    1) If the field is an outer reference, return OUTER_TABLE_REF_BIT.
+    1) If the field is an outer reference, return OUTER_REF_TABLE_BIT.
     2) Else
        2a) If the field is const_for_execution and the field is used in the
            inner part of an outer join, return the inner tables of the outer

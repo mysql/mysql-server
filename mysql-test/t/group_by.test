@@ -3401,3 +3401,36 @@ WHERE t1.id = t2.id
 GROUP BY t1.x WITH ROLLUP;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34463842: Result diff seen with hypergraph off and on
+--echo #
+
+CREATE TABLE t1 (x INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (pk INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+
+SELECT t1.x FROM t1, t2 WHERE t1.x = t2.pk
+GROUP BY t1.x
+HAVING (COUNT(*) = 3 AND COUNT(*) > 6) OR t1.x = 2;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34682586: MySQL server crash, segmentation fault: count_field_types
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, x INT);
+INSERT INTO t1(pk) VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 (x INT);
+
+# The second execution used to crash with the hypergraph optimizer.
+PREPARE ps FROM
+'SELECT 1 FROM t1, (SELECT DISTINCT x FROM t2) AS ot2
+ WHERE t1.pk = ot2.x GROUP BY ot2.x, t1.x';
+EXECUTE ps;
+EXECUTE ps;
+
+DEALLOCATE PREPARE ps;
+DROP TABLE t1, t2;
