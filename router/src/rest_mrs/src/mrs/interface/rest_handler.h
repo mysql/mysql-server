@@ -62,12 +62,16 @@ class RestHandler {
     Result(std::string &&r) : response{r} {}
     Result(std::string &&r, Type t, std::string e = {})
         : response{r}, type{t}, etag{std::move(e)} {}
+    Result(HttpStatusCode::key_type s, std::string &&r, Type t,
+           std::string e = {})
+        : response{r}, status{s}, type{t}, etag{std::move(e)} {}
     Result(const std::string &r, Type t, std::string e = {})
         : response{r}, type{t}, etag{std::move(e)} {}
     Result(std::string &&r, std::string t, std::string e = {})
         : response{r}, type_text{t}, etag{std::move(e)} {}
 
     std::string response;
+    HttpStatusCode::key_type status{HttpStatusCode::Ok};
     Type type{Type::typeDefault};
     std::optional<std::string> type_text;
     std::string etag;

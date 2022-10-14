@@ -82,7 +82,8 @@ uint32_t HandlerUnauthorize::get_access_rights() const { return Route::kRead; }
 
 Result HandlerUnauthorize::handle_get(RequestContext *ctxt) {
   auth_manager_->unauthorize(service_id_, &ctxt->cookies);
-  return {get_json_response_ok(), Result::Type::typeJson};
+  return {HttpStatusCode::Unauthorized, get_json_response_ok(),
+          Result::Type::typeJson};
 }
 
 Result HandlerUnauthorize::handle_post(RequestContext *,

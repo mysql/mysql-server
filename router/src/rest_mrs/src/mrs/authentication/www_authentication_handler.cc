@@ -26,8 +26,14 @@
 
 #include "mrs/http/error.h"
 
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace mrs {
 namespace authentication {
+
+const static char *kBasicSchema = "basic";
 
 using AuthApp = mrs::database::entry::AuthApp;
 using AuthUser = mrs::database::entry::AuthUser;
@@ -64,23 +70,33 @@ bool WwwAuthenticationHandler::authorize(Session *session, http::Url *,
                                          SqlSessionCached *sql_session,
                                          HttpHeaders &input_headers,
                                          AuthUser *out_user) {
+  log_debug("WwwAuth: Authorize user");
   auto session_data = get_session_data(session);
 
   if (session_data->state == WwwAuthSessionData::kUserVerified) {
+    log_debug("WwwAuth: user already verified");
     *out_user = session_data->user;
     return true;
   }
 
-  auto authorization = input_headers.get(kAuthorization);
+  auto authorization_cstr = input_headers.get(kAuthorization);
+  if (nullptr == authorization_cstr) {
+    log_debug("WwwAuth: no authorization selected, retry?");
+    add_www_authenticate(kBasicSchema);
+  }
+  std::string authorization = authorization_cstr ? authorization_cstr : "";
   auto args = mysql_harness::split_string(authorization, ' ', false);
   std::string value = args.size() > 1 ? args[1] : "";
+  log_debug("WwwAuth: execute");
   auto result = www_authorize(value, sql_session, out_user);
 
   if (result) {
     session_data->user = *out_user;
+    return true;
   }
+  add_www_authenticate(kBasicSchema);
 
-  return result;
+  return false;
 }
 
 const AuthApp &WwwAuthenticationHandler::get_entry() const { return entry_; }
@@ -90,6 +106,7 @@ void WwwAuthenticationHandler::add_www_authenticate(const char *schema) {
    public:
     ErrorAddWwwBasicAuth(const std::string &schema) : schema_{schema} {}
 
+    bool retry() const override { return true; }
     http::Error change_response(HttpRequest *request) const override {
       request->get_output_headers().add(kWwwAuthenticate, schema_.c_str());
 
