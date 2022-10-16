@@ -824,7 +824,7 @@ class ha_warp : public handler {
 
   // Functions to support engine condition pushdown (ECP)
   //int engine_push(AQP::Table_access *table_aqp);
-  const Item* cond_push(const Item *cond,	bool other_tbls_ok );
+  const Item* warp_cond_push(const Item *cond,	bool other_tbls_ok );
 	
   int rename_table(const char * from, const char * to, const dd::Table* , dd::Table* );
 

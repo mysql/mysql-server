@@ -2561,7 +2561,7 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
     ha_warp *const ha = (ha_warp*)(table->file);
     
     if (cond == nullptr && join->where_cond == nullptr) { 
-	    continue; 
+      continue; 
     }
     
     auto share = ha->get_warp_share();
@@ -2569,17 +2569,16 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
     assert(pushdown_info != nullptr);
     ha->push_where_clause = "";
     const Item* remainder=nullptr;
-    const Item* remainder1=nullptr;
     if(cond) {
-      remainder = ha->cond_push(cond,true);
+      remainder = ha->warp_cond_push(cond,true);
     }
     auto save_where = ha->push_where_clause;
     if(join->where_cond) {
       ha->push_where_clause = "";
-      remainder1 = ha->cond_push(join->where_cond, true);
+      ha->warp_cond_push(join->where_cond, true);
     }
     if(ha->push_where_clause != "") {
-	    ha->push_where_clause += " AND ";
+      ha->push_where_clause += " AND ";
     }
     ha->push_where_clause += save_where;
     
@@ -2611,7 +2610,7 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
 
    This code is called from ha_warp::engine_push in 8.0.20+
 */
-const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
+const Item *ha_warp::warp_cond_push(const Item *cond, bool other_tbls_ok) {
   
   static int depth=0;
   static int unpushed_condition_count = 0;
@@ -2663,7 +2662,7 @@ const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
       */
       ++depth;
       
-      if(cond_push(item, other_tbls_ok) != NULL) {
+      if(warp_cond_push(item, other_tbls_ok) != NULL) {
         unpushed_condition_count++;
         //items->push_back(item);
       }
