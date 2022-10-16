@@ -3199,14 +3199,15 @@ static net_async_status read_one_row_nonblocking(MYSQL *mysql, uint fields,
 /****************************************************************************
   Init MySQL structure or allocate one
 ****************************************************************************/
-bool inited_server = false;
+//bool inited_server = false;
 MYSQL *STDCALL mysql_init(MYSQL *mysql) {
   //WARP
-  if(!inited_server) {
+  /*if(!inited_server) {
 	  if (mysql_server_init(0, nullptr, nullptr)) return nullptr;
 	  inited_server = true;
   }
-  //mysql_server_init(0, nullptr, nullptr);
+  */
+  mysql_server_init(0, nullptr, nullptr);
   if (!mysql) {
     if (!(mysql = (MYSQL *)my_malloc(key_memory_MYSQL, sizeof(*mysql),
                                      MYF(MY_WME | MY_ZEROFILL)))) {

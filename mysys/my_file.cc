@@ -191,6 +191,9 @@ namespace file_info {
 void RegisterFilename(File fd, const char *file_name, OpenType type_of_file) {
   assert(fd > -1);
   FileInfoVector &fiv = *fivp;
+  if(!fivp) {
+	  return;
+  }
   MUTEX_LOCK(g, &THR_LOCK_open);
   if (static_cast<size_t>(fd) >= fiv.size()) {
     fiv.resize(fd + 1);
@@ -213,6 +216,9 @@ void RegisterFilename(File fd, const char *file_name, OpenType type_of_file) {
  */
 void UnregisterFilename(File fd) {
   FileInfoVector &fiv = *fivp;
+  if(!fivp) {
+	  return;
+  }
   MUTEX_LOCK(g, &THR_LOCK_open);
 
   if (static_cast<size_t>(fd) >= fiv.size()) {
@@ -246,6 +252,9 @@ void UnregisterFilename(File fd) {
 const char *my_filename(File fd) {
   DBUG_TRACE;
   const FileInfoVector &fiv = *fivp;
+  if(!fivp) {
+    return "<fiv null pointer>";
+  }
   MUTEX_LOCK(g, &THR_LOCK_open);
   if (fd < 0 || fd >= static_cast<int>(fiv.size())) {
     return "<fd out of range>";
