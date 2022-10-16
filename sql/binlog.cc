@@ -6522,7 +6522,7 @@ int MYSQL_BIN_LOG::new_file_impl(
   mysql_mutex_assert_owner(&LOCK_index);
 
   if (DBUG_EVALUATE_IF("expire_logs_always", 0, 1) &&
-      (error = ha_flush_logs())) {
+      (error = ha_flush_logs(true))) {
     goto end;
   }
 
