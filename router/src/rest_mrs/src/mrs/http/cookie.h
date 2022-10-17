@@ -37,16 +37,19 @@ namespace http {
 class Cookie {
  public:
   using duration = std::chrono::steady_clock::duration;
+  enum SameSite { None, Lex, Strict };
   Cookie(HttpRequest *request);
 
   static void clear(HttpRequest *request, const char *cookie_name);
   //  static std::string get(HttpRequest *request, const char *cookie_name);
   static void set(HttpRequest *request, const std::string &cookie_name,
                   const std::string &value, const duration duration = {},
-                  const std::string &path = {});
+                  const std::string &path = {},
+                  const SameSite *same_site = nullptr, bool secure = false);
 
   void set(const std::string &cookie_name, const std::string &value,
-           const duration duration = {}, const std::string &path = {});
+           const duration duration = {}, const std::string &path = {},
+           const SameSite *same_site = nullptr, bool secure = false);
   std::string get(const std::string &key);
   void clear(const char *cookie_name);
 

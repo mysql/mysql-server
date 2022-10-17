@@ -278,9 +278,10 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
 
   if (session_identifier.empty()) {
     session = session_manager_.new_session(selected_handler->get_id());
+    http::Cookie::SameSite same_site = http::Cookie::None;
     cookies->set(session_cookie_key, session->get_session_id(),
                  session_manager_.get_timeout(),
-                 selected_handler->get_entry().service_name);
+                 selected_handler->get_entry().service_name, &same_site, true);
   } else {
     session = session_manager_.get_session(session_identifier);
   }

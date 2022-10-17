@@ -35,6 +35,12 @@ namespace http {
 
 const char *Cookie::kHttpParameterNameCookie = "Cookie";
 
+const std::string &to_string(Cookie::SameSite ss) {
+  static const std::map<Cookie::SameSite, std::string> map{
+      {Cookie::None, "None"}, {Cookie::Strict, "Strict"}, {Cookie::Lex, "Lex"}};
+  return map.at(ss);
+}
+
 template <typename Callback>
 static void enum_key_values(const std::string &value, Callback cb) {
   auto cookies = mysql_harness::split_string(value, ';', true);
@@ -96,7 +102,8 @@ std::string Cookie::get(const std::string &key) {
 
 void Cookie::set(HttpRequest *request, const std::string &cookie_name,
                  const std::string &value, const duration duration,
-                 const std::string &path) {
+                 const std::string &path, const SameSite *same_site,
+                 bool secure) {
   auto cookie = cookie_name + "=" + value;
   if (duration.count()) {
     using std::chrono::seconds;
@@ -107,12 +114,21 @@ void Cookie::set(HttpRequest *request, const std::string &cookie_name,
   if (!path.empty()) {
     cookie += "; Path=" + path;
   }
+
+  if (same_site) {
+    cookie += "; SameSite=" + to_string(*same_site);
+  }
+
+  if (secure) {
+    cookie += "; Secure";
+  }
   request->get_output_headers().add("Set-Cookie", cookie.c_str());
 }
 
 void Cookie::set(const std::string &cookie_name, const std::string &value,
-                 const duration duration, const std::string &path) {
-  set(request_, cookie_name, value, duration, path);
+                 const duration duration, const std::string &path,
+                 const SameSite *same_site, bool secure) {
+  set(request_, cookie_name, value, duration, path, same_site, secure);
   cookies_[cookie_name] = value;
 }
 
