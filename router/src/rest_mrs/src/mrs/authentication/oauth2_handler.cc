@@ -170,6 +170,7 @@ std::string Oauth2Handler::get_request_path(HttpUri &u) {
 }
 
 bool Oauth2Handler::http_acquire_access_token(GenericSessionData *data) {
+  log_debug("oauth2: redirection=%s", data->redirection.c_str());
   if (!send_http_request(HttpMethod::Post, get_url_direct_auth(),
                          get_body_access_token_request(data),
                          get_request_handler_access_token(data).get())) {
@@ -192,6 +193,7 @@ void Oauth2Handler::new_session_start_login(Session *session, http::Url *url) {
   auto data = new GenericSessionData();
   session->set_data(data);
   data->redirection = uri;
+  log_debug("oauth2: redirection=%s", data->redirection.c_str());
 
   // TODO(lkotula): escape get_id(), cookies doesn't support all characters.
   // For now its ok because ID is a number. (Shouldn't be in review)
@@ -300,6 +302,7 @@ bool Oauth2Handler::http_verify_account(GenericSessionData *data,
   std::string url = get_url_validation(data);
 
   log_debug("verify_user: %s", url.c_str());
+  log_debug("oauth2: redirection=%s", data->redirection.c_str());
   if (!send_http_request(HttpMethod::Get, url, {},
                          get_request_handler_verify_account(data).get())) {
     return false;

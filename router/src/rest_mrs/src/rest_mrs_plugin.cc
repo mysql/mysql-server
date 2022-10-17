@@ -55,11 +55,8 @@ struct MrdsModule {
     mrds_monitor.start();
     auto conn1 = mysql_connection_cache.get_instance(
         collector::kMySQLConnectionMetadata);
-    conn1->execute("SET ROLE mrs_provider_metadata;");
-
     auto conn2 = mysql_connection_cache.get_instance(
         collector::kMySQLConnectionUserdata);
-    conn2->execute("SET ROLE mrs_provider_data_access;");
   }
 
   const ::mrs::Configuration &configuration;

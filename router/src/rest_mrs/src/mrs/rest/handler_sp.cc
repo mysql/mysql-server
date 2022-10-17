@@ -47,9 +47,9 @@ namespace rest {
 using Result = mrs::rest::Handler::Result;
 using CachedObject = collector::MysqlCacheManager::CachedObject;
 
-static CachedObject get_session(::mysqlrouter::MySQLSession *session,
+static CachedObject get_session(::mysqlrouter::MySQLSession *,
                                 collector::MysqlCacheManager *cache_manager) {
-  if (session) return CachedObject(nullptr, session);
+  //  if (session) return CachedObject(nullptr, session);
 
   return cache_manager->get_instance(collector::kMySQLConnectionUserdata);
 }

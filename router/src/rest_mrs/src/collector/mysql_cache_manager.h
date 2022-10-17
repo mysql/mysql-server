@@ -73,8 +73,9 @@ class MysqlCacheManager {
   class MysqlCacheCallbacks : public Callbacks {
    public:
     MysqlCacheCallbacks(const ConnectionConfiguration &configuration =
-                            ConnectionConfiguration{})
-        : configuration_{configuration} {}
+                            ConnectionConfiguration{},
+                        const std::string &role = {})
+        : configuration_{configuration}, role_{role} {}
 
     bool object_before_cache(Object) override;
     void object_retrived_from_cache(Object) override;
@@ -92,15 +93,20 @@ class MysqlCacheManager {
 
    private:
     ConnectionConfiguration configuration_;
+    std::string role_;
     int node_rount_robin_{0};
   };
 
  public:
   MysqlCacheManager(const mrs::Configuration &configuration)
       : callbacks_metadata_{{collector::kMySQLConnectionMetadata,
-                             configuration}},
-        callbacks_userdata_{
-            {collector::kMySQLConnectionUserdata, configuration}} {}
+                             configuration},
+                            "mrs_provider_metadata"},
+        callbacks_userdata_{{
+                                collector::kMySQLConnectionUserdata,
+                                configuration,
+                            },
+                            "mrs_provider_data_access"} {}
   MysqlCacheManager(Callbacks *callbacks_meta, Callbacks *callbacks_user)
       : cache_manager_metadata_{callbacks_meta},
         cache_manager_userdata_{callbacks_user} {}

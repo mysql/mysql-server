@@ -31,10 +31,15 @@ namespace collector {
 using Object = MysqlCacheManager::Object;
 
 Object MysqlCacheManager::MysqlCacheCallbacks::object_allocate() {
+  using namespace std::literals::string_literals;
   std::unique_ptr<::mysqlrouter::MySQLSession> obj{
       new ::mysqlrouter::MySQLSession()};
 
   obj->connect_and_set_opts(new_connection_params());
+
+  if (!role_.empty()) {
+    obj->execute("SET ROLE "s + role_);
+  }
   return obj.release();
 }
 
