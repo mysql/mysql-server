@@ -77,6 +77,15 @@ class Url {
     return uri.set_query(q);
   }
 
+  std::string get_query() {
+    std::string result;
+    for (auto &kv : parameters_) {
+      if (!result.empty()) result += "&";
+      result += (kv.first + "=" + escape_uri(kv.second.c_str()));
+    }
+    return result;
+  }
+
   bool remove_query_parameter(const std::string &key) {
     return 0 != parameters_.erase(key);
   }

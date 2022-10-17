@@ -83,7 +83,9 @@ std::string Oauth2FacebookHandler::get_url_location(GenericSessionData *,
   std::string uri = get_host_alias() + requests_uri.get_path();
 
   if (requests_uri.get_query().length()) {
-    uri += "?" + requests_uri.get_query();
+    url->remove_query_parameter("onCompletionRedirect");
+    url->remove_query_parameter("onCompletionClose");
+    uri += "?" + url->get_query();
   }
   result += "?response_type=code&state=first&client_id=" + entry_.app_id +
             "&redirect_uri=" + uri;
