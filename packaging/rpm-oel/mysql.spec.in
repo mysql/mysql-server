@@ -49,9 +49,15 @@
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=1 -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
 
+%global ssl_default 1
+
 # Pass alternative ssl setting if provided. Can be used for newer OpenSSL.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 %{?with_ssl: %global ssl_bundled 1}
+
+# Use OpenSSL 1.1
+%{?with_openssl11: %global ssl_option -DWITH_SSL=openssl11}
+%{?with_openssl11: %global ssl_default 0}
 
 # Tell build not to use minimal debug
 %{?full_debug: %global no_mini_debug 1}
@@ -215,6 +221,9 @@ BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
+%if 0%{?with_openssl11}
+BuildRequires:  openssl11-devel
+%endif
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
@@ -851,7 +860,19 @@ mkdir debug
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DUSE_LD_LLD=0 \
+%if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_FIDO=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+           -DWITH_KEYRING_OCI=0 \
+%endif # ssl_default
            -DWITH_CURL=system \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
@@ -896,7 +917,19 @@ mkdir release
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DUSE_LD_LLD=0 \
+%if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_FIDO=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+           -DWITH_KEYRING_OCI=0 \
+%endif # ssl_default
            -DWITH_CURL=system \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
@@ -1199,20 +1232,22 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%if 0%{?ssl_default}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_oci.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_oci.so
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
@@ -1285,20 +1320,23 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
+%if 0%{?ssl_default}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_oci.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_oci.so
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_oci.so
+
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
@@ -1465,12 +1503,14 @@ fi
 %files client-plugins
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
+%if 0%{?ssl_default}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.8.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
+%endif # ssl_default
 
 %if 0%{?compatlib}
 %files libs-compat
@@ -1593,10 +1633,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
+%if 0%{?ssl_default}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
