@@ -1212,26 +1212,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
       /* Coverage tested */
     }
   }
-  if (!lcp_to_scan)
-  {
-    if (unlikely(lcp_scanned_bit != 0))
-    {
-      g_eventLogger->info("(%u)tab(%u,%u):%u crash lcp_scanned_bit set"
-                          " is lcp_scan_ptr_i RNIL %u,"
-                          " last_lcp_state %u,"
-                          " is_rowid_in_remaining_lcp_set %u"
-                          " is_page_to_skip_lcp %u",
-                          instance(),
-                          fragPtrP->fragTableId,
-                          fragPtrP->fragmentId,
-                          logicalPageId,
-                          lcp_scan_ptr_i == RNIL,
-                          last_lcp_state,
-                          rowid_in_remaining_lcp_set,
-                          pagePtr.p->is_page_to_skip_lcp());
-      ndbrequire(lcp_scanned_bit == 0);
-    }
-  }
+
   if (!page_freed)
   {
     jam();
