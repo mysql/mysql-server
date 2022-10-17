@@ -113,7 +113,7 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
 
   bool is_required(const std::string &option) const override {
     if (option == "user") return true;
-    if (option == "routing_ro") return true;
+    if (option == "routing") return true;
     if (option == "authentication") return true;
 
     return false;

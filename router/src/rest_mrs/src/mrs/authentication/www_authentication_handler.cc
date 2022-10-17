@@ -47,10 +47,15 @@ struct WwwAuthSessionData : mrs::http::SessionManager::Session::SessionData {
 };
 
 bool WwwAuthenticationHandler::is_authorized(Session *session, AuthUser *user) {
+  log_debug("WwwAuthenticationHandler::is_authorized");
   auto session_data = session->get_data<WwwAuthSessionData>();
   if (!session_data) return false;
-  if (session_data->state != WwwAuthSessionData::kUserVerified) return false;
+  if (session_data->state != WwwAuthSessionData::kUserVerified) {
+    log_debug("WwwAuth: user not verified");
+    return false;
+  }
 
+  log_debug("is_authorized returned true");
   *user = session_data->user;
 
   return true;
@@ -92,6 +97,7 @@ bool WwwAuthenticationHandler::authorize(Session *session, http::Url *,
 
   if (result) {
     session_data->user = *out_user;
+    session_data->state = WwwAuthSessionData::kUserVerified;
     return true;
   }
   add_www_authenticate(kBasicSchema);

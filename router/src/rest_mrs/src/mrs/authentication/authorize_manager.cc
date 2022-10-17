@@ -297,6 +297,9 @@ bool AuthorizeManager::is_authorized(ServiceId service_id,
   auto session_cookie_key = get_session_cookie_key_name(service_id);
   auto session_identifier = cookies->get(session_cookie_key);
 
+  log_debug("AuthorizeManager::is_authorized(service_id:%i, session_id:%s)",
+            static_cast<int>(service_id), session_identifier.c_str());
+
   if (session_identifier.empty()) return false;
 
   auto session = session_manager_.get_session(session_identifier);

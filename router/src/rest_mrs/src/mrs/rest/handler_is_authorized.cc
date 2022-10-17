@@ -31,6 +31,10 @@
 #include "mrs/interface/object.h"
 #include "mrs/rest/request_context.h"
 
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace mrs {
 namespace rest {
 
@@ -63,6 +67,7 @@ uint64_t HandlerIsAuthorized::get_schema_id() const {
 uint32_t HandlerIsAuthorized::get_access_rights() const { return Route::kRead; }
 
 Result HandlerIsAuthorized::handle_get(RequestContext *ctxt) {
+  log_debug("HandlerIsAuthorized::handle_get");
   helper::json::SerializerToText serializer;
   {
     auto obj = serializer.add_object();
