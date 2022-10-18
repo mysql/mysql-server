@@ -45,11 +45,13 @@ class Cookie {
   static void set(HttpRequest *request, const std::string &cookie_name,
                   const std::string &value, const duration duration = {},
                   const std::string &path = {},
-                  const SameSite *same_site = nullptr, bool secure = false);
+                  const SameSite *same_site = nullptr, bool secure = false,
+                  bool http_only = false, const std::string &domain = {});
 
   void set(const std::string &cookie_name, const std::string &value,
            const duration duration = {}, const std::string &path = {},
-           const SameSite *same_site = nullptr, bool secure = false);
+           const SameSite *same_site = nullptr, bool secure = false,
+           bool http_only = false, const std::string &domain = {});
   std::string get(const std::string &key);
   void clear(const char *cookie_name);
 

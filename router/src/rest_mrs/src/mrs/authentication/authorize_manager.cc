@@ -274,6 +274,7 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
     }
   }
 
+  using namespace std::literals::string_literals;
   Session *session;
 
   if (session_identifier.empty()) {
@@ -281,9 +282,12 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
     http::Cookie::SameSite same_site = http::Cookie::None;
     cookies->set(session_cookie_key, session->get_session_id(),
                  session_manager_.get_timeout(),
-                 selected_handler->get_entry().service_name, &same_site, true);
+                 selected_handler->get_entry().service_name, &same_site, true,
+                 false, {});
+    log_debug("new session id=%s", session->get_session_id().c_str());
   } else {
     session = session_manager_.get_session(session_identifier);
+    log_debug("existing session id=%s", session_identifier.c_str());
   }
 
   assert(nullptr != session);
