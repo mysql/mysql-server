@@ -177,6 +177,7 @@ class CostingReceiver {
       string *trace)
       : m_thd(thd),
         m_query_block(query_block),
+        m_access_paths(thd->mem_root),
         m_graph(&graph),
         m_orderings(orderings),
         m_sort_ahead_orderings(sort_ahead_orderings),
@@ -304,7 +305,7 @@ class CostingReceiver {
     (in HasSeen()); if there's an entry here, that subset will induce
     a connected subgraph of the join hypergraph.
    */
-  std::unordered_map<NodeMap, AccessPathSet> m_access_paths;
+  mem_root_unordered_map<NodeMap, AccessPathSet> m_access_paths;
 
   /**
     How many subgraph pairs we've seen so far. Used to give up
