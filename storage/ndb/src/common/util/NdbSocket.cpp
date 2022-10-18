@@ -33,7 +33,8 @@
 #include "portlib/ndb_openssl_version.h"
 
 static constexpr bool openssl_version_ok =
-  (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
+  ((OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL) ||
+   (OPENSSL_VERSION_NUMBER == UBUNTU18_OPENSSL_VER_ID));
 
 /* Utility Functions */
 
@@ -101,7 +102,7 @@ SSL * NdbSocket::get_server_ssl(SSL_CTX *ctx) {
 }
 
 void NdbSocket::free_ssl(SSL *ssl) {
-  SSL_free(ssl);
+  if(ssl) SSL_free(ssl);
 }
 
 /* NdbSocket public instance methods */
@@ -126,6 +127,7 @@ int NdbSocket::write(int timeout_msec, int *time,
 bool NdbSocket::associate(SSL * new_ssl)
 {
   if(ssl) return false; // already associated
+  if(new_ssl == nullptr) return false;
   if(! SSL_set_fd(new_ssl, s.s)) return false;
   socket_table_set_ssl(s.s, new_ssl);
   ssl = new_ssl;

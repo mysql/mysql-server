@@ -81,6 +81,7 @@ public:
   /* Associate a socket with an SSL.
    * Returns true on success.
    * Returns false if socket already has an SSL association,
+   *               or if SSL is null,
    *               or on failure from the SSL socket table,
    *               or on failure from SSL_set_fd().
    */

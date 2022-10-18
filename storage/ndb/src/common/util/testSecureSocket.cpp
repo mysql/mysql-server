@@ -1002,6 +1002,7 @@ void run_server(bool standalone = false) {
     int r = run_client("localhost");
     ok((r == 0), "client tests (%d)", r);
     server.stopServer();
+    server.stopSessions();
     return;
   }
 
