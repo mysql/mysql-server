@@ -70,8 +70,8 @@ using ::testing::StrictMock;
 class Mock_dd_HANDLER : public Base_mock_HANDLER {
  public:
   // Mock method used indirectly by find_record
-  MOCK_METHOD5(index_read_idx_map, int(::uchar *, ::uint, const ::uchar *,
-                                       key_part_map, enum ha_rkey_function));
+  MOCK_METHOD4(index_read_map, int(::uchar *, const ::uchar *, key_part_map,
+                                   enum ha_rkey_function));
 
   // Handler method used for inserts
   MOCK_METHOD1(write_row, int(::uchar *));

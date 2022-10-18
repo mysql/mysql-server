@@ -147,7 +147,7 @@ class SchemaTest : public ::testing::Test {
   primary key. This is done by creating a raw access key, which is the primary
   key value with a physical representation suitable for looking up in a storage
   engine. The raw key is used to get the appropriate record from the dd tables
-  by calling ha_index_read_idx_map. By instrumenting this function to return
+  by calling ha_index_read_map. By instrumenting this function to return
   1, indicating no record found, we will provoke insert.
 
   Then, for insert, Weak_object_impl::store will first call
@@ -203,10 +203,10 @@ TEST_F(SchemaTest, CreateSchema) {
 
   // Set expectations for insert:
 
-  // ha->index_read_idx_map: Called once, return 1
-  ON_CALL(*ha, index_read_idx_map(_, _, _, _, _))
+  // ha->index_read_map: Called once, return 1
+  ON_CALL(*ha, index_read_map(_, _, _, _))
       .WillByDefault(Return(HA_ERR_KEY_NOT_FOUND));
-  EXPECT_CALL(*ha, index_read_idx_map(_, _, _, _, _)).Times(1);
+  EXPECT_CALL(*ha, index_read_map(_, _, _, _)).Times(1);
 
   // id->store: Called twice, return 0
   ON_CALL(*id, store(real_id, true))
@@ -260,7 +260,7 @@ TEST_F(SchemaTest, CreateSchema) {
 
 /**
   To provoke an update, the setup is pretty much the same as for insert (see
-  above), but we must instrument index_read_idx_map to return 0. This
+  above), but we must instrument index_read_map to return 0. This
   makes a new Raw_record be created, and makes ha_update_row be called.
 */
 
@@ -303,9 +303,9 @@ TEST_F(SchemaTest, UpdateSchema) {
 
   // Set expectations for update:
 
-  // ha->index_read_idx_map: Called once, return 0
-  ON_CALL(*ha, index_read_idx_map(_, _, _, _, _)).WillByDefault(Return(0));
-  EXPECT_CALL(*ha, index_read_idx_map(_, _, _, _, _)).Times(1);
+  // ha->index_read_map: Called once, return 0
+  ON_CALL(*ha, index_read_map(_, _, _, _)).WillByDefault(Return(0));
+  EXPECT_CALL(*ha, index_read_map(_, _, _, _)).Times(1);
 
   // id->store: Called twice, return 0
   ON_CALL(*id, store(real_id, true))
@@ -412,8 +412,8 @@ TEST_F(SchemaTest, GetSchema) {
   EXPECT_CALL(*name, store(_, _, _)).Times(1);
 
   // ha->index_read: Called once, return 0
-  ON_CALL(*ha, index_read_idx_map(_, _, _, _, _)).WillByDefault(Return(0));
-  EXPECT_CALL(*ha, index_read_idx_map(_, _, _, _, _)).Times(1);
+  ON_CALL(*ha, index_read_map(_, _, _, _)).WillByDefault(Return(0));
+  EXPECT_CALL(*ha, index_read_map(_, _, _, _)).Times(1);
 
   // id->val_int: Called once, get faked id
   ON_CALL(*id, val_int())
