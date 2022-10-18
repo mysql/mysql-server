@@ -103,7 +103,7 @@ std::string Cookie::get(const std::string &key) {
 void Cookie::set(HttpRequest *request, const std::string &cookie_name,
                  const std::string &value, const duration duration,
                  const std::string &path, const SameSite *same_site,
-                 bool secure) {
+                 bool secure, bool http_only, const std::string &domain) {
   auto cookie = cookie_name + "=" + value;
   if (duration.count()) {
     using std::chrono::seconds;
@@ -122,13 +122,23 @@ void Cookie::set(HttpRequest *request, const std::string &cookie_name,
   if (secure) {
     cookie += "; Secure";
   }
+
+  if (http_only) {
+    cookie += "; HttpOnly";
+  }
+
+  if (!domain.empty()) {
+    cookie += "; Domain=" + domain;
+  }
   request->get_output_headers().add("Set-Cookie", cookie.c_str());
 }
 
 void Cookie::set(const std::string &cookie_name, const std::string &value,
                  const duration duration, const std::string &path,
-                 const SameSite *same_site, bool secure) {
-  set(request_, cookie_name, value, duration, path, same_site, secure);
+                 const SameSite *same_site, bool secure, bool http_only,
+                 const std::string &domain) {
+  set(request_, cookie_name, value, duration, path, same_site, secure,
+      http_only, domain);
   cookies_[cookie_name] = value;
 }
 

@@ -193,7 +193,8 @@ void Oauth2Handler::new_session_start_login(Session *session, http::Url *url) {
   auto data = new GenericSessionData();
   session->set_data(data);
   data->redirection = uri;
-  log_debug("oauth2: redirection=%s", data->redirection.c_str());
+  log_debug("Oauth2Handler new SessionData: redirection=%s",
+            data->redirection.c_str());
 
   // TODO(lkotula): escape get_id(), cookies doesn't support all characters.
   // For now its ok because ID is a number. (Shouldn't be in review)
@@ -239,7 +240,7 @@ bool Oauth2Handler::authorize(Session *session, http::Url *url,
 
   if (nullptr == session_data) {
     if (!token_in_parameters && !code_in_parameters) {
-      log_debug("Session doesn't exists new-session");
+      log_debug("SessionData doesn't exist in new-session");
       new_session_start_login(session, url);
       return false;
     }
