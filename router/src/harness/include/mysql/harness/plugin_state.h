@@ -37,7 +37,7 @@
 
 namespace mysql_harness {
 
-class PluginState {
+class HARNESS_EXPORT PluginState {
  public:
   using PluginName = std::string;
   using Plugins = std::vector<PluginName>;
