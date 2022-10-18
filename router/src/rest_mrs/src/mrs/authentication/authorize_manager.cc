@@ -285,7 +285,7 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
     cookies->set(session_cookie_key, session->get_session_id(),
                  session_manager_.get_timeout(),
                  selected_handler->get_entry().service_name, &same_site, true,
-                 false, {});
+                 true, {});
     log_debug("new session id=%s", session->get_session_id().c_str());
   } else {
     session = session_manager_.get_session(session_identifier);
