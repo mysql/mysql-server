@@ -444,7 +444,7 @@ int copy_file(const char src[], const char dst[])
     {
       if (src_xfrm.is_encrypted())
       {
-        fprintf(stderr, "Error: Can not read file %s, bad password?\n", src);
+        fprintf(stderr, "Error: Can not read file %s, bad password or key?\n", src);
       }
       else
       {
