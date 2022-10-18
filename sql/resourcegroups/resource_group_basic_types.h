@@ -54,6 +54,11 @@ struct Resource_group_ctx {
   Resource_group *m_cur_resource_group;
   char m_switch_resource_group_str[NAME_CHAR_LEN + 1];
   int m_warn;
+  /*
+    THD's resource group is internally allowed to bind to system thread.
+    Member to hold OS Id of system thread bound to THD resource group.
+  */
+  ulonglong m_bound_system_thread_os_id{0};
 };
 }  // namespace resourcegroups
 #endif  // RESOURCEGROUPS_RESOURCE_GROUP_BASIC_TYPES_H_

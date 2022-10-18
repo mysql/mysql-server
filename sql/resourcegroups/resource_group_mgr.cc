@@ -44,7 +44,6 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
-#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"  // SUPER_ACL
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"                 // current_thd
@@ -66,6 +65,7 @@
 namespace resourcegroups {
 const char *SYS_DEFAULT_RESOURCE_GROUP_NAME = "SYS_default";
 const char *USR_DEFAULT_RESOURCE_GROUP_NAME = "USR_default";
+const char *SYS_INTERNAL_RESOURCE_GROUP_NAME = "SYS_internal";
 
 Resource_group_mgr *Resource_group_mgr::m_instance = nullptr;
 
@@ -84,19 +84,10 @@ void thread_create_callback(const PSI_thread_attrs *thread_attrs) {
   }
 }
 
-void session_disconnect_callback(const PSI_thread_attrs *pfs_attr) {
+void session_disconnect_callback(const PSI_thread_attrs *) {
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
 
   if (!res_grp_mgr->resource_group_support()) return;
-
-  if (res_grp_mgr->usr_default_resource_group()->is_pfs_thread_id_exists(
-          pfs_attr->m_thread_internal_id))
-    res_grp_mgr->usr_default_resource_group()->remove_pfs_thread_id(
-        pfs_attr->m_thread_internal_id);
-  else if (res_grp_mgr->sys_default_resource_group()->is_pfs_thread_id_exists(
-               pfs_attr->m_thread_internal_id))
-    res_grp_mgr->sys_default_resource_group()->remove_pfs_thread_id(
-        pfs_attr->m_thread_internal_id);
 
   if (current_thd->resource_group_ctx()->m_cur_resource_group != nullptr)
     res_grp_mgr->move_resource_group(
@@ -167,6 +158,7 @@ static bool deserialize_resource_groups(THD *thd) {
 
   bool usr_default_in_dd = false;
   bool sys_default_in_dd = false;
+  bool sys_internal_in_dd = false;
 
   auto res_grp_mgr = Resource_group_mgr::instance();
   for (const auto &resource_group : resource_group_vec) {
@@ -178,6 +170,10 @@ static bool deserialize_resource_groups(THD *thd) {
                            resource_group->name().c_str(),
                            SYS_DEFAULT_RESOURCE_GROUP_NAME) == 0)
       sys_default_in_dd = true;
+    else if (my_strcasecmp(&my_charset_utf8mb3_general_ci,
+                           resource_group->name().c_str(),
+                           SYS_INTERNAL_RESOURCE_GROUP_NAME) == 0)
+      sys_internal_in_dd = true;
     else {
       auto resource_group_ptr =
           res_grp_mgr->deserialize_resource_group(resource_group);
@@ -216,6 +212,10 @@ static bool deserialize_resource_groups(THD *thd) {
 
   if (persist_resource_group(thd, *res_grp_mgr->sys_default_resource_group(),
                              sys_default_in_dd))
+    return true;
+
+  if (persist_resource_group(thd, *res_grp_mgr->sys_internal_resource_group(),
+                             sys_internal_in_dd))
     return true;
 
   return false;
@@ -257,30 +257,6 @@ Resource_group *Resource_group_mgr::deserialize_resource_group(
   }
 
   return resource_group_ptr;
-}
-
-bool Resource_group_mgr::acquire_global_shared_mdl_for_resource_group(
-    THD *thd, enum_mdl_duration lock_duration, MDL_ticket **ticket) {
-  DBUG_TRACE;
-
-  MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::RESOURCE_GROUPS_GLOBAL, "", "",
-                   MDL_INTENTION_EXCLUSIVE, lock_duration);
-  if (thd->mdl_context.acquire_lock(&mdl_request,
-                                    thd->variables.lock_wait_timeout))
-    return true;
-
-  if (ticket != nullptr) *ticket = mdl_request.ticket;
-  return false;
-}
-
-bool Resource_group_mgr::owns_shared_or_stronger_mdl_for_resource_group(
-    THD *thd, const char *res_grp_name) {
-  MDL_key mdl_key;
-  dd::Resource_group::create_mdl_key(res_grp_name, &mdl_key);
-
-  return (thd->mdl_context.owns_equal_or_stronger_lock(
-      &mdl_key, MDL_INTENTION_EXCLUSIVE));
 }
 
 bool Resource_group_mgr::acquire_shared_mdl_for_resource_group(
@@ -441,10 +417,28 @@ bool Resource_group_mgr::init() {
     return true;
   }
 
+  m_sys_internal_resource_group = new (std::nothrow)
+      Resource_group(SYS_INTERNAL_RESOURCE_GROUP_NAME,
+                     resourcegroups::Type::SYSTEM_RESOURCE_GROUP, true);
+
+  if (m_sys_internal_resource_group == nullptr) {
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP,
+           "SYS_internal");
+    delete m_resource_group_hash;
+    m_resource_group_hash = nullptr;
+    delete m_usr_default_resource_group;
+    m_usr_default_resource_group = nullptr;
+    delete m_sys_default_resource_group;
+    m_sys_default_resource_group = nullptr;
+    return true;
+  }
+
   add_resource_group(
       std::unique_ptr<Resource_group>(m_usr_default_resource_group));
   add_resource_group(
       std::unique_ptr<Resource_group>(m_sys_default_resource_group));
+  add_resource_group(
+      std::unique_ptr<Resource_group>(m_sys_internal_resource_group));
 
   // Initialize number of VCPUs.
   m_num_vcpus = platform::num_vcpus();
@@ -465,28 +459,24 @@ bool Resource_group_mgr::move_resource_group(Resource_group *from_res_grp,
     return false;
   }
 
+  // Set resource group name in PFS.
   ulonglong pfs_thread_id = 0;
-  PSI_thread_attrs pfs_thread_attr;
-  memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
+
 #ifdef HAVE_PSI_THREAD_INTERFACE
   pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
-  resourcegroups::Resource_group_mgr::instance()->get_thread_attributes(
-      &pfs_thread_attr, pfs_thread_id);
 #endif
 
-  // Set resource group name in PFS.
   m_resource_group_svc->set_thread_resource_group_by_id(
       nullptr, pfs_thread_id, to_res_grp->name().c_str(),
       to_res_grp->name().length(), nullptr);
 
-  if (!pfs_thread_attr.m_system_thread) {
-    if (from_res_grp != nullptr && !is_resource_group_default(from_res_grp))
-      from_res_grp->remove_pfs_thread_id(pfs_thread_id);
+  if (from_res_grp != nullptr && !is_resource_group_default(from_res_grp) &&
+      !is_sys_internal_resource_group(from_res_grp))
+    from_res_grp->remove_pfs_thread_id(pfs_thread_id);
 
-    if (!is_resource_group_default(to_res_grp))
-      to_res_grp->add_pfs_thread_id(pfs_thread_id, &default_rg_switch_handler);
-  }
-
+  if (!is_resource_group_default(to_res_grp) &&
+      !is_sys_internal_resource_group(to_res_grp))
+    to_res_grp->add_pfs_thread_id(pfs_thread_id);
   return true;
 }
 
@@ -533,6 +523,19 @@ void Resource_group_mgr::remove_resource_group(const std::string &name) {
 
   mysql_rwlock_wrlock(&m_map_rwlock);
   m_resource_group_hash->erase(name);
+  mysql_rwlock_unlock(&m_map_rwlock);
+}
+
+void Resource_group_mgr::extract_resource_group(const std::string &name) {
+  DBUG_TRACE;
+  assert(m_resource_group_support);
+
+  mysql_rwlock_wrlock(&m_map_rwlock);
+  auto nh = m_resource_group_hash->extract(name);
+  if ((bool)nh) {
+    // Release resource group ownership.
+    nh.mapped().release();
+  }
   mysql_rwlock_unlock(&m_map_rwlock);
 }
 
@@ -644,507 +647,5 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
   }
 
   return switched;
-}
-
-/**
-  Class used to handle system thread's resource group change due to SET,
-  DROP FORCE and DISABLE FORCE operations when user thread's resource group
-  is set to a system thread.
-
-  When user thread resource group is set to a system thread, system thread's
-  resource group change is *not* applied immediately. Rather new resource group
-  for system thread is stored with this switch handler. While restoring system
-  thread's resource group, new resource group is applied to the system thread.
-*/
-class System_thread_resource_group_switch_handler
-    : public Resource_group_switch_handler {
- public:
-  System_thread_resource_group_switch_handler() = delete;
-  System_thread_resource_group_switch_handler(
-      ulonglong system_thread_pfs_id, my_thread_os_id_t system_thread_os_id,
-      Resource_group *system_thread_resource_grp)
-      : m_system_thread_pfs_id(system_thread_pfs_id),
-        m_system_thread_os_id(system_thread_os_id),
-        m_system_thread_resource_grp(system_thread_resource_grp) {}
-  virtual ~System_thread_resource_group_switch_handler() override {}
-
-  /**
-    Apply thread resource control to thread identified by the thread os id.
-
-    @param       system_thread_new_rg       New resource group to apply to
-                                            the thread.
-    @param       system_thread_os_id        System thread OS id.
-    @param[out]  is_rg_applied_to_thread    Resource group name is stored and
-                                            applied later. So set to false
-                                            always.
-
-    @retval   false  Success.
-    @retval   true   Failure.
- */
-  virtual bool apply(Resource_group *system_thread_new_rg,
-                     my_thread_os_id_t system_thread_os_id [[maybe_unused]],
-                     bool *is_rg_applied_to_thread) override {
-    assert(system_thread_new_rg != nullptr);
-    assert(m_system_thread_os_id == system_thread_os_id);
-    assert(is_rg_applied_to_thread != nullptr);
-
-    m_system_thread_new_resoure_grp = system_thread_new_rg;
-    *is_rg_applied_to_thread = false;
-    return false;
-  }
-
-  Resource_group *original_resource_group() const {
-    return m_system_thread_resource_grp;
-  }
-  Resource_group *new_resource_group() const {
-    return m_system_thread_new_resoure_grp;
-  }
-  ulonglong system_thread_pfs_id() const { return m_system_thread_pfs_id; }
-  my_thread_os_id_t system_thread_os_id() const {
-    return m_system_thread_os_id;
-  }
-
- private:
-  // PFS thread ID of a system thread.
-  ulonglong m_system_thread_pfs_id;
-
-  // OS thread ID of a system thread.
-  my_thread_os_id_t m_system_thread_os_id;
-
-  // Original resource group of a system thread.
-  Resource_group *m_system_thread_resource_grp;
-
-  /*
-    New resource group set to system thread when user thread's resource group
-    is set to a system thread.
-  */
-  Resource_group *m_system_thread_new_resoure_grp{nullptr};
-};
-
-/**
-  Class used to handle user thread's resource group change due to SET, DROP
-  FORCE and DISABLE FORCE when user thread's resource group is set to a system
-  thread.
-
-  When user thread resource group is set to a system thread, resource group
-  switch is applied immediately to user thread and system thread.
-*/
-class User_thread_resource_group_switch_handler
-    : public Resource_group_switch_handler {
- public:
-  User_thread_resource_group_switch_handler() = delete;
-  User_thread_resource_group_switch_handler(
-      ulonglong user_thread_pfs_id, Resource_group *user_resource_grp,
-      Resource_group_switch_handler
-          *system_thread_resource_group_switch_handler)
-      : m_user_thread_pfs_id(user_thread_pfs_id),
-        m_user_resource_grp(user_resource_grp),
-        m_system_thread_resource_group_switch_handler(
-            system_thread_resource_group_switch_handler) {}
-  virtual ~User_thread_resource_group_switch_handler() override {}
-
-  /**
-    Apply thread resource control to thread identified by the thread os id.
-
-    @param       user_thread_new_rg         New resource group to apply to
-                                            the thread.
-    @param       user_thread_os_id          User thread OS id.
-    @param[out]  is_rg_applied_to_thread    Set to true if thread resource
-                                            control is applied to the thread.
-
-    @retval   false  Success.
-    @retval   true   Failure.
- */
-  virtual bool apply(Resource_group *user_thread_new_rg,
-                     my_thread_os_id_t user_thread_os_id,
-                     bool *is_rg_applied_to_thread) override {
-    assert(user_thread_new_rg != nullptr);
-    assert(is_rg_applied_to_thread != nullptr);
-
-    System_thread_resource_group_switch_handler *sys_thr_rg_switch_handler =
-        pointer_cast<System_thread_resource_group_switch_handler *>(
-            m_system_thread_resource_group_switch_handler);
-
-    // Apply resource to a user thread.
-    if (user_thread_os_id != 0) {
-      if (user_thread_new_rg->controller()->apply_control(user_thread_os_id)) {
-        LogErr(ERROR_LEVEL, ER_FAILED_TO_APPLY_RESOURCE_GROUP_CONTROLLER,
-               user_thread_new_rg->name().c_str());
-        return true;
-      }
-    }
-
-    // Apply resource to a system thread.
-    if (user_thread_new_rg->controller()->apply_control(
-            sys_thr_rg_switch_handler->system_thread_os_id())) {
-      LogErr(ERROR_LEVEL, ER_FAILED_TO_APPLY_RESOURCE_GROUP_CONTROLLER,
-             user_thread_new_rg->name().c_str());
-      return true;
-    }
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    // Update resource group in the PFS context of a system thread.
-    Resource_group_mgr::instance()->set_res_grp_in_pfs(
-        user_thread_new_rg->name().c_str(), user_thread_new_rg->name().length(),
-        sys_thr_rg_switch_handler->system_thread_pfs_id());
-    /*
-      Resource group in the PFS context of a User thread is updated by the
-      caller.
-    */
-#endif
-
-    /*
-      Add system thread's PFS id and resource group switch handler to
-      temporarily switched threads map.
-    */
-    user_thread_new_rg->add_temporarily_switched_pfs_thread_id(
-        sys_thr_rg_switch_handler->system_thread_pfs_id(),
-        sys_thr_rg_switch_handler);
-
-    /*
-      Remove system thread's PFS id from temporarily switched threads map of
-      previous user resource group.
-    */
-    m_user_resource_grp->remove_pfs_thread_id(
-        sys_thr_rg_switch_handler->system_thread_pfs_id(), true);
-
-    m_user_resource_grp = user_thread_new_rg;
-    *is_rg_applied_to_thread = true;
-
-    return false;
-  }
-
-  Resource_group *resource_group() const { return m_user_resource_grp; }
-  ulonglong user_thread_pfs_id() const { return m_user_thread_pfs_id; }
-
- private:
-  // PFS thread ID of a user thread.
-  ulonglong m_user_thread_pfs_id;
-
-  // Resource group of a user thread.
-  Resource_group *m_user_resource_grp;
-
-  // Reference to system thread's resource group switch handler.
-  Resource_group_switch_handler *m_system_thread_resource_group_switch_handler;
-};
-
-bool Resource_group_mgr::set_user_thread_resource_group_to_system_thread(
-    THD *thd, ulonglong user_thread_pfs_id,
-    Resource_group_switch_context **resource_grp_switch_context) {
-  *resource_grp_switch_context = nullptr;
-
-  if (opt_initialize) return false;
-
-  resourcegroups::Resource_group_mgr *mgr_instance =
-      resourcegroups::Resource_group_mgr::instance();
-
-  if (!mgr_instance->resource_group_support()) return false;
-
-  // Clear diagnostics area.
-  thd->get_stmt_da()->reset_diagnostics_area();
-
-  MDL_ticket *rg_global_ticket = nullptr;
-  auto release_global_rg_lock = create_scope_guard([&]() {
-    if (rg_global_ticket) thd->mdl_context.release_lock(rg_global_ticket);
-    rg_global_ticket = nullptr;
-  });
-  if (mgr_instance->acquire_global_shared_mdl_for_resource_group(
-          thd, MDL_EXPLICIT, &rg_global_ticket)) {
-    thd->clear_error();
-    LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_GLOBAL_LOCK);
-    return true;
-  }
-
-  // User thread resource group.
-  resourcegroups::Resource_group *user_thread_rg =
-      thd->resource_group_ctx()->m_cur_resource_group;
-  if (user_thread_rg == nullptr) {
-    // Default user resource group is applied to the thread.
-    user_thread_rg = mgr_instance->usr_default_resource_group();
-  }
-
-  // Make sure usr_thread_rg is a user resource group.
-  assert(user_thread_rg->type() == resourcegroups::Type::USER_RESOURCE_GROUP);
-  if (user_thread_rg->type() != resourcegroups::Type::USER_RESOURCE_GROUP) {
-    LogErr(ERROR_LEVEL, ER_RES_GRP_FAILED_TO_SWITCH_RESOURCE_GROUP,
-           "Only user thread's resource group can be applied to the system "
-           "thread");
-    return true;
-  }
-
-  // System thread resource group.
-  ulonglong system_thread_pfs_id = 0;
-  Resource_group *system_thread_rg = nullptr;
-  PSI_thread_attrs pfs_thread_attr;
-  memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  system_thread_pfs_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
-  mgr_instance->get_thread_attributes(&pfs_thread_attr, system_thread_pfs_id);
-  system_thread_rg = mgr_instance->get_resource_group(
-      std::string(pfs_thread_attr.m_groupname));
-
-  // Make sure current thread is a system thread.
-  assert(pfs_thread_attr.m_system_thread &&
-         system_thread_rg->type() ==
-             resourcegroups::Type::SYSTEM_RESOURCE_GROUP);
-  if (!pfs_thread_attr.m_system_thread ||
-      system_thread_rg->type() != resourcegroups::Type::SYSTEM_RESOURCE_GROUP) {
-    LogErr(ERROR_LEVEL, ER_RES_GRP_FAILED_TO_SWITCH_RESOURCE_GROUP,
-           "Only system thread can switch resource group to user thread's "
-           "resource group");
-    return true;
-  }
-#endif
-  if (system_thread_rg == nullptr) {
-    LogErr(ERROR_LEVEL, ER_RES_GRP_FAILED_TO_SWITCH_RESOURCE_GROUP,
-           "Unable to get system thread's resource group");
-    return true;
-  }
-
-  // Acquire MDL lock on the resource groups.
-  MDL_ticket *user_rg_ticket = nullptr;
-  MDL_ticket *system_rg_ticket = nullptr;
-  auto release_mdl_locks = create_scope_guard([&]() {
-    if (user_rg_ticket != nullptr)
-      mgr_instance->release_shared_mdl_for_resource_group(thd, user_rg_ticket);
-    if (system_rg_ticket != nullptr)
-      mgr_instance->release_shared_mdl_for_resource_group(thd,
-                                                          system_rg_ticket);
-  });
-
-  if (mgr_instance->acquire_shared_mdl_for_resource_group(
-          thd, user_thread_rg->name().c_str(), MDL_EXPLICIT, &user_rg_ticket,
-          false)) {
-    thd->clear_error();
-    LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_LOCK,
-           user_thread_rg->name().c_str());
-    return true;
-  }
-
-  if (mgr_instance->acquire_shared_mdl_for_resource_group(
-          thd, system_thread_rg->name().c_str(), MDL_EXPLICIT,
-          &system_rg_ticket, false)) {
-    thd->clear_error();
-    LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_LOCK,
-           system_thread_rg->name().c_str());
-    return true;
-  }
-
-  // Release resource groups global lock.
-  release_global_rg_lock.rollback();
-
-  // Populate resource group switch context.
-  Resource_group_switch_handler *system_thread_rg_switch_handler =
-      new (std::nothrow) System_thread_resource_group_switch_handler(
-          system_thread_pfs_id, pfs_thread_attr.m_thread_os_id,
-          system_thread_rg);
-  Resource_group_switch_handler *user_thread_rg_switch_handler =
-      new (std::nothrow) User_thread_resource_group_switch_handler(
-          user_thread_pfs_id, user_thread_rg, system_thread_rg_switch_handler);
-
-  *resource_grp_switch_context =
-      new (std::nothrow) Resource_group_switch_context(
-          system_thread_rg_switch_handler, user_thread_rg_switch_handler);
-
-  // Apply user thread resource group to system thread.
-  if (user_thread_rg->controller()->apply_control()) {
-    LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_UNABLE_TO_APPLY_RES_GRP,
-           user_thread_rg->name().c_str());
-    return true;
-  }
-
-  // Update resource group name in system thread PFS context.
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  m_resource_group_svc->set_thread_resource_group_by_id(
-      nullptr, system_thread_pfs_id, user_thread_rg->name().c_str(),
-      user_thread_rg->name().length(), nullptr);
-#endif
-
-  // Set resource group switch handler in the system_thread_rg.
-  system_thread_rg->add_or_update_pfs_thread_id(
-      system_thread_pfs_id, system_thread_rg_switch_handler);
-  // Set resource group switch handler in the user_thread_rg.
-  user_thread_rg->add_or_update_pfs_thread_id(user_thread_pfs_id,
-                                              user_thread_rg_switch_handler);
-  /*
-    Add system thread in the temporarily switched threads list of user thread
-    resource group.
-  */
-  user_thread_rg->add_temporarily_switched_pfs_thread_id(
-      system_thread_pfs_id, system_thread_rg_switch_handler);
-
-  return false;
-}
-
-bool Resource_group_mgr::restore_system_thread_resource_group(
-    THD *thd, Resource_group_switch_context **resource_group_switch_context) {
-  if (*resource_group_switch_context == nullptr) return false;
-
-  resourcegroups::Resource_group_mgr *mgr_instance =
-      resourcegroups::Resource_group_mgr::instance();
-
-  if (!mgr_instance->resource_group_support()) return false;
-
-  // Get system thread resource group handler.
-  System_thread_resource_group_switch_handler *system_thread_rg_switch_handler =
-      pointer_cast<System_thread_resource_group_switch_handler *>(
-          (*resource_group_switch_context)->first);
-  // Get system thread's original resource group.
-  Resource_group *system_original_rg =
-      system_thread_rg_switch_handler->original_resource_group();
-  assert(system_original_rg != nullptr);
-  // Get system thread's new resource group.
-  Resource_group *system_new_rg =
-      system_thread_rg_switch_handler->new_resource_group();
-
-  // Acquire global MDL lock on resource group.
-  MDL_ticket *rg_global_ticket = nullptr;
-  auto release_global_rg_lock = create_scope_guard([&]() {
-    if (rg_global_ticket) thd->mdl_context.release_lock(rg_global_ticket);
-    rg_global_ticket = nullptr;
-  });
-  if (mgr_instance->acquire_global_shared_mdl_for_resource_group(
-          thd, MDL_EXPLICIT, &rg_global_ticket)) {
-    thd->clear_error();
-    LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_GLOBAL_LOCK);
-    return true;
-  }
-
-  MDL_ticket *system_original_rg_ticket = nullptr;
-  MDL_ticket *system_new_rg_ticket = nullptr;
-  MDL_ticket *user_rg_ticket = nullptr;
-  auto release_mdl_locks = create_scope_guard([&]() {
-    if (system_original_rg_ticket != nullptr)
-      mgr_instance->release_shared_mdl_for_resource_group(
-          thd, system_original_rg_ticket);
-    if (system_new_rg_ticket != nullptr)
-      mgr_instance->release_shared_mdl_for_resource_group(thd,
-                                                          system_new_rg_ticket);
-    if (user_rg_ticket != nullptr)
-      mgr_instance->release_shared_mdl_for_resource_group(thd, user_rg_ticket);
-  });
-
-  // Acquire MDL lock on a system thread's resource group(s).
-  if (system_new_rg != nullptr) {
-    if (mgr_instance->acquire_shared_mdl_for_resource_group(
-            thd, system_new_rg->name().c_str(), MDL_EXPLICIT,
-            &system_new_rg_ticket, false)) {
-      thd->clear_error();
-      LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_LOCK,
-             system_new_rg->name().c_str());
-      return true;
-    }
-  }
-
-  if (system_original_rg != system_new_rg) {
-    if ((system_new_rg == nullptr ||
-         my_strcasecmp(system_charset_info, system_new_rg->name().c_str(),
-                       SYS_DEFAULT_RESOURCE_GROUP_NAME) != 0) &&
-        mgr_instance->acquire_shared_mdl_for_resource_group(
-            thd, system_original_rg->name().c_str(), MDL_EXPLICIT,
-            &system_original_rg_ticket, false)) {
-      thd->clear_error();
-      LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_LOCK,
-             system_original_rg->name().c_str());
-      return true;
-    }
-  }
-
-  // Get user thread's resource group.
-  User_thread_resource_group_switch_handler *user_thread_rg_switch_handler =
-      pointer_cast<User_thread_resource_group_switch_handler *>(
-          (*resource_group_switch_context)->second);
-  Resource_group *user_rg = user_thread_rg_switch_handler->resource_group();
-
-  // Acquire MDL lock on a user thread's resource group.
-  if (mgr_instance->acquire_shared_mdl_for_resource_group(
-          thd, user_rg->name().c_str(), MDL_EXPLICIT, &user_rg_ticket, false)) {
-    thd->clear_error();
-    LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_COULD_NOT_ACQUIRE_LOCK,
-           user_rg->name().c_str());
-    return true;
-  }
-
-  // Release resource groups global lock.
-  release_global_rg_lock.rollback();
-
-  if (system_new_rg != nullptr) {
-    /*
-      If system thread's resource group is switched then apply new resource
-      group to a system thread.
-    */
-    if (system_new_rg->controller()->apply_control(
-            system_thread_rg_switch_handler->system_thread_os_id())) {
-      LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_UNABLE_TO_APPLY_RES_GRP,
-             system_new_rg->name().c_str());
-      return true;
-    }
-
-    // Replace resource group switch handler with default_rg_switch_handler.
-    system_new_rg->add_or_update_pfs_thread_id(
-        system_thread_rg_switch_handler->system_thread_pfs_id(),
-        &resourcegroups::default_rg_switch_handler);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    if (system_original_rg != system_new_rg) {
-      // Update new resource group name in the PFS context of a system thread.
-      Resource_group_mgr::instance()->set_res_grp_in_pfs(
-          system_new_rg->name().c_str(), system_new_rg->name().length(),
-          system_thread_rg_switch_handler->system_thread_pfs_id());
-    }
-#endif
-  } else {
-    assert(system_original_rg != nullptr);
-
-    /*
-      Re-apply system thread resource group. Concurrent ALTER RESOURCE GROUP
-      operations might have changed thread resource controls.
-    */
-    if (system_original_rg->controller()->apply_control(
-            system_thread_rg_switch_handler->system_thread_os_id())) {
-      LogErr(ERROR_LEVEL, ER_RES_GRP_SWITCH_FAILED_UNABLE_TO_APPLY_RES_GRP,
-             system_original_rg->name().c_str());
-      return true;
-    }
-
-    // Replace resource group switch handler with default_rg_switch_handler.
-    system_original_rg->add_or_update_pfs_thread_id(
-        system_thread_rg_switch_handler->system_thread_pfs_id(),
-        &default_rg_switch_handler);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    // Restore resource group name in the PFS context of a system thread.
-    Resource_group_mgr::instance()->set_res_grp_in_pfs(
-        system_original_rg->name().c_str(), system_original_rg->name().length(),
-        system_thread_rg_switch_handler->system_thread_pfs_id());
-#endif
-  }
-
-  /*
-    Set default resource group switch handler in the user thread resource
-    group.
-  */
-  if (user_thread_rg_switch_handler->resource_group()->is_pfs_thread_id_exists(
-          user_thread_rg_switch_handler->user_thread_pfs_id())) {
-    user_thread_rg_switch_handler->resource_group()
-        ->add_or_update_pfs_thread_id(
-            user_thread_rg_switch_handler->user_thread_pfs_id(),
-            &default_rg_switch_handler);
-  }
-
-  /*
-    Remove system thread from the user thread resouce group's temporarily
-    switched threads.
-  */
-  user_thread_rg_switch_handler->resource_group()->remove_pfs_thread_id(
-      system_thread_rg_switch_handler->system_thread_pfs_id());
-
-  delete system_thread_rg_switch_handler;
-  delete user_thread_rg_switch_handler;
-
-  delete *resource_group_switch_context;
-  *resource_group_switch_context = nullptr;
-
-  return false;
 }
 }  // namespace resourcegroups
