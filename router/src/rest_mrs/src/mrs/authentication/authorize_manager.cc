@@ -192,6 +192,8 @@ void AuthorizeManager::acquire(interface::AuthorizeHandler *handler) {
     service_authorize_[handler->get_service_id()] =
         service_authorization.copy_base();
     return;
+  } else {
+    fill_service(handler->get_entry(), *out_service_authorization);
   }
   ++out_service_authorization->references_;
 }
