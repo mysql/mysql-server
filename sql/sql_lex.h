@@ -3981,6 +3981,11 @@ struct LEX : public Query_tables_list {
   uint8 context_analysis_only;
   bool drop_if_exists;
   /**
+  refers to optional NO LOCK CHECK clause in RENAME TABLE sql. This flag when
+  set to true skips the table lock validation that precedes the actual rename operation.
+  */
+  bool no_lock_check;
+  /**
     refers to optional IF EXISTS clause in REVOKE sql. This flag when set to
     true will report warnings in case privilege being granted is not granted to
     given user/role. When set to false error is reported.

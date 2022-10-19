@@ -1479,6 +1479,7 @@ void warn_about_deprecated_binary(THD *thd)
         lock_option
         udf_type if_exists
         opt_no_write_to_binlog
+        opt_no_lock_check
         all_or_any opt_distinct
         fulltext_options union_option
         transaction_access_mode_types
@@ -9654,13 +9655,17 @@ opt_no_write_to_binlog:
         | LOCAL_SYM { $$= 1; }
         ;
 
+opt_no_lock_check:
+          /* empty */ { $$= 0; }
+        | NO_SYM LOCK_SYM CHECK_SYM { $$= 1; }
+        ;
+
 rename:
-          RENAME table_or_tables
+          RENAME table_or_tables table_to_table_list opt_no_lock_check
           {
             Lex->sql_command= SQLCOM_RENAME_TABLE;
+            Lex->no_lock_check = $4;
           }
-          table_to_table_list
-          {}
         | RENAME USER rename_list
           {
             Lex->sql_command = SQLCOM_RENAME_USER;

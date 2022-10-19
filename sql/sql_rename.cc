@@ -68,7 +68,7 @@ typedef std::set<handlerton *> post_ddl_htons_t;
 static TABLE_LIST *rename_tables(
     THD *thd, TABLE_LIST *table_list, bool *int_commit_done,
     post_ddl_htons_t *post_ddl_htons,
-    Foreign_key_parents_invalidator *fk_invalidator);
+    Foreign_key_parents_invalidator *fk_invalidator, bool no_lock_check);
 
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
@@ -95,7 +95,9 @@ struct table_list_equal {
 */
 
 static bool check_if_owns_upgradable_mdl(THD *thd, const char *db,
-                                         const char *table_name) {
+                                         const char *table_name, bool no_lock_check) {
+  if (no_lock_check)
+    return false; // Success, skipped checks altogether
   if (thd->mdl_context.owns_equal_or_stronger_lock(
           MDL_key::TABLE, db, table_name, MDL_SHARED_NO_READ_WRITE))
     return false;  // Success.
@@ -152,7 +154,7 @@ static void find_and_set_explicit_duration_for_schema_mdl(
   @return True - on failure, false - on success.
 */
 
-bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
+bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool no_lock_check) {
   TABLE_LIST *ren_table = nullptr;
   DBUG_TRACE;
 
@@ -270,7 +272,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
       auto new_name_it = new_names.find(ren_table);
       if (new_name_it == new_names.end()) {
         if (check_if_owns_upgradable_mdl(thd, ren_table->db,
-                                         ren_table->table_name))
+                                         ren_table->table_name,
+                                         no_lock_check))
           return true;
       } else {
         new_names.erase(new_name_it);
@@ -325,7 +328,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
     no other thread accesses this table.
   */
   if ((ren_table = rename_tables(thd, table_list, &int_commit_done,
-                                 &post_ddl_htons, &fk_invalidator))) {
+                                 &post_ddl_htons, &fk_invalidator, no_lock_check))) {
     /* Rename didn't succeed;  rename back the tables in reverse order */
     TABLE_LIST *table;
 
@@ -352,7 +355,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
         TABLES, which this code deals with, is not the main use case anyway.
       */
       int_commit_full_revert = !rename_tables(thd, table, &int_commit_done,
-                                              &post_ddl_htons, &fk_invalidator);
+                                              &post_ddl_htons, &fk_invalidator, no_lock_check);
 
       /* Revert the table list (for prepared statements) */
       table_list = reverse_table_list(table_list);
@@ -552,7 +555,8 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
                       const char *new_table_name, const char *new_table_alias,
                       bool *int_commit_done,
                       std::set<handlerton *> *post_ddl_htons,
-                      Foreign_key_parents_invalidator *fk_invalidator) {
+                      Foreign_key_parents_invalidator *fk_invalidator,
+                      bool no_lock_check) {
   const char *new_alias = new_table_name;
   const char *old_alias = ren_table->table_name;
 
@@ -710,7 +714,8 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
             if (mdl_request->key.mdl_namespace() != MDL_key::TABLE) continue;
 
             if (check_if_owns_upgradable_mdl(thd, mdl_request->key.db_name(),
-                                             mdl_request->key.name())) {
+                                             mdl_request->key.name(),
+                                             no_lock_check)) {
               // See explanation for clearing foreign key invalidator below.
               fk_invalidator->clear();
               return true;
@@ -924,7 +929,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
 static TABLE_LIST *rename_tables(
     THD *thd, TABLE_LIST *table_list, bool *int_commit_done,
     post_ddl_htons_t *post_ddl_htons,
-    Foreign_key_parents_invalidator *fk_invalidator)
+    Foreign_key_parents_invalidator *fk_invalidator, bool no_lock_check)
 
 {
   TABLE_LIST *ren_table, *new_table;
@@ -935,7 +940,7 @@ static TABLE_LIST *rename_tables(
     new_table = ren_table->next_local;
     if (do_rename(thd, ren_table, new_table->db, new_table->table_name,
                   new_table->alias, int_commit_done, post_ddl_htons,
-                  fk_invalidator))
+                  fk_invalidator, no_lock_check))
       return ren_table;
   }
   return nullptr;
