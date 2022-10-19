@@ -6528,7 +6528,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
     mutex_release();
 
-    if (!tbsp_extend_and_initialize) {
+    if (!space->initialize_while_extending()) {
       std::this_thread::sleep_for(std::chrono::microseconds(20));
     } else {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -6692,7 +6692,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     }
 #endif /* NO_FALLOCATE || !UNIV_LINUX */
 
-    if ((tbsp_extend_and_initialize && !file->atomic_write) ||
+    if ((space->initialize_while_extending() && !file->atomic_write) ||
         err == DB_IO_ERROR) {
       err = fil_write_zeros(file, phy_page_size, node_start, len);
 
@@ -11812,4 +11812,20 @@ void fil_complete_write(space_id_t space_id, fil_node_t *node) {
   shard->mutex_acquire();
   shard->complete_io(node, IORequestWrite);
   shard->mutex_release();
+}
+
+uint64_t fil_space_t::get_auto_extend_size() {
+  if (autoextend_size_in_bytes != 0) {
+    return autoextend_size_in_bytes;
+  }
+  if (is_bulk_operation_in_progress()) {
+    return m_bulk_extend_size.load();
+  }
+  return 0;
+}
+
+bool fil_space_t::initialize_while_extending() {
+  /* Don't initialize added space during bulk operation. The extended area
+  would be explicitly flushed with data or zero filled pages. */
+  return (tbsp_extend_and_initialize && !is_bulk_operation_in_progress());
 }

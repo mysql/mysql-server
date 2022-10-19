@@ -237,9 +237,6 @@ struct Builder {
   dberr_t check_file_is_sorted(const file_t &file);
 #endif /* UNIV_DEBUG */
 
-  dberr_t add_root_for_subtrees(const size_t highest_level);
-  dberr_t subtree_link_levels(size_t &highest_level);
-
   /** Close temporary files, Flush all dirty pages, apply the row log
   and write the redo log record.
   @return DB_SUCCESS or error code. */
@@ -515,12 +512,6 @@ struct Builder {
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t check_duplicates(Thread_ctxs &dupcheck,
                                          Dup *dup) noexcept;
-
-  /** Get the maximum free space available in an empty page in bytes.
-  @return the maximum free space available in an empty page. */
-  size_t get_max_free() const {
-    return page_get_free_space_of_empty(dict_table_is_comp(m_index->table));
-  }
 
  private:
   /** Buffer ID. */

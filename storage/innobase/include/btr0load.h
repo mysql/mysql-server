@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stddef.h>
 #include <vector>
 
+#include "ddl0impl-compare.h"
 #include "dict0dict.h"
 #include "page0cur.h"
 #include "ut0class_life_cycle.h"
@@ -73,6 +74,10 @@ struct Page_extent {
   /** Create an object of type Page_extent in the heap. */
   static Page_extent *create(Btree_load *btree_load, const bool is_leaf,
                              const bool is_blob);
+
+  /** Release the page extent. Delete if not cached.
+  @param[in] extent extent to release */
+  static void drop(Page_extent *extent);
 
   /** Number of pages in this extent. */
   page_no_t page_count() const;
@@ -142,7 +147,26 @@ struct Page_extent {
   /** Free all resources. */
   dberr_t destroy();
 
+  /** Free any cached page load entries. */
+  void destroy_cached();
+
   space_id_t space() const;
+
+  /** Mark the extent as cached. Flush thread should not free this extent. */
+  void set_cached() { m_is_cached.store(true); }
+
+  /** Set and unset free state of a cached extent.
+  @param[in] free state to be set */
+  void set_state(bool free) { m_is_free.store(free); }
+
+  /** @return true iff the cached element is in free state. */
+  bool is_free() const { return m_is_free.load(); }
+
+  /** @return true iff it is a cached extent. */
+  bool is_cached() const { return m_is_cached.load(); }
+
+  /** Reaset page load cache to free all. */
+  void reset_cached_page_loads() { m_next_cached_page_load_index = 0; }
 
  public:
   std::ostream &print(std::ostream &out) const;
@@ -150,6 +174,16 @@ struct Page_extent {
  private:
   Btree_load *m_btree_load{};
   const bool m_is_leaf; /* true if this extent belongs to leaf segment. */
+  /** true iff the the extent is cached. */
+  std::atomic_bool m_is_cached = ATOMIC_VAR_INIT(false);
+  /** true if the cached entry is free to be used. */
+  std::atomic_bool m_is_free = ATOMIC_VAR_INIT(true);
+  /** Cached page loads. */
+  std::vector<Page_load *> m_cached_page_loads;
+  /** Next cached page load index. */
+  size_t m_next_cached_page_load_index{0};
+
+  friend struct Level_ctx;
 };
 
 inline Page_extent::~Page_extent() {
@@ -220,12 +254,11 @@ struct Level_ctx {
   /** Static member function construct a Level_ctx object.
   @param[in]  index  dictionary index object.
   @param[in]  level  the B-tree level of this context object.
-  @param[in]  page_load  page loader.
   @param[in]  btree_load a back pointer to the Btree_load object to which this
    Level_ctx object is a part of.
   @return level context object on success, nullptr on error. */
   static Level_ctx *create(dict_index_t *index, size_t level,
-                           Page_load *page_load, Btree_load *btree_load);
+                           Btree_load *btree_load);
 
   /** Static member function to destroy a Level_ctx object.
   @param[in]  obj  the Level_ctx object to destroy. */
@@ -234,14 +267,12 @@ struct Level_ctx {
   /** Constructor
   @param[in]  index  dictionary index object.
   @param[in]  level  the B-tree level of this context object.
-  @param[in]  page_load  page loader.
   @param[in]  btree_load a back pointer to the Btree_load object to which this
    Level_ctx object is a part of.*/
-  Level_ctx(dict_index_t *index, size_t level, Page_load *page_load,
-            Btree_load *btree_load)
+  Level_ctx(dict_index_t *index, size_t level, Btree_load *btree_load)
       : m_index(index),
         m_level(level),
-        m_page_load(page_load),
+        m_page_load(nullptr),
         m_btree_load(btree_load) {}
 
   /** Destructor. */
@@ -282,6 +313,23 @@ struct Level_ctx {
 
   /** The current extent that is being loaded. */
   Page_extent *m_page_extent{};
+
+  /** Build the extent cache. */
+  void build_extent_cache();
+
+  /** Load one extent from extent cache.
+  @return true iff successful. */
+  bool load_extent_from_cache();
+
+  /** Build page loader cache for current exent. */
+  void build_page_cache();
+
+  /** Get a free page loader from cache
+  @return page loader or nullptr if not found. */
+  Page_load *get_page_load_from_cache();
+
+  /** Pre allocated extents to prevent repeated allocation and free. */
+  std::vector<Page_extent *> m_cached_extents;
 
   /** The page_no of the first page in this level. */
   page_no_t m_first_page{FIL_NULL};
@@ -416,14 +464,18 @@ class Bulk_flusher {
   @return the current queue size. */
   size_t get_queue_size() const;
 
+  /** Get the maximum allowed queue size.
+  @return the maximum allowed queue size. */
+  size_t get_max_queue_size() const { return m_max_queue_size; }
+
   /** Destructor. */
   ~Bulk_flusher();
 
  private:
-  /** Get the maximum allowed queue size.
-  @return the maximum allowed queue size. */
-  size_t get_max_queue_size() const;
+  /** Calculate and set the value of maximum queue size. */
+  void set_max_queue_size();
 
+ private:
   /** Do the actual work of flushing. */
   void do_work();
 
@@ -461,7 +513,10 @@ class Bulk_flusher {
   size_t m_n_sleep{};
 
   /** The sleep duration in milliseconds. */
-  static constexpr std::chrono::milliseconds s_sleep_duration{1};
+  static constexpr std::chrono::milliseconds s_sleep_duration{10};
+
+  /** Maximum queue size, defaults to 4 */
+  size_t m_max_queue_size{4};
 
   /** A flag to indicate the flush queue is full. */
   std::atomic<bool> m_queue_full{false};
@@ -475,6 +530,9 @@ m_page_loaders after page_commit, and we will commit or abort Page_load
 objects in function "finish". */
 class Btree_load : private ut::Non_copyable {
  public:
+  /** Merge multiple Btree_load sub-trees together. */
+  class Merger;
+
   /** Interface to consume from. */
   struct Cursor {
     /** Constructor. */
@@ -510,13 +568,15 @@ class Btree_load : private ut::Non_copyable {
   /** Destructor */
   ~Btree_load() noexcept;
 
-  /** Initialize.
+  /** Initialize.  Allocates the m_heap_order memory heap.
   @return DB_SUCCESS on success or an error code on failure. */
   dberr_t init();
 
   /** Get the index object.
   @return index object. */
   dict_index_t *index() const { return m_index; }
+
+  const char *get_table_name() const { return m_index->table->name.m_name; }
 
   /** Get the root page number of this tree/subtree.
   @return the root page number of this tree/subtree. */
@@ -718,6 +778,8 @@ class Btree_load : private ut::Non_copyable {
   std::ostream &print_left_pages(std::ostream &out) const;
   std::ostream &print_right_pages(std::ostream &out) const;
 
+  bool does_keys_overlap(const Btree_load *r_btree) const;
+
   /** Based on current usage of the buffer pool, decide if allocation needs to
   be in pages or extents.
   @return if true allocate in pages, if false allocate in extents.*/
@@ -732,9 +794,6 @@ class Btree_load : private ut::Non_copyable {
 
   /** Get a reference to the Blob_load object. */
   Blob_load *blob() { return m_blob_load; }
-
-  size_t n_threads() const { return m_n_threads; }
-  void set_n_threads(size_t n_threads) { m_n_threads = n_threads; }
 
   /** All allocated extents registers with Btree_load.  */
   void track_extent(Page_extent *page_extent);
@@ -758,7 +817,56 @@ class Btree_load : private ut::Non_copyable {
   @return true if TPE is enabled. */
   bool is_tpe_enabled() const;
 
+  /** Set number of page ranges to cache. Optimization to avoid acquiring X
+  lock frequently.
+  @param[in] num_ranges ranges to cache for leaf and non-leaf segments */
+  void set_cached_range(size_t num_ranges) {
+    if (num_ranges > S_MAX_CACHED_RANGES) {
+      num_ranges = S_MAX_CACHED_RANGES;
+    }
+    m_max_cached = num_ranges;
+  }
+
+  /** @return true iff page ranges should be cached. */
+  bool cache_ranges() const { return m_max_cached > 0; }
+
+  /** Fill cached ranges and get the first range.
+  @param[out]    page_range cached page range
+  @param[in]     level      B-tree level
+  @param[in,out] mtr        mini-transaction
+  @return innodb error code. */
+  dberr_t fill_cached_range(Page_range_t &page_range, size_t level, mtr_t *mtr);
+
+  /** Get page range from cached ranges.
+  @param[out] page_range cached page range
+  @param[in]  level      B-tree level
+  @return true iff cached range is found. */
+  bool get_cached_range(Page_range_t &page_range, size_t level);
+
+  /** @return get flush queue size limit. */
+  size_t get_max_flush_queue_size() const {
+    return m_bulk_flusher.get_max_queue_size();
+  }
+
  private:
+  /** Number of ranges to cache. */
+  size_t m_max_cached{};
+
+  /** Maximum number of page ranges to cache. */
+  const static size_t S_MAX_CACHED_RANGES = 16;
+
+  /** Cached non-leaf page ranges. */
+  Page_range_t m_cached_ranges_top[S_MAX_CACHED_RANGES];
+
+  /** Current number of cached non-leaf ranges. */
+  size_t m_num_top_cached{};
+
+  /** Cached leaf page ranges. */
+  Page_range_t m_cached_ranges_leaf[S_MAX_CACHED_RANGES];
+
+  /** Current number of cached leaf ranges. */
+  size_t m_num_leaf_cached{};
+
   /** Number of records inserted. */
   uint64_t m_n_recs{};
 
@@ -787,10 +895,72 @@ class Btree_load : private ut::Non_copyable {
 
   /** Extents that are being tracked. */
   std::list<Page_extent *> m_extents_tracked;
+
+  /** If true, check if data is inserted in sorted order. */
+  bool m_check_order{true};
+
+  /** Memory heap to be used for sort order checks. */
+  mem_heap_t *m_heap_order{};
+
+  /** Function object to compare two tuples. */
+  ddl::Compare_key m_compare_key;
+
+  /** The previous tuple that has been inserted. */
+  dtuple_t *m_prev_tuple{};
+
   bool is_extent_tracked(const Page_extent *page_extent) const;
+
   size_t m_n_threads{};
 
   const page_size_t m_page_size;
+};
+
+class Btree_load::Merger {
+ public:
+  using Btree_loads = std::vector<Btree_load *, ut::allocator<Btree_load *>>;
+
+  Merger(Btree_loads &loads, dict_index_t *index, trx_t *trx)
+      : m_btree_loads(loads), m_index(index), m_trx(trx) {}
+
+  dberr_t merge(bool sort);
+
+ private:
+  /** Get the maximum free space available in an empty page in bytes.
+  @return the maximum free space available in an empty page. */
+  size_t get_max_free() const {
+    return page_get_free_space_of_empty(dict_table_is_comp(m_index->table));
+  }
+
+  /** Remove any empty sub-trees with no records. */
+  void remove_empty_subtrees();
+
+#ifdef UNIV_DEBUG
+  /** Validate sub-tree boundaries. */
+  void validate_boundaries();
+
+#endif /* UNIV_DEBUG */
+
+  /** Stich sub-trees together to form a tree with one or multiple
+  nodes at highest leve.
+  @param[out]  highest_level  highest level of the merged tree.
+  @return innodb error code. */
+  dberr_t subtree_link_levels(size_t &highest_level);
+
+  /** Create root node for the stiched sub-trees by combining the nodes
+  at highest level creating another level if required.
+  @param[in]  highest_level  highest level of the merged tree.
+  @return innodb error code. */
+  dberr_t add_root_for_subtrees(const size_t highest_level);
+
+ private:
+  /** Refernce to the subtrees to be merged. */
+  Btree_loads &m_btree_loads;
+
+  /** Index which is being built. */
+  dict_index_t *m_index{};
+
+  /** Transaction making the changes. */
+  trx_t *m_trx{};
 };
 
 inline bool Btree_load::is_extent_tracked(
@@ -848,6 +1018,10 @@ class Page_load : private ut::Non_copyable {
   @param[in]  btree_load  the bulk load object to which this Page_load belongs.
   @param[in]  page_extent page extent to which this page belongs. */
   static Page_load *create(Btree_load *btree_load, Page_extent *page_extent);
+
+  /** Release the page loader. Delete if not cached.
+  @param[in] page_load page loader to delete. */
+  static void drop(Page_load *page_load);
 
   /** Constructor
   @param[in]	index	    B-tree index
@@ -1085,6 +1259,12 @@ class Page_load : private ut::Non_copyable {
     m_page_extent = page_extent;
   }
 
+  /** Mark the Page load as cached. Flush thread should not free this Page. */
+  void set_cached() { m_is_cached.store(true); }
+
+  /** @return true iff it is a cached Page Load. */
+  bool is_cached() const { return m_is_cached.load(); }
+
  private:
   /** Memory heap for internal allocation */
   mem_heap_t *m_heap{};
@@ -1158,6 +1338,9 @@ class Page_load : private ut::Non_copyable {
   Level_ctx *m_level_ctx{};
 
   Page_extent *m_page_extent{};
+
+  /** true iff the the Page load is cached. */
+  std::atomic_bool m_is_cached = ATOMIC_VAR_INIT(false);
 
   friend class Btree_load;
 };
@@ -1246,14 +1429,28 @@ inline Page_extent::Page_extent(Btree_load *btree_load, const bool is_leaf)
       m_is_leaf(is_leaf) {}
 
 inline Page_extent *Page_extent::create(Btree_load *btree_load,
-                                        const bool is_leaf, bool is_blob) {
+                                        const bool is_leaf, bool skip_track) {
   Page_extent *p = ut::new_withkey<Page_extent>(UT_NEW_THIS_FILE_PSI_KEY,
                                                 btree_load, is_leaf);
-  if (!is_blob) {
+  if (!skip_track) {
     /* blob extents are tracked by Blob_load */
     btree_load->track_extent(p);
   }
+  p->m_is_cached.store(false);
   return p;
+}
+
+inline void Page_extent::drop(Page_extent *extent) {
+  if (extent == nullptr) {
+    return;
+  }
+  if (extent->is_cached()) {
+    ut_a(!extent->is_free());
+    bool free = true;
+    extent->set_state(free);
+    return;
+  }
+  ut::delete_(extent);
 }
 
 inline Blob_load *Blob_load::create(Btree_load *btree_load) {

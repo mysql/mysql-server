@@ -26,17 +26,41 @@
 #ifndef ut0core_h
 #define ut0core_h
 
+#include <sstream>
 #include "ut0dbg.h"
 
 namespace ut {
 struct Location {
   const char *filename;
   size_t line;
+  std::string str() const;
+  std::string basename() const;
+  std::string to_json() const;
   std::ostream &print(std::ostream &out) const {
     out << "[Location: file=" << filename << ", line=" << line << "]";
     return out;
   }
 };
+
+inline std::string Location::basename() const {
+  const std::string path(filename);
+  auto pos = path.find_last_of('/');
+  return path.substr(pos);
+}
+
+inline std::string Location::to_json() const {
+  std::ostringstream sout;
+  sout << "{type: Location, basename: " << basename() << ", line: " << line
+       << "}";
+  return sout.str();
+}
+
+inline std::string Location::str() const {
+  std::ostringstream sout;
+  (void)print(sout);
+  return sout.str();
+}
+
 }  // namespace ut
 
 inline std::ostream &operator<<(std::ostream &out, const ut::Location &obj) {
@@ -185,4 +209,4 @@ inline std::ostream &operator<<(std::ostream &lhs, const hex &rhs) {
 
 }  // namespace ib
 
-#endif
+#endif /* ut0core_h */

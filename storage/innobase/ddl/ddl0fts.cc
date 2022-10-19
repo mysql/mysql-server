@@ -1314,6 +1314,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
   dd_table_close(aux_table, nullptr, nullptr, false);
 
   auto observer = m_ctx.flush_observer();
+  trx->flush_observer = observer;
   auto aux_index = aux_table->first_index();
 
   auto func_exit = [&](dberr_t err) {

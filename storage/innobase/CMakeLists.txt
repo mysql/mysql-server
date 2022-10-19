@@ -110,6 +110,7 @@ SET(INNOBASE_SOURCES
   dict/dict0upgrade.cc
   ddl/ddl0buffer.cc
   ddl/ddl0builder.cc
+  ddl/ddl0bulk.cc
   ddl/ddl0ctx.cc
   ddl/ddl0ddl.cc
   ddl/ddl0fts.cc

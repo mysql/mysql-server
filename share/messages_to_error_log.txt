@@ -11970,6 +11970,72 @@ ER_IB_DUPLICATE_KEY
 ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK
   eng "Failed to apply row event with %d columns, originating from a server of version %s on table '%-.192s.%-.192s', which has %d columns, one of which is a generated implicit primary key. Replication is unsupported when the source server is older than 8.0.30, the replica table has a generated implicit primary key, and there is a difference in column count, not counting the replica's generated implicit primary key. Align the table schemas on source and replica, and restart replication."
 
+ER_BULK_EXECUTOR_INFO
+  eng "Bulk executor: %s"
+
+ER_BULK_LOADER_INFO
+  eng "Bulk loader: %s"
+
+ER_BULK_LOADER_FILE_CONTAINS_LESS_LINES_THAN_IGNORE_CLAUSE_LOG
+  eng "The first file being loaded contained less lines than the ignore clause"
+
+ER_BULK_READER_INFO
+  eng "Bulk reader: %s"
+
+ER_BULK_READER_LIBCURL_INIT_FAILED_LOG
+  eng "Bulk reader failed to initialize libcurl"
+
+ER_BULK_READER_LIBCURL_ERROR_LOG
+  eng "Bulk reader got libcurl error: %s"
+
+ER_BULK_READER_SERVER_ERROR_LOG
+  eng "Bulk reader got error response from server: %ld"
+
+ER_BULK_READER_COMMUNICATION_ERROR_LOG
+  eng "Bulk reader got error in communication with source server, check the error log for additional details"
+
+ER_BULK_PARSER_MISSING_ENCLOSED_BY_LOG
+  eng "Missing ENCLOSED BY character at row %ld in file %s. Add OPTIONALLY to the ENCLOSED BY clause to allow this input."
+
+ER_BULK_PARSER_ROW_BUFFER_MAX_TOTAL_COLS_EXCEEDED_LOG
+  eng "The number of input columns that need to be buffered for parsing exceeded predefined buffer max size for file '%s'."
+
+ER_BULK_PARSER_COPY_BUFFER_SIZE_EXCEEDED_LOG
+  eng "The column data that needed to be copied due to escaped characters exceeded the size of the internal copy buffer for file '%s'."
+
+ER_BULK_PARSER_UNEXPECTED_END_OF_INPUT_LOG
+  eng "Unexpected end of input found at row %ld in file '%s'. Data for some columns is missing."
+
+ER_BULK_PARSER_UNEXPECTED_ROW_TERMINATOR_LOG
+  eng "Unexpected row terminator found at row %ld in file '%s'. Data for some columns is missing."
+
+ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_ENDING_ENCLOSED_BY_LOG
+  eng "Unexpected characters after ending ENCLOSED BY character found at row %ld in file '%s'."
+
+ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_NULL_ESCAPE_LOG
+  eng "Unexpected characters after NULL escape (\N) found at row %ld in file '%s'."
+
+ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_COLUMN_TERMINATOR_LOG
+  eng "Unexpected characters after column terminator found at row %ld in file '%s'."
+
+ER_BULK_PARSER_INCOMPLETE_ESCAPE_SEQUENCE_LOG
+  eng "Unexpected end of input found at row %ld in file '%s' resulting in incomplete escape sequence."
+
+ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD_LOG
+  eng "Incorrect %-.32s value: '%-.128s' for column '%-.192s' at row %ld in file '%-.192s'"
+
+ER_LOAD_BULK_DATA_WARN_NULL_TO_NOTNULL_LOG
+  eng "NULL supplied to NOT NULL column '%s' at row %ld in file '%-.192s'"
+
+ER_IB_BULK_LOAD_THREAD_FAIL
+   eng "%s: LOAD BULK DATA thread failure (err=%lu), table=%s, index=%s"
+
+ER_IB_BULK_LOAD_MERGE_FAIL
+   eng "%s: Failed to merge sub-trees in LOAD BULK DATA, table=%s, index=%s, details=%s"
+
+ER_IB_LOAD_BULK_CONCURRENCY_REDUCED
+   eng "LOAD BULK DATA: Buffer pool size is %zu. Reducing concurrency from %zu to %zu. table=%s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

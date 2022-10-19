@@ -469,6 +469,32 @@ class ha_innobase : public handler {
   @param[in]      scan_ctx      A scan context created by parallel_scan_init. */
   void parallel_scan_end(void *scan_ctx) override;
 
+  /** Begin parallel bulk data load to the table.
+  @param[in]  thd          user session
+  @param[in,out]  num_threads  Number of concurrent threads used for load. This
+                               can be internally modified by InnoDB, with a
+                               warning in the error log.
+  @return bulk load context or nullptr if unsuccessful. */
+  void *bulk_load_begin(THD *thd, size_t &num_threads) override;
+
+  /** Execute bulk load operation. To be called by each of the concurrent
+  threads idenified by thread index.
+  @param[in,out]  thd         user session
+  @param[in,out]  load_ctx    load execution context
+  @param[in]      thread_idx  index of the thread executing
+  @param[in]      rows        rows to be loaded to the table
+  @return error code. */
+  int bulk_load_execute(THD *thd, void *load_ctx, size_t thread_idx,
+                        const Rows_mysql &rows) override;
+
+  /** End bulk load operation. Must be called after all execution threads have
+  completed. Must be called even if the bulk load execution failed.
+  @param[in,out]  thd       user session
+  @param[in,out]  load_ctx  load execution context
+  @param[in]      is_error  true, if bulk load execution have failed
+  @return error code. */
+  int bulk_load_end(THD *thd, void *load_ctx, bool is_error) override;
+
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes) override;
 

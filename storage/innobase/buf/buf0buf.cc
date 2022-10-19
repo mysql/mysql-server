@@ -56,6 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "log0buf.h"
 #include "log0chkp.h"
+#include "page0page.h"
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
@@ -6966,3 +6967,17 @@ void buf_pool_free_all() {
   const page_t *const frame = page_align(ptr);
   return mach_read_from_8(frame + FIL_PAGE_LSN) == 0;
 }
+
+uint16_t buf_block_t::get_page_level() const {
+  ut_ad(frame != nullptr);
+  ut_ad(get_page_type() == FIL_PAGE_INDEX);
+  uint16_t level = mach_read_from_2(frame + PAGE_HEADER + PAGE_LEVEL);
+  ut_ad(level <= BTR_MAX_NODE_LEVEL);
+  return level;
+}
+
+bool buf_block_t::is_empty() const {
+  return page_rec_is_supremum(page_rec_get_next(page_get_infimum_rec(frame)));
+}
+
+bool buf_block_t::is_compact() const { return page_is_comp(frame); }

@@ -105,7 +105,7 @@ struct Compare_key {
         std::ostringstream sout_rhs;
         dfield_print(sout_lhs, lhs, m_n_unique);
         dfield_print(sout_rhs, rhs, m_n_unique);
-        LogErr(WARNING_LEVEL, ER_IB_DUPLICATE_KEY, "Compare_key",
+        LogErr(INFORMATION_LEVEL, ER_IB_DUPLICATE_KEY, "Compare_key",
                m_index->table_name, m_index->name(), m_n_unique, m_n_fields,
                sout_lhs.str().c_str(), sout_rhs.str().c_str());
         m_dups->report(lhs);

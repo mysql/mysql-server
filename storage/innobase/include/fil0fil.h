@@ -179,6 +179,8 @@ struct fil_node_t {
   /** whether the file actually is a raw device or disk partition */
   bool is_raw_disk;
 
+  bool is_offset_valid(os_offset_t byte_offset) const;
+
   /** size of the file in database pages (0 if not known yet);
   the possible last incomplete megabyte may be ignored
   if space->id == 0 */
@@ -412,7 +414,33 @@ struct fil_space_t {
   /** true if the tablespace is marked for deletion. */
   std::atomic_bool m_deleted{};
 
+  /** true if bulk operation is in progress. */
+  std::atomic_bool m_is_bulk = ATOMIC_VAR_INIT(false);
+
+  /** true if bulk operation is in progress. */
+  std::atomic<uint64_t> m_bulk_extend_size;
+
  public:
+  /** Begin bulk operation on the space.
+  @param[in] extend_size space extension size for bulk operation */
+  void begin_bulk_operation(uint64_t extend_size) {
+    m_is_bulk.store(true);
+    m_bulk_extend_size.store(extend_size);
+  }
+
+  /** End bulk operation on the space. */
+  void end_bulk_operation() { m_is_bulk.store(false); }
+
+  /** @return true, if bulk operation in progress. */
+  bool is_bulk_operation_in_progress() const { return m_is_bulk.load(); }
+
+  /** @return automatic extension size for space. */
+  uint64_t get_auto_extend_size();
+
+  /** @return true if added space should be initialized while extending space.
+   */
+  bool initialize_while_extending();
+
   /** true if we want to rename the .ibd file of tablespace and
   want to temporarily prevent other threads from opening the file that is being
   renamed.  */
@@ -2274,4 +2302,12 @@ size_t fil_count_undo_deleted(space_id_t undo_num);
 dberr_t fil_prepare_file_for_io(space_id_t space_id, page_no_t &page_no,
                                 fil_node_t **node_out);
 void fil_complete_write(space_id_t space_id, fil_node_t *node);
+
+inline bool fil_node_t::is_offset_valid(os_offset_t byte_offset) const {
+  const page_size_t page_size(space->flags);
+  const os_offset_t max_offset = size * page_size.physical();
+  ut_ad(byte_offset < max_offset);
+  return byte_offset < max_offset;
+}
+
 #endif /* fil0fil_h */

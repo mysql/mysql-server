@@ -42,6 +42,7 @@
 #include <string>
 #include <string_view>
 
+#include <mysql/components/services/bulk_data_service.h>
 #include <mysql/components/services/page_track_service.h>
 #include "ft_global.h"  // ft_hints
 #include "lex_string.h"
@@ -4836,6 +4837,42 @@ class handler {
     @param[in]      scan_ctx      A scan context created by parallel_scan_init.
   */
   virtual void parallel_scan_end(void *scan_ctx [[maybe_unused]]) { return; }
+
+  /** Begin parallel bulk data load to the table.
+  @param[in]  thd          user session
+  @param[in,out]  num_threads  number of concurrent threads used for load. This
+                               can be internally modified by SE.
+  @return bulk load context o nullptr if unsuccessful. */
+  virtual void *bulk_load_begin(THD *thd [[maybe_unused]],
+                                size_t &num_threads [[maybe_unused]]) {
+    return nullptr;
+  }
+
+  /** Execute bulk load operation. To be called by each of the concurrent
+  threads idenified by thread index.
+  @param[in,out]  thd         user session
+  @param[in,out]  load_ctx    load execution context
+  @param[in]      thread_idx  index of the thread executing
+  @param[in]      rows        rows to be loaded to the table
+  @return error code. */
+  virtual int bulk_load_execute(THD *thd [[maybe_unused]],
+                                void *load_ctx [[maybe_unused]],
+                                size_t thread_idx [[maybe_unused]],
+                                const Rows_mysql &rows [[maybe_unused]]) {
+    return HA_ERR_UNSUPPORTED;
+  }
+
+  /** End bulk load operation. Must be called after all execution threads have
+  completed. Must be called even if the bulk load execution failed.
+  @param[in,out]  thd       user session
+  @param[in,out]  load_ctx  load execution context
+  @param[in]      is_error  true, if bulk load execution have failed
+  @return error code. */
+  virtual int bulk_load_end(THD *thd [[maybe_unused]],
+                            void *load_ctx [[maybe_unused]],
+                            bool is_error [[maybe_unused]]) {
+    return false;
+  }
 
   /**
     Submit a dd::Table object representing a core DD table having

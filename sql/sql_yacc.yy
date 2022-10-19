@@ -799,7 +799,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> IMPORT 488
 %token<lexer.keyword> INDEXES 489
 %token  INDEX_SYM 490
-%token  INFILE 491
+%token  INFILE_SYM 491
 %token<lexer.keyword> INITIAL_SIZE_SYM 492
 %token  INNER_SYM 493                     /* SQL-2003-R */
 %token  INOUT_SYM 494                     /* SQL-2003-R */
@@ -1379,7 +1379,10 @@ void warn_about_deprecated_binary(THD *thd)
 
 %token<lexer.keyword> GTID_ONLY_SYM 1199                       /* MYSQL */
 
-%token                INTERSECT_SYM                        1200 /* SQL-1992-R */
+%token                INTERSECT_SYM              1200 /* SQL-1992-R */
+
+%token<lexer.keyword> BULK_SYM                   1201  /* MYSQL */
+%token<lexer.keyword> URL_SYM                    1202   /* MYSQL */
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -1518,6 +1521,7 @@ void warn_about_deprecated_binary(THD *thd)
         profile_defs
         profile_def
         factor
+        opt_source_count
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
@@ -1676,6 +1680,7 @@ void warn_about_deprecated_binary(THD *thd)
 %type <index_hint> index_hint_type
 %type <num> index_hint_clause
 %type <filetype> data_or_xml
+%type <source_type> load_source_type
 
 %type <da_condition_item_name> signal_condition_information_item_name
 
@@ -1710,6 +1715,8 @@ void warn_about_deprecated_binary(THD *thd)
         constraint_enforcement
         opt_not
         opt_interval
+        opt_source_order
+        opt_load_algorithm
 
 %type <show_cmd_type> opt_show_cmd_type
 
@@ -14331,38 +14338,46 @@ load_stmt:
           LOAD                          /*  1 */
           data_or_xml                   /*  2 */
           load_data_lock                /*  3 */
-          opt_local                     /*  4 */
-          INFILE                        /*  5 */
-          TEXT_STRING_filesystem        /*  6 */
-          opt_duplicate                 /*  7 */
-          INTO                          /*  8 */
-          TABLE_SYM                     /*  9 */
-          table_ident                   /* 10 */
-          opt_use_partition             /* 11 */
-          opt_load_data_charset         /* 12 */
-          opt_xml_rows_identified_by    /* 13 */
-          opt_field_term                /* 14 */
-          opt_line_term                 /* 15 */
-          opt_ignore_lines              /* 16 */
-          opt_field_or_var_spec         /* 17 */
-          opt_load_data_set_spec        /* 18 */
+          opt_from_keyword              /*  4 */
+          opt_local                     /*  5 */
+          load_source_type              /*  6 */
+          TEXT_STRING_filesystem        /*  7 */
+          opt_source_count              /*  8 */
+          opt_source_order              /*  9 */
+          opt_duplicate                 /* 10 */
+          INTO                          /* 11 */
+          TABLE_SYM                     /* 12 */
+          table_ident                   /* 13 */
+          opt_use_partition             /* 14 */
+          opt_load_data_charset         /* 15 */
+          opt_xml_rows_identified_by    /* 16 */
+          opt_field_term                /* 17 */
+          opt_line_term                 /* 18 */
+          opt_ignore_lines              /* 19 */
+          opt_field_or_var_spec         /* 20 */
+          opt_load_data_set_spec        /* 21 */
+          opt_load_algorithm            /* 22 */
           {
             $$= NEW_PTN PT_load_table($2,  // data_or_xml
                                       $3,  // load_data_lock
-                                      $4,  // opt_local
-                                      $6,  // TEXT_STRING_filesystem
-                                      $7,  // opt_duplicate
-                                      $10, // table_ident
-                                      $11, // opt_use_partition
-                                      $12, // opt_load_data_charset
-                                      $13, // opt_xml_rows_identified_by
-                                      $14, // opt_field_term
-                                      $15, // opt_line_term
-                                      $16, // opt_ignore_lines
-                                      $17, // opt_field_or_var_spec
-                                      $18.set_var_list,// opt_load_data_set_spec
-                                      $18.set_expr_list,
-                                      $18.set_expr_str_list);
+                                      $5,  // opt_local
+                                      $6,  // source type
+                                      $7,  // TEXT_STRING_filesystem
+                                      $8,  // opt_source_count
+                                      $9,  // opt_source_order
+                                      $10, // opt_duplicate
+                                      $13, // table_ident
+                                      $14, // opt_use_partition
+                                      $15, // opt_load_data_charset
+                                      $16, // opt_xml_rows_identified_by
+                                      $17, // opt_field_term
+                                      $18, // opt_line_term
+                                      $19, // opt_ignore_lines
+                                      $20, // opt_field_or_var_spec
+                                      $21.set_var_list,// opt_load_data_set_spec
+                                      $21.set_expr_list,
+                                      $21.set_expr_str_list,
+                                      $22); // opt_load_algorithm
           }
         ;
 
@@ -14376,10 +14391,40 @@ opt_local:
         | LOCAL_SYM   { $$= true; }
         ;
 
+opt_from_keyword:
+          /* empty */ {}
+        | FROM        {}
+        ;
+
 load_data_lock:
           /* empty */ { $$= TL_WRITE_DEFAULT; }
         | CONCURRENT  { $$= TL_WRITE_CONCURRENT_INSERT; }
         | LOW_PRIORITY { $$= TL_WRITE_LOW_PRIORITY; }
+        ;
+
+load_source_type:
+          INFILE_SYM { $$ = LOAD_SOURCE_FILE; }
+        | URL_SYM    { $$ = LOAD_SOURCE_URL; }
+     // | S3_SYM     { $$ = LOAD_SOURCE_S3; }
+        ;
+
+opt_source_count:
+          /* empty */   { $$= 0; }
+        | COUNT_SYM NUM { $$= atol($2.str); }
+        | IDENT_sys NUM
+          {
+            // COUNT can be key word or identifier based on SQL mode
+            if (my_strcasecmp(system_charset_info, $1.str, "count") != 0) {
+              YYTHD->syntax_error_at(@1, "COUNT expected");
+              YYABORT;
+            }
+            $$= atol($2.str);
+          }
+        ;
+
+opt_source_order:
+          /* empty */  { $$= false; }
+        | IN_SYM PRIMARY_SYM KEY_SYM ORDER_SYM { $$= true; }
         ;
 
 opt_duplicate:
@@ -14551,6 +14596,11 @@ load_data_set_elem:
             if ($$.set_expr_str == nullptr)
               MYSQL_YYABORT; // OOM
           }
+        ;
+
+opt_load_algorithm:
+          /* empty */               { $$ = false; }
+        | ALGORITHM_SYM EQ BULK_SYM { $$ = true; }
         ;
 
 /* Common definitions */
@@ -15213,6 +15263,7 @@ ident_keywords_unambiguous:
         | BOOL_SYM
         | BTREE_SYM
         | BUCKETS_SYM
+        | BULK_SYM
         | CASCADED
         | CATALOG_NAME_SYM
         | CHAIN_SYM
@@ -15596,6 +15647,7 @@ ident_keywords_unambiguous:
         | UNREGISTER_SYM
         | UNTIL_SYM
         | UPGRADE_SYM
+        | URL_SYM
         | USER
         | USE_FRM
         | VALIDATION_SYM
