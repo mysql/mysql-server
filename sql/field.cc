@@ -4259,6 +4259,7 @@ type_conversion_status Field_double::store(longlong nr, bool unsigned_val) {
   appropriately.
   Also ensure that the argument is within [min_value; max_value] where
   min_value == 0 if unsigned_flag is set, else -max_value.
+  Set warnings and nulls accordingly in the field object.
 
   @param[in,out] nr         the real number (FLOAT or DOUBLE) to be truncated
   @param[in]     max_value  the maximum (absolute) value of the real type
@@ -4302,6 +4303,56 @@ Field_real::Truncate_result Field_real::truncate(double *nr, double max_value) {
   } else if (*nr > max_value) {
     *nr = max_value;
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    return TR_POSITIVE_OVERFLOW;
+  }
+
+  return TR_OK;
+}
+
+/**
+  If a field has fixed length, truncate the double argument pointed to by 'nr'
+  appropriately.
+  Also ensure that the argument is within [min_value; max_value] where
+  min_value == 0 if unsigned_flag is set, else -max_value.
+  Const overload, doesn't set warnings or null.
+
+  @param[in,out] nr         the real number (FLOAT or DOUBLE) to be truncated
+  @param[in]     max_value  the maximum (absolute) value of the real type
+
+  @returns truncation result
+*/
+Field_real::Truncate_result Field_real::truncate(double *nr,
+                                                 double max_value) const {
+  if (std::isnan(*nr)) {
+    *nr = 0;
+    return TR_POSITIVE_OVERFLOW;
+  } else if (is_unsigned() && *nr < 0) {
+    *nr = 0;
+    return TR_NEGATIVE_OVERFLOW;
+  }
+
+  if (!not_fixed) {
+    double orig_max_value = max_value;
+    uint order = field_length - dec;
+    uint step = array_elements(log_10) - 1;
+    max_value = 1.0;
+    for (; order > step; order -= step) max_value *= log_10[step];
+    max_value *= log_10[order];
+    max_value -= 1.0 / log_10[dec];
+    max_value = std::min(max_value, orig_max_value);
+
+    /* Check for infinity so we don't get NaN in calculations */
+    if (!std::isinf(*nr)) {
+      double tmp = rint((*nr - floor(*nr)) * log_10[dec]) / log_10[dec];
+      *nr = floor(*nr) + tmp;
+    }
+  }
+
+  if (*nr < -max_value) {
+    *nr = -max_value;
+    return TR_NEGATIVE_OVERFLOW;
+  } else if (*nr > max_value) {
+    *nr = max_value;
     return TR_POSITIVE_OVERFLOW;
   }
 

@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include "ha_prototypes.h"
 
+#include "db0err.h"
 #include "dd/cache/dictionary_client.h"
 #include "dd/dd.h"
 #include "dd/dictionary.h"
@@ -60,6 +61,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd_table_share.h"
 
 #include "btr0sea.h"
+#include "ddl0bulk.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -78,6 +80,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0buf.h"
 #include "log0chkp.h"
 
+#include "log0ddl.h"
 #include "my_dbug.h"
 #include "my_io.h"
 
@@ -88,6 +91,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0priv.h"
 #include "handler0alter.h"
 #include "lock0lock.h"
+#include "mysqld_error.h"
 #include "pars0pars.h"
 #include "partition_info.h"
 #include "rem0types.h"
@@ -10989,4 +10993,131 @@ func_exit:
   free(part_name);
 
   return error;
+}
+
+void *ha_innobase::bulk_load_begin(THD *thd, size_t &num_threads) {
+  DEBUG_SYNC_C("innodb_bulk_load_begin");
+  /* Check if the table is empty (not even del-marked records). */
+  dict_table_t *table = m_prebuilt->table;
+
+  rec_format_t format = dict_tf_get_rec_format(table->flags);
+
+  if (format != REC_FORMAT_DYNAMIC) {
+    my_error(ER_FEATURE_UNSUPPORTED, MYF(0),
+             "ROW_FORMAT=COMPRESSED/COMPACT/REDUNDANT", "by LOAD BULK DATA");
+    return nullptr;
+  }
+
+  if (!table->has_pk()) {
+    my_error(ER_TABLE_NO_PRIMARY_KEY, MYF(0), table->name.m_name);
+    return nullptr;
+  }
+
+  /* Table should not have indexes other than clustered index. */
+  if (table->get_index_count() > 1) {
+    my_error(ER_INDEX_OTHER_THAN_PK, MYF(0), table->name.m_name);
+    return nullptr;
+  }
+
+  if (dict_table_in_shared_tablespace(table)) {
+    my_error(ER_TABLE_IN_SHARED_TABLESPACE, MYF(0), table->name.m_name);
+    return nullptr;
+  }
+
+  if (!btr_is_index_empty(table->first_index())) {
+    my_error(ER_TABLE_NOT_EMPTY, MYF(0), table->name.m_name);
+    return nullptr;
+  }
+
+  /* Check if the number of threads is optimal for the given buffer pool size.
+  If the requested number of threads (req_threads) is greater than the optimal
+  number of threads (opt_threads), then reduce the number of threads to the
+  optimal value. */
+  const size_t req_threads = num_threads;
+  const size_t opt_threads = srv_buf_pool_size / (6 * 1024 * 1024);
+  if (req_threads > opt_threads) {
+    num_threads = opt_threads;
+    LogErr(WARNING_LEVEL, ER_IB_LOAD_BULK_CONCURRENCY_REDUCED,
+           srv_buf_pool_size, req_threads, opt_threads, table->name.m_name);
+  }
+
+  /* Build the template to convert between the two database formats */
+  if (m_prebuilt->mysql_template == nullptr ||
+      m_prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
+    build_template(true);
+  }
+
+  /* Update user_thd and allocates Innodb transaction if not there. */
+  update_thd(thd);
+
+  auto loader = ut::new_withkey<ddl_bulk::Loader>(
+      ut::make_psi_memory_key(mem_key_ddl), num_threads);
+
+  auto db_err = loader->begin(m_prebuilt);
+
+  if (db_err != DB_SUCCESS) {
+    ut::delete_(loader);
+    return nullptr;
+  }
+
+  /* Add DDL log to handle crash recovery. */
+  auto trx = m_prebuilt->trx;
+  innobase_register_trx(ht, ha_thd(), trx);
+  trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
+  db_err = log_ddl->write_load_bulk_log(trx, m_prebuilt->table);
+  if (db_err != DB_SUCCESS) {
+    ut::delete_(loader);
+    return nullptr;
+  }
+  return static_cast<void *>(loader);
+}
+
+int ha_innobase::bulk_load_execute(THD *thd, void *load_ctx, size_t thread_idx,
+                                   const Rows_mysql &rows) {
+  ut_d(auto trx = m_prebuilt->trx);
+  ut_ad(trx_is_started(trx));
+
+  auto loader = static_cast<ddl_bulk::Loader *>(load_ctx);
+
+  auto db_err = loader->load(m_prebuilt, thread_idx, rows);
+
+  ut_ad(trx_is_started(trx));
+  return convert_error_code_to_mysql(db_err, m_prebuilt->table->flags, thd);
+}
+
+int ha_innobase::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
+  auto trx = m_prebuilt->trx;
+  ut_ad(load_ctx == nullptr || trx_is_started(trx));
+
+  if (load_ctx == nullptr) {
+    /* Nothing to do here, if load_ctx is null, it means we didn't even begin */
+    return 0;
+  }
+
+  auto loader = static_cast<ddl_bulk::Loader *>(load_ctx);
+  dberr_t db_err = loader->get_error();
+
+  if (db_err != DB_SUCCESS && loader != nullptr) {
+    int errcode = loader->get_error_code();
+    errcode = (errcode == 0) ? ER_LOAD_BULK_DATA_FAILED : errcode;
+    my_error(errcode, MYF(0), loader->get_table_name(),
+             loader->get_error_string().c_str());
+  }
+
+  if (loader != nullptr) {
+    dberr_t err2 = loader->end(m_prebuilt, is_error);
+    if (db_err == DB_SUCCESS && err2 != DB_SUCCESS) {
+      db_err = err2;
+    }
+  }
+
+  if (!is_error && db_err == DB_SUCCESS) {
+    DBUG_EXECUTE_IF("crash_load_bulk_before_trx_commit", DBUG_SUICIDE(););
+    trx_commit_for_mysql(trx);
+  } else {
+    trx_rollback_for_mysql(trx);
+  }
+
+  ut::delete_(loader);
+  return convert_error_code_to_mysql(db_err, m_prebuilt->table->flags, thd);
 }

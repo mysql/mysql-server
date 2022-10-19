@@ -401,6 +401,7 @@ union YYSTYPE {
   sp_head *sphead;
   index_hint_type index_hint;
   enum_filetype filetype;
+  enum_source_type source_type;
   fk_option m_fk_option;
   enum_yes_no_unknown m_yes_no_unk;
   enum_condition_item_name da_condition_item_name;

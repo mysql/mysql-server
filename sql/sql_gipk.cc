@@ -479,7 +479,7 @@ static bool is_generated_invisible_primary_key(const KEY *key) {
   @retval   KEY*     KEY instance of a generated primary key.
   @retval   nullptr  If table does not have a generated invisible primary key.
 */
-static const KEY *find_generated_invisible_primary_key(TABLE *table) {
+static const KEY *find_generated_invisible_primary_key(const TABLE *table) {
   assert(table != nullptr && table->s != nullptr);
   // GIPK is not supported for the partitioned table for now.
   if (table->part_info != nullptr) return nullptr;
@@ -492,6 +492,6 @@ static const KEY *find_generated_invisible_primary_key(TABLE *table) {
   return nullptr;
 }
 
-bool table_has_generated_invisible_primary_key(TABLE *table) {
+bool table_has_generated_invisible_primary_key(const TABLE *table) {
   return (find_generated_invisible_primary_key(table) != nullptr);
 }

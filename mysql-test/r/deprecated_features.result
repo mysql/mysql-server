@@ -13,7 +13,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 load table t1 from master;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'table t1 from master' at line 1
 load data from master;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from master' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'master' at line 1
 SHOW INNODB STATUS;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INNODB STATUS' at line 1
 create table t1 (t6 timestamp) type=myisam;

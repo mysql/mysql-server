@@ -1333,7 +1333,7 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
   } else {
     /* Check if the tablespace supports autoextend_size */
     page_no_t autoextend_size_pages =
-        space->autoextend_size_in_bytes / page_size.physical();
+        space->get_auto_extend_size() / page_size.physical();
     if (autoextend_size_pages > 0) {
       ut_ad((autoextend_size_pages % fsp_get_extent_size_in_pages(page_size)) ==
             0);
@@ -3074,8 +3074,8 @@ static bool fsp_reserve_free_pages(fil_space_t *space,
   const page_size_t page_size(space->flags);
 
   ut_a(size < FSP_EXTENT_SIZE ||
-       (space->autoextend_size_in_bytes > 0 &&
-        (size * page_size.physical()) <= space->autoextend_size_in_bytes));
+       (space->get_auto_extend_size() > 0 &&
+        (size * page_size.physical()) <= space->get_auto_extend_size()));
 
   descr = xdes_get_descriptor_with_space_hdr(space_header, space->id, 0, mtr);
   page_no_t n_used = xdes_get_n_used(descr, mtr);
@@ -3153,9 +3153,9 @@ try_again:
   size = mach_read_from_4(space_header + FSP_SIZE);
   ut_ad(size == space->size_in_header);
 
-  if (space->autoextend_size_in_bytes > 0) {
+  if (space->get_auto_extend_size() > 0) {
     page_no_t autoextend_size_pages =
-        space->autoextend_size_in_bytes / page_size.physical();
+        space->get_auto_extend_size() / page_size.physical();
 
     /* If the tablespace is smaller than the autoextend_size, extend it first
     to make the size same as autoextend_size. */
@@ -3163,7 +3163,9 @@ try_again:
       goto try_to_extend;
     }
 
-    if (size == autoextend_size_pages) {
+    /* For bulk operation, always allocate in extents. */
+    if (size == autoextend_size_pages &&
+        !space->is_bulk_operation_in_progress()) {
       /* Get the number of used pages */
       xdes_t *descr =
           xdes_get_descriptor_with_space_hdr(space_header, space->id, 0, mtr);

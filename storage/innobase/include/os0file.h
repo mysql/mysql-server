@@ -552,50 +552,15 @@ class IORequest {
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE || _WIN32 */
   }
 
+  static std::string type_str(const ulint type);
+
   /** @return string representation. */
   std::string to_string() const {
     std::ostringstream os;
-
     os << "bs: " << m_block_size << " flags:";
-
-    if (m_type & READ) {
-      os << " READ";
-    } else if (m_type & WRITE) {
-      os << " WRITE";
-    } else if (m_type & DBLWR) {
-      os << " DBLWR";
-    }
-
-    /** Enumerations below can be ORed to READ/WRITE above*/
-
-    /** Data file */
-    if (m_type & DATA_FILE) {
-      os << " | DATA_FILE";
-    }
-
-    if (m_type & LOG) {
-      os << " | LOG";
-    }
-
-    if (m_type & DISABLE_PARTIAL_IO_WARNINGS) {
-      os << " | DISABLE_PARTIAL_IO_WARNINGS";
-    }
-
-    if (m_type & DO_NOT_WAKE) {
-      os << " | IGNORE_MISSING";
-    }
-
-    if (m_type & PUNCH_HOLE) {
-      os << " | PUNCH_HOLE";
-    }
-
-    if (m_type & NO_COMPRESSION) {
-      os << " | NO_COMPRESSION";
-    }
-
+    os << type_str(m_type);
     os << ", comp: " << m_compression.to_string();
     os << ", enc: " << m_encryption.to_string(m_encryption.get_type());
-
     return (os.str());
   }
 

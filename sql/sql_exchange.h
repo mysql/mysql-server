@@ -26,6 +26,8 @@
 struct CHARSET_INFO;
 class String;
 
+enum enum_source_type { LOAD_SOURCE_FILE, LOAD_SOURCE_URL, LOAD_SOURCE_S3 };
+
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 /**

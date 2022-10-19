@@ -605,6 +605,20 @@ dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked);
 constexpr uint32_t BTR_N_LEAF_PAGES = 1;
 constexpr uint32_t BTR_TOTAL_SIZE = 2;
 
+/** Check if the given index is empty.  An index is considered empty if it
+has only the root page with no user records, including del-marked records.
+@param[in]   index   index
+@return true if index is empty, false otherwise. */
+bool btr_is_index_empty(const dict_index_t *index);
+
+/** NOTE - Changing this from the original number of 50 to 45 as
+insert_debug.test was failing in ASAN build because of a stack overflow issue.
+It was found that rtr_info_t was taking up a lot of stack space in the function
+btr_insert_on_non_leaf_level_func which is part of the recursive stack
+trace. */
+/** Maximum B-tree page level (not really a hard limit). Used in debug
+ assertions in btr_page_set_level and btr_page_get_level */
+constexpr uint32_t BTR_MAX_NODE_LEVEL = 45;
 #include "btr0btr.ic"
 
 #endif

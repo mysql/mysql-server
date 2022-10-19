@@ -2095,6 +2095,8 @@ struct dict_table_t {
   /** List of indexes of the table. */
   UT_LIST_BASE_NODE_T(dict_index_t, indexes) indexes;
 
+  size_t get_index_count() const { return UT_LIST_GET_LEN(indexes); }
+
   /** Node of the LRU list of tables. */
   UT_LIST_NODE_T(dict_table_t) table_LRU;
 
@@ -2437,6 +2439,10 @@ detect this and will eventually quit sooner. */
   /** true if this table is explicitly put to non-LRU list
   during table creation */
   bool explicitly_non_lru;
+
+  /** Check if the table has user defined primary key (PK).
+  @return true if table has user defined PK, false otherwise. */
+  bool has_pk() const;
 
   /** @return the clustered index */
   const dict_index_t *first_index() const {

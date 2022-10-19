@@ -388,11 +388,12 @@ struct Slot {
 
 std::string Slot::to_json() const noexcept {
   std::ostringstream out;
-  out << "{";
-  out << "\"className\": \"Slot\",";
-  out << "\"objectPtr\": \"" << (void *)this << "\",";
-  out << "\"buf_block\": \"" << (void *)buf_block << "\"";
-  out << "}";
+  out << "{\"type\": \"Slot\", \"pos\":" << pos << ", \"objectPtr\": \""
+      << (void *)this << "\", "
+      << "\"buf_block\": \"" << (void *)buf_block << "\""
+      << ", \"n_bytes\": " << n_bytes << ", \"len\":" << len
+      << ", \"orig_len\":" << type.get_original_size()
+      << ", \"offset\":" << offset << "}";
   return out.str();
 }
 
@@ -6704,6 +6705,9 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   slot->type = type;
   slot->buf = static_cast<byte *>(buf);
   slot->ptr = slot->buf;
+
+  ut_ad(m1->is_offset_valid(offset));
+
   slot->offset = offset;
   slot->err = DB_SUCCESS;
   if (type.is_read()) {
@@ -7981,4 +7985,47 @@ dberr_t os_file_write_retry(IORequest &type, const char *name,
     }
   }
   return err;
+}
+
+std::string IORequest::type_str(const ulint type) {
+  std::ostringstream os;
+  if (type & READ) {
+    os << " READ";
+  } else if (type & WRITE) {
+    os << " WRITE";
+  } else if (type & DBLWR) {
+    os << " DBLWR";
+  }
+
+  /** Enumerations below can be ORed to READ/WRITE above*/
+
+  /** Data file */
+  if (type & DATA_FILE) {
+    os << " | DATA_FILE";
+  }
+
+  if (type & LOG) {
+    os << " | LOG";
+  }
+
+  if (type & DISABLE_PARTIAL_IO_WARNINGS) {
+    os << " | DISABLE_PARTIAL_IO_WARNINGS";
+  }
+
+  if (type & DO_NOT_WAKE) {
+    os << " | DO_NOT_WAKE";
+  }
+
+  if (type & IGNORE_MISSING) {
+    os << " | IGNORE_MISSING";
+  }
+
+  if (type & PUNCH_HOLE) {
+    os << " | PUNCH_HOLE";
+  }
+
+  if (type & NO_COMPRESSION) {
+    os << " | NO_COMPRESSION";
+  }
+  return os.str();
 }

@@ -2822,6 +2822,16 @@ void btr_unset_min_rec_mark(rec_t *rec, mtr_t *mtr) {
 }
 
 #ifndef UNIV_HOTBACKUP
+bool btr_is_index_empty(const dict_index_t *index) {
+  mtr_t mtr;
+  mtr.start();
+  buf_block_t *block = btr_root_block_get(index, RW_X_LATCH, &mtr);
+  const bool is_empty =
+      block->is_index_page() && block->is_leaf() && block->is_empty();
+  mtr.commit();
+  return is_empty;
+}
+
 /** Deletes on the upper level the node pointer to a page.
 @param[in] index Index tree
 @param[in] block Page whose node pointer is deleted

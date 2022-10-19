@@ -1048,3 +1048,11 @@ uint32_t Multi_value_logger::get_keys_capacity(uint32_t log_size,
 
   return (keys_length);
 }
+
+dtuple_t *dtuple_t::deep_copy(mem_heap_t *heap) const {
+  dtuple_t *copy = dtuple_copy(this, heap);
+  for (uint32_t i = 0; i < n_fields; ++i) {
+    dfield_dup(&copy->fields[i], heap);
+  }
+  return copy;
+}

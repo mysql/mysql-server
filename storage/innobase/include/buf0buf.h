@@ -1753,6 +1753,11 @@ struct buf_block_t {
   to an address divisible by UNIV_PAGE_SIZE */
   byte *frame;
 
+  /** Determine whether the page is in new-style compact format.
+  @return true  if the page is in compact format
+  @return false if it is in old-style format */
+  bool is_compact() const;
+
   /** node of the decompressed LRU list; a block is in the unzip_LRU list if
   page.state == BUF_BLOCK_FILE_PAGE and page.zip.data != NULL. Protected by
   both LRU_list_mutex and the block mutex. */
@@ -1932,6 +1937,17 @@ struct buf_block_t {
     return (mach_read_from_2(frame + FIL_PAGE_TYPE));
   }
 
+  uint16_t get_page_level() const;
+  bool is_leaf() const;
+  bool is_root() const;
+  bool is_index_page() const;
+
+  /** Check if this index page is empty.  An index page is considered empty
+  if the next record of an infimum record is supremum record.  Presence of
+  del-marked records will make the page non-empty.
+  @return true if this index page is empty. */
+  bool is_empty() const;
+
   /** Get the page type of the current buffer block as string.
   @return page type of the current buffer block as string. */
   [[nodiscard]] const char *get_page_type_str() const noexcept;
@@ -1951,6 +1967,16 @@ struct buf_block_t {
 
   [[nodiscard]] bool is_memory() const noexcept { return page.is_memory(); }
 };
+
+inline bool buf_block_t::is_root() const {
+  return ((get_next_page_no() == FIL_NULL) && (get_prev_page_no() == FIL_NULL));
+}
+
+inline bool buf_block_t::is_leaf() const { return get_page_level() == 0; }
+
+inline bool buf_block_t::is_index_page() const {
+  return get_page_type() == FIL_PAGE_INDEX;
+}
 
 /** Check if a buf_block_t object is in a valid state
 @param block buffer block

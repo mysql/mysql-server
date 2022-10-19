@@ -9851,6 +9851,84 @@ ER_SRS_INVALID_LATITUDE_POLAR_STERE_VAR_A SR002
 ER_WARN_DEPRECATED_CLIENT_NO_SCHEMA_OPTION
   eng "The client is using a deprecated CLIENT_NO_SCHEMA client option. CLIENT_NO_SCHEMA will be removed in a future release."
 
+ER_TABLE_NOT_EMPTY
+  eng "Table '%-.192s' is not empty."
+
+ER_TABLE_NO_PRIMARY_KEY
+  eng "Table '%-.192s' has no primary key."
+
+ER_TABLE_IN_SHARED_TABLESPACE
+  eng "Table '%-.192s' is in a shared tablespace."
+
+ER_INDEX_OTHER_THAN_PK
+  eng "Table '%-.192s' has indexes other than primary key."
+
+ER_LOAD_BULK_DATA_UNSORTED
+  eng "[IN PRIMARY KEY ORDER] specified but data not sorted: LOAD BULK DATA into table '%-.192s' failed: %s"
+
+ER_BULK_EXECUTOR_ERROR
+  eng "Bulk executor error: %s"
+
+ER_BULK_READER_LIBCURL_INIT_FAILED
+  eng "Bulk reader failed to initialize libcurl"
+
+ER_BULK_READER_LIBCURL_ERROR
+  eng "Bulk reader got libcurl error: %s"
+
+ER_BULK_READER_SERVER_ERROR
+  eng "Bulk reader got error response from server: %ld"
+
+ER_BULK_READER_COMMUNICATION_ERROR
+  eng "Bulk reader got error in communication with source server, check the error log for additional details."
+
+ER_BULK_LOAD_DATA_FAILED
+  eng "Bulk loader failed, mysql_load->load returned an error, check the error log for additional details."
+
+ER_BULK_LOADER_COLUMN_TOO_BIG_FOR_LEFTOVER_BUFFER
+  eng "CSV column too big for leftover buffer."
+
+ER_BULK_LOADER_COMPONENT_ERROR
+  eng "Bulk loader component error: %s"
+
+ER_BULK_LOADER_FILE_CONTAINS_LESS_LINES_THAN_IGNORE_CLAUSE
+  eng "The first file being loaded contained less lines than the ignore clause"
+
+ER_BULK_PARSER_MISSING_ENCLOSED_BY
+  eng "Missing ENCLOSED BY character at row %ld in file '%s'. Add OPTIONALLY to the ENCLOSED BY clause to allow this input."
+
+ER_BULK_PARSER_ROW_BUFFER_MAX_TOTAL_COLS_EXCEEDED
+  eng "The number of input columns that need to be buffered for parsing exceeded predefined buffer max size for file '%s'."
+
+ER_BULK_PARSER_COPY_BUFFER_SIZE_EXCEEDED
+  eng "The column data that needed to be copied due to escaped characters exceeded the size of the internal copy buffer for file '%s'."
+
+ER_BULK_PARSER_UNEXPECTED_END_OF_INPUT
+  eng "Unexpected end of input found at row %ld in file '%s'. Data for some columns is missing."
+
+ER_BULK_PARSER_UNEXPECTED_ROW_TERMINATOR
+  eng "Unexpected row terminator found at row %ld in file '%s'. Data for some columns is missing."
+
+ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_ENDING_ENCLOSED_BY
+  eng "Unexpected characters after ending ENCLOSED BY character found at row %ld in file '%s'."
+
+ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_NULL_ESCAPE
+  eng "Unexpected characters after NULL escape (\N) found at row %ld in file '%s'."
+
+ER_BULK_PARSER_UNEXPECTED_CHAR_AFTER_COLUMN_TERMINATOR
+  eng "Unexpected characters after column terminator found at row %ld in file '%s'."
+
+ER_BULK_PARSER_INCOMPLETE_ESCAPE_SEQUENCE
+  eng "Unexpected end of input found at row %ld in file '%s' resulting in incomplete escape sequence."
+
+ER_LOAD_BULK_DATA_FAILED
+  eng "LOAD BULK DATA into table '%-.192s' failed: %s"
+
+ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD
+  eng "Incorrect %-.32s value: '%-.128s' for column '%-.192s' at row %ld in file '%-.192s'"
+
+ER_LOAD_BULK_DATA_WARN_NULL_TO_NOTNULL
+  eng "NULL supplied to NOT NULL column '%s' at row %ld in file '%-.192s'"
+
 ER_CANT_CHANGE_SYS_VAR_IN_READ_ONLY_MODE
   eng "Cannot change the '%s' system variable in read-only mode."
 

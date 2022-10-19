@@ -355,14 +355,16 @@ dberr_t Split_writer::write(const mrec_t *mrec, const ulint *offsets) {
 dberr_t Split_writer::create_build_thread() {
   /* One file is ready, so start building the sub-tree. */
   auto observer = m_builder->get_observer();
-  const size_t n_threads = m_builder->get_n_threads();
   Btree_load *btr_load = ut::new_withkey<Btree_load>(
       ut::make_psi_memory_key(mem_key_ddl), m_builder->index(),
       m_builder->trx(), observer);
   if (btr_load == nullptr) {
     return DB_OUT_OF_MEMORY;
   }
-  btr_load->set_n_threads(n_threads);
+  dberr_t err = btr_load->init();
+  if (err != DB_SUCCESS) {
+    return err;
+  }
   m_builder->m_btree_loads.push_back(btr_load);
   const size_t btree_load_id = m_builder->m_btree_loads.size() - 1;
 #ifdef UNIV_DEBUG
@@ -1286,7 +1288,12 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
         set_next_state();
         return get_error();
       }
-      ptr->set_n_threads(n_threads);
+      dberr_t err = ptr->init();
+      if (err != DB_SUCCESS) {
+        set_error(err);
+        set_next_state();
+        return get_error();
+      }
       m_btree_loads.push_back(ptr);
     }
   }
@@ -2448,372 +2455,6 @@ dberr_t Builder::btree_build_mt() noexcept {
   return get_error();
 }
 
-dberr_t Builder::subtree_link_levels(size_t &highest_level) {
-  mtr_t *mtr;
-  Scoped_heap local_heap(2048, UT_LOCATION_HERE);
-  using stl_alloc_t = mem_heap_allocator<Btree_load *>;
-  stl_alloc_t local_alloc(local_heap.get());
-  auto mtr_heap = local_heap.alloc(sizeof(mtr_t));
-  mtr = new (mtr_heap) mtr_t();
-  highest_level = 0;
-  const space_id_t space_id = dict_index_get_space(m_index);
-  const page_size_t page_size(dict_table_page_size(m_index->table));
-  using List = std::list<Btree_load *, stl_alloc_t>;
-  auto from_list_raw = local_heap.alloc(sizeof(List));
-  if (from_list_raw == nullptr) {
-    return DB_OUT_OF_MEMORY;
-  }
-  List *from_list = new (from_list_raw) List(local_alloc);
-  auto to_list_raw = local_heap.alloc(sizeof(List));
-  if (to_list_raw == nullptr) {
-    return DB_OUT_OF_MEMORY;
-  }
-  List *to_list = new (to_list_raw) List(local_alloc);
-  /* Populate the from list.  Also calculate the highest level. */
-  for (auto btree_load : m_btree_loads) {
-    const size_t root_level = btree_load->get_root_level();
-    const size_t tree_height = root_level + 1;
-
-    ib::info(ER_IB_BULK_LOAD_SUBTREE_INFO, (size_t)space_id,
-             m_index->table_name, m_index->name(), tree_height,
-             btree_load->m_stat_n_extents, btree_load->m_stat_n_pages);
-
-    if (root_level > highest_level) {
-      highest_level = root_level;
-    }
-    from_list->push_back(btree_load);
-#ifdef UNIV_DEBUG
-    for (size_t cur_level = 0; cur_level < root_level; ++cur_level) {
-      const page_no_t leftmost = btree_load->m_first_page_nos[cur_level];
-      const page_no_t rightmost = btree_load->m_last_page_nos[cur_level];
-      ut_ad(rightmost != leftmost);
-    }
-    {
-      const page_no_t leftmost = btree_load->m_first_page_nos[root_level];
-      const page_no_t rightmost = btree_load->m_last_page_nos[root_level];
-      ut_ad(rightmost == leftmost);
-    }
-#endif /* UNIV_DEBUG */
-  }
-
-  /** Loop till all subtrees are at same level or only one subtree remaining.*/
-  const size_t MAX_LOOP = 10;
-  for (size_t n_loop = 0;; ++n_loop) {
-    ut_ad(n_loop < MAX_LOOP);
-
-    if (n_loop >= MAX_LOOP) {
-      set_error(DB_FAIL);
-      return get_error();
-    }
-
-    /* There is only one subtree.  */
-    if (from_list->size() == 1) {
-      break;
-    }
-
-    while (!from_list->empty()) {
-      Btree_load *subtree_1 = from_list->front();
-      from_list->pop_front();
-      if (from_list->empty()) {
-        to_list->push_back(subtree_1);
-        break;
-      }
-      Btree_load *subtree_2 = from_list->front();
-      from_list->pop_front();
-
-      /* All keys in subtree_1 must be less than all keys in subtree_2 */
-      const size_t level_1 = subtree_1->get_root_level();
-      const size_t level_2 = subtree_2->get_root_level();
-      const size_t level = std::min(level_1, level_2);
-
-      for (size_t cur_level = 0; cur_level <= level; cur_level++) {
-        const page_no_t l_page_no = subtree_1->m_last_page_nos[cur_level];
-        const page_no_t r_page_no = subtree_2->m_first_page_nos[cur_level];
-
-        const page_id_t l_page_id(space_id, l_page_no);
-        const page_id_t r_page_id(space_id, r_page_no);
-
-        mtr->start();
-        buf_block_t *l_block = buf_page_get(l_page_id, page_size, RW_X_LATCH,
-                                            UT_LOCATION_HERE, mtr);
-        buf_block_t *r_block = buf_page_get(r_page_id, page_size, RW_X_LATCH,
-                                            UT_LOCATION_HERE, mtr);
-
-#ifdef UNIV_DEBUG
-        const page_type_t l_type = l_block->get_page_type();
-        const page_type_t r_type = r_block->get_page_type();
-        ut_a(l_type == FIL_PAGE_INDEX);
-        ut_a(r_type == FIL_PAGE_INDEX);
-#endif /* UNIV_DEBUG */
-
-        byte *l_frame = buf_block_get_frame(l_block);
-        byte *r_frame = buf_block_get_frame(r_block);
-
-        page_zip_des_t *l_zip = buf_block_get_page_zip(l_block);
-        page_zip_des_t *r_zip = buf_block_get_page_zip(r_block);
-
-        btr_page_set_next(l_frame, l_zip, r_page_no, mtr);
-        btr_page_set_prev(r_frame, r_zip, l_page_no, mtr);
-
-        rec_t *first_rec = page_rec_get_next(page_get_infimum_rec(r_frame));
-
-        btr_unset_min_rec_mark(first_rec, mtr);
-
-#ifdef UNIV_DEBUG
-        {
-          rec_t *l_rec = page_rec_get_prev(page_get_supremum_rec(l_frame));
-          rec_t *r_rec = first_rec;
-          auto heap = local_heap.get();
-
-          ulint *l_offsets =
-              rec_get_offsets(l_rec, m_index, nullptr, ULINT_UNDEFINED,
-                              UT_LOCATION_HERE, &heap);
-          ulint *r_offsets =
-              rec_get_offsets(r_rec, m_index, nullptr, ULINT_UNDEFINED,
-                              UT_LOCATION_HERE, &heap);
-
-          const bool spatial_index_non_leaf = false;
-          const bool cmp_btree_recs = false;
-          ulint matched_fields{};
-          int rec_order = cmp_rec_rec(l_rec, r_rec, l_offsets, r_offsets,
-                                      m_index, spatial_index_non_leaf,
-                                      &matched_fields, cmp_btree_recs);
-          ut_ad(rec_order <= 0);
-        }
-#endif /* UNIV_DEBUG */
-
-        mtr->commit();
-      }
-      if (level_1 == level_2) {
-        to_list->push_back(subtree_1);
-        from_list->push_front(subtree_2);
-      } else if (level_1 < level_2) {
-        const page_no_t l_page_no = subtree_1->m_last_page_nos[level_1];
-        const page_no_t r_page_no = subtree_2->m_first_page_nos[level_1 + 1];
-
-        const page_id_t l_page_id(space_id, l_page_no);
-        const page_id_t r_page_id(space_id, r_page_no);
-
-        /* Load the two pages. */
-        mtr->start();
-        buf_block_t *l_block = buf_page_get(l_page_id, page_size, RW_X_LATCH,
-                                            UT_LOCATION_HERE, mtr);
-        buf_block_t *r_block = buf_page_get(r_page_id, page_size, RW_X_LATCH,
-                                            UT_LOCATION_HERE, mtr);
-
-        byte *l_frame = buf_block_get_frame(l_block);
-        byte *r_frame = buf_block_get_frame(r_block);
-
-        auto r_first_rec = page_rec_get_next(page_get_infimum_rec(r_frame));
-        btr_unset_min_rec_mark(r_first_rec, mtr);
-
-        /* Obtain node ptr of left page. */
-        auto l_first_rec = page_rec_get_next(page_get_infimum_rec(l_frame));
-        ut_a(page_rec_is_user_rec(l_first_rec));
-        auto node_ptr = dict_index_build_node_ptr(
-            m_index, l_first_rec, l_page_no, local_heap.get(), level_1);
-
-        /* Insert node ptr into higher right page. */
-        page_cur_t page_cur;
-        page_cur_set_before_first(r_block, &page_cur);
-
-        ulint *offsets{};
-        mem_heap_t *heap = local_heap.get();
-        rec_t *insert_rec = page_cur_tuple_insert(&page_cur, node_ptr, m_index,
-                                                  &offsets, &heap, mtr);
-        ut_ad(insert_rec != nullptr);
-#ifdef UNIV_DEBUG
-        {
-          rec_t *next_rec = page_rec_get_next(insert_rec);
-          const page_no_t right_page_no = btr_page_get_next(l_frame, mtr);
-          ulint *node_ptr_offsets =
-              rec_get_offsets(next_rec, m_index, nullptr, ULINT_UNDEFINED,
-                              UT_LOCATION_HERE, &heap);
-          const page_no_t right_child_no =
-              btr_node_ptr_get_child_page_no(next_rec, node_ptr_offsets);
-          ut_ad(right_page_no == right_child_no);
-        }
-#endif /* UNIV_DEBUG */
-        btr_set_min_rec_mark(insert_rec, mtr);
-        mtr->commit();
-        from_list->push_front(subtree_2);
-
-        for (size_t cur_level = 0; cur_level <= level_1; cur_level++) {
-          subtree_2->m_first_page_nos[cur_level] =
-              subtree_1->m_first_page_nos[cur_level];
-        }
-        ut::delete_(subtree_1);
-      } else if (level_1 > level_2) {
-        /* Left subtree is taller. */
-        const page_no_t l_page_no = subtree_1->m_last_page_nos[level_2 + 1];
-        const page_no_t r_page_no = subtree_2->m_first_page_nos[level_2];
-
-        const page_id_t l_page_id(space_id, l_page_no);
-        const page_id_t r_page_id(space_id, r_page_no);
-
-        /* Load the two pages. */
-        mtr->start();
-        buf_block_t *l_block = buf_page_get(l_page_id, page_size, RW_X_LATCH,
-                                            UT_LOCATION_HERE, mtr);
-        buf_block_t *r_block = buf_page_get(r_page_id, page_size, RW_X_LATCH,
-                                            UT_LOCATION_HERE, mtr);
-
-        byte *r_frame = buf_block_get_frame(r_block);
-
-        /* Obtain node ptr of right page. */
-        auto r_first_rec = page_rec_get_next(page_get_infimum_rec(r_frame));
-        ut_a(page_rec_is_user_rec(r_first_rec));
-        btr_unset_min_rec_mark(r_first_rec, mtr);
-
-        auto node_ptr = dict_index_build_node_ptr(
-            m_index, r_first_rec, r_page_no, local_heap.get(), level_2);
-
-        /* Insert node ptr into higher left page. */
-        page_cur_t page_cur;
-        page_cur_search(l_block, m_index, node_ptr, &page_cur);
-
-        ulint *offsets{};
-        mem_heap_t *heap = local_heap.get();
-        rec_t *inserted = page_cur_tuple_insert(&page_cur, node_ptr, m_index,
-                                                &offsets, &heap, mtr);
-        ut_a(inserted != nullptr);
-
-        mtr->commit();
-        from_list->push_front(subtree_1);
-        for (size_t cur_level = 0; cur_level <= level_2; cur_level++) {
-          subtree_1->m_last_page_nos[cur_level] =
-              subtree_2->m_last_page_nos[cur_level];
-        }
-        ut::delete_(subtree_2);
-      }
-    }
-    std::swap(from_list, to_list);
-
-    /* Check if all subtrees are same level. */
-    const bool same_level =
-        std::all_of(from_list->begin(), from_list->end(),
-                    [highest_level](Btree_load *load) {
-                      return load->get_root_level() == highest_level;
-                    });
-
-    if (same_level) {
-      ut_ad(std::is_sorted(from_list->begin(), from_list->end(),
-                           Btree_load_compare(m_index)));
-      break;
-    }
-  }
-
-  m_btree_loads.clear();
-  while (!from_list->empty()) {
-    Btree_load *subtree = from_list->front();
-    from_list->pop_front();
-    m_btree_loads.push_back(subtree);
-  }
-  return DB_SUCCESS;
-}
-
-dberr_t Builder::add_root_for_subtrees(const size_t highest_level) {
-  /* This function uses mtr with MTR_LOG_NO_REDO and a flush observer. */
-  if (m_btree_loads.empty()) {
-    return DB_SUCCESS;
-  }
-  ut_ad(std::is_sorted(m_btree_loads.begin(), m_btree_loads.end(),
-                       Btree_load_compare(m_index)));
-  Scoped_heap tuple_heap(2048, UT_LOCATION_HERE);
-
-  const page_no_t root_page_no = dict_index_get_page(m_index);
-  auto observer = m_ctx.m_trx->flush_observer;
-
-  size_t n_subtrees = 0;
-  size_t n_root_data = 0;
-  size_t n_root_recs = 0;
-  for (size_t i = 0; i < m_btree_loads.size(); ++i) {
-    const auto level = m_btree_loads[i]->get_root_level();
-    if (level == highest_level) {
-      n_subtrees++;
-      Page_stat page_stat;
-      m_btree_loads[i]->get_root_page_stat(page_stat);
-      n_root_data += page_stat.m_data_size;
-      n_root_recs += page_stat.m_n_recs;
-    }
-  }
-
-  const size_t slot_size = page_dir_calc_reserved_space(n_root_recs);
-  const size_t need_space = n_root_data + slot_size;
-  const size_t max_free = get_max_free();
-  const bool level_incr = (n_subtrees > 1) && (need_space >= max_free);
-  const size_t new_root_level = level_incr ? highest_level + 1 : highest_level;
-
-  Page_load root_load(m_index, m_ctx.m_trx->id, root_page_no, new_root_level,
-                      observer);
-  mtr_t mtr;
-  mtr.start();
-  mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
-
-  auto err = root_load.init();
-  if (err != DB_SUCCESS) {
-    set_error(err);
-    return get_error();
-  }
-
-  bool min_rec = true;
-  for (size_t i = 0; i < m_btree_loads.size(); ++i) {
-    const page_no_t subtree_root = m_btree_loads[i]->get_subtree_root();
-    const size_t tree_level = m_btree_loads[i]->get_root_level();
-
-    if (tree_level != highest_level) {
-      /* Skip smaller sub-trees.  */
-      continue;
-    }
-
-    const page_id_t page_id(dict_index_get_space(m_index), subtree_root);
-    page_size_t page_size(dict_table_page_size(m_index->table));
-
-    buf_block_t *subtree_block = btr_block_get(page_id, page_size, RW_X_LATCH,
-                                               UT_LOCATION_HERE, m_index, &mtr);
-    auto subtree_page = buf_block_get_frame(subtree_block);
-    auto first_rec = page_rec_get_next(page_get_infimum_rec(subtree_page));
-    ut_a(page_rec_is_user_rec(first_rec));
-
-    if (highest_level > 0) {
-      min_rec ? btr_set_min_rec_mark(first_rec, &mtr)
-              : btr_unset_min_rec_mark(first_rec, &mtr);
-    }
-
-    if (level_incr) {
-      auto node_ptr = dict_index_build_node_ptr(
-          m_index, first_rec, subtree_root, tuple_heap.get(), highest_level);
-      auto rec_size = rec_get_converted_size(m_index, node_ptr);
-
-      if (min_rec) {
-        node_ptr->set_min_rec_flag();
-      }
-
-      err = root_load.insert(node_ptr, nullptr, rec_size);
-      if (err != DB_SUCCESS) {
-        set_error(err);
-        return get_error();
-      }
-    } else {
-      /* Copy the records from subtree root to actual root. */
-      root_load.copy_all(subtree_page);
-      /* Remove the subtree root. */
-      btr_page_free_low(m_index, subtree_block, highest_level, &mtr);
-    }
-    min_rec = false;
-  }
-  root_load.set_next(FIL_NULL);
-  root_load.finish();
-  mtr.commit();
-  err = m_btree_loads[0]->page_commit(&root_load, nullptr, false);
-  if (err != DB_SUCCESS) {
-    set_error(err);
-    return get_error();
-  }
-  observer->flush();
-  return err;
-}
-
 dberr_t Builder::full_sort() noexcept {
   Merge_cursor cursor(this, nullptr, nullptr);
   const auto io_buffer_size = m_ctx.load_io_buffer_size(m_thread_ctxs.size());
@@ -2839,6 +2480,9 @@ dberr_t Builder::full_sort() noexcept {
   }
 
   if (total_files == 1) {
+    /* Should not split data into files for single threaded build. Also,
+    split_data_into_files() spawns build thread for sub-trees which would
+    cause race with single threaded build. */
     set_next_state(State::BTREE_BUILD);
   } else {
     split_data_into_files(this, cursor);
@@ -2854,6 +2498,9 @@ dberr_t Builder::full_sort() noexcept {
 
 dberr_t Builder::btree_build() noexcept {
   ut_a(!is_skip_file_sort());
+  /* There should not be any build threads spawned to race with single
+  threaded build. */
+  ut_a(m_build_threads.empty());
 
   DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "ddl_btree_build_interrupt");
   if (m_local_stage != nullptr) {
@@ -2886,10 +2533,11 @@ dberr_t Builder::btree_build() noexcept {
   }
 
   Btree_load btr_load(m_index, m_ctx.m_trx, observer);
+  err = btr_load.init();
 
   dberr_t cursor_err{DB_SUCCESS};
 
-  if (total_rows > 0) {
+  if (err == DB_SUCCESS && total_rows > 0) {
     err = cursor.open();
 
     if (err == DB_SUCCESS) {
@@ -3167,41 +2815,8 @@ dberr_t Builder::merge_subtrees() noexcept {
     return DB_SUCCESS;
   }
 
-  for (auto iter = m_btree_loads.begin(); iter != m_btree_loads.end();) {
-    auto btree_load = *iter;
-    if (btree_load->m_first_page_nos.empty()) {
-      ut::delete_(btree_load);
-      iter = m_btree_loads.erase(iter);
-    } else {
-      ++iter;
-    }
-  }
-
-  if (m_btree_loads.empty()) {
-    return DB_SUCCESS;
-  }
-
-  Btree_load_compare cmp_obj(m_index);
-  std::sort(m_btree_loads.begin(), m_btree_loads.end(), cmp_obj);
-
-#ifdef UNIV_DEBUG
-  for (auto btree_load : m_btree_loads) {
-    ut_ad(!btree_load->m_first_page_nos.empty());
-    ut_ad(!btree_load->m_last_page_nos.empty());
-    ut_ad(btree_load->m_first_page_nos.size() ==
-          btree_load->m_last_page_nos.size());
-  }
-#endif /* UNIV_DEBUG */
-
-  size_t highest_level;
-  dberr_t err = subtree_link_levels(highest_level);
-  ut_ad(err == DB_SUCCESS);
-  if (err != DB_SUCCESS) {
-    set_error(err);
-    return get_error();
-  }
-  err = add_root_for_subtrees(highest_level);
-  ut_ad(err == DB_SUCCESS);
+  Btree_load::Merger merger(m_btree_loads, m_index, m_ctx.m_trx);
+  auto err = merger.merge(true);
 
   if (err != DB_SUCCESS) {
     set_error(err);

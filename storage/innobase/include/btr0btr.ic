@@ -37,15 +37,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "page0zip.h"
 #endif /* !UNIV_HOTBACKUP */
 
-/** NOTE - Changing this from the original number of 50 to 45 as
-insert_debug.test was failing in ASAN build because of a stack overflow issue.
-It was found that rtr_info_t was taking up a lot of stack space in the function
-btr_insert_on_non_leaf_level_func which is part of the recursive stack
-trace. */
-/** Maximum B-tree page level (not really a hard limit). Used in debug
- assertions in btr_page_set_level and btr_page_get_level */
-constexpr uint32_t BTR_MAX_NODE_LEVEL = 45;
-
 #ifndef UNIV_HOTBACKUP
 static inline buf_block_t *btr_block_get_func(
     const page_id_t &page_id, const page_size_t &page_size, ulint mode,

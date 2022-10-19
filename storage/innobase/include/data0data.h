@@ -782,6 +782,8 @@ struct dtuple_t {
     }
     return false;
   }
+
+  dtuple_t *deep_copy(mem_heap_t *heap) const;
 };
 
 /** A slot for a field in a big rec vector */
