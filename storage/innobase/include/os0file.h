@@ -343,9 +343,9 @@ class IORequest {
   /**
   @param[in]    type            Request type, can be a value that is
                                   ORed from the above enum */
-  explicit IORequest(ulint type)
+  explicit IORequest(int type)
       : m_block_size(UNIV_SECTOR_SIZE),
-        m_type(static_cast<uint16_t>(type)),
+        m_type(type),
         m_compression(),
         m_encryption(),
         m_eblock(nullptr),
@@ -360,7 +360,7 @@ class IORequest {
   }
 
   /** @return true if ignore missing flag is set */
-  [[nodiscard]] static bool ignore_missing(ulint type) {
+  [[nodiscard]] static bool ignore_missing(int type) {
     return ((type & IGNORE_MISSING) == IGNORE_MISSING);
   }
 
@@ -587,7 +587,7 @@ class IORequest {
   uint32_t m_block_size{};
 
   /** Request type bit flags */
-  uint16_t m_type{};
+  int m_type{};
 
   /** Compression algorithm */
   Compression m_compression{};

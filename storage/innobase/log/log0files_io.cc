@@ -72,6 +72,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* ut::random_from_interval */
 #include "ut0rnd.h"
 
+/* srv_redo_log_encrypt */
+#include "srv0srv.h"
+
 Log_checksum_algorithm_atomic_ptr log_checksum_algorithm_ptr;
 
 bool log_header_checksum_is_ok(const byte *buf) {
@@ -319,68 +322,73 @@ Log_file_id Log_file_handle::file_id() const { return m_file_id; }
 
 os_offset_t Log_file_handle::file_size() const { return m_file_size; }
 
-void Log_file_handle::prepare_io_request(IORequest &io_request,
-                                         bool encrypted_area) {
-  ut_ad(io_request.is_log());
-  ut_ad(io_request.validate());
-  ut_a(m_block_size > 0);
-  io_request.block_size(m_block_size);
-  if (m_encryption_metadata.can_encrypt() && encrypted_area) {
-    io_request.encryption_key(m_encryption_metadata.m_key,
-                              m_encryption_metadata.m_key_len,
-                              m_encryption_metadata.m_iv);
-    io_request.encryption_algorithm(m_encryption_metadata.m_type);
-  }
-}
-
-dberr_t Log_file_handle::do_io(const IORequest &req_type, os_offset_t offset,
-                               os_offset_t size, byte *buf) {
+IORequest Log_file_handle::prepare_io_request(int req_type, os_offset_t offset,
+                                              os_offset_t size,
+                                              bool can_use_encryption) {
   ut_a(size > 0);
   ut_a(size % OS_FILE_LOG_BLOCK_SIZE == 0);
   ut_a(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-  if (!is_open()) {
-    return DB_ERROR;
+  ut_a(req_type == IORequest::READ || req_type == IORequest::WRITE);
+  ut_a(m_block_size > 0);
+
+  IORequest io_request{IORequest::LOG | req_type};
+  io_request.block_size(m_block_size);
+
+  // Finally, set up encryption related fields, if needed
+
+  if (!(can_use_encryption && m_encryption_metadata.can_encrypt())) {
+    return io_request;  // There is no ecryption involved
   }
 
-  ut_a(LOG_FILE_HDR_SIZE <= offset || offset + size <= LOG_FILE_HDR_SIZE ||
-       !m_encryption_metadata.can_encrypt());
-
-  IORequest io_request{req_type};
-  prepare_io_request(io_request, LOG_FILE_HDR_SIZE <= offset);
-
-  if (io_request.is_read()) {
-    ut_ad(m_access_mode != Log_file_access_mode::WRITE_ONLY);
-
-    if (s_on_before_read) {
-      s_on_before_read(m_file_id, m_file_type, offset, size);
-    }
-
-    return os_file_read(io_request, m_file_path.c_str(), m_raw_handle, buf,
-                        offset, static_cast<ulint>(size));
-
-  } else {
-    ut_ad(m_access_mode != Log_file_access_mode::READ_ONLY);
-
-    if (s_on_before_write) {
-      s_on_before_write(m_file_id, m_file_type, offset, size);
-    }
-
-    m_is_modified = true;
-
-    return os_file_write(io_request, m_file_path.c_str(), m_raw_handle, buf,
-                         offset, static_cast<ulint>(size));
+  if (offset + size <= LOG_FILE_HDR_SIZE) {
+    return io_request;  // Never use encryption in the header
   }
+
+  // Assume the whole encrypted region is in the body, none of it in the header
+  ut_a(offset >= LOG_FILE_HDR_SIZE);
+
+  io_request.encryption_key(m_encryption_metadata.m_key,
+                            m_encryption_metadata.m_key_len,
+                            m_encryption_metadata.m_iv);
+  io_request.encryption_algorithm(m_encryption_metadata.m_type);
+
+  return io_request;
 }
 
 dberr_t Log_file_handle::read(os_offset_t read_offset, os_offset_t read_size,
                               byte *buf) {
-  return do_io(IORequestLogRead, read_offset, read_size, buf);
+  if (!is_open()) return DB_ERROR;
+
+  auto io_request =
+      prepare_io_request(IORequest::READ, read_offset, read_size, true);
+
+  ut_ad(m_access_mode != Log_file_access_mode::WRITE_ONLY);
+
+  if (s_on_before_read) {
+    s_on_before_read(m_file_id, m_file_type, read_offset, read_size);
+  }
+
+  return os_file_read(io_request, m_file_path.c_str(), m_raw_handle, buf,
+                      read_offset, static_cast<ulint>(read_size));
 }
 
 dberr_t Log_file_handle::write(os_offset_t write_offset, os_offset_t write_size,
                                const byte *buf) {
-  return do_io(IORequestLogWrite, write_offset, write_size,
-               const_cast<byte *>(buf));
+  if (!is_open()) return DB_ERROR;
+
+  auto io_request = prepare_io_request(IORequest::WRITE, write_offset,
+                                       write_size, srv_redo_log_encrypt);
+
+  ut_ad(m_access_mode != Log_file_access_mode::READ_ONLY);
+
+  if (s_on_before_write) {
+    s_on_before_write(m_file_id, m_file_type, write_offset, write_size);
+  }
+
+  m_is_modified = true;
+
+  return os_file_write(io_request, m_file_path.c_str(), m_raw_handle, buf,
+                       write_offset, static_cast<ulint>(write_size));
 }
 
 Log_file_handle Log_file::open(Log_file_access_mode access_mode) const {

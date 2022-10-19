@@ -390,25 +390,15 @@ class Log_file_handle {
   @return DB_SUCCESS or error */
   dberr_t open();
 
-  /** Configures a given io request object accordingly to currently configured
-  encryption metadata (m_encryption_*) and m_block_size.
-  @param[in,out]  io_request      io request object to configure
-  @param[in]      encrypted_area  true iff IO request is done to the fragment
-                                  of file that potentially might be encrypted;
-                                  it's based on offset only - does not depend
-                                  on current m_encryption_metadata */
-  void prepare_io_request(IORequest &io_request, bool encrypted_area);
-
-  /** Performs a given IO operation on the opened file.
-  NOTE: io_req internals are ignored (except type), because io_req is copied
-  and overwritten by prepare_io_request().
-  @param[in]   io_req  defines type of IO operation (read or write)
-  @param[in]   offset  offset in bytes from the beginning of the file
-  @param[in]   size    number of bytes to write or read
-  @param[in]   buf     buffer to write or fill (if read operation)
-  @return DB_SUCCESS or error */
-  dberr_t do_io(const IORequest &io_req, os_offset_t offset, os_offset_t size,
-                byte *buf);
+  /** Creates and configures an io request object according to currently
+  configured encryption metadata (m_encryption_*) and m_block_size.
+  @param[in] req_type            defines type of IO operation (read or write)
+  @param[in] offset              offset in bytes from the beginning of the file
+  @param[in] size                number of bytes to write or read
+  @param[in] can_use_encryption  e.g. whether newly blocks should be encrypted
+  @return IORequest instance */
+  IORequest prepare_io_request(int req_type, os_offset_t offset,
+                               os_offset_t size, bool can_use_encryption);
 
 #ifdef UNIV_DEBUG
   /** Number of all opened Log_file_handle existing currently. */

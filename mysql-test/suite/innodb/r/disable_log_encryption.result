@@ -1,0 +1,41 @@
+DO innodb_redo_log_consumer_register();
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+0
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SET GLOBAL innodb_redo_log_encrypt = 1;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+INSERT INTO t1 (a, b) VALUES (2, REPEAT('b', 6*512*512));
+SET GLOBAL innodb_redo_log_encrypt = 0;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+0
+INSERT INTO t1 (a, b) VALUES (3, REPEAT('c', 6*512*512));
+FLUSH LOGS;
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2003490276
+# Kill the server
+# restart
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2003490276
+SELECT a,LEFT(b,8) FROM t1;
+a	LEFT(b,8)
+1	aaaaaaaa
+2	bbbbbbbb
+3	cccccccc
+DO innodb_redo_log_consumer_register();
+INSERT INTO t1 (a, b) VALUES (4, REPEAT('d', 6*512*512));
+# Kill the server
+# restart
+SELECT a,LEFT(b,8) FROM t1;
+a	LEFT(b,8)
+1	aaaaaaaa
+2	bbbbbbbb
+3	cccccccc
+4	dddddddd
+DROP TABLE t1;
