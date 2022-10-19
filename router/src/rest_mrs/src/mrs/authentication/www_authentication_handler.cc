@@ -71,7 +71,7 @@ static WwwAuthSessionData *get_session_data(Session *session) {
   return session_data;
 }
 
-bool WwwAuthenticationHandler::authorize(Session *session, http::Url *,
+bool WwwAuthenticationHandler::authorize(Session *session, http::Url *url,
                                          SqlSessionCached *sql_session,
                                          HttpHeaders &input_headers,
                                          AuthUser *out_user) {
@@ -83,6 +83,11 @@ bool WwwAuthenticationHandler::authorize(Session *session, http::Url *,
     *out_user = session_data->user;
     return true;
   }
+
+  url->get_if_query_parameter("onCompletionRedirect",
+                              &session->users_on_complete_url_redirection);
+  url->get_if_query_parameter("onCompletionClose",
+                              &session->users_on_complete_timeout);
 
   auto authorization_cstr = input_headers.get(kAuthorization);
   if (nullptr == authorization_cstr) {

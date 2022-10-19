@@ -32,6 +32,10 @@
 #include "mrs/interface/object.h"
 #include "mrs/rest/request_context.h"
 
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace mrs {
 namespace rest {
 
@@ -141,6 +145,7 @@ bool HandlerAuthorize::request_error(RequestContext *ctxt,
                                                              &ctxt->cookies);
 
   if (session) {
+    log_debug("session->onRedirect=url_param->onRedirect");
     url.get_if_query_parameter("onCompletionRedirect",
                                &session->users_on_complete_url_redirection);
     url.get_if_query_parameter("onCompletionClose",
