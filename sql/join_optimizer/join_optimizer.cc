@@ -6126,6 +6126,28 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
 }
 
 /**
+  Find out if "value" has a type which is compatible with "field" so that it can
+  be used for an index lookup if there is an index on "field".
+ */
+static bool CompatibleTypesForIndexLookup(Item_func_eq *eq_item, Field *field,
+                                          Item *value) {
+  if (!comparable_in_index(eq_item, field, Field::itRAW, eq_item->functype(),
+                           value)) {
+    // The types are not comparable in the index, so it's not sargable.
+    return false;
+  }
+
+  if (field->cmp_type() == STRING_RESULT &&
+      field->match_collation_to_optimize_range() &&
+      field->charset() != eq_item->compare_collation()) {
+    // The collations don't match, so it's not sargable.
+    return false;
+  }
+
+  return true;
+}
+
+/**
   Find out whether “item” is a sargable condition; if so, add it to:
 
    - The list of sargable predicate for the tables (hypergraph nodes)
@@ -6152,8 +6174,9 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
     return;
   }
   for (unsigned arg_idx = 0; arg_idx < 2; ++arg_idx) {
-    Item *left = eq_item->arguments()[arg_idx];
-    Item *right = eq_item->arguments()[1 - arg_idx];
+    Item **args = eq_item->arguments();
+    Item *left = args[arg_idx];
+    Item *right = args[1 - arg_idx];
     if (left->type() != Item::FIELD_ITEM) {
       continue;
     }
@@ -6163,7 +6186,7 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
     }
     if (field->part_of_key.is_clear_all()) {
       // Not part of any key, so not sargable. (It could be part of a prefix
-      // keys, though, but we include them for now.)
+      // key, though, but we include them for now.)
       continue;
     }
     JoinHypergraph::Node *node = FindNodeWithTable(graph, field->table);
@@ -6172,16 +6195,12 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       continue;
     }
 
-    if (!comparable_in_index(eq_item, field, Field::itRAW, eq_item->functype(),
-                             right)) {
-      // The types are not comparable in the index, so it's not sargable.
-      continue;
-    }
-
-    if (field->cmp_type() == STRING_RESULT &&
-        field->match_collation_to_optimize_range() &&
-        field->charset() != item->compare_collation()) {
-      // The collations don't match, so it's not sargable.
+    // If the equality comes from a multiple equality, we have already verified
+    // that the types of the arguments match exactly. For other equalities, we
+    // need to check more thoroughly if the types are compatible.
+    if (eq_item->source_multiple_equality != nullptr) {
+      assert(CompatibleTypesForIndexLookup(eq_item, field, right));
+    } else if (!CompatibleTypesForIndexLookup(eq_item, field, right)) {
       continue;
     }
 
@@ -6224,6 +6243,9 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
 
     node->sargable_predicates.push_back(
         {predicate_index, field, right, is_constant});
+
+    // No need to check the opposite order. We have no indexes on constants.
+    if (is_constant) break;
   }
 }
 
