@@ -6613,6 +6613,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     *trace += "Adding final predicates\n";
   }
   FunctionalDependencySet fd_set = receiver.active_fds_at_root();
+  bool has_final_predicates = false;
   for (size_t i = 0; i < graph.num_where_predicates; ++i) {
     // Apply any predicates that don't belong to any
     // specific table, or which are nondeterministic.
@@ -6620,10 +6621,22 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                   TablesBetween(0, graph.nodes.size())) ||
         Overlaps(graph.predicates[i].total_eligibility_set, RAND_TABLE_BIT)) {
       fd_set |= graph.predicates[i].functional_dependencies;
+      has_final_predicates = true;
     }
   }
 
-  {
+  // Add the final predicates to the root candidates, and expand FILTER access
+  // paths for all predicates (not only the final ones) in the entire access
+  // path tree of the candidates.
+  //
+  // It is an unnecessary step if there are no FILTER access paths to expand.
+  // It's not so expensive that it's worth spending a lot of effort to find out
+  // if it can be skipped, but let's skip it if our only candidate is an EQ_REF
+  // with no filter predicates, so that we don't waste time in point selects.
+  if (has_final_predicates ||
+      !(root_candidates.size() == 1 &&
+        root_candidates[0]->type == AccessPath::EQ_REF &&
+        IsEmpty(root_candidates[0]->filter_predicates))) {
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (const AccessPath *root_path : root_candidates) {
       for (bool materialize_subqueries : {false, true}) {
