@@ -4464,7 +4464,8 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
   for (uint i = 0; i < m_field_arg_count; i++) {
     Item *item = args[i];
     fields.push_back(item);
-    if (item->const_item() && item->is_null()) {
+    if (item->const_item() && !thd->lex->is_view_context_analysis() &&
+        item->is_null()) {
       // "is_null()" may cause error:
       if (thd->is_error()) return true;
       always_null = true;
