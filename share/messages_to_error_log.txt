@@ -12036,6 +12036,9 @@ ER_IB_BULK_LOAD_MERGE_FAIL
 ER_IB_LOAD_BULK_CONCURRENCY_REDUCED
    eng "LOAD BULK DATA: Buffer pool size is %zu. Reducing concurrency from %zu to %zu. table=%s."
 
+ER_PLUGIN_EXCEPTION_OPERATION_FAILED
+   eng "C++ Exception caught while %s the %s plugin: [%s]"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
