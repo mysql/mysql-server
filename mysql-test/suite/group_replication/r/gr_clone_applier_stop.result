@@ -30,16 +30,16 @@ SET @@GLOBAL.DEBUG='+d,gr_clone_before_applier_stop';
 START GROUP_REPLICATION;;
 [connection server_2]
 SET DEBUG_SYNC = 'now SIGNAL applier_stopped';
+SET @@GLOBAL.DEBUG='-d,gr_clone_before_applier_stop';
 [connection server2]
+SET @@GLOBAL.DEBUG= '-d,force_sql_thread_error';
+SET DEBUG_SYNC= 'RESET';
 include/assert.inc [Clone must not start.]
 
 # 4. Reset debug points for applier failures.
 #    Restart GR on M2.
 #    Assert clone starts and group_replication_applier SQL thread is OFF.
 
-SET @@GLOBAL.DEBUG= '-d,force_sql_thread_error';
-SET @@GLOBAL.DEBUG='-d,gr_clone_before_applier_stop';
-SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG='+d,gr_clone_wait';
 START GROUP_REPLICATION;
 SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
@@ -70,30 +70,39 @@ SET @@GLOBAL.DEBUG='+d,force_sql_thread_error';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 include/gr_wait_for_member_state.inc
 SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
-STOP GROUP_REPLICATION;
+include/stop_group_replication.inc
 [connection server1]
 INSERT INTO t1 values (5);
 INSERT INTO t1 values (6);
 
-# 7. Block applier and start GR on M2.
-#    Unblock applier when clone is started.
-#    Assert pending transactions are applied when applier is restarted.
+# 7. Start GR on M2.
+#    Clone will fail and incremental recovery will start.
+#    Applier will be OFF till clone failure is detected.
 
-[connection server2]
-SET GLOBAL group_replication_clone_threshold= 1;
+[connection server1]
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+[connection server2]
+SET @@GLOBAL.DEBUG='+d,gr_run_clone_query_fail_once';
+SET GLOBAL group_replication_clone_threshold= 1;
 START GROUP_REPLICATION;
+SET DEBUG_SYNC = 'now WAIT_FOR signal.run_clone_query_waiting';
+SET @@GLOBAL.DEBUG='-d,gr_run_clone_query_fail_once';
+include/assert.inc ["Clone is executing"]
+include/assert.inc [group_replication_applier SQL Thread will be OFF.]
+SET DEBUG_SYNC = 'now SIGNAL signal.run_clone_query_continue';
+include/assert.inc [group_replication_applier SQL Thread will be ON.]
+[connection server1]
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+[connection server2]
 include/gr_wait_for_member_state.inc
-SET DEBUG_SYNC= 'RESET';
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 
 # 8. Cleanup.
 
-DROP TABLE t1;
 [connection server1]
+DROP TABLE t1;
 set session sql_log_bin=0;
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("The member has failed to gracefully leave the group.");
@@ -117,6 +126,7 @@ call mtr.add_suppression("Due to some issue on the previous step distributed rec
 call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready!");
 call mtr.add_suppression("The group communication engine is not ready for the member to join. .*");
 call mtr.add_suppression("The member was unable to join the group.*");
+call mtr.add_suppression("There was an issue when configuring the remote cloning process: The plugin was not able to stop the group_replication_applier channel.");
 set session sql_log_bin=1;
 RESET PERSIST group_replication_group_name;
 RESET PERSIST group_replication_local_address;

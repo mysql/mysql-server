@@ -763,6 +763,7 @@ void Remote_clone_handler::gr_clone_debug_point() {
 #endif /* NDEBUG */
   // Ignore any channel stop error and confirm channel is stopped or not.
   // Since we will clone next.
+  applier_module->ignore_errors_during_stop(true);
   applier_channel.stop_threads(false, true);
   if (applier_channel.is_applier_thread_running()) {
     /* purecov: begin inspected */
@@ -872,6 +873,7 @@ void Remote_clone_handler::gr_clone_debug_point() {
 thd_end:
 
   declare_plugin_cloning(false);
+  applier_module->ignore_errors_during_stop(false);
 
   if (error && !m_being_terminated) {
     fallback_to_recovery_or_leave(critical_error);
