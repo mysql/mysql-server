@@ -36,7 +36,7 @@ class QueryRestSPMedia : private Query {
  public:
   virtual void query_entries(MySQLSession *session, const std::string &schema,
                              const std::string &object,
-                             const std::vector<std::string> &values);
+                             const mysqlrouter::sqlstring &values);
 
   virtual void query_entries(MySQLSession *session, const std::string &column,
                              const std::string &schema,

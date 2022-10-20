@@ -45,10 +45,15 @@ struct Parameter {
     parameterLong,
     parameterTimestamp
   };
+  enum ParameterMode {
+    parameterIn,
+    parameterOut,
+    parameterInOut,
+  };
 
   uint64_t id;
   std::string name;
-  Operation::ValueType operation;
+  ParameterMode mode;
   std::string bind_column_name;
   ParameterDataType parameter_data_type;
 };
