@@ -24,6 +24,8 @@
 
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 
+#include <charconv>
+
 #include <string.h>  // memcpy
 
 #include "my_byteorder.h"
@@ -600,4 +602,34 @@ bool ndb_table_scan_and_delete_rows(
   };
 
   return ndb_trans_retry(ndb, thd, ndb_err, scan_and_delete_func);
+}
+
+bool ndb_get_parent_table_ids_in_dictionary(
+    const NdbDictionary::Dictionary *dict,
+    std::unordered_set<unsigned> &table_ids) {
+  DBUG_TRACE;
+
+  NdbDictionary::Dictionary::List list;
+  if (dict->listObjects(list, NdbDictionary::Object::ForeignKey) != 0) {
+    // List objects failed
+    return false;
+  }
+
+  for (unsigned i = 0; i < list.count; i++) {
+    const NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    DBUG_PRINT("info", ("elmt[%d]: %d '%s'", i, elmt.id, elmt.name));
+
+    // Extract parent_id from name format "<parent_id>/<child_id>/<name>"
+    unsigned parent_id = 0;
+    std::from_chars(elmt.name, elmt.name + 10, parent_id);
+    if (parent_id == 0) {
+      // unexpected format, skip
+      assert(false);
+      continue;
+    }
+
+    DBUG_PRINT("info", ("parent_id: %d", parent_id));
+    table_ids.insert(parent_id);
+  }
+  return true;
 }

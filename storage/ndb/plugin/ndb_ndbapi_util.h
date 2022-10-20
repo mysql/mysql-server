@@ -319,4 +319,14 @@ bool ndb_table_scan_and_delete_rows(
     NdbError &ndb_err,
     const std::function<void(NdbScanFilter &)> &ndb_scan_filter_defn = nullptr);
 
+/**
+ * @brief Retrieves list with id of foreign key parent tables in NDB Dictionary
+ * @param dict                 NDB Dictionary
+ * @param table_ids [out]      List with ids of fk parent table in Dictionary
+ * @return true on success, false on failure
+ */
+bool ndb_get_parent_table_ids_in_dictionary(
+    const NdbDictionary::Dictionary *dict,
+    std::unordered_set<unsigned> &table_ids);
+
 #endif

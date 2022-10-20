@@ -27,6 +27,7 @@
 
 #include <mutex>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "storage/ndb/plugin/ndb_binlog_hooks.h"
@@ -334,6 +335,20 @@ class Ndb_binlog_thread : public Ndb_component {
   void commit_trans(injector_transaction &trans, THD *thd, Uint64 current_epoch,
                     ndb_binlog_index_row *rows, unsigned trans_row_count,
                     unsigned replicated_row_count);
+
+  // Cache for NDB metadata
+  class Metadata_cache {
+    // List of tables which are foreign key parents
+    std::unordered_set<unsigned> m_fk_parent_tables;
+    bool load_fk_parents(const NdbDictionary::Dictionary *dict);
+
+   public:
+    unsigned is_fk_parent(unsigned table_id) const;
+
+    bool reload(const NdbDictionary::Dictionary *dict) {
+      return load_fk_parents(dict);
+    }
+  } metadata_cache;
 };
 
 /*

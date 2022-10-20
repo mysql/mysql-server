@@ -1338,6 +1338,11 @@ class Ndb_schema_dist_data {
     assert(m_active_schema_ops.size() == 0);
   }
 
+  // Indicates that metadata has changed in NDB.
+  // Since the cache only contains table ids, it's currently enough to set this
+  // flag only when table (most likely) has changed
+  bool metadata_changed;
+
   void init(Ndb_cluster_connection *cluster_connection) {
     const Uint32 max_subscribers = cluster_connection->max_api_nodeid() + 1;
     m_own_nodeid = cluster_connection->node_id();
@@ -1350,6 +1355,7 @@ class Ndb_schema_dist_data {
       m_subscriber_bitmaps.emplace(node_id,
                                    new Node_subscribers(max_subscribers));
     }
+    metadata_changed = true;
   }
 
   void release(void) {
@@ -2476,6 +2482,7 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
 
     assert(is_post_epoch());  // Always after epoch
+    changes_table_metadata();
 
     if (schema->node_id == own_nodeid()) return;
 
@@ -2566,6 +2573,7 @@ class Ndb_schema_event_handler {
 
   bool handle_online_alter_table_commit(const Ndb_schema_op *schema) {
     assert(is_post_epoch());  // Always after epoch
+    changes_table_metadata();
 
     // Get temporary share reference
     NDB_SHARE *share = acquire_reference(schema->db, schema->name,
@@ -2691,6 +2699,7 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
 
     assert(is_post_epoch());  // Always after epoch
+    changes_table_metadata();
 
     if (schema->node_id == own_nodeid()) return;
 
@@ -2862,6 +2871,7 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
 
     assert(is_post_epoch());  // Always after epoch
+    changes_table_metadata();
 
     if (schema->node_id == own_nodeid()) return;
 
@@ -2947,6 +2957,7 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
 
     assert(is_post_epoch());  // Always after epoch
+    changes_table_metadata();
 
     if (schema->node_id == own_nodeid()) return;
 
@@ -3108,6 +3119,7 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
 
     assert(!is_post_epoch());  // Always directly
+    changes_table_metadata();
 
     if (schema->node_id == own_nodeid()) return;
 
@@ -3142,6 +3154,7 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
 
     assert(!is_post_epoch());  // Always directly
+    changes_table_metadata();
 
     if (schema->node_id == own_nodeid()) return;
 
@@ -3163,6 +3176,7 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
 
     assert(!is_post_epoch());  // Always directly
+    changes_table_metadata();
 
     if (schema->node_id == own_nodeid()) return;
 
@@ -3196,6 +3210,7 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
 
     assert(!is_post_epoch());  // Always directly
+    changes_table_metadata();
 
     if (schema->node_id == own_nodeid()) return;
 
@@ -3929,6 +3944,12 @@ class Ndb_schema_event_handler {
   MEM_ROOT *m_mem_root;
   uint m_own_nodeid;
   Ndb_schema_dist_data &m_schema_dist_data;
+
+  // Function called by schema op functions involved in changing table metadata
+  void changes_table_metadata() const {
+    m_schema_dist_data.metadata_changed = true;
+  }
+
   Ndb_schema_op_result m_schema_op_result;
   bool m_post_epoch;
 
@@ -6107,6 +6128,10 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
   const NDB_SHARE *const share = event_data->share;
   TABLE *const table = event_data->shadow_table;
 
+  // Update shadow table's knowledge about wheter its a fk parent
+  table->s->foreign_key_parents =
+      metadata_cache.is_fk_parent(pOp->getTable()->getObjectId());
+
   if (pOp != share->op) {
     // NOTE! Silently skipping data event when the share that the
     // Ndb_event_data is pointing at does not match, seems like
@@ -7565,6 +7590,17 @@ restart_cluster_failure:
         s_pOp = s_ndb->nextEvent();
       }
       update_injector_stats(s_ndb, i_ndb);
+    }
+
+    // Potentially reload the metadata cache, this need to be done before
+    // handling the epoch's data events but after the epochs schema change
+    // events that are processed before the data events.
+    if (schema_dist_data.metadata_changed) {
+      Mutex_guard injector_mutex_g(injector_event_mutex);
+      if (metadata_cache.reload(s_ndb->getDictionary())) {
+        log_info("reloaded metadata cache");
+        schema_dist_data.metadata_changed = false;
+      }
     }
 
     if (!ndb_binlog_running) {
