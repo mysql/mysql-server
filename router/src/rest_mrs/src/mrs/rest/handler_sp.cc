@@ -47,6 +47,34 @@ namespace rest {
 using Result = mrs::rest::Handler::Result;
 using CachedObject = collector::MysqlCacheManager::CachedObject;
 
+// static std::string to_string(
+//    const std::string &value,
+//    mrs::database::entry::Parameter::ParameterDataType dt) {
+//  switch (dt) {
+//    case mrs::database::entry::Parameter::parameterString: {
+//      rapidjson::Document d;
+//      d.SetString(value.c_str(), value.length());
+//      return helper::json::to_string(&d);
+//    }
+//    case mrs::database::entry::Parameter::parameterInt:
+//      return value;
+//    case mrs::database::entry::Parameter::parameterDouble:
+//      return value;
+//    case mrs::database::entry::Parameter::parameterBoolean:
+//      return value;
+//    case mrs::database::entry::Parameter::parameterLong:
+//      return value;
+//    case mrs::database::entry::Parameter::parameterTimestamp: {
+//      rapidjson::Document d;
+//      d.SetString(value.c_str(), value.length());
+//      return helper::json::to_string(&d);
+//    }
+//    default:
+//      return "";
+//  }
+//
+//  return "";
+//}
 static CachedObject get_session(::mysqlrouter::MySQLSession *,
                                 collector::MysqlCacheManager *cache_manager) {
   //  if (session) return CachedObject(nullptr, session);
@@ -65,13 +93,13 @@ enum_field_types to_mysql_type(
     case Pdt::parameterString:
       return MYSQL_TYPE_STRING;
     case Pdt::parameterInt:
-      return MYSQL_TYPE_LONGLONG;
+      return MYSQL_TYPE_LONG;
     case Pdt::parameterDouble:
       return MYSQL_TYPE_DOUBLE;
     case Pdt::parameterBoolean:
       return MYSQL_TYPE_BOOL;
     case Pdt::parameterLong:
-      return MYSQL_TYPE_LONG;
+      return MYSQL_TYPE_LONGLONG;
     case Pdt::parameterTimestamp:
       return MYSQL_TYPE_TIMESTAMP;
 
@@ -81,6 +109,7 @@ enum_field_types to_mysql_type(
 }
 Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
+
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   auto &input_buffer = ctxt->request->get_input_buffer();
@@ -111,7 +140,8 @@ Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
     if (ownership.user_ownership_enforced &&
         (ownership.user_ownership_column == el.bind_column_name)) {
       result += std::to_string(ctxt->user.user_id);
-    } else if (el.operation & mrs::database::entry::Operation::valueRead) {
+    } else if (el.mode ==
+               mrs::database::entry::Parameter::ParameterMode::parameterIn) {
       auto it = doc.FindMember(el.name.c_str());
       if (it == doc.MemberEnd())
         throw http::Error(HttpStatusCode::BadRequest,
@@ -146,6 +176,53 @@ void HandlerSP::authorization(rest::RequestContext *ctxt) {
 }
 
 Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
+  using namespace std::string_literals;
+
+  http::Url::Keys keys;
+  http::Url::Values values;
+
+  auto &requests_uri = ctxt->request->get_uri();
+  http::Url::parse_query(requests_uri.get_query().c_str(), &keys, &values);
+
+  auto &p = route_->get_parameters();
+  for (auto key : keys) {
+    const database::entry::Parameter *param;
+    if (!helper::container::get_ptr_if(
+            p, [key](auto &v) { return v.name == key; }, &param)) {
+      throw http::Error(HttpStatusCode::BadRequest,
+                        "Not allowed parameter:"s + key);
+    }
+  }
+
+  for (auto &el : p) {
+    if (el.mode != mrs::database::entry::Parameter::parameterIn)
+      throw http::Error(
+          HttpStatusCode::BadRequest,
+          "Only 'in' parameters allowed, '"s + el.name + "' is output.");
+  }
+
+  std::string result;
+  std::vector<enum_field_types> variables;
+  auto &ownership = route_->get_user_row_ownership();
+  for (auto &el : p) {
+    if (!result.empty()) result += ",";
+
+    if (ownership.user_ownership_enforced &&
+        (ownership.user_ownership_column == el.bind_column_name)) {
+      result += std::to_string(ctxt->user.user_id);
+    } else if (el.mode ==
+               mrs::database::entry::Parameter::ParameterMode::parameterIn) {
+      auto idx = helper::container::index_of(keys, el.name);
+      if (idx == -1)
+        throw http::Error(HttpStatusCode::BadRequest,
+                          "Parameter not set:"s + el.name);
+      result += (mysqlrouter::sqlstring("?") << values[idx]).str();
+    } else {
+      result += "?";
+      variables.push_back(to_mysql_type(el.parameter_data_type));
+    }
+  }
+
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
 
@@ -158,20 +235,16 @@ Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
 
     db.query_entries(session.get(), route_->get_schema_name(),
                      route_->get_object_name(), route_->get_rest_url(),
-                     route_->get_user_row_ownership().user_ownership_column);
+                     route_->get_user_row_ownership().user_ownership_column,
+                     result.c_str(), variables);
 
     return {std::move(db.response)};
   }
 
   database::QueryRestSPMedia db;
-  http::Url::Keys keys;
-  http::Url::Values values;
-
-  auto &requests_uri = ctxt->request->get_uri();
-  http::Url::parse_query(requests_uri.get_query().c_str(), &keys, &values);
 
   db.query_entries(session.get(), route_->get_schema_name(),
-                   route_->get_object_name(), values);
+                   route_->get_object_name(), result.c_str());
 
   auto media_type = route_->get_media_type();
 

@@ -35,10 +35,10 @@ bool QueryEntryParameter::query_parameters(MySQLSession *session,
                                            uint64_t db_object_id) {
   parameters_.clear();
   query_ = {
-      "SELECT id, name, crud_operations + 0, "
-      "bind_column_name, param_datatype FROM "
+      "SELECT id, name, mode + 0, "
+      "bind_column_name, param_datatype, position FROM "
       "mysql_rest_service_metadata.parameter WHERE "
-      "db_object_id=?"};
+      "db_object_id=? ORDER BY position"};
   query_ << db_object_id;
   query(session);
 
@@ -73,7 +73,7 @@ void QueryEntryParameter::on_row(const Row &row) {
 
   mysql_row.unserialize(&entry.id);
   mysql_row.unserialize(&entry.name);
-  mysql_row.unserialize(&entry.operation);
+  mysql_row.unserialize(&entry.mode);
   mysql_row.unserialize(&entry.bind_column_name);
   mysql_row.unserialize_with_converter(&entry.parameter_data_type,
                                        ParamTypeConverter{});

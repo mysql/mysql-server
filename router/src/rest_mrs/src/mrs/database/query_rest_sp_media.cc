@@ -37,8 +37,8 @@ namespace database {
 void QueryRestSPMedia::query_entries(MySQLSession *session,
                                      const std::string &schema,
                                      const std::string &object,
-                                     const std::vector<std::string> &values) {
-  query_ = {"CALL !.!(?)"};
+                                     const mysqlrouter::sqlstring &values) {
+  query_ = {"CALL !.!(1)"};
   query_ << schema << object << values;
 
   auto result = query_one(session);

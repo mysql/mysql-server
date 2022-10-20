@@ -89,6 +89,20 @@ bool get_if(Container &c, Find_if &&find_if,
   return true;
 }
 
+template <typename Container, typename Value = typename Container::value_type>
+bool contains(Container &c, Value &&val) {
+  auto it = std::find(c.begin(), c.end(), std::forward<Value>(val));
+  if (c.end() == it) return false;
+  return true;
+}
+
+template <typename Container, typename Value = typename Container::value_type>
+int index_of(Container &c, Value &&val) {
+  auto it = std::find(c.begin(), c.end(), std::forward<Value>(val));
+  if (c.end() == it) return -1;
+  return std::distance(c.begin(), it);
+}
+
 template <typename Container, typename Find_if>
 void copy_if(const Container &input, Find_if &&find_if, Container &output) {
   for (auto &e : input) {
