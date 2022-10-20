@@ -239,7 +239,7 @@ struct pushed_table {
    *   actally referred from the SPJ-query as built by this join-pushdown
    *   handler. It will usually be the same as the upper-nests, but it can
    *   differ in cases where we entirely skip references to a parent nest
-   *   and just refer tables fra its grand-parent nests, or refer 'sideways'
+   *   and just refer tables from its grand-parent nests, or refer 'sideways'
    *   into sibling nests.
    *
    * These two similar, but different, nest maps are required as both the
@@ -556,6 +556,9 @@ struct pushed_table {
   /** Get the access type of this operation.*/
   enum_access_type get_access_type() const { return m_access_type; }
 
+  /** Estimate number of rows returned from data nodes. */
+  double num_output_rows() const;
+
   /**
     Get a description of the reason for getting access_type==AT_OTHER. To be
     used for informational messages.
@@ -738,7 +741,14 @@ class ndb_pushed_builder_ctx {
 
   void remove_pushable(const pushed_table *table);
 
-  int optimize_query_plan();
+  /**
+   * We have a plan being pushable, we can still choose to not accept
+   * it for execution. Used as a hook for rejecting pushing when we
+   * believe there are better options.
+   */
+  bool accept_query_plan();
+
+  void optimize_query_plan();
 
   int build_query();
 
