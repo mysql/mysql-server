@@ -783,10 +783,21 @@ delete_pipeline:
 void Applier_module::inform_of_applier_stop(char *channel_name, bool aborted) {
   DBUG_TRACE;
 
+  /*
+   This function is called when async replication applier thread is stopped.
+   The stop of async replication applier thread is not an issue, however when
+   async replication applier thread stops because of some errors, GR applier
+   pipeline is also stopped and member goes in the ERROR state.
+   The function parameter 'aborted' informs about the async replication
+   applier thread errors.
+   When the async replication applier thread stop is initiated by Clone GR
+   (m_ignore_applier_errors_during_stop=true), GR applier pipeline should
+   ignore async replication applier thread errors.
+  */
   if (!strcmp(channel_name, applier_module_channel_name) && aborted &&
+      !m_ignore_applier_errors_during_stop &&
       applier_thd_state.is_thread_alive()) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_THD_EXECUTION_ABORTED);
-
     applier_error = 1;
 
     // before waiting for termination, signal the queue to unlock.

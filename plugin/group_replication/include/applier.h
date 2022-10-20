@@ -454,6 +454,18 @@ class Applier_module : public Applier_module_interface {
   */
   void inform_of_applier_stop(char *channel_name, bool aborted);
 
+  /**
+   Check whether to ignore applier errors during stop or not.
+   Errors put the members into ERROR state.
+   If errors are ignored member will stay in ONLINE state.
+   During clone, applier errors are ignored, since data will come from clone.
+
+    @param[in]  ignore_errors  if true ignore applier errors during stop
+  */
+  void ignore_errors_during_stop(bool ignore_errors) {
+    m_ignore_applier_errors_during_stop = ignore_errors;
+  }
+
   // Packet based interface methods
 
   /**
@@ -873,6 +885,8 @@ class Applier_module : public Applier_module_interface {
   int applier_error;
   /* Applier killed status */
   bool applier_killed_status;
+  /* Ignore applier errors during stop. */
+  bool m_ignore_applier_errors_during_stop{false};
 
   // condition and lock used to suspend/awake the applier module
   /* The lock for suspending/wait for the awake of  the applier module */
