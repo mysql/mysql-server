@@ -115,53 +115,56 @@ IF(WITH_ROUTER)
   ENDFOREACH()
 ENDIF(WITH_ROUTER)
 
-FOREACH(FILE
-    # InnoDB generated parsers are checked in as source.
-    ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0blex.cc
-    ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0blex.l
-    ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0pars.cc
-    ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0pars.y
-    ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0tlex.cc
-    ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0tlex.l
-    ${CMAKE_SOURCE_DIR}/storage/innobase/pars/lexyy.cc
-    ${CMAKE_SOURCE_DIR}/storage/innobase/pars/pars0grm.cc
-    ${CMAKE_SOURCE_DIR}/storage/innobase/pars/pars0grm.y
-    ${CMAKE_SOURCE_DIR}/storage/innobase/pars/pars0lex.l
-    )
-  GET_FILENAME_COMPONENT(filename "${FILE}" NAME)
-  IF(CMAKE_GENERATOR MATCHES "Ninja")
-    EXECUTE_PROCESS(
-      COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+# We may be running gcov in-source.
+IF(NOT THIS_IS_AN_IN_SOURCE_BUILD)
+  FOREACH(FILE
+      # InnoDB generated parsers are checked in as source.
+      ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0blex.cc
+      ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0blex.l
+      ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0pars.cc
+      ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0pars.y
+      ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0tlex.cc
+      ${CMAKE_SOURCE_DIR}/storage/innobase/fts/fts0tlex.l
+      ${CMAKE_SOURCE_DIR}/storage/innobase/pars/lexyy.cc
+      ${CMAKE_SOURCE_DIR}/storage/innobase/pars/pars0grm.cc
+      ${CMAKE_SOURCE_DIR}/storage/innobase/pars/pars0grm.y
+      ${CMAKE_SOURCE_DIR}/storage/innobase/pars/pars0lex.l
       )
-  ELSE()
-    EXECUTE_PROCESS(
-      COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/storage/innobase
-      )
-  ENDIF()
-ENDFOREACH()
+    GET_FILENAME_COMPONENT(filename "${FILE}" NAME)
+    IF(CMAKE_GENERATOR MATCHES "Ninja")
+      EXECUTE_PROCESS(
+        COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+    ELSE()
+      EXECUTE_PROCESS(
+        COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/storage/innobase
+        )
+    ENDIF()
+  ENDFOREACH()
 
-FOREACH(FILE
-    # MySQL parsers
-    ${CMAKE_SOURCE_DIR}/sql/debug_lo_parser.yy
-    ${CMAKE_SOURCE_DIR}/sql/debug_lo_scanner.ll
-    ${CMAKE_SOURCE_DIR}/sql/sql_hints.yy
-    ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy
-    )
-  GET_FILENAME_COMPONENT(filename "${FILE}" NAME)
-  IF(CMAKE_GENERATOR MATCHES "Ninja")
-    EXECUTE_PROCESS(
-      COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  FOREACH(FILE
+      # MySQL parsers
+      ${CMAKE_SOURCE_DIR}/sql/debug_lo_parser.yy
+      ${CMAKE_SOURCE_DIR}/sql/debug_lo_scanner.ll
+      ${CMAKE_SOURCE_DIR}/sql/sql_hints.yy
+      ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy
       )
-  ELSE()
-    EXECUTE_PROCESS(
-      COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/sql
-      )
-  ENDIF()
-ENDFOREACH()
+    GET_FILENAME_COMPONENT(filename "${FILE}" NAME)
+    IF(CMAKE_GENERATOR MATCHES "Ninja")
+      EXECUTE_PROCESS(
+        COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+    ELSE()
+      EXECUTE_PROCESS(
+        COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/sql
+        )
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
 
 # Ignore std, boost and 3rd-party code when doing coverage analysis.
 SET(FASTCOV_EXCLUDE_LIST "--exclude")

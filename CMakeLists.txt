@@ -593,7 +593,9 @@ ENDIF()
 # So if you do a 'git pull' you may end up with a developer sandbox
 # that no longer works as expected (CMakeCache.txt and other
 # generated/configured files may contain data which is no longer valid)
+SET(THIS_IS_AN_IN_SOURCE_BUILD FALSE)
 IF(${REALPATH_CMAKE_SOURCE_DIR} STREQUAL ${REALPATH_CMAKE_BINARY_DIR})
+  SET(THIS_IS_AN_IN_SOURCE_BUILD TRUE)
   IF(FORCE_INSOURCE_BUILD)
     MESSAGE(WARNING "This is an in-source build")
   ELSE()
