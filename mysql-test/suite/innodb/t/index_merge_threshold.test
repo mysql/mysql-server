@@ -12,6 +12,12 @@
 # #############################################################
 --source include/have_debug.inc
 
+# purge the previous test results
+--disable_query_log
+set global innodb_purge_stop_now=ON;
+set global innodb_purge_run_now=ON;
+--enable_query_log
+--source include/wait_innodb_all_purged.inc
 
 # Check index merge threshold by create index on all datatypes
 
