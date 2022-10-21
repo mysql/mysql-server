@@ -3513,6 +3513,40 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3`,`test`.`t2`.`a3` AS `a3`,`test`.`t2`.`b3` AS `b3`,`test`.`t2`.`c3` AS `c3`,`test`.`t2`.`d3` AS `d3` from `test`.`t1` straight_join `test`.`t1` `t2` where (((`test`.`t1`.`b3` = 1) and (`test`.`t2`.`a3` = `test`.`t1`.`a3`) and (`test`.`t1`.`c3` in (1,2,3)) and (`test`.`t2`.`b3` between 1 and 5) and (`test`.`t2`.`c3` > 1)) or ((`test`.`t1`.`b3` = 2) and (`test`.`t2`.`a3` = `test`.`t1`.`a3`) and (`test`.`t1`.`c3` in (10,20,30)) and (`test`.`t2`.`b3` between 1 and 10) and (`test`.`t2`.`c3` > 2)) or ((`test`.`t1`.`b3` = 3) and (`test`.`t2`.`a3` = `test`.`t1`.`a3`) and (`test`.`t1`.`c3` in (100,200,300)) and (`test`.`t2`.`b3` between 1 and 15) and (`test`.`t2`.`c3` > 3)))
 drop table t1;
+#########################################################################
+#
+# Bug#34644930 NDB: Performance regression in TPC-H Q22
+#
+#########################################################################
+create table t1 (
+d decimal(6,2)
+) engine = ndbcluster;
+insert into t1 values (1.00), (1.00), (3.00);
+explain format=tree
+select * from t1
+where d > (select avg(d) from t1);
+EXPLAIN
+-> Table scan on t1, with pushed condition: (t1.d > (select #2))  (cost=750.10 rows=1)
+    -> Select #2 (subquery in pushed condition; run only once)
+        -> Aggregate: avg(t1.d)  (cost=750.60 rows=1)
+            -> Table scan on t1  (cost=750.30 rows=3)
+
+SELECT variable_value into @read_cnt0
+FROM performance_schema.global_status
+WHERE variable_name = 'Ndb_api_read_row_count';
+select * from t1
+where d > (select avg(d) from t1);
+d
+3.00
+# Expect 4 rows to have been read:
+#   The 3 rows for calculating avg(d)
+# + A single row from t1 with the pushed condition 'd > avg()'
+SELECT variable_value-@read_cnt0
+FROM performance_schema.global_status
+WHERE variable_name = 'Ndb_api_read_row_count';
+variable_value-@read_cnt0
+4
+drop table t1;
 #
 # Bug#29460314 NDB: INCORRECT JOIN RESULT WHEN EQ_REF IS
 # COMBINED WITH PUSHED CONDITION

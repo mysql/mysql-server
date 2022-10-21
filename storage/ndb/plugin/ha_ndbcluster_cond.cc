@@ -293,7 +293,11 @@ class Ndb_value : public Ndb_item {
         const_cast<Item *>(item)->save_in_field(field, false);
     dbug_tmp_restore_column_map(field->table->write_set, old_map);
 
-    if (unlikely(status != TYPE_OK)) return -1;
+    if (unlikely(status != TYPE_OK) &&
+        // 'TYPE_NOTE*': Minor truncation considered insignificant -> Still ok
+        status != TYPE_NOTE_TRUNCATED && status != TYPE_NOTE_TIME_TRUNCATED) {
+      return -1;
+    }
 
     return 0;  // OK
   }
