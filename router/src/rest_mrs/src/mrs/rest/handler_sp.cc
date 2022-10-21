@@ -107,6 +107,14 @@ enum_field_types to_mysql_type(
       return MYSQL_TYPE_NULL;
   }
 }
+
+std::string to_string(rapidjson::Value *v) {
+  if (v->IsString()) {
+    return std::string{v->GetString(), v->GetStringLength()};
+  }
+
+  return helper::json::to_string(v);
+}
 Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
 
@@ -146,9 +154,7 @@ Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
       if (it == doc.MemberEnd())
         throw http::Error(HttpStatusCode::BadRequest,
                           "Parameter not set:"s + el.name);
-      result +=
-          (mysqlrouter::sqlstring("?") << helper::json::to_string(&it->value))
-              .str();
+      result += (mysqlrouter::sqlstring("?") << to_string(&it->value)).str();
     } else {
       result += "?";
       variables.push_back(to_mysql_type(el.parameter_data_type));

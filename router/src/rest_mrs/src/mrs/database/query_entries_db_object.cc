@@ -31,6 +31,10 @@
 #include "mrs/database/query_entry_group_row_security.h"
 #include "mrs/database/query_entry_parameter.h"
 
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS();
+
 namespace mrs {
 namespace database {
 
@@ -50,7 +54,7 @@ QueryEntryDbObject::QueryEntryDbObject() {
       "    db.name as `db_schema`, "
       "    o.name as `db_table`, "
       " o.crud_operations + 0, "
-      " o.format + 0, "
+      " o.format, "
       " o.media_type, "
       " o.auto_detect_media_type, "
       "    s.id as service_id, o.id as db_object_id, db.id as db_schema_id, "
@@ -58,7 +62,7 @@ QueryEntryDbObject::QueryEntryDbObject() {
       "    o.row_user_ownership_column,"
       "    IF(o.options IS NOT NULL, o.options, IF(db.options IS NOT NULL, "
       "       db.options, s.options)) as options,"
-      "    IF(db.options IS NOT NULL, db.options, s.options) as db_options"
+      "    IF(db.options IS NOT NULL, db.options, s.options) as db_options !"
       " FROM mysql_rest_service_metadata.`db_object` as o "
       "  JOIN mysql_rest_service_metadata.`db_schema` as db on "
       "      o.db_schema_id = db.id "
@@ -76,6 +80,7 @@ void QueryEntryDbObject::query_entries(MySQLSession *session) {
   QueryAuditLogMaxId query_audit_id;
   query(session, "START TRANSACTION");
   auto audit_log_id = query_audit_id.query(session);
+  if (!query_.done()) query_ << mysqlrouter::sqlstring{""};
   query(session);
 
   QueryEntryGroupRowSecurity qg;
@@ -95,6 +100,8 @@ void QueryEntryDbObject::query_entries(MySQLSession *session) {
 template <typename Map>
 auto get_map_converter(Map *map, const typename Map::mapped_type value) {
   return [map, value](auto *out, const char *v) {
+    log_debug("map_converter: %s", v);
+
     auto e = v ? map->find(v) : map->end();
 
     if (e != map->end()) {
@@ -111,11 +118,19 @@ void QueryEntryDbObject::on_row(const Row &row) {
   static std::map<std::string, DbObject::PathType> path_types{
       {"TABLE", DbObject::typeTable}, {"PROCEDURE", DbObject::typeProcedure}};
 
+  static std::map<std::string, DbObject::Format> format_types{
+      {"FEED", DbObject::formatFeed},
+      {"ITEM", DbObject::formatItem},
+      {"MEDIA", DbObject::formatMedia}};
+
   helper::MySQLRow mysql_row(row);
   DbObject &entry = entries.back();
 
   auto path_type_converter =
       get_map_converter(&path_types, DbObject::typeTable);
+
+  auto format_type_converter =
+      get_map_converter(&format_types, DbObject::formatFeed);
   mysql_row.unserialize(&entry.id);
   mysql_row.unserialize(&entry.service_id);
   mysql_row.unserialize(&entry.schema_id);
@@ -132,7 +147,7 @@ void QueryEntryDbObject::on_row(const Row &row) {
   mysql_row.unserialize(&entry.db_table);
 
   mysql_row.unserialize(&entry.operation);
-  mysql_row.unserialize(&entry.format);
+  mysql_row.unserialize_with_converter(&entry.format, format_type_converter);
   mysql_row.unserialize(&entry.media_type);
   mysql_row.unserialize(&entry.autodetect_media_type);
 
