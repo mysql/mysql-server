@@ -6845,13 +6845,13 @@ size_t buf_pool_pending_io_writes_count() {
   }
   return pending_io_writes;
 }
-
-void buf_pool_wait_for_no_pending_io_reads() {
+void buf_pool_wait_for_no_pending_io() {
   uint32_t sleep_time_us = 100;
   uint32_t sleep_time_since_info_emitted_us = 0;
   constexpr uint32_t MAX_SLEEP_TIME_US = 1000 * 1000;
   while (true) {
-    const size_t pending_io = buf_pool_pending_io_reads_count();
+    const size_t pending_io =
+        buf_pool_pending_io_reads_count() + buf_pool_pending_io_writes_count();
     if (pending_io == 0) {
       break;
     }
