@@ -32,7 +32,8 @@ namespace database {
 
 QueryEntriesContentFile::QueryEntriesContentFile() {
   query_ =
-      "SELECT f.id as content_file_id, content_set_id, f.size ,h.name, "
+      "SELECT * FROM (SELECT f.id as content_file_id, content_set_id, f.size "
+      ",h.name, "
       "service.url_context_root as service_path, s.request_path as set_path, "
       "f.request_path as file_path,"
       "   s.enabled and f.enabled as enabled,"
@@ -47,7 +48,7 @@ QueryEntriesContentFile::QueryEntriesContentFile() {
       " JOIN mysql_rest_service_metadata.service as service ON "
       "service.id=s.service_id"
       " JOIN mysql_rest_service_metadata.url_host as h ON "
-      "h.id=service.url_host_id";
+      "h.id=service.url_host_id) as parent ";
 }
 
 uint64_t QueryEntriesContentFile::get_last_update() { return audit_log_id_; }
