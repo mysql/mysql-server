@@ -76,6 +76,10 @@ void QueryEntryParameter::on_row(const Row &row) {
           {"IN", Parameter::parameterIn},
           {"OUT", Parameter::parameterOut},
           {"INOUT", Parameter::parameterInOut}};
+      if (nullptr == value) {
+        *out = Parameter::parameterIn;
+        return;
+      }
       *out = converter.at(value);
     }
   };
