@@ -35,7 +35,7 @@ bool QueryEntryParameter::query_parameters(MySQLSession *session,
                                            uint64_t db_object_id) {
   parameters_.clear();
   query_ = {
-      "SELECT id, name, mode + 0, "
+      "SELECT id, name, mode, "
       "bind_column_name, param_datatype, position FROM "
       "mysql_rest_service_metadata.parameter WHERE "
       "db_object_id=? ORDER BY position"};
@@ -50,7 +50,10 @@ QueryEntryParameter::Parameters &QueryEntryParameter::get_result() {
 }
 
 void QueryEntryParameter::on_row(const Row &row) {
-  using ParameterDataType = mrs::database::entry::Parameter::ParameterDataType;
+  using Parameter = mrs::database::entry::Parameter;
+  using ParameterDataType = Parameter::ParameterDataType;
+  using ParameterMode = Parameter::ParameterMode;
+
   if (row.size() < 1) return;
 
   class ParamTypeConverter {
@@ -66,6 +69,16 @@ void QueryEntryParameter::on_row(const Row &row) {
       *out = converter.at(value);
     }
   };
+  class ParamModeConverter {
+   public:
+    void operator()(ParameterMode *out, const char *value) const {
+      const static std::map<std::string, ParameterMode> converter{
+          {"IN", Parameter::parameterIn},
+          {"OUT", Parameter::parameterOut},
+          {"INOUT", Parameter::parameterInOut}};
+      *out = converter.at(value);
+    }
+  };
 
   helper::MySQLRow mysql_row(row);
 
@@ -73,7 +86,7 @@ void QueryEntryParameter::on_row(const Row &row) {
 
   mysql_row.unserialize(&entry.id);
   mysql_row.unserialize(&entry.name);
-  mysql_row.unserialize(&entry.mode);
+  mysql_row.unserialize_with_converter(&entry.mode, ParamModeConverter{});
   mysql_row.unserialize(&entry.bind_column_name);
   mysql_row.unserialize_with_converter(&entry.parameter_data_type,
                                        ParamTypeConverter{});
