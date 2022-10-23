@@ -487,17 +487,18 @@ void row_upd_rec_in_place(
   ut_ad(!index->table->skip_alter_undo);
 
   if (rec_offs_comp(offsets)) {
-    bool is_instant = rec_get_instant_flag_new(rec);
-    bool is_versioned = rec_new_is_versioned(rec);
+    const bool is_instant = rec_get_instant_flag_new(rec);
+    const bool is_versioned = rec_new_is_versioned(rec);
 
     rec_set_info_bits_new(rec, update->info_bits);
     if (is_versioned) {
       rec_new_set_versioned(rec, true);
-      ut_ad(!rec_get_instant_flag_new(rec));
+      rec_set_instant_flag_new(rec, false);
     } else if (is_instant) {
       ut_ad(index->table->has_instant_cols());
       rec_set_instant_flag_new(rec, true);
       ut_ad(!rec_new_is_versioned(rec));
+      rec_new_set_versioned(rec, false);
     } else {
       rec_new_set_versioned(rec, false);
       rec_set_instant_flag_new(rec, false);
@@ -511,6 +512,9 @@ void row_upd_rec_in_place(
       rec_old_set_versioned(rec, false);
     }
   }
+
+  /* Only one of the bit (INSTANT or VERSION) could be set */
+  ut_a(!(rec_get_instant_flag_new(rec) && rec_new_is_versioned(rec)));
 
   n_fields = upd_get_n_fields(update);
 
