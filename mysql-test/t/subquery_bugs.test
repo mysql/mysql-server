@@ -2,6 +2,7 @@
 # Regression tests for bugs in subquery evaluation that need
 # a specific optimizer strategy selection
 #
+--source include/elide_costs.inc
 
 --echo # Bug#26436185 Assertion 'buf_is_inside_another(data_in_mysql_buf, ...)
 
@@ -1869,3 +1870,28 @@ FROM t
 WHERE ((SELECT c FROM t), 0) IN (SELECT 1, 2 UNION SELECT 3, 4) AND FALSE;
 
 DROP TABLE t;
+
+
+--echo #
+--echo # Bug #34678179 Assertion `path->cost >= 0.0' failed
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE TABLE t2 (a INT);
+
+CREATE TABLE t3 (a INT, KEY (a));
+
+ANALYZE TABLE t1,t2,t3;
+
+# Check that we get a row estimate for the WEEDOUT path.
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 WHERE a IN
+(SELECT COUNT(*) FROM t2 LEFT JOIN t3
+ ON t3.a IN (SELECT t2_a.a FROM t2 AS t2_a, t2 AS t2_b)
+ WHERE t2.a = 0);
+
+DROP TABLE t1, t2, t3;
