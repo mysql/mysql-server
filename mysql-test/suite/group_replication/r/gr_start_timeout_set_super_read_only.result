@@ -1,0 +1,46 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a single-primary group, where server1 is the primary.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 2. Stop GR on server2.
+#    Lock table t1 for writes on server2, that will make
+#    START GROUP_REPLICATION to timeout to enable super_read_only.
+[connection server2]
+include/stop_group_replication.inc
+[connection server_2]
+LOCK TABLE t1 WRITE;
+[connection server2]
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/assert_grep.inc [The error to enable super_read_only was logged]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Could not enable the server read only mode and guarantee a safe recovery execution");
+SET SESSION sql_log_bin = 1;
+
+############################################################
+# 3. Unlock table t1 for writes on server2, START GROUP_REPLICATION
+#    will succeed, since server2 is a secondary we can assert that
+#    super_read_only is enabled after join the group.
+[connection server_2]
+UNLOCK TABLES;
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [The super_read_only mode must be enabled]
+include/assert.inc [The read_only mode must be enabled]
+
+############################################################
+# 4. Clean up.
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc
