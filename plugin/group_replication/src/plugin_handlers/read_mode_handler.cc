@@ -38,11 +38,13 @@ int enable_server_read_mode() {
   get_system_variable.get_global_super_read_only(super_read_only_value);
 
   // Setting the super_read_only mode on the server.
+  // We do log the log message even when the super_read_only is already
+  // enabled to avoid the possible misinterpretations if it was omitted.
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_ON);
   if (!super_read_only_value) {
     Set_system_variable set_system_variable;
     error = set_system_variable.set_global_super_read_only(true);
   }
-  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_ON);
 
   return error;
 }
@@ -50,9 +52,9 @@ int enable_server_read_mode() {
 int disable_server_read_mode() {
   DBUG_TRACE;
 
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
   Set_system_variable set_system_variable;
   int error = set_system_variable.set_global_read_only(false);
-  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
 
   return error;
 }
@@ -88,11 +90,11 @@ int set_read_mode_state(bool read_only_enabled, bool super_read_only_enabled) {
   Set_system_variable set_system_variable;
 
   if (!read_only_enabled) {
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
     error |= set_system_variable.set_global_read_only(false);
-    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
   } else if (!super_read_only_enabled) {
-    error |= set_system_variable.set_global_super_read_only(false);
     LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
+    error |= set_system_variable.set_global_super_read_only(false);
   }
 
   if (error) {
