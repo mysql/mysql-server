@@ -56,12 +56,13 @@
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql/item.h"
-#include "sql/item_cmpfunc.h"      // Item_func_any_value
-#include "sql/item_func.h"         // Item_func_udf_str
-#include "sql/item_geofunc.h"      // Item_func_st_area
-#include "sql/item_inetfunc.h"     // Item_func_inet_ntoa
-#include "sql/item_json_func.h"    // Item_func_json
-#include "sql/item_pfs_func.h"     // Item_pfs_func_thread_id
+#include "sql/item_cmpfunc.h"    // Item_func_any_value
+#include "sql/item_func.h"       // Item_func_udf_str
+#include "sql/item_geofunc.h"    // Item_func_st_area
+#include "sql/item_gtid_func.h"  // Item_wait_for_executed_gtid_set Item_master_gtid_set_wait Item_func_gtid_subset
+#include "sql/item_inetfunc.h"   // Item_func_inet_ntoa
+#include "sql/item_json_func.h"  // Item_func_json
+#include "sql/item_pfs_func.h"   // Item_pfs_func_thread_id
 #include "sql/item_regexp_func.h"  // Item_func_regexp_xxx
 #include "sql/item_strfunc.h"      // Item_func_aes_encrypt
 #include "sql/item_sum.h"          // Item_sum_udf_str
