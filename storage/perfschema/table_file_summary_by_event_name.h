@@ -78,7 +78,7 @@ class table_file_summary_by_event_name : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_next() override;
   int rnd_pos(const void *pos) override;
@@ -96,7 +96,7 @@ class table_file_summary_by_event_name : public PFS_engine_table {
   ~table_file_summary_by_event_name() override = default;
 
  private:
-  int make_row(PFS_file_class *klass);
+  int make_row(PFS_file_class *file_class);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

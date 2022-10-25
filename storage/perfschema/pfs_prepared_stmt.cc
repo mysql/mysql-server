@@ -53,7 +53,7 @@ int init_prepared_stmt(const PFS_global_param *param) {
 }
 
 /** Cleanup table PREPARED_STATEMENTS_INSTANCE. */
-void cleanup_prepared_stmt(void) { global_prepared_stmt_container.cleanup(); }
+void cleanup_prepared_stmt() { global_prepared_stmt_container.cleanup(); }
 
 void PFS_prepared_stmt::reset_data() {
   m_prepare_stat.reset();
@@ -133,5 +133,4 @@ PFS_prepared_stmt *create_prepared_stmt(
 
 void delete_prepared_stmt(PFS_prepared_stmt *pfs) {
   global_prepared_stmt_container.deallocate(pfs);
-  return;
 }

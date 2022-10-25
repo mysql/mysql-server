@@ -90,8 +90,8 @@ int register_pfs_resource_group_service() {
     return 1;
   }
 
-  my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
-                                                      r);
+  const my_service<SERVICE_TYPE(registry_registration)> reg(
+      "registry_registration", r);
 
   if (reg->register_service(
           "pfs_resource_group_v3.mysql_server",
@@ -119,8 +119,8 @@ int unregister_pfs_resource_group_service() {
     return 1;
   }
 
-  my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
-                                                      r);
+  const my_service<SERVICE_TYPE(registry_registration)> reg(
+      "registry_registration", r);
 
   if (reg->unregister("pfs_resource_group_v3.mysql_server")) {
     result = 1;

@@ -57,7 +57,7 @@ void PFS_status_stats::aggregate(const PFS_status_stats *from) {
 }
 
 void PFS_status_stats::aggregate_from(const System_status_var *from) {
-  const ulonglong *from_var = pointer_cast<const ulonglong *>(from);
+  const auto *from_var = pointer_cast<const ulonglong *>(from);
 
   m_has_stats = true;
   for (int i = 0; i < COUNT_GLOBAL_STATUS_VARS; i++, from_var++) {
@@ -67,7 +67,7 @@ void PFS_status_stats::aggregate_from(const System_status_var *from) {
 
 void PFS_status_stats::aggregate_to(System_status_var *to) {
   if (m_has_stats) {
-    ulonglong *to_var = (ulonglong *)to;
+    auto *to_var = (ulonglong *)to;
 
     for (int i = 0; i < COUNT_GLOBAL_STATUS_VARS; i++, to_var++) {
       *to_var += m_stats[i];

@@ -97,7 +97,7 @@ PFS_engine_table *table_accounts::create(PFS_engine_table_share *) {
   return new table_accounts();
 }
 
-int table_accounts::delete_all_rows(void) {
+int table_accounts::delete_all_rows() {
   reset_events_waits_by_thread();
   reset_events_waits_by_account();
   reset_events_stages_by_thread();

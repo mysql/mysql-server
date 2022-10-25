@@ -112,22 +112,22 @@ table_socket_summary_by_event_name::table_socket_summary_by_event_name()
   m_normalizer = time_normalizer::get_wait();
 }
 
-int table_socket_summary_by_event_name::delete_all_rows(void) {
+int table_socket_summary_by_event_name::delete_all_rows() {
   reset_socket_instance_io();
   reset_socket_class_io();
   return 0;
 }
 
-ha_rows table_socket_summary_by_event_name::get_row_count(void) {
+ha_rows table_socket_summary_by_event_name::get_row_count() {
   return socket_class_max;
 }
 
-void table_socket_summary_by_event_name::reset_position(void) {
+void table_socket_summary_by_event_name::reset_position() {
   m_pos.m_index = 1;
   m_next_pos.m_index = 1;
 }
 
-int table_socket_summary_by_event_name::rnd_next(void) {
+int table_socket_summary_by_event_name::rnd_next() {
   PFS_socket_class *socket_class;
 
   m_pos.set_at(&m_next_pos);
@@ -164,7 +164,7 @@ int table_socket_summary_by_event_name::index_init(uint idx [[maybe_unused]],
   return 0;
 }
 
-int table_socket_summary_by_event_name::index_next(void) {
+int table_socket_summary_by_event_name::index_next() {
   PFS_socket_class *socket_class;
 
   m_pos.set_at(&m_next_pos);

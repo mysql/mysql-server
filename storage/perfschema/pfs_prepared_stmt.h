@@ -85,7 +85,7 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr {
 };
 
 int init_prepared_stmt(const PFS_global_param *param);
-void cleanup_prepared_stmt(void);
+void cleanup_prepared_stmt();
 
 void reset_prepared_stmt_instances();
 

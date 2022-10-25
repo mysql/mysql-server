@@ -113,7 +113,7 @@ class table_replication_group_members : public PFS_engine_table {
   static ha_rows get_row_count();
   int rnd_next() override;
   int rnd_pos(const void *pos) override;
-  void reset_position(void) override;
+  void reset_position() override;
 };
 
 /** @} */

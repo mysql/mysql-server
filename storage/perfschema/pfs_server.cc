@@ -62,8 +62,8 @@ PFS_global_param pfs_param;
 
 PFS_table_stat PFS_table_stat::g_reset_template;
 
-static void cleanup_performance_schema(void);
-void cleanup_instrument_config(void);
+static void cleanup_performance_schema();
+void cleanup_instrument_config();
 
 void pre_initialize_performance_schema() {
   record_main_thread_id();
@@ -272,7 +272,7 @@ int initialize_performance_schema(
   return 0;
 }
 
-static void cleanup_performance_schema(void) {
+static void cleanup_performance_schema() {
   /*
     my.cnf options
   */
@@ -343,7 +343,7 @@ static void cleanup_performance_schema(void) {
   cleanup_instruments();
 }
 
-void shutdown_performance_schema(void) {
+void shutdown_performance_schema() {
   pfs_initialized = false;
 
   /* disable everything, especially for this thread. */
@@ -404,11 +404,11 @@ void cleanup_instrument_config() {
 */
 
 int add_pfs_instr_to_array(const char *name, const char *value) {
-  size_t name_length = strlen(name);
-  size_t value_length = strlen(value);
+  const size_t name_length = strlen(name);
+  const size_t value_length = strlen(value);
 
   /* Allocate structure plus string buffers plus null terminators */
-  PFS_instr_config *e = (PFS_instr_config *)my_malloc(
+  auto *e = (PFS_instr_config *)my_malloc(
       PSI_NOT_INSTRUMENTED,
       sizeof(PFS_instr_config) + name_length + 1 + value_length + 1,
       MYF(MY_WME));

@@ -91,7 +91,7 @@ PFS_engine_table *table_hosts::create(PFS_engine_table_share *) {
   return new table_hosts();
 }
 
-int table_hosts::delete_all_rows(void) {
+int table_hosts::delete_all_rows() {
   reset_events_waits_by_thread();
   reset_events_waits_by_account();
   reset_events_waits_by_host();

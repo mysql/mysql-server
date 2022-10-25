@@ -56,7 +56,7 @@ class cursor_by_account : public PFS_engine_table {
  public:
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_next() override;
   int rnd_pos(const void *pos) override;

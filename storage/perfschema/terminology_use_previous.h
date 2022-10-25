@@ -82,7 +82,7 @@ struct compatible_name_t {
   was introduced.  If there is no alternative name, 'old_name' is
   nullptr and version is 0.
 */
-compatible_name_t lookup(PFS_class_type class_type, const std::string str,
+compatible_name_t lookup(PFS_class_type class_type, std::string str,
                          bool use_prefix = true);
 
 /**

@@ -49,11 +49,11 @@ class table_plugin_table : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *share);
   int delete_all_rows();
   /*
-  PFS_engine_table* open(void);
+  PFS_engine_table* open();
   ha_rows get_row_count();
   */
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;

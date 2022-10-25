@@ -403,8 +403,8 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 8: /* PROCESSLIST_TIME */
           if (m_row.m_start_time) {
-            time_t now = time(nullptr);
-            ulonglong elapsed =
+            const time_t now = time(nullptr);
+            const ulonglong elapsed =
                 (now > m_row.m_start_time ? now - m_row.m_start_time : 0);
             set_field_ulonglong(f, elapsed);
           } else {
@@ -493,11 +493,11 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
       switch (f->field_index()) {
         case 13: /* INSTRUMENTED */
           value = (enum_yes_no)get_field_enum(f);
-          m_row.m_psi->set_enabled((value == ENUM_YES) ? true : false);
+          m_row.m_psi->set_enabled(value == ENUM_YES);
           break;
         case 14: /* HISTORY */
           value = (enum_yes_no)get_field_enum(f);
-          m_row.m_psi->set_history((value == ENUM_YES) ? true : false);
+          m_row.m_psi->set_history(value == ENUM_YES);
           break;
         default:
           return HA_ERR_WRONG_COMMAND;

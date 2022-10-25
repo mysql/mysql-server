@@ -90,12 +90,12 @@ struct row_ets_by_host_by_event_name {
 struct pos_ets_by_host_by_event_name : public PFS_double_index {
   pos_ets_by_host_by_event_name() : PFS_double_index(0, 1) {}
 
-  inline void reset(void) {
+  inline void reset() {
     m_index_1 = 0;
     m_index_2 = 1;
   }
 
-  inline void next_host(void) {
+  inline void next_host() {
     m_index_1++;
     m_index_2 = 1;
   }
@@ -111,7 +111,7 @@ class table_ets_by_host_by_event_name : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;

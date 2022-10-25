@@ -216,25 +216,24 @@ void cleanup_pfs_tls_channels_instrumentation() {
 }
 
 void pfs_register_tls_channel_v1(TLS_channel_property_iterator *provider) {
-  if (g_instrumented_tls_channels_inited == false) return;
+  if (!g_instrumented_tls_channels_inited) return;
   bool insert = true;
   mysql_rwlock_wrlock(&LOCK_pfs_tls_channels);
-  for (tls_channels::const_iterator it = g_instrumented_tls_channels.cbegin();
-       it != g_instrumented_tls_channels.cend(); ++it) {
-    if (*it == provider) {
+  for (auto *channel : g_instrumented_tls_channels) {
+    if (channel == provider) {
       insert = false;
       break;
     }
   }
-  if (insert == true) g_instrumented_tls_channels.push_back(provider);
+  if (insert) g_instrumented_tls_channels.push_back(provider);
   mysql_rwlock_unlock(&LOCK_pfs_tls_channels);
 }
 
 void pfs_unregister_tls_channel_v1(TLS_channel_property_iterator *provider) {
-  if (g_instrumented_tls_channels_inited == false) return;
-  if (g_instrumented_tls_channels.size() == 0) return;
+  if (!g_instrumented_tls_channels_inited) return;
+  if (g_instrumented_tls_channels.empty()) return;
   mysql_rwlock_wrlock(&LOCK_pfs_tls_channels);
-  for (tls_channels::const_iterator it = g_instrumented_tls_channels.cbegin();
+  for (auto it = g_instrumented_tls_channels.cbegin();
        it != g_instrumented_tls_channels.cend(); ++it) {
     if (*it == provider) {
       g_instrumented_tls_channels.erase(it);

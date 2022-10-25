@@ -97,19 +97,19 @@ PFS_engine_table *table_file_instances::create(PFS_engine_table_share *) {
   return new table_file_instances();
 }
 
-ha_rows table_file_instances::get_row_count(void) {
+ha_rows table_file_instances::get_row_count() {
   return global_file_container.get_row_count();
 }
 
 table_file_instances::table_file_instances()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void table_file_instances::reset_position(void) {
+void table_file_instances::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_file_instances::rnd_next(void) {
+int table_file_instances::rnd_next() {
   PFS_file *pfs;
 
   m_pos.set_at(&m_next_pos);
@@ -156,7 +156,7 @@ int table_file_instances::index_init(uint idx, bool) {
   return 0;
 }
 
-int table_file_instances::index_next(void) {
+int table_file_instances::index_next() {
   PFS_file *pfs;
 
   m_pos.set_at(&m_next_pos);

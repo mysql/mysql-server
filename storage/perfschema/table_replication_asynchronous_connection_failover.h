@@ -140,7 +140,7 @@ class table_replication_asynchronous_connection_failover
   static ha_rows get_row_count();
 
   /** Reset the cursor position to the beginning of the table. */
-  void reset_position(void) override;
+  void reset_position() override;
 
   /**
     Initialize table for random read or scan.

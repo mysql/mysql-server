@@ -64,7 +64,7 @@ class table_performance_timers : public PFS_engine_table {
 
   int rnd_next() override;
   int rnd_pos(const void *pos) override;
-  void reset_position(void) override;
+  void reset_position() override;
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,

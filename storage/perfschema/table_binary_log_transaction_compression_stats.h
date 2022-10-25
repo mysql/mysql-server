@@ -92,7 +92,7 @@ class table_binary_log_transaction_compression_stats : public PFS_engine_table {
   static int delete_all_rows();
   int rnd_next() override;
   int rnd_pos(const void *pos) override;
-  void reset_position(void) override;
+  void reset_position() override;
 };
 
 /** @} */

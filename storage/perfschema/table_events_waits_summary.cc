@@ -195,7 +195,7 @@ PFS_engine_table *table_events_waits_summary_by_instance::create(
   return new table_events_waits_summary_by_instance();
 }
 
-int table_events_waits_summary_by_instance::delete_all_rows(void) {
+int table_events_waits_summary_by_instance::delete_all_rows() {
   reset_events_waits_by_instance();
   return 0;
 }

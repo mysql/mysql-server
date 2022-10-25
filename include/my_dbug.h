@@ -143,7 +143,7 @@ class AutoDebugTrace {
 };
 
 #define DBUG_TRACE \
-  AutoDebugTrace _db_trace(DBUG_PRETTY_FUNCTION, __FILE__, __LINE__)
+  const AutoDebugTrace _db_trace(DBUG_PRETTY_FUNCTION, __FILE__, __LINE__)
 
 #endif
 

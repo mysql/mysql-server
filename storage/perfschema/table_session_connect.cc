@@ -78,7 +78,7 @@ int table_session_connect::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_session_connect::index_next(void) {
+int table_session_connect::index_next() {
   PFS_thread *thread;
   bool has_more_thread = true;
   int rc = 0;

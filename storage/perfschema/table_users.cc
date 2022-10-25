@@ -91,7 +91,7 @@ PFS_engine_table *table_users::create(PFS_engine_table_share *) {
   return new table_users();
 }
 
-int table_users::delete_all_rows(void) {
+int table_users::delete_all_rows() {
   reset_events_waits_by_thread();
   reset_events_waits_by_account();
   reset_events_waits_by_user();

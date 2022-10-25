@@ -134,21 +134,21 @@ PFS_engine_table *table_table_handles::create(PFS_engine_table_share *) {
   return new table_table_handles();
 }
 
-ha_rows table_table_handles::get_row_count(void) {
+ha_rows table_table_handles::get_row_count() {
   return global_table_container.get_row_count();
 }
 
 table_table_handles::table_table_handles()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void table_table_handles::reset_position(void) {
+void table_table_handles::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
 int table_table_handles::rnd_init(bool) { return 0; }
 
-int table_table_handles::rnd_next(void) {
+int table_table_handles::rnd_next() {
   PFS_table *pfs;
 
   m_pos.set_at(&m_next_pos);
@@ -198,7 +198,7 @@ int table_table_handles::index_init(uint idx, bool) {
   return 0;
 }
 
-int table_table_handles::index_next(void) {
+int table_table_handles::index_next() {
   PFS_table *pfs;
 
   m_pos.set_at(&m_next_pos);

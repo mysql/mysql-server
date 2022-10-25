@@ -71,7 +71,7 @@ struct PSI_xid {
   char data[XIDDATASIZE];
 
   PSI_xid() { null(); }
-  bool is_null() { return formatID == -1; }
+  bool is_null() const { return formatID == -1; }
   void null() {
     formatID = -1;
     gtrid_length = 0;

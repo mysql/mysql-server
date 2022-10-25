@@ -80,12 +80,12 @@ class table_esms_global_by_event_name : public PFS_engine_table {
   static ha_rows get_row_count();
 
   int index_init(uint idx, bool sorted) override;
-  int index_next(void) override;
+  int index_next() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;
   int rnd_pos(const void *pos) override;
-  void reset_position(void) override;
+  void reset_position() override;
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,

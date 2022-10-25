@@ -118,7 +118,7 @@ PFS_engine_table *table_esms_global_by_event_name::create(
   return new table_esms_global_by_event_name();
 }
 
-int table_esms_global_by_event_name::delete_all_rows(void) {
+int table_esms_global_by_event_name::delete_all_rows() {
   reset_events_statements_by_thread();
   reset_events_statements_by_account();
   reset_events_statements_by_user();
@@ -128,7 +128,7 @@ int table_esms_global_by_event_name::delete_all_rows(void) {
   return 0;
 }
 
-ha_rows table_esms_global_by_event_name::get_row_count(void) {
+ha_rows table_esms_global_by_event_name::get_row_count() {
   return statement_class_max;
 }
 
@@ -137,14 +137,14 @@ table_esms_global_by_event_name::table_esms_global_by_event_name()
   m_normalizer = time_normalizer::get_statement();
 }
 
-void table_esms_global_by_event_name::reset_position(void) {
+void table_esms_global_by_event_name::reset_position() {
   m_pos = 1;
   m_next_pos = 1;
 }
 
 int table_esms_global_by_event_name::rnd_init(bool) { return 0; }
 
-int table_esms_global_by_event_name::rnd_next(void) {
+int table_esms_global_by_event_name::rnd_next() {
   PFS_statement_class *statement_class;
 
   if (global_instr_class_statements_array == nullptr) {
@@ -189,7 +189,7 @@ int table_esms_global_by_event_name::index_init(uint idx [[maybe_unused]],
   return 0;
 }
 
-int table_esms_global_by_event_name::index_next(void) {
+int table_esms_global_by_event_name::index_next() {
   PFS_statement_class *statement_class;
 
   if (global_instr_class_statements_array == nullptr) {

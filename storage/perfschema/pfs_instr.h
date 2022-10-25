@@ -241,19 +241,19 @@ struct PFS_ALIGNED PFS_table {
     @sa sanitized_aggregate_io
     @sa sanitized_aggregate_lock
   */
-  void sanitized_aggregate(void);
+  void sanitized_aggregate();
 
   /**
     Aggregate this table handle I/O statistics to the parents.
     This method is safe to call on handles not owned by the calling code.
   */
-  void sanitized_aggregate_io(void);
+  void sanitized_aggregate_io();
 
   /**
     Aggregate this table handle lock statistics to the parents.
     This method is safe to call on handles not owned by the calling code.
   */
-  void sanitized_aggregate_lock(void);
+  void sanitized_aggregate_lock();
 
   /** Internal lock. */
   pfs_lock m_lock;
@@ -277,9 +277,9 @@ struct PFS_ALIGNED PFS_table {
  private:
   static void safe_aggregate_io(const TABLE_SHARE *optional_server_share,
                                 PFS_table_stat *stat,
-                                PFS_table_share *safe_share);
+                                PFS_table_share *table_share);
   static void safe_aggregate_lock(PFS_table_stat *stat,
-                                  PFS_table_share *safe_share);
+                                  PFS_table_share *table_share);
 };
 
 /** Instrumented socket implementation. @see PSI_socket. */
@@ -370,7 +370,7 @@ extern size_t pfs_max_sqltext;
 
 /** Instrumented thread implementation. @see PSI_thread. */
 struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
-  static PFS_thread *get_current_thread(void);
+  static PFS_thread *get_current_thread();
 
   /** Thread instrumentation flag. */
   bool m_enabled;
@@ -747,7 +747,7 @@ int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();
 int init_file_hash(const PFS_global_param *param);
 void cleanup_file_hash();
-PFS_mutex *create_mutex(PFS_mutex_class *mutex_class, const void *identity);
+PFS_mutex *create_mutex(PFS_mutex_class *klass, const void *identity);
 void destroy_mutex(PFS_mutex *pfs);
 PFS_rwlock *create_rwlock(PFS_rwlock_class *klass, const void *identity);
 void destroy_rwlock(PFS_rwlock *pfs);
@@ -778,7 +778,7 @@ PFS_table *create_table(PFS_table_share *share, PFS_thread *opening_thread,
                         const void *identity);
 void destroy_table(PFS_table *pfs);
 
-PFS_socket *create_socket(PFS_socket_class *socket_class, const my_socket *fd,
+PFS_socket *create_socket(PFS_socket_class *klass, const my_socket *fd,
                           const struct sockaddr *addr, socklen_t addr_len);
 void destroy_socket(PFS_socket *pfs);
 

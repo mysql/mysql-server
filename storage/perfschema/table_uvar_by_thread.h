@@ -127,12 +127,12 @@ struct row_uvar_by_thread {
 struct pos_uvar_by_thread : public PFS_double_index {
   pos_uvar_by_thread() : PFS_double_index(0, 0) {}
 
-  inline void reset(void) {
+  inline void reset() {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void next_thread(void) {
+  inline void next_thread() {
     m_index_1++;
     m_index_2 = 0;
   }
@@ -165,7 +165,7 @@ class table_uvar_by_thread : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_next() override;
   int rnd_pos(const void *pos) override;

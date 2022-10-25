@@ -149,7 +149,7 @@ class table_replication_applier_filters : public PFS_engine_table {
     @param pos position to fetch
   */
   int rnd_pos(const void *pos) override;
-  void reset_position(void) override;
+  void reset_position() override;
 };
 
 #endif

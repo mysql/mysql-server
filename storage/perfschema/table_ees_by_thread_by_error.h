@@ -84,21 +84,21 @@ struct row_ees_by_thread_by_error {
 struct pos_ees_by_thread_by_error : public PFS_double_index {
   pos_ees_by_thread_by_error() : PFS_double_index(0, 0) {}
 
-  inline void reset(void) {
+  inline void reset() {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void next_thread(void) {
+  inline void next_thread() {
     m_index_1++;
     m_index_2 = 0;
   }
 
-  inline bool has_more_error(void) {
+  inline bool has_more_error() {
     return (m_index_2 < max_session_server_errors);
   }
 
-  inline void next_error(void) { m_index_2++; }
+  inline void next_error() { m_index_2++; }
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR. */
@@ -110,7 +110,7 @@ class table_ees_by_thread_by_error : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;

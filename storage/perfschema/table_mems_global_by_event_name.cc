@@ -96,7 +96,7 @@ PFS_engine_table *table_mems_global_by_event_name::create(
   return new table_mems_global_by_event_name();
 }
 
-int table_mems_global_by_event_name::delete_all_rows(void) {
+int table_mems_global_by_event_name::delete_all_rows() {
   reset_memory_by_thread();
   reset_memory_by_account();
   reset_memory_by_user();
@@ -105,19 +105,19 @@ int table_mems_global_by_event_name::delete_all_rows(void) {
   return 0;
 }
 
-ha_rows table_mems_global_by_event_name::get_row_count(void) {
+ha_rows table_mems_global_by_event_name::get_row_count() {
   return memory_class_max;
 }
 
 table_mems_global_by_event_name::table_mems_global_by_event_name()
     : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void table_mems_global_by_event_name::reset_position(void) {
+void table_mems_global_by_event_name::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_mems_global_by_event_name::rnd_next(void) {
+int table_mems_global_by_event_name::rnd_next() {
   PFS_memory_class *pfs;
   PFS_builtin_memory_class *pfs_builtin;
 
@@ -187,7 +187,7 @@ int table_mems_global_by_event_name::index_init(uint idx [[maybe_unused]],
   return 0;
 }
 
-int table_mems_global_by_event_name::index_next(void) {
+int table_mems_global_by_event_name::index_next() {
   PFS_memory_class *pfs;
   PFS_builtin_memory_class *pfs_builtin;
 

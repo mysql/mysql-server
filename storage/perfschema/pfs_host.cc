@@ -63,7 +63,7 @@ int init_host(const PFS_global_param *param) {
 }
 
 /** Cleanup all the host buffers. */
-void cleanup_host(void) { global_host_container.cleanup(); }
+void cleanup_host() { global_host_container.cleanup(); }
 
 static const uchar *host_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_host *const *typed_entry;
@@ -130,7 +130,7 @@ int init_host_hash(const PFS_global_param *param) {
 }
 
 /** Cleanup the host hash. */
-void cleanup_host_hash(void) {
+void cleanup_host_hash() {
   if (host_hash_inited) {
     lf_hash_destroy(&host_hash);
     host_hash_inited = false;
@@ -410,7 +410,7 @@ class Proc_purge_host : public PFS_buffer_processor<PFS_host> {
 };
 
 /** Purge non connected hosts, reset stats of connected hosts. */
-void purge_all_host(void) {
+void purge_all_host() {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == nullptr)) {
     return;
