@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -368,7 +368,10 @@ no_odirect:
     }
 #endif
 #ifdef HAVE_POSIX_FALLOCATE
-    posix_fallocate(theFd, 0, sz);
+    // Reserve disk blocks for whole file
+    if (posix_fallocate(theFd, 0, sz) == -1) {
+      // If fail, ignore, will try to write file anyway.
+    }
 #endif
 
 #ifdef VM_TRACE
@@ -447,7 +450,15 @@ no_odirect:
       }
       off += save_size;
     }
-    ::fsync(theFd);
+
+    if (::fsync(theFd) == -1) {
+      close(theFd);
+      theFd = -1;
+      unlink(theFileName.c_str());
+      request->error = errno;
+      return;
+    }
+
 #ifdef TRACE_INIT
     const NDB_TICKS stop = NdbTick_getCurrentTicks();
     Uint64 diff = NdbTick_Elapsed(start, stop).milliSec();
