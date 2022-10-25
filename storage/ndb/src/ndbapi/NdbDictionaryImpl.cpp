@@ -5982,7 +5982,6 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
 		     evnt.m_name.c_str(),
 		     evnt.m_columns.size()));
 
-  int pk_count = 0;
   evnt.m_attrListBitmask.clear();
 
   for(i = 0; i<attributeList_sz; i++){
@@ -5994,11 +5993,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
     }
     // Copy column definition
     *evnt.m_columns[i] = *col;
-    
-    if(col->m_pk){
-      pk_count++;
-    }
-    
+
     evnt.m_attrListBitmask.set(col->m_attrId);
   }
   
@@ -7377,10 +7372,8 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
   return -1;
 }
 
-void
-NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
-                                       const LinearSectionPtr ptr[3])
-{
+void NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal *signal,
+                                            const LinearSectionPtr ptr[]) {
   const ListTablesConf* const conf=
     CAST_CONSTPTR(ListTablesConf, signal->getDataPtr());
   if(!m_tx.checkRequestId(conf->senderData, "LIST_TABLES_CONF"))
@@ -7444,7 +7437,7 @@ NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
   }
 
   m_impl->theWaiter.signal(NO_WAIT);
-}
+ }
 
 int
 NdbDictionaryImpl::forceGCPWait(int type)

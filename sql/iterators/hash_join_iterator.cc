@@ -54,8 +54,6 @@ class JOIN;
 using hash_join_buffer::LoadBufferRowIntoTableBuffers;
 using hash_join_buffer::LoadImmutableStringIntoTableBuffers;
 
-constexpr size_t HashJoinIterator::kMaxChunks;
-
 // An arbitrary hash value for the empty string, to avoid the hash function
 // from doing arithmetic on nullptr, which is undefined behavior.
 static constexpr size_t kZeroKeyLengthHash = 2669509769;
@@ -74,8 +72,8 @@ HashJoinIterator::HashJoinIterator(
     : RowIterator(thd),
       m_state(State::READING_ROW_FROM_PROBE_ITERATOR),
       m_hash_table_generation(hash_table_generation),
-      m_build_input(move(build_input)),
-      m_probe_input(move(probe_input)),
+      m_build_input(std::move(build_input)),
+      m_probe_input(std::move(probe_input)),
       m_probe_input_tables(probe_input_tables, store_rowids,
                            tables_to_get_rowid_for),
       m_build_input_tables(build_input_tables, store_rowids,

@@ -176,7 +176,7 @@ AggregateIterator::AggregateIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source, JOIN *join,
     TableCollection tables, bool rollup)
     : RowIterator(thd),
-      m_source(move(source)),
+      m_source(std::move(source)),
       m_join(join),
       m_rollup(rollup),
       m_tables(std::move(tables)) {
@@ -770,7 +770,7 @@ MaterializeIterator<Profiler>::MaterializeIterator(
     unique_ptr_destroy_only<RowIterator> table_iterator, JOIN *join)
     : TableRowIterator(thd, path_params->table),
       m_query_blocks_to_materialize(std::move(query_blocks_to_materialize)),
-      m_table_iterator(move(table_iterator)),
+      m_table_iterator(std::move(table_iterator)),
       m_cte(path_params->cte),
       m_query_expression(path_params->unit),
       m_join(join),
@@ -1461,7 +1461,7 @@ RowIterator *materialize_iterator::CreateIterator(
 
     auto iter = new (thd->mem_root) MaterializeIterator<IteratorProfilerImpl>(
         thd, std::move(query_blocks_to_materialize), path_params,
-        move(table_iterator), join);
+        std::move(table_iterator), join);
 
     /*
       Provide timing data for the iterator that iterates over the temporary
@@ -1473,7 +1473,7 @@ RowIterator *materialize_iterator::CreateIterator(
   } else {
     return new (thd->mem_root) MaterializeIterator<DummyIteratorProfiler>(
         thd, std::move(query_blocks_to_materialize), path_params,
-        move(table_iterator), join);
+        std::move(table_iterator), join);
   }
 }
 
@@ -1482,7 +1482,7 @@ StreamingIterator::StreamingIterator(
     Temp_table_param *temp_table_param, TABLE *table, bool provide_rowid,
     JOIN *join, int ref_slice)
     : TableRowIterator(thd, table),
-      m_subquery_iterator(move(subquery_iterator)),
+      m_subquery_iterator(std::move(subquery_iterator)),
       m_temp_table_param(temp_table_param),
       m_join(join),
       m_output_slice(ref_slice),
@@ -1658,8 +1658,8 @@ TemptableAggregateIterator<Profiler>::TemptableAggregateIterator(
     unique_ptr_destroy_only<RowIterator> table_iterator, JOIN *join,
     int ref_slice)
     : TableRowIterator(thd, table),
-      m_subquery_iterator(move(subquery_iterator)),
-      m_table_iterator(move(table_iterator)),
+      m_subquery_iterator(std::move(subquery_iterator)),
+      m_table_iterator(std::move(table_iterator)),
       m_temp_table_param(temp_table_param),
       m_join(join),
       m_ref_slice(ref_slice) {}
@@ -1918,8 +1918,8 @@ RowIterator *temptable_aggregate_iterator::CreateIterator(
 
     auto iter =
         new (thd->mem_root) TemptableAggregateIterator<IteratorProfilerImpl>(
-            thd, move(subquery_iterator), temp_table_param, table,
-            move(table_iterator), join, ref_slice);
+            thd, std::move(subquery_iterator), temp_table_param, table,
+            std::move(table_iterator), join, ref_slice);
 
     /*
       Provide timing data for the iterator that iterates over the temporary
@@ -1931,8 +1931,8 @@ RowIterator *temptable_aggregate_iterator::CreateIterator(
   } else {
     return new (thd->mem_root)
         TemptableAggregateIterator<DummyIteratorProfiler>(
-            thd, move(subquery_iterator), temp_table_param, table,
-            move(table_iterator), join, ref_slice);
+            thd, std::move(subquery_iterator), temp_table_param, table,
+            std::move(table_iterator), join, ref_slice);
   }
 }
 
@@ -1940,7 +1940,7 @@ MaterializedTableFunctionIterator::MaterializedTableFunctionIterator(
     THD *thd, Table_function *table_function, TABLE *table,
     unique_ptr_destroy_only<RowIterator> table_iterator)
     : TableRowIterator(thd, table),
-      m_table_iterator(move(table_iterator)),
+      m_table_iterator(std::move(table_iterator)),
       m_table_function(table_function) {}
 
 bool MaterializedTableFunctionIterator::Init() {
@@ -1961,7 +1961,7 @@ WeedoutIterator::WeedoutIterator(THD *thd,
                                  SJ_TMP_TABLE *sj,
                                  table_map tables_to_get_rowid_for)
     : RowIterator(thd),
-      m_source(move(source)),
+      m_source(std::move(source)),
       m_sj(sj),
       m_tables_to_get_rowid_for(tables_to_get_rowid_for) {
   // Confluent weedouts should have been rewritten to LIMIT 1 earlier.
@@ -2020,7 +2020,7 @@ int WeedoutIterator::Read() {
 RemoveDuplicatesIterator::RemoveDuplicatesIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source, JOIN *join,
     Item **group_items, int group_items_size)
-    : RowIterator(thd), m_source(move(source)) {
+    : RowIterator(thd), m_source(std::move(source)) {
   m_caches = Bounds_checked_array<Cached_item *>::Alloc(thd->mem_root,
                                                         group_items_size);
   for (int i = 0; i < group_items_size; ++i) {
@@ -2065,7 +2065,7 @@ RemoveDuplicatesOnIndexIterator::RemoveDuplicatesOnIndexIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source, const TABLE *table,
     KEY *key, size_t key_len)
     : RowIterator(thd),
-      m_source(move(source)),
+      m_source(std::move(source)),
       m_table(table),
       m_key(key),
       m_key_buf(new (thd->mem_root) uchar[key_len]),
@@ -2105,8 +2105,8 @@ NestedLoopSemiJoinWithDuplicateRemovalIterator::
         unique_ptr_destroy_only<RowIterator> source_inner, const TABLE *table,
         KEY *key, size_t key_len)
     : RowIterator(thd),
-      m_source_outer(move(source_outer)),
-      m_source_inner(move(source_inner)),
+      m_source_outer(std::move(source_outer)),
+      m_source_inner(std::move(source_inner)),
       m_table_outer(table),
       m_key(key),
       m_key_buf(new (thd->mem_root) uchar[key_len]),
@@ -2183,7 +2183,7 @@ MaterializeInformationSchemaTableIterator::
         THD *thd, unique_ptr_destroy_only<RowIterator> table_iterator,
         TABLE_LIST *table_list, Item *condition)
     : RowIterator(thd),
-      m_table_iterator(move(table_iterator)),
+      m_table_iterator(std::move(table_iterator)),
       m_table_list(table_list),
       m_condition(condition) {}
 
@@ -2206,7 +2206,7 @@ bool MaterializeInformationSchemaTableIterator::Init() {
 
 AppendIterator::AppendIterator(
     THD *thd, std::vector<unique_ptr_destroy_only<RowIterator>> &&sub_iterators)
-    : RowIterator(thd), m_sub_iterators(move(sub_iterators)) {
+    : RowIterator(thd), m_sub_iterators(std::move(sub_iterators)) {
   assert(!m_sub_iterators.empty());
 }
 

@@ -269,7 +269,6 @@ static void print_result() {
   MYSQL_ROW row;
   char prev[NAME_LEN * 3 + 2];
   char prev_alter[MAX_ALTER_STR_SIZE];
-  uint i;
   size_t dot_pos;
   bool found_error = false, table_rebuild = false;
 
@@ -279,7 +278,7 @@ static void print_result() {
   prev[0] = '\0';
   prev_alter[0] = 0;
 
-  for (i = 0; (row = mysql_fetch_row(res)); i++) {
+  while ((row = mysql_fetch_row(res))) {
     int changed = strcmp(prev, row[0]);
     bool status = !strcmp(row[2], "status");
 

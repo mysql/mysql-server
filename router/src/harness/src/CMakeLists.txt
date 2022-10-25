@@ -24,19 +24,18 @@ INCLUDE(GenerateExportHeader)
 INCLUDE(Plugin)
 
 
-# Generate dynamic_state_schema.cc
-# With *one* common custom command, generating dynamic_state_schema.[cc|h]
+# Generate dynamic_state_schema.h
+# With *one* common custom command, generating dynamic_state_schema.h
 # we had spurious build failures on Windows:
-# CustomBuild: Failed to open output file 'dynamic_state_schema.cc':
+# CustomBuild: Failed to open output file 'dynamic_state_schema.h':
 # Permission denied
-# Seems like Visual Studio wants to generate dynamic_state_schema.cc
+# Seems like Visual Studio wants to generate dynamic_state_schema.h
 # at least twice, once for the static library, once for the dynamic one.
 # If both generation jobs run simultaneously, one of them may fail.
 # The solution is to have separate commands, for the STATIC and SHARED targets.
 FUNCTION(ADD_DYNAMIC_STATE_SCHEMA_COMMAND SHARED_OR_STATIC)
   SET(SUBDIR src_${SHARED_OR_STATIC})
   SET(GENERATED_SOURCES_${SHARED_OR_STATIC}
-    ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/dynamic_state_schema.cc
     ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/dynamic_state_schema.h
     )
   SET(GENERATED_SOURCES_${SHARED_OR_STATIC}
@@ -49,7 +48,6 @@ FUNCTION(ADD_DYNAMIC_STATE_SCHEMA_COMMAND SHARED_OR_STATIC)
     OUTPUT ${GENERATED_SOURCES_${SHARED_OR_STATIC}}
     COMMAND json_schema_embedder
     ${CMAKE_CURRENT_SOURCE_DIR}/dynamic_state_schema.js
-    dynamic_state_schema.cc
     dynamic_state_schema.h
     "StateFileJsonSchema"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}

@@ -442,7 +442,9 @@ dberr_t PCursor::move_to_next_block(dict_index_t *index) {
     err = move_to_user_rec();
   }
 
+#ifndef NDEBUG
   int n_retries = 0;
+#endif
   while (err == DB_LOCK_NOWAIT) {
     /* We should restore the cursor from index root page,
     to avoid deadlock opportunity. */
@@ -455,7 +457,9 @@ dberr_t PCursor::move_to_next_block(dict_index_t *index) {
 
     err = restore_from_savepoint();
 
+#ifndef NDEBUG
     n_retries++;
+#endif
     ut_ad(n_retries < 10);
   }
 

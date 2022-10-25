@@ -156,7 +156,7 @@ static bool SetIndexInfoInObject(
   if (!lookup_condition.empty())
     error |= AddMemberToObject<Json_string>(obj, "lookup_condition",
                                             lookup_condition);
-  if (range_arr) error |= obj->add_alias("ranges", move(range_arr));
+  if (range_arr) error |= obj->add_alias("ranges", std::move(range_arr));
   if (reverse) error |= AddMemberToObject<Json_boolean>(obj, "reverse", true);
   if (pushed_idx_cond)
     error |= AddMemberToObject<Json_string>(obj, "pushed_index_condition",
@@ -412,7 +412,7 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
    * object for this table path.
    */
   ret_obj = AssignParentPath(path->materialize().table_path, path,
-                             move(ret_obj), join);
+                             std::move(ret_obj), join);
 
   // Children.
 
@@ -526,9 +526,10 @@ static std::unique_ptr<Json_object> AssignParentPath(
 
   /* Place the input object as a child of the bottom-most object */
   std::unique_ptr<Json_array> children(new (std::nothrow) Json_array());
-  if (children == nullptr || children->append_alias(move(materialized_obj)))
+  if (children == nullptr ||
+      children->append_alias(std::move(materialized_obj)))
     return nullptr;
-  if (bottom_obj->add_alias("inputs", move(children))) return nullptr;
+  if (bottom_obj->add_alias("inputs", std::move(children))) return nullptr;
 
   return table_obj;
 }
@@ -600,7 +601,7 @@ static bool ExplainIndexSkipScanAccessPath(Json_object *obj,
   // good reason why we cannot fix this limitation in the future.
   return SetIndexInfoInObject(
       description, "index_skip_scan", nullptr, table, key_info, "skip scan",
-      /*lookup condition*/ "", &ranges, move(range_arr), /*reverse*/ false,
+      /*lookup condition*/ "", &ranges, std::move(range_arr), /*reverse*/ false,
       /*push_condition*/ nullptr, obj);
 }
 
@@ -728,10 +729,10 @@ static bool AddChildrenToObject(Json_object *obj,
                                          child.description))
         return true;
     }
-    if (children_json->append_alias(move(child_obj))) return true;
+    if (children_json->append_alias(std::move(child_obj))) return true;
   }
 
-  return obj->add_alias(alias, move(children_json));
+  return obj->add_alias(alias, std::move(children_json));
 }
 
 static std::unique_ptr<Json_object> ExplainQueryPlan(
@@ -773,11 +774,11 @@ static std::unique_ptr<Json_object> ExplainQueryPlan(
     /* There might not be a select plan. E.g. INSERT ... VALUES() */
     if (obj != nullptr) {
       std::unique_ptr<Json_array> children(new (std::nothrow) Json_array());
-      if (children == nullptr || children->append_alias(move(obj)))
+      if (children == nullptr || children->append_alias(std::move(obj)))
         return nullptr;
-      if (dml_obj->add_alias("inputs", move(children))) return nullptr;
+      if (dml_obj->add_alias("inputs", std::move(children))) return nullptr;
     }
-    obj = move(dml_obj);
+    obj = std::move(dml_obj);
   }
 
   return obj;
@@ -1077,7 +1078,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
                            /*single_part_only=*/false, range_arr, &ranges);
       error |= SetIndexInfoInObject(
           &description, "index_range_scan", nullptr, table, key_info,
-          "range scan", /*lookup condition*/ "", &ranges, move(range_arr),
+          "range scan", /*lookup condition*/ "", &ranges, std::move(range_arr),
           path->index_range_scan().reverse, table->file->pushed_idx_cond, obj);
 
       error |= AddChildrenFromPushedCondition(table, children);
@@ -1383,7 +1384,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       error |= AddMemberToObject<Json_string>(obj, "access_type",
                                               "temp_table_aggregate");
       ret_obj = AssignParentPath(path->temptable_aggregate().table_path,
-                                 nullptr, move(ret_obj), join);
+                                 nullptr, std::move(ret_obj), join);
       if (ret_obj == nullptr) return nullptr;
       description = "Aggregate using temporary table";
       children->push_back({path->temptable_aggregate().subquery_path});
@@ -1426,14 +1427,14 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       error |=
           AddMemberToObject<Json_string>(obj, "access_type", "materialize");
       ret_obj =
-          ExplainMaterializeAccessPath(path, join, move(ret_obj), children,
+          ExplainMaterializeAccessPath(path, join, std::move(ret_obj), children,
                                        current_thd->lex->is_explain_analyze);
       if (ret_obj == nullptr) return nullptr;
       break;
     case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE: {
       ret_obj = AssignParentPath(
           path->materialize_information_schema_table().table_path, nullptr,
-          move(ret_obj), join);
+          std::move(ret_obj), join);
       if (ret_obj == nullptr) return nullptr;
       const char *table =
           path->materialize_information_schema_table().table_list->table->alias;
@@ -1642,7 +1643,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
     error |= AddMemberToObject<Json_string>(obj, "operation", description);
   }
 
-  return (error ? nullptr : move(ret_obj));
+  return (error ? nullptr : std::move(ret_obj));
 }
 
 /**
@@ -1683,8 +1684,8 @@ static std::unique_ptr<Json_object> ExplainAccessPath(
     return ret_obj;
   }
 
-  if ((ret_obj = SetObjectMembers(move(ret_obj), path, materialized_path, join,
-                                  &children)) == nullptr)
+  if ((ret_obj = SetObjectMembers(std::move(ret_obj), path, materialized_path,
+                                  join, &children)) == nullptr)
     return nullptr;
 
   // If we are crossing into a different query block, but there's a streaming

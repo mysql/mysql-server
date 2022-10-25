@@ -644,7 +644,6 @@ void rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass, ut::Location location) {
   ulint i = 0;
   sync_array_t *sync_arr;
   uint64_t count_os_wait = 0;
-  ulint spin_wait_count = 0;
 
   ut_ad(rw_lock_validate(lock));
   ut_ad(!rw_lock_own(lock, RW_LOCK_S));
@@ -660,8 +659,6 @@ lock_loop:
     return;
 
   } else {
-    ++spin_wait_count;
-
     /* Spin waiting for the lock_word to become free */
     os_rmb;
     while (i < srv_n_spin_wait_rounds && lock->lock_word <= X_LOCK_HALF_DECR) {

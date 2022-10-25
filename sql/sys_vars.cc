@@ -3949,16 +3949,24 @@ static Sys_var_charptr Sys_socket(
     READ_ONLY NON_PERSIST GLOBAL_VAR(mysqld_unix_port), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(nullptr));
 
+#if defined(__clang__) && (__clang_major__ >= 15) && defined(HAVE_ASAN)
+#define ADJUSTED_DEFAULT_THREAD_STACK (4 * DEFAULT_THREAD_STACK)
+#else
+#define ADJUSTED_DEFAULT_THREAD_STACK (DEFAULT_THREAD_STACK)
+#endif
+
 static Sys_var_ulong Sys_thread_stack(
     "thread_stack", "The stack size for each thread",
     READ_ONLY GLOBAL_VAR(my_thread_stack_size), CMD_LINE(REQUIRED_ARG),
-#if defined(__clang__) && defined(HAVE_UBSAN)
-    // Clang with DEBUG needs more stack, esp. with UBSAN.
-    VALID_RANGE(DEFAULT_THREAD_STACK, ULONG_MAX),
+#if defined(__clang__) && \
+    (defined(HAVE_UBSAN) || (__clang_major__ >= 15) && (defined(HAVE_ASAN)))
+    // Clang with DEBUG needs more stack, esp. with UBSAN (1MB).
+    // Clang-15 with ASAN / UBSAN needs even more stack (4MB).
+    VALID_RANGE(ADJUSTED_DEFAULT_THREAD_STACK, ULONG_MAX),
 #else
     VALID_RANGE(128 * 1024, ULONG_MAX),
 #endif
-    DEFAULT(DEFAULT_THREAD_STACK), BLOCK_SIZE(1024));
+    DEFAULT(ADJUSTED_DEFAULT_THREAD_STACK), BLOCK_SIZE(1024));
 
 static Sys_var_charptr Sys_tmpdir(
     "tmpdir",

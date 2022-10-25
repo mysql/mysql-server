@@ -60,7 +60,6 @@ using hypergraph::NodeMap;
 using std::fill;
 using std::max;
 using std::min;
-using std::move;
 using std::string;
 using std::swap;
 using std::vector;
@@ -302,7 +301,7 @@ double GetCardinality(NodeMap tables_to_join, const JoinHypergraph &graph,
     active_components &= ~(uint64_t{1} << right_component);
     return active_components == 0b1;
   };
-  ConnectComponentsThroughJoins(graph, cycles, move(func), components,
+  ConnectComponentsThroughJoins(graph, cycles, std::move(func), components,
                                 in_component);
 
   // In rare situations, we could be left in a situation where an edge
@@ -545,7 +544,7 @@ bool GraphIsJoinable(const JoinHypergraph &graph,
     }
     return false;
   };
-  ConnectComponentsThroughJoins(graph, cycles, move(func), components,
+  ConnectComponentsThroughJoins(graph, cycles, std::move(func), components,
                                 in_component);
   return num_in_component0 == graph.nodes.size();
 }

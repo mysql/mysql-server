@@ -80,7 +80,6 @@ SERVICE_TYPE(log_builtins_string) * log_bs;
   These pointers will be initialized on plugin_group_replication_init()
   or plugin_group_replication_start().
 */
-constexpr gr_modules::mask gr_modules::all_modules;
 /** The plugin applier */
 Applier_module *applier_module = nullptr;
 /** The plugin recovery module */

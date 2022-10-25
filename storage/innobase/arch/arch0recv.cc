@@ -389,7 +389,9 @@ dberr_t Arch_Group::Recovery::cleanup_if_required(Arch_Recv_Group_Info &info) {
 
 dberr_t Arch_Page_Sys::Recovery::recover() {
   dberr_t err = DB_SUCCESS;
+#ifndef NDEBUG
   uint num_active = 0;
+#endif
 
   for (auto info = m_dir_group_info_map.begin();
        info != m_dir_group_info_map.end(); ++info) {
@@ -415,9 +417,11 @@ dberr_t Arch_Page_Sys::Recovery::recover() {
       continue;
     }
 
+#ifndef NDEBUG
     if (group_info.m_active) {
       ++num_active;
     }
+#endif
 
     group_info.m_group = group;
   }

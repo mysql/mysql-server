@@ -4664,8 +4664,6 @@ class Ndb_binlog_index_table_util {
     return false;
   }
 };
-constexpr const char *const Ndb_binlog_index_table_util::DB_NAME;
-constexpr const char *const Ndb_binlog_index_table_util::TABLE_NAME;
 
 // Wrapper function allowing Ndb_binlog_index_table_util::remove_rows_for_file()
 // to be forward declared

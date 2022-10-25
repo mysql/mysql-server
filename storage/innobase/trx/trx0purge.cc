@@ -2281,7 +2281,7 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
   Purge_groups_t purge_groups(n_purge_threads, heap);
   purge_groups.init();
 
-  for (ulint i = 0; n_pages_handled < batch_size; ++i) {
+  while (n_pages_handled < batch_size) {
     /* Track the max {trx_id, undo_no} for truncating the
     UNDO logs once we have purged the records. */
 

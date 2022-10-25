@@ -919,7 +919,9 @@ rec_t *rtr_page_split_and_insert(
   lock_prdt_t new_prdt;
   rec_t *first_rec = nullptr;
   int first_rec_group = 1;
+#ifndef NDEBUG
   ulint n_iterations = 0;
+#endif
 
   if (!*heap) {
     *heap = mem_heap_create(1024, UT_LOCATION_HERE);
@@ -1183,7 +1185,9 @@ after_insert:
     }
 
     cursor->rtr_info = nullptr;
+#ifndef NDEBUG
     n_iterations++;
+#endif
 
     rec_t *i_rec =
         page_rec_get_next(page_get_infimum_rec(buf_block_get_frame(block)));

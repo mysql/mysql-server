@@ -1730,7 +1730,9 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
   Page_fetch fetch;
   page_cur_t *page_cursor;
   ulint root_height = 0; /* remove warning */
+#ifndef NDEBUG
   ulint n_blocks = 0;
+#endif
 
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
@@ -1826,7 +1828,9 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
       /* Go to the child node */
       page_id.reset(space, btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
+#ifndef NDEBUG
       n_blocks++;
+#endif
     } else {
       /* If this is the desired level, leave the loop */
       at_desired_level = true;
@@ -2174,7 +2178,9 @@ void btr_cur_open_at_index_side_with_no_latch(bool from_left,
   page_cur_t *page_cursor;
   ulint height;
   rec_t *node_ptr;
+#ifndef NDEBUG
   ulint n_blocks = 0;
+#endif
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
@@ -2241,7 +2247,9 @@ void btr_cur_open_at_index_side_with_no_latch(bool from_left,
     /* Go to the child node */
     page_id.set_page_no(btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
+#ifndef NDEBUG
     n_blocks++;
+#endif
   }
 
   if (heap != nullptr) {

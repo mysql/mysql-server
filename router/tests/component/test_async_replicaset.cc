@@ -1366,7 +1366,7 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
   SCOPED_TRACE("// The cluster has 4 nodes but the first SECONDARY is down");
   const auto trace_file =
       get_data_dir().join("metadata_dynamic_nodes_v2_ar.js").str();
-  for (unsigned i = 0, nodes = 0; i < CLUSTER_NODES; ++i) {
+  for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
     if (i == 1) continue;
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
@@ -1375,7 +1375,6 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
     SCOPED_TRACE("// All 4 nodes are in the metadata");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
                       /*primary_id=*/0, view_id);
-    nodes++;
   }
 
   const std::string state_file = create_state_file(

@@ -982,7 +982,9 @@ static void ndb_index_stat_free(Ndb_index_stat *st) {
   Ndb_index_stat *st_head = 0;
   Ndb_index_stat *st_tail = 0;
   Ndb_index_stat *st_loop = share->index_stat_list;
+#ifndef NDEBUG
   uint found = 0;
+#endif
   while (st_loop != 0) {
     if (st == st_loop) {
       // Unlink entry from NDB_SHARE and request it to be released
@@ -993,7 +995,9 @@ static void ndb_index_stat_free(Ndb_index_stat *st) {
       assert(!st->to_delete);
       st->to_delete = true;
       st->abort_request = true;
+#ifndef NDEBUG
       found++;
+#endif
     } else {
       if (st_head == 0)
         st_head = st_loop;
@@ -2274,7 +2278,9 @@ static int ndb_index_stat_wait_query(Ndb_index_stat *st,
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   int err = 0;
+#ifndef NDEBUG
   uint count = 0;
+#endif
   struct timespec abstime;
   glob.wait_stats++;
   glob.query_count++;
@@ -2308,7 +2314,9 @@ static int ndb_index_stat_wait_query(Ndb_index_stat *st,
       err = NdbIndexStat::MyAbortReq;
       break;
     }
+#ifndef NDEBUG
     count++;
+#endif
     DBUG_PRINT("index_stat", ("st %s wait_query count:%u", st->id, count));
     ndb_index_stat_thread.wakeup();
 
@@ -2339,7 +2347,9 @@ static int ndb_index_stat_wait_analyze(Ndb_index_stat *st,
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   int err = 0;
+#ifndef NDEBUG
   uint count = 0;
+#endif
   struct timespec abstime;
   glob.wait_update++;
   glob.analyze_count++;
@@ -2382,7 +2392,9 @@ static int ndb_index_stat_wait_analyze(Ndb_index_stat *st,
       err = NdbIndexStat::InternalError;
       break;
     }
+#ifndef NDEBUG
     count++;
+#endif
     DBUG_PRINT("index_stat", ("st %s wait_analyze count:%u", st->id, count));
     ndb_index_stat_thread.wakeup();
 

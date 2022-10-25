@@ -104,7 +104,7 @@ CBOR_EXPORT bool cbor_bytestring_add_chunk(cbor_item_t *item,
  *
  * @return **new** definite bytestring. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_new_definite_bytestring();
+CBOR_EXPORT cbor_item_t *cbor_new_definite_bytestring(void);
 
 /** Creates a new indefinite byte string
  *
@@ -112,7 +112,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_definite_bytestring();
  *
  * @return **new** indefinite bytestring. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_new_indefinite_bytestring();
+CBOR_EXPORT cbor_item_t *cbor_new_indefinite_bytestring(void);
 
 /** Creates a new byte string and initializes it
  *

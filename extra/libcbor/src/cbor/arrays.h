@@ -96,7 +96,7 @@ CBOR_EXPORT cbor_item_t* cbor_new_definite_array(size_t size);
  *
  * @return **new** array or `NULL` upon malloc failure
  */
-CBOR_EXPORT cbor_item_t* cbor_new_indefinite_array();
+CBOR_EXPORT cbor_item_t *cbor_new_indefinite_array(void);
 
 /** Append to the end
  *

@@ -1157,10 +1157,8 @@ ClusterMgr::execDUMP_STATE_ORD(const NdbApiSignal* signal,
   }
 }
 
-void
-ClusterMgr::execNF_COMPLETEREP(const NdbApiSignal* signal,
-                               const LinearSectionPtr ptr[3])
-{
+void ClusterMgr::execNF_COMPLETEREP(const NdbApiSignal *signal,
+                                    const LinearSectionPtr ptr[]) {
   const NFCompleteRep * nfComp = CAST_CONSTPTR(NFCompleteRep,
                                                signal->getDataPtr());
   const NodeId nodeId = nfComp->failedNodeId;

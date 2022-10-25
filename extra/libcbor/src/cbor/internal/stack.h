@@ -27,7 +27,7 @@ struct _cbor_stack {
   size_t size;
 };
 
-struct _cbor_stack _cbor_stack_init();
+struct _cbor_stack _cbor_stack_init(void);
 
 void _cbor_stack_pop(struct _cbor_stack *);
 

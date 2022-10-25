@@ -62,9 +62,6 @@ using namespace std::string_literals;
 namespace stdx {
 namespace io {
 
-constexpr const file_handle::native_handle_type file_handle::invalid_handle;
-constexpr const flag::value_type flag::unlink_on_first_close;
-
 static std::error_code last_posix_error_code() {
   return {errno, std::generic_category()};
 }

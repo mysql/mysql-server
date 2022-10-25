@@ -72,7 +72,9 @@ bool ndb_get_table_statistics(THD *thd, Ndb *ndb,
   int retries = 100;
   NdbTransaction *trans;
   do {
+#ifndef NDEBUG
     Uint32 count = 0;
+#endif
     Uint64 sum_rows = 0;
     Uint64 sum_row_size = 0;
     Uint64 sum_mem = 0;
@@ -127,7 +129,9 @@ bool ndb_get_table_statistics(THD *thd, Ndb *ndb,
       sum_rows += rows;
       if (sum_row_size < size) sum_row_size = size;
       sum_mem += fixed_mem + var_mem;
+#ifndef NDEBUG
       count++;
+#endif
       sum_ext_space += ext_space;
       sum_free_ext_space += free_ext_space;
 

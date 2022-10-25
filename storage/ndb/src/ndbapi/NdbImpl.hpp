@@ -473,12 +473,10 @@ Ndb_free_list_t<T>::~Ndb_free_list_t()
   assert(m_free_cnt == 0);
   assert(m_used_cnt == 0);
 }
-    
-template<class T>
-inline
-int
-Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
-{
+
+template <class T>
+inline int Ndb_free_list_t<T>::fill(Ndb *ndb [[maybe_unused]],
+                                    Uint32 cnt [[maybe_unused]]) {
 #ifndef HAVE_VALGRIND
   m_is_growing = true;
   if (m_free_list == 0)

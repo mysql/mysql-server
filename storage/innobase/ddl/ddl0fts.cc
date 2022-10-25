@@ -1364,7 +1364,6 @@ dberr_t FTS::Inserter::insert(Builder *builder,
   Merge_cursor cursor(builder, nullptr, nullptr);
 
   {
-    size_t i{};
     const auto n_buffers = handler->m_files.size();
     const auto io_buffer_size = m_ctx.merge_io_buffer_size(n_buffers);
 
@@ -1376,8 +1375,6 @@ dberr_t FTS::Inserter::insert(Builder *builder,
       if (err != DB_SUCCESS) {
         return err;
       }
-
-      ++i;
 
       total_rows += file.m_n_recs;
     }

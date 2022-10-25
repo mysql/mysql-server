@@ -34,8 +34,6 @@
 #include "mysqlrouter/rest_api_utils.h"
 #include "mysqlrouter/routing_component.h"
 
-constexpr const char RestRoutingConfig::path_regex[];
-
 static void add_if_set(rapidjson::Document &json_doc,
                        const rapidjson::Value::StringRefType member,
                        const std::string &v) {

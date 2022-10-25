@@ -69,7 +69,6 @@
 #include "template_utils.h"
 
 using std::make_pair;
-using std::move;
 using std::pair;
 
 static inline pair<uchar *, key_part_map> FindKeyBufferAndMap(
@@ -584,7 +583,7 @@ bool DynamicRangeIterator::Init() {
   // two different read sets, to be used once the access strategy is chosen
   // here.
   if (qck) {
-    m_iterator = move(qck);
+    m_iterator = std::move(qck);
     // If the range optimizer chose index merge scan or a range scan with
     // covering index, use the read set without base columns. Otherwise we use
     // the read set with base columns included.

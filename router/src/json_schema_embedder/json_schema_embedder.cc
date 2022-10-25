@@ -30,7 +30,7 @@
 
 /**
  * This program takes a text file as input (presumably a JSON schema), and
- * writes a .cc file as output, which contains contents of the input file as an
+ * writes a .h file as output, which contains contents of the input file as an
  * array of chars. You can think of it as our own customised version of 'xxd -i'
  * Unix command.
  */
@@ -42,42 +42,17 @@ int main(int argc, const char **argv) {
 
   try {
     // get commandline args
-    if (argc != 5)
-      throw std::runtime_error(
-          std::string("USAGE: ") + argv[0] +
-          " <in_file> <out_file> <hdr_file> <symbol_name>");
+    if (argc != 4)
+      throw std::runtime_error(std::string("USAGE: ") + argv[0] +
+                               " <in_file> <hdr_file> <symbol_name>");
     const char *in_filename = argv[1];
-    const char *out_filename = argv[2];
-    const char *hdr_filename = argv[3];
-    const char *symbol_name = argv[4];
+    const char *hdr_filename = argv[2];
+    const char *symbol_name = argv[3];
 
     // open input and output files
     FILE *in_file;
     if (!(in_file = fopen(in_filename, "r")))
       throw_error("Failed to open input file", in_filename);
-    {
-      FILE *out_file;
-      if (!(out_file = fopen(out_filename, "w")))
-        throw_error("Failed to open output file", out_filename);
-
-      // write comment and 1st part of the array definition
-      if (!fprintf(
-              out_file,
-              "// This file was auto-generated during CMake build process, "
-              "using command:\n"
-              "//\n"
-              "//   %s %s %s %s %s\n"
-              "//\n"
-              "// (see " __FILE__ ")\n"
-              "#include \"%s\"\n"
-              "\n"
-              "constexpr const char %s::data_[];\n",
-              argv[0], in_filename, out_filename, hdr_filename, symbol_name,
-              hdr_filename, symbol_name))
-        throw_error("Failed writing output file", out_filename);
-      if (fclose(out_file))
-        throw_error("Failed closing output file", out_filename);
-    }
 
     FILE *hdr_file;
     if (!(hdr_file = fopen(hdr_filename, "w")))
@@ -104,7 +79,7 @@ int main(int argc, const char **argv) {
       char c;
       if (fread(&c, 1, 1, in_file)) {
         if (!fprintf(hdr_file, "0x%02x, ", c))
-          throw_error("Failed writing output file", out_filename);
+          throw_error("Failed writing output file", hdr_filename);
       } else {
         if (feof(in_file))
           break;
@@ -115,7 +90,7 @@ int main(int argc, const char **argv) {
       // line break every 16th element
       if ((cnt++ & 0xf) == 0xf)
         if (!fprintf(hdr_file, "\n    "))
-          throw_error("Failed writing output file", out_filename);
+          throw_error("Failed writing output file", hdr_filename);
     }
 
     // write last part of array definition
@@ -128,7 +103,7 @@ int main(int argc, const char **argv) {
                  "};\n"
                  "\n"
                  "#endif\n"))
-      throw_error("Failed writing output file", out_filename);
+      throw_error("Failed writing output file", hdr_filename);
 
     if (fclose(hdr_file))
       throw_error("Failed closing header file", hdr_filename);

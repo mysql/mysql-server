@@ -44,8 +44,6 @@
 
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 
-constexpr const char RestRouterStatus::path_regex[];
-
 bool RestRouterStatus::on_handle_request(HttpRequest &req,
                                          const std::string & /* base_path */,
                                          const std::vector<std::string> &) {

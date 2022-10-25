@@ -180,7 +180,7 @@ bool dtuple_validate(const dtuple_t *tuple) {
     auto len = dfield_get_len(field);
 
     if (!dfield_is_null(field)) {
-      const byte *data;
+      const byte *data [[maybe_unused]];
 
       data = static_cast<const byte *>(dfield_get_data(field));
 #ifndef UNIV_DEBUG_VALGRIND
@@ -427,7 +427,9 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   dfield_t *dfield;
   dict_field_t *ifield;
   ulint size;
+#ifndef NDEBUG
   ulint n_fields;
+#endif
   ulint local_len;
   ulint local_prefix_len;
 
@@ -464,7 +466,9 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   a variable-length field that yields the biggest savings when
   stored externally */
 
+#ifndef NDEBUG
   n_fields = 0;
+#endif
 
   while (page_zip_rec_needs_ext(
       rec_get_converted_size(index, entry), dict_table_is_comp(index->table),
@@ -578,7 +582,9 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
     dfield_set_data(dfield, data, local_len);
     dfield_set_ext(dfield);
 
+#ifndef NDEBUG
     n_fields++;
+#endif
     ut_ad(n_fields < dtuple_get_n_fields(entry));
 
     if (upd && !upd->is_modified(longest_i)) {

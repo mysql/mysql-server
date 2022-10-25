@@ -84,7 +84,7 @@ CBOR_EXPORT bool cbor_get_bool(const cbor_item_t *item);
  *
  * @return **new** 1B ctrl or `NULL` upon memory allocation failure
  */
-CBOR_EXPORT cbor_item_t *cbor_new_ctrl();
+CBOR_EXPORT cbor_item_t *cbor_new_ctrl(void);
 
 /** Constructs a new float item
  *
@@ -92,7 +92,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_ctrl();
  *
  * @return **new** 2B float or `NULL` upon memory allocation failure
  */
-CBOR_EXPORT cbor_item_t *cbor_new_float2();
+CBOR_EXPORT cbor_item_t *cbor_new_float2(void);
 
 /** Constructs a new float item
  *
@@ -100,7 +100,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_float2();
  *
  * @return **new** 4B float or `NULL` upon memory allocation failure
  */
-CBOR_EXPORT cbor_item_t *cbor_new_float4();
+CBOR_EXPORT cbor_item_t *cbor_new_float4(void);
 
 /** Constructs a new float item
  *
@@ -108,19 +108,19 @@ CBOR_EXPORT cbor_item_t *cbor_new_float4();
  *
  * @return **new** 8B float or `NULL` upon memory allocation failure
  */
-CBOR_EXPORT cbor_item_t *cbor_new_float8();
+CBOR_EXPORT cbor_item_t *cbor_new_float8(void);
 
 /** Constructs new null ctrl item
  *
  * @return **new** null ctrl item or `NULL` upon memory allocation failure
  */
-CBOR_EXPORT cbor_item_t *cbor_new_null();
+CBOR_EXPORT cbor_item_t *cbor_new_null(void);
 
 /** Constructs new undef ctrl item
  *
  * @return **new** undef ctrl item or `NULL` upon memory allocation failure
  */
-CBOR_EXPORT cbor_item_t *cbor_new_undef();
+CBOR_EXPORT cbor_item_t *cbor_new_undef(void);
 
 /** Constructs new boolean ctrl item
  *

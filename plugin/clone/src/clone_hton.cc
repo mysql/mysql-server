@@ -236,7 +236,9 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
     return (clone_args.m_err);
   }
 
+#ifndef NDEBUG
   uint32_t loop_index = 0;
+#endif
 
   for (auto &loc_iter : clone_loc_vec) {
     uint32_t task_id = 0;
@@ -269,7 +271,9 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
     }
 
     assert(task_vec[loop_index] == task_id);
+#ifndef NDEBUG
     ++loop_index;
+#endif
   }
 
   return (0);

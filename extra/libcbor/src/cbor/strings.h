@@ -117,7 +117,7 @@ CBOR_EXPORT bool cbor_string_add_chunk(cbor_item_t *item, cbor_item_t *chunk);
  *
  * @return **new** definite string. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_new_definite_string();
+CBOR_EXPORT cbor_item_t *cbor_new_definite_string(void);
 
 /** Creates a new indefinite string
  *
@@ -125,7 +125,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_definite_string();
  *
  * @return **new** indefinite string. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_new_indefinite_string();
+CBOR_EXPORT cbor_item_t *cbor_new_indefinite_string(void);
 
 /** Creates a new string and initializes it
  *

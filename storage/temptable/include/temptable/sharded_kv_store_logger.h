@@ -63,7 +63,9 @@ struct Sharded_key_value_store_logger<T, true> {
     };
 
     auto &kv_store_shards = static_cast<T &>(*this).m_kv_store_shard;
+#ifndef NDEBUG
     uint32_t shard_id = 0;
+#endif
     for (auto &kv : kv_store_shards) {
       auto kv_shard_stats = kv.shard.stats();
       size_t nr_of_emplace_events = std::count_if(
@@ -94,7 +96,9 @@ struct Sharded_key_value_store_logger<T, true> {
              stat.max_bucket_count,
              std_thread_id_to_str(stat.thread_id).c_str()));
       }
+#ifndef NDEBUG
       shard_id++;
+#endif
     }
   }
 };

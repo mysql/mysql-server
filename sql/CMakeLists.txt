@@ -898,6 +898,12 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
       ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
       COMPILE_FLAGS "-Wno-free-nonheap-object")
   ENDIF()
+  IF(MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
+    ADD_COMPILE_FLAGS(
+      ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+      ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+      COMPILE_FLAGS "-Wno-unused-but-set-variable")
+  ENDIF()
 ENDIF()
 
 IF(WIN32)

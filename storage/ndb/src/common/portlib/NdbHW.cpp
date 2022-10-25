@@ -1746,7 +1746,6 @@ static int Ndb_ReloadCPUData(struct ndb_hwinfo *hwinfo)
   {
     hwinfo->cpu_data[i].online = 0;
   }
-  Uint32 cpu_online_count = 0;
   char buf[1024];
   char * p = &buf[0];
   char * c = nullptr;
@@ -1777,7 +1776,6 @@ static int Ndb_ReloadCPUData(struct ndb_hwinfo *hwinfo)
       return -1;
     }
     curr_cpu = val;
-    cpu_online_count++;
 
     Uint64 ticks[12];
     memset(ticks, 0, sizeof(ticks));

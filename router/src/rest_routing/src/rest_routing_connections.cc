@@ -34,16 +34,6 @@
 #include "mysqlrouter/rest_api_utils.h"
 #include "mysqlrouter/routing_component.h"
 
-constexpr const char RestRoutingConnections::kKeyBytesFromServer[];
-constexpr const char RestRoutingConnections::kKeyBytesToServer[];
-constexpr const char RestRoutingConnections::kKeyDestinationAddress[];
-constexpr const char RestRoutingConnections::kKeyTimeConnectedToServer[];
-constexpr const char RestRoutingConnections::kKeyTimeLastReceivedFromServer[];
-constexpr const char RestRoutingConnections::kKeyTimeLastSentToServer[];
-constexpr const char RestRoutingConnections::kKeyTimeStarted[];
-constexpr const char RestRoutingConnections::kKeySourceAddress[];
-constexpr const char RestRoutingConnections::path_regex[];
-
 bool RestRoutingConnections::on_handle_request(
     HttpRequest &req, const std::string & /* base_path */,
     const std::vector<std::string> &path_matches) {

@@ -1802,8 +1802,4 @@ stdx::expected<InputIterator, std::error_code> connect(
 
 }  // namespace net
 
-#if defined(MYSQL_HARNESS_HEADER_ONLY)
-#include "mysql/harness/net_ts/socket.cpp"
-#endif
-
 #endif

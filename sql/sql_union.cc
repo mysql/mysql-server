@@ -94,7 +94,6 @@
 #include "sql/visible_fields.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"
-using std::move;
 using std::vector;
 
 class Item_rollup_group_item;
@@ -1192,7 +1191,7 @@ static AccessPath *add_materialized_access_path(
     Mem_root_array<MaterializePathParameters::QueryBlock> &query_blocks,
     TABLE *dest, ha_rows limit = HA_POS_ERROR) {
   AccessPath *path = qt->query_block()->join->root_access_path();
-  path = NewMaterializeAccessPath(thd, move(query_blocks),
+  path = NewMaterializeAccessPath(thd, std::move(query_blocks),
                                   /*invalidators=*/nullptr, dest, path,
                                   /*cte=*/nullptr, /*unit=*/nullptr,
                                   /*ref_slice=*/-1,
@@ -1287,7 +1286,7 @@ AccessPath *make_set_op_access_path(
             qts->query_block()->setup_materialize_query_block(path, dest);
         Mem_root_array<MaterializePathParameters::QueryBlock> query_blocks(
             thd->mem_root);
-        query_blocks.push_back(move(param));
+        query_blocks.push_back(std::move(param));
         path = add_materialized_access_path(thd, parent, query_blocks, dest);
       }
     } break;
@@ -1302,7 +1301,7 @@ AccessPath *make_set_op_access_path(
           qts->query_block()->setup_materialize_query_block(path, dest);
       Mem_root_array<MaterializePathParameters::QueryBlock> query_blocks(
           thd->mem_root);
-      query_blocks.push_back(move(param));
+      query_blocks.push_back(std::move(param));
       path = add_materialized_access_path(thd, parent, query_blocks, dest);
     } break;
 
@@ -1388,7 +1387,7 @@ Query_term_set_op::setup_materialize_set_op(THD *thd, TABLE *dst_table,
     param.m_total_operands = m_children.size();
     param.disable_deduplication_by_hash_field =
         (has_mixed_distinct_operators() && !activate_deduplication);
-    query_blocks.push_back(move(param));
+    query_blocks.push_back(std::move(param));
 
     if (idx == m_last_distinct && idx > 0 && union_distinct_only)
       // The rest will be done by appending.

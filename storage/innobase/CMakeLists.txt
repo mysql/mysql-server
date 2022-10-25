@@ -400,6 +400,12 @@ IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(fts/fts0pars.cc
     COMPILE_FLAGS "${HAS_WARN_FLAG}")
 ENDIF()
+MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-variable" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(fts/fts0pars.cc
+    COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()
+
 
 IF(MSVC AND NOT WIN32_CLANG)
   # Disable C4100: unreferenced formal parameter
