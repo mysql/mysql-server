@@ -1371,3 +1371,6 @@ GROUP_CONCAT('32689,34068,34370,34930,37034,37638,38478,38643,38925,39889,40497,
 LENGTH(t.value)
 260
 SET SESSION group_concat_max_len=default;
+# Bug#34703610: Create view with subquery assertion error
+CREATE VIEW v(c0) AS SELECT group_concat((SELECT 1), 1);
+DROP VIEW v;
