@@ -148,7 +148,7 @@ MySQLRouting::MySQLRouting(
 #endif
 
   // This test is only a basic assertion.  Calling code is expected to check the
-  // validity of these arguments more thoroughally. At the time of writing,
+  // validity of these arguments more thoroughly. At the time of writing,
   // routing_plugin.cc : init() is one such place.
   if (!context_.get_bind_address().port() && !named_socket.is_set()) {
     throw std::invalid_argument(
@@ -157,7 +157,7 @@ MySQLRouting::MySQLRouting(
   }
 }
 
-void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
+void MySQLRouting::run(mysql_harness::PluginFuncEnv *env) {
   my_thread_self_setname(get_routing_thread_name(context_.get_name(), "RtM")
                              .c_str());  // "Rt main" would be too long :(
   if (context_.get_bind_address().port() > 0) {
@@ -186,7 +186,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
 #endif
   if (context_.get_bind_address().port() > 0 ||
       context_.get_bind_named_socket().is_set()) {
-    auto res = start_acceptor(env);
+    auto res = run_acceptor(env);
     if (!res) {
       clear_running(env);
       throw std::runtime_error(
@@ -564,7 +564,7 @@ std::string MySQLRouting::get_port_str() const {
   return port_str;
 }
 
-stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
+stdx::expected<void, std::error_code> MySQLRouting::run_acceptor(
     mysql_harness::PluginFuncEnv *env) {
   destination_->start(env);
   destination_->register_start_router_socket_acceptor(
