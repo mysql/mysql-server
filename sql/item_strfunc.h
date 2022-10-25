@@ -1249,17 +1249,6 @@ class Item_func_uuid final : public Item_str_func {
   }
 };
 
-class Item_func_gtid_subtract final : public Item_str_ascii_func {
-  String buf1, buf2;
-
- public:
-  Item_func_gtid_subtract(const POS &pos, Item *a, Item *b)
-      : Item_str_ascii_func(pos, a, b) {}
-  bool resolve_type(THD *) override;
-  const char *func_name() const override { return "gtid_subtract"; }
-  String *val_str_ascii(String *) override;
-};
-
 class Item_func_current_role final : public Item_func_sysconst {
   typedef Item_func_sysconst super;
 
