@@ -1249,7 +1249,7 @@ t1 LEFT JOIN t1 AS t2
 ON 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3)
 WHERE t1.pk=26;
 EXPLAIN
--> Remove duplicate (t1, t2) rows using temporary table (weedout)
+-> Remove duplicate (t1, t2) rows using temporary table (weedout)  (cost=0.35 rows=1)
     -> Nested loop left join  (cost=0.35 rows=1)
         -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
         -> Nested loop inner join  (cost=0.70 rows=1)
@@ -2216,3 +2216,39 @@ FROM t
 WHERE ((SELECT c FROM t), 0) IN (SELECT 1, 2 UNION SELECT 3, 4) AND FALSE;
 c
 DROP TABLE t;
+#
+# Bug #34678179 Assertion `path->cost >= 0.0' failed
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT, KEY (a));
+ANALYZE TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 WHERE a IN
+(SELECT COUNT(*) FROM t2 LEFT JOIN t3
+ON t3.a IN (SELECT t2_a.a FROM t2 AS t2_a, t2 AS t2_b)
+WHERE t2.a = 0);
+EXPLAIN
+-> Filter: <in_optimizer>(t1.a,t1.a in (select #2))  (rows=2)
+    -> Table scan on t1  (rows=2)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t1.a = `<materialized_subquery>`.`COUNT(*)`))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (COUNT(*)=t1.a)
+                    -> Materialize with deduplication  (rows=1)
+                        -> Aggregate: count(0)  (rows=1)
+                            -> Remove duplicate (t2, t3) rows using temporary table (weedout)  (rows=1)
+                                -> Nested loop left join  (rows=1)
+                                    -> Filter: (t2.a = 0)  (rows=1)
+                                        -> Table scan on t2  (rows=1)
+                                    -> Nested loop inner join  (rows=1)
+                                        -> Nested loop inner join  (rows=1)
+                                            -> Table scan on t2_a  (rows=1)
+                                            -> Covering index lookup on t3 using a (a=t2_a.a)  (rows=1)
+                                        -> Table scan on t2_b  (rows=1)
+
+DROP TABLE t1, t2, t3;

@@ -3074,8 +3074,11 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     // (ie., the join left some tables that were supposed to be deduplicated
     // but were not), handle them now at the very end.
     if (unhandled_duplicates != 0) {
+      AccessPath *const child = path;
       path = NewWeedoutAccessPathForTables(thd, unhandled_duplicates, qep_tab,
-                                           primary_tables, path);
+                                           primary_tables, child);
+
+      CopyBasicProperties(*child, path);
     }
   }
 

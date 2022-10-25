@@ -5868,7 +5868,7 @@ EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
 EXPLAIN
--> Remove duplicate (ot1, ot2, ot3) rows using temporary table (weedout)
+-> Remove duplicate (ot1, ot2, ot3) rows using temporary table (weedout)  (cost=107.05 rows=864)
     -> Nested loop left join  (cost=107.05 rows=864)
         -> Nested loop left join  (cost=12.65 rows=96)
             -> Table scan on ot1  (cost=1.05 rows=8)
