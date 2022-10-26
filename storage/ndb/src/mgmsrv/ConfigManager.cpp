@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1952,35 +1952,50 @@ ConfigManager::run()
       break;
 
     case GSN_NF_COMPLETEREP:{
-      const NFCompleteRep * const rep =
-        CAST_CONSTPTR(NFCompleteRep, sig->getDataPtr());
-      NodeId nodeId= rep->failedNodeId;
+       break;
+    }
 
-      if (!m_all_mgm.get(nodeId)) // Not mgm node
-        break;
+    case GSN_NODE_FAILREP: {
+      const NodeFailRep * rep =
+              CAST_CONSTPTR(NodeFailRep, sig->getDataPtr());
+      assert(sig->getLength() >= NodeFailRep::SignalLengthLong);
 
-      ndbout_c("Node %d failed", nodeId);
-      m_started.clear(nodeId);
-      m_checked.clear(nodeId);
-      m_defragger.node_failed(nodeId);
-
-      if (m_config_change.m_state != ConfigChangeState::IDLE)
+      NodeBitmask nodeMap;
+      Uint32 len = NodeFailRep::getNodeMaskLength(sig->getLength());
+      if (sig->header.m_noOfSections >= 1)
       {
-        g_eventLogger->info("Node %d failed during config change!!",
-                            nodeId);
-        g_eventLogger->warning("Node failure handling of config "
-                               "change protocol not yet implemented!! "
-                               "No more configuration changes can occur, "
-                               "but the node will continue to serve the "
-                               "last good configuration");
-        // TODO start take over of config change protocol
+        assert (len == 0);
+        nodeMap.assign(sig->ptr[0].sz, sig->ptr[0].p);
+      }
+      else{
+        nodeMap.assign(len, rep->theAllNodes);
+      }
+      assert(rep->noOfNodes == nodeMap.count());
+      nodeMap.bitAND(m_all_mgm);
+
+      Uint32 nodeId = 0;
+      for (nodeId = nodeMap.find_first();
+           nodeId != NodeBitmask::NotFound;
+           nodeId = nodeMap.find_next(nodeId+1))
+      {
+        m_started.clear(nodeId);
+        m_checked.clear(nodeId);
+        m_defragger.node_failed(nodeId);
+
+        if (m_config_change.m_state != ConfigChangeState::IDLE)
+        {
+          g_eventLogger->info("Node %d failed during config change!!",
+                              nodeId);
+          g_eventLogger->warning("Node failure handling of config "
+                                 "change protocol not yet implemented!! "
+                                 "No more configuration changes can occur, "
+                                 "but the node will continue to serve the "
+                                 "last good configuration");
+          // TODO start take over of config change protocol
+        }
       }
       break;
     }
-
-    case GSN_NODE_FAILREP:
-      // ignore, NF_COMPLETEREP will come
-      break;
 
     case GSN_API_REGCONF:{
       NodeId nodeId = refToNode(sig->header.theSendersBlockRef);
