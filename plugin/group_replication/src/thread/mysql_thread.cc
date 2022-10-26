@@ -208,6 +208,10 @@ void Mysql_thread::dispatcher() {
       break;
     }
 
+    /* Clear previous tasks errors. */
+    thd->clear_error();
+    thd->get_stmt_da()->reset_diagnostics_area();
+
     task->execute();
 
     mysql_mutex_lock(&m_dispatcher_lock);
