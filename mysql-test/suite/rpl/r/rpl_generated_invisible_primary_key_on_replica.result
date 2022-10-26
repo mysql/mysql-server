@@ -8,7 +8,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-include/save_sysvars.inc [ "GLOBAL.sql_generate_invisible_primary_key", "GLOBAL.replica_generate_invisible_primary_key" ]
+include/save_sysvars.inc [ "GLOBAL.sql_generate_invisible_primary_key" ]
 SET GLOBAL sql_generate_invisible_primary_key = ON;
 SET SESSION sql_generate_invisible_primary_key = ON;
 
@@ -39,10 +39,11 @@ include/assert.inc [The table contains 2 columns]
 include/assert.inc [The table contains a generated invisilble primary key]
 
 ##############################################################
-# 4. Enable replica_generate_invisible_primary_key
-#    Restart the replica
-SET GLOBAL replica_generate_invisible_primary_key = ON;
-include/restart_slave.inc
+# 4. Enable the creation of GIPKs in the replica by setting
+#    REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE
+include/stop_slave_sql.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
+include/start_slave_sql.inc
 
 ##############################################################
 # 5. Create a table without a primary key on the source
@@ -97,6 +98,7 @@ RESET MASTER;
 include/stop_slave.inc
 RESET MASTER;
 include/rpl_reset_slave.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE;
 include/start_slave.inc
 include/restore_sysvars.inc
 DROP TABLE t2;

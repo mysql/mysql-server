@@ -7687,15 +7687,3 @@ static Sys_var_enum Sys_explain_format(
     SESSION_VAR(explain_format), CMD_LINE(OPT_ARG), explain_format_names,
     DEFAULT(static_cast<ulong>(Explain_format_type::TRADITIONAL)),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
-
-static Sys_var_bool Sys_var_replica_generate_invisible_primary_key(
-    "replica_generate_invisible_primary_key",
-    "When set, if a replication applier thread creates a table without a "
-    "primary key, then the server generates an invisible auto-increment "
-    "column as a primary key for the table. You can alternatively enable "
-    "sql_generate_invisible_primary_key in the upstream server where tables "
-    "are first created, thus ensuring all replicas are consistent among them. "
-    "This option does not affect the group replication applier and recovery "
-    "channels.",
-    GLOBAL_VAR(opt_replica_generate_invisible_primary_key), CMD_LINE(OPT_ARG),
-    DEFAULT(false));

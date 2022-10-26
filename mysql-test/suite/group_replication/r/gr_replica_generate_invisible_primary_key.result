@@ -5,13 +5,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 
 ############################################################
-# 1. Set replica_generate_invisible_primary_key to true on both members
+# 1. Set sql_generate_invisible_primary_key to true on member 2
 [connection server1]
-include/save_sysvars.inc [ "GLOBAL.replica_generate_invisible_primary_key" ]
-SET GLOBAL replica_generate_invisible_primary_key=true;
+include/save_sysvars.inc [ "GLOBAL.sql_generate_invisible_primary_key" ]
 [connection server2]
-include/save_sysvars.inc [ "GLOBAL.replica_generate_invisible_primary_key" ]
-SET GLOBAL replica_generate_invisible_primary_key=true;
+include/save_sysvars.inc [ "GLOBAL.sql_generate_invisible_primary_key" ]
+SET GLOBAL sql_generate_invisible_primary_key=true;
 
 ############################################################
 # 2. Create a table with no primary key
@@ -25,9 +24,13 @@ include/start_group_replication.inc
 include/assert.inc [The table only contains one column]
 
 ############################################################
-# 3. Create a table with no primary key on server 2
+# 3. Set sql_generate_invisible_primary_key to true on server 1 and to false on server 2
+#    Create a table with no primary key on server 2
 #    Check that server 1 that replicated it still has only 1 column on its table
+[connection server1]
+SET GLOBAL sql_generate_invisible_primary_key=true;
 [connection server2]
+SET GLOBAL sql_generate_invisible_primary_key=false;
 CREATE TABLE test.t2 (c1 INT);
 include/rpl_sync.inc
 [connection server1]

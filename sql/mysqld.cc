@@ -1199,7 +1199,6 @@ uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 bool opt_keyring_migration_to_component = false;
 bool opt_persist_sensitive_variables_in_plaintext{true};
-bool opt_replica_generate_invisible_primary_key{false};
 
 #if defined(_WIN32)
 /*

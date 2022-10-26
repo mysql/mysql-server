@@ -8,7 +8,6 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 0. This test requires the replica to allow some conversions so we set
 #    replica_type_conversions = ALL_NON_LOSSY
 [connection slave]
-include/save_sysvars.inc ["GLOBAL.replica_generate_invisible_primary_key"]
 SET @saved_replica_type_conversions = @@replica_type_conversions;
 SET GLOBAL replica_type_conversions = 'ALL_NON_LOSSY';
 # Phase 1: Tests with a GIPK only on the source
@@ -43,9 +42,9 @@ include/assert.inc [Table t2 contains the inserted values]
 #    Create tables t3 and t4 on the source
 #    On the replica alter the tables so they have non lossy compatible columns
 [connection slave]
-include/stop_slave.inc
-SET GLOBAL replica_generate_invisible_primary_key = ON;
-include/start_slave.inc
+include/stop_slave_sql.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
+include/start_slave_sql.inc
 [connection master]
 CREATE TABLE t3 (f1  TINYINT UNSIGNED);
 CREATE TABLE t4 (f1 VARCHAR(20), f2 TINYINT);
@@ -67,7 +66,9 @@ include/assert.inc [Table t4 contains the inserted values]
 ##################################################
 # 5. Cleanup
 [connection slave]
-include/restore_sysvars.inc
+include/stop_slave_sql.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE;
+include/start_slave_sql.inc
 SET GLOBAL replica_type_conversions = @saved_replica_type_conversions;
 [connection master]
 DROP TABLE t1;

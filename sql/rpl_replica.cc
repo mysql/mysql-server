@@ -5946,12 +5946,13 @@ static void *handle_slave_worker(void *arg) {
   w->set_require_table_primary_key_check(
       rli->get_require_table_primary_key_check());
 
-  if (thd->rpl_thd_ctx.get_rpl_channel_type() == GR_APPLIER_CHANNEL ||
-      thd->rpl_thd_ctx.get_rpl_channel_type() == GR_RECOVERY_CHANNEL)
-    thd->variables.sql_generate_invisible_primary_key = false;
-  else
-    thd->variables.sql_generate_invisible_primary_key =
-        opt_replica_generate_invisible_primary_key;
+  thd->variables.sql_generate_invisible_primary_key = false;
+  if (thd->rpl_thd_ctx.get_rpl_channel_type() != GR_APPLIER_CHANNEL &&
+      thd->rpl_thd_ctx.get_rpl_channel_type() != GR_RECOVERY_CHANNEL &&
+      Relay_log_info::PK_CHECK_GENERATE ==
+          rli->get_require_table_primary_key_check()) {
+    thd->variables.sql_generate_invisible_primary_key = true;
+  }
 
   thd_manager->add_thd(thd);
   thd_added = true;
@@ -6977,12 +6978,13 @@ extern "C" void *handle_slave_sql(void *arg) {
           (rli->get_require_table_primary_key_check() ==
            Relay_log_info::PK_CHECK_ON);
 
-    if (thd->rpl_thd_ctx.get_rpl_channel_type() == GR_APPLIER_CHANNEL ||
-        thd->rpl_thd_ctx.get_rpl_channel_type() == GR_RECOVERY_CHANNEL)
-      thd->variables.sql_generate_invisible_primary_key = false;
-    else
-      thd->variables.sql_generate_invisible_primary_key =
-          opt_replica_generate_invisible_primary_key;
+    thd->variables.sql_generate_invisible_primary_key = false;
+    if (thd->rpl_thd_ctx.get_rpl_channel_type() != GR_APPLIER_CHANNEL &&
+        thd->rpl_thd_ctx.get_rpl_channel_type() != GR_RECOVERY_CHANNEL &&
+        Relay_log_info::PK_CHECK_GENERATE ==
+            rli->get_require_table_primary_key_check()) {
+      thd->variables.sql_generate_invisible_primary_key = true;
+    }
 
     rli->transaction_parser.reset();
 
@@ -9740,6 +9742,14 @@ static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
       case (LEX_MASTER_INFO::LEX_MI_PK_CHECK_OFF):
         mi->rli->set_require_table_primary_key_check(
             Relay_log_info::PK_CHECK_OFF);
+        break;
+      case (LEX_MASTER_INFO::LEX_MI_PK_CHECK_GENERATE):
+        if (channel_map.is_group_replication_channel_name(lex_mi->channel)) {
+          my_error(ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR, MYF(0));
+          return true;
+        }
+        mi->rli->set_require_table_primary_key_check(
+            Relay_log_info::PK_CHECK_GENERATE);
         break;
 
       default:     /* purecov: tested */

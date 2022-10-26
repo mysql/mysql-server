@@ -12039,6 +12039,9 @@ ER_IB_LOAD_BULK_CONCURRENCY_REDUCED
 ER_PLUGIN_EXCEPTION_OPERATION_FAILED
    eng "C++ Exception caught while %s the %s plugin: [%s]"
 
+ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR_IN_REPO
+   eng "Replication configuration appears to be corrupted. On Group Replication channel '%s', setting REQUIRE_TABLE_PRIMARY_KEY_CHECK to 'GENERATE' is not allowed. Run RESET REPLICA ALL to reset it."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

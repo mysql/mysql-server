@@ -263,20 +263,22 @@ class Relay_log_info : public Rpl_info {
   };
 
   /**
-    Identifies what is the slave policy on primary keys in tables.
+    Identifies what is the replica policy on primary keys in tables.
   */
   enum enum_require_table_primary_key {
     /**No policy, used on PFS*/
     PK_CHECK_NONE = 0,
     /**
-      The slave sets the value of sql_require_primary_key according to
+      The replica sets the value of sql_require_primary_key according to
       the source replicated value.
     */
     PK_CHECK_STREAM = 1,
-    /** The slave enforces tables to have primary keys for a given channel*/
+    /** The replica enforces tables to have primary keys for a given channel*/
     PK_CHECK_ON = 2,
-    /** The slave does not enforce any policy around primary keys*/
-    PK_CHECK_OFF = 3
+    /** The replica does not enforce any policy around primary keys*/
+    PK_CHECK_OFF = 3,
+    /** The replica generates GIPKs for incoming keyless tables*/
+    PK_CHECK_GENERATE = 4
   };
 
   /**
@@ -623,7 +625,8 @@ class Relay_log_info : public Rpl_info {
      replicated tables.
 
      @return STREAM if it replicates the source values, ON if it enforces the
-             need on primary keys, OFF if it does no enforce any restrictions.
+             need on primary keys, OFF if it does no enforce any restrictions,
+             GENERATE if a GIPK is added to the table.
    */
   enum_require_table_primary_key get_require_table_primary_key_check() const;
 
@@ -784,6 +787,8 @@ class Relay_log_info : public Rpl_info {
     or alter operation that does not have a primary key.
     If set to OFF it does not enforce any policies on the channel for primary
     keys.
+    If set to GENERATE it adds GIPKs to tables that are created without a PK
+    in the replica applier threads.
   */
   enum_require_table_primary_key m_require_table_primary_key_check;
 

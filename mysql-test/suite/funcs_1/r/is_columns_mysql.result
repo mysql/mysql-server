@@ -196,7 +196,7 @@ def	mysql	slave_relay_log_info	Channel_name	9	NULL	NO	varchar	64	192	NULL	NULL	N
 def	mysql	slave_relay_log_info	Privilege_checks_username	10	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(32)			select,insert,update,references	Username part of PRIVILEGE_CHECKS_USER.		NULL
 def	mysql	slave_relay_log_info	Privilege_checks_hostname	11	NULL	YES	varchar	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	varchar(255)			select,insert,update,references	Hostname part of PRIVILEGE_CHECKS_USER.		NULL
 def	mysql	slave_relay_log_info	Require_row_format	12	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether the channel shall only accept row based events.		NULL
-def	mysql	slave_relay_log_info	Require_table_primary_key_check	13	STREAM	NO	enum	6	18	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	enum('STREAM','ON','OFF')			select,insert,update,references	Indicates what is the channel policy regarding tables having primary keys on create and alter table queries		NULL
+def	mysql	slave_relay_log_info	Require_table_primary_key_check	13	STREAM	NO	enum	8	24	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	enum('STREAM','ON','OFF','GENERATE')			select,insert,update,references	Indicates what is the channel policy regarding tables without primary keys on create and alter table queries		NULL
 def	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_type	14	OFF	NO	enum	5	15	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	enum('OFF','LOCAL','UUID')			select,insert,update,references	Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value		NULL
 def	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_value	15	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	text			select,insert,update,references	Indicates the UUID used while generating GTIDs for anonymous transactions		NULL
 def	mysql	slave_worker_info	Id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned	PRI		select,insert,update,references			NULL
@@ -560,7 +560,7 @@ NULL	mysql	slave_relay_log_info	Id	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	mysql	slave_relay_log_info	Privilege_checks_username	varchar	32	96	utf8mb3	utf8mb3_bin	varchar(32)
 1.0000	mysql	slave_relay_log_info	Privilege_checks_hostname	varchar	255	255	ascii	ascii_general_ci	varchar(255)
 NULL	mysql	slave_relay_log_info	Require_row_format	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-3.0000	mysql	slave_relay_log_info	Require_table_primary_key_check	enum	6	18	utf8mb3	utf8mb3_general_ci	enum('STREAM','ON','OFF')
+3.0000	mysql	slave_relay_log_info	Require_table_primary_key_check	enum	8	24	utf8mb3	utf8mb3_general_ci	enum('STREAM','ON','OFF','GENERATE')
 3.0000	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_type	enum	5	15	utf8mb3	utf8mb3_general_ci	enum('OFF','LOCAL','UUID')
 1.0000	mysql	slave_relay_log_info	Assign_gtids_to_anonymous_transactions_value	text	65535	65535	utf8mb3	utf8mb3_bin	text
 NULL	mysql	slave_worker_info	Id	int	NULL	NULL	NULL	NULL	int unsigned

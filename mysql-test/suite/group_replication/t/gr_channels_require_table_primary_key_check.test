@@ -1,19 +1,23 @@
 # ==== Purpose ====
 #
 # Verify that `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is settable for GR channels.
+# Except the value `GENERATE`
 #
 # ==== Implementation ====
 #
-# 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the applier channel
+# 1. Check that the value GENERATE can not be used for REQUIRE_TABLE_PRIMARY_KEY_CHECK
+#    with Group Replication channels
+# 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the applier channel
 #    Start a member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
-# 2. Block the applier to block server 2 recovery
-# 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the recovery channel
+# 3. Block the applier to block server 2 recovery
+# 4. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the recovery channel
 #    Start the member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
-# 4. Cleanup
+# 5. Cleanup
 #
 # ==== References ====
 #
 # WL#13239: Enable/disable primary key checks on slaves
+# WL#15419: Make the replica_generate_invisible_primary_key option settable per channel
 #
 
 --source include/have_debug_sync.inc
@@ -22,9 +26,18 @@
 --source include/group_replication.inc
 
 --echo
---echo # 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the applier channel
---echo #    Start a member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
+--echo # 1. Check that the value GENERATE can not be used for REQUIRE_TABLE_PRIMARY_KEY_CHECK
+--echo #    with Group Replication channels
 
+--error ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE FOR CHANNEL "group_replication_recovery"
+
+--error ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE FOR CHANNEL "group_replication_applier"
+
+--echo
+--echo # 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the applier channel
+--echo #    Start a member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
 
 --eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "group_replication_applier"
 
@@ -36,12 +49,12 @@
 --source include/assert.inc
 
 --echo
---echo # 2. Block the applier to block server 2 recovery
+--echo # 3. Block the applier to block server 2 recovery
 
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo
---echo # 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the recovery channel
+--echo # 4. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the recovery channel
 --echo #    Start the member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
 
 --let $rpl_connection_name= server2
@@ -61,7 +74,7 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --source include/assert.inc
 
 --echo
---echo # 4. Cleanup
+--echo # 5. Cleanup
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

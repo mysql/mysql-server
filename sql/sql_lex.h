@@ -430,7 +430,8 @@ struct LEX_MASTER_INFO {
     LEX_MI_PK_CHECK_UNCHANGED = 0,
     LEX_MI_PK_CHECK_STREAM = 1,
     LEX_MI_PK_CHECK_ON = 2,
-    LEX_MI_PK_CHECK_OFF = 3
+    LEX_MI_PK_CHECK_OFF = 3,
+    LEX_MI_PK_CHECK_GENERATE = 4
   } require_table_primary_key_check;
 
   enum {
