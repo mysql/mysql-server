@@ -65,7 +65,7 @@
 #    [--let $rpl_privilege_checks_user= 1:'user'@'host',2:NULL]
 #    [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 #    [--let $rpl_require_row_format= *:0,1:0,2:1]
-#    [--let $rpl_require_table_primary_key_check= *:STREAM,1:ON,2:OFF]
+#    [--let $rpl_require_table_primary_key_check= *:STREAM,1:ON,2:OFF,3:GENERATE]
 #    [--let $rpl_gtid_only= *:0,1:0,2:1]
 #    [--let $rpl_shallow_reset_slave= 1]
 #    --source include/rpl_init.inc
@@ -136,8 +136,8 @@
 #
 #    $rpl_group_replication
 #      This checks for whether we have Group Replication enabled or not. Based
-#      on the check this parameter we execute CHANGE REPLICATION SOURCE or not 
-#      in this inc file. Moreover, it also sets the default timeouts for the 
+#      on the check this parameter we execute CHANGE REPLICATION SOURCE or not
+#      in this inc file. Moreover, it also sets the default timeouts for the
 #      group replication tests.
 #
 #    $rpl_gtid_utils

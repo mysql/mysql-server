@@ -931,11 +931,13 @@ ALTER TABLE slave_relay_log_info MODIFY Relay_log_name TEXT CHARACTER SET utf8mb
                                  MODIFY Id INTEGER UNSIGNED COMMENT 'Internal Id that uniquely identifies this record.';
 
 # Columns added to keep information about REQUIRE_TABLE_PRIMARY_KEY_CHECK replication field
-ALTER TABLE slave_relay_log_info ADD Require_table_primary_key_check ENUM('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries' AFTER Require_row_format;
+ALTER TABLE slave_relay_log_info ADD Require_table_primary_key_check ENUM('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables without primary keys on create and alter table queries' AFTER Require_row_format;
 # Columns added to keep information about ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE replication field
 ALTER TABLE slave_relay_log_info ADD Assign_gtids_to_anonymous_transactions_type ENUM('OFF', 'LOCAL', 'UUID')  NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value' AFTER Require_table_primary_key_check;
 # Columns added to keep information about ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE replication field
 ALTER TABLE slave_relay_log_info ADD Assign_gtids_to_anonymous_transactions_value TEXT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions' AFTER Assign_gtids_to_anonymous_transactions_type;
+# Add the value GENERATED to the column REQUIRE_TABLE_PRIMARY_KEY_CHECK
+ALTER TABLE slave_relay_log_info MODIFY Require_table_primary_key_check ENUM('STREAM','ON','OFF','GENERATE') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables without primary keys on create and alter table queries';
 
 #
 # Drop legacy NDB distributed privileges function & procedures

@@ -41,6 +41,7 @@
 # === References ===
 #
 # Wl#14639: Row-based replication between tables that differ in the existence of a generated invisible primary key
+# WL#15419: Make the replica_generate_invisible_primary_key option settable per channel
 #
 
 --source include/have_binlog_format_row.inc
@@ -211,12 +212,11 @@ UPDATE t2 SET t2.f1 = 22 WHERE t2.f2=22;
 
 --source include/rpl_connection_slave.inc
 
---let $sysvars_to_save = [ "GLOBAL.replica_generate_invisible_primary_key" ]
---source include/save_sysvars.inc
-
-SET GLOBAL replica_generate_invisible_primary_key = ON;
-
---source include/restart_slave_sql.inc
+--source include/stop_slave_sql.inc
+# Store the default value
+--let $_pk_key_check_value = `SELECT require_table_primary_key_check FROM performance_schema.replication_applier_configuration WHERE channel_name=""`
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
+--source include/start_slave_sql.inc
 
 --echo
 --echo ##################################################
@@ -361,7 +361,10 @@ UPDATE t5 SET t5.f1 = 52 WHERE t5.f2=52;
 --echo ##################################################
 --echo # 9. Cleanup
 
---source include/restore_sysvars.inc
+--source include/stop_slave_sql.inc
+--replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
+--source include/start_slave_sql.inc
 
 --source include/rpl_connection_master.inc
 

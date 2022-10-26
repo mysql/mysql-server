@@ -2189,9 +2189,17 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK) {
     if (!!from->get_info(&temp_require_table_primary_key_check, 1)) return true;
   }
-  if (temp_require_table_primary_key_check < PK_CHECK_STREAM ||
-      temp_require_table_primary_key_check > Relay_log_info::PK_CHECK_OFF)
+  if (temp_require_table_primary_key_check < Relay_log_info::PK_CHECK_STREAM ||
+      temp_require_table_primary_key_check > Relay_log_info::PK_CHECK_GENERATE)
     return true;
+  if (temp_require_table_primary_key_check ==
+          Relay_log_info::PK_CHECK_GENERATE &&
+      channel_map.is_group_replication_channel_name(channel)) {
+    LogErr(ERROR_LEVEL,
+           ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR_IN_REPO,
+           channel);
+    return true;
+  }
   m_require_table_primary_key_check =
       static_cast<Relay_log_info::enum_require_table_primary_key>(
           temp_require_table_primary_key_check);

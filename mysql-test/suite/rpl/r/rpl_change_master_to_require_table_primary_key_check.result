@@ -1,5 +1,5 @@
 #
-# 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to invalid values in `CHANGE MASTER TO ...`
+# 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to invalid values in `CHANGE REPLICATION SOURCE TO ...`
 #    Check that an error is thrown.
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1' at line 1
@@ -10,7 +10,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = -1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
 #
-# 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to valid values in `CHANGE MASTER TO ...`
+# 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to valid values in `CHANGE REPLICATION SOURCE TO ...`
 #    Check that the replication_applier_configuration table is changed.
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='fake-host';
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
@@ -19,9 +19,9 @@ CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON]
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF]
-RESET SLAVE ALL;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
+include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to GENERATE]
+RESET REPLICA ALL;
 #
 # 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for a replication setup
 #    Check the values are the ones expected
@@ -42,12 +42,8 @@ include/assert.inc [require_table_primary_key_check in performance_schema.replic
 [connection server_2]
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
-STOP SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+STOP REPLICA SQL_THREAD;
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
-START SLAVE SQL_THREAD;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+START REPLICA SQL_THREAD;
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF]
 include/rpl_end.inc

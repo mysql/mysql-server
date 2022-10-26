@@ -4,23 +4,30 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 
-# 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the applier channel
+# 1. Check that the value GENERATE can not be used for REQUIRE_TABLE_PRIMARY_KEY_CHECK
+#    with Group Replication channels
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE FOR CHANNEL "group_replication_recovery";
+ERROR HY000: On a Group Replication channel, setting REQUIRE_TABLE_PRIMARY_KEY_CHECK to 'GENERATE' is not allowed.
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE FOR CHANNEL "group_replication_applier";
+ERROR HY000: On a Group Replication channel, setting REQUIRE_TABLE_PRIMARY_KEY_CHECK to 'GENERATE' is not allowed.
+
+# 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the applier channel
 #    Start a member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "group_replication_applier";
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF for "group_replication_applier"]
 
-# 2. Block the applier to block server 2 recovery
+# 3. Block the applier to block server 2 recovery
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
-# 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the recovery channel
+# 4. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the recovery channel
 #    Start the member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
 [connection server2]
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON FOR CHANNEL "group_replication_recovery";
 include/start_group_replication.inc
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON for "group_replication_recovery"]
 
-# 4. Cleanup
+# 5. Cleanup
 [connection server1]
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';

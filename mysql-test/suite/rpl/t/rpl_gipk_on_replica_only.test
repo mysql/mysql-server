@@ -22,6 +22,7 @@
 # === References ===
 #
 # Wl#14639: Row-based replication between tables that differ in the existence of a generated invisible primary key
+# WL#15419: Make the replica_generate_invisible_primary_key option settable per channel
 #
 
 --let $rpl_skip_start_slave = 1
@@ -33,10 +34,9 @@
 
 --source include/rpl_connection_slave.inc
 
---let $sysvars_to_save = [ "GLOBAL.replica_generate_invisible_primary_key", "GLOBAL.replica_parallel_workers" ]
---source include/save_sysvars.inc
-
-SET GLOBAL replica_generate_invisible_primary_key = ON;
+# Store the default value
+--let $_pk_key_check_value = `SELECT require_table_primary_key_check FROM performance_schema.replication_applier_configuration WHERE channel_name=""`
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
 
 --source include/start_slave.inc
 
@@ -67,6 +67,9 @@ CREATE TABLE t1(f1 INT, f2 INT);
 --echo #############################################
 --echo # 3. Add some rows to the table in the source
 --echo #    Check they are present in the replica with the expected auto generated values
+
+--let $sysvars_to_save = [ "GLOBAL.replica_parallel_workers" ]
+--source include/save_sysvars.inc
 
 # Make the applier deterministic by having only 1 thread
 --source include/stop_slave_sql.inc
@@ -141,6 +144,11 @@ DELETE FROM t1 WHERE t1.f1=1;
 --disable_warnings
 --source include/restore_sysvars.inc
 --enable_warnings
+
+--source include/stop_slave_sql.inc
+--replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
+--source include/start_slave_sql.inc
 
 --source include/rpl_connection_master.inc
 

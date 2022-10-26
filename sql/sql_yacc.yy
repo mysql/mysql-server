@@ -1383,6 +1383,7 @@ void warn_about_deprecated_binary(THD *thd)
 
 %token<lexer.keyword> BULK_SYM                   1201  /* MYSQL */
 %token<lexer.keyword> URL_SYM                    1202   /* MYSQL */
+%token<lexer.keyword> GENERATE_SYM               1203   /* MYSQL */
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -3271,6 +3272,10 @@ table_primary_key_check_def:
         | OFF_SYM
           {
             Lex->mi.require_table_primary_key_check= LEX_MASTER_INFO::LEX_MI_PK_CHECK_OFF;
+          }
+        | GENERATE_SYM
+          {
+            Lex->mi.require_table_primary_key_check= LEX_MASTER_INFO::LEX_MI_PK_CHECK_GENERATE;
           }
         ;
 
@@ -15354,6 +15359,7 @@ ident_keywords_unambiguous:
                                 ER_THD(thd, ER_WARN_DEPRECATED_IDENT), "FULL");
           }
         | GENERAL
+        | GENERATE_SYM
         | GEOMETRYCOLLECTION_SYM
         | GEOMETRY_SYM
         | GET_FORMAT

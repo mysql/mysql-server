@@ -37693,7 +37693,7 @@
                 "is_virtual": false,
                 "hidden": 1,
                 "ordinal_position": 13,
-                "char_length": 18,
+                "char_length": 24,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
                 "numeric_scale_null": true,
@@ -37708,15 +37708,15 @@
                 "default_value_utf8": "STREAM",
                 "default_option": "",
                 "update_option": "",
-                "comment": "Indicates what is the channel policy regarding tables having primary keys on create and alter table queries",
+                "comment": "Indicates what is the channel policy regarding tables without primary keys on create and alter table queries",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
-                "options": "interval_count=3;",
+                "options": "interval_count=4;",
                 "se_private_data": "table_id=X",
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "enum('STREAM','ON','OFF')",
+                "column_type_utf8": "enum('STREAM','ON','OFF','GENERATE')",
                 "elements": [
                     {
                         "name": "U1RSRUFN", "decoded-name": "STREAM",
@@ -37729,6 +37729,10 @@
                     {
                         "name": "T0ZG", "decoded-name": "OFF",
                         "index": 3
+                    },
+                    {
+                        "name": "R0VORVJBVEU=", "decoded-name": "GENERATE",
+                        "index": 4
                     }
                 ],
                 "collation_id": X,

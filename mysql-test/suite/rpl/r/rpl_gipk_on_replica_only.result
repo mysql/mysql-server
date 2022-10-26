@@ -7,8 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 ##################################################
 # 1. Enable the generation of GIPKs in the replica
 [connection slave]
-include/save_sysvars.inc [ "GLOBAL.replica_generate_invisible_primary_key", "GLOBAL.replica_parallel_workers" ]
-SET GLOBAL replica_generate_invisible_primary_key = ON;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
 include/start_slave.inc
 
 #####################################################
@@ -24,6 +23,7 @@ include/assert.inc [The table contains a generated invisilble primary key]
 #############################################
 # 3. Add some rows to the table in the source
 #    Check they are present in the replica with the expected auto generated values
+include/save_sysvars.inc [ "GLOBAL.replica_parallel_workers" ]
 include/stop_slave_sql.inc
 SET @@GLOBAL.replica_parallel_workers= 1;
 include/start_slave_sql.inc
@@ -54,6 +54,9 @@ include/assert.inc [The table was updated]
 ###########################################################
 # 5. Cleanup
 include/restore_sysvars.inc
+include/stop_slave_sql.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE;
+include/start_slave_sql.inc
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

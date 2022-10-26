@@ -9929,6 +9929,9 @@ ER_LOAD_BULK_DATA_WRONG_VALUE_FOR_FIELD
 ER_LOAD_BULK_DATA_WARN_NULL_TO_NOTNULL
   eng "NULL supplied to NOT NULL column '%s' at row %ld in file '%-.192s'"
 
+ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR
+  eng "On a Group Replication channel, setting REQUIRE_TABLE_PRIMARY_KEY_CHECK to 'GENERATE' is not allowed."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

@@ -43,10 +43,9 @@ include/assert.inc [Table t3 contains the inserted values]
 #    On the replica drop the index on t4 and add a index to t5
 #    On the replica add an index and an extra column to t6
 [connection slave]
-include/save_sysvars.inc ["GLOBAL.replica_generate_invisible_primary_key"]
-include/stop_slave.inc
-SET GLOBAL replica_generate_invisible_primary_key = ON;
-include/start_slave.inc
+include/stop_slave_sql.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
+include/start_slave_sql.inc
 [connection master]
 CREATE TABLE t4 (f1 INT UNSIGNED, INDEX idx1 ((f1*1)));
 CREATE TABLE t5 (f1 VARCHAR(20), f2 TINYINT);
@@ -72,7 +71,9 @@ include/assert.inc [Table t6 contains the inserted values]
 ##################################################
 # 5. Cleanup
 [connection slave]
-include/restore_sysvars.inc
+include/stop_slave_sql.inc
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE;
+include/start_slave_sql.inc
 [connection master]
 DROP TABLE t1;
 DROP TABLE t2;

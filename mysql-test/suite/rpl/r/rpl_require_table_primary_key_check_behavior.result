@@ -1,110 +1,130 @@
 
-# 0. Setup a master slave connection with a privilege user
-include/master-slave.inc
+# 0. Setup replica with 2 sources where the channels have a privilege user
+include/rpl_init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-[connection master]
-[connection slave]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_2]
 GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO 'u'@'localhost';
-CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM FOR CHANNEL 'channel_1';
 
 # 1. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
-#    Create a table on the master
-#    The slave applier user lacks privileges for CREATE/ALTER queries
-#    The slave applier fails while replicating.
-[connection master]
+#    Create a table on the source (server 1)
+#    The replica applier user lacks privileges for CREATE/ALTER queries
+#    The replica applier fails while replicating.
+[connection server_1]
 SET @@global.sql_require_primary_key = 1;
 CREATE TABLE t1 (a INT PRIMARY KEY);
-[connection slave]
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+[connection server_2]
+START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=1227]
 
 # 2. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
-#    Give the slave applier user SESSION_VARIABLES_ADMIN privileges
-#    The slave applier can now replicate CREATE/ALTER queries
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+#    Give the replica applier user SESSION_VARIABLES_ADMIN privileges
+#    The replica applier can now replicate CREATE/ALTER queries
+STOP REPLICA;
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u'@'localhost';
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-[connection master]
-include/sync_slave_sql_with_master.inc
+START REPLICA;
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 
 # 3. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON.
 #    Revoke privileges.
-#    Create a table on the master with no primary key
-#    The slave applier fails while replicating due to the lack of PK
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+#    Create a table on the source (server 1) with no primary key
+#    The replica applier fails while replicating due to the lack of PK
+STOP REPLICA;
 REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM 'u'@'localhost';
-CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
-[connection master]
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON FOR CHANNEL 'channel_1';
+[connection server_1]
 CREATE TABLE t2 (a INT);
-[connection slave]
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_sql_error.inc [errno=3750]
-[connection master]
+[connection server_2]
+START REPLICA;
+include/wait_for_slave_sql_error.inc [errno=3750 FOR CHANNEL 'channel_1']
+[connection server_1]
 DROP TABLE t2;
 RESET MASTER;
-[connection slave]
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-RESET SLAVE;
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+[connection server_2]
+STOP REPLICA;
+RESET REPLICA;
 RESET MASTER;
 
 # 4. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON.
-#    Create a table on the master with a primary key
-#    The slave applier replication is working properly
-[connection master]
+#    Create a table on the source (server 1) with a primary key
+#    The replica applier is working properly
+[connection server_1]
 SET @@global.sql_require_primary_key = 0;
 CREATE TABLE t3 (a INT PRIMARY KEY);
-[connection slave]
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-[connection master]
-include/sync_slave_sql_with_master.inc
+[connection server_2]
+START REPLICA;
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 
 # 5. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF.
-#    Create a table on the master with a primary key and without
-#    The slave applier replication replicates both
-STOP SLAVE;
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
-START SLAVE;
-Warnings:
-Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-[connection master]
+#    Create a table on the source (server 1) with a primary key and without
+#    The replica applier applies both
+STOP REPLICA;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL 'channel_1';
+START REPLICA;
+[connection server_1]
 SET @@global.sql_require_primary_key = 1;
 CREATE TABLE t4 (a INT PRIMARY KEY);
 SET @@global.sql_require_primary_key = 0;
 CREATE TABLE t5 (a INT);
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [The table t5 contains only 1 column (no PK)]
 
-# 6. Cleanup
-[connection master]
+# 6. Test REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE.
+#    Test also that multiple channels with different behaviors can coexist
+#    Set the strategy for the channel from server 1 to GENERATE
+#    Set the strategy for the channel from server 3 to ON
+#    Add a new table without a primary key on server 1 and 3
+#    The channel from server 1 shall had a GIPK while the applier on the channel from server 3 fails
+[connection server_2]
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON FOR CHANNEL 'channel_3';
+include/start_slave.inc [FOR CHANNEL 'channel_1']
+include/start_slave.inc [FOR CHANNEL 'channel_3']
+[connection server_1]
+SET @@global.sql_require_primary_key = 0;
+CREATE TABLE t6 (a INT);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [The table contains 2 columns]
+include/assert.inc [The table contains a generated invisilble primary key]
+[connection server_3]
+CREATE TABLE t7 (a INT);
+[connection server_2]
+include/wait_for_slave_sql_error.inc [errno=3750 FOR CHANNEL 'channel_3']
+
+# 7. Cleanup
+[connection server_1]
 DROP TABLE t1;
 DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE t5;
+DROP TABLE t6;
 SET @@global.sql_require_primary_key = SQL_REQUIRE_PRIMARY_KEY;
-[connection slave]
+[connection server_3]
+DROP TABLE t7;
+[connection server_2]
 CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression(".*Unable to create or change a table without a primary key*");
-include/stop_slave_sql.inc
-CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE;
-include/start_slave_sql.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE FOR CHANNEL 'channel_3';
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u'@'localhost';
+include/start_slave.inc [FOR CHANNEL 'channel_1']
+include/start_slave.inc [FOR CHANNEL 'channel_3']
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/rpl_end.inc
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

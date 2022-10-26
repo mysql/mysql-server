@@ -19,7 +19,7 @@
 #   [--let $rpl_privilege_checks_user= 2:'user'@'host' | 1:NULL]
 #   [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 #   [--let $rpl_require_row_format= *:0,1:0,2:1]
-#   [--let $rpl_require_table_primary_key_check= *:STREAM,1:ON,2:OFF]
+#   [--let $rpl_require_table_primary_key_check= *:STREAM,1:ON,2:OFF,3:GENERATE]
 #   [--let $rpl_gtid_only= *:0,1:0,2:1]
 #   [--let $rpl_shallow_reset_slave= 1]
 #   --source include/master-slave.inc

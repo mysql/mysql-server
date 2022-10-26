@@ -11,8 +11,8 @@
 # + TC4: Verify that the column value is 'STREAM' for all channels.
 # + TC5: Verify that TC4 is true when upgrading from Table repositories
 # + TC6: Verify that TC4 is true when upgrading from File repositories
-# + TC7: Verify that RESET SLAVE has no observable effects for `REQUIRE_TABLE_PRIMARY_KEY_CHECK`.
-# + TC8: Verify that RESET SLAVE ALL has observable effects for `REQUIRE_TABLE_PRIMARY_KEY_CHECK`.
+# + TC7: Verify that RESET REPLICA has no observable effects for `REQUIRE_TABLE_PRIMARY_KEY_CHECK`.
+# + TC8: Verify that RESET REPLICA ALL has observable effects for `REQUIRE_TABLE_PRIMARY_KEY_CHECK`.
 #
 # ==== Implementation ====
 #
@@ -26,6 +26,8 @@
 # 1.2. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to OFF
 #      Check the performance_schema table and file repository are correct
 # 1.3. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to STREAM
+#      Check the performance_schema table and file repository are correct
+# 1.4. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to GENERATE
 #      Check the performance_schema table and file repository are correct
 #
 # 2. File to File upgrades
@@ -51,18 +53,21 @@
 #       3. A channel with a privileged user (default channel)
 #     REQUIRE_TABLE_PRIMARY_KEY_CHECK is set to STREAM for all channels
 #
-# 5. RESET SLAVE tests
+# 5. Error scenario: Test when the stored configuration for a GR channel is invalid
 #
-# 5.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
-#      Execute a RESET SLAVE command.
+# 6. RESET REPLICA tests
+#
+# 6.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
+#      Execute a RESET REPLICA command.
 #      The option should not be affected
 #      It also survives a server restart
-# 5.2. Execute a RESET SLAVE ALL command.
+# 6.2. Execute a RESET REPLICA ALL command.
 #      The table line was removed.
-# 5.3. Make RESET SLAVE fail due to persistence issues
+#      On recreation the value is STREAM for the default channel
+# 6.3. Make RESET REPLICA fail due to persistence issues
 #      Check that errors on slave info persistence are gracefully handled
 #
-# 6. Cleanup
+# 7. Cleanup
 #
 # ==== References ====
 #
@@ -146,7 +151,7 @@ END_OF_PROCEDURE
 --echo # 1.1. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
 --echo #      Check the performance_schema table and file repository are correct
 
-STOP SLAVE;
+STOP REPLICA;
 
 --disable_query_log
 if ( $_privilege_checks_user == NULL)
@@ -159,7 +164,7 @@ if ( $_privilege_checks_user != NULL)
 }
 --enable_query_log
 
-START SLAVE;
+START REPLICA;
 
 --let $require_table_primary_key_check_value = ON
 --let require_table_primary_key_check_file_value = 2
@@ -169,11 +174,11 @@ START SLAVE;
 --echo # 1.2. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to OFF
 --echo #      Check the performance_schema table and file repository are correct
 
-STOP SLAVE;
+STOP REPLICA;
 
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 
-START SLAVE;
+START REPLICA;
 
 --let $require_table_primary_key_check_value = OFF
 --let require_table_primary_key_check_file_value = 3
@@ -183,14 +188,28 @@ START SLAVE;
 --echo # 1.3. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to STREAM
 --echo #      Check the performance_schema table and file repository are correct
 
-STOP SLAVE;
+STOP REPLICA;
 
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 
-START SLAVE;
+START REPLICA;
 
 --let $require_table_primary_key_check_value = STREAM
 --let require_table_primary_key_check_file_value = 1
+--source $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc
+
+--echo
+--echo # 1.4. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to GENERATE
+--echo #      Check the performance_schema table and file repository are correct
+
+STOP REPLICA;
+
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
+
+START REPLICA;
+
+--let $require_table_primary_key_check_value = GENERATE
+--let require_table_primary_key_check_file_value = 4
 --source $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc
 
 # 2. File to File upgrades
@@ -220,7 +239,7 @@ START SLAVE;
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
 --error ER_SLAVE_RLI_INIT_REPOSITORY
-START SLAVE;
+START REPLICA;
 
 # 3. File to Table upgrades
 
@@ -289,8 +308,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 --let $assert_cond = $count = 3
 --source include/assert.inc
 
-RESET SLAVE ALL FOR CHANNEL "ch1";
-RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+RESET REPLICA ALL FOR CHANNEL "ch1";
 
 if ($gtid_mode_on == 0) {
   --let $rpl_gtid_mode = 0
@@ -299,25 +317,42 @@ if ($gtid_mode_on == 0) {
 --let $no_extra_info = 1
 --source include/rpl_set_gtid_mode.inc
 
-# 5. RESET SLAVE tests
+# Error scenarios
 
 --echo
---echo # 5.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
---echo #      Execute a RESET SLAVE command.
+--echo # 5. Error scenario: Test when the stored configuration for a GR channel is invalid
+
+UPDATE mysql.slave_relay_log_info SET Require_table_primary_key_check='GENERATE' WHERE Channel_name="group_replication_recovery";
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --relay-log-info-repository=TABLE --skip_replica_start
+--source include/rpl_restart_server.inc
+
+--let $slave_sql_errno= convert_error(ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR_IN_REPO)
+--let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-0$slave_sql_errno' AND data LIKE "%Replication configuration appears to be corrupted. On Group Replication channel%"
+--source include/wait_condition.inc
+
+RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
+
+# 6. RESET REPLICA tests
+
+--echo
+--echo # 6.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
+--echo #      Execute a RESET REPLICA command.
 --echo #      The option should not be affected
 --echo #      It also survives a server restart
 
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON'`
---let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
 --let $assert_cond = $count = 1
 --source include/assert.inc
 
-RESET SLAVE;
+RESET REPLICA;
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON'`
---let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
 --let $assert_cond = $count = 1
 --source include/assert.inc
 
@@ -327,47 +362,55 @@ RESET SLAVE;
 --source include/rpl_restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON'`
---let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
 --let $assert_cond = $count = 1
 --source include/assert.inc
 
 --echo
---echo # 5.2. Execute a RESET SLAVE ALL command.
+--echo # 6.2. Execute a RESET REPLICA ALL command.
 --echo #      The table line was removed.
+--echo #      On recreation the value is STREAM for the default channel
 
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info`
---let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
 --let $assert_cond = $count = 0
 --source include/assert.inc
 
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost";
+
+--let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'STREAM'`
+--let $assert_text = The default channel "" in mysql.slave_relay_log_info has the default value STREAM
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
 --echo
---echo # 5.3. Make RESET SLAVE fail due to persistence issues
+--echo # 6.3. Make RESET REPLICA fail due to persistence issues
 --echo #      Check that errors on slave info persistence are gracefully handled
 
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "";
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'OFF'`
---let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+--let $assert_text = Check entry for default channel "" in mysql.slave_relay_log_info
 --let $assert_cond = $count = 1
 --source include/assert.inc
 
 SET @@GLOBAL.DEBUG = '+d,rpl_rli_clear_info_error';
 
 --error ER_MASTER_INFO
-RESET SLAVE;
+RESET REPLICA;
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'OFF'`
---let $assert_text = Check entry for default channel "" is unchanged in performance_schema.replication_applier_configuration
+--let $assert_text = Check entry for default channel "" is unchanged in mysql.slave_relay_log_info
 --let $assert_cond = $count = 1
 --source include/assert.inc
 
 --echo
---echo # 6. Cleanup
+--echo # 7. Cleanup
 
 SET @@GLOBAL.DEBUG = '-d,rpl_rli_clear_info_error';
-RESET SLAVE ALL;
+RESET REPLICA ALL;
 
 --remove_file $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc
 
@@ -375,6 +418,8 @@ CALL mtr.add_suppression("Error reading relay log configuration.");
 CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel ''; its record may still be present in 'mysql.slave_master_info' table*");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
 CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize relay log info structure from the repository,*");
+CALL mtr.add_suppression("Replication configuration appears to be corrupted. On Group Replication channel 'group_replication_recovery'*");
+CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel 'group_replication_recovery'*");
 
 --disable_warnings
 --disable_query_log
@@ -382,7 +427,7 @@ CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize r
 --enable_query_log
 --enable_warnings
 
-START SLAVE;
+START REPLICA;
 
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1
