@@ -239,7 +239,7 @@ TEST_F(MasterKeyReaderWriterTest,
   // check if the bootstrapping was successful
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(router.expect_output(
-      "MySQL Router configured for the InnoDB Cluster 'my-cluster'"))
+      "MySQL Router configured for the InnoDB Cluster 'mycluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -289,7 +289,7 @@ TEST_F(MasterKeyReaderWriterTest,
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB Cluster 'my-cluster'"))
+                           "InnoDB Cluster 'mycluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -492,7 +492,7 @@ TEST_F(MasterKeyReaderWriterTest,
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 30000ms));
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB Cluster 'my-cluster'"))
+                           "InnoDB Cluster 'mycluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
@@ -812,7 +812,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
 
   EXPECT_TRUE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB Cluster 'my-cluster'"))
+                           "InnoDB Cluster 'mycluster'"))
       << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 

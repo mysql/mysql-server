@@ -81,20 +81,6 @@ class metadata_error : public std::runtime_error {
       : std::runtime_error(what_arg) {}
 };
 
-/** @class LookupResult
- *
- * Class holding result after looking up data in the cache.
- */
-class METADATA_CACHE_EXPORT LookupResult {
- public:
-  /** @brief Constructor */
-  LookupResult(const cluster_nodes_list_t &instance_vector_)
-      : instance_vector(instance_vector_) {}
-
-  /** @brief List of ManagedInstance objects */
-  const cluster_nodes_list_t instance_vector;
-};
-
 /**
  * @brief Abstract class that provides interface for listener on
  *        cluster status changes.
@@ -107,16 +93,14 @@ class METADATA_CACHE_EXPORT ClusterStateListenerInterface {
    * @brief Callback function that is called when state of cluster is
    * changed.
    *
-   * @param instances allowed nodes
-   * @param metadata_servers list of the Cluster metadata servers
+   * @param cluster_topology current cluster topology
    * @param md_servers_reachable true if metadata changed, false if metadata
    * unavailable
    * @param view_id current metadata view_id in case of ReplicaSet cluster
    */
-  virtual void notify_instances_changed(
-      const LookupResult &instances,
-      const metadata_cache::metadata_servers_list_t &metadata_servers,
-      const bool md_servers_reachable, const uint64_t view_id) = 0;
+  virtual void notify_instances_changed(const ClusterTopology &cluster_topology,
+                                        const bool md_servers_reachable,
+                                        const uint64_t view_id) = 0;
 
   ClusterStateListenerInterface() = default;
   // disable copy as it isn't needed right now. Feel free to enable
@@ -138,9 +122,10 @@ class METADATA_CACHE_EXPORT AcceptorUpdateHandlerInterface {
    * @brief Callback function that is called when the state of the sockets
    * acceptors is handled during the metadata refresh.
    *
-   * @param instances allowed nodes for new connections
+   * @param instances list of the current cluster nodes
    */
-  virtual bool update_socket_acceptor_state(const LookupResult &instances) = 0;
+  virtual bool update_socket_acceptor_state(
+      const metadata_cache::cluster_nodes_list_t &instances) = 0;
 
   AcceptorUpdateHandlerInterface() = default;
 
@@ -164,12 +149,12 @@ class METADATA_CACHE_EXPORT MetadataRefreshListenerInterface {
   /**
    * Callback that is going to be used on each metadata refresh.
    *
-   * @param[in] instances_changed Informs if the instances returned by the
-   *            metadata refresh has changed since last md refresh.
-   * @param[in] instances List of new instances available after md refresh.
+   * @param[in] instances_changed Informs if the cluster topology has changed
+   * since last md refresh.
+   * @param[in] cluster_topology current cluster topology
    */
   virtual void on_md_refresh(const bool instances_changed,
-                             const LookupResult &instances) = 0;
+                             const ClusterTopology &cluster_topology) = 0;
 
   virtual ~MetadataRefreshListenerInterface() = default;
 };
@@ -291,6 +276,9 @@ class METADATA_CACHE_EXPORT MetadataCacheAPIBase
 
   virtual bool is_initialized() noexcept = 0;
 
+  virtual bool fetch_whole_topology() const = 0;
+  virtual void fetch_whole_topology(bool val) = 0;
+
   virtual mysqlrouter::ClusterType cluster_type() const = 0;
 
   /**
@@ -309,7 +297,13 @@ class METADATA_CACHE_EXPORT MetadataCacheAPIBase
    *
    * @return List of ManagedInstance objects
    */
-  virtual LookupResult get_cluster_nodes() = 0;
+  virtual cluster_nodes_list_t get_cluster_nodes() = 0;
+
+  /** @brief Return object containing current cluster topology.
+   *
+   * @return List of ManagedInstance objects
+   */
+  virtual ClusterTopology get_cluster_topology() = 0;
 
   /** @brief Wait until there's a primary member in the cluster
    *
@@ -490,7 +484,8 @@ class METADATA_CACHE_EXPORT MetadataCacheAPI : public MetadataCacheAPIBase {
 
   void cache_stop() noexcept override;
 
-  LookupResult get_cluster_nodes() override;
+  cluster_nodes_list_t get_cluster_nodes() override;
+  ClusterTopology get_cluster_topology() override;
 
   bool wait_primary_failover(const std::string &primary_server_uuid,
                              const std::chrono::seconds &timeout) override;
@@ -525,6 +520,9 @@ class METADATA_CACHE_EXPORT MetadataCacheAPI : public MetadataCacheAPIBase {
   void set_instance_factory(metadata_factory_t cb) override {
     instance_factory_ = std::move(cb);
   }
+
+  bool fetch_whole_topology() const override;
+  void fetch_whole_topology(bool val) override;
 
  private:
   metadata_factory_t instance_factory_{&metadata_factory_get_instance};

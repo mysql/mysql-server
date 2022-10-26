@@ -41,8 +41,7 @@ class GRNotificationListener {
 
   using NotificationClb = std::function<void()>;
 
-  void setup(const std::vector<metadata_cache::ManagedInstance> &instances,
-             const mysqlrouter::TargetCluster &target_cluster,
+  void setup(const metadata_cache::ClusterTopology &cluster_topology,
              const NotificationClb &notification_clb);
 
  private:

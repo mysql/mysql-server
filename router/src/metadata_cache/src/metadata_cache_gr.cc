@@ -420,11 +420,14 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
   size_t metadata_server_id{0};
   changed = false;
   std::size_t instance_id;
+
+  const bool whole_topology = fetch_whole_topology();
+
   // Fetch the metadata and store it in a temporary variable.
   const auto res = meta_data_->fetch_cluster_topology(
       terminated_, target_cluster_, router_id_, metadata_servers_,
       needs_writable_node, cluster_type_specific_id_, clusterset_id_,
-      instance_id);
+      whole_topology, instance_id);
 
   if (!res) {
     const bool md_servers_reachable =
@@ -447,13 +450,11 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
       cluster_topology_ = cluster_topology;
       changed = true;
     } else {
-      cluster_topology_.cluster_data.writable_server =
-          cluster_topology.cluster_data.writable_server;
+      cluster_topology_.writable_server = cluster_topology.writable_server;
     }
   }
 
-  const auto &cluster_members = cluster_topology_.cluster_data.members;
-  on_md_refresh(changed, cluster_members);
+  on_md_refresh(changed, cluster_topology_);
 
   // we want to trigger those actions not only if the metadata has really
   // changed but also when something external (like unsuccessful client
@@ -462,29 +463,29 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
   view_id = cluster_topology_.view_id;
   if (changed) {
     log_info(
-        "Potential changes detected in cluster '%s' after metadata refresh",
-        target_cluster_.c_str());
+        "Potential changes detected in cluster after metadata refresh "
+        "(view_id=%" PRIu64 ")",
+        view_id);
     // dump some informational/debugging information about the cluster
     log_cluster_details();
-    if (cluster_members.empty())
-      log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
-    else {
-      log_info(
-          "Metadata for cluster '%s' has %zu member(s), %s: (view_id=%" PRIu64
-          ")",
-          target_cluster_.c_str(), cluster_members.size(),
-          cluster_topology_.cluster_data.single_primary_mode ? "single-primary"
-                                                             : "multi-primary",
-          view_id);
-      for (const auto &mi : cluster_members) {
-        log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
-                 mi.xport, to_string(mi.mode).c_str(),
-                 get_hidden_info(mi).c_str());
+    for (const auto &cluster : cluster_topology_.clusters_data) {
+      if (cluster.members.empty())
+        log_error("Metadata for cluster '%s' is empty!", cluster.name.c_str());
+      else {
+        log_info(
+            "Metadata for cluster '%s' has %zu member(s), %s: ",
+            cluster.name.c_str(), cluster.members.size(),
+            cluster.single_primary_mode ? "single-primary" : "multi-primary");
+        for (const auto &mi : cluster.members) {
+          log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
+                   mi.xport, to_string(mi.mode).c_str(),
+                   get_hidden_info(mi).c_str());
+        }
       }
     }
 
-    on_instances_changed(/*md_servers_reachable=*/true, cluster_members,
-                         cluster_topology.metadata_servers, view_id);
+    on_instances_changed(/*md_servers_reachable=*/true, cluster_topology,
+                         view_id);
     // never let the list that we iterate over become empty as we would
     // not recover from that
     if (!cluster_topology.metadata_servers.empty()) {
@@ -505,17 +506,12 @@ void GRMetadataCache::log_cluster_details() const {
   const auto cluster_type = meta_data_->get_cluster_type();
 
   if (cluster_type == mysqlrouter::ClusterType::GR_CS) {
-    const std::string cluster_role =
-        cluster_topology_.cluster_data.is_primary ? "primary" : "replica";
-    const std::string cluster_invalidated =
-        cluster_topology_.cluster_data.is_invalidated
-            ? "cluster is marked as invalid in the metadata; "
-            : "";
-
     bool has_rw_nodes{false};
-    for (const auto &mi : cluster_topology_.cluster_data.members) {
+    const auto cluster_members = cluster_topology_.get_all_members();
+    for (const auto &mi : cluster_members) {
       if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
         has_rw_nodes = true;
+        break;
       }
     }
 
@@ -523,10 +519,21 @@ void GRMetadataCache::log_cluster_details() const {
                                          ? "accepting RW connections"
                                          : "not accepting RW connections";
 
-    log_info(
-        "Target cluster '%s' is part of a ClusterSet; role of a cluster within "
-        "a ClusterSet is '%s'; %s%s",
-        target_cluster_.c_str(), cluster_role.c_str(),
-        cluster_invalidated.c_str(), accepting_rw.c_str());
+    log_info("Target cluster(s) are part of a ClusterSet: %s",
+             accepting_rw.c_str());
+
+    for (const auto &cluster : cluster_topology_.clusters_data) {
+      const std::string cluster_role =
+          cluster.is_primary ? "primary" : "replica";
+      const std::string cluster_invalidated =
+          cluster.is_invalidated
+              ? "cluster is marked as invalid in the metadata; "
+              : "";
+
+      log_info(
+          "Cluster '%s': role of a cluster within a ClusterSet is '%s'; %s",
+          cluster.name.c_str(), cluster_role.c_str(),
+          cluster_invalidated.c_str());
+    }
   }
 }

@@ -37,6 +37,7 @@
 #include <cstring>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -120,8 +121,11 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
       const mysqlrouter::TargetCluster &target_cluster,
       const std::string &cluster_type_specific_id) override;
 
-  stdx::expected<metadata_cache::metadata_server_t, std::error_code>
-  find_rw_server(const std::vector<metadata_cache::ManagedInstance> &instances);
+  std::optional<metadata_cache::metadata_server_t> find_rw_server(
+      const std::vector<metadata_cache::ManagedInstance> &instances);
+
+  std::optional<metadata_cache::metadata_server_t> find_rw_server(
+      const std::vector<metadata_cache::ManagedCluster> &clusters);
 
   std::optional<std::chrono::seconds>
   get_periodic_stats_update_frequency() noexcept override {

@@ -101,7 +101,7 @@ class TestRestApiEnable : public RouterComponentTest {
     check_exit_code(router_bootstrap, EXIT_SUCCESS);
 
     EXPECT_TRUE(router_bootstrap.expect_output(
-        "MySQL Router configured for the InnoDB Cluster 'my-cluster'"));
+        "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
 
     auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
     EXPECT_TRUE(add_line_to_config_file(config_path.str(), "DEFAULT",
@@ -608,7 +608,7 @@ TEST_P(EnableWrongHttpsPort, ensure_bootstrap_fails_for_invalid_https_port) {
   check_exit_code(router_bootstrap, EXIT_FAILURE);
 
   EXPECT_FALSE(router_bootstrap.expect_output(
-      "MySQL Router configured for the InnoDB Cluster 'my-cluster'"));
+      "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
 
   EXPECT_FALSE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
@@ -665,7 +665,7 @@ TEST_F(TestRestApiEnable, bootstrap_conflicting_options) {
   check_exit_code(router_bootstrap, EXIT_FAILURE);
 
   EXPECT_FALSE(router_bootstrap.expect_output(
-      "MySQL Router configured for the InnoDB Cluster 'my-cluster'"));
+      "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
 
   EXPECT_FALSE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
@@ -970,7 +970,7 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
 
  private:
   const mysqlrouter::MetadataSchemaVersion metadata_version{2, 0, 3};
-  const std::string cluster_name{"my-cluster"};
+  const std::string cluster_name{"mycluster"};
   std::vector<std::pair<uint16_t, ProcessWrapper &>> mock_servers;
   std::vector<std::pair<std::string, unsigned>> gr_members;
   static const uint8_t k_node_count{3};

@@ -58,12 +58,12 @@ bool RestClustersNodes::on_handle_request(
   {
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
-    metadata_cache::LookupResult res =
+    const auto &res =
         metadata_cache::MetadataCacheAPI::instance()->get_cluster_nodes();
 
     rapidjson::Value items(rapidjson::kArrayType);
 
-    for (auto &inst : res.instance_vector) {
+    for (auto &inst : res) {
       rapidjson::Value o(rapidjson::kObjectType);
 
       o.AddMember("replicasetName",

@@ -306,7 +306,8 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
 
   // ---- account validation queries ----
   static std::string sql_val1(const std::string &cluster_name = "test") {
-    return "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes "
+    return "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, "
+           "I.endpoint, I.xendpoint, I.attributes "
            "from mysql_innodb_cluster_metadata.v2_instances I join "
            "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
            "C.cluster_id where C.cluster_name = '" +
@@ -4764,7 +4765,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     // check if the bootstrapping was successful
     EXPECT_THAT(router.get_full_output(),
                 ::testing::HasSubstr("MySQL Router configured for the "
-                                     "InnoDB Cluster 'my-cluster'"));
+                                     "InnoDB Cluster 'mycluster'"));
     check_exit_code(router, EXIT_SUCCESS);
 
     server_mock.kill();

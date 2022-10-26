@@ -160,7 +160,7 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
     uint16_t http_port;
     std::string js_filename;
     bool unaccessible{false};
-    std::string cluster_specific_id{"00000000-0000-0000-0000-0000000000g1"};
+    std::string cluster_specific_id{"cluster-specific-id"};
   };
 
   void bootstrap_failover(

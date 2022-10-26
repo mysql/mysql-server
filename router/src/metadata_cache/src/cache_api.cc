@@ -173,13 +173,19 @@ void MetadataCacheAPI::cache_stop() noexcept {
  * @return An object that encapsulates a list of managed MySQL servers.
  *
  */
-LookupResult MetadataCacheAPI::get_cluster_nodes() {
+cluster_nodes_list_t MetadataCacheAPI::get_cluster_nodes() {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // replicaset_lookup.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
 
-  return LookupResult(g_metadata_cache->get_cluster_nodes());
+  return g_metadata_cache->get_cluster_nodes();
+}
+
+ClusterTopology MetadataCacheAPI::get_cluster_topology() {
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
+
+  return g_metadata_cache->get_cluster_topology();
 }
 
 bool MetadataCacheAPI::wait_primary_failover(
@@ -275,6 +281,16 @@ void MetadataCacheAPI::handle_sockets_acceptors_on_md_refresh() {
   LOCK_METADATA_AND_CHECK_INITIALIZED();
 
   g_metadata_cache->handle_sockets_acceptors_on_md_refresh();
+}
+
+bool MetadataCacheAPI::fetch_whole_topology() const {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+
+  return g_metadata_cache->fetch_whole_topology();
+}
+
+void MetadataCacheAPI::fetch_whole_topology(bool val) {
+  g_metadata_cache->fetch_whole_topology(val);
 }
 
 }  // namespace metadata_cache

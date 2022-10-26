@@ -938,12 +938,14 @@ static std::vector<std::string> do_get_routing_mode_queries(
     const std::string &cluster_name) {
   const std::string fetch_instances_query =
       metadata_v2
-          ? "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes "
+          ? "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, "
+            "I.endpoint, I.xendpoint, I.attributes "
             "from mysql_innodb_cluster_metadata.v2_instances I join "
             "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
             "C.cluster_id where C.cluster_name = " +
                 mysql->quote(cluster_name)
-          : "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, "
+          : "SELECT F.cluster_name, R.replicaset_name, I.mysql_server_uuid, "
+            "I.role, "
             "I.addresses->>'$.mysqlClassic', "
             "I.addresses->>'$.mysqlX' "
             "FROM mysql_innodb_cluster_metadata.clusters AS F "
@@ -1036,7 +1038,8 @@ std::vector<std::string> ClusterMetadataAR::get_routing_mode_queries(
     const std::string &cluster_name) {
   return {
       // source: ClusterMetadata::fetch_instances_from_metadata_server()
-      "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes from "
+      "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, I.endpoint, "
+      "I.xendpoint, I.attributes from "
       "mysql_innodb_cluster_metadata.v2_instances I join "
       "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
       "C.cluster_id where C.cluster_name = " +

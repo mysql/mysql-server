@@ -42,6 +42,7 @@
 #include <rapidjson/stringbuffer.h>
 
 #include "mysqlrouter/cluster_metadata.h"
+#include "rest_api_testutils.h"
 #include "router_component_test.h"
 
 using mysqlrouter::ClusterType;
@@ -57,13 +58,14 @@ using JsonStringBuffer =
     rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 }  // namespace
 
-class RouterComponentClusterSetTest : virtual public RouterComponentTest {
+class RouterComponentClusterSetTest : public RestApiComponentTest {
  protected:
   struct ClusterNode {
     std::string uuid;
 
     std::string host;
     uint16_t classic_port;
+    uint16_t x_port{0};
     uint16_t http_port;
 
     ProcessWrapper *process{nullptr};
@@ -123,7 +125,8 @@ class RouterComponentClusterSetTest : virtual public RouterComponentTest {
                          int primary_cluster_id, const std::string &tracefile,
                          const std::string &router_options = "",
                          const std::string &expected_target_cluster = ".*",
-                         bool simulate_cluster_not_found = false);
+                         bool simulate_cluster_not_found = false,
+                         bool use_gr_notifications = false);
 
   void change_clusterset_primary(ClusterSetData &clusterset_data,
                                  const unsigned new_primary_id);

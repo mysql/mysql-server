@@ -93,6 +93,14 @@ var router_update_last_check_in =
     } else if (stmt.match(router_update_attributes.stmt_regex)) {
       mysqld.global.update_attributes_count++;
       return router_update_attributes;
+    } else if (stmt === "set @@mysqlx_wait_timeout = 28800") {
+      return {
+        ok: {}
+      }
+    } else if (stmt === "enable_notices") {
+      return {
+        ok: {}
+      }
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }

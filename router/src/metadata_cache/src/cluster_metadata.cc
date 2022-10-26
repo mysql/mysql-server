@@ -417,7 +417,7 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
   return auth_credentials;
 }
 
-stdx::expected<metadata_cache::metadata_server_t, std::error_code>
+std::optional<metadata_cache::metadata_server_t>
 ClusterMetadata::find_rw_server(
     const std::vector<metadata_cache::ManagedInstance> &instances) {
   for (auto &instance : instances) {
@@ -426,8 +426,17 @@ ClusterMetadata::find_rw_server(
     }
   }
 
-  return stdx::make_unexpected(
-      make_error_code(metadata_cache::metadata_errc::no_rw_node_found));
+  return {};
+}
+
+std::optional<metadata_cache::metadata_server_t>
+ClusterMetadata::find_rw_server(
+    const std::vector<metadata_cache::ManagedCluster> &clusters) {
+  for (auto &cluster : clusters) {
+    if (cluster.is_primary) return find_rw_server(cluster.members);
+  }
+
+  return {};
 }
 
 /**
@@ -557,6 +566,8 @@ void set_instance_attributes(metadata_cache::ManagedInstance &instance,
                              const std::string &attributes) {
   std::string warning;
   auto &log_suppressor = LogSuppressor::instance();
+
+  instance.attributes = attributes;
 
   instance.hidden = get_hidden(attributes, warning);
   // we want to log the warning only when it's changing

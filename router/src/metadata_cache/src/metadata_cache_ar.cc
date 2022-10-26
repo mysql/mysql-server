@@ -35,7 +35,8 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
   size_t metadata_server_id;
   const auto res = meta_data_->fetch_cluster_topology(
       terminated_, target_cluster_, router_id_, metadata_servers_,
-      needs_writable_node, cluster_type_specific_id_, "", metadata_server_id);
+      needs_writable_node, cluster_type_specific_id_, "", true,
+      metadata_server_id);
 
   if (!res) {
     const bool md_servers_reachable =
@@ -58,14 +59,13 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
       cluster_topology_ = cluster_topology;
       changed = true;
     } else {
-      cluster_topology_.cluster_data.writable_server =
-          cluster_topology.cluster_data.writable_server;
+      cluster_topology_.writable_server = cluster_topology.writable_server;
     }
   }
 
-  const auto &cluster_members = cluster_topology_.cluster_data.members;
+  on_md_refresh(changed, cluster_topology_);
 
-  on_md_refresh(changed, cluster_members);
+  const auto cluster_members = cluster_topology_.get_all_members();
 
   if (changed) {
     log_info(
@@ -85,8 +85,8 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
       }
     }
 
-    on_instances_changed(/*md_servers_reachable=*/true, cluster_members,
-                         cluster_topology.metadata_servers, view_id);
+    on_instances_changed(/*md_servers_reachable=*/true, cluster_topology,
+                         view_id);
 
     on_refresh_succeeded(metadata_servers_[metadata_server_id]);
 

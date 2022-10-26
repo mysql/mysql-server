@@ -158,11 +158,11 @@ class DestMetadataCacheGroup final
    *
    */
   std::pair<AllowedNodes, bool> get_available(
-      const metadata_cache::LookupResult &managed_servers,
+      const metadata_cache::cluster_nodes_list_t &instances,
       bool for_new_connections = true) const;
 
   AllowedNodes get_available_primaries(
-      const metadata_cache::LookupResult &managed_servers) const;
+      const metadata_cache::cluster_nodes_list_t &managed_servers) const;
 
   Destinations balance(const AllowedNodes &all_replicaset_nodes,
                        bool primary_fallback);
@@ -180,23 +180,24 @@ class DestMetadataCacheGroup final
   bool disconnect_on_promoted_to_primary_{false};
   bool disconnect_on_metadata_unavailable_{false};
 
-  void on_instances_change(const metadata_cache::LookupResult &instances,
-                           const bool md_servers_reachable);
+  void on_instances_change(
+      const metadata_cache::ClusterTopology &cluster_topology,
+      const bool md_servers_reachable);
   void subscribe_for_metadata_cache_changes();
   void subscribe_for_acceptor_handler();
   void subscribe_for_md_refresh_handler();
 
   void notify_instances_changed(
-      const metadata_cache::LookupResult &instances,
-      const metadata_cache::metadata_servers_list_t &metadata_servers,
+      const metadata_cache::ClusterTopology &cluster_topology,
       const bool md_servers_reachable,
       const uint64_t /*view_id*/) noexcept override;
 
   bool update_socket_acceptor_state(
-      const metadata_cache::LookupResult &instances) noexcept override;
+      const metadata_cache::cluster_nodes_list_t &instances) noexcept override;
 
-  void on_md_refresh(const bool instances_changed,
-                     const metadata_cache::LookupResult &instances) override;
+  void on_md_refresh(
+      const bool instances_changed,
+      const metadata_cache::ClusterTopology &cluster_topology) override;
 
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};

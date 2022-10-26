@@ -3,7 +3,7 @@ var common_stmts = require("common_statements");
 var options = {
   metadata_schema_version: [1, 0, 2],
   cluster_type: "gr",
-  innodb_cluster_name: "my-cluster",
+  innodb_cluster_name: "mycluster",
   innodb_cluster_instances:
       [["localhost", 5500], ["localhost", 5510], ["localhost", 5520]],
 };
