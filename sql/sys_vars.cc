@@ -4024,9 +4024,10 @@ static Sys_var_ulong Sys_server_id(
     "server_id",
     "Uniquely identifies the server instance in the community of "
     "replication partners",
-    GLOBAL_VAR(server_id), CMD_LINE(REQUIRED_ARG, OPT_SERVER_ID),
-    VALID_RANGE(0, UINT_MAX32), DEFAULT(1), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(fix_server_id));
+    PERSIST_AS_READONLY GLOBAL_VAR(server_id),
+    CMD_LINE(REQUIRED_ARG, OPT_SERVER_ID), VALID_RANGE(0, UINT_MAX32),
+    DEFAULT(1), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(fix_server_id));
 
 static Sys_var_charptr Sys_server_uuid(
     "server_uuid", "Uniquely identifies the server instance in the universe",

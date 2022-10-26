@@ -46,6 +46,7 @@ class THD;
 struct LEX_MASTER_INFO;
 struct mysql_cond_t;
 struct mysql_mutex_t;
+class Rpl_channel_filters;
 
 typedef struct struct_slave_connection LEX_SLAVE_CONNECTION;
 
@@ -363,6 +364,52 @@ extern ulonglong relay_log_space_limit;
 extern const char *relay_log_index;
 extern const char *relay_log_basename;
 
+/// @brief Helper class used to initialize the replica (includes init_replica())
+/// @details init_replica is called once during the mysqld start-up
+class ReplicaInitializer {
+ public:
+  /// @brief Constructor, calls init_replica()
+  /// @param[in] opt_initialize Server option used to indicate whether mysqld
+  /// has been started with --initialize
+  /// @param[in] opt_skip_replica_start When true, skips the start of
+  /// replication threads
+  /// @param[in] filters Replication filters
+  /// @param[in] replica_skip_erors
+  ReplicaInitializer(bool opt_initialize, bool opt_skip_replica_start,
+                     Rpl_channel_filters &filters, char **replica_skip_erors);
+
+  /// @brief Gets initialization code set-up at replica initialization
+  /// @return Error code obtained during the replica initialization
+  int get_initialization_code() const;
+
+ private:
+  /// @brief This function starts replication threads
+  /// @param[in] skip_replica_start When true, skips the start of replication
+  /// threads threads
+  void start_replication_threads(bool skip_replica_start = true);
+
+  /// @brief Initializes replica PSI keys in case PSI interface is available
+  static void init_replica_psi_keys();
+
+  /// @brief Performs replica initialization, creates default replication
+  /// channel and sets channel filters
+  /// @returns Error code
+  int init_replica();
+
+  /// @brief In case debug mode is on, prints channel information
+  void print_channel_info() const;
+
+  /// @brief This function starts replication threads
+  void start_threads();
+
+  bool m_opt_initialize_replica =
+      false;  ///< Indicates whether to initialize replica
+  bool m_opt_skip_replica_start =
+      false;  ///< Indicates whether replica threads should be started or not
+  int m_init_code = 0;    ///< Replica initialization error code
+  int m_thread_mask = 0;  ///< Thread mask indicating type of the thread
+};
+
 /*
   3 possible values for Master_info::slave_running and
   Relay_log_info::slave_running.
@@ -401,7 +448,6 @@ bool reencrypt_relay_logs();
 int flush_relay_logs(Master_info *mi, THD *thd);
 int reset_slave(THD *thd, Master_info *mi, bool reset_all);
 int reset_slave(THD *thd);
-int init_replica();
 int init_recovery(Master_info *mi);
 /**
   Call mi->init_info() and/or mi->rli->init_info(), which will read

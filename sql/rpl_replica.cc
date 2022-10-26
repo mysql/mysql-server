@@ -163,6 +163,7 @@
 #ifndef NDEBUG
 #include "rpl_debug_points.h"
 #endif
+#include "scope_guard.h"
 
 struct mysql_cond_t;
 struct mysql_mutex_t;
@@ -414,7 +415,119 @@ static PSI_memory_info all_slave_memory[] = {{&key_memory_rli_mta_coor,
                                               "Relay_log_info::mta_coor", 0, 0,
                                               PSI_DOCUMENT_ME}};
 
-static void init_replica_psi_keys(void) {
+#endif /* HAVE_PSI_INTERFACE */
+
+/* Initialize slave structures */
+
+int ReplicaInitializer::get_initialization_code() const { return m_init_code; }
+
+ReplicaInitializer::ReplicaInitializer(bool opt_initialize,
+                                       bool opt_skip_replica_start,
+                                       Rpl_channel_filters &filters,
+                                       char **replica_skip_erors)
+    : m_opt_initialize_replica(!opt_initialize),
+      m_opt_skip_replica_start(opt_initialize),
+      m_thread_mask(SLAVE_SQL | SLAVE_IO) {
+  if (m_opt_initialize_replica) {
+    // Make @@replica_skip_errors show the nice human-readable value.
+    set_replica_skip_errors(replica_skip_erors);
+    /*
+      Group replication filters should be discarded before init_replica(),
+      otherwise the pre-configured filters will be referenced by group
+      replication channels.
+    */
+    filters.discard_group_replication_filters();
+
+    /*
+      init_replica() must be called after the thread keys are created.
+    */
+
+    if (server_id != 0) {
+      m_init_code = init_replica();
+    }
+
+    start_replication_threads(opt_skip_replica_start);
+
+    /*
+      If the user specifies a per-channel replication filter through a
+      command-line option (or in a configuration file) for a slave
+      replication channel which does not exist as of now (i.e not
+      present in slave info tables yet), then the per-channel
+      replication filter is discarded with a warning.
+      If the user specifies a per-channel replication filter through
+      a command-line option (or in a configuration file) for group
+      replication channels 'group_replication_recovery' and
+      'group_replication_applier' which is disallowed, then the
+      per-channel replication filter is discarded with a warning.
+    */
+    filters.discard_all_unattached_filters();
+  }
+}
+
+void ReplicaInitializer::print_channel_info() const {
+#ifndef NDEBUG
+  /* @todo: Print it for all the channels */
+  {
+    Master_info *default_mi;
+    default_mi = channel_map.get_default_channel_mi();
+    if (default_mi && default_mi->rli) {
+      DBUG_PRINT(
+          "info",
+          ("init group source %s %lu  group replica %s %lu event %s %lu\n",
+           default_mi->rli->get_group_master_log_name(),
+           (ulong)default_mi->rli->get_group_master_log_pos(),
+           default_mi->rli->get_group_relay_log_name(),
+           (ulong)default_mi->rli->get_group_relay_log_pos(),
+           default_mi->rli->get_event_relay_log_name(),
+           (ulong)default_mi->rli->get_event_relay_log_pos()));
+    }
+  }
+#endif
+}
+
+void ReplicaInitializer::start_replication_threads(bool skip_replica_start) {
+  if (!m_opt_skip_replica_start && !skip_replica_start) {
+    start_threads();
+  }
+}
+
+void ReplicaInitializer::start_threads() {
+  /*
+    Loop through the channel_map and start slave threads for each channel.
+  */
+  for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+       it++) {
+    Master_info *mi = it->second;
+
+    /* If server id is not set, start_slave_thread() will say it */
+    if (Master_info::is_configured(mi) && mi->rli->inited) {
+      /* same as in start_slave() cache the global var values into rli's
+       * members */
+      mi->rli->opt_replica_parallel_workers = opt_mts_replica_parallel_workers;
+      mi->rli->checkpoint_group = opt_mta_checkpoint_group;
+      if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
+        mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
+      else
+        mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+
+      if (mi->is_source_connection_auto_failover())
+        m_thread_mask |= SLAVE_MONITOR;
+
+      if (start_slave_threads(true /*need_lock_slave=true*/,
+                              false /*wait_for_start=false*/, mi,
+                              m_thread_mask)) {
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_START_REPLICA_THREAD,
+               mi->get_channel());
+      }
+    } else {
+      LogErr(INFORMATION_LEVEL, ER_FAILED_TO_START_REPLICA_THREAD,
+             mi->get_channel());
+    }
+  }
+}
+
+void ReplicaInitializer::init_replica_psi_keys() {
+#ifdef HAVE_PSI_INTERFACE
   const char *category = "sql";
   int count;
 
@@ -423,15 +536,12 @@ static void init_replica_psi_keys(void) {
 
   count = static_cast<int>(array_elements(all_slave_memory));
   mysql_memory_register(category, all_slave_memory, count);
+#endif  // HAVE_PSI_INTERFACE
 }
-#endif /* HAVE_PSI_INTERFACE */
 
-/* Initialize slave structures */
-
-int init_replica() {
+int ReplicaInitializer::init_replica() {
   DBUG_TRACE;
   int error = 0;
-  int thread_mask = SLAVE_SQL | SLAVE_IO;
 
 #ifdef HAVE_PSI_INTERFACE
   init_replica_psi_keys();
@@ -444,6 +554,12 @@ int init_replica() {
   */
   channel_map.wrlock();
 
+  Scope_guard channel_map_guard([&error]() {
+    channel_map.unlock();
+    if (error)
+      LogErr(INFORMATION_LEVEL, ER_REPLICA_NOT_STARTED_ON_SOME_CHANNELS);
+  });
+
   RPL_MASTER_INFO = nullptr;
 
   /*
@@ -451,79 +567,21 @@ int init_replica() {
     channels and add them into channel_map
   */
   if ((error = Rpl_info_factory::create_slave_info_objects(
-           opt_mi_repository_id, opt_rli_repository_id, thread_mask,
+           opt_mi_repository_id, opt_rli_repository_id, m_thread_mask,
            &channel_map)))
     LogErr(ERROR_LEVEL,
            ER_RPL_REPLICA_FAILED_TO_CREATE_OR_RECOVER_INFO_REPOSITORIES);
 
   group_replication_cleanup_after_clone();
 
-#ifndef NDEBUG
-  /* @todo: Print it for all the channels */
-  {
-    Master_info *default_mi;
-    default_mi = channel_map.get_default_channel_mi();
-    if (default_mi && default_mi->rli) {
-      DBUG_PRINT("info",
-                 ("init group source %s %lu  group relay %s %lu event %s %lu\n",
-                  default_mi->rli->get_group_master_log_name(),
-                  (ulong)default_mi->rli->get_group_master_log_pos(),
-                  default_mi->rli->get_group_relay_log_name(),
-                  (ulong)default_mi->rli->get_group_relay_log_pos(),
-                  default_mi->rli->get_event_relay_log_name(),
-                  (ulong)default_mi->rli->get_event_relay_log_pos()));
-    }
-  }
-#endif
+  print_channel_info();
 
   check_replica_configuration_restrictions();
 
   if (check_slave_sql_config_conflict(nullptr)) {
     error = 1;
-    goto err;
+    return error;
   }
-
-  /*
-    Loop through the channel_map and start slave threads for each channel.
-  */
-  if (!opt_skip_replica_start) {
-    for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
-         it++) {
-      Master_info *mi = it->second;
-
-      /* If server id is not set, start_slave_thread() will say it */
-      if (Master_info::is_configured(mi) && mi->rli->inited) {
-        /* same as in start_slave() cache the global var values into rli's
-         * members */
-        mi->rli->opt_replica_parallel_workers =
-            opt_mts_replica_parallel_workers;
-        mi->rli->checkpoint_group = opt_mta_checkpoint_group;
-        if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
-          mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
-        else
-          mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
-
-        if (mi->is_source_connection_auto_failover())
-          thread_mask |= SLAVE_MONITOR;
-
-        if (start_slave_threads(true /*need_lock_slave=true*/,
-                                false /*wait_for_start=false*/, mi,
-                                thread_mask)) {
-          LogErr(ERROR_LEVEL, ER_FAILED_TO_START_REPLICA_THREAD,
-                 mi->get_channel());
-        }
-      } else {
-        LogErr(INFORMATION_LEVEL, ER_FAILED_TO_START_REPLICA_THREAD,
-               mi->get_channel());
-      }
-    }
-  }
-
-err:
-
-  channel_map.unlock();
-  if (error) LogErr(INFORMATION_LEVEL, ER_REPLICA_NOT_STARTED_ON_SOME_CHANNELS);
-
   return error;
 }
 

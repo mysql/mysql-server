@@ -8060,37 +8060,9 @@ int mysqld_main(int argc, char **argv)
 
   binlog_unsafe_map_init();
 
-  /* If running with --initialize, do not start replication. */
-  if (!opt_initialize) {
-    // Make @@replica_skip_errors show the nice human-readable value.
-    set_replica_skip_errors(&opt_replica_skip_errors);
-    /*
-      Group replication filters should be discarded before init_replica(),
-      otherwise the pre-configured filters will be referenced by group
-      replication channels.
-    */
-    rpl_channel_filters.discard_group_replication_filters();
-
-    /*
-      init_replica() must be called after the thread keys are created.
-    */
-    if (server_id != 0)
-      init_replica(); /* Ignoring errors while configuring replication. */
-
-    /*
-      If the user specifies a per-channel replication filter through a
-      command-line option (or in a configuration file) for a slave
-      replication channel which does not exist as of now (i.e not
-      present in slave info tables yet), then the per-channel
-      replication filter is discarded with a warning.
-      If the user specifies a per-channel replication filter through
-      a command-line option (or in a configuration file) for group
-      replication channels 'group_replication_recovery' and
-      'group_replication_applier' which is disallowed, then the
-      per-channel replication filter is discarded with a warning.
-    */
-    rpl_channel_filters.discard_all_unattached_filters();
-  }
+  ReplicaInitializer replica_initializer(opt_initialize, opt_skip_replica_start,
+                                         rpl_channel_filters,
+                                         &opt_replica_skip_errors);
 
 #ifdef WITH_LOCK_ORDER
   if (!opt_initialize) {
