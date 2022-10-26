@@ -5606,45 +5606,43 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       // derived from DISTINCT clause, because the DISTINCT clause might
       // help us elide the sort for ORDER BY later, if the DISTINCT clause
       // is broader than the ORDER BY clause.
-      bool found_usable_sort = false;
       for (const SortAheadOrdering &sort_ahead_ordering :
            sort_ahead_orderings) {
+        LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
+            orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
         // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note
         // that ORDER BY would generally be subset of DISTINCT, but not always.
         // E.g. using ANY_VALUE() in ORDER BY would allow it to be not part of
         // DISTINCT.
-        if (grouping.size() <
-            orderings.ordering(sort_ahead_ordering.ordering_idx).size()) {
+        if (sort_ahead_ordering.ordering_idx == distinct_ordering_idx) {
+          // The ordering derived from DISTINCT. Always propose this one,
+          // regardless of whether it also satisfies the ORDER BY ordering.
+        } else if (grouping.size() <
+                   orderings.ordering(sort_ahead_ordering.ordering_idx)
+                       .size()) {
+          // This sort-ahead ordering is too wide and may cause duplicates to be
+          // returned. Don't propose it.
           continue;
-        }
-        LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
-            orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
-        if (!orderings.DoesFollowOrder(ordering_state, distinct_ordering_idx)) {
+        } else if (order_by_ordering_idx == -1) {
+          // There is no ORDER BY to satisfy later, so there is no point in
+          // trying to find a sort that satisfies both DISTINCT and ORDER BY.
+          continue;
+        } else if (!orderings.DoesFollowOrder(ordering_state,
+                                              distinct_ordering_idx) ||
+                   !orderings.DoesFollowOrder(ordering_state,
+                                              order_by_ordering_idx)) {
+          // The ordering does not satisfy both of the orderings that are
+          // interesting to us. So it's no better than the distinct_ordering_idx
+          // one. Don't propose it.
           continue;
         }
 
-        found_usable_sort = true;
         // The force_sort_rowids flag is only set for UPDATE and DELETE,
         // which don't have any syntax for specifying DISTINCT.
         assert(!force_sort_rowids);
         AccessPath sort_path = MakeSortPathForDistinct(
             thd, root_path, sort_ahead_ordering.ordering_idx,
             aggregation_is_unordered, orderings, ordering_state);
-        receiver.ProposeAccessPath(&sort_path, &new_root_candidates,
-                                   /*obsolete_orderings=*/0, "");
-      }
-      if (!found_usable_sort) {
-        // All the interesting orders have been checked without finding a
-        // match for the distinct ordering index, and no access paths have
-        // been created. This can happen if distinct_ordering_idx > max
-        // interesting orders, which fails on a bounds check even if a
-        // matching order is present. Go ahead with creating a sort access
-        // path using distinct_ordering_idx.
-        LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
-            orderings.SetOrder(distinct_ordering_idx), fd_set);
-        AccessPath sort_path = MakeSortPathForDistinct(
-            thd, root_path, distinct_ordering_idx, aggregation_is_unordered,
-            orderings, ordering_state);
         receiver.ProposeAccessPath(&sort_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "");
       }

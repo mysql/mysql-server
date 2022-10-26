@@ -3434,3 +3434,20 @@ EXECUTE ps;
 
 DEALLOCATE PREPARE ps;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34727088: Assertion `!OrderItemsReferenceUnavailableTables(path, tables)' failed.
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, x INT);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+
+CREATE TABLE t2 (pk INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5);
+
+ANALYZE TABLE t1, t2;
+
+--sorted_result
+SELECT DISTINCT t1.x FROM t1, t2 WHERE t1.x = t2.pk GROUP BY t1.pk;
+
+DROP TABLE t1, t2;
