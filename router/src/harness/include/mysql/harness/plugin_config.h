@@ -60,6 +60,14 @@ class option_empty : public std::invalid_argument {
  */
 class HARNESS_EXPORT BasePluginConfig {
  public:
+  BasePluginConfig() = default;
+
+  BasePluginConfig(const BasePluginConfig &) = default;
+  BasePluginConfig(BasePluginConfig &&) = default;
+
+  BasePluginConfig &operator=(const BasePluginConfig &) = default;
+  BasePluginConfig &operator=(BasePluginConfig &&) = default;
+
   /**
    * destructor
    */
