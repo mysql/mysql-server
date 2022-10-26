@@ -462,7 +462,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       MySQLRoutingComponent::get_instance().erase(section_key);
     }};
 
-    r->start(env);
+    r->run(env);
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::runtime_error &exc) {
@@ -473,7 +473,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 
   {
-    // as the r->start() shuts down all in parallel, synchronize the access to
+    // as the r->run() shuts down all in parallel, synchronize the access to
     std::lock_guard<std::mutex> lk(io_context_work_guard_mtx);
 
     io_context_work_guards.erase(io_context_work_guards.begin());

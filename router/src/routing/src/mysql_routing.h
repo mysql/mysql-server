@@ -96,8 +96,8 @@ struct Nothing {};
  *
  *  Connection routing will not analyze or parse any MySQL package (except from
  *  those in the handshake phase to be able to discover invalid connection
- * error) nor will it do any authentication. It will not handle errors from the
- * MySQL server and not automatically recover. The client communicate through
+ *  error) nor will it do any authentication. It will not handle errors from the
+ *  MySQL server and not automatically recover. The client communicate through
  *  MySQL Router just like it would directly connecting.
  *
  *  The MySQL Server is chosen from a given list of hosts or IP addresses
@@ -109,10 +109,12 @@ struct Nothing {};
  *
  *  Example usage: bind to all IP addresses and use TCP Port 7001
  *
- *   MySQLRouting r(routing::AccessMode::kReadWrite, "0.0.0.0", 7001);
- *   r.destination_connect_timeout = std::chrono::seconds(1);
- *   r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
- *   r.start();
+ *  @code
+ *      MySQLRouting r(routing::AccessMode::kReadWrite, "0.0.0.0", 7001);
+ *      r.destination_connect_timeout = std::chrono::seconds(1);
+ *      r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
+ *      r.run();
+ *  @endcode
  *
  *  The above example will, when MySQL running on 10.0.10.5 is not available,
  *  use 10.0.11.6 to setup the connection routing.
@@ -167,16 +169,15 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
       std::chrono::milliseconds connection_sharing_delay =
           routing::kDefaultConnectionSharingDelay);
 
-  /** @brief Starts the service and accept incoming connections
+  /** @brief Runs the service and accept incoming connections
    *
-   * Starts the connection routing service and start accepting incoming
-   * MySQL client connections. Each connection will be further handled
-   * in a separate thread.
+   * Runs the connection routing service and starts accepting incoming
+   * MySQL client connections.
    *
    * @throw std::runtime_error on errors.
    *
    */
-  void start(mysql_harness::PluginFuncEnv *env);
+  void run(mysql_harness::PluginFuncEnv *env);
 
   /** @brief Sets the destinations from URI
    *
@@ -315,7 +316,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    */
   static void set_unix_socket_permissions(const char *socket_file);
 
-  stdx::expected<void, std::error_code> start_acceptor(
+  stdx::expected<void, std::error_code> run_acceptor(
       mysql_harness::PluginFuncEnv *env);
 
  public:
