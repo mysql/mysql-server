@@ -398,6 +398,39 @@ public:
     args.add("--nodaemon");
     return Mgmd::start(working_dir, args);
   }
+
+  bool wait_started(NdbMgmHandle & mgm_handle,
+                              int timeout = 30,
+                              int node_index = 0)
+  {
+    ndb_mgm_node_type node_types[2] = {
+          NDB_MGM_NODE_TYPE_NDB,
+          NDB_MGM_NODE_TYPE_UNKNOWN
+    };
+
+    int retries = 0;
+    while (retries++ < timeout)
+    {
+      ndb_mgm_cluster_state *cs = ndb_mgm_get_status2(mgm_handle, node_types);
+      if (cs)
+      {
+        ndb_mgm_node_state *ndbd_status = cs->node_states + node_index;
+        if (ndbd_status->node_status == NDB_MGM_NODE_STATUS_STARTED)
+        {
+          g_info << "Node: %d, get status Ok (NODE_STATUS_STARTED)" <<
+                 m_nodeid << endl;
+          free(cs);
+          return true;
+        }
+        free(cs);
+      }
+      NdbSleep_MilliSleep(1000);
+    }
+    g_info << "Node: %d, timeout waiting to reach status NODE_STATUS_STARTED"
+      << m_nodeid << endl;
+    return false;
+  }
+
 };
 
 
@@ -1670,6 +1703,114 @@ runTestMgmdwithoutnodeid(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+/*
+ * Check that when there are multiple MGMD nodes, if one MGMD connects and later
+ * disconnects the other MGMD nodes are aware of the offline node and continue
+ * their normal work.
+ * Test case introduced as part of Bug #34582919 fix.
+*/
+int
+runTestMultiMGMDDisconnection(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd");
+  char hostname[200];
+  CHECK(gethostname(hostname, sizeof(hostname)) == 0);
+
+  Properties config;
+  // 3 MGMD nodes, nodeid 1, 2 and 3
+  for(int i = 1 ; i <= 3 ; i++) {
+    Properties mgmd;
+    mgmd.put("NodeId", i);
+    mgmd.put("HostName", hostname);
+    mgmd.put("PortNumber", ConfigFactory::get_ndbt_base_port() + i);
+    config.put("ndb_mgmd", i, &mgmd);
+  }
+
+  // 2 NDBD nodes, nodeid 10 and 11
+  for(int i = 10 ; i <= 11 ; i++) {
+      Properties ndbd;
+      ndbd.put("NodeId", i);
+      ndbd.put("NoOfReplicas", 2);
+      ndbd.put("HostName", hostname);
+      config.put("ndbd", i, &ndbd);
+  }
+  {
+    // 1 mysqld, nodeid 21
+    Properties mysqld;
+    mysqld.put("NodeId", 21);
+    config.put("mysqld", 21, &mysqld);
+  }
+
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+
+  //Start the 3 management nodes and the 2 data node together
+  Mgmd mgmd1(1);
+  Mgmd mgmd2(2);
+  Mgmd mgmd3(3);
+  Ndbd ndbd1(10);
+  Ndbd ndbd2(11);
+
+  CHECK(mgmd1.start_from_config_ini(wd.path(), "--initial", nullptr));
+  CHECK(mgmd2.start_from_config_ini(wd.path(), "--initial", nullptr));
+  CHECK(mgmd3.start_from_config_ini(wd.path(), "--initial", nullptr));
+
+  CHECK(ndbd1.start(wd.path(), mgmd1.connectstring(config)));
+  CHECK(ndbd2.start(wd.path(), mgmd1.connectstring(config)));
+
+  CHECK(mgmd1.connect(config));
+  CHECK(mgmd1.wait_confirmed_config());
+  CHECK(mgmd2.connect(config));
+  CHECK(mgmd2.wait_confirmed_config());
+  CHECK(mgmd3.connect(config));
+  CHECK(mgmd3.wait_confirmed_config());
+
+  // Wait 15 secs for each data node to reach the started status
+  NdbMgmHandle handle = mgmd1.handle();
+  CHECK(ndbd1.wait_started(handle, 15, 0));
+  CHECK(ndbd2.wait_started(handle, 15, 1));
+
+  // Stop the ndb_mgmd(s)
+  CHECK(mgmd3.stop());
+  CHECK(mgmd2.stop());
+  CHECK(mgmd1.stop());
+
+  CHECK(mgmd3.wait_confirmed_config() == 0);
+  CHECK(mgmd2.wait_confirmed_config() == 0);
+  CHECK(mgmd1.wait_confirmed_config() == 0);
+
+  // Start MGMD 1 again
+  CHECK(mgmd1.start_from_config_ini(wd.path(), "--initial", nullptr));
+  CHECK(mgmd1.connect(config));
+
+  // Start MGMD 2 again
+  CHECK(mgmd2.start_from_config_ini(wd.path(), "--initial", nullptr));
+  CHECK(mgmd2.connect(config));
+
+  // Stop MGMD 2
+  CHECK(mgmd2.stop());
+  CHECK(mgmd2.wait_confirmed_config() == 0);
+
+  // Start MGMD 3 again (Without Bug#34582919 fix MGMD 1 should crash)
+  CHECK(mgmd3.start_from_config_ini(wd.path(), "--initial", nullptr));
+  CHECK(mgmd3.connect(config));
+
+  // Start MGMD 2 again
+  CHECK(mgmd2.start_from_config_ini(wd.path(), "--initial", nullptr));
+  CHECK(mgmd2.connect(config));
+
+  // All MGMDs are running
+  CHECK(mgmd1.wait_confirmed_config());
+  CHECK(mgmd2.wait_confirmed_config());
+  CHECK(mgmd3.wait_confirmed_config());
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -1757,6 +1898,11 @@ TESTCASE("UnresolvedHosts1","Test mgmd failure due to unresolvable hostname")
 TESTCASE("UnresolvedHosts2","Test mgmd with AllowUnresolvedHostnames=true")
 {
   INITIALIZER(runTestUnresolvedHosts2);
+}
+TESTCASE("MultiMGMDDisconnection",
+         "Test multi mgmd robustness against other mgmd disconnections")
+{
+  INITIALIZER(runTestMultiMGMDDisconnection);
 }
 
 NDBT_TESTSUITE_END(testMgmd)
