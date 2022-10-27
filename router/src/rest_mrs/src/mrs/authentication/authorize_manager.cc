@@ -284,6 +284,15 @@ std::string AuthorizeManager::get_jwt_token(uint64_t service_id, Session *s) {
   payload.SetObject();
   payload.AddMember(StringRef("user_id"), s->user.user_id,
                     payload.GetAllocator());
+
+  if (!s->user.email.empty())
+    payload.AddMember(StringRef("email"), StringRef(s->user.email.c_str()),
+                      payload.GetAllocator());
+
+  if (!s->user.name.empty())
+    payload.AddMember(StringRef("full_name"), StringRef(s->user.name.c_str()),
+                      payload.GetAllocator());
+
   payload.AddMember(StringRef("exp"), StringRef(exp.c_str()),
                     payload.GetAllocator());
   payload.AddMember(StringRef("service_id"), service_id,
