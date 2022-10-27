@@ -56,9 +56,28 @@ struct PSI_thread;
 #define USE_MALLOC_WRAPPER
 #endif
 
-static void *my_raw_malloc(size_t size, myf my_flags);
-static void my_raw_free(void *ptr);
-extern void my_free(void *ptr);
+typedef void *(*allocator_func)(size_t, myf);
+typedef void *(*realloc_func)(void *, size_t);
+typedef void (*deallocator_func)(void *);
+
+// my_std_malloc, my_std_realloc and my_std_free are intended for
+// use when jemalloc is not suitable. For example, when providing
+// memory management routines to OpenSSL jemalloc fails so we
+// use these functions instead.
+static inline void *std_allocator(size_t size, myf my_flags) {
+  void *point;
+  if (my_flags & MY_ZEROFILL)
+    point = std::calloc(size, 1);
+  else
+    point = std::malloc(size);
+  return point;
+}
+
+static inline void std_deallocator(void *ptr) { std::free(ptr); }
+
+static inline void *std_realloc(void *ptr, size_t size) {
+  return std::realloc(ptr, size);
+}
 
 #ifdef _WIN32
 #include <memory>
@@ -246,111 +265,34 @@ void init_malloc_pointers() {
 
 #endif  // _WIN32
 
-#ifdef USE_MALLOC_WRAPPER
-
-void *my_malloc(PSI_memory_key key, size_t size, myf flags) {
-  my_memory_header *mh;
-  size_t raw_size;
-  static_assert(sizeof(my_memory_header) <= PSI_HEADER_SIZE,
-                "We must reserve enough memory to hold the header.");
-
-  raw_size = PSI_HEADER_SIZE + size;
-  mh = (my_memory_header *)my_raw_malloc(raw_size, flags);
-  if (likely(mh != nullptr)) {
-    void *user_ptr;
-    mh->m_magic = PSI_MEMORY_MAGIC;
-    mh->m_size = size;
-    mh->m_key = PSI_MEMORY_CALL(memory_alloc)(key, raw_size, &mh->m_owner);
-    user_ptr = HEADER_TO_USER(mh);
-    MEM_MALLOCLIKE_BLOCK(user_ptr, size, 0, (flags & MY_ZEROFILL));
-    return user_ptr;
-  }
-  return nullptr;
+static inline void *redirecting_allocator(size_t size, myf my_flags) {
+#ifdef _WIN32
+  std::call_once(mysys::detail::init_malloc_pointers_flag,
+                 mysys::detail::init_malloc_pointers);
+#endif  // _WIN32
+  void *point;
+  if (my_flags & MY_ZEROFILL)
+    point = calloc(size, 1);
+  else
+    point = malloc(size);
+  return point;
 }
 
-void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
-  my_memory_header *old_mh;
-  size_t old_size;
-  size_t min_size;
-  void *new_ptr;
-
-  if (ptr == nullptr) return my_malloc(key, size, flags);
-
-  old_mh = USER_TO_HEADER(ptr);
-  assert((PSI_REAL_MEM_KEY(old_mh->m_key) == key) ||
-         (old_mh->m_key == PSI_NOT_INSTRUMENTED));
-  assert(old_mh->m_magic == PSI_MEMORY_MAGIC);
-
-  old_size = old_mh->m_size;
-
-  if (old_size == size) return ptr;
-
-  new_ptr = my_malloc(key, size, flags);
-  if (likely(new_ptr != nullptr)) {
-#ifndef NDEBUG
-    my_memory_header *new_mh = USER_TO_HEADER(new_ptr);
-#endif
-
-    assert((PSI_REAL_MEM_KEY(new_mh->m_key) == key) ||
-           (new_mh->m_key == PSI_NOT_INSTRUMENTED));
-    assert(new_mh->m_magic == PSI_MEMORY_MAGIC);
-    assert(new_mh->m_size == size);
-
-    min_size = (old_size < size) ? old_size : size;
-    memcpy(new_ptr, ptr, min_size);
-    my_free(ptr);
-
-    return new_ptr;
-  }
-  return nullptr;
+static inline void *redirecting_realloc(void *ptr, size_t size) {
+#ifdef _WIN32
+  std::call_once(mysys::detail::init_malloc_pointers_flag,
+                 mysys::detail::init_malloc_pointers);
+#endif  // _WIN32
+  return realloc(ptr, size);
 }
 
-void my_claim(const void *ptr, bool claim) {
-  my_memory_header *mh;
-
-  if (ptr == nullptr) return;
-
-  mh = USER_TO_HEADER(const_cast<void *>(ptr));
-  assert(mh->m_magic == PSI_MEMORY_MAGIC);
-  mh->m_key = PSI_MEMORY_CALL(memory_claim)(
-      mh->m_key, mh->m_size + PSI_HEADER_SIZE, &mh->m_owner, claim);
+static inline void redirecting_deallocator(void *ptr) {
+#ifdef _WIN32
+  std::call_once(mysys::detail::init_malloc_pointers_flag,
+                 mysys::detail::init_malloc_pointers);
+#endif  // _WIN32
+  free(ptr);
 }
-
-void my_free(void *ptr) {
-  my_memory_header *mh;
-
-  if (ptr == nullptr) return;
-
-  mh = USER_TO_HEADER(ptr);
-  assert(mh->m_magic == PSI_MEMORY_MAGIC);
-  PSI_MEMORY_CALL(memory_free)
-  (mh->m_key, mh->m_size + PSI_HEADER_SIZE, mh->m_owner);
-  /* Catch double free */
-  mh->m_magic = 0xDEAD;
-  MEM_FREELIKE_BLOCK(ptr, 0);
-  my_raw_free(mh);
-}
-
-#else
-
-void *my_malloc(PSI_memory_key key [[maybe_unused]], size_t size,
-                myf my_flags) {
-  return my_raw_malloc(size, my_flags);
-}
-
-static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags);
-
-void *my_realloc(PSI_memory_key key [[maybe_unused]], void *ptr, size_t size,
-                 myf flags) {
-  return my_raw_realloc(ptr, size, flags);
-}
-
-void my_claim(const void *ptr [[maybe_unused]],
-              bool claim [[maybe_unused]]) { /* Empty */
-}
-
-void my_free(void *ptr) { my_raw_free(ptr); }
-#endif
 
 /**
   Allocate a sized block of memory.
@@ -360,7 +302,8 @@ void my_free(void *ptr) { my_raw_free(ptr); }
 
   @return A pointer to the allocated memory block, or NULL on failure.
 */
-static void *my_raw_malloc(size_t size, myf my_flags) {
+template <allocator_func allocator>
+void *my_raw_malloc(size_t size, myf my_flags) {
   void *point;
 
   /* Safety */
@@ -372,14 +315,7 @@ static void *my_raw_malloc(size_t size, myf my_flags) {
   else
     point = _malloc_dbg(size, _CLIENT_BLOCK, __FILE__, __LINE__);
 #else
-#ifdef _WIN32
-  std::call_once(mysys::detail::init_malloc_pointers_flag,
-                 mysys::detail::init_malloc_pointers);
-#endif  // _WIN32
-  if (my_flags & MY_ZEROFILL)
-    point = calloc(size, 1);
-  else
-    point = malloc(size);
+  point = allocator(size, my_flags);
 #endif  // MY_MSCRT_DEBUG
 
   DBUG_EXECUTE_IF("simulate_out_of_memory", {
@@ -404,18 +340,145 @@ static void *my_raw_malloc(size_t size, myf my_flags) {
   return (point);
 }
 
-#ifndef USE_MALLOC_WRAPPER
 /**
-   @brief wrapper around realloc()
+  Free memory allocated with my_raw_malloc.
 
-   @param  oldpoint        pointer to currently allocated area
-   @param  size            new size requested, must be >0
-   @param  my_flags        flags
+  @remark Relies on free being able to handle a NULL argument.
 
-   @note if size==0 realloc() may return NULL; my_realloc() treats this as an
-   error which is not the intention of realloc()
+  @param ptr Pointer to the memory allocated by my_raw_malloc.
 */
-static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags) {
+template <deallocator_func deallocator>
+void my_raw_free(void *ptr) {
+#if defined(MY_MSCRT_DEBUG)
+  _free_dbg(ptr, _CLIENT_BLOCK);
+#else
+  deallocator(ptr);
+#endif  // MY_MSCRT_DEBUG
+}
+
+#ifdef USE_MALLOC_WRAPPER
+template <allocator_func allocator>
+void *my_internal_malloc(PSI_memory_key key, size_t size, myf flags) {
+  my_memory_header *mh;
+  size_t raw_size;
+  static_assert(sizeof(my_memory_header) <= PSI_HEADER_SIZE,
+                "We must reserve enough memory to hold the header.");
+
+  raw_size = PSI_HEADER_SIZE + size;
+  mh = (my_memory_header *)my_raw_malloc<allocator>(raw_size, flags);
+  if (likely(mh != nullptr)) {
+    void *user_ptr;
+    mh->m_magic = PSI_MEMORY_MAGIC;
+    mh->m_size = size;
+    mh->m_key = PSI_MEMORY_CALL(memory_alloc)(key, raw_size, &mh->m_owner);
+    user_ptr = HEADER_TO_USER(mh);
+    MEM_MALLOCLIKE_BLOCK(user_ptr, size, 0, (flags & MY_ZEROFILL));
+    return user_ptr;
+  }
+  return nullptr;
+}
+
+void *my_malloc(PSI_memory_key key, size_t size, myf flags) {
+  return my_internal_malloc<redirecting_allocator>(key, size, flags);
+}
+
+void *my_std_malloc(PSI_memory_key key, size_t size, myf flags) {
+  return my_internal_malloc<std_allocator>(key, size, flags);
+}
+
+template <deallocator_func deallocator>
+void my_internal_free(void *ptr) {
+  my_memory_header *mh;
+
+  if (ptr == nullptr) return;
+
+  mh = USER_TO_HEADER(ptr);
+  assert(mh->m_magic == PSI_MEMORY_MAGIC);
+  PSI_MEMORY_CALL(memory_free)
+  (mh->m_key, mh->m_size + PSI_HEADER_SIZE, mh->m_owner);
+  /* Catch double free */
+  mh->m_magic = 0xDEAD;
+  MEM_FREELIKE_BLOCK(ptr, 0);
+  my_raw_free<deallocator>(mh);
+}
+
+template <allocator_func allocator, deallocator_func deallocator>
+void *my_internal_realloc(PSI_memory_key key, void *ptr, size_t size,
+                          myf flags) {
+  my_memory_header *old_mh;
+  size_t old_size;
+  size_t min_size;
+  void *new_ptr;
+
+  if (ptr == nullptr) return my_internal_malloc<allocator>(key, size, flags);
+
+  old_mh = USER_TO_HEADER(ptr);
+  assert((PSI_REAL_MEM_KEY(old_mh->m_key) == key) ||
+         (old_mh->m_key == PSI_NOT_INSTRUMENTED));
+  assert(old_mh->m_magic == PSI_MEMORY_MAGIC);
+
+  old_size = old_mh->m_size;
+
+  if (old_size == size) return ptr;
+
+  new_ptr = my_internal_malloc<allocator>(key, size, flags);
+  if (likely(new_ptr != nullptr)) {
+#ifndef NDEBUG
+    my_memory_header *new_mh = USER_TO_HEADER(new_ptr);
+#endif
+
+    assert((PSI_REAL_MEM_KEY(new_mh->m_key) == key) ||
+           (new_mh->m_key == PSI_NOT_INSTRUMENTED));
+    assert(new_mh->m_magic == PSI_MEMORY_MAGIC);
+    assert(new_mh->m_size == size);
+
+    min_size = (old_size < size) ? old_size : size;
+    memcpy(new_ptr, ptr, min_size);
+    my_internal_free<deallocator>(ptr);
+
+    return new_ptr;
+  }
+  return nullptr;
+}
+
+void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
+  return my_internal_realloc<redirecting_allocator, redirecting_deallocator>(
+      key, ptr, size, flags);
+}
+
+void *my_std_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
+  return my_internal_realloc<std_allocator, std_deallocator>(key, ptr, size,
+                                                             flags);
+}
+void my_claim(const void *ptr, bool claim) {
+  my_memory_header *mh;
+
+  if (ptr == nullptr) return;
+
+  mh = USER_TO_HEADER(const_cast<void *>(ptr));
+  assert(mh->m_magic == PSI_MEMORY_MAGIC);
+  mh->m_key = PSI_MEMORY_CALL(memory_claim)(
+      mh->m_key, mh->m_size + PSI_HEADER_SIZE, &mh->m_owner, claim);
+}
+
+void my_free(void *ptr) { my_internal_free<redirecting_deallocator>(ptr); }
+
+void my_std_free(void *ptr) { my_internal_free<std_deallocator>(ptr); }
+
+#else
+void *my_malloc(PSI_memory_key key [[maybe_unused]], size_t size,
+                myf my_flags) {
+  return my_raw_malloc<redirecting_allocator>(size, my_flags);
+}
+
+void *my_std_malloc(PSI_memory_key key [[maybe_unused]], size_t size,
+                    myf my_flags) {
+  return my_raw_malloc<std_allocator>(size, my_flags);
+}
+
+template <realloc_func reallocator, allocator_func allocator,
+          deallocator_func deallocator>
+void *my_internal_realloc(void *oldpoint, size_t size, myf my_flags) {
   void *point;
   DBUG_TRACE;
   DBUG_PRINT("my", ("ptr: %p  size: %lu  my_flags: %d", oldpoint, (ulong)size,
@@ -426,22 +489,18 @@ static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags) {
   assert(!((my_flags & MY_FREE_ON_ERROR) && (my_flags & MY_HOLD_ON_ERROR)));
   DBUG_EXECUTE_IF("simulate_out_of_memory", point = NULL; goto end;);
   if (!oldpoint && (my_flags & MY_ALLOW_ZERO_PTR))
-    return my_raw_malloc(size, my_flags);
+    return my_raw_malloc<allocator>(size, my_flags);
 #if defined(MY_MSCRT_DEBUG)
   point = _realloc_dbg(oldpoint, size, _CLIENT_BLOCK, __FILE__, __LINE__);
 #else
-#ifdef _WIN32
-  std::call_once(mysys::detail::init_malloc_pointers_flag,
-                 mysys::detail::init_malloc_pointers);
-#endif  // _WIN32
-  point = realloc(oldpoint, size);
+  point = reallocator(oldpoint, size);
 #endif  // MY_MSCRT_DEBUG
 #ifndef NDEBUG
 end:
 #endif
   if (point == nullptr) {
     if (my_flags & MY_HOLD_ON_ERROR) return oldpoint;
-    if (my_flags & MY_FREE_ON_ERROR) my_free(oldpoint);
+    if (my_flags & MY_FREE_ON_ERROR) my_raw_free<deallocator>(oldpoint);
     set_my_errno(errno);
     if (my_flags & (MY_FAE + MY_WME))
       my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR), size);
@@ -451,26 +510,27 @@ end:
   DBUG_PRINT("exit", ("ptr: %p", point));
   return point;
 }
-#endif  // !USE_MALLOC_WRAPPER
 
-/**
-  Free memory allocated with my_raw_malloc.
-
-  @remark Relies on free being able to handle a NULL argument.
-
-  @param ptr Pointer to the memory allocated by my_raw_malloc.
-*/
-static void my_raw_free(void *ptr) {
-#if defined(MY_MSCRT_DEBUG)
-  _free_dbg(ptr, _CLIENT_BLOCK);
-#else
-#ifdef _WIN32
-  std::call_once(mysys::detail::init_malloc_pointers_flag,
-                 mysys::detail::init_malloc_pointers);
-#endif  // _WIN32
-  free(ptr);
-#endif  // MY_MSCRT_DEBUG
+void *my_realloc(PSI_memory_key key [[maybe_unused]], void *ptr, size_t size,
+                 myf flags) {
+  return my_internal_realloc<redirecting_realloc, redirecting_allocator,
+                             redirecting_deallocator>(ptr, size, flags);
 }
+
+void *my_std_realloc(PSI_memory_key key [[maybe_unused]], void *ptr,
+                     size_t size, myf flags) {
+  return my_internal_realloc<std_realloc, std_allocator, std_deallocator>(
+      ptr, size, flags);
+}
+
+void my_claim(const void *ptr [[maybe_unused]],
+              bool claim [[maybe_unused]]) { /* Empty */
+}
+
+void my_free(void *ptr) { my_raw_free<redirecting_deallocator>(ptr); }
+
+void my_std_free(void *ptr) { my_raw_free<std_deallocator>(ptr); }
+#endif
 
 void *my_memdup(PSI_memory_key key, const void *from, size_t length,
                 myf my_flags) {

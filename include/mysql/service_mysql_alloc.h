@@ -125,6 +125,14 @@ extern char *my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char *my_strndup(PSI_memory_key key, const char *from, size_t length,
                         myf_t flags);
 
+#ifdef _WIN32
+extern void *my_std_malloc(PSI_memory_key key, size_t size, myf_t flags);
+extern void *my_std_realloc(PSI_memory_key key, void *ptr, size_t size,
+                            myf_t flags);
+extern void my_std_free(void *ptr);
+
+#endif  // _WIN32
+
 #endif
 
 #endif
