@@ -36,6 +36,8 @@
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
+connect(server1_1,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_1);
+
 #Reset the servers to delete data from previous rounds
 --connection server2
 --echo server2
@@ -128,7 +130,6 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The requested GTID 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1' was already used, the transaction will rollback");
-call mtr.add_suppression("The requested GTID 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2' was already used, the transaction will rollback");
 SET SESSION sql_log_bin= 1;
 
 --let $group_replication_start_member_state= RECOVERING
@@ -138,18 +139,16 @@ SET SESSION sql_log_bin= 1;
 --connection server1
 --echo server1
 
+--connection server1_1
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
-INSERT INTO t1 VALUES (5);
-SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
-INSERT INTO t1 VALUES (6);
-SET GTID_NEXT= 'AUTOMATIC';
+--send INSERT INTO t1 VALUES (5)
 
 --echo # Check for the transaction in the applier queue and then unblock the recovery.
 --connection server2
 --echo server2
 
---echo [ The value of Count_Transactions_in_queue must be 3 when the applier has not processed the transaction queue ]
---let $wait_condition= SELECT Count_Transactions_in_queue = 3 from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
+--echo [ The value of Count_Transactions_in_queue must be 2 when the applier has not processed the transaction queue ]
+--let $wait_condition= SELECT Count_Transactions_in_queue = 2 from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
 --source include/wait_condition.inc
 
 --connection server1
@@ -158,6 +157,10 @@ SET GTID_NEXT= 'AUTOMATIC';
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+
+--connection server1_1
+--reap
+SET GTID_NEXT= 'AUTOMATIC';
 
 --connection server2
 --echo server2
@@ -175,8 +178,8 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 --source include/assert.inc
 
 --let $certified_transactions= query_get_value(SELECT Count_Transactions_checked from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_checked, 1)
---let $assert_text= The value of Count_Transactions_checked should be 6 after starting group replication
---let $assert_cond= "$certified_transactions" = 6
+--let $assert_text= The value of Count_Transactions_checked should be 5 after starting group replication
+--let $assert_cond= "$certified_transactions" = 5
 --source include/assert.inc
 
 --let $negatively_certified= query_get_value(SELECT Count_conflicts_detected from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_conflicts_detected, 1)
@@ -185,8 +188,8 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 --source include/assert.inc
 
 --let $certification_db_size= query_get_value(SELECT Count_Transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_rows_validating, 1)
---let $assert_text= The value of Count_Transactions_rows_validating should be 3 after starting group replication
---let $assert_cond= "$certification_db_size" = 3
+--let $assert_text= The value of Count_Transactions_rows_validating should be 2 after starting group replication
+--let $assert_cond= "$certification_db_size" = 2
 --source include/assert.inc
 
 --let $stable_set= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
@@ -196,7 +199,7 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --let $last_certified_transaction= query_get_value(SELECT Last_Conflict_free_transaction from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Last_Conflict_free_transaction, 1)
 --let $assert_text= The value of Last_Conflict_free_transaction should be the gtid of the last applied transaction.
---let $assert_cond= "$last_certified_transaction" = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2"
+--let $assert_cond= "$last_certified_transaction" = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1"
 --source include/assert.inc
 
 SET SESSION sql_log_bin= 0;
@@ -204,7 +207,7 @@ SET SESSION sql_log_bin= 0;
 SET SESSION sql_log_bin= 1;
 
 --echo [ The value of stable_set must be equal to the member GTID executed set ]
---let $expected_gtid="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2,8a84f397-aaa4-18df-89ab-c70aa9823561:1-6"
+--let $expected_gtid="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1,8a84f397-aaa4-18df-89ab-c70aa9823561:1-6"
 
 --let $_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 --let $wait_timeout= 150
@@ -236,5 +239,7 @@ SET DEBUG_SYNC= 'RESET';
 
 --connection server2
 --source include/stop_group_replication.inc
+
+--disconnect server1_1
 
 --source include/gr_clear_configuration.inc

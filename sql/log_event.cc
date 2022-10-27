@@ -13154,6 +13154,11 @@ uint32 Gtid_log_event::write_body_to_memory(uchar *buffer) {
     ptr_buffer += ORIGINAL_SERVER_VERSION_LENGTH;
   }
 
+  if (this->commit_group_ticket != binlog::BgcTicket::kTicketUnset) {
+    int8store(ptr_buffer, this->commit_group_ticket);
+    ptr_buffer += COMMIT_GROUP_TICKET_LENGTH;
+  }
+
   return ptr_buffer - buffer;
 }
 
@@ -13280,6 +13285,29 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
     assert(!thd->lock);
     DBUG_PRINT("info", ("setting tx_isolation to READ COMMITTED"));
     set_tx_isolation(thd, ISO_READ_COMMITTED, true /*one_shot*/);
+  }
+
+  binlog::BgcTicket bgc_group_ticket(this->commit_group_ticket);
+
+  if (bgc_group_ticket.is_set()) {
+#ifndef NDEBUG
+    if (thd->rpl_thd_ctx.binlog_group_commit_ctx()
+            .get_session_ticket()
+            .is_set()) {
+      assert(thd->rpl_thd_ctx.binlog_group_commit_ctx().get_session_ticket() ==
+             bgc_group_ticket);
+    }
+#endif
+    /*
+      If the session ticket is already set, this is a transaction retry,
+      as such there is no need to assign the ticket again.
+    */
+    if (thd->rpl_thd_ctx.binlog_group_commit_ctx()
+            .get_session_ticket()
+            .is_set() == false) {
+      thd->rpl_thd_ctx.binlog_group_commit_ctx().set_session_ticket(
+          bgc_group_ticket);
+    }
   }
 
   return 0;

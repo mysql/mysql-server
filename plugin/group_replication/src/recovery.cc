@@ -302,6 +302,14 @@ int Recovery_module::recovery_thread_handle() {
 single_member_online:
 
   /* Step 4 */
+  if (!recovery_aborted && !error) {
+    /*
+      Recovery through `group_replication_recovery` is complete,
+      enable the guarantee that the binlog commit order will
+      follow the order instructed by GR.
+    */
+    Commit_stage_manager::enable_manual_session_tickets();
+  }
 
   /**
     If recovery fails or is aborted, it never makes sense to awake the applier,

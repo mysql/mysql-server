@@ -204,8 +204,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED, key_RELAYLOG_LOCK_log,
       key_RELAYLOG_LOCK_log_end_pos, key_RELAYLOG_LOCK_sync,
       PSI_NOT_INSTRUMENTED, key_RELAYLOG_LOCK_xids, PSI_NOT_INSTRUMENTED,
-      PSI_NOT_INSTRUMENTED, key_RELAYLOG_update_cond, PSI_NOT_INSTRUMENTED,
-      key_file_relaylog, key_file_relaylog_index, key_file_relaylog_cache,
+      PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED, key_RELAYLOG_update_cond,
+      PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED, key_file_relaylog,
+      key_file_relaylog_index, key_file_relaylog_cache,
       key_file_relaylog_index_cache);
 #endif
 

@@ -353,12 +353,11 @@ class Certifier : public Certifier_interface {
                     group_gtid executed GTID set. The sidno used for this
     transaction will be the group_sidno. The gno here belongs specifically to
     the group UUID.
-    @param[in] local If the gtid value is local or comes from a remote server
 
     @retval  1  error during addition.
     @retval  0  success.
   */
-  int add_group_gtid_to_group_gtid_executed(rpl_gno gno, bool local);
+  int add_group_gtid_to_group_gtid_executed(rpl_gno gno);
 
   /**
     Public method to add the given GTID value in the group_gtid_executed set
@@ -366,13 +365,11 @@ class Certifier : public Certifier_interface {
 
     @param[in] gle  The gtid value that needs to the added in the
                     group_gtid_executed GTID set.
-    @param[in] local If the gtid value is local or comes from a remote server
 
     @retval  1  error during addition.
     @retval  0  success.
   */
-  int add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle,
-                                                bool local);
+  int add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle);
 
   /**
     Computes intersection between all sets received, so that we
@@ -397,17 +394,6 @@ class Certifier : public Certifier_interface {
     @retval True   otherwise.
    */
   bool set_group_stable_transactions_set(Gtid_set *executed_gtid_set) override;
-
-  /**
-    Method to get a string that represents the last local certified GTID
-
-    @param[out] local_gtid_certified_string  The last local GTID transaction
-    string
-
-    @retval 0    if there is no GTID / the string is empty
-    @retval !=0  the size of the string
-  */
-  size_t get_local_certified_gtid(std::string &local_gtid_certified_string);
 
   /**
     Enables conflict detection.
@@ -513,10 +499,8 @@ class Certifier : public Certifier_interface {
 
     @param[in] gno  rpl_gno part of the executing gtid of the ongoing
                     transaction.
-    @param[in] local_transaction if the GTID belongs to a local transaction
   */
-  void add_to_group_gtid_executed_internal(rpl_sidno sidno, rpl_gno gno,
-                                           bool local_transaction);
+  void add_to_group_gtid_executed_internal(rpl_sidno sidno, rpl_gno gno);
 
   /**
     This method is used to get the next valid GNO for the given sidno,
@@ -689,11 +673,6 @@ class Certifier : public Certifier_interface {
   */
   std::map<std::string, Gtid_set::Interval> member_gtids;
   ulonglong gtids_assigned_in_blocks_counter;
-
-  /**
-    Last local known GTID
-  */
-  Gtid last_local_gtid;
 
   /**
     Conflict detection is performed when:

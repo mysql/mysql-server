@@ -2406,6 +2406,11 @@ int terminate_applier_module() {
       error = GROUP_REPLICATION_APPLIER_STOP_TIMEOUT;
     }
   }
+  /*
+    Since GR is being stopped we can disable the guarantee that the
+    binlog commit order will follow the order instructed by GR.
+  */
+  Commit_stage_manager::disable_manual_session_tickets();
   return error;
 }
 

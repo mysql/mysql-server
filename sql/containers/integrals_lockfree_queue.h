@@ -232,6 +232,14 @@ class Integrals_lockfree_queue {
     // Enable support for both input and output iterator <- already enabled
     // END / FORWARD ITERATOR METHODS //
 
+    /**
+      Sets the value of the element the iterator is pointing to the given
+      parameter.
+
+      @param new_value The new value to set the element to.
+     */
+    void set(value_type new_value);
+
    private:
     /** The position of the element this iterator is pointing to. */
     index_type m_current{std::numeric_limits<index_type>::max()};
@@ -542,7 +550,7 @@ class Integrals_lockfree_queue {
   friend std::ostream &operator<<(
       std::ostream &out,
       Integrals_lockfree_queue<T, Null, Erased, I, A> const &in) {
-    out << in.to_string(true) << std::flush;
+    out << in.to_string() << std::flush;
     return out;
   }
 
@@ -652,6 +660,13 @@ template <typename T, T Null, T Erased, typename I, typename A>
 bool container::Integrals_lockfree_queue<
     T, Null, Erased, I, A>::Iterator::operator!=(Iterator const &rhs) const {
   return !((*this) == rhs);
+}
+
+template <typename T, T Null, T Erased, typename I, typename A>
+void container::Integrals_lockfree_queue<T, Null, Erased, I, A>::Iterator::set(
+    value_type new_value) {
+  this->m_parent->m_array[this->m_parent->translate(this->m_current)].store(
+      new_value);
 }
 
 template <typename T, T Null, T Erased, typename I, typename A>

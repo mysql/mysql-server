@@ -3770,7 +3770,8 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event {
   size_t get_data_size() override {
     DBUG_EXECUTE_IF("do_not_write_rpl_timestamps", return POST_HEADER_LENGTH;);
     return POST_HEADER_LENGTH + get_commit_timestamp_length() +
-           net_length_size(transaction_length) + get_server_version_length();
+           net_length_size(transaction_length) + get_server_version_length() +
+           get_commit_group_ticket_length();
   }
 
   size_t get_event_length() { return LOG_EVENT_HEADER_LEN + get_data_size(); }

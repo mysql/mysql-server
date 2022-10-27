@@ -4736,10 +4736,10 @@ ER_GRP_RPL_ADD_GTID_INFO_WITHOUT_REMOTE_GTID_FAILED
 ER_GRP_RPL_FETCH_VIEW_CHANGE_LOG_EVENT_FAILED
   eng "Failed to fetch View_change_log_event containing required info for certification"
 
-ER_GRP_RPL_CONTACT_WITH_SRV_FAILED
+OBSOLETE_ER_GRP_RPL_CONTACT_WITH_SRV_FAILED
   eng "Error when contacting the server to ensure the proper logging of a group change in the binlog"
 
-ER_GRP_RPL_SRV_WAIT_TIME_OUT
+OBSOLETE_ER_GRP_RPL_SRV_WAIT_TIME_OUT
   eng "Timeout when waiting for the server to execute local transactions in order assure the group change proper logging"
 
 ER_GRP_RPL_FETCH_LOG_EVENT_FAILED
@@ -10269,10 +10269,10 @@ ER_SERVER_BINLOG_UNSAFE_SYSTEM_FUNCTION
 ER_SERVER_UPGRADE_HELP_TABLE_STATUS
   eng "Upgrade of help tables %s."
 
-ER_GRP_RPL_SRV_GTID_WAIT_ERROR
+OBSOLETE_ER_GRP_RPL_SRV_GTID_WAIT_ERROR
   eng "Error when waiting for the server to execute local transactions in order assure the group change proper logging"
 
-ER_GRP_DELAYED_VCLE_LOGGING
+OBSOLETE_ER_GRP_DELAYED_VCLE_LOGGING
   eng "Unable to log the group change View log event in its exaction position in the log. This will not however affect the group replication recovery process or the overall plugin process."
 
 OBSOLETE_ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER
