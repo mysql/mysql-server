@@ -52,7 +52,7 @@ class Oauth2TwitterHandler : public Oauth2Handler {
   RequestHandlerPtr get_request_handler_access_token(
       GenericSessionData *session_data) override;
   RequestHandlerPtr get_request_handler_verify_account(
-      GenericSessionData *session_data) override;
+      Session *session, GenericSessionData *session_data) override;
 };
 
 }  // namespace authentication

@@ -37,11 +37,12 @@ namespace helper {
 
 namespace json {
 
-template <typename Object = rapidjson::Document::ConstObject>
+template <typename Object = rapidjson::Document::ConstObject,
+          typename Holder = Object *>
 class IterableObject {
  public:
   using Value = rapidjson::Document::ValueType;
-  using MemberIterator = typename Object::MemberIterator;
+  using MemberIterator = typename Object::ConstMemberIterator;
   using Pair = std::pair<const char *, const Value *>;
 
   class It {
@@ -60,37 +61,38 @@ class IterableObject {
   };
 
  public:
-  IterableObject(Object &object) : obj_{object} {}
+  IterableObject(Holder object) : obj_{object} {}
 
-  It begin() { return It{obj_.MemberBegin()}; }
-  It end() { return It{obj_.MemberEnd()}; }
+  It begin() { return It{obj_->MemberBegin()}; }
+  It end() { return It{obj_->MemberEnd()}; }
 
-  Object &obj_;
+  Holder obj_;
 };
 
-template <typename Array = rapidjson::Document::ConstArray>
+template <typename Array = rapidjson::Document::ConstArray,
+          typename Holder = Array *>
 class IterableArray {
  public:
   using Value = rapidjson::Document::ValueType;
   using Iterator = typename Array::ValueIterator;
 
  public:
-  IterableArray(Array &a) : arr_{a} {}
+  IterableArray(Holder a) : arr_{a} {}
 
-  Iterator begin() { return arr_.Begin(); }
-  Iterator end() { return arr_.End(); }
+  Iterator begin() { return arr_->Begin(); }
+  Iterator end() { return arr_->End(); }
 
-  Array &arr_;
+  Holder arr_;
 };
 
 template <typename Obj>
 auto member_iterator(Obj &o) {
-  return IterableObject<Obj>(o);
+  return IterableObject<Obj>(&o);
 }
 
 template <typename Array>
 auto array_iterator(Array &o) {
-  return IterableArray<Array>(o);
+  return IterableArray<Array>(&o);
 }
 
 }  // namespace json

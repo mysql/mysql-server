@@ -31,11 +31,13 @@
 #include <vector>
 
 #include "helper/mysql_time.h"
+#include "helper/token/jwt.h"
 #include "mrs/authentication/helper/authorize_handler_callbacks.h"
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/interface/auth_handler_factory.h"
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/rest_handler.h"
+#include "mrs/users/user_manager.h"
 
 namespace mrs {
 namespace authentication {
@@ -58,13 +60,14 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   };
 
   using ServiceAuthorizePtr = std::shared_ptr<ServiceAuthorize>;
-
   using Container = std::vector<AuthorizeHandlerPtr>;
   using MapOfServices = std::map<ServiceId, ServiceAuthorizePtr>;
 
  public:
-  AuthorizeManager(collector::MysqlCacheManager *cache_manager);
   AuthorizeManager(collector::MysqlCacheManager *cache_manager,
+                   const std::string &jwt_secret);
+  AuthorizeManager(collector::MysqlCacheManager *cache_manager,
+                   const std::string &jwt_secret,
                    AuthHandlerFactoryPtr factory);
 
   void update(const Entries &entries) override;
@@ -74,9 +77,11 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
                  SqlSessionCached *sql_session, HttpHeaders &input_headers,
                  AuthUser *out_user) override;
   bool is_authorized(ServiceId id, http::Cookie *cookies,
-                     AuthUser *user) override;
+                     HttpHeaders &input_headers, AuthUser *user) override;
 
-  Session *get_current_session(ServiceId id, http::Cookie *cookies) override;
+  std::string get_jwt_token(uint64_t service_id, Session *s) override;
+  Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
+                               http::Cookie *cookies) override;
   void discard_current_session(ServiceId id, http::Cookie *cookies) override;
   collector::MysqlCacheManager *get_cache() override { return cache_manager_; }
 
@@ -88,6 +93,13 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   void remove_unreferenced_service_authorizators();
   void fill_service(const AuthApp &e, ServiceAuthorize &sa);
 
+  /**
+   * Validate the jwt tokent, and get/create session_id for it.
+   *
+   * @returns session id, for found or just created session.
+   */
+  std::string authorize(const uint64_t service_id, const helper::Jwt &jwt);
+
  private:  // AuthorizeHandlerCallbacks
   void acquire(interface::AuthorizeHandler *) override;
   void destroy(interface::AuthorizeHandler *) override;
@@ -95,9 +107,11 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   std::mutex service_authorize_mutext_;
   MapOfServices service_authorize_;
   collector::MysqlCacheManager *cache_manager_;
-  AuthHandlerFactoryPtr factory_;
+  users::UserManager user_manager_{true, {}};
   http::SessionManager session_manager_;
   Container container_;
+  std::string jwt_secret_;
+  AuthHandlerFactoryPtr factory_;
 };
 
 }  // namespace authentication

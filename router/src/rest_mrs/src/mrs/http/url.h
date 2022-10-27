@@ -77,6 +77,8 @@ class Url {
     return uri.set_query(q);
   }
 
+  std::string get_path() { return uri_.get_path(); }
+
   std::string get_query() {
     std::string result;
     for (auto &kv : parameters_) {

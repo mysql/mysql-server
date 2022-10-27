@@ -59,6 +59,12 @@ Session *SessionManager::new_session(
   return sessions_.back().get();
 }
 
+Session *SessionManager::new_session(const SessionId &session_id) {
+  std::lock_guard<std::mutex> lck{mutex_};
+  sessions_.push_back(std::make_unique<Session>(session_id, 0));
+  return sessions_.back().get();
+}
+
 Session *SessionManager::get_session(const SessionId &id) {
   std::lock_guard<std::mutex> lck{mutex_};
   auto result = get_session_impl(id);

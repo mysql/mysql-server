@@ -29,6 +29,8 @@
 
 class MockAuthManager : public mrs::interface::AuthorizeManager {
  public:
+  MOCK_METHOD(std::string, get_jwt_token, (ServiceId id, Session *s),
+              (override));
   MOCK_METHOD(void, update, (const Entries &entries), (override));
 
   MOCK_METHOD(bool, authorize,
@@ -37,13 +39,16 @@ class MockAuthManager : public mrs::interface::AuthorizeManager {
                AuthUser *out_user),
               (override));
   MOCK_METHOD(bool, is_authorized,
-              (ServiceId id, mrs::http::Cookie *cookies, AuthUser *user),
+              (ServiceId id, mrs::http::Cookie *cookies,
+               HttpHeaders &input_headers, AuthUser *user),
               (override));
   MOCK_METHOD(bool, unauthorize, (ServiceId id, mrs::http::Cookie *cookies),
               (override));
 
   MOCK_METHOD(Session *, get_current_session,
-              (ServiceId id, mrs::http::Cookie *cookies), (override));
+              (ServiceId id, HttpHeaders &input_headers,
+               mrs::http::Cookie *cookies),
+              (override));
   MOCK_METHOD(collector::MysqlCacheManager *, get_cache, (), (override));
 };
 

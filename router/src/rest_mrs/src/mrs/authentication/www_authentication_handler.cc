@@ -39,36 +39,23 @@ using AuthApp = mrs::database::entry::AuthApp;
 using AuthUser = mrs::database::entry::AuthUser;
 using Session = mrs::http::SessionManager::Session;
 
-struct WwwAuthSessionData : mrs::http::SessionManager::Session::SessionData {
-  enum State { kWaitingForToken, kUserVerified };
-
-  State state{kWaitingForToken};
-  AuthUser user;
-};
+struct WwwAuthSessionData : mrs::http::SessionManager::Session::SessionData {};
 
 bool WwwAuthenticationHandler::is_authorized(Session *session, AuthUser *user) {
   log_debug("WwwAuthenticationHandler::is_authorized");
+  // TODO(lkotula): Right now we do not need to get the session_data (Shouldn't
+  // be in review)
   auto session_data = session->get_data<WwwAuthSessionData>();
   if (!session_data) return false;
-  if (session_data->state != WwwAuthSessionData::kUserVerified) {
+  if (session->state != Session::kUserVerified) {
     log_debug("WwwAuth: user not verified");
     return false;
   }
 
   log_debug("is_authorized returned true");
-  *user = session_data->user;
+  *user = session->user;
 
   return true;
-}
-
-static WwwAuthSessionData *get_session_data(Session *session) {
-  auto session_data = session->get_data<WwwAuthSessionData>();
-  if (session_data) return session_data;
-
-  session_data = new WwwAuthSessionData();
-  session->set_data(session_data);
-
-  return session_data;
 }
 
 bool WwwAuthenticationHandler::authorize(Session *session, http::Url *url,
@@ -76,11 +63,9 @@ bool WwwAuthenticationHandler::authorize(Session *session, http::Url *url,
                                          HttpHeaders &input_headers,
                                          AuthUser *out_user) {
   log_debug("WwwAuth: Authorize user");
-  auto session_data = get_session_data(session);
-
-  if (session_data->state == WwwAuthSessionData::kUserVerified) {
+  if (session->state == Session::kUserVerified) {
     log_debug("WwwAuth: user already verified");
-    *out_user = session_data->user;
+    *out_user = session->user;
     return true;
   }
 
@@ -101,8 +86,8 @@ bool WwwAuthenticationHandler::authorize(Session *session, http::Url *url,
   auto result = www_authorize(value, sql_session, out_user);
 
   if (result) {
-    session_data->user = *out_user;
-    session_data->state = WwwAuthSessionData::kUserVerified;
+    session->user = *out_user;
+    session->state = Session::kUserVerified;
     return true;
   }
   add_www_authenticate(kBasicSchema);

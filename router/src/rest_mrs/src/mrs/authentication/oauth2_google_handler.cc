@@ -46,24 +46,6 @@ using RequestHandlerPtr = Oauth2Handler::RequestHandlerPtr;
 using std::chrono::seconds;
 using std::chrono::steady_clock;
 
-class Oauth2GoogleHandler::SessionData
-    : public http::SessionManager::Session::SessionData {
- public:
-  enum State { kWaitingForCode, kGettingTokken, kTokenVerified, kUserVerified };
-
-  State state{kWaitingForCode};
-
-  std::string access_token;
-  std::string refresh_token;
-  std::string auth_code;
-  std::string redirection;
-
-  bool session_id_set{false};
-
-  seconds expires;
-  steady_clock::time_point acquired_at;
-};
-
 Oauth2GoogleHandler::Oauth2GoogleHandler(const AuthApp &entry)
     : Oauth2Handler{entry} {
   log_debug("Oauth2GoogleHandler for service %s", to_string(entry_).c_str());
@@ -127,11 +109,11 @@ RequestHandlerPtr Oauth2GoogleHandler::get_request_handler_access_token(
 }
 
 RequestHandlerPtr Oauth2GoogleHandler::get_request_handler_verify_account(
-    GenericSessionData *data) {
+    Session *session, GenericSessionData *) {
   RequestHandler *result =
-      new RequestHandlerJsonSimpleObject{{{"id", &data->user.vendor_user_id},
-                                          {"name", &data->user.name},
-                                          {"email", &data->user.email}}};
+      new RequestHandlerJsonSimpleObject{{{"id", &session->user.vendor_user_id},
+                                          {"name", &session->user.name},
+                                          {"email", &session->user.email}}};
 
   return RequestHandlerPtr{result};
 }

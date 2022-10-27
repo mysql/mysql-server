@@ -32,16 +32,17 @@ namespace database {
 
 QueryEntriesContentFile::QueryEntriesContentFile() {
   query_ =
-      "SELECT * FROM (SELECT f.id as content_file_id, content_set_id, f.size "
-      ",h.name, "
-      "service.url_context_root as service_path, s.request_path as set_path, "
-      "f.request_path as file_path,"
+      "SELECT * FROM (SELECT f.id as content_file_id, content_set_id, f.size, "
+      "   h.name, "
+      "   service.url_context_root as service_path, s.request_path as "
+      "   set_path, f.request_path as file_path,"
       "   s.enabled and f.enabled as enabled,"
       "   s.requires_auth as set_requires_auth,f.requires_auth as "
-      "requires_auth, "
+      "   requires_auth, "
       "   s.service_id,"
       "    IF(s.options IS NOT NULL, s.options, service.options) as options,"
-      "    IF(s.options IS NOT NULL, s.options, service.options) as db_options"
+      "    IF(s.options IS NOT NULL, s.options, service.options) as db_options,"
+      "    h.id as url_host_id"
       " FROM mysql_rest_service_metadata.content_file as f"
       " JOIN mysql_rest_service_metadata.content_set as s ON "
       "f.content_set_id=s.id"

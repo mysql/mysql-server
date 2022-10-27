@@ -107,9 +107,16 @@ static const char *get_authentication_status(HttpStatusCode::key_type code) {
 
 std::string HandlerAuthorize::append_status_parameters(
     RequestContext *ctxt, const http::Error &error) {
-  auto session = authorization_manager_->get_current_session(get_service_id(),
-                                                             &ctxt->cookies);
+  auto session = authorization_manager_->get_current_session(
+      get_service_id(), ctxt->request->get_input_headers(), &ctxt->cookies);
 
+  std::string jwt_token;
+  if (session && session->generate_token &&
+      error.status == HttpStatusCode::Ok) {
+    jwt_token =
+        authorization_manager_->get_jwt_token(get_service_id(), session);
+    session->generate_token = false;
+  }
   http::SessionManager::Session dummy{"", 0};
   session = session ? session : &dummy;
 
@@ -117,6 +124,8 @@ std::string HandlerAuthorize::append_status_parameters(
                                 ? redirection_
                                 : session->users_on_complete_url_redirection);
 
+  if (!jwt_token.empty())
+    http::Url::append_query_parameter(uri, "access_token", jwt_token);
   if (!session->handler_name.empty())
     http::Url::append_query_parameter(uri, "app", session->handler_name);
   if (!session->users_on_complete_timeout.empty())
@@ -141,8 +150,8 @@ bool HandlerAuthorize::request_error(RequestContext *ctxt,
   // Oauth2 authentication may redirect, allow it.
   http::Url url(ctxt->request->get_uri());
 
-  auto session = authorization_manager_->get_current_session(get_service_id(),
-                                                             &ctxt->cookies);
+  auto session = authorization_manager_->get_current_session(
+      get_service_id(), ctxt->request->get_input_headers(), &ctxt->cookies);
 
   if (session) {
     log_debug("session->onRedirect=url_param->onRedirect");

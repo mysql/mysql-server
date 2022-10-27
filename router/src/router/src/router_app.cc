@@ -323,6 +323,17 @@ uint32_t MySQLRouter::get_router_id(mysql_harness::Config &config) {
   return result;
 }
 
+static bool option_has_value(mysql_harness::ConfigSection *section,
+                             const std::string &key,
+                             const std::vector<std::string> &values) {
+  if (!section->has(key)) return false;
+
+  auto section_value = section->get(key);
+
+  return std::any_of(values.begin(), values.end(),
+                     [&section_value](auto &v) { return v == section_value; });
+}
+
 void MySQLRouter::init_keyring(mysql_harness::Config &config) {
   bool needs_keyring = false;
 
@@ -335,6 +346,19 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
       }
     }
   }
+
+  if (!needs_keyring && config.has_any("rest_mrs")) {
+    auto rest_mrs = config.get("rest_mrs");
+    for (auto &section : rest_mrs) {
+      if (section->has("mysql_user") ||
+          section->has("mysql_user_data_access") ||
+          option_has_value(section, "jwt_token", {"1", "true"})) {
+        needs_keyring = true;
+        break;
+      }
+    }
+  }
+
   if (needs_keyring) {
     // Initialize keyring
     keyring_info_.init(config);

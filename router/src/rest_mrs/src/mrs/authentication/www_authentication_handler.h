@@ -44,8 +44,7 @@ class WwwAuthenticationHandler : public interface::AuthorizeHandler {
   using Session = mrs::http::SessionManager::Session;
 
   AuthApp entry_;
-  UserManager um_{entry_.id, entry_.limit_to_registered_users,
-                  entry_.default_role_id};
+  UserManager um_{entry_.limit_to_registered_users, entry_.default_role_id};
 
   bool has_schema_is_www_authenticate(HttpRequest *request,
                                       const char *schema) {
