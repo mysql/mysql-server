@@ -4317,6 +4317,66 @@ String *Item_func_uuid::val_str(String *str) {
   return mysql_generate_uuid(str);
 }
 
+bool Item_func_gtid_subtract::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
+
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
+  /*
+    In the worst case, the string grows after subtraction. This
+    happens when a GTID in args[0] is split by a GTID in args[1],
+    e.g., UUID:1-6 minus UUID:3-4 becomes UUID:1-2,5-6.  The worst
+    case is UUID:1-100 minus UUID:9, where the two characters ":9" in
+    args[1] yield the five characters "-8,10" in the result.
+  */
+  set_data_type_string(
+      args[0]->max_length +
+      max<ulonglong>(args[1]->max_length - binary_log::Uuid::TEXT_LENGTH, 0) *
+          5 / 2);
+  return false;
+}
+
+String *Item_func_gtid_subtract::val_str_ascii(String *str) {
+  DBUG_TRACE;
+
+  assert(fixed);
+
+  null_value = false;
+
+  String *str1 = args[0]->val_str_ascii(&buf1);
+  if (str1 == nullptr) {
+    return error_str();
+  }
+  String *str2 = args[1]->val_str_ascii(&buf2);
+  if (str2 == nullptr) {
+    return error_str();
+  }
+
+  const char *charp1 = str1->c_ptr_safe();
+  assert(charp1 != nullptr);
+  const char *charp2 = str2->c_ptr_safe();
+  assert(charp2 != nullptr);
+
+  enum_return_status status;
+
+  Sid_map sid_map(nullptr /*no rwlock*/);
+  // compute sets while holding locks
+  Gtid_set set1(&sid_map, charp1, &status);
+  if (status == RETURN_STATUS_OK) {
+    Gtid_set set2(&sid_map, charp2, &status);
+    size_t length;
+    // subtract, save result, return result
+    if (status == RETURN_STATUS_OK) {
+      set1.remove_gtid_set(&set2);
+      if (!str->mem_realloc((length = set1.get_string_length()) + 1)) {
+        set1.to_string(str->ptr());
+        str->length(length);
+        return str;
+      }
+    }
+  }
+  return error_str();
+}
+
 /**
   @brief
     This function prepares string with list of column privileges.
