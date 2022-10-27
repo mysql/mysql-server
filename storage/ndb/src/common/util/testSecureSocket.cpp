@@ -275,11 +275,11 @@ void EchoSession::runSession() {
   }
 
   while(! m_stop) {
-    if( (n = m_secure_socket.recv(buffer, echo_buffer_size)) < 1) {
+    if( (n = m_secure_socket.read(50, buffer, echo_buffer_size)) < 0) {
       return;
     }
     total += n;
-    if(m_sink) { /* Send acknowledgement */
+    if(m_sink && n) { /* Send acknowledgement */
       int sz = sprintf(message,"Sink ack: %zd\n", total);
       m_secure_socket.send(message, sz);
     }
@@ -1002,7 +1002,7 @@ void run_server(bool standalone = false) {
     int r = run_client("localhost");
     ok((r == 0), "client tests (%d)", r);
     server.stopServer();
-    server.stopSessions();
+    server.stopSessions(true, 100);
     return;
   }
 
