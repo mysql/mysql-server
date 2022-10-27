@@ -134,7 +134,7 @@ class SessionManager {
   steady_clock::time_point oldest_session_;
   // TODO(lkotula): Make the `timeout_` a configurable value by user (Shouldn't
   // be in review)
-  steady_clock::duration timeout_{std::chrono::minutes(1)};
+  steady_clock::duration timeout_{std::chrono::minutes(15)};
 };
 
 }  // namespace http
