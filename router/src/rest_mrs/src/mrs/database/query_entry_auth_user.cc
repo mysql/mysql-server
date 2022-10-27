@@ -42,15 +42,16 @@ bool QueryEntryAuthUser::query_user(MySQLSession *session,
   // (Shouldn't be in review)
   query_ = {
       "SELECT id, auth_app_id, name, email, vendor_user_id, login_permitted "
-      "FROM mysql_rest_service_metadata.auth_user WHERE auth_app_id=? ?"};
+      "FROM mysql_rest_service_metadata.auth_user WHERE !=? ?"};
 
-  query_ << user_data->app_id;
+  query_ << (user_data->has_user_id ? "id" : "auth_app_id");
+  query_ << (user_data->has_user_id ? user_data->user_id : user_data->app_id);
 
   do {
-    if (user_data->has_user_id) {
-      query_ << (mysqlrouter::sqlstring("and id=? ") << user_data->user_id);
-      break;
-    }
+    //    if (user_data->has_user_id) {
+    //      query_ << (mysqlrouter::sqlstring("and id=? ") <<
+    //      user_data->user_id); break;
+    //    }
 
     if (!user_data->vendor_user_id.empty()) {
       query_ << (mysqlrouter::sqlstring("and vendor_user_id=? ")

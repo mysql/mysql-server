@@ -31,11 +31,14 @@
 #include <type_traits>
 #include <vector>
 
+#include "mrs/database/entry/auth_user.h"
+
 namespace mrs {
 namespace http {
 
 class SessionManager {
  public:
+  using AuthUser = mrs::database::entry::AuthUser;
   using SessionId = std::string;
   using steady_clock = std::chrono::steady_clock;
   using AuthorizationHandlerId = uint64_t;
@@ -48,6 +51,14 @@ class SessionManager {
      public:
       virtual ~SessionData() = default;
       Session *internal_session{nullptr};
+    };
+
+    enum State {
+      kUninitialized,
+      kWaitingForCode,
+      kGettingTokken,
+      kTokenVerified,
+      kUserVerified
     };
 
    public:
@@ -81,9 +92,12 @@ class SessionManager {
       return access_time_ + timeout <= steady_clock::now();
     }
 
+    bool generate_token{false};
+    State state{kUninitialized};
     std::string users_on_complete_url_redirection;
     std::string users_on_complete_timeout;
     std::string handler_name;
+    AuthUser user;
 
    private:
     std::unique_ptr<SessionData> data_;
@@ -97,6 +111,7 @@ class SessionManager {
  public:
   Session *get_session(const SessionId &id);
   Session *new_session(const AuthorizationHandlerId id);
+  Session *new_session(const SessionId &session_id);
 
   void remove_session(const Session::SessionData *session_data);
   void remove_session(const Session *session);
@@ -119,7 +134,7 @@ class SessionManager {
   steady_clock::time_point oldest_session_;
   // TODO(lkotula): Make the `timeout_` a configurable value by user (Shouldn't
   // be in review)
-  steady_clock::duration timeout_{std::chrono::minutes(15)};
+  steady_clock::duration timeout_{std::chrono::minutes(1)};
 };
 
 }  // namespace http

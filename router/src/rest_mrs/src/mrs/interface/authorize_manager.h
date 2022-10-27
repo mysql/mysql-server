@@ -64,9 +64,11 @@ class AuthorizeManager {
                          SqlSessionCached *sql_session,
                          HttpHeaders &input_headers, AuthUser *out_user) = 0;
   virtual bool is_authorized(ServiceId id, http::Cookie *cookies,
-                             AuthUser *user) = 0;
+                             HttpHeaders &input_headers, AuthUser *user) = 0;
   virtual bool unauthorize(ServiceId id, http::Cookie *cookies) = 0;
-  virtual Session *get_current_session(ServiceId id, http::Cookie *cookies) = 0;
+  virtual std::string get_jwt_token(uint64_t service_id, Session *s) = 0;
+  virtual Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
+                                       http::Cookie *cookies) = 0;
 
   // TODO(lkotula): = 0 (Shouldn't be in review)
   virtual void discard_current_session(ServiceId, http::Cookie *) {}

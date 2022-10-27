@@ -49,31 +49,25 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
   explicit PluginConfig(const ConfigSection *section,
                         const std::vector<std::string> &routing_sections)
       : mysql_harness::BasePluginConfig(section) {
+    static const char *kKeyringAttributePassword = "password";
     using StringOption = mysql_harness::StringOption;
 
-    mysql_user_password_ = get_option(section, "password", StringOption{});
-    if (mysql_user_password_.empty()) {
-      mysql_user_password_ =
-          get_option(section, "mysql_password", StringOption{});
-    }
-
     mysql_user_ = get_option(section, "mysql_user", StringOption{});
-    if (mysql_user_.empty()) {
-      mysql_user_ = get_option(section, "user", StringOption{});
-    }
-
     mysql_user_data_access_ =
         get_option(section, "mysql_user_data_access", StringOption{});
-    mysql_user_data_access_password_ =
-        get_option(section, "mysql_user_data_access_password", StringOption{});
 
     auto routing = get_option(section, "routing",
                               mysql_harness::ArrayOption<StringOption>{});
 
     if (mysql_user_data_access_.empty()) {
       mysql_user_data_access_ = mysql_user_;
-      mysql_user_data_access_password_ = mysql_user_password_;
     }
+
+    mysql_user_password_ =
+        get_keyring_value(mysql_user_, kKeyringAttributePassword);
+    mysql_user_data_access_password_ =
+        get_keyring_value(mysql_user_data_access_, kKeyringAttributePassword);
+    jwt_secret_ = get_keyring_value("rest-user", "jwt_secret");
 
     for (auto el : routing) {
       routing_names_.insert(el);
@@ -112,7 +106,7 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
   }
 
   bool is_required(const std::string &option) const override {
-    if (option == "user") return true;
+    if (option == "mysql_user") return true;
     if (option == "routing") return true;
     if (option == "authentication") return true;
 
@@ -121,6 +115,18 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
 
   std::string get_default(const std::string & /*option*/) const override {
     return "";
+  }
+
+ private:
+  static std::string get_keyring_value(const std::string &user,
+                                       const char *attr) {
+    try {
+      return mysql_harness::get_keyring()
+                 ? mysql_harness::get_keyring()->fetch(user.c_str(), attr)
+                 : "";
+    } catch (const std::exception &e) {
+      return "";
+    }
   }
 };
 

@@ -217,6 +217,7 @@ class RestRequestHandler : public BaseRequestHandler {
         } else {
           // Just check the user
           auth_manager_->is_authorized(service_id, &request_ctxt.cookies,
+                                       req.get_input_headers(),
                                        &request_ctxt.user);
         }
 

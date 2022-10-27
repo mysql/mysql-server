@@ -71,6 +71,7 @@ class Configuration {
   // TODO(lkotula): Later on it should be diviced on read-only and writable
   // nodes (Shouldn't be in review)
   std::vector<Node> nodes_;
+  std::string jwt_secret_;
 };
 
 }  // namespace mrs

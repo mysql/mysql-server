@@ -118,7 +118,7 @@ class UserManagerFixture : public Test {
 TEST_F(UserManagerFixture, fetch_user_from_database) {
   const int k_app_id = 2;
   SqlSessionCache cache{nullptr, &session_};
-  UserManager um{k_app_id, false, 3};
+  UserManager um{false, 3};
 
   AuthUser user;
   user.app_id = k_app_id;
@@ -142,7 +142,7 @@ TEST_F(UserManagerFixture, fetch_user_from_database) {
 TEST_F(UserManagerFixture, fetch_user_from_database_once) {
   const int k_app_id = 2;
   SqlSessionCache cache{nullptr, &session_};
-  UserManager um{k_app_id, false, 3};
+  UserManager um{false, 3};
 
   AuthUser user1;
   user1.app_id = k_app_id;
@@ -192,7 +192,7 @@ TEST_F(UserManagerFixture, fetch_user_from_database_once) {
 TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
   const int k_app_id = 2;
   SqlSessionCache cache{nullptr, &session_};
-  UserManager um{k_app_id, false, 3};
+  UserManager um{false, 3};
 
   // The user has different mail, than in representation in DB.
   AuthUser user;

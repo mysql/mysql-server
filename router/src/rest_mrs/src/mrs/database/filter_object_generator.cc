@@ -114,7 +114,7 @@ void FilterObjectGenerator::parse(const Document &doc) {
 void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
   static std::string k_order{"$orderby"};
   static std::string k_asof{"$asof"};
-  for (auto member : helper::json::IterableObject(object)) {
+  for (auto member : helper::json::member_iterator(object)) {
     if (k_asof == member.first)
       parse_asof(member.second);
     else if (k_order == member.first) {
@@ -210,7 +210,7 @@ void FilterObjectGenerator::parse_complex_and(Value *value) {
     throw std::runtime_error("Complex operations requires and array argument.");
   auto arr = value->GetArray();
   bool first = true;
-  for (auto &el : helper::json::IterableArray(arr)) {
+  for (auto &el : helper::json::array_iterator(arr)) {
     if (!first) where_ += " AND";
     first = false;
 
@@ -219,7 +219,7 @@ void FilterObjectGenerator::parse_complex_and(Value *value) {
           "Complex expression, array element must be an object.");
     where_ += "(";
     auto el_as_object = el.GetObject();
-    for (auto member : helper::json::IterableObject(el_as_object)) {
+    for (auto member : helper::json::member_iterator(el_as_object)) {
       parse_wmember(member.first, member.second);
     }
     where_ += ")";
@@ -235,7 +235,7 @@ void FilterObjectGenerator::parse_complex_or(Value *value) {
     throw std::runtime_error("Complex operations requires and array argument.");
   auto arr = value->GetArray();
   bool first = true;
-  for (auto &el : helper::json::IterableArray(arr)) {
+  for (auto &el : helper::json::array_iterator(arr)) {
     if (!first) where_ += " OR";
     first = false;
 
@@ -244,7 +244,7 @@ void FilterObjectGenerator::parse_complex_or(Value *value) {
           "Complex expression, array element must be an object.");
     where_ += "(";
     auto el_as_object = el.GetObject();
-    for (auto member : helper::json::IterableObject(el_as_object)) {
+    for (auto member : helper::json::member_iterator(el_as_object)) {
       parse_wmember(member.first, member.second);
     }
     where_ += ")";
@@ -278,7 +278,7 @@ void FilterObjectGenerator::prase_order(Object object) {
     throw std::runtime_error(
         "Wrong falue for `orderby`, requires object with fields.");
 
-  for (auto member : helper::json::IterableObject(object)) {
+  for (auto member : helper::json::member_iterator(object)) {
     order_ += first ? " ORDER BY " : ", ";
     first = false;
     bool asc = false;

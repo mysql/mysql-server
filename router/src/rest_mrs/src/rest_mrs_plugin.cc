@@ -35,6 +35,7 @@
 #include <thread>
 #include <vector>
 
+#include "keyring/keyring_manager.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
@@ -60,8 +61,10 @@ struct MrdsModule {
   }
 
   const ::mrs::Configuration &configuration;
+  const std::string jwt_secret;
   collector::MysqlCacheManager mysql_connection_cache{configuration};
-  mrs::authentication::AuthorizeManager authentication{&mysql_connection_cache};
+  mrs::authentication::AuthorizeManager authentication{
+      &mysql_connection_cache, configuration.jwt_secret_};
   mrs::ObjectManager mrds_object_manager{
       &mysql_connection_cache, configuration.is_https_, &authentication};
   mrs::database::SchemaMonitor mrds_monitor{
@@ -121,12 +124,14 @@ static void run(mysql_harness::PluginFuncEnv *env) {
       service_names.insert("routing:" + el);
     service_monitor.wait_for_services(service_names);
     g_mrs_configuration->init_runtime_configuration();
-
     g_mrds_module.reset(new MrdsModule(*g_mrs_configuration));
 
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::runtime_error &exc) {
+    set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
+  } catch (const std::exception &exc) {
+    log_debug("New exception %s", exc.what());
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
   }
 }

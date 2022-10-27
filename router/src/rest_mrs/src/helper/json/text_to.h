@@ -63,8 +63,33 @@ auto text_to(Handler *handler, const Container &c) {
   return handler->get_result();
 }
 
-inline void text_to(rapidjson::Document *doc, const std::string &str) {
+inline bool text_to(rapidjson::Document *doc, const std::string &str) {
   doc->Parse(str.c_str());
+  return !doc->HasParseError();
+}
+
+inline bool text_to(rapidjson::Document::Object *obj, const std::string &str) {
+  rapidjson::Document doc;
+
+  if (!text_to(&doc, str)) return false;
+  if (!doc.IsObject()) return false;
+  if (doc.HasParseError()) return false;
+
+  *obj = doc.GetObject();
+
+  return true;
+}
+
+inline bool text_to(rapidjson::Value *val, const std::string &str) {
+  rapidjson::Document doc;
+
+  if (!text_to(&doc, str)) return false;
+  if (!doc.IsObject()) return false;
+  if (doc.HasParseError()) return false;
+
+  *val = doc.GetObject();
+
+  return true;
 }
 
 /**

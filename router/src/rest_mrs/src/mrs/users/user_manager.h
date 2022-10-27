@@ -47,12 +47,13 @@ class UserManager {
   using SqlSessionCache = Handler::SqlSessionCached;
 
  public:
-  UserManager(const uint64_t app_id, const bool limit_to_existing_users,
+  UserManager(const bool limit_to_existing_users,
               const helper::Optional<uint64_t> &default_role_id)
-      : app_id_{app_id},
-        limit_to_existing_users_{limit_to_existing_users},
+      : limit_to_existing_users_{limit_to_existing_users},
         default_role_id_{default_role_id} {}
 
+  bool user_get_by_id(uint64_t user_id, AuthUser *out_user,
+                      SqlSessionCache *out_cache);
   bool user_get(AuthUser *out_user, SqlSessionCache *out_cache);
   void user_invalidate(const UserId id);
 
@@ -67,7 +68,6 @@ class UserManager {
   std::shared_mutex mutex_query_database_;
   std::shared_mutex mutex_user_cache_;
   Cache user_cache_;
-  uint64_t app_id_;
   bool limit_to_existing_users_;
   const helper::Optional<uint64_t> default_role_id_;
 };

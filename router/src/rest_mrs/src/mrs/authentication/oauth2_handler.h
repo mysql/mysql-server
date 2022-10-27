@@ -65,18 +65,10 @@ class Oauth2Handler : public interface::AuthorizeHandler {
 
   class GenericSessionData : public http::SessionManager::Session::SessionData {
    public:
-    enum State {
-      kWaitingForCode,
-      kGettingTokken,
-      kTokenVerified,
-      kUserVerified
-    };
-    State state{kWaitingForCode};
     std::string access_token;
     std::string refresh_token;
     std::string auth_code;
     std::string redirection;
-    AuthUser user;
     seconds expires;
     bool session_id_set{false};
     time_point acquired_at;
@@ -116,7 +108,7 @@ class Oauth2Handler : public interface::AuthorizeHandler {
   virtual RequestHandlerPtr get_request_handler_access_token(
       GenericSessionData *session_data) = 0;
   virtual RequestHandlerPtr get_request_handler_verify_account(
-      GenericSessionData *session_data) = 0;
+      Session *session, GenericSessionData *session_data) = 0;
   virtual std::string get_body_access_token_request(
       GenericSessionData *session_data) const = 0;
 
@@ -128,7 +120,7 @@ class Oauth2Handler : public interface::AuthorizeHandler {
 
   void new_session_start_login(Session *session, http::Url *url);
   bool http_acquire_access_token(GenericSessionData *data);
-  bool http_verify_account(GenericSessionData *data,
+  bool http_verify_account(Session *session, GenericSessionData *data,
                            SqlSessionCached *sql_session);
 
  protected:
@@ -139,8 +131,7 @@ class Oauth2Handler : public interface::AuthorizeHandler {
                                 RequestHandler *request_handler = nullptr);
 
   AuthApp entry_;
-  UserManager um_{entry_.id, entry_.limit_to_registered_users,
-                  entry_.default_role_id};
+  UserManager um_{entry_.limit_to_registered_users, entry_.default_role_id};
 };
 
 }  // namespace authentication

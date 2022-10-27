@@ -55,14 +55,6 @@ namespace authentication {
 
 using RequestHandlerPtr = Oauth2Handler::RequestHandlerPtr;
 
-class Oauth2TwitterHandler::SessionData
-    : public Oauth2Handler::GenericSessionData {
- public:
-  SessionData() {
-    challange = helper::generate_string<15, helper::GeneratorAlphaNumeric>();
-  }
-};
-
 class RequestHandlerJsonSimpleObjectBasicAuthorization
     : public Oauth2TwitterHandler::RequestHandlerJsonSimpleObject {
  public:
@@ -165,11 +157,11 @@ std::string Oauth2TwitterHandler::get_body_access_token_request(
 }
 
 RequestHandlerPtr Oauth2TwitterHandler::get_request_handler_verify_account(
-    GenericSessionData *session_data) {
+    Session *session, GenericSessionData *session_data) {
   return RequestHandlerPtr{new RequestHandlerJsonSubSimpleObject{
       session_data->access_token,
-      {{"id", &session_data->user.vendor_user_id},
-       {"username", &session_data->user.name}}}};
+      {{"id", &session->user.vendor_user_id},
+       {"username", &session->user.name}}}};
 }
 
 RequestHandlerPtr Oauth2TwitterHandler::get_request_handler_access_token(

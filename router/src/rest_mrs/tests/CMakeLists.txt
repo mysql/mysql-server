@@ -33,6 +33,7 @@ add_test_file(test_rest_mrs_plugin.cc
   	./test_mrs_database_filter_object_generator.cc
   	./test_helper_media_detector.cc
     ./test_helper_plugin_monitor.cc
+    ./test_helper_jwt.cc
     ./test_http_utilities.cc
     ./test_rest_handler_authorize.cc
     ./test_rest_handler_object.cc

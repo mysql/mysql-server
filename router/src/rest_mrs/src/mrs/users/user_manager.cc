@@ -56,6 +56,8 @@ AuthUser *UserManager::cache_get(AuthUser *out_user, bool *out_is_different) {
   result = user_cache_.get_cached_value(UserIndex(*out_user));
   if (result) return result;
 
+  if (out_user->email.empty() && out_user->name.empty()) return nullptr;
+
   auto &container = user_cache_.get_container();
   log_debug("input: %s", to_string(*out_user).c_str());
   for (auto &kv : container) {
@@ -68,6 +70,25 @@ AuthUser *UserManager::cache_get(AuthUser *out_user, bool *out_is_different) {
   }
 
   return nullptr;
+}
+
+bool UserManager::user_get_by_id(uint64_t user_id, AuthUser *out_user,
+                                 SqlSessionCache *out_cache) {
+  bool needs_update = false;
+  ReadLock lock{mutex_user_cache_};
+  out_user->has_user_id = true;
+  out_user->user_id = user_id;
+  auto found_user = cache_get(out_user, &needs_update);
+
+  if (!found_user) {
+    found_user = query_user(out_cache, out_user, &needs_update);
+  }
+
+  if (!found_user->login_permitted) return false;
+
+  *out_user = *found_user;
+
+  return true;
 }
 
 bool UserManager::user_get(AuthUser *out_user, SqlSessionCache *out_cache) {

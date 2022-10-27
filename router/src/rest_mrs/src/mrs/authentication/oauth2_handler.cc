@@ -184,10 +184,10 @@ bool Oauth2Handler::http_acquire_access_token(GenericSessionData *data) {
 }
 
 void Oauth2Handler::new_session_start_login(Session *session, http::Url *url) {
-  std::string uri = entry_.host + url->uri_.get_path();
+  std::string uri = entry_.host + url->get_path();
 
-  if (url->uri_.get_query().length()) {
-    uri += "?" + url->uri_.get_query();
+  if (url->get_query().length()) {
+    uri += "?" + url->get_query();
   }
 
   auto data = new GenericSessionData();
@@ -204,14 +204,11 @@ void Oauth2Handler::new_session_start_login(Session *session, http::Url *url) {
 }
 
 bool Oauth2Handler::is_authorized(Session *session, AuthUser *user) {
-  auto session_data = session->get_data<GenericSessionData>();
-  log_debug("is_authorized session=%p, state=%i", session_data,
-            session_data ? session_data->state : 0);
+  log_debug("is_authorized session=%p, state=%i", session, session->state);
 
-  if (!session_data) return false;
-  if (session_data->state != GenericSessionData::kUserVerified) return false;
+  if (session->state != Session::kUserVerified) return false;
 
-  *user = session_data->user;
+  *user = session->user;
   log_debug("is_authorized session-user:%i", (int)user->user_id);
 
   return true;
@@ -225,6 +222,7 @@ bool Oauth2Handler::authorize(Session *session, http::Url *url,
   const static std::string kError{"error"};
   const static std::string kToken{"token"};
   auto session_data = session->get_data<GenericSessionData>();
+
   http::Url::Parameaters &query_parameters = url->parameters_;
   const bool token_in_parameters = 0 != query_parameters.count(kToken);
   const bool code_in_parameters = 0 != query_parameters.count(kCode);
@@ -248,17 +246,16 @@ bool Oauth2Handler::authorize(Session *session, http::Url *url,
     session_data = new GenericSessionData();
     session->set_data(session_data);
     session_data->access_token = query_parameters[kToken];
-    session_data->state = token_in_parameters
-                              ? GenericSessionData::kTokenVerified
-                              : GenericSessionData::kWaitingForCode;
+    session->state = token_in_parameters ? Session::kTokenVerified
+                                         : Session::kWaitingForCode;
   }
 
-  if (session_data->state == GenericSessionData::kWaitingForCode &&
-      token_in_parameters) {
-    session_data->state = GenericSessionData::kTokenVerified;
+  if (session->state == Session::kWaitingForCode && token_in_parameters) {
+    session->state = Session::kTokenVerified;
   }
-  switch (session_data->state) {
-    case GenericSessionData::kWaitingForCode: {
+  switch (session->state) {
+    case Session::kUninitialized:
+    case Session::kWaitingForCode: {
       if (query_parameters.count(kError)) {
         log_debug("Remote side returned and error.");
         // TODO(lkotula): forward the error ? (Shouldn't be in review)
@@ -278,41 +275,44 @@ bool Oauth2Handler::authorize(Session *session, http::Url *url,
       session_data->auth_code = query_parameters[kCode];
       if (!http_acquire_access_token(session_data)) return false;
 
-      session_data->state = GenericSessionData::kTokenVerified;
+      session->state = Session::kTokenVerified;
     }
       [[fallthrough]];
-    case GenericSessionData::kTokenVerified:
-      if (!http_verify_account(session_data, sql_session)) return false;
-      session_data->state = GenericSessionData::kUserVerified;
+    case Session::kTokenVerified:
+      if (!http_verify_account(session, session_data, sql_session))
+        return false;
+      session->state = Session::kUserVerified;
 
       return true;
 
-    case GenericSessionData::kGettingTokken:
+    case Session::kGettingTokken:
       break;
 
-    case GenericSessionData::kUserVerified:
-      *out_user = session_data->user;
+    case Session::kUserVerified:
+      *out_user = session->user;
       return true;
   }
 
   return false;
 }
 
-bool Oauth2Handler::http_verify_account(GenericSessionData *data,
+bool Oauth2Handler::http_verify_account(Session *session,
+                                        GenericSessionData *data,
                                         SqlSessionCached *sql_session) {
   std::string url = get_url_validation(data);
 
   log_debug("verify_user: %s", url.c_str());
   log_debug("oauth2: redirection=%s", data->redirection.c_str());
-  if (!send_http_request(HttpMethod::Get, url, {},
-                         get_request_handler_verify_account(data).get())) {
+  if (!send_http_request(
+          HttpMethod::Get, url, {},
+          get_request_handler_verify_account(session, data).get())) {
     return false;
   }
 
-  log_debug("user_id: %s", data->user.vendor_user_id.c_str());
-  data->user.app_id = entry_.id;
+  log_debug("user_id: %s", session->user.vendor_user_id.c_str());
+  session->user.app_id = entry_.id;
 
-  return um_.user_get(&data->user, sql_session);
+  return um_.user_get(&session->user, sql_session);
 }
 
 const std::string &Oauth2Handler::get_host_alias() const {
