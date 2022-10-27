@@ -4909,11 +4909,6 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   bool write_file_name_to_index_file = false;
 
-  /* This must be before goto err. */
-#ifndef NDEBUG
-  binary_log_debug::debug_pretend_version_50034_in_binlog =
-      DBUG_EVALUATE_IF("pretend_version_50034_in_binlog", true, false);
-#endif
   Format_description_log_event s;
 
   if (m_binlog_file->is_empty()) {

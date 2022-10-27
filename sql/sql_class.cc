@@ -82,8 +82,7 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"
-#include "sql/rpl_replica.h"  // rpl_master_erroneous_autoinc
-#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_rli.h"  // Relay_log_info
 #include "sql/rpl_transaction_write_set_ctx.h"
 #include "sql/sp_cache.h"         // sp_cache_clear
 #include "sql/sp_head.h"          // sp_head
@@ -2240,15 +2239,6 @@ void THD::begin_attachable_rw_transaction() {
 
 void THD::reset_sub_statement_state(Sub_statement_state *backup,
                                     uint new_state) {
-  /* BUG#33029, if we are replicating from a buggy master, reset
-     auto_inc_intervals_forced to prevent substatement
-     (triggers/functions) from using erroneous INSERT_ID value
-   */
-  if (rpl_master_erroneous_autoinc(this)) {
-    assert(backup->auto_inc_intervals_forced.nb_elements() == 0);
-    auto_inc_intervals_forced.swap(&backup->auto_inc_intervals_forced);
-  }
-
   backup->option_bits = variables.option_bits;
   backup->check_for_truncated_fields = check_for_truncated_fields;
   backup->in_sub_stmt = in_sub_stmt;
@@ -2292,14 +2282,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup) {
   DBUG_TRACE;
-  /* BUG#33029, if we are replicating from a buggy master, restore
-     auto_inc_intervals_forced so that the top statement can use the
-     INSERT_ID value set before this statement.
-   */
-  if (rpl_master_erroneous_autoinc(this)) {
-    backup->auto_inc_intervals_forced.swap(&auto_inc_intervals_forced);
-    assert(backup->auto_inc_intervals_forced.nb_elements() == 0);
-  }
 
   /*
     To save resources we want to release savepoints which were created

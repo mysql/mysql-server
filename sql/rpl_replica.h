@@ -579,9 +579,6 @@ bool start_slave_thread(PSI_thread_key thread_key, my_start_routine h_func,
 
 bool show_slave_status(THD *thd, Master_info *mi);
 bool show_slave_status(THD *thd);
-bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
-                        bool (*pred)(const void *), const void *param);
-bool rpl_master_erroneous_autoinc(THD *thd);
 
 const char *print_slave_db_safe(const char *db);
 

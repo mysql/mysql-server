@@ -1,2 +1,0 @@
---loose-debug=d,pretend_version_50034_in_binlog --binlog-checksum=NONE
---innodb-autoinc-lock-mode=0
