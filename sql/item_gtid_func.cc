@@ -199,7 +199,11 @@ longlong Item_master_gtid_set_wait::val_int() {
     if (channel_map.get_num_instances() > 1) {
       channel_map.unlock();
       mi = nullptr;
+<<<<<<< HEAD
       my_error(ER_REPLICA_MULTIPLE_CHANNELS_CMD, MYF(0));
+=======
+      my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+>>>>>>> mysql-8.0
       return error_int();
     } else
       mi = channel_map.get_default_channel_mi();
