@@ -1118,7 +1118,6 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
   }
 
   // Wait for participants to complete the schema change
-  int count = 0;
   while (true) {
     const bool completed = ndb_schema_object->client_wait_completed(1);
     if (completed) {
@@ -1130,16 +1129,18 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     // Client normally relies on the coordinator to time out the schema
     // operation when it has received the schema operation. Until then
     // the client will check for timeout itself.
-    count++;
-    if (ndb_schema_object->has_coordinator_received_schema_op() == false &&
-        count > opt_ndb_schema_dist_timeout) {
-      ndb_log_verbose(19,
-                      "Schema events for '%s' - not received by coordinator",
-                      op_name.c_str());
+    const bool timedout = ndb_schema_object->check_timeout(
+        true, opt_ndb_schema_dist_timeout, Ndb_schema_dist::CLIENT_TIMEOUT,
+        "Client detected timeout");
+    if (timedout) {
+      ndb_log_warning("Distribution of '%s' - client timeout", op_name.c_str());
       ndb_log_warning("Schema dist client detected timeout");
-      // Delay the execution of client thread so that the Coordinator
-      // will receive the schema event when the schema object is valid
-      DBUG_EXECUTE_IF("ndb_stale_event_with_schema_obj", sleep(2););
+
+      // Delay the execution of client thread so that the coordinator
+      // will receive the schema event and find the timedout schema object
+      DBUG_EXECUTE_IF("ndb_stale_event_with_schema_obj", sleep(4););
+
+      save_schema_op_results(ndb_schema_object.get());
       return false;
     }
 
@@ -1175,14 +1176,7 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     }
   }
 
-  // Inspect results in NDB_SCHEMA_OBJECT before it's released
-  std::vector<NDB_SCHEMA_OBJECT::Result> participant_results;
-  ndb_schema_object->client_get_schema_op_results(participant_results);
-  for (auto &it : participant_results) {
-    // Save result for later
-    m_schema_op_results.push_back({it.nodeid, it.result, it.message});
-  }
-
+  save_schema_op_results(ndb_schema_object.get());
   return true;
 }
 
@@ -3717,16 +3711,24 @@ class Ndb_schema_event_handler {
                 NDB_SCHEMA_OBJECT::get(schema->db, schema->name, schema->id,
                                        schema->version),
                 NDB_SCHEMA_OBJECT::release);
-        if (!ndb_schema_object ||
-            !ndb_schema_object->set_coordinator_received_schema_op()) {
-          // Schema dict client already detected the schema distribution
-          // timeout for this event. So, its a stale event dont not process
+        if (!ndb_schema_object) {
+          // The schema operation has already completed on this node (most
+          // likely client timeout).
           ndb_log_info("Coordinator received a stale schema event");
           return 0;
         }
+
+        // Get current list of subscribers
         std::unordered_set<uint32> subscribers;
         m_schema_dist_data.get_subscriber_list(subscribers);
-        ndb_schema_object->register_participants(subscribers);
+
+        // Register the subscribers as participants and take over
+        // responsibility for detecting timeouts from client.
+        if (!ndb_schema_object->register_participants(subscribers)) {
+          // Failed to register participants (most likely client timeout).
+          ndb_log_info("Coordinator could not register participants");
+          return 0;
+        }
         ndb_log_verbose(
             19, "Participants: %s",
             ndb_schema_object->waiting_participants_to_string().c_str());
@@ -4187,7 +4189,7 @@ class Ndb_schema_event_handler {
 
       // Check if schema operation has timed out
       const bool completed = schema_object->check_timeout(
-          opt_ndb_schema_dist_timeout, Ndb_schema_dist::NODE_TIMEOUT,
+          false, opt_ndb_schema_dist_timeout, Ndb_schema_dist::NODE_TIMEOUT,
           "Participant timeout");
       if (completed) {
         ndb_log_warning("Schema dist coordinator detected timeout");

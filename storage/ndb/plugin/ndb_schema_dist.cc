@@ -39,6 +39,7 @@
 #include "storage/ndb/plugin/ndb_name_util.h"
 #include "storage/ndb/plugin/ndb_require.h"
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
+#include "storage/ndb/plugin/ndb_schema_object.h"
 #include "storage/ndb/plugin/ndb_schema_result_table.h"
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_thd.h"
@@ -241,7 +242,7 @@ bool Ndb_schema_dist_client::check_identifier_limits(
 
   // Check that identifiers does not exceed the limits imposed
   // by the ndb_schema table layout
-  for (auto key : m_prepared_keys.keys()) {
+  for (const auto &key : m_prepared_keys.keys()) {
     // db
     if (!schema_dist_table.check_column_identifier_limit(
             Ndb_schema_dist_table::COL_DB, key.first)) {
@@ -265,7 +266,7 @@ void Ndb_schema_dist_client::Prepared_keys::add_key(const char *db,
 
 bool Ndb_schema_dist_client::Prepared_keys::check_key(
     const char *db, const char *tabname) const {
-  for (auto key : m_keys) {
+  for (const auto &key : m_keys) {
     if (key.first == db && key.second == tabname) {
       return true;  // OK, key has been prepared
     }
@@ -319,6 +320,15 @@ uint32 Ndb_schema_dist_client::unique_version() const {
   const uint32 ver = m_thd_ndb->connection->node_id();
   assert(ver != 0);
   return ver;
+}
+
+void Ndb_schema_dist_client::save_schema_op_results(
+    const NDB_SCHEMA_OBJECT *ndb_schema_object) {
+  std::vector<NDB_SCHEMA_OBJECT::Result> participant_results;
+  ndb_schema_object->client_get_schema_op_results(participant_results);
+  for (const auto &it : participant_results) {
+    m_schema_op_results.push_back({it.nodeid, it.result, it.message});
+  }
 }
 
 void Ndb_schema_dist_client::push_and_clear_schema_op_results() {
