@@ -65,7 +65,8 @@ void QueryEntryParameter::on_row(const Row &row) {
           {"DOUBLE", ParameterDataType::parameterDouble},
           {"BOOLEAN", ParameterDataType::parameterBoolean},
           {"LONG", ParameterDataType::parameterLong},
-          {"TIMESTAMP", ParameterDataType::parameterTimestamp}};
+          {"TIMESTAMP", ParameterDataType::parameterTimestamp},
+          {"JSON", ParameterDataType::parameterString}};
       *out = converter.at(value);
     }
   };

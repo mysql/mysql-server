@@ -185,6 +185,11 @@ class RestRequestHandler : public BaseRequestHandler {
         oh.add(kv.first.c_str(), kv.second.c_str());
       }
 
+      if (method == HttpMethod::Options) {
+        req.send_reply(HttpStatusCode::Ok);
+        return;
+      }
+
       if (!rest_handler_->request_begin(&request_ctxt)) {
         log_debug("'request_begin' returned false");
         throw http::Error{HttpStatusCode::Forbidden};
