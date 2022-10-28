@@ -125,7 +125,7 @@ std::string HandlerAuthorize::append_status_parameters(
                                 : session->users_on_complete_url_redirection);
 
   if (!jwt_token.empty())
-    http::Url::append_query_parameter(uri, "access_token", jwt_token);
+    http::Url::append_query_parameter(uri, "accessToken", jwt_token);
   if (!session->handler_name.empty())
     http::Url::append_query_parameter(uri, "app", session->handler_name);
   if (!session->users_on_complete_timeout.empty())
