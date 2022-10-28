@@ -40,7 +40,7 @@ class SessionManager {
  public:
   using AuthUser = mrs::database::entry::AuthUser;
   using SessionId = std::string;
-  using steady_clock = std::chrono::steady_clock;
+  using system_clock = std::chrono::system_clock;
   using AuthorizationHandlerId = uint64_t;
 
   enum Allocation { OnlyExisting = 0, CreateWhenNotExisting = 1 };
@@ -82,14 +82,14 @@ class SessionManager {
 
     const SessionId &get_session_id() const { return id_; }
 
-    steady_clock::time_point get_access_time() const { return access_time_; }
+    system_clock::time_point get_access_time() const { return access_time_; }
 
-    steady_clock::time_point update_access_time() {
-      return access_time_ = steady_clock::now();
+    system_clock::time_point update_access_time() {
+      return access_time_ = system_clock::now();
     }
 
-    bool has_timeouted(steady_clock::duration timeout) const {
-      return access_time_ + timeout <= steady_clock::now();
+    bool has_timeouted(system_clock::duration timeout) const {
+      return access_time_ + timeout <= system_clock::now();
     }
 
     bool generate_token{false};
@@ -102,7 +102,7 @@ class SessionManager {
    private:
     std::unique_ptr<SessionData> data_;
     SessionId id_;
-    steady_clock::time_point access_time_;
+    system_clock::time_point access_time_;
     AuthorizationHandlerId authorization_handler_id_{0};
   };
 
@@ -117,7 +117,7 @@ class SessionManager {
   void remove_session(const Session *session);
   bool remove_session(const SessionId session);
   void remove_timeouted();
-  steady_clock::duration get_timeout() { return timeout_; }
+  system_clock::duration get_timeout() { return timeout_; }
 
  private:
   // Methods with postfix "_impl" at end of method name, marks that the methods
@@ -131,10 +131,10 @@ class SessionManager {
   // (Shouldn't be in review)
   uint64_t last_session_id_{0};
   std::mutex mutex_;
-  steady_clock::time_point oldest_session_;
+  system_clock::time_point oldest_session_;
   // TODO(lkotula): Make the `timeout_` a configurable value by user (Shouldn't
   // be in review)
-  steady_clock::duration timeout_{std::chrono::minutes(15)};
+  system_clock::duration timeout_{std::chrono::minutes(15)};
 };
 
 }  // namespace http

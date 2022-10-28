@@ -48,7 +48,7 @@ using SessionIdType = SessionManager::SessionId;
 SessionManager::Session::Session(const SessionId id,
                                  const AuthorizationHandlerId authorization_id)
     : id_{id},
-      access_time_{steady_clock::now()},
+      access_time_{system_clock::now()},
       authorization_handler_id_{authorization_id} {}
 
 Session *SessionManager::new_session(
@@ -139,7 +139,7 @@ std::string SessionManager::generate_session_id_impl() {
 void SessionManager::remove_timeouted_impl() {
   using namespace std::chrono_literals;
 
-  auto time = steady_clock::now();
+  auto time = system_clock::now();
 
   if (time - oldest_session_ >= timeout_) {
     oldest_session_ = time;
