@@ -39,6 +39,14 @@
  */
 class ROUTING_EXPORT MySQLRoutingBase {
  public:
+  MySQLRoutingBase() = default;
+
+  MySQLRoutingBase(const MySQLRoutingBase &) = default;
+  MySQLRoutingBase(MySQLRoutingBase &&) = default;
+
+  MySQLRoutingBase &operator=(const MySQLRoutingBase &) = default;
+  MySQLRoutingBase &operator=(MySQLRoutingBase &&) = default;
+
   virtual ~MySQLRoutingBase() = default;
 
   virtual MySQLRoutingContext &get_context() = 0;

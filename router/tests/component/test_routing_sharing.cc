@@ -30,6 +30,7 @@
 
 #define RAPIDJSON_HAS_STDSTRING 1
 
+#include "mysql/harness/net_ts/impl/socket.h"
 #include "rest_api_testutils.h"
 #include "router/src/routing/tests/mysql_client.h"
 #include "router_component_test.h"
@@ -1181,6 +1182,8 @@ INSTANTIATE_TEST_SUITE_P(Spec, RoutingSharingConfigInvalid,
                          [](auto &info) { return info.param.testname; });
 
 int main(int argc, char *argv[]) {
+  net::impl::socket::init();  // WSAStartup
+
   ProcessManager::set_origin(mysql_harness::Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

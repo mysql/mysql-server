@@ -328,8 +328,17 @@ class ROUTER_LIB_EXPORT MySQLSession {
   };
 
   struct ROUTER_LIB_EXPORT LoggingStrategy {
-    virtual void log(const std::string &msg) = 0;
+    LoggingStrategy() = default;
+
+    LoggingStrategy(const LoggingStrategy &) = default;
+    LoggingStrategy(LoggingStrategy &&) = default;
+
+    LoggingStrategy &operator=(const LoggingStrategy &) = default;
+    LoggingStrategy &operator=(LoggingStrategy &&) = default;
+
     virtual ~LoggingStrategy() = default;
+
+    virtual void log(const std::string &msg) = 0;
   };
 
   struct ROUTER_LIB_EXPORT LoggingStrategyNone : public LoggingStrategy {

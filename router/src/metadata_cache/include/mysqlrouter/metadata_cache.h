@@ -146,6 +146,18 @@ class METADATA_CACHE_EXPORT AcceptorUpdateHandlerInterface {
  */
 class METADATA_CACHE_EXPORT MetadataRefreshListenerInterface {
  public:
+  MetadataRefreshListenerInterface() = default;
+
+  MetadataRefreshListenerInterface(const MetadataRefreshListenerInterface &) =
+      default;
+  MetadataRefreshListenerInterface(MetadataRefreshListenerInterface &&) =
+      default;
+
+  MetadataRefreshListenerInterface &operator=(
+      const MetadataRefreshListenerInterface &) = default;
+  MetadataRefreshListenerInterface &operator=(
+      MetadataRefreshListenerInterface &&) = default;
+
   /**
    * Callback that is going to be used on each metadata refresh.
    *
