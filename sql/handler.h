@@ -2427,6 +2427,32 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
 using secondary_engine_modify_access_path_cost_t = bool (*)(
     THD *thd, const JoinHypergraph &hypergraph, AccessPath *access_path);
 
+/**
+  Looks up and returns a specific secondary engine query offload or exec
+  failure reason as a string given a thread context (representing the query)
+  when the offloaded query fails in the secondary storage engine.
+
+  @param thd thread context.
+
+  @retval const char * as the offload failure reason.
+          The memory pointed to is managed by the handlerton and may be freed
+          when the statement completes.
+*/
+using get_secondary_engine_offload_or_exec_fail_reason_t =
+    const char *(*)(THD *thd);
+
+/**
+  Sets a specific secondary engine offload failure reason for a query
+  represented by the thread context when the offloaded query fails in
+  the secondary storage engine.
+
+  @param thd thread context.
+
+  @param const char * as the offload failure reason.
+*/
+using set_secondary_engine_offload_fail_reason_t = void (*)(THD *thd,
+                                                            const char *);
+
 // Capabilities (bit flags) for secondary engines.
 using SecondaryEngineFlags = uint64_t;
 enum class SecondaryEngineFlag : SecondaryEngineFlags {
@@ -2805,6 +2831,23 @@ struct handlerton {
   /// @see secondary_engine_modify_access_path_cost_t for function signature.
   secondary_engine_modify_access_path_cost_t
       secondary_engine_modify_access_path_cost;
+
+  /// Pointer to a function that returns the query offload or exec failure
+  /// reason as a string given a thread context (representing the query) when
+  /// the offloaded query failed in a secondary storage engine.
+  ///
+  /// @see get_secondary_engine_offload_or_exec_fail_reason_t for function
+  /// signature.
+  get_secondary_engine_offload_or_exec_fail_reason_t
+      get_secondary_engine_offload_or_exec_fail_reason;
+
+  /// Pointer to a function that sets the offload failure reason as a string
+  /// for a thread context (representing the query) when the offloaded query
+  /// failed in a secondary storage engine.
+  ///
+  /// @see set_secondary_engine_offload_fail_reason_t for function signature.
+  set_secondary_engine_offload_fail_reason_t
+      set_secondary_engine_offload_fail_reason;
 
   se_before_commit_t se_before_commit;
   se_after_commit_t se_after_commit;
