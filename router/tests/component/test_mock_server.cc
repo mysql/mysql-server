@@ -419,7 +419,8 @@ TEST_P(MockServerConnectOkTest, x_protocol) {
       {"hostname", "127.0.0.1"},
   };
 
-  std::vector<std::string> cmdline_args;
+  std::vector<std::string> cmdline_args{"--logging-folder",
+                                        get_test_temp_dir_name()};
 
   for (const auto &arg : GetParam().cmdline_args) {
     if (arg.empty()) {
@@ -585,7 +586,8 @@ TEST_P(MockServerConnectTest, check) {
       {"hostname", "127.0.0.1"},
   };
 
-  std::vector<std::string> cmdline_args;
+  std::vector<std::string> cmdline_args{"--logging-folder",
+                                        get_test_temp_dir_name()};
 
   for (const auto &arg : GetParam().cmdline_args) {
     if (arg.empty()) {
@@ -1080,7 +1082,8 @@ TEST_P(MockServerCoreTest, check) {
       {"hostname", "127.0.0.1"},
   };
 
-  std::vector<std::string> cmdline_args;
+  std::vector<std::string> cmdline_args{"--logging-folder",
+                                        get_test_temp_dir_name()};
 
   for (const auto &arg : GetParam().cmdline_args) {
     if (arg.empty()) {
