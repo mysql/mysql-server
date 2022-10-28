@@ -4428,6 +4428,8 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   thd->lex->current_query_block()->group_fix_field = save_group_fix_field;
   if (ret) return true; /* Wrong field. */
 
+  order_item->increment_ref_count();
+
   assert_consistent_hidden_flags(*fields, order_item, /*hidden=*/true);
 
   uint el = fields->size();
