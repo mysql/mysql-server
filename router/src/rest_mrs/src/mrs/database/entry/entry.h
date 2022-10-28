@@ -39,6 +39,7 @@ struct EntryKey {
 
   bool operator<(const EntryKey &other) const {
     if (type < other.type) return true;
+    if (type > other.type) return false;
 
     return id < other.id;
   }

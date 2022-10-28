@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "helper/make_shared_ptr.h"
+#include "mrs/database/entry/entry.h"
 #include "mrs/database/query_rest_table.h"
 
 #include "mock/mock_session.h"
@@ -42,11 +43,34 @@ using testing::StrEq;
 using testing::StrictMock;
 using testing::Test;
 
+using namespace mrs::database::entry;
+
 class QueryRestTableTests : public Test {
  public:
   StrictMock<MockMySQLSession> mock_session_;
   helper::MakeSharedPtr<QueryRestTable> sut_;
 };
+
+TEST(DbEntry, less) {
+  std::map<EntryKey, uint64_t> m{
+      {{key_static, 1}, 1}, {{key_static, 2}, 2}, {{key_static, 3}, 3},
+      {{key_static, 4}, 4}, {{key_static, 5}, 5}, {{key_static, 6}, 6},
+      {{key_rest, 1}, 7},   {{key_rest, 2}, 8},   {{key_rest, 3}, 9},
+      {{key_rest, 4}, 10},  {{key_rest, 5}, 11},  {{key_rest, 6}, 12}};
+
+  ASSERT_TRUE(m.count({key_static, 1}));
+  ASSERT_TRUE(m.count({key_static, 2}));
+  ASSERT_TRUE(m.count({key_static, 3}));
+  ASSERT_TRUE(m.count({key_static, 4}));
+  ASSERT_TRUE(m.count({key_static, 5}));
+  ASSERT_TRUE(m.count({key_static, 6}));
+  ASSERT_TRUE(m.count({key_rest, 1}));
+  ASSERT_TRUE(m.count({key_rest, 2}));
+  ASSERT_TRUE(m.count({key_rest, 3}));
+  ASSERT_TRUE(m.count({key_rest, 4}));
+  ASSERT_TRUE(m.count({key_rest, 5}));
+  ASSERT_TRUE(m.count({key_rest, 6}));
+}
 
 TEST_F(QueryRestTableTests, basic_empty_request_throws) {
   std::vector<Column> columns{};
