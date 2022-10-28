@@ -121,8 +121,6 @@ class Item_func : public Item_result_field {
 
  public:
   uint arg_count;  ///< How many arguments in 'args'
-  /// Changes argument and maintains any necessary invariants.
-  virtual void set_arg_resolve(THD *, uint i, Item *arg) { args[i] = arg; }
   virtual uint argument_count() const { return arg_count; }
   inline Item **arguments() const {
     return (argument_count() > 0) ? args : nullptr;

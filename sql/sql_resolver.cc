@@ -993,8 +993,9 @@ bool Item_in_subselect::subquery_allows_materialization(
   if (substype() != Item_subselect::IN_SUBS) {
     // Subq-mat cannot handle 'outer_expr > {ANY|ALL}(subq)'...
     cause = "not an IN predicate";
-  } else if (used_tables() & RAND_TABLE_BIT) {
+  } else if (m_subquery_used_tables & RAND_TABLE_BIT) {
     // Subquery with a random function cannot be materalized.
+    // But random function in left expression is OK
     cause = "non-deterministic";
   } else if (!query_block->is_simple_query_block()) {
     // Subquery must be a simple query specification clause (not a set operation
@@ -5558,7 +5559,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
 
   // If the subquery is (still) correlated, we would need to create a LATERAL
   // derived table, but a certain secondary engine doesn't support it. Error:
-  if ((subq->used_tables() & ~PSEUDO_TABLE_BITS) != 0) {
+  if ((subq->m_subquery_used_tables & ~PSEUDO_TABLE_BITS) != 0) {
     my_error(ER_SUBQUERY_TRANSFORM_REJECTED, MYF(0));
     return true;
   }

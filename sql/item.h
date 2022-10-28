@@ -6646,7 +6646,6 @@ class Item_cache : public Item_basic_constant {
   static Item_cache *get_cache(const Item *item);
   static Item_cache *get_cache(const Item *item, const Item_result type);
   table_map used_tables() const override { return used_table_map; }
-  virtual void keep_array() {}
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool eq_def(const Field *field) {

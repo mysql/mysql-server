@@ -228,6 +228,8 @@ void Item_subselect::accumulate_properties() {
          order = order->next)
       accumulate_condition(*order->item);
   }
+  // Save used tables information for the subquery only
+  used_tables_cache |= m_subquery_used_tables;
 }
 
 /**
@@ -256,7 +258,7 @@ void Item_subselect::accumulate_properties(Query_block *select) {
 
   for (ORDER *order = select->order_list.first; order; order = order->next)
     accumulate_expression(*order->item);
-  if (select->m_table_list.elements) used_tables_cache |= INNER_TABLE_BIT;
+  if (select->m_table_list.elements) m_subquery_used_tables |= INNER_TABLE_BIT;
 
   List_iterator<Window> wi(select->m_windows);
   Window *w;
@@ -275,7 +277,7 @@ void Item_subselect::accumulate_properties(Query_block *select) {
 */
 void Item_subselect::accumulate_expression(Item *item) {
   if (item->used_tables() & ~OUTER_REF_TABLE_BIT)
-    used_tables_cache |= INNER_TABLE_BIT;
+    m_subquery_used_tables |= INNER_TABLE_BIT;
   set_nullable(is_nullable() || item->is_nullable());
 }
 
@@ -286,7 +288,7 @@ void Item_subselect::accumulate_expression(Item *item) {
 */
 void Item_subselect::accumulate_condition(Item *item) {
   if (item->used_tables() & ~OUTER_REF_TABLE_BIT)
-    used_tables_cache |= INNER_TABLE_BIT;
+    m_subquery_used_tables |= INNER_TABLE_BIT;
 }
 
 void Item_subselect::create_iterators(THD *thd) {
@@ -534,7 +536,7 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref) {
   uint8 uncacheable;
   bool res;
 
-  assert(fixed == 0);
+  assert(!fixed);
   assert(indexsubquery_engine == nullptr);
 
 #ifndef NDEBUG
@@ -580,7 +582,10 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref) {
     goto err;
 
   if ((uncacheable = unit->uncacheable)) {
-    if (uncacheable & UNCACHEABLE_RAND) used_tables_cache |= RAND_TABLE_BIT;
+    if (uncacheable & UNCACHEABLE_RAND) {
+      m_subquery_used_tables |= RAND_TABLE_BIT;
+      used_tables_cache |= RAND_TABLE_BIT;
+    }
   }
 
   /*
@@ -700,16 +705,18 @@ void Item_subselect::fix_after_pullout(Query_block *parent_query_block,
 {
   /* Clear usage information for this subquery predicate object */
   used_tables_cache = 0;
+  m_subquery_used_tables = 0;
 
   unit->fix_after_pullout(parent_query_block, removed_query_block);
 
   // Accumulate properties like INNER_TABLE_BIT
   accumulate_properties();
 
-  const uint8 uncacheable = unit->uncacheable;
-  if (uncacheable) {
-    if (uncacheable & UNCACHEABLE_RAND) used_tables_cache |= RAND_TABLE_BIT;
+  if (unit->uncacheable & UNCACHEABLE_RAND) {
+    m_subquery_used_tables |= RAND_TABLE_BIT;
   }
+
+  used_tables_cache = m_subquery_used_tables;
 }
 
 bool Item_in_subselect::walk(Item_processor processor, enum_walk walk,
@@ -723,6 +730,18 @@ Item *Item_in_subselect::transform(Item_transformer transformer, uchar *arg) {
   if (left_expr == nullptr) return nullptr;
 
   return (this->*transformer)(arg);
+}
+
+Item *Item_in_subselect::compile(Item_analyzer analyzer, uchar **arg_p,
+                                 Item_transformer transformer, uchar *arg_t) {
+  if (!(this->*analyzer)(arg_p)) return this;
+
+  // Compile the left expression of the IN subquery
+  Item *item = left_expr->compile(analyzer, arg_p, transformer, arg_t);
+  if (item == nullptr) return nullptr; /* purecov: inspected */
+  if (item != left_expr) current_thd->change_item_tree(&left_expr, item);
+
+  return (this->*transformer)(arg_t);
 }
 
 /*
@@ -801,10 +820,12 @@ Item *Item_subselect::get_tmp_table_item(THD *thd_arg) {
 }
 
 void Item_subselect::update_used_tables() {
-  if (!unit->uncacheable)
+  if (!unit->uncacheable) {
     // There is no expression with outer reference, randomness or side-effect,
     // so the subquery's content depends only on its inner tables:
-    used_tables_cache &= INNER_TABLE_BIT;
+    m_subquery_used_tables &= INNER_TABLE_BIT;
+  }
+  used_tables_cache = m_subquery_used_tables;
 }
 
 void Item_subselect::print(const THD *thd, String *str,
@@ -2391,7 +2412,6 @@ Item_subselect::trans_res Item_in_subselect::select_in_like_transformer(
     THD *thd, Query_block *select, Comp_creator *func) {
   const char *save_where = thd->where;
   Item_subselect::trans_res res = RES_ERROR;
-  bool result;
 
   DBUG_TRACE;
 
@@ -2410,28 +2430,20 @@ Item_subselect::trans_res Item_in_subselect::select_in_like_transformer(
 
   thd->where = "IN/ALL/ANY subquery";
 
+  thd->lex->set_current_query_block(select->outer_query_block());
+
+  assert(left_expr->fixed);
   /*
     In some optimisation cases we will not need this Item_in_optimizer
     object, but we can't know it here, but here we need address correct
     reference on left expression.
-
-    //psergey: he means confluent cases like "... IN (SELECT 1)"
   */
-  if (!optimizer) {
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
-    optimizer = new Item_in_optimizer(left_expr, this);
-
-    if (!optimizer) goto err;
+  if (optimizer == nullptr) {
+    optimizer = new Item_in_optimizer(this);
+    if (optimizer == nullptr) return RES_ERROR;
   }
 
-  thd->lex->set_current_query_block(select->outer_query_block());
-  result =
-      (!left_expr->fixed && left_expr->fix_fields(thd, optimizer->arguments()));
-  /* fix_fields can change reference to left_expr, we need reassign it */
-  left_expr = optimizer->arguments()[0];
-
   thd->lex->set_current_query_block(select);
-  if (result) goto err;
 
   /*
     If we didn't choose an execution method up to this point, we choose
@@ -2448,22 +2460,17 @@ Item_subselect::trans_res Item_in_subselect::select_in_like_transformer(
     arena to avoid memory leak).
   */
 
-  {
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
-
-    if (left_expr->cols() == 1)
-      res = single_value_transformer(thd, select, func);
-    else {
-      /* we do not support row operation for ALL/ANY/SOME */
-      if (func != &eq_creator) {
-        my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-        return RES_ERROR;
-      }
-      res = row_value_transformer(thd, select);
+  if (left_expr->cols() == 1) {
+    res = single_value_transformer(thd, select, func);
+  } else {
+    // Row operation is only supported for =ANY (IN) and <>ALL (NOT IN):
+    if (func != &eq_creator) {
+      my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+      return RES_ERROR;
     }
+    res = row_value_transformer(thd, select);
   }
 
-err:
   thd->where = save_where;
   return res;
 }
@@ -2498,26 +2505,50 @@ void Item_in_subselect::print(const THD *thd, String *str,
   }
 }
 
-bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref) {
-  bool result = false;
+/**
+  An object of class Item_in_subselect is always substituted with another
+  object of class Item_in_optimizer, and the substitution object contains
+  a pointer to the original Item_in_subselect.
+  This substitution is currently handled by calling fix_fields() twice:
+  The first call will resolve the underlying query expression and create
+  the Item_in_optimizer substitution object.
+  The second call is performed from Item_in_optimizer::fix_fields() and
+  will complete the resolving of the object.
+  Notice also that this process is partly managed by
+  Item_subselect::fix_fields().
+*/
+bool Item_in_subselect::fix_fields(THD *thd, Item **ref) {
+  assert(!fixed);
 
   abort_on_null =
       value_transform == BOOL_IS_TRUE || value_transform == BOOL_NOT_TRUE;
 
-  if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
-      left_expr && !left_expr->fixed) {
-    Condition_context CCT(thd_arg->lex->current_query_block());
-    result = left_expr->fix_fields(thd_arg, &left_expr);
+  thd->where = "IN/ALL/ANY subquery";
+
+  assert(left_expr != nullptr);
+  if (!left_expr->fixed) {
+    if (left_expr->fix_fields(thd, &left_expr)) {
+      return true;
+    }
+    used_tables_cache = left_expr->used_tables();
   }
 
-  return result || Item_subselect::fix_fields(thd_arg, ref);
+  if (Item_subselect::fix_fields(thd, ref)) return true;
+
+  return false;
 }
 
 void Item_in_subselect::fix_after_pullout(Query_block *parent_query_block,
                                           Query_block *removed_query_block) {
-  // optimizer->fix_after_pullout() will handle left_expr:
-  assert(optimizer != nullptr);
   Item_subselect::fix_after_pullout(parent_query_block, removed_query_block);
+  left_expr->fix_after_pullout(parent_query_block, removed_query_block);
+  used_tables_cache |= left_expr->used_tables();
+}
+
+void Item_in_subselect::update_used_tables() {
+  Item_subselect::update_used_tables();
+  left_expr->update_used_tables();
+  used_tables_cache |= left_expr->used_tables();
 }
 
 /**

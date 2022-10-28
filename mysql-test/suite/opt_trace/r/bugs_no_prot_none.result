@@ -768,6 +768,16 @@ ON table2 .col_int_key = table1 .col_int_key
         "steps": [
           {
             "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select count(`t1`.`col_int_key`) from `t1`"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "join_preparation": {
               "select#": 3,
               "steps": [
                 {
@@ -782,16 +792,6 @@ ON table2 .col_int_key = table1 .col_int_key
                 },
                 {
                   "expanded_query": "/* select#3 */ select `table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`t1`.`col_int_key`) from `t1`) from (`t1` `table1` join `t1` `table2` on((`table2`.`col_int_key` = `table1`.`col_int_key`)))"
-                },
-                {
-                  "join_preparation": {
-                    "select#": 2,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#2 */ select count(`t1`.`col_int_key`) from `t1`"
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
                 },
                 {
                   "transformation": {

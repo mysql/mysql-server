@@ -125,31 +125,33 @@ class Item_subselect : public Item_result_field {
   virtual AccessPath *root_access_path() const { return nullptr; }
 
  protected:
-  /*
+  /**
     We need this method, because some compilers do not allow 'this'
     pointer in constructor initialization list, but we need to pass a pointer
     to subselect Item class to Query_result_interceptor's constructor.
   */
   void init(Query_block *select, Query_result_subquery *result);
 
-  // The inner part of the subquery.
+  /// The inner part of the subquery.
   unique_ptr_destroy_only<SubqueryWithResult> subquery;
 
-  // Only relevant for Item_in_subselect; optimized structure used for
-  // execution in place of running the entire subquery.
+  /// Only relevant for Item_in_subselect; optimized structure used for
+  /// execution in place of running the entire subquery.
   subselect_indexsubquery_engine *indexsubquery_engine = nullptr;
 
-  /* cache of used external tables */
+  /// cache of used tables
   table_map used_tables_cache;
-  /* allowed number of columns (1 for single value subqueries) */
+  /// allowed number of columns (1 for scalar subqueries)
   uint max_columns;
-  /* where subquery is placed */
+  /// where subquery is placed
   enum_parsing_context parsing_place;
-  /* work with 'substitution' */
+  /// work with 'substitution'
   bool have_to_be_excluded;
 
  public:
-  /* subquery is transformed */
+  /// cache of used tables, used to identify tables added for IN subquery
+  table_map m_subquery_used_tables{0};
+  /// subquery is transformed
   bool changed;
 
   enum trans_res { RES_OK, RES_REDUCE, RES_ERROR };
@@ -180,6 +182,7 @@ class Item_subselect : public Item_result_field {
   /// Accumulate used tables
   void accumulate_used_tables(table_map add_tables) {
     used_tables_cache |= add_tables;
+    m_subquery_used_tables |= add_tables;
   }
 
   virtual subs_type substype() const { return UNKNOWN_SUBS; }
@@ -666,6 +669,9 @@ class Item_in_subselect : public Item_exists_subselect {
                                        const Query_block *outer);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;
+  Item *compile(Item_analyzer analyzer, uchar **arg_p,
+                Item_transformer transformer, uchar *arg_t) override;
+
   bool exec(THD *thd) override;
   longlong val_int() override;
   double val_real() override;
@@ -678,6 +684,7 @@ class Item_in_subselect : public Item_exists_subselect {
   bool fix_fields(THD *thd, Item **ref) override;
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
+  void update_used_tables() override;
   bool init_left_expr_cache(THD *thd);
 
   /**

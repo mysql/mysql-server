@@ -1066,32 +1066,6 @@ EXPLAIN
                   "attached_condition": "((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true))"
                 } /* table */
               } /* query_block */
-            },
-            {
-              "dependent": false,
-              "cacheable": true,
-              "query_block": {
-                "select_id": 3,
-                "cost_info": {
-                  "query_cost": "0.70"
-                } /* cost_info */,
-                "table": {
-                  "table_name": "t3",
-                  "access_type": "ALL",
-                  "rows_examined_per_scan": 2,
-                  "rows_produced_per_join": 2,
-                  "filtered": "100.00",
-                  "cost_info": {
-                    "read_cost": "0.50",
-                    "eval_cost": "0.20",
-                    "prefix_cost": "0.70",
-                    "data_read_per_join": "16"
-                  } /* cost_info */,
-                  "used_columns": [
-                    "e"
-                  ] /* used_columns */
-                } /* table */
-              } /* query_block */
             }
           ] /* attached_subqueries */
         } /* table */
@@ -1117,7 +1091,35 @@ EXPLAIN
           "attached_condition": "(`test`.`t2`.`c` = `test`.`t1`.`a`)"
         } /* table */
       }
-    ] /* nested_loop */
+    ] /* nested_loop */,
+    "optimized_away_subqueries": [
+      {
+        "dependent": false,
+        "cacheable": true,
+        "query_block": {
+          "select_id": 3,
+          "cost_info": {
+            "query_cost": "0.70"
+          } /* cost_info */,
+          "table": {
+            "table_name": "t3",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 2,
+            "rows_produced_per_join": 2,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "0.50",
+              "eval_cost": "0.20",
+              "prefix_cost": "0.70",
+              "data_read_per_join": "16"
+            } /* cost_info */,
+            "used_columns": [
+              "e"
+            ] /* used_columns */
+          } /* table */
+        } /* query_block */
+      }
+    ] /* optimized_away_subqueries */
   } /* query_block */
 }
 Warnings:
