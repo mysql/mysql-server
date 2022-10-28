@@ -87,9 +87,24 @@ include/assert.inc [The third server's UUID should be the only UUID in WRITE_CON
 include/assert.inc [The third server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
 
 ####
-# 2) Change the communication protocol to 8.0.21.
+# 2) Change the communication protocol to 8.0.21. Must restart the group.
 ####
 
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+[connection server2]
 SELECT group_replication_set_communication_protocol("8.0.21");
 group_replication_set_communication_protocol("8.0.21")
 The operation group_replication_set_communication_protocol completed successfully
@@ -155,6 +170,12 @@ include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
 # 4) Cleanup.
 ####
 
+[connection server3]
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+[connection server2]
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+[connection server1]
+SET GLOBAL group_replication_paxos_single_leader = "ON";
 [connection server1]
 include/stop_group_replication.inc
 include/group_replication_end.inc

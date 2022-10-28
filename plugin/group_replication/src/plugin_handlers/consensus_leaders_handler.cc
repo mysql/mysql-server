@@ -32,7 +32,8 @@
  */
 /// @cond
 Member_version const Consensus_leaders_handler::
-    s_first_protocol_with_support_for_consensus_leaders{0x080027};
+    s_first_protocol_with_support_for_consensus_leaders{
+        FIRST_PROTOCOL_WITH_SUPPORT_FOR_CONSENSUS_LEADERS};
 /// @endcond
 
 Consensus_leaders_handler::Consensus_leaders_handler(
@@ -90,7 +91,17 @@ void Consensus_leaders_handler::set_consensus_leaders(
     Member_version const &communication_protocol, bool is_single_primary_mode,
     Group_member_info::Group_member_role role,
     Gcs_member_identifier const &my_gcs_id) {
-  if (!get_allow_single_leader()) return;
+  return this->set_consensus_leaders(
+      communication_protocol, is_single_primary_mode, role, my_gcs_id,
+      []() { return get_allow_single_leader(); });
+}
+
+void Consensus_leaders_handler::set_consensus_leaders(
+    Member_version const &communication_protocol, bool is_single_primary_mode,
+    Group_member_info::Group_member_role role,
+    Gcs_member_identifier const &my_gcs_id,
+    std::function<bool()> allow_single_leader_getter) {
+  if (!allow_single_leader_getter()) return;
 
   bool const support_single_consensus_leader =
       (communication_protocol >=

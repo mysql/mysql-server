@@ -1793,12 +1793,28 @@ int Plugin_gcs_events_handler::compare_member_option_compatibility() const {
       goto cleaning;
     }
 
-    if (local_member_info->get_allow_single_leader() !=
-        (*all_members_it)->get_allow_single_leader()) {
+    Member_version const version_that_supports_paxos_single_leader(
+        FIRST_PROTOCOL_WITH_SUPPORT_FOR_CONSENSUS_LEADERS);
+    Member_version protocol_version_mysql =
+        convert_to_mysql_version(gcs_module->get_protocol_version());
+
+    if ((local_member_info->get_allow_single_leader() !=
+         (*all_members_it)->get_allow_single_leader())) {
       result = 1;
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PAXOS_SINGLE_LEADER_DIFF_FROM_GRP,
-                   local_member_info->get_allow_single_leader(),
-                   (*all_members_it)->get_allow_single_leader());
+
+      // If PAXOS Single Leader is enabled but we are trying to enter a group
+      //  that uses a protocol below 8.0.27
+      if (local_member_info->get_allow_single_leader() &&
+          protocol_version_mysql < version_that_supports_paxos_single_leader) {
+        // We error out and force this node to enter the group with the value
+        // ZERO
+        LogPluginErr(ERROR_LEVEL,
+                     ER_GRP_RPL_PAXOS_SINGLE_LEADER_DIFF_FROM_OLD_GRP);
+      } else {
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PAXOS_SINGLE_LEADER_DIFF_FROM_GRP,
+                     local_member_info->get_allow_single_leader(),
+                     (*all_members_it)->get_allow_single_leader());
+      }
       goto cleaning;
     }
   }

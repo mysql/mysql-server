@@ -1,0 +1,99 @@
+
+####
+# 0) The test requires three servers.
+####
+
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server3]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("This member is configured with a group_replication_paxos_single_leader option value of 1 and it is trying to join a group with Communication Protocol Version below 8.0.27.*");
+call mtr.add_suppression("This member is configured with a group_replication_paxos_single_leader option value of.*");
+SET SESSION sql_log_bin = 1;
+##
+# 1) Start the first two servers with PAXOS Single Leader = 0
+# and change the protocol version to 8.0.26
+##
+[connection server1]
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+include/start_group_replication.inc
+SELECT group_replication_set_communication_protocol("8.0.26");
+group_replication_set_communication_protocol("8.0.26")
+The operation group_replication_set_communication_protocol completed successfully
+##
+# 2) Join the third server with PAXOS Single Leader = 1 and it must fail
+##
+[connection server3]
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+##
+# 3) Change PAXOS Single Leader to 0 and it must join the group
+##
+[connection server3]
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+include/start_group_replication.inc
+[connection server2]
+##
+# 4) Change the protocol version to 8.0.32. It must be successful
+##
+SELECT group_replication_set_communication_protocol("8.0.32");
+group_replication_set_communication_protocol("8.0.32")
+The operation group_replication_set_communication_protocol completed successfully
+##
+# 5) Change PAXOS Single Leader to 1 on node 3. Stop and Start and it
+# must fail.
+##
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+##
+# 6) Change PAXOS Single Leader to 0 on node 3. Stop and Start and it
+# must be successful.
+##
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+include/start_group_replication.inc
+##
+# 7) Stop the whole group, change PAXOS Single Leader to 1 and start
+#    the group.
+##
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+##
+# 8) Try to change the protocol version to 8.0.26. It must fail.
+##
+[connection server1]
+SELECT group_replication_set_communication_protocol("8.0.26");
+ERROR HY000: The function 'group_replication_set_communication_protocol' failed. group_replication_paxos_single_leader must be OFF when choosing a version lower than 8.0.27.
+##
+# 10) Cleanup.
+##
+[connection server3]
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+[connection server2]
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+[connection server1]
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+include/group_replication_end.inc

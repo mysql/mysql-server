@@ -48,6 +48,20 @@ include/assert.inc [group_replication_paxos_single_leader must be enabled]
 include/assert.inc [group_replication_paxos_single_leader must be enabled]
 [connection server3]
 include/assert.inc [group_replication_paxos_single_leader must be enabled]
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
 SELECT group_replication_set_communication_protocol("8.0.21");
 group_replication_set_communication_protocol("8.0.21")
 The operation group_replication_set_communication_protocol completed successfully
@@ -69,6 +83,20 @@ include/assert.inc [group_replication_paxos_single_leader must be disabled]
 SELECT group_replication_set_communication_protocol("8.0.27");
 group_replication_set_communication_protocol("8.0.27")
 The operation group_replication_set_communication_protocol completed successfully
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "ON";
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
 [connection server1]
 include/assert.inc [group_replication_paxos_single_leader must be enabled]
 [connection server2]
