@@ -655,6 +655,8 @@ void ndb_pushed_builder_ctx::construct(Join_nest *nest_ctx,
       break;
     }
     case AccessPath::REMOVE_DUPLICATES_ON_INDEX: {  // SEMIJOIN(LOOSESCAN)
+      // Explain: 'Remove duplicates from input sorted on <index>'
+      //
       // Use an ordered index, which returns rows in sorted order.
       // Duplicates on (part of) key are skipped, thus effectively defining
       // a 'firstMatch' (-> SEMI-join) operation on the child source
@@ -1111,6 +1113,13 @@ bool pushed_table::use_order() const {
       return m_path->index_scan().use_order;
     case AccessPath::FULL_TEXT_SEARCH:
       return m_path->full_text_search().use_order;
+
+    // MRR based access methods might be sorted as well.
+    // Included for completeness, but seems to be unused wrt. SPJ.
+    case AccessPath::INDEX_RANGE_SCAN:
+      return m_path->index_range_scan().mrr_flags & HA_MRR_SORTED;
+    case AccessPath::MRR:
+      return m_path->mrr().mrr_flags & HA_MRR_SORTED;
     default:
       return false;
   }

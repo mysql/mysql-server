@@ -3320,7 +3320,7 @@ table2.col_int_key
 FROM h AS table1
 JOIN s AS table2 ON table1.col_int_unique = table2.col_int_key
 WHERE table1.pk IN (
-SELECT table2s.col_int_key
+SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table2s.col_int_key
 FROM p AS table1s
 LEFT JOIN l AS table2s ON table1s.pk = table2s.col_int
 WHERE table2s.col_int = 8
@@ -3331,25 +3331,69 @@ EXPLAIN
         -> Nested loop inner join
             -> Single-row index lookup on table1s using PRIMARY (pk=8)
             -> Remove duplicates from input sorted on ix3
-                -> Index lookup on table2s using ix3 (col_int=8), activating pushed join of 3 tables, with pushed condition: (table2s.col_int_key is not null)
+                -> Index lookup on table2s using ix3 (col_int=8), activating pushed join of 2 tables, with pushed condition: (table2s.col_int_key is not null)
         -> Single-row index lookup on table1 using PRIMARY (pk=table2s.col_int_key), child of table2s in pushed join, with pushed condition: (table1.col_int_unique is not null)
-    -> Index lookup on table2 using ix2 (col_int_key=table1.col_int_unique), child of table1 in pushed join
+    -> Index lookup on table2 using ix2 (col_int_key=table1.col_int_unique)
 
 Warnings:
 Note	1003	Push of table 'table2s' as scan-child with lookup-root 'table1s' not implemented
 Note	1003	Can't push table 'table1' as child of 'table1s', column 'table2s.col_int_key' refers a table which was not pushed
 Note	1003	Push of table 'table2' as scan-child with lookup-root 'table1s' not implemented
+Note	1003	Can't push table 'table2' as scan-child of 'table2s', depends on tables being 'skip-read'
 SELECT
 table2.col_int_key
 FROM h AS table1
 JOIN s AS table2 ON table1.col_int_unique = table2.col_int_key
 WHERE table1.pk IN (
-SELECT table2s.col_int_key
+SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table2s.col_int_key
 FROM p AS table1s
 LEFT JOIN l AS table2s ON table1s.pk = table2s.col_int
 WHERE table2s.col_int = 8
 );
 col_int_key
+explain format=tree SELECT
+table2.col_int_key
+FROM h AS table1
+JOIN s AS table2 ON table1.col_int_unique = table2.col_int_key
+WHERE table1.col_int_unique IN (
+SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table2s.col_int_key
+FROM p AS table1s
+LEFT JOIN l AS table2s ON table1s.pk = table2s.col_int
+WHERE table2s.col_int = 1
+);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Nested loop inner join
+            -> Single-row index lookup on table1s using PRIMARY (pk=1)
+            -> Remove duplicates from input sorted on ix3
+                -> Index lookup on table2s using ix3 (col_int=1), activating pushed join of 2 tables, with pushed condition: (table2s.col_int_key is not null)
+        -> Single-row index lookup on table1 using ix1 (col_int_unique=table2s.col_int_key), child of table2s in pushed join
+    -> Index lookup on table2 using ix2 (col_int_key=table2s.col_int_key)
+
+Warnings:
+Note	1003	Push of table 'table2s' as scan-child with lookup-root 'table1s' not implemented
+Note	1003	Can't push table 'table1' as child of 'table1s', column 'table2s.col_int_key' refers a table which was not pushed
+Note	1003	Push of table 'table2' as scan-child with lookup-root 'table1s' not implemented
+Note	1003	Can't push table 'table2' as scan-child of 'table2s', depends on tables being 'skip-read'
+SELECT
+table2.col_int_key
+FROM h AS table1
+JOIN s AS table2 ON table1.col_int_unique = table2.col_int_key
+WHERE table1.col_int_unique IN (
+SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table2s.col_int_key
+FROM p AS table1s
+LEFT JOIN l AS table2s ON table1s.pk = table2s.col_int
+WHERE table2s.col_int = 1
+);
+col_int_key
+1
+1
+1
+1
+1
+1
+1
 explain format=tree SELECT DISTINCT
 table1.col_int AS field1, table2.col_char_16_key AS field2
 FROM a AS table1
@@ -3890,6 +3934,45 @@ SELECT
 table1s.col_int AS field2
 FROM f AS table1s
 JOIN g AS table2s ON table1s.col_int_unique = table2s.col_int_unique
+);
+pk	pk
+10	1
+17	1
+21	1
+22	1
+3	1
+explain format=tree SELECT table1.pk, table2.pk
+FROM x AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE #table2.col_int_unique != 7 AND
+table1.col_int_key IN (
+SELECT
+table1s.col_int AS field2
+FROM f AS table1s
+JOIN g AS table2s ON table1s.col_int_unique+0 = table2s.col_int_unique
+);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Table scan on table2, activating pushed join of 2 tables
+        -> Nested loop semijoin with duplicate removal on PRIMARY
+            -> Index lookup on table1s using PRIMARY (col_int=table2.pk)
+            -> Filter: ((table1s.col_int_unique + 0) = table2s.col_int_unique)
+                -> Single-row index lookup on table2s using ix1 (col_int_unique=(table1s.col_int_unique + 0))
+    -> Index lookup on table1 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table2s' as child, column 'col_int_unique' does neither 'ref' a column nor a constant
+Note	1003	Can't push semi joined table 'table1s' as child of 'table2', some tables in embedding join-nest(s) are not part of pushed join
+SELECT table1.pk, table2.pk
+FROM x AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE #table2.col_int_unique != 7 AND
+table1.col_int_key IN (
+SELECT
+table1s.col_int AS field2
+FROM f AS table1s
+JOIN g AS table2s ON table1s.col_int_unique+0 = table2s.col_int_unique
 );
 pk	pk
 10	1
@@ -4962,6 +5045,104 @@ NULL	NULL	NULL	30	NULL	24
 NULL	NULL	NULL	4	NULL	22
 NULL	NULL	NULL	8	NULL	20
 NULL	NULL	NULL	9	NULL	21
+##################
+#
+# Bug#34231798 Incorrect query result from pushed join with IN-subquery
+#
+##################
+explain format=tree SELECT DISTINCT
+table2.col_varchar_256_unique
+FROM r AS table1
+JOIN q AS table2 ON table2.col_int IS NOT NULL
+WHERE table2.col_int IN (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ col_int_key FROM u);
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Inner hash join (no condition)
+            -> Table scan on table1
+            -> Hash
+                -> Nested loop inner join
+                    -> Remove duplicates from input sorted on col_int_key
+                        -> Index range scan on u using col_int_key over (NULL < col_int_key), with pushed condition: ((u.col_int_key is not null) and (u.col_int_key is not null))
+                    -> Index lookup on table2 using ix1 (col_int=u.col_int_key)
+
+Warnings:
+Note	1003	Can't push table 'table2' as scan-child of 'u', depends on tables being 'skip-read'
+Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
+SELECT DISTINCT
+table2.col_varchar_256_unique
+FROM r AS table1
+JOIN q AS table2 ON table2.col_int IS NOT NULL
+WHERE table2.col_int IN (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ col_int_key FROM u);
+col_varchar_256_unique
+I
+back
+ckpwhjduuegjyzyykqjnzab
+didn't
+fuaiiyufnngmlsudti
+hey
+him
+hvtm
+icqcjhvtmfnumoxifzchbfuaiiy
+ifzchbfuaiiyufnngm
+nduhvuctfgfcwjacjpett
+now
+one
+or
+qjnzabvesmothzh
+see
+that
+then
+there
+ucicqcjhvtm
+we
+whj
+would
+wtnjnpizfjtvnxtispzc
+explain format=tree SELECT
+table2.col_int_key AS field1,
+table1.col_int_unique AS field2,
+table2.col_int AS field3
+FROM (q AS table1
+JOIN h AS table2 ON table1.col_int = table2.col_int_key )
+WHERE ( table2.col_int_unique = ANY (
+SELECT /*+ SEMIJOIN(LOOSESCAN)*/
+table2s.col_int_key
+FROM o AS table1s
+INNER JOIN l AS table2s ON table1s.col_int = table2s.col_int)
+AND table2.col_int_unique <= 3);
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Nested loop semijoin with duplicate removal on col_int_key
+            -> Index range scan on table2s using col_int_key over (NULL < col_int_key <= 3), activating pushed join of 3 tables, with pushed condition: ((table2s.col_int_key <= 3) and (table2s.col_int_key is not null))
+            -> Index lookup on table1s using ix3 (col_int=table2s.col_int), child of table2s in pushed join
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table2s.col_int_key), child of table2s in pushed join, with pushed condition: (table2.col_int_key is not null)
+    -> Index lookup on table1 using ix1 (col_int=table2.col_int_key)
+
+Warnings:
+Note	1003	Can't push table 'table1' as scan-child of 'table2s', depends on tables being 'skip-read'
+SELECT
+table2.col_int_key AS field1,
+table1.col_int_unique AS field2,
+table2.col_int AS field3
+FROM (q AS table1
+JOIN h AS table2 ON table1.col_int = table2.col_int_key )
+WHERE ( table2.col_int_unique = ANY (
+SELECT /*+ SEMIJOIN(LOOSESCAN)*/
+table2s.col_int_key
+FROM o AS table1s
+INNER JOIN l AS table2s ON table1s.col_int = table2s.col_int)
+AND table2.col_int_unique <= 3);
+field1	field2	field3
+0	10	0
+0	12	0
+0	22	0
+0	33	0
+0	4	0
+0	41	0
+0	5	0
+0	NULL	0
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 ##################
 #

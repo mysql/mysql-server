@@ -332,6 +332,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const THD *thd,
       m_const_scope(),
       m_scan_operations(),
       m_has_pending_cond(),
+      m_skip_reads(),
       m_internal_op_count(0),
       m_fld_refs(0),
       m_builder(nullptr),
@@ -426,6 +427,7 @@ void ndb_pushed_builder_ctx::prepare(pushed_table *join_root) {
     m_join_scope.clear_all();
     m_const_scope.clear_all();
     m_has_pending_cond.clear_all();
+    m_skip_reads.clear_all();
     m_internal_op_count = 0;
     m_fld_refs = 0;
 
@@ -436,6 +438,7 @@ void ndb_pushed_builder_ctx::prepare(pushed_table *join_root) {
       table->m_ancestor_nests.clear_all();
       table->m_parent = MAX_TABLES;
       table->m_op = nullptr;
+      m_skip_reads.add(table->m_sj_nest);
     }
   }
 }
@@ -1005,6 +1008,41 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(pushed_table *table) {
         "no parent-child dependency exists between these tables",
         table->get_table()->alias, m_join_root->get_table()->alias);
     return false;
+  }
+
+  /**
+   * There are limitations on index scans which are depending on other scans
+   * which are skip-read as part of a semi-join. Due to the batch fetch
+   * mechanisms in SPJ, we might see repeated duplicates of previous fetched
+   * rows, when they are combined with new rows from later index-scans
+   * depending on these. As the semi-join iterators will skip duplicates,
+   * we might incorrrectly skip result rows iff:
+   *
+   *  1) This table is not part of a semi-join nest itself.
+   *     (Thus, not intended to be a subject to skip-read)
+   *  2) Table depends on other tables being skip-read.
+   *     (Is in a query tree branch with ancestors being skip-read)
+   */
+  // Pushed tables being subject to skip-read:
+  ndb_table_map pushed_skip_reads(m_skip_reads);
+  pushed_skip_reads.intersect(m_join_scope);
+
+  if (!table->m_sj_nest.contain(tab_no) &&                 // 1)
+      depend_parents.is_overlapping(pushed_skip_reads)) {  // 2)
+
+    // This table becomes an indirect subject to skip-read as well
+    m_skip_reads.add(tab_no);
+
+    // If both this table is a scan, and there are scans being skip read.
+    // -> We might skip result rows from this non-semi-joined table
+    if (m_scan_operations.contain(tab_no) &&
+        m_scan_operations.is_overlapping(pushed_skip_reads)) {
+      EXPLAIN_NO_PUSH(
+          "Can't push table '%s' as scan-child of '%s', "
+          "depends on tables being 'skip-read'",
+          table->get_table()->alias, m_join_root->get_table()->alias);
+      return false;
+    }
   }
 
   /**
