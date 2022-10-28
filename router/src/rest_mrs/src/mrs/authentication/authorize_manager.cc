@@ -24,10 +24,14 @@
 
 #include "mrs/authentication/authorize_manager.h"
 
+#include <time.h>
+
 #include <cassert>
 #include <iomanip>
 #include <memory>
 #include <sstream>
+
+#include "my_macros.h"
 
 #include "mrs/authentication/auth_handler_factory.h"
 #include "mrs/authentication/track_authorize_handler.h"
@@ -265,7 +269,7 @@ static bool is_timestamp_in_past(const std::string ts) {
   ss >> std::get_time(&t, "%Y-%m-%d %T");
   if (ss.fail()) return true;
 
-  auto past = timegm(&t);
+  auto past = IF_WIN(_mkgmtime, timegm)(&t);
   auto current =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
