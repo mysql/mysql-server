@@ -1,0 +1,9 @@
+#
+# Bug#34748973 - CPU AFFINITY IS NOT DROPPED ON RESOURCE GROUP DROP
+#
+CREATE RESOURCE GROUP rg1 TYPE=USER VCPU=0;
+SET RESOURCE GROUP rg1;
+SET DEBUG='+d,make_sure_cpu_affinity_is_dropped';
+# Without fix, following statement fails.
+DROP RESOURCE GROUP rg1 FORCE;
+SET DEBUG='-d,make_sure_cpu_affinity_is_dropped';
