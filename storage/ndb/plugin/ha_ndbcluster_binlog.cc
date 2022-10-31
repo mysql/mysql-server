@@ -5574,6 +5574,14 @@ bool ndbcluster_binlog_check_table_async(const std::string &db_name,
     return false;
   }
 
+  if (db_name == Ndb_apply_status_table::DB_NAME &&
+      table_name == Ndb_apply_status_table::TABLE_NAME) {
+    // Never check util tables which are managed by the Ndb_binlog_thread
+    // NOTE! The other tables are filtered elsewhere but ndb_apply_status is
+    // special since it's not hidden.
+    return false;
+  }
+
   return ndb_binlog_thread.add_table_to_check(db_name, table_name);
 }
 

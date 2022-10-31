@@ -279,6 +279,7 @@ bool ndb_get_table_names_in_schema(
     if (schema_name == "mysql" &&
         (strcmp(elmt.name, "ndb_schema") == 0 ||
          strcmp(elmt.name, "ndb_schema_result") == 0 ||
+         strcmp(elmt.name, "ndb_apply_status") == 0 ||
          strcmp(elmt.name, "ndb_sql_metadata") == 0 ||
          strcmp(elmt.name, "ndb_index_stat_head") == 0 ||
          strcmp(elmt.name, "ndb_index_stat_sample") == 0)) {
