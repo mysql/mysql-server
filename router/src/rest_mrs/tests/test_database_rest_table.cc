@@ -70,6 +70,19 @@ TEST(DbEntry, less) {
   ASSERT_TRUE(m.count({key_rest, 4}));
   ASSERT_TRUE(m.count({key_rest, 5}));
   ASSERT_TRUE(m.count({key_rest, 6}));
+
+  ASSERT_TRUE((m[{key_static, 1}] == 1));
+  ASSERT_TRUE((m[{key_static, 2}] == 2));
+  ASSERT_TRUE((m[{key_static, 3}] == 3));
+  ASSERT_TRUE((m[{key_static, 4}] == 4));
+  ASSERT_TRUE((m[{key_static, 5}] == 5));
+  ASSERT_TRUE((m[{key_static, 6}] == 6));
+  ASSERT_TRUE((m[{key_rest, 1}] == 7));
+  ASSERT_TRUE((m[{key_rest, 2}] == 8));
+  ASSERT_TRUE((m[{key_rest, 3}] == 9));
+  ASSERT_TRUE((m[{key_rest, 4}] == 10));
+  ASSERT_TRUE((m[{key_rest, 5}] == 11));
+  ASSERT_TRUE((m[{key_rest, 6}] == 12));
 }
 
 TEST_F(QueryRestTableTests, basic_empty_request_throws) {
