@@ -156,6 +156,8 @@ class Resource_group {
 
   std::atomic<ulonglong> &reference_count() { return m_reference_count; }
 
+  uint &version() { return m_version; }
+
   ~Resource_group() = default;
 
  private:
@@ -203,6 +205,15 @@ class Resource_group {
     references.)
   */
   std::atomic<ulonglong> m_reference_count{0};
+
+  /**
+    Version number of a Resource group in-memory instance. Version number is
+    incremented on thread resource controls alter. If other threads (only
+    system threads internally switched to refer user resource group to execute
+    user queries for now) references this resource group, then resource group
+    is re-applied by threads on version number mismatch.
+  */
+  uint m_version{0};
 
   /**
     Disable copy construction and assignment.
