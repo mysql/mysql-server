@@ -448,6 +448,8 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
     +------------+
     |   4/8 bytes| original/immediate_server_version (see timestamps*)
     +------------+
+    |     8 bytes| Commit group ticket
+    +------------+
 
     The 'Flags' field contains gtid flags.
 
@@ -558,6 +560,10 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
                            ORIGINAL_SERVER_VERSION_LENGTH);
           } else
             original_server_version = immediate_server_version;
+
+          if (READER_CALL(can_read, COMMIT_GROUP_TICKET_LENGTH)) {
+            READER_TRY_SET(this->commit_group_ticket, read<uint64_t>);
+          }
         }
       }
     }
@@ -565,6 +571,26 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
 
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;
+}
+
+int Gtid_event::get_commit_group_ticket_length() const {
+  if (kGroupTicketUnset != commit_group_ticket) {
+    return COMMIT_GROUP_TICKET_LENGTH;
+  }
+  return 0;
+}
+
+void Gtid_event::set_commit_group_ticket_and_update_transaction_length(
+    std::uint64_t value) {
+  /*
+    Add the commit_group_ticket length to the transaction length if
+    it was not yet considered.
+  */
+  assert(value > 0);
+  set_trx_length(transaction_length + (kGroupTicketUnset == commit_group_ticket
+                                           ? COMMIT_GROUP_TICKET_LENGTH
+                                           : 0));
+  commit_group_ticket = value;
 }
 
 Previous_gtids_event::Previous_gtids_event(const char *buffer,

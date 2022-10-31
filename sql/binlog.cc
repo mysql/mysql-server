@@ -81,6 +81,7 @@
 #include "partition_info.h"
 #include "prealloced_array.h"
 #include "sql/binlog/global.h"
+#include "sql/binlog/group_commit/bgc_ticket_manager.h"  // Bgc_ticket_manager
 #include "sql/binlog/recovery.h"  // binlog::Binlog_recovery
 #include "sql/binlog/tools/iterators.h"
 #include "sql/binlog_ostream.h"
@@ -3561,7 +3562,8 @@ void MYSQL_BIN_LOG::init_pthread_objects() {
   if (!is_relay_log) {
     Commit_stage_manager::get_instance().init(
         m_key_LOCK_flush_queue, m_key_LOCK_sync_queue, m_key_LOCK_commit_queue,
-        m_key_LOCK_done, m_key_COND_done, m_key_COND_flush_queue);
+        m_key_LOCK_done, m_key_LOCK_wait_for_group_turn, m_key_COND_done,
+        m_key_COND_flush_queue, m_key_COND_wait_for_group_turn);
   }
 }
 
@@ -8798,6 +8800,14 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
   int flush_error = 0, sync_error = 0;
   my_off_t total_bytes = 0;
   bool do_rotate = false;
+
+  CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_assign_session_to_bgc_ticket");
+  thd->rpl_thd_ctx.binlog_group_commit_ctx().assign_ticket();
+
+  DBUG_EXECUTE_IF("syncpoint_before_wait_on_ticket_3",
+                  binlog::Bgc_ticket_manager::instance().push_new_ticket(););
+  DBUG_EXECUTE_IF("begin_new_bgc_ticket",
+                  binlog::Bgc_ticket_manager::instance().push_new_ticket(););
 
   DBUG_EXECUTE_IF("crash_commit_before_log", DBUG_SUICIDE(););
   init_thd_variables(thd, all, skip_commit);

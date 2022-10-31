@@ -1,0 +1,87 @@
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--let $option_name = binlog_order_commits
+--let $option_value = 1
+--source include/only_with_option.inc
+
+CREATE TABLE t (
+  c1 INT NOT NULL PRIMARY KEY,
+  c2 INT
+);
+
+--let $save_binlog_position_in_sql = 1
+--source include/save_binlog_position.inc
+
+--let $gtid_uuid = 435aeb3e-cc91-11ec-a715-6ba04eb9487e
+--let $auxiliary_connection = default
+
+--connect(con1,localhost,root,,)
+--let $statement_connection = con1
+--let $timestamp = 1
+--let $statement = SET gtid_next = "$gtid_uuid:1"; INSERT INTO t VALUES (1, 1)
+--let $sync_point = before_assign_session_to_bgc_ticket
+--source include/execute_to_conditional_timestamp_sync_point.inc
+
+--connect(con2,localhost,root,,)
+--let $statement_connection = con2
+--let $timestamp = 2
+--let $statement = SET gtid_next = "$gtid_uuid:2"; INSERT INTO t VALUES (2, 2)
+--let $sync_point = before_wait_on_ticket
+--source include/execute_to_conditional_timestamp_sync_point.inc
+
+--connect(con3,localhost,root,,)
+--let $statement_connection = con3
+--let $timestamp = 3
+--let $statement = SET gtid_next = "$gtid_uuid:3"; INSERT INTO t VALUES (3, 3)
+--let $sync_point = before_wait_on_ticket
+--source include/execute_to_conditional_timestamp_sync_point.inc
+
+--connection default
+--let $statement_connection = con1
+--let $timestamp = 1
+--let $sync_point = before_assign_session_to_bgc_ticket
+--let $to_sync_point = inside_wait_on_ticket
+--source include/execute_from_conditional_timestamp_sync_point.inc
+--let $to_sync_point =
+
+--let $statement_connection = con1
+--let $timestamp = 1
+--let $sync_point = inside_wait_on_ticket
+--source include/execute_from_conditional_timestamp_sync_point.inc
+
+--connection default
+--let $statement_connection = con2
+--let $timestamp = 2
+--let $sync_point = before_wait_on_ticket
+--source include/execute_from_conditional_timestamp_sync_point.inc
+
+--connection default
+--let $statement_connection = con3
+--let $timestamp = 3
+--let $sync_point = before_wait_on_ticket
+--source include/execute_from_conditional_timestamp_sync_point.inc
+
+--connection con1
+--reap
+--disconnect con1
+--connection con2
+--reap
+--disconnect con2
+--connection con3
+--reap
+--disconnect con3
+
+--connection default
+--let $wait_condition = SELECT COUNT(1) = 3 FROM t
+--source include/wait_condition.inc
+
+--let $events_for_1 = Gtid/.*GTID_NEXT= '$gtid_uuid:1' # !Begin # !Insert # !Commit
+--let $events_for_2 = Gtid/.*GTID_NEXT= '$gtid_uuid:2' # !Begin # !Insert # !Commit
+--let $events_for_3 = Gtid/.*GTID_NEXT= '$gtid_uuid:3' # !Begin # !Insert # !Commit
+
+--let $event_sequence = $events_for_2 # $events_for_3 # $events_for_1
+--source include/assert_binlog_events.inc
+
+DROP TABLE t;
+RESET MASTER;

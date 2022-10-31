@@ -189,19 +189,46 @@ class Commit_stage_manager {
     @param key_LOCK_sync_queue mutex instrumentation key
     @param key_LOCK_commit_queue mutex instrumentation key
     @param key_LOCK_done mutex instrumentation key
+    @param key_LOCK_wait_for_group_turn mutex instrumentation key
     @param key_COND_done cond instrumentation key
     @param key_COND_flush_queue cond instrumentation key
+    @param key_COND_wait_for_group_turn cond instrumentation key
   */
   void init(PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
             PSI_mutex_key key_LOCK_commit_queue, PSI_mutex_key key_LOCK_done,
-            PSI_cond_key key_COND_done, PSI_cond_key key_COND_flush_queue);
+            PSI_mutex_key key_LOCK_wait_for_group_turn,
+            PSI_cond_key key_COND_done, PSI_cond_key key_COND_flush_queue,
+            PSI_cond_key key_COND_wait_for_group_turn);
 
   /**
     Deinitializes m_stage_cond_binlog, m_stage_cond_commit_order,
     m_stage_cond_leader condition variables and m_lock_done mutex.
   */
   void deinit();
+
+  /**
+    Waits for the THD session parameter underlying BGC ticket to become
+    active.
+
+    @param thd The THD session that holds the ticket to wait for.
+    @param update_ticket_manager Indicates whether to mark ticket
+    as consumed by the session (add session to processed sessions)
+    after the ticket is opened for processing.
+   */
+  void wait_for_ticket_turn(THD *thd, bool update_ticket_manager = true);
+
+  /**
+    Appends the given THD session object to the given stage queue. It
+    verifies that the given session's ticket is the active ticket, if not,
+    waits on `m_cond_wait_for_ticket_turn` condition variable until it is.
+
+    @param stage The stage to add the THD parameter to.
+    @param thd   The THD session object to queue.
+
+    @return True if the session is a group leader, false otherwise.
+   */
+  bool append_to(StageID stage, THD *thd);
 
   /**
     Enroll a set of sessions for a stage.
@@ -309,6 +336,39 @@ class Commit_stage_manager {
   void signal_done(THD *queue, StageID stage = BINLOG_FLUSH_STAGE);
 
   /**
+    Signals threads waiting on their BGC ticket turn.
+
+    @param force Whether or not to force the signaling, despit the state of
+                 the ticket manager.
+   */
+  void signal_end_of_ticket(bool force = false);
+  /**
+    Updates the THD session object underlying BGC context.
+
+    @param thd The THD object to update the BGC context for.
+   */
+  void update_session_ticket_state(THD *thd);
+  /**
+    Adds the given session count to the total of processed sessions in the
+    ticket manager active window, ends the active window if possible and
+    notifies other threads that are waiting for a given ticket to have an
+    active processing window.
+
+    @param sessions_count The number of sessions to add to the ticket
+                          manager processed sessions count.
+    @param session_ticket The session ticket (used for validations).
+   */
+  void update_ticket_manager(std::uint64_t sessions_count,
+                             const binlog::BgcTicket &session_ticket);
+  /**
+    Waits for the session's ticket, if needed, and resets the session's
+    ticket context.
+
+    @param thd The THD sessions object to finish the ticket's related work.
+   */
+  void finish_session_ticket(THD *thd);
+
+  /**
     This function gets called after transactions are flushed to the engine
     i.e. after calling ha_flush_logs, to unblock commit order thread list
     which are not needed to wait for other stages.
@@ -330,6 +390,15 @@ class Commit_stage_manager {
     @param[in]  stage  Stage identifier for the queue to append to.
   */
   void unlock_queue(StageID stage) { m_queue[stage].unlock(); }
+
+  /**
+    Disables the ability for session BGC tickets to be set manually.
+   */
+  static void disable_manual_session_tickets();
+  /**
+    Enables the ability for session BGC tickets to be set manually.
+   */
+  static void enable_manual_session_tickets();
 
  private:
   /** check if Commit_stage_manager variables already initialized. */
@@ -388,6 +457,11 @@ class Commit_stage_manager {
   /** Condition variable to indicate a follower started waiting for commit */
   mysql_cond_t m_cond_preempt;
 #endif
+
+  /** Condition variable to wait for a given ticket to become active. */
+  mysql_cond_t m_cond_wait_for_ticket_turn;
+  /** Mutex to protect the wait for a given ticket to become active. */
+  mysql_mutex_t m_lock_wait_for_ticket_turn;
 };
 
 #endif /*RPL_COMMIT_STAGE_MANAGER*/

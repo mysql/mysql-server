@@ -86,6 +86,12 @@ include/stop_group_replication.inc
 
 ############################################################
 # 4. Clean up.
+[connection server2]
+RESET MASTER;
+include/start_and_bootstrap_group_replication.inc
+[connection server1]
+RESET MASTER;
+include/start_group_replication.inc
 [connection server1]
 SET SESSION sql_log_bin= 0;
 DROP TABLE t1;

@@ -2547,6 +2547,8 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
   return 0;
 err:
   if (error) {
+    Commit_stage_manager::get_instance().finish_session_ticket(thd);
+
     report_error_to_coordinator(worker);
     DBUG_PRINT("info", ("Worker %lu is exiting: killed %i, error %i, "
                         "running_status %d",

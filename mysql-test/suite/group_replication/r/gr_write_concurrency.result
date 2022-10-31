@@ -92,6 +92,7 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached"
 SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 Wait until server2 becomes ONLINE
+include/gr_wait_for_member_state.inc
 SET DEBUG_SYNC= 'RESET';
 CREATE TABLE t2 (a INT PRIMARY KEY);
 include/rpl_sync.inc

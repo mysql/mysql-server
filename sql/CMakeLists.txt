@@ -985,6 +985,10 @@ SET(BINLOG_SOURCE
   basic_ostream.cc
   binlog/global.cc
   binlog/recovery.cc
+  binlog/group_commit/bgc_ticket_manager.cc
+  binlog/group_commit/bgc_ticket.cc
+  binlog/group_commit/atomic_bgc_ticket.cc
+  binlog/group_commit/atomic_bgc_ticket_guard.cc
   binlog/monitoring/context.cc
   binlog/tools/iterators.cc
   binlog.cc

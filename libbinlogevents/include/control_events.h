@@ -1042,6 +1042,18 @@ class Gtid_event : public Binary_log_event {
   void print_event_info(std::ostream &) override {}
   void print_long_info(std::ostream &) override {}
 #endif
+  /*
+    Commit group ticket consists of: 1st bit, used internally for
+    synchronization purposes ("is in use"),  followed by 63 bits for
+    the ticket value.
+  */
+  static constexpr int COMMIT_GROUP_TICKET_LENGTH = 8;
+  /*
+    Default value of commit_group_ticket, which means it is not
+    being used.
+  */
+  static constexpr std::uint64_t kGroupTicketUnset = 0;
+
  protected:
   static const int ENCODED_FLAG_LENGTH = 1;
   static const int ENCODED_SID_LENGTH = 16;  // Uuid::BYTE_LENGTH;
@@ -1115,9 +1127,10 @@ class Gtid_event : public Binary_log_event {
     On the originating master, the event has only one timestamp as the two
     timestamps are equal. On every other server we have two timestamps.
   */
-  static const int MAX_DATA_LENGTH = FULL_COMMIT_TIMESTAMP_LENGTH +
-                                     TRANSACTION_LENGTH_MAX_LENGTH +
-                                     FULL_SERVER_VERSION_LENGTH;
+  static const int MAX_DATA_LENGTH =
+      FULL_COMMIT_TIMESTAMP_LENGTH + TRANSACTION_LENGTH_MAX_LENGTH +
+      FULL_SERVER_VERSION_LENGTH +
+      COMMIT_GROUP_TICKET_LENGTH; /* 64-bit unsigned integer */
 
   static const int MAX_EVENT_LENGTH =
       LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
@@ -1137,6 +1150,28 @@ class Gtid_event : public Binary_log_event {
   uint32_t original_server_version;
   /** The version of the immediate server */
   uint32_t immediate_server_version;
+
+  /** Ticket number used to group sessions together during the BGC. */
+  std::uint64_t commit_group_ticket{kGroupTicketUnset};
+
+  /**
+    Returns the length of the packed `commit_group_ticket` field. It may be
+    8 bytes or 0 bytes, depending on whether or not the value is
+    instantiated.
+
+    @return The length of the packed `commit_group_ticket` field
+  */
+  int get_commit_group_ticket_length() const;
+
+  /**
+   Set the commit_group_ticket and update the transaction length if
+   needed, that is, if the commit_group_ticket was not set already
+   account it on the transaction size.
+
+   @param value The commit_group_ticket value.
+  */
+  void set_commit_group_ticket_and_update_transaction_length(
+      std::uint64_t value);
 };
 
 /**

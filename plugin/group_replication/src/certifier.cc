@@ -294,8 +294,6 @@ Certifier::Certifier()
   group_gtid_executed = new Gtid_set(group_gtid_sid_map, nullptr);
   group_gtid_extracted = new Gtid_set(group_gtid_sid_map, nullptr);
 
-  last_local_gtid.clear();
-
   mysql_mutex_init(key_GR_LOCK_certification_info, &LOCK_certification_info,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_GR_LOCK_cert_members, &LOCK_members, MY_MUTEX_INIT_FAST);
@@ -549,14 +547,10 @@ Gtid_set::Interval Certifier::reserve_gtid_block(longlong block_size) {
 }
 
 void Certifier::add_to_group_gtid_executed_internal(rpl_sidno sidno,
-                                                    rpl_gno gno, bool local) {
+                                                    rpl_gno gno) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_certification_info);
   group_gtid_executed->_add_gtid(sidno, gno);
-  if (local) {
-    assert(sidno > 0 && gno > 0);
-    last_local_gtid.set(sidno, gno);
-  }
   /*
     We only need to track certified transactions on
     group_gtid_extracted while:
@@ -929,8 +923,7 @@ end:
   return result;
 }
 
-int Certifier::add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle,
-                                                         bool local) {
+int Certifier::add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&LOCK_certification_info);
@@ -950,17 +943,16 @@ int Certifier::add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle,
     return 1;                                       /* purecov: inspected */
   }
 
-  add_to_group_gtid_executed_internal(sidno, gle->get_gno(), local);
+  add_to_group_gtid_executed_internal(sidno, gle->get_gno());
 
   mysql_mutex_unlock(&LOCK_certification_info);
   return 0;
 }
 
-int Certifier::add_group_gtid_to_group_gtid_executed(rpl_gno gno, bool local) {
+int Certifier::add_group_gtid_to_group_gtid_executed(rpl_gno gno) {
   DBUG_TRACE;
   mysql_mutex_lock(&LOCK_certification_info);
-  add_to_group_gtid_executed_internal(group_gtid_sid_map_group_sidno, gno,
-                                      local);
+  add_to_group_gtid_executed_internal(group_gtid_sid_map_group_sidno, gno);
   mysql_mutex_unlock(&LOCK_certification_info);
   return 0;
 }
@@ -1541,7 +1533,7 @@ Gtid Certifier::generate_view_change_group_gtid() {
 
   if (result > 0)
     add_to_group_gtid_executed_internal(views_sidno_group_representation,
-                                        result, false);
+                                        result);
   mysql_mutex_unlock(&LOCK_certification_info);
 
   return {views_sidno_server_representation, result};
@@ -1690,16 +1682,6 @@ void Certifier::get_last_conflict_free_transaction(std::string *value) {
 
 end:
   mysql_mutex_unlock(&LOCK_certification_info);
-}
-
-size_t Certifier::get_local_certified_gtid(
-    std::string &local_gtid_certified_string) {
-  if (last_local_gtid.is_empty()) return 0;
-
-  char buf[Gtid::MAX_TEXT_LENGTH + 1];
-  last_local_gtid.to_string(group_gtid_sid_map, buf);
-  local_gtid_certified_string.assign(buf);
-  return local_gtid_certified_string.size();
 }
 
 void Certifier::enable_conflict_detection() {

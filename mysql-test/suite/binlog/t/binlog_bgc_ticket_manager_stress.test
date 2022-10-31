@@ -1,0 +1,57 @@
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+RESET MASTER;
+CREATE TABLE t (
+  c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  c2 INT,
+  c3 DATETIME DEFAULT CURRENT_TIMESTAMP);
+
+--let $time_unit = 0.00001
+--let $threads = 100
+--let $iterations = 200
+--let $n_tickets = 100
+--expr $records = $threads * $iterations
+--expr $records = $records + $n_tickets
+--expr $sleep = $records * $time_unit
+
+--echo # Configuration:
+--echo # · MYSQL_SLAP theads: $threads
+--echo # · MYSQL_SLAP iterations: $iterations
+--echo # · BGC tickets: $n_tickets
+--echo # · Expected table count: $records
+--echo # · Sleep: $sleep
+
+exec_in_background $MYSQL_SLAP
+  --silent
+  --delimiter=";"
+  --create-schema="test"
+  -uroot
+  --password=""
+  --query="INSERT INTO t (c2) VALUES (0)"
+  --concurrency=$threads
+  --iterations=$iterations
+  --commit=1;
+
+--let $debug_point = begin_new_bgc_ticket
+--let $debug_type = SESSION
+--source include/add_debug_point.inc
+
+--let $new_ticket = 0
+while ($new_ticket != $n_tickets) {
+  --disable_query_log
+  --eval INSERT INTO t (c2) VALUES ($new_ticket + 1)
+  --enable_query_log
+  --inc $new_ticket
+  --sleep $sleep
+}
+
+--source include/remove_debug_point.inc
+
+--let $wait_condition= SELECT COUNT(1) = $records FROM t
+--let $wait_timeout= 3000
+--source include/wait_condition.inc
+
+DROP TABLE t;
+RESET MASTER;

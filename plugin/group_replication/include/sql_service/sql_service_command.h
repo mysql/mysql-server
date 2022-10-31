@@ -43,21 +43,6 @@ enum enum_plugin_con_isolation {
 class Sql_service_commands {
  public:
   /**
-    Method to wait for the server gtid_executed to match the given GTID string
-
-    @param sql_interface the server session interface for query execution
-    @param [in] gtid_executed  The GTID string to check
-    @param [in] timeout        The timeout after which the method should break
-
-    @return the error value returned
-      @retval 0      OK
-      @retval !=0    Error when executed or timeout.
-  */
-  long internal_wait_for_server_gtid_executed(
-      Sql_service_interface *sql_interface, std::string &gtid_executed,
-      int timeout = 0);
-
-  /**
    Method to kill the session identified by the given session id in those
    cases where the server hangs while executing the sql query.
 
@@ -294,20 +279,6 @@ class Sql_service_command_interface {
       @retval false some issue prob happened on connection
   */
   bool is_session_valid();
-
-  /**
-    Method to wait for the server gtid_executed to match the given GTID string
-
-    @param [in] gtid_executed  The GTID string to check
-    @param [in] timeout        The timeout after which the method should break
-
-    @return the error value returned
-      @retval 0    OK
-      @retval -1   Timeout on the GTID wait
-      @retval 1    Error when executed
-  */
-  long wait_for_server_gtid_executed(std::string &gtid_executed,
-                                     int timeout = 0);
 
   /**
     Method to remotely clone a server

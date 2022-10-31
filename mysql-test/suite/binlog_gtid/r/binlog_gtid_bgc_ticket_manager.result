@@ -1,0 +1,19 @@
+include/only_with_option.inc [GLOBAL.binlog_order_commits = 1]
+CREATE TABLE t (
+c1 INT NOT NULL PRIMARY KEY,
+c2 INT
+);
+include/save_binlog_position.inc
+include/execute_to_conditional_timestamp_sync_point.inc [before_assign_session_to_bgc_ticket]
+SET gtid_next = "435aeb3e-cc91-11ec-a715-6ba04eb9487e:1"; INSERT INTO t VALUES (1, 1);
+include/execute_to_conditional_timestamp_sync_point.inc [before_wait_on_ticket]
+SET gtid_next = "435aeb3e-cc91-11ec-a715-6ba04eb9487e:2"; INSERT INTO t VALUES (2, 2);
+include/execute_to_conditional_timestamp_sync_point.inc [before_wait_on_ticket]
+SET gtid_next = "435aeb3e-cc91-11ec-a715-6ba04eb9487e:3"; INSERT INTO t VALUES (3, 3);
+include/execute_from_conditional_timestamp_sync_point.inc [1@before_assign_session_to_bgc_ticket]
+include/execute_from_conditional_timestamp_sync_point.inc [1@inside_wait_on_ticket]
+include/execute_from_conditional_timestamp_sync_point.inc [2@before_wait_on_ticket]
+include/execute_from_conditional_timestamp_sync_point.inc [3@before_wait_on_ticket]
+include/assert_binlog_events.inc [Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:2' # !Begin # !Insert # !Commit # Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:3' # !Begin # !Insert # !Commit # Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:1' # !Begin # !Insert # !Commit]
+DROP TABLE t;
+RESET MASTER;

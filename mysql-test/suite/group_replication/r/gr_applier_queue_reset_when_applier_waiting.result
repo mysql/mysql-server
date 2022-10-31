@@ -52,13 +52,14 @@ include/start_group_replication.inc
 #    is on RECOVERING.
 [connection server1]
 INSERT INTO t1 VALUES (1);
-[connection server2]
+[connection server_2]
 INSERT INTO t1 VALUES (2);
 
-# 5. Server 3 will apply INSERT (2) through recovery.
-#    INSERT(1) will only be applied after member is ONLINE.
+# 5. INSERT(1) will only be applied after member is ONLINE.
+#    INSERT(2) will only be applied after member is ONLINE.
 [connection server3]
 include/assert.inc [value of 1 is not received.]
+include/assert.inc [value of 2 is not received.]
 
 # 6. Resume applier on server2.
 #    Server3 state will change to ONLINE.
@@ -66,6 +67,7 @@ include/assert.inc [value of 1 is not received.]
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+[connection server_2]
 [connection server3]
 include/gr_wait_for_member_state.inc
 include/rpl_sync.inc
@@ -74,6 +76,97 @@ include/rpl_sync.inc
 [connection server1]
 [connection server2]
 [connection server3]
+include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1]
+[connection server1]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+[connection server2]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+[connection server3]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Previous_gtids	#	#	
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
 
 # 8. Clean up.
 [connection server1]

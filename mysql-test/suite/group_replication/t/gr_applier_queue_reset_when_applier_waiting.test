@@ -14,8 +14,8 @@
 #    RECOVERING state waiting for View_change_log_event log.
 # 4. Execute 2 transactions on server1 and 2 while server3
 #    is on RECOVERING.
-# 5. Server 3 will apply INSERT (2) through recovery.
-#    INSERT(1) will only be applied after member is ONLINE.
+# 5. INSERT(1) will only be applied after member is ONLINE.
+#    INSERT(2) will only be applied after member is ONLINE.
 # 6. Resume applier on server2.
 #    Server3 state will change to ONLINE.
 # 7. Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on all servers.
@@ -108,13 +108,13 @@ SET SESSION sql_log_bin= 1;
 --source include/rpl_connection.inc
 INSERT INTO t1 VALUES (1);
 
---let $rpl_connection_name= server2
+--let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
-INSERT INTO t1 VALUES (2);
+--send INSERT INTO t1 VALUES (2)
 
 --echo
---echo # 5. Server 3 will apply INSERT (2) through recovery.
---echo #    INSERT(1) will only be applied after member is ONLINE.
+--echo # 5. INSERT(1) will only be applied after member is ONLINE.
+--echo #    INSERT(2) will only be applied after member is ONLINE.
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -122,11 +122,12 @@ INSERT INTO t1 VALUES (2);
 --let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1"
 --source include/wait_condition.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM t1 WHERE c1=2
---source include/wait_condition.inc
-
 --let $assert_text= value of 1 is not received.
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= value of 2 is not received.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1 = 2, count, 1] = 0
 --source include/assert.inc
 
 --echo
@@ -139,6 +140,10 @@ INSERT INTO t1 VALUES (2);
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--reap
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -166,6 +171,24 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 --source include/rpl_connection.inc
 --let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 0 FROM performance_schema.replication_group_member_stats WHERE member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1, server3:test.t1
+--source include/diff_tables.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
 
 --echo
 --echo # 8. Clean up.

@@ -1,7 +1,7 @@
 ################################################################################
 # This test validates that even when there is a delay in applying view_change
 # event due to ongoing local transaction, the immediate post view_change
-# transaction on the server should work fine and server should remain in
+# transactions on the server should work fine and server should remain in
 # online state.
 #
 # Test:
@@ -16,7 +16,7 @@
 #     Make it wait on before transaction message broadcast.
 # 07. Check wait condition on server1.
 # 08. Start server3
-# 09. Signal to continue T3 on server1.
+# 09. Signal to continue T3 and execute T4 on server1.
 # 10. Signal to continue T1 and T2 on server2.
 # 11. Check members state on server1.
 # 12. Check all servers have the same transactions order on the binary log.
@@ -78,6 +78,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier
 --echo # 04. Execute T1 and T2 on server1.
 
 --connect (server_1_2,127.0.0.1,root,,test,$MASTER_MYPORT,,)
+--connect (server_1_3,127.0.0.1,root,,test,$MASTER_MYPORT,,)
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -155,12 +156,16 @@ SET SESSION sql_log_bin= 1;
 
 --echo
 --echo ############################################################
---echo # 09. Signal to continue T3 on server1.
+--echo # 09. Signal to continue T3 and execute T4 on server1.
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= 'now SIGNAL waiting';
+
+--let $rpl_connection_name= server_1_3
+--source include/rpl_connection.inc
+--send CREATE TABLE test.t4 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB
 
 
 --echo
@@ -184,6 +189,10 @@ SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepa
 --reap
 
 --let $rpl_connection_name= server_1_2
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_1_3
 --source include/rpl_connection.inc
 --reap
 
@@ -237,11 +246,13 @@ SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepa
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+DROP TABLE t4;
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;
 
 --disconnect server_1_2
+--disconnect server_1_3
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc

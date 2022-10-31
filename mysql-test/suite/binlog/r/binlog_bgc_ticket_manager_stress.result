@@ -1,0 +1,15 @@
+RESET MASTER;
+CREATE TABLE t (
+c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c2 INT,
+c3 DATETIME DEFAULT CURRENT_TIMESTAMP);
+# Configuration:
+# · MYSQL_SLAP theads: 100
+# · MYSQL_SLAP iterations: 200
+# · BGC tickets: 100
+# · Expected table count: 20100
+# · Sleep: 0.201
+# Adding debug point 'begin_new_bgc_ticket' to @@SESSION.debug
+# Removing debug point 'begin_new_bgc_ticket' from @@SESSION.debug
+DROP TABLE t;
+RESET MASTER;

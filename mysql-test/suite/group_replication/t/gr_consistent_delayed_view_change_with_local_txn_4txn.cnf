@@ -1,7 +1,7 @@
 !include ../my.cnf
 
 [mysqld]
-group_replication_consistency= AFTER
+group_replication_consistency= BEFORE_AND_AFTER
 
 [mysqld.1]
 

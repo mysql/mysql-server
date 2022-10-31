@@ -63,6 +63,7 @@ where event_name like "%MYSQL_BIN_LOG%"
 EVENT_NAME	COUNT_STAR
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_done	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_flush_queue	NONE
+wait/synch/cond/sql/MYSQL_BIN_LOG::COND_wait_for_group_turn	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::prep_xids_cond	NONE
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_binlog_end_pos	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit	MANY
@@ -73,6 +74,7 @@ wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync_queue	MANY
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_wait_for_group_turn	NONE
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	NONE
 "Expect no slave relay log"
 select * from performance_schema.file_summary_by_instance
@@ -162,6 +164,7 @@ where event_name like "%MYSQL_BIN_LOG%"
 EVENT_NAME	COUNT_STAR
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_done	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_flush_queue	NONE
+wait/synch/cond/sql/MYSQL_BIN_LOG::COND_wait_for_group_turn	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::prep_xids_cond	NONE
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_binlog_end_pos	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit	MANY
@@ -172,6 +175,7 @@ wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync_queue	MANY
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_wait_for_group_turn	NONE
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	MANY
 "Expect a slave relay log"
 select
