@@ -1,4 +1,5 @@
 --source include/have_hypergraph.inc
+--source include/elide_costs.inc
 
 --echo #
 --echo # Bug#32980875: WL#14422: ASSERTION `FALSE' FAILED|SQL/BASIC_ROW_ITERATORS.H
@@ -56,3 +57,156 @@ EXPLAIN FORMAT=TREE
  FROM t t1 JOIN t t2 USING (x)
  GROUP BY t2.x;
 DROP TABLE t;
+
+
+--echo #
+--echo # Bug #33968442: Hypergraph gives too high row estimates for GROUP BY
+--echo #
+
+CREATE TABLE num10 (n INT);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE VIEW num1000 AS
+SELECT d1.n+d2.n*10+d3.n*100 n FROM num10 d1, num10 d2, num10 d3;
+
+CREATE TABLE t1(
+  a INT,
+  b INT,
+  c INT,
+  d INT,
+  e INT,
+  f INT,
+  g INT,
+  h INT,
+  i INT,
+  j INT,
+  k INT,
+  l INT,
+  PRIMARY KEY(a,b),
+  KEY ix1 (c,d),
+  KEY ix2 (d,a,c),
+  KEY ix3 (g,h,i,j),
+  KEY ix4 (k,j,l),
+  KEY ix5 (k,l)
+);
+
+INSERT INTO t1
+  SELECT n/100,n%100,n%5,n%7,n%11,n%13,n%10,n%10,n%10,n%10,n%10,n%10
+  FROM num1000;
+
+ANALYZE TABLE t1;
+
+# Estimate result size using primary index.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY a;
+
+# Estimate result size using ix1.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c;
+
+# Estimate result size using ix1.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,c;
+
+# Estimate result size using ix2.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,a;
+
+# Estimate result size using ix1 or ix2.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,d,a;
+
+# Estimate result size using:
+# - ix1 or ix2 for d,c,a.
+# - ix1 or ix2 for d,c
+# - ix2 d
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,a,c WITH ROLLUP;
+
+# Estimate result size using:
+# - ix1 or ix2 for c,d,a.
+# - ix1 for c,d
+# - ix1 for c
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,d,a WITH ROLLUP;
+
+# Estimate result size using:
+# - ix1 or ix2 for c,a,d.
+# - ix1 and PRIMARY for c,a
+# - ix1 for c
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,a,d WITH ROLLUP;
+
+# Estimate result size using ix1 and PRIMARY.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,a;
+
+# Estimate result size using ix1 (for c) and t1 row count.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,b;
+
+# Estimate result size using t1 row count.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e,f;
+
+# Estimate result size using ix3 and ix5 (not one-field prefix of ix4).
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY g,h,i,j,k,l;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a,b,c,d,e,f,g,h,i;
+ANALYZE TABLE t1;
+
+# Estimate result size using histogram.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e;
+
+# Estimate result size using histograms.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e,f;
+
+# Estimate result size using histograms, and then cap to input set size.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY e,f;
+
+# Estimate result size using input row count.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c+0,e+0;
+
+# Estimate result size using input row count.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY c+0,e+0;
+
+# Estimate result size using primary index (for a), histogram (for e)
+# and t1 row count for 'c+0'.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY a,e,c+0;
+
+CREATE TABLE t2 (
+  c1 INT,
+  c2 INT,
+  c3 INT,
+  PRIMARY KEY(c1,c2)
+);
+
+INSERT INTO t2 SELECT n%5,n/5,n%3 FROM num10;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c3;
+ANALYZE TABLE t2;
+
+# Estimate result size using primary index.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c1;
+
+# Estimate result size using t2 row count.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c2;
+
+# Estimate result size using histogram.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c3;
+
+# Estimate result size using primary index (a) and histogram (c3).
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY a,c3;
+
+DROP VIEW num1000;
+DROP TABLE num10, t1, t2;

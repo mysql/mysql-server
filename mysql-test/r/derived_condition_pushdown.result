@@ -353,9 +353,9 @@ m
 EXPLAIN FORMAT=tree SELECT f1 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE f1 > 3;
 EXPLAIN
--> Table scan on dt (rows=2)
-    -> Materialize (rows=2)
-        -> Group aggregate: sum(t1.f2) (rows=2)
+-> Table scan on dt (rows=1)
+    -> Materialize (rows=1)
+        -> Group aggregate: sum(t1.f2) (rows=1)
             -> Filter: (t1.f1 > 3) (rows=2)
                 -> Covering index range scan on t1 using f1_2 over (3 < f1) (rows=2)
 
@@ -366,9 +366,9 @@ f1
 EXPLAIN FORMAT=tree SELECT f1 FROM (SELECT f1, f2, SUM(f3) FROM t1 GROUP BY f1,f2) as dt
 WHERE f1+f2 > 30;
 EXPLAIN
--> Table scan on dt (rows=12)
-    -> Materialize (rows=12)
-        -> Group aggregate: sum(t1.f3) (rows=12)
+-> Table scan on dt (rows=6)
+    -> Materialize (rows=6)
+        -> Group aggregate: sum(t1.f3) (rows=6)
             -> Filter: ((t1.f1 + t1.f2) > 30) (rows=12)
                 -> Index scan on t1 using f1_2 (rows=12)
 
@@ -381,10 +381,10 @@ EXPLAIN FORMAT=tree SELECT f1
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1 WITH ROLLUP) as dt
 WHERE f1 IS NULL;
 EXPLAIN
--> Table scan on dt (rows=12)
-    -> Materialize (rows=12)
-        -> Filter: (rollup_group_item(t1.f1,0) is null) (rows=12)
-            -> Group aggregate with rollup: sum(t1.f2) (rows=12)
+-> Table scan on dt (rows=7)
+    -> Materialize (rows=7)
+        -> Filter: (rollup_group_item(t1.f1,0) is null) (rows=7)
+            -> Group aggregate with rollup: sum(t1.f2) (rows=7)
                 -> Index scan on t1 using f1_2 (rows=12)
 
 SELECT f1
@@ -398,10 +398,10 @@ FROM (SELECT f1 as j, SUM(f2) as sum
 FROM t1 GROUP BY f1 WITH ROLLUP) as dt WHERE j+sum > 50 OR
 j IS NULL;
 EXPLAIN
--> Table scan on dt (rows=12)
-    -> Materialize (rows=12)
-        -> Filter: (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null)) (rows=12)
-            -> Group aggregate with rollup: sum(t1.f2) (rows=12)
+-> Table scan on dt (rows=7)
+    -> Materialize (rows=7)
+        -> Filter: (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null)) (rows=7)
+            -> Group aggregate with rollup: sum(t1.f2) (rows=7)
                 -> Index scan on t1 using f1_2 (rows=12)
 
 SELECT *
@@ -419,10 +419,10 @@ FROM t1 GROUP BY f1 WITH ROLLUP
 HAVING AVG(f2) > 1) AS dt WHERE j+sum > 50 OR
 j IS NULL;
 EXPLAIN
--> Table scan on dt (rows=12)
-    -> Materialize (rows=12)
-        -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null))) (rows=12)
-            -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2) (rows=12)
+-> Table scan on dt (rows=7)
+    -> Materialize (rows=7)
+        -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null))) (rows=7)
+            -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2) (rows=7)
                 -> Index scan on t1 using f1_2 (rows=12)
 
 SELECT *
@@ -732,10 +732,10 @@ EXPLAIN
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
--> Table scan on dt (rows=10)
-    -> Materialize (rows=10)
-        -> Filter: (t1.f1 > (3 * rand())) (rows=10)
-            -> Group aggregate: sum(t1.f2) (rows=10)
+-> Table scan on dt (rows=6)
+    -> Materialize (rows=6)
+        -> Filter: (t1.f1 > (3 * rand())) (rows=6)
+            -> Group aggregate: sum(t1.f2) (rows=6)
                 -> Filter: (t1.f1 < 10) (rows=10)
                     -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10) (rows=10)
 
@@ -794,10 +794,10 @@ END|
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE p() = 1;
 EXPLAIN
--> Table scan on dt (rows=12)
-    -> Materialize (rows=12)
-        -> Filter: (p() = 1) (rows=12)
-            -> Group aggregate: sum(t1.f2) (rows=12)
+-> Table scan on dt (rows=6)
+    -> Materialize (rows=6)
+        -> Filter: (p() = 1) (rows=6)
+            -> Group aggregate: sum(t1.f2) (rows=6)
                 -> Index scan on t1 using f1_2 (rows=12)
 
 SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
@@ -813,9 +813,9 @@ END|
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE p() = 1;
 EXPLAIN
--> Table scan on dt (rows=12)
-    -> Materialize (rows=12)
-        -> Group aggregate: sum(t1.f2) (rows=12)
+-> Table scan on dt (rows=6)
+    -> Materialize (rows=6)
+        -> Group aggregate: sum(t1.f2) (rows=6)
             -> Filter: <cache>((p() = 1)) (rows=12)
                 -> Index scan on t1 using f1_2 (rows=12)
 
@@ -1468,9 +1468,9 @@ UNION
 SELECT f1, f2 FROM t1) as dt
 WHERE f1 > 3;
 EXPLAIN
--> Table scan on dt (rows=4)
-    -> Union materialize with deduplication (rows=4)
-        -> Group aggregate: sum(t1.f2) (rows=2)
+-> Table scan on dt (rows=3)
+    -> Union materialize with deduplication (rows=3)
+        -> Group aggregate: sum(t1.f2) (rows=1)
             -> Filter: (t1.f1 > 3) (rows=2)
                 -> Covering index range scan on t1 using f1_2 over (3 < f1) (rows=2)
         -> Filter: (t1.f1 > 3) (rows=2)
@@ -1493,13 +1493,13 @@ SELECT f1 as j, SUM(f2) as sum
 FROM t1 GROUP BY f1) AS dt
 WHERE j+sum > 50 OR j IS NULL;
 EXPLAIN
--> Table scan on dt (rows=24)
-    -> Union all materialize (rows=24)
-        -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null))) (rows=12)
-            -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2) (rows=12)
+-> Table scan on dt (rows=13)
+    -> Union all materialize (rows=13)
+        -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null))) (rows=7)
+            -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2) (rows=7)
                 -> Index scan on t1 using f1_2 (rows=12)
-        -> Filter: (((t1.f1 + sum(t1.f2)) > 50) or (t1.f1 is null)) (rows=12)
-            -> Group aggregate: sum(t1.f2) (rows=12)
+        -> Filter: (((t1.f1 + sum(t1.f2)) > 50) or (t1.f1 is null)) (rows=6)
+            -> Group aggregate: sum(t1.f2) (rows=6)
                 -> Index scan on t1 using f1_2 (rows=12)
 
 SELECT *
@@ -1679,9 +1679,9 @@ SELECT f1, f2 FROM t1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
 -> Filter: (dt.f1 > (3 * rand())) (rows=7)
-    -> Table scan on dt (rows=20)
-        -> Union all materialize (rows=20)
-            -> Group aggregate: sum(t1.f2) (rows=10)
+    -> Table scan on dt (rows=16)
+        -> Union all materialize (rows=16)
+            -> Group aggregate: sum(t1.f2) (rows=6)
                 -> Filter: (t1.f1 < 10) (rows=10)
                     -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10) (rows=10)
             -> Filter: (t1.f1 < 10) (rows=10)
@@ -1694,9 +1694,9 @@ SELECT f1, f2 FROM t1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
 -> Filter: (dt.f1 > (3 * rand())) (rows=3)
-    -> Table scan on dt (rows=10)
-        -> Intersect all materialize (rows=10)
-            -> Group aggregate: sum(t1.f2) (rows=10)
+    -> Table scan on dt (rows=6)
+        -> Intersect all materialize (rows=6)
+            -> Group aggregate: sum(t1.f2) (rows=6)
                 -> Filter: (t1.f1 < 10) (rows=10)
                     -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10) (rows=10)
             -> Filter: (t1.f1 < 10) (rows=10)
@@ -1774,9 +1774,9 @@ SELECT f1, f2 FROM t1) as dt
 WHERE p() = 1;
 EXPLAIN
 -> Filter: (p() = 1) (rows=24)
-    -> Table scan on dt (rows=24)
-        -> Union materialize with deduplication (rows=24)
-            -> Group aggregate: sum(t1.f2) (rows=12)
+    -> Table scan on dt (rows=18)
+        -> Union materialize with deduplication (rows=18)
+            -> Group aggregate: sum(t1.f2) (rows=6)
                 -> Index scan on t1 using f1_2 (rows=12)
             -> Index scan on t1 using f1_2 (rows=12)
 
@@ -1799,9 +1799,9 @@ UNION
 SELECT f1, f2 FROM t1) as dt
 WHERE p() = 1;
 EXPLAIN
--> Table scan on dt (rows=24)
-    -> Union materialize with deduplication (rows=24)
-        -> Group aggregate: sum(t1.f2) (rows=12)
+-> Table scan on dt (rows=18)
+    -> Union materialize with deduplication (rows=18)
+        -> Group aggregate: sum(t1.f2) (rows=6)
             -> Filter: <cache>((p() = 1)) (rows=12)
                 -> Index scan on t1 using f1_2 (rows=12)
         -> Filter: <cache>((p() = 1)) (rows=12)

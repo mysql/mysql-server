@@ -456,12 +456,12 @@ EXPLAIN FORMAT=TREE SELECT * FROM
 (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;
 EXPLAIN
--> Filter: (dt.f1 > 2)  (cost=4.82..7.71 rows=4)
-    -> Table scan on dt  (cost=2.98..6.51 rows=12)
-        -> Materialize  (cost=3.86..3.86 rows=12)
-            -> Window aggregate with buffering: sum(t1.f2) OVER ()   (cost=0.22..2.66 rows=12)
-                -> Stream results  (cost=0.12..1.46 rows=12)
-                    -> Group (no aggregates)  (cost=0.12..1.46 rows=12)
+-> Filter: (dt.f1 > 2)  (cost=4.24..5.83 rows=2)
+    -> Table scan on dt  (cost=2.58..5.23 rows=6)
+        -> Materialize  (cost=2.66..2.66 rows=6)
+            -> Window aggregate with buffering: sum(t1.f2) OVER ()   (cost=0.34..2.06 rows=6)
+                -> Stream results  (cost=0.24..1.46 rows=6)
+                    -> Group (no aggregates)  (cost=0.24..1.46 rows=6)
                         -> Index scan on t1 using f1_2  (cost=0.02..0.26 rows=12)
 
 EXPLAIN FORMAT=JSON SELECT * FROM
@@ -497,16 +497,16 @@ EXPLAIN
                       "functions": [],
                       "operation": "Group (no aggregates)",
                       "access_type": "aggregate",
-                      "estimated_rows": 12.0,
+                      "estimated_rows": 6.0,
                       "estimated_total_cost": 1.4553606237816765,
-                      "estimated_first_row_cost": 0.12128005198180637
+                      "estimated_first_row_cost": 0.24256010396361274
                     }
                   ],
                   "operation": "Stream results",
                   "access_type": "stream",
-                  "estimated_rows": 12.0,
+                  "estimated_rows": 6.0,
                   "estimated_total_cost": 1.4553606237816765,
-                  "estimated_first_row_cost": 0.12128005198180637
+                  "estimated_first_row_cost": 0.24256010396361274
                 }
               ],
               "buffering": true,
@@ -515,32 +515,32 @@ EXPLAIN
               ],
               "operation": "Window aggregate with buffering: sum(t1.f2) OVER () ",
               "access_type": "window",
-              "estimated_rows": 12.0,
-              "estimated_total_cost": 2.655360623781677,
-              "estimated_first_row_cost": 0.22128005198180642
+              "estimated_rows": 6.0,
+              "estimated_total_cost": 2.0553606237816764,
+              "estimated_first_row_cost": 0.34256010396361275
             }
           ],
           "operation": "Materialize",
           "access_type": "materialize",
-          "estimated_rows": 12.0,
-          "estimated_total_cost": 3.855360623781677,
-          "estimated_first_row_cost": 3.855360623781677
+          "estimated_rows": 6.0,
+          "estimated_total_cost": 2.6553606237816765,
+          "estimated_first_row_cost": 2.6553606237816765
         }
       ],
       "operation": "Table scan on dt",
       "table_name": "dt",
       "access_type": "table",
-      "estimated_rows": 12.0,
-      "estimated_total_cost": 6.5053606237816775,
-      "estimated_first_row_cost": 2.9761939571150102
+      "estimated_rows": 6.0,
+      "estimated_total_cost": 5.230360623781676,
+      "estimated_first_row_cost": 2.584527290448343
     }
   ],
   "condition": "(dt.f1 > 2)",
   "operation": "Filter: (dt.f1 > 2)",
   "access_type": "filter",
-  "estimated_rows": 3.9995999336242676,
-  "estimated_total_cost": 7.705360623781678,
-  "estimated_first_row_cost": 4.817956899382495
+  "estimated_rows": 1.9997999668121338,
+  "estimated_total_cost": 5.830360623781676,
+  "estimated_first_row_cost": 4.243019416006403
 }
 # Filter, nested loop
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
@@ -623,10 +623,10 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN analyze FORMAT=TREE SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
 EXPLAIN
--> Sort: t1.b  (cost=2.88..2.88 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
-    -> Table scan on <temporary>  (cost=2.45..4.14 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
-        -> Temporary table  (cost=1.60..1.60 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
-            -> Group aggregate: group_concat(t2.b separator ',')  (cost=0.43..1.30 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+-> Sort: t1.b  (cost=2.32..2.32 rows=2) (actual time=N.NNN..N.NNN rows=3 loops=1)
+    -> Table scan on <temporary>  (cost=2.92..3.99 rows=2) (actual time=N.NNN..N.NNN rows=3 loops=1)
+        -> Temporary table  (cost=1.47..1.47 rows=2) (actual time=N.NNN..N.NNN rows=3 loops=1)
+            -> Group aggregate: group_concat(t2.b separator ',')  (cost=0.75..1.30 rows=2) (actual time=N.NNN..N.NNN rows=3 loops=1)
                 -> Nested loop left join  (cost=0.33..1.00 rows=3) (actual time=N.NNN..N.NNN rows=4 loops=1)
                     -> Index scan on t1 using PRIMARY  (cost=0.08..0.25 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
                     -> Index lookup on t2 using PRIMARY (a=t1.a)  (cost=0.25..0.25 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=3)
@@ -683,25 +683,25 @@ EXPLAIN
               ],
               "operation": "Group aggregate: group_concat(t2.b separator ',')",
               "access_type": "aggregate",
-              "estimated_rows": 3.0,
+              "estimated_rows": 1.7320508075688772,
               "estimated_total_cost": 1.30025,
-              "estimated_first_row_cost": 0.4334166666666666
+              "estimated_first_row_cost": 0.7506996875138109
             }
           ],
           "operation": "Temporary table",
           "temp_table": true,
           "access_type": "materialize",
-          "estimated_rows": 3.0,
-          "estimated_total_cost": 1.60025,
-          "estimated_first_row_cost": 1.60025
+          "estimated_rows": 1.7320508075688772,
+          "estimated_total_cost": 1.4734550807568876,
+          "estimated_first_row_cost": 1.4734550807568876
         }
       ],
       "operation": "Table scan on <temporary>",
       "table_name": "<temporary>",
       "access_type": "table",
-      "estimated_rows": 3.0,
-      "estimated_total_cost": 4.13775,
-      "estimated_first_row_cost": 2.446083333333333
+      "estimated_rows": 1.7320508075688772,
+      "estimated_total_cost": 3.985955080756888,
+      "estimated_first_row_cost": 2.9240476320958226
     }
   ],
   "operation": "Sort: t1.b",
@@ -709,9 +709,9 @@ EXPLAIN
   "sort_fields": [
     "t1.b"
   ],
-  "estimated_rows": 3.0,
-  "estimated_total_cost": 2.875738750216347,
-  "estimated_first_row_cost": 2.875738750216347
+  "estimated_rows": 1.7320508075688772,
+  "estimated_total_cost": 2.319865242270663,
+  "estimated_first_row_cost": 2.319865242270663
 }
 drop table t1;
 drop table t2;

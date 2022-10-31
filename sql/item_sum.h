@@ -2772,6 +2772,7 @@ class Item_rollup_sum_switcher final : public Item_sum {
   // Used when create_tmp_table() needs to delay application of aggregate
   // functions to a later stage in the query processing.
   Item *get_arg(uint i) override { return master()->get_arg(i); }
+  const Item *get_arg(uint i) const override { return master()->get_arg(i); }
   Item *set_arg(THD *thd, uint i, Item *new_val) override {
     Item *ret = nullptr;
     for (int j = 0; j < m_num_levels; ++j) {

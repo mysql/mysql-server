@@ -235,6 +235,7 @@ class MutableOverflowBitset : private OverflowBitset {
                        const MutableOverflowBitset &b);
   friend bool IsSubset(const MutableOverflowBitset &a, OverflowBitset b);
   friend bool IsEmpty(const MutableOverflowBitset &x);
+  friend int PopulationCount(const MutableOverflowBitset &x);
   void SetBitOverflow(int bit_num);
   void ClearBitsOverflow(int begin_bit_num, int end_bit_num);
 
@@ -562,6 +563,11 @@ inline int PopulationCount(OverflowBitset x) {
   } else {
     return PopulationCountOverflow(x);
   }
+}
+
+/// Find the nuber of bits set in 'x'.
+inline int PopulationCount(const MutableOverflowBitset &x) {
+  return PopulationCount(static_cast<const OverflowBitset &>(x));
 }
 
 #endif  // SQL_JOIN_OPTIMIZER_OVERFLOW_BITSET_H

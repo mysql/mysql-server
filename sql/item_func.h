@@ -434,7 +434,11 @@ class Item_func : public Item_result_field {
   // Constructor used for Item_cond_and/or (see Item comment)
   Item_func(THD *thd, const Item_func *item);
 
+  /// Get the i'th argument of the function that this object represents.
   virtual Item *get_arg(uint i) { return args[i]; }
+
+  /// Get the i'th argument of the function that this object represents.
+  virtual const Item *get_arg(uint i) const { return args[i]; }
   virtual Item *set_arg(THD *, uint, Item *) {
     assert(0);
     return nullptr;
@@ -1639,7 +1643,8 @@ class Item_rollup_group_item final : public Item_func {
     null_value = args[0]->is_null();
     return false;
   }
-  Item *inner_item() const { return args[0]; }
+  Item *inner_item() { return args[0]; }
+  const Item *inner_item() const { return args[0]; }
   bool rollup_null() const {
     return m_current_rollup_level <= m_min_rollup_level;
   }

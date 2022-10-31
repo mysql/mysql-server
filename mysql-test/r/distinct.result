@@ -1342,8 +1342,8 @@ EXPLAIN FORMAT=tree SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER 
 EXPLAIN
 -> Sort: t1.a DESC, t1.b
     -> Sort with duplicate removal: t1.a DESC
-        -> Stream results  (cost=0.85 rows=3)
-            -> Group (no aggregates)  (cost=0.85 rows=3)
+        -> Stream results  (cost=0.85 rows=2)
+            -> Group (no aggregates)  (cost=0.85 rows=2)
                 -> Sort: t1.a DESC, t1.b  (cost=0.55 rows=3)
                     -> Table scan on t1  (cost=0.55 rows=3)
 

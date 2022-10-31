@@ -79,8 +79,8 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a) FROM t1 x2);
 EXPLAIN
--> Filter: (s > (select #2))  (cost=6.02..7.82 rows=10)
-    -> Group aggregate: sum(x1.a)  (cost=4.67..5.57 rows=10)
+-> Filter: (s > (select #2))  (cost=6.24..7.14 rows=3)
+    -> Group aggregate: sum(x1.a)  (cost=4.89..5.57 rows=3)
         -> Sort: x1.b  (cost=4.57..4.57 rows=10)
             -> Table scan on x1  (cost=0.03..0.25 rows=10)
     -> Select #2 (subquery in condition; run only once)
@@ -90,8 +90,8 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a+RAND(0)) FROM t1 x2);
 EXPLAIN
--> Filter: (s > (select #2))  (cost=6.02..19.07 rows=10)
-    -> Group aggregate: sum(x1.a)  (cost=4.67..5.57 rows=10)
+-> Filter: (s > (select #2))  (cost=6.24..9.84 rows=3)
+    -> Group aggregate: sum(x1.a)  (cost=4.89..5.57 rows=3)
         -> Sort: x1.b  (cost=4.57..4.57 rows=10)
             -> Table scan on x1  (cost=0.03..0.25 rows=10)
     -> Select #2 (subquery in condition; uncacheable)
