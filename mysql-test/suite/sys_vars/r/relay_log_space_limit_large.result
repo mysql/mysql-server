@@ -1,1 +1,0 @@
-include/assert.inc ['Checking expected value of the 'relay_log_space_limit' (16GB)']
