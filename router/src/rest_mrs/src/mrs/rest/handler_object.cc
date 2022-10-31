@@ -29,7 +29,9 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
 
+#include "helper/container/generic.h"
 #include "helper/json/rapid_json_to_text.h"
+#include "helper/json/to_string.h"
 #include "helper/media_detector.h"
 #include "mrs/database/query_rest_sp_media.h"
 #include "mrs/database/query_rest_table.h"
@@ -56,17 +58,21 @@ class JsonKeyIterator
   }
 };
 
+static std::string to_string(rapidjson::Value *v) {
+  if (v->IsString()) {
+    return std::string{v->GetString(), v->GetStringLength()};
+  }
+
+  return helper::json::to_string(v);
+}
+
 class JsonValueIterator
     : public sqlstring::CustomContainerIterator<MemberIterator,
                                                 JsonValueIterator> {
  public:
   using CustomContainerIterator::CustomContainerIterator;
 
-  std::string operator*() {
-    std::string result;
-    helper::json::rapid_json_to_text(&it_->value, result);
-    return result;
-  }
+  std::string operator*() { return to_string(&it_->value); }
 };
 
 }  // namespace
@@ -101,6 +107,20 @@ void HandlerObject::authorization(rest::RequestContext *ctxt) {
   throw_unauthorize_when_check_auth_fails(ctxt);
 }
 
+static bool is_or_filter(std::vector<std::string> &filter) {
+  if (filter.empty()) return true;
+  if (filter[0].length() > 0) return filter[0][0] != '!';
+
+  return true;
+}
+
+static void fix_and_filter(std::vector<std::string> &filter) {
+  for (auto &s : filter) {
+    if (s.empty()) continue;
+    if (s[0] == '!') s.erase(s.begin());
+  }
+}
+
 Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   auto path = requests_uri.get_path();
@@ -119,14 +139,24 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   if (it_f) {
     auto filter_columns = mysql_harness::split_string(
         uri_param.get_query_parameter("f"), ',', false);
-    columns.erase(std::remove_if(columns.begin(), columns.end(),
-                                 [&filter_columns](auto &item) {
-                                   return std::find(filter_columns.begin(),
-                                                    filter_columns.end(),
-                                                    item.name) ==
-                                          filter_columns.end();
-                                 }),
-                  columns.end());
+    if (is_or_filter(filter_columns)) {
+      // Or filter
+      columns.erase(std::remove_if(columns.begin(), columns.end(),
+                                   [&filter_columns](auto &item) {
+                                     return !helper::container::has(
+                                         filter_columns, item.name);
+                                   }),
+                    columns.end());
+    } else {
+      // And filter
+      fix_and_filter(filter_columns);
+      columns.erase(std::remove_if(columns.begin(), columns.end(),
+                                   [&filter_columns](auto &item) {
+                                     return helper::container::has(
+                                         filter_columns, item.name);
+                                   }),
+                    columns.end());
+    }
   }
 
   std::string raw_value = it_raw ? uri_param.get_query_parameter("raw") : "";
