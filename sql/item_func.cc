@@ -6631,8 +6631,11 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     LEX *sav_lex = thd->lex, lex_tmp;
     thd->lex = &lex_tmp;
     lex_start(thd);
+    Item *source = new Item_null();
+    if (source == nullptr) return 1;
+    source->collation.set(Item::default_charset());
     tmp_var_list.push_back(new (thd->mem_root) set_var_user(
-        new Item_func_set_user_var(name, new Item_null())));
+        new Item_func_set_user_var(name, source)));
     /* Create the variable */
     if (sql_set_variables(thd, &tmp_var_list, false)) {
       thd->lex = sav_lex;

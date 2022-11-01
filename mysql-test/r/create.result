@@ -3135,3 +3135,17 @@ SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	min_rows=4294967295	
 DROP TABLE t1;
+# Bug#34523475: Inconsequent type derivation when using @variable
+CREATE TABLE t1 AS SELECT @max_error_count UNION SELECT 'a';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@max_error_count` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2 AS SELECT @max_error_count UNION SELECT 'a';
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `@max_error_count` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
