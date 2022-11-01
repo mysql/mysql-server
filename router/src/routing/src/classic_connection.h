@@ -187,7 +187,9 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
       std::function<void(MySQLRoutingConnectionBase *)> remove_callback)
       : MySQLRoutingConnectionBase{context, std::move(remove_callback)},
         route_destination_{route_destination},
-        destinations_{route_destination_->destinations()},
+        destinations_{route_destination_ != nullptr
+                          ? route_destination_->destinations()
+                          : Destinations{}},
         socket_splicer_{std::make_unique<ProtocolSplicerBase>(
             TlsSwitchableConnection{std::move(client_connection),
                                     std::move(client_routing_connection),
@@ -245,7 +247,8 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
 
   void server_socket_failed(std::error_code ec, bool call_finish = true);
 
-  void client_socket_failed(std::error_code ec, bool call_finish = true);
+  virtual void client_socket_failed(std::error_code ec,
+                                    bool call_finish = true);
 
  private:
   enum class Function {
