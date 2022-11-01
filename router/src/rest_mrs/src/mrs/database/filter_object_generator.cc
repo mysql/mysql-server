@@ -122,10 +122,9 @@ void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
         throw std::runtime_error("`orderby` must be and json object.");
       prase_order(member.second->GetObject());
     } else {
-      if (!where_.empty())
-        where_ += " AND";
-      else
-        where_ = " WHERE";
+      if (!where_.empty()) where_ += " AND";
+      //      else
+      //        where_ = " WHERE";
       parse_wmember(member.first, member.second);
     }
   }

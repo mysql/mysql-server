@@ -228,7 +228,7 @@ void extend_where(mysqlrouter::sqlstring &where, const std::string &query) {
   bool is_empty = where.str().empty();
 
   mysqlrouter::sqlstring r{"? ? ?"};
-  r << where << mysqlrouter::sqlstring(is_empty ? "" : "AND")
+  r << where << mysqlrouter::sqlstring(is_empty ? "WHERE" : "AND")
     << mysqlrouter::sqlstring(result.c_str());
   where = r;
 }
