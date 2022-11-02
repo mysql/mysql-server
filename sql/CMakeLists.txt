@@ -693,6 +693,12 @@ IF(WITH_LOCK_ORDER)
     debug_lock_order.cc
     )
 
+  # Bison output uses undefined symbols for clang >= v15
+  IF(MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
+    ADD_COMPILE_FLAGS(${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc
+                      COMPILE_FLAGS "-Wno-unused-but-set-variable")
+  ENDIF()
+
   IF(MY_COMPILER_IS_GNU_OR_CLANG)
     ADD_COMPILE_FLAGS(${FLEX_debug_lo_scanner_OUTPUTS}
       COMPILE_FLAGS
