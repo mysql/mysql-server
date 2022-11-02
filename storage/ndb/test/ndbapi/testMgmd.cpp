@@ -395,7 +395,7 @@ public:
     args.add("-c");
     args.add(connect_string.c_str());
     args.add("--ndb-nodeid=", m_nodeid);
-    args.add("--nodaemon");
+    args.add("--foreground");
     return Mgmd::start(working_dir, args);
   }
 
