@@ -503,6 +503,9 @@ void row_upd_rec_in_place(
       rec_new_set_versioned(rec, false);
       rec_set_instant_flag_new(rec, false);
     }
+
+    /* Only one of the bit (INSTANT or VERSION) could be set */
+    ut_a(!(rec_get_instant_flag_new(rec) && rec_new_is_versioned(rec)));
   } else {
     bool is_versioned = rec_old_is_versioned(rec);
     rec_set_info_bits_old(rec, update->info_bits);
@@ -512,9 +515,6 @@ void row_upd_rec_in_place(
       rec_old_set_versioned(rec, false);
     }
   }
-
-  /* Only one of the bit (INSTANT or VERSION) could be set */
-  ut_a(!(rec_get_instant_flag_new(rec) && rec_new_is_versioned(rec)));
 
   n_fields = upd_get_n_fields(update);
 
