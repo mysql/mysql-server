@@ -53,6 +53,7 @@ call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Er
 call mtr.add_suppression("Slave: Table 't1' already exists*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker .* failed executing transaction .*; Error 'Table 't1' already exists' on query.");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
 call mtr.add_suppression("Maximum number of retries when*");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression(".*This member has more executed transactions *.*");
