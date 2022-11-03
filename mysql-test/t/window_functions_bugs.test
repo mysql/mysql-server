@@ -343,7 +343,7 @@ SELECT VARIANCE(b) over w `var`,
        COUNT(b) OVER w count FROM t1
        WINDOW w as (ORDER BY b ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
 
-SET SESSION windowing_use_high_precision= FALSE;               
+SET SESSION windowing_use_high_precision= FALSE;
 
 SELECT VARIANCE(b) over w `var`,
        AVG(b) OVER w `avg`,
@@ -373,7 +373,7 @@ SELECT VARIANCE(b) over w `var`,
        count(b) OVER w count FROM t1
        WINDOW w as (ORDER BY b ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
 
-SET SESSION windowing_use_high_precision= FALSE;               
+SET SESSION windowing_use_high_precision= FALSE;
 
 SELECT VARIANCE(b) over w `var`,
        FIRST_VALUE(b) over w fv,
@@ -1036,3 +1036,23 @@ SELECT DISTINCT
 FROM t;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#34431996 MySQL window function first_value wrong
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, f3 INTEGER);
+
+INSERT INTO t1 VALUES (1,1,1),
+                      (2,1,20),
+                      (3,1,300),
+                      (4,1,4000);
+
+SELECT f1,f2,f3,
+       FIRST_VALUE(f3) OVER w  AS 'FIRST_VALUE',
+       LAG(f3) OVER w          AS 'LAG',
+       NTH_VALUE(f3, 4) OVER w AS 'NTH_VALUE'
+FROM t1 WINDOW w AS (PARTITION BY f2 ORDER BY f3
+                     ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+
+DROP TABLE t1;

@@ -1408,6 +1408,7 @@ void Window::reset_execution_state(Reset_level level) {
   m_aggregates_primed = false;
   m_first_rowno_in_range_frame = 1;
   m_last_rowno_in_range_frame = 0;
+  m_first_rowno_in_rows_frame = 1;
   m_row_has_fields_in_out_table = 0;
 }
 

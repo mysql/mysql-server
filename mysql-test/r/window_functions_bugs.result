@@ -1563,3 +1563,23 @@ FROM t;
 wf1	wf2	wf3	wf4	wf5	wf6	wf7	wf8	wf9	wf10	wf11	wf12	wf13	wf14	wf15	wf16	wf17	wf18	wf19	wf20	wf21	wf22	wf23	wf24	wf25	wf26	wf27	wf28	wf29	wf30	wf31	wf32	wf33	wf34	wf35	wf36	wf37	wf38	wf39	wf40	wf41	wf42	wf43	wf44	wf45	wf46	wf47	wf48	wf49	wf50	wf51	wf52	wf53	wf54	wf55	wf56	wf57	wf58	wf59	wf60	wf61	wf62	wf63	wf64	wf65	wf66	wf67	wf68	wf69	wf70
 1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
 DROP TABLE t;
+#
+# Bug#34431996 MySQL window function first_value wrong
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, f3 INTEGER);
+INSERT INTO t1 VALUES (1,1,1),
+(2,1,20),
+(3,1,300),
+(4,1,4000);
+SELECT f1,f2,f3,
+FIRST_VALUE(f3) OVER w  AS 'FIRST_VALUE',
+LAG(f3) OVER w          AS 'LAG',
+NTH_VALUE(f3, 4) OVER w AS 'NTH_VALUE'
+FROM t1 WINDOW w AS (PARTITION BY f2 ORDER BY f3
+ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+f1	f2	f3	FIRST_VALUE	LAG	NTH_VALUE
+1	1	1	1	NULL	NULL
+2	1	20	1	1	4000
+3	1	300	20	20	NULL
+4	1	4000	300	300	NULL
+DROP TABLE t1;

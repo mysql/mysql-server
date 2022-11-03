@@ -600,6 +600,12 @@ class Window {
   */
   int64 m_last_rowno_in_range_frame;
 
+  /**
+    Execution state. Only used for ROWS frame optimized MIN/MAX.
+    The (1-based) number in the partition of first row in the current frame.
+  */
+  int64 m_first_rowno_in_rows_frame;
+
   /*------------------------------------------------------------------------
    *
    * Window function special behaviour toggles. These boolean flag influence
@@ -1312,6 +1318,17 @@ class Window {
     See #m_rowno_in_partition
   */
   void set_rowno_in_partition(int64 rowno) { m_rowno_in_partition = rowno; }
+
+  /**
+    See #m_first_rowno_in_rows_frame
+  */
+  void set_first_rowno_in_rows_frame(int64 rowno) {
+    m_first_rowno_in_rows_frame = rowno;
+  }
+
+  int64 first_rowno_in_rows_frame() const {
+    return m_first_rowno_in_rows_frame;
+  }
 
   /**
     See #m_first_rowno_in_range_frame
