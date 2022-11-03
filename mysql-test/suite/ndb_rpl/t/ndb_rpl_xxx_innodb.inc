@@ -1,19 +1,13 @@
 #############################################
-#Authors:    TU and Jeb
-#Date:       2007/04
-#Purpose:    Generic replication to cluster
+#Purpose:    Generic replication from Innodb to NDB
+#            using binlog_format defined by caller
 #            and ensuring that the ndb_apply_status
 #            table is updated.
 #############################################
 # Notes: 
 # select_ndb_apply_status.inc
-# Selects out the log name, start & end pos
+# Selects out the log name and start pos
 # from the ndb_apply_status table
-#
-# suite/ndb_rpl/t/show_binlog_using_logname.inc
-# To select out 1 row from offset 1
-# from the start position in the binlog whose
-# name is = log_name
 #
 # include/tpcb.inc
 # Creates DATABASE tpcb, the tables and 
@@ -29,6 +23,9 @@
 connection master;
 create table t1 (a int key, b int) engine innodb;
 create table t2 (a int key, b int) engine innodb;
+
+let $master_server_id = `select @@server_id`;
+#echo master_server_id: $master_server_id;
 
 --echo
 
@@ -52,26 +49,6 @@ insert into t1 values (1,2);
 connection master;
 --echo # Now check that that is in the apply_status table is consistant
 --echo # with what is in the binlog
---echo
---echo # since insert is done with transactional engine, expect a BEGIN
---echo # at <start_pos>
---echo
---let $binlog_start= $start_pos
---let $binlog_limit= 1
---source include/show_binlog_events.inc
-
---echo
---echo # Now the insert, one step after
---echo
---let $binlog_start= $start_pos
---let $binlog_limit= 1,1
---source include/show_binlog_events.inc
-
---echo
---echo # and the COMMIT should be at <end_pos>
---echo
---let $binlog_start= $start_pos
---let $binlog_limit= 2,1
 --source include/show_binlog_events.inc
 
 --echo
@@ -88,16 +65,6 @@ commit;
 --source suite/ndb_rpl/t/select_ndb_apply_status.inc
 
 connection master;
---let $binlog_start= $start_pos
---let $binlog_limit= 1
---source include/show_binlog_events.inc
---echo
---let $binlog_start= $start_pos
---let $binlog_limit= 1,2
---source include/show_binlog_events.inc
---echo
---let $binlog_start= $start_pos
---let $binlog_limit= 3,1
 --source include/show_binlog_events.inc
 
 --echo
@@ -140,10 +107,8 @@ while ($run)
 {
  START TRANSACTION;
  --eval CALL tpcb.trans($rpl_format);
- eval SET @my_errno= $mysql_errno;
- let $run_good= `SELECT @my_errno = 0`;
- let $run_bad= `SELECT @my_errno <> 0`;
- if ($run_good)
+ let $run_bad= $mysql_errno;
+ if (!$run_bad)
  {
    COMMIT;
  }
@@ -163,7 +128,8 @@ SET AUTOCOMMIT=1;
 --echo
 
 connection master;
---source  suite/ndb_rpl/t/show_binlog_using_logname.inc
+let $binlog_limit = $off_set, 1;
+--source include/show_binlog_events.inc
 
 # Flush the logs on the master moving all
 # Transaction to a new binlog and ensure
@@ -189,10 +155,8 @@ while ($run)
 {
  START TRANSACTION;
  --eval CALL tpcb.trans($rpl_format);
- eval SET @my_errno= $mysql_errno;
- let $run_good= `SELECT @my_errno = 0`;
- let $run_bad= `SELECT @my_errno <> 0`;
- if ($run_good)
+ let $run_bad= $mysql_errno;
+ if (!$run_bad)
  {
    COMMIT;
  }
@@ -213,7 +177,8 @@ SET AUTOCOMMIT=1;
 --echo
 
 connection master;
---source  suite/ndb_rpl/t/show_binlog_using_logname.inc
+let $binlog_limit = $off_set, 1;
+--source include/show_binlog_events.inc
 
 # Now we reset both the master and the slave
 # Run some more transaction and ensure
@@ -261,41 +226,27 @@ SET AUTOCOMMIT=1;
 --echo
 
 connection master;
---source suite/ndb_rpl/t/show_binlog_using_logname.inc
+let $binlog_limit = $off_set, 1;
+--source include/show_binlog_events.inc
 
 # Since we are doing replication, it is a good
 # idea to check to make sure all data was 
 # Replicated correctly
 
---echo
---echo *** DUMP MASTER & SLAVE FOR COMPARE ********
+--sync_slave_with_master
+--let $diff_tables= tpcb.account, master:tpcb.account
+--source include/diff_tables.inc
 
---exec $MYSQL_DUMP -n -t --compact --order-by-primary --skip-extended-insert tpcb account teller branch history > $MYSQLTEST_VARDIR/tmp/master_apply_status.sql
+--let $diff_tables= tpcb.teller, master:tpcb.teller
+--source include/diff_tables.inc
 
---exec $MYSQL_DUMP_SLAVE -n -t --compact --order-by-primary --skip-extended-insert tpcb account teller branch history > $MYSQLTEST_VARDIR/tmp/slave_apply_status.sql
+--let $diff_tables= tpcb.branch, master:tpcb.branch
+--source include/diff_tables.inc
+
+--let $diff_tables= tpcb.history, master:tpcb.history
+--source include/diff_tables.inc
 
 connection master;
 DROP DATABASE tpcb;
 
 --sync_slave_with_master
-
-####### Commenting out until decision on Bug#27960 ###########
-
-#--source suite/ndb_rpl/t/select_ndb_apply_status.inc
-
-#connection master;
-#--eval SHOW BINLOG EVENTS in '$log_name' from $start_pos
-#--source suite/ndb_rpl/t/show_binlog_using_logname.inc
-
---echo ****** Do dumps compare ************
-
-
-diff_files $MYSQLTEST_VARDIR/tmp/master_apply_status.sql $MYSQLTEST_VARDIR/tmp/slave_apply_status.sql;
-
-## Note: Ths files should only get removed, if the above diff succeeds.
-
---remove_file $MYSQLTEST_VARDIR/tmp/master_apply_status.sql
---remove_file $MYSQLTEST_VARDIR/tmp/slave_apply_status.sql
-
-
-# End of 5.1 Test

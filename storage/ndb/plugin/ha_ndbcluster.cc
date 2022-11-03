@@ -13556,7 +13556,6 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
                                          void *seq_init_param, uint n_ranges,
                                          uint mode, HANDLER_BUFFER *buffer) {
   DBUG_TRACE;
-  assert(!m_thd_ndb->is_slave_thread());  // mrr not used by applier
 
   /*
     If supplied buffer is smaller than needed for just one range, we cannot do

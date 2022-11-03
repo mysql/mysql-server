@@ -15,31 +15,14 @@ alter table t2 engine ndb;
 
 insert into t1 values (1,2);
 
-select @log_name:=log_name, @start_pos:=start_pos, @end_pos:=end_pos
-from mysql.ndb_apply_status;
-@log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
-<log_name>	<start_pos>	<end_pos>
+select log_name, start_pos from mysql.ndb_apply_status
 
 # Now check that that is in the apply_status table is consistant
 # with what is in the binlog
-
-# since insert is done with transactional engine, expect a BEGIN
-# at <start_pos>
-
-show binlog events from <binlog_start> limit 1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-
-# Now the insert, one step after
-
-show binlog events from <binlog_start> limit 1,1;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1,2)
-
-# and the COMMIT should be at <end_pos>
-
-show binlog events from <binlog_start> limit 2,1;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 begin;
@@ -47,21 +30,12 @@ insert into t1 values (2,3);
 insert into t2 values (3,4);
 commit;
 
-select @log_name:=log_name, @start_pos:=start_pos, @end_pos:=end_pos
-from mysql.ndb_apply_status;
-@log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
-<log_name>	<start_pos>	<end_pos>
-show binlog events from <binlog_start> limit 1;
+select log_name, start_pos from mysql.ndb_apply_status
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-
-show binlog events from <binlog_start> limit 1,2;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (2,3)
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (3,4)
-
-show binlog events from <binlog_start> limit 3,1;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 DROP TABLE test.t1, test.t2;
@@ -98,42 +72,34 @@ ALTER TABLE branch ENGINE NDB;
 ALTER TABLE teller ENGINE NDB;
 ALTER TABLE history ENGINE NDB;
 
-select @log_name:=log_name, @start_pos:=start_pos, @end_pos:=end_pos
-from mysql.ndb_apply_status;
-@log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
-<log_name>	<start_pos>	<end_pos>
+select log_name, start_pos from mysql.ndb_apply_status
 
-show binlog events in 'master-bin.000001'  from <start_pos> limit 6,1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Xid	1	<end_pos>	COMMIT /* XID */
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 
 ** Test 3 **
 
 FLUSH LOGS;
 
-select @log_name:=log_name, @start_pos:=start_pos, @end_pos:=end_pos
-from mysql.ndb_apply_status;
-@log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
-<log_name>	<start_pos>	<end_pos>
+select log_name, start_pos from mysql.ndb_apply_status
 
-show binlog events in 'master-bin.000002'  from <start_pos> limit 6,1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	#	Xid	1	<end_pos>	COMMIT /* XID */
+master-bin.000002	#	Xid	#	#	COMMIT /* XID */
 
 ** Test 4 **
 
 include/rpl_reset.inc
 
-select @log_name:=log_name, @start_pos:=start_pos, @end_pos:=end_pos
-from mysql.ndb_apply_status;
-@log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
-<log_name>	<start_pos>	<end_pos>
+select log_name, start_pos from mysql.ndb_apply_status
 
-show binlog events in 'master-bin.000001'  from <start_pos> limit 6,1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Xid	1	<end_pos>	COMMIT /* XID */
-
-*** DUMP MASTER & SLAVE FOR COMPARE ********
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/diff_tables.inc [tpcb.account, master:tpcb.account]
+include/diff_tables.inc [tpcb.teller, master:tpcb.teller]
+include/diff_tables.inc [tpcb.branch, master:tpcb.branch]
+include/diff_tables.inc [tpcb.history, master:tpcb.history]
 DROP DATABASE tpcb;
-****** Do dumps compare ************
 include/rpl_end.inc
