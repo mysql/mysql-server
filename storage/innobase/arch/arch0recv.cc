@@ -336,7 +336,11 @@ dberr_t Arch_Group::Recovery::cleanup_if_required(Arch_Recv_Group_Info &info) {
 
   Arch_scope_guard file_ctx_guard([&file_ctx] { file_ctx.close(); });
 
-  if (file_ctx.get_phy_size() != 0 && info.m_durable) {
+  /* We check whether the archive file has anything else apart from the header
+   * that was written to it during creation phase and treat it as an empty file
+   * if it only has the header. */
+
+  if (file_ctx.get_phy_size() > m_group->m_header_len && info.m_durable) {
     return DB_SUCCESS;
   }
 
