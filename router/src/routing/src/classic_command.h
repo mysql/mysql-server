@@ -33,6 +33,9 @@ class CommandProcessor : public Processor {
 
   enum class Stage {
     IsAuthed,
+    WaitBoth,
+    WaitClientCancelled,
+    WaitServerCancelled,
     Command,
     Done,
   };
@@ -44,6 +47,9 @@ class CommandProcessor : public Processor {
 
  private:
   stdx::expected<Result, std::error_code> is_authed();
+  stdx::expected<Result, std::error_code> wait_both();
+  stdx::expected<Result, std::error_code> wait_client_cancelled();
+  stdx::expected<Result, std::error_code> wait_server_cancelled();
   stdx::expected<Result, std::error_code> command();
 
   void client_idle_timeout();

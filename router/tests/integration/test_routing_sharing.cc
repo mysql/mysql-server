@@ -76,6 +76,7 @@ using namespace std::chrono_literals;
 using namespace std::string_view_literals;
 
 using ::testing::AllOf;
+using ::testing::AnyOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
@@ -6445,7 +6446,8 @@ TEST_P(ShareConnectionTest, classic_protocol_binlog_dump_fail_no_checksum) {
       ASSERT_ERROR(res);
       EXPECT_EQ(res.error().value(), 1236) << res.error();
       EXPECT_THAT(res.error().message(),
-                  ::testing::StartsWith("Replica can not handle"))
+                  AnyOf(StartsWith("Slave can not handle"),
+                        StartsWith("Replica can not handle")))
           << res.error();
     }
   }
@@ -6539,7 +6541,8 @@ TEST_P(ShareConnectionTest,
       ASSERT_ERROR(res);
       EXPECT_EQ(res.error().value(), 1236) << res.error();
       EXPECT_THAT(res.error().message(),
-                  ::testing::StartsWith("Replica can not handle"))
+                  AnyOf(StartsWith("Slave can not handle"),
+                        StartsWith("Replica can not handle")))
           << res.error();
     }
   }
@@ -6578,10 +6581,11 @@ TEST_P(ShareConnectionTest,
     auto res = cli.binlog_fetch(rpl);
     ASSERT_ERROR(res);
     EXPECT_EQ(res.error().value(), 1236) << res.error();
-    EXPECT_THAT(
-        res.error().message(),
-        ::testing::StartsWith(
-            "Client requested source to start replication from position < 4"))
+    EXPECT_THAT(res.error().message(),
+                AnyOf(StartsWith("Client requested master to start replication "
+                                 "from position < 4"),
+                      StartsWith("Client requested source to start replication "
+                                 "from position < 4")))
         << res.error();
   }
 

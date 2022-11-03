@@ -50,6 +50,7 @@
 #include "classic_stmt_param_append_data.h"
 #include "classic_stmt_prepare.h"
 #include "classic_stmt_reset.h"
+#include "harness_assert.h"
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/tls_error.h"
@@ -66,6 +67,12 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::process() {
   switch (stage()) {
     case Stage::IsAuthed:
       return is_authed();
+    case Stage::WaitBoth:
+      return wait_both();
+    case Stage::WaitClientCancelled:
+      return wait_client_cancelled();
+    case Stage::WaitServerCancelled:
+      return wait_server_cancelled();
     case Stage::Command:
       return command();
     case Stage::Done:
@@ -268,6 +275,82 @@ class ShowWarningsHandler : public QuerySender::Handler {
   bool something_failed_{false};
 };
 
+/**
+ * wait for an read-event from client and server at the same time.
+ *
+ * two async-reads have been started, which both will call wait_both(). Only one
+ * of the two should continue.
+ *
+ * To ensure that event handlers are properly synchronized:
+ *
+ * - the first returning event, cancels the other waiter and leaves without
+ *   "returning" (::Void)
+ * - the cancelled side, continues with executing.
+ */
+stdx::expected<Processor::Result, std::error_code>
+CommandProcessor::wait_both() {
+  auto *socket_splicer = connection()->socket_splicer();
+
+  if (connection()->recv_from_either() ==
+      MysqlRoutingClassicConnection::FromEither::RecvedFromServer) {
+    // server side sent something.
+    //
+    // - cancel the client side
+    // - read from server in ::wait_client_cancelled
+
+    stage(Stage::WaitClientCancelled);
+
+    (void)socket_splicer->client_conn().cancel();
+
+    // end this execution branch.
+    return Result::Void;
+  } else if (connection()->recv_from_either() ==
+             MysqlRoutingClassicConnection::FromEither::RecvedFromClient) {
+    // client side sent something
+    //
+    // - cancel the server side
+    // - read from client in ::wait_server_cancelled
+    stage(Stage::WaitServerCancelled);
+
+    (void)socket_splicer->server_conn().cancel();
+
+    // end this execution branch.
+    return Result::Void;
+  }
+
+  harness_assert_this_should_not_execute();
+}
+
+stdx::expected<Processor::Result, std::error_code>
+CommandProcessor::wait_server_cancelled() {
+  stage(Stage::Command);
+
+  return Result::Again;
+}
+
+/**
+ * read-event from server while waiting for client command.
+ *
+ * - either a connection-close by the server or
+ * - ERR packet before connection-close.
+ */
+stdx::expected<Processor::Result, std::error_code>
+CommandProcessor::wait_client_cancelled() {
+  auto *socket_splicer = connection()->socket_splicer();
+
+  auto dst_channel = socket_splicer->server_channel();
+  auto dst_protocol = connection()->server_protocol();
+
+  auto read_res =
+      ClassicFrame::ensure_has_msg_prefix(dst_channel, dst_protocol);
+  if (!read_res) return recv_server_failed(read_res.error());
+
+  trace(Tracer::Event().stage("server::error"));
+
+  // should be a Error packet.
+  return forward_server_to_client();
+}
+
 stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->client_channel();
@@ -315,6 +398,9 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
             return client_idle_timeout();
           });
         }
+
+        return Result::RecvFromClient;
+
 #ifdef FUTURE_TASK_WAIT_TIMEOUT_ON_DETACHED
       } else if (!server_conn.is_open()) {
         // wait-timeout
@@ -329,10 +415,20 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
           // abort the connection.
           (void)connection()->socket_splicer()->client_conn().close();
         });
+        return Result::RecvFromClient;
 #endif
-      }
+      } else if (server_conn.is_open()) {
+        // client and server connection open.
+        //
+        // watch server-side for connection-close
 
-      return Result::RecvFromClient;
+        stage(Stage::WaitBoth);
+
+        connection()->recv_from_either(
+            MysqlRoutingClassicConnection::FromEither::Started);
+
+        return Result::RecvFromBoth;
+      }
     }
 
     return recv_client_failed(ec);

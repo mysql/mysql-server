@@ -261,11 +261,29 @@ void MysqlRoutingClassicConnection::async_recv_client(Function next) {
 
         --active_work_;
 
-        if (ec != std::errc::operation_canceled) {
+        if (ec == std::errc::operation_canceled) {
+          // cancelled by:
+          //
+          // - request to shutdown
+          // - timer
+          // - read-from-client-xor-server
+          if (recv_from_either() ==
+              MysqlRoutingClassicConnection::FromEither::RecvedFromServer) {
+            recv_from_either(MysqlRoutingClassicConnection::FromEither::None);
+
+            return call_next_function(next);
+          }
+        } else {
           read_timer().cancel();
         }
 
         if (ec) return recv_client_failed(ec);
+
+        if (recv_from_either() ==
+            MysqlRoutingClassicConnection::FromEither::Started) {
+          recv_from_either(
+              MysqlRoutingClassicConnection::FromEither::RecvedFromClient);
+        }
 
         return trace_and_call_function(
             Tracer::Event::Direction::kClientToRouter, "io::recv", next);
@@ -302,7 +320,28 @@ void MysqlRoutingClassicConnection::async_recv_server(Function next) {
         (void)transferred;
 
         --active_work_;
+
+        if (ec == std::errc::operation_canceled) {
+          // cancelled by:
+          //
+          // - request to shutdown
+          // - timer
+          // - read-from-client-xor-server
+          if (recv_from_either() ==
+              MysqlRoutingClassicConnection::FromEither::RecvedFromClient) {
+            recv_from_either(MysqlRoutingClassicConnection::FromEither::None);
+
+            return call_next_function(next);
+          }
+        }
+
         if (ec) return recv_server_failed(ec);
+
+        if (recv_from_either() ==
+            MysqlRoutingClassicConnection::FromEither::Started) {
+          recv_from_either(
+              MysqlRoutingClassicConnection::FromEither::RecvedFromServer);
+        }
 
         return trace_and_call_function(
             Tracer::Event::Direction::kServerToRouter, "io::recv", next);
@@ -655,6 +694,7 @@ void MysqlRoutingClassicConnection::loop() {
 
     if (!res) {
       auto ec = res.error();
+
       log_fatal_error_code("classic::loop() processor failed", ec);
 
       // close the connection.

@@ -483,6 +483,17 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   }
   uint16_t diagnostic_area_changed() const { return diagnostic_area_changed_; }
 
+  enum class FromEither {
+    None,
+    Started,
+    RecvedFromClient,
+    RecvedFromServer,
+  };
+
+  void recv_from_either(FromEither v) { recv_from_either_ = v; }
+
+  FromEither recv_from_either() const { return recv_from_either_; }
+
  private:
   net::steady_timer read_timer_;
   net::steady_timer connect_timer_;
@@ -490,6 +501,8 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   std::error_code connect_ec_{};
 
   bool diagnostic_area_changed_{};
+
+  FromEither recv_from_either_{FromEither::None};
 };
 
 #endif
