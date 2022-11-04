@@ -28,6 +28,7 @@ SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The member action \"mysql_start_failover_channels_if_primary\" for event \"AFTER_PRIMARY_ELECTION\" with priority \"10\" failed. Please check previous messages in the error log for hints about what could have caused this failure.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Error while sending message. Context: primary election process.");
 SET SESSION sql_log_bin = 1;
 include/assert.inc [The action mysql_start_failover_channels_if_primary must be enabled]
 SET @@GLOBAL.DEBUG='+d,force_error_on_start_failover_channels';
