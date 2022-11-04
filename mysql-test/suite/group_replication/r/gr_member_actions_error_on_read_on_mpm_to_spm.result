@@ -23,7 +23,6 @@ ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' fail
 include/gr_wait_for_member_state.inc
 SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
 include/stop_group_replication.inc
-include/assert_grep.inc [There was an issue on the primary election process: Unable to read the member actions configuration during group change from multi to single-primary mode.]
 [connection server2]
 include/gr_assert_primary_member.inc
 

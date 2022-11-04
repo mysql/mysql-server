@@ -47,13 +47,6 @@ SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
 
 --source include/stop_group_replication.inc
 
---let $assert_only_after = CURRENT_TEST: group_replication.gr_member_actions_error_on_read_on_mpm_to_spm
---let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select= There was an issue on the primary election process: Unable to read the member actions configuration during group change from multi to single-primary mode. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'. The member will now leave the group.
---let $assert_count= 1
---let $assert_text= There was an issue on the primary election process: Unable to read the member actions configuration during group change from multi to single-primary mode.
---source include/assert_grep.inc
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --source include/gr_assert_primary_member.inc
