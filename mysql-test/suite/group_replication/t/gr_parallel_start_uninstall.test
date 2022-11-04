@@ -126,14 +126,12 @@ START GROUP_REPLICATION USER='root' , PASSWORD='';
 
 SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
 
---let $wait_condition= SELECT @@GLOBAL.read_only = '0'
---source include/wait_condition.inc
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 # Uninstall may emit warning plugin is busy
 --disable_result_log
+--error 0, ER_OPTION_PREVENTS_STATEMENT
 --reap
 --enable_result_log
 
