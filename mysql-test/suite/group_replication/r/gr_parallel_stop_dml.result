@@ -30,7 +30,7 @@ include/assert_and_disable_read_only.inc
 [connection server2]
 include/rpl_gr_wait_for_number_of_members.inc
 [connection server1]
-ERROR HY000: Error on observer while running replication hook 'before_commit'.
+Got one of the listed errors
 # Asserting that no row exist in table t1 on server1.
 include/assert.inc [The table should have 0 row inserted.]
 # Asserting that no row exist in table t1 on server2.
