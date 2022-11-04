@@ -57,6 +57,7 @@ class Handler : public interface::RestHandler {
    * the client
    */
   bool request_error(RequestContext *ctxt, const http::Error &e) override;
+  bool may_return_detailed_errors() const override;
 
   const Parameters &get_headers_parameters() const override;
 
@@ -64,6 +65,7 @@ class Handler : public interface::RestHandler {
 
  protected:
   const Parameters parameters_;
+  const bool detailed_errors_{false};
   const std::string url_;
   const std::string rest_path_matcher_;
   void *handler_id_;

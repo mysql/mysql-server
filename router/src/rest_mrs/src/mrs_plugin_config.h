@@ -38,6 +38,19 @@
 
 IMPORT_LOG_FUNCTIONS()
 
+class UserConfigurationInfo {
+ public:
+  void operator()(const char *variable) {
+    log_error(
+        "MySQL Server account: '%s', set in configuration file "
+        "must have configured password in `MySQLRouters` keyring.",
+        variable);
+    log_info(
+        "Please consult the MRS documentation on: how to configure MySQL "
+        "Server accounts for MRS");
+  }
+};
+
 namespace mrs {
 
 class PluginConfig : public ::mysql_harness::BasePluginConfig,
@@ -63,8 +76,8 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
       mysql_user_data_access_ = mysql_user_;
     }
 
-    mysql_user_password_ =
-        get_keyring_value(mysql_user_, kKeyringAttributePassword);
+    mysql_user_password_ = get_keyring_value<UserConfigurationInfo>(
+        mysql_user_, kKeyringAttributePassword);
     mysql_user_data_access_password_ =
         get_keyring_value(mysql_user_data_access_, kKeyringAttributePassword);
     jwt_secret_ = get_keyring_value("rest-user", "jwt_secret");
@@ -118,13 +131,21 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
   }
 
  private:
+  class NoReporting {
+   public:
+    void operator()(const char *) {}
+  };
+
+  template <typename ErrorReport = NoReporting>
   static std::string get_keyring_value(const std::string &user,
                                        const char *attr) {
     try {
-      return mysql_harness::get_keyring()
-                 ? mysql_harness::get_keyring()->fetch(user.c_str(), attr)
-                 : "";
+      if (!mysql_harness::get_keyring())
+        throw std::runtime_error("Keyring not running");
+      return mysql_harness::get_keyring()->fetch(user.c_str(), attr);
+
     } catch (const std::exception &e) {
+      ErrorReport()(user.c_str());
       return "";
     }
   }

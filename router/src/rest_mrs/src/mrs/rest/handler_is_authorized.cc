@@ -27,6 +27,7 @@
 #include <cassert>
 
 #include "helper/json/serializer_to_text.h"
+#include "mrs/database/query_entries_auth_role.h"
 #include "mrs/http/cookie.h"
 #include "mrs/interface/object.h"
 #include "mrs/rest/request_context.h"
@@ -70,6 +71,12 @@ Result HandlerIsAuthorized::handle_get(RequestContext *ctxt) {
   log_debug("HandlerIsAuthorized::handle_get");
   helper::json::SerializerToText serializer;
   {
+    database::QueryEntriesAuthRole roles;
+    if (ctxt->user.has_user_id) {
+      auto session = authorization_manager_->get_cache()->get_instance(
+          collector::kMySQLConnectionMetadata);
+      roles.query(session.get(), ctxt->user.user_id);
+    }
     auto obj = serializer.add_object();
     obj->member_add_value(
         "status", ctxt->user.has_user_id ? "authorized" : "unauthorized");
@@ -78,6 +85,12 @@ Result HandlerIsAuthorized::handle_get(RequestContext *ctxt) {
       auto user = obj->member_add_object("user");
       user->member_add_value("name", ctxt->user.name);
       user->member_add_value("id", ctxt->user.user_id);
+
+      auto roles_array = user->member_add_array("roles");
+      for (const auto &r : roles.result) {
+        roles_array->add_value(database::entry::to_string(r).c_str(),
+                               helper::ColumnJsonTypes::kJson);
+      }
     }
   }
 

@@ -90,6 +90,7 @@ class RestHandler {
   virtual uint64_t get_schema_id() const = 0;
   virtual uint32_t get_access_rights() const = 0;
   virtual const Parameters &get_headers_parameters() const = 0;
+  virtual bool may_return_detailed_errors() const = 0;
   virtual bool is_json_response() const { return true; }
 
   virtual void authorization(RequestContext *ctxt) = 0;

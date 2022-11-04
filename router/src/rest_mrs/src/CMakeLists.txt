@@ -45,6 +45,7 @@ ADD_HARNESS_PLUGIN(rest_mrs
   mrs/database/query_changes_db_object.cc
   mrs/database/query_entries_audit_log.cc
   mrs/database/query_entries_auth_app.cc
+  mrs/database/query_entries_auth_role.cc
   mrs/database/query_entries_content_file.cc
   mrs/database/query_entries_db_object.cc
   mrs/database/query_entry_auth_user.cc
