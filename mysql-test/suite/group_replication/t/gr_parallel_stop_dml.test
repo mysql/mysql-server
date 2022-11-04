@@ -76,7 +76,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---error ER_RUN_HOOK_ERROR
+--error ER_RUN_HOOK_ERROR, ER_OPTION_PREVENTS_STATEMENT
 --reap
 
 --echo # Asserting that no row exist in table t1 on server1.
