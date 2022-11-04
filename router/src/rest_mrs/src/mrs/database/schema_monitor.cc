@@ -60,7 +60,8 @@ void SchemaMonitor::stop() {
     running_ = false;
     cv.notify_all();
   });
-  monitor_thread_.join();
+  // The thread might be already stopped or even it has never started
+  if (monitor_thread_.joinable()) monitor_thread_.join();
 }
 
 void SchemaMonitor::run() {

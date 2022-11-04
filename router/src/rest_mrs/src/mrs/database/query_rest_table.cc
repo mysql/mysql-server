@@ -114,14 +114,14 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
     }
 
     where_.reset(
-        "WHERE ! IN (WITH RECURSIVE cte As ("
+        "WHERE (! IN (WITH RECURSIVE cte As ("
         "SELECT a.id as id FROM mysql_rest_service_metadata.auth_user a WHERE "
         "a.id = ? "
         "UNION ALL "
         "SELECT h.auth_user_id as id FROM "
         "mysql_rest_service_metadata.user_hierarchy as h "
         "JOIN cte c ON c.id=h.reporting_to_user_id"
-        ") SELECT * FROM cte) OR ! is NULL");
+        ") SELECT * FROM cte) OR ! is NULL)");
 
     where_ << user_ownership_column << *user_id << user_ownership_column;
 
@@ -129,7 +129,7 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
   }
 
   if (user_ownership_column.empty()) {
-    std::string query{"WHERE "};
+    std::string query{"WHERE ("};
     for (size_t i = 0; i < row_groups.size(); ++i) {
       query +=
           " ! in (WITH RECURSIVE cte AS("
@@ -148,7 +148,7 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
     for (size_t i = 0; i < row_groups.size(); ++i) {
       query += i != 0 ? "AND ! is NULL " : "! is NULL ";
     }
-    query += ") ";
+    query += ")) ";
 
     where_.reset(query.c_str());
 
@@ -166,7 +166,7 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
   }
 
   std::string query{
-      "WHERE ! IN (WITH RECURSIVE cte As ("
+      "WHERE (! IN (WITH RECURSIVE cte As ("
       "SELECT a.id as id FROM mysql_rest_service_metadata.auth_user a WHERE"
       "a.id = ? "
       "UNION ALL "
@@ -193,7 +193,7 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
   for (size_t i = 0; i < row_groups.size(); ++i) {
     query += "AND ! is NULL ";
   }
-  query += ") ";
+  query += ")) ";
   where_.reset(query.c_str());
   where_ << user_ownership_column << *user_id;
 

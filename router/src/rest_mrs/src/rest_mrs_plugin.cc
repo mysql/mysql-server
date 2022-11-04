@@ -46,6 +46,7 @@
 #include "mrs/database/schema_monitor.h"
 #include "mrs/object_manager.h"
 #include "mrs_plugin_config.h"
+#include "mysqld_error.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -53,11 +54,40 @@ static constexpr const char kSectionName[]{"rest_mrs"};
 
 struct MrdsModule {
   MrdsModule(const ::mrs::Configuration &c) : configuration{c} {
+    using namespace mysqlrouter;
+    try {
+      auto conn1 = mysql_connection_cache.get_instance(
+          collector::kMySQLConnectionMetadata);
+    } catch (const MySQLSession::Error &e) {
+      if (e.code() == ER_ROLE_NOT_GRANTED) {
+        log_error(
+            "MySQL Server account, set in 'mysql_user' (MRS/metadata access), "
+            "must be granted "
+            "with 'mrs_provider_metadata' role.");
+        log_info(
+            "Please consult the MRS documentation on: how to configure MySQL "
+            "Server accounts for MRS");
+      }
+      throw std::invalid_argument("mysql_user");
+    }
+
+    try {
+      auto conn2 = mysql_connection_cache.get_instance(
+          collector::kMySQLConnectionUserdata);
+    } catch (const MySQLSession::Error &e) {
+      if (e.code() == ER_ROLE_NOT_GRANTED) {
+        log_error(
+            "MySQL Server account, set in 'mysql_user_data_access' "
+            "(MRS/user-data access), must be "
+            "granted with 'mrs_provider_data_access' role.");
+        log_info(
+            "Please consult the MRS documentation on: how to configure MySQL "
+            "Server accounts for MRS");
+      }
+      throw std::invalid_argument("mysql_user_data_access");
+    }
+
     mrds_monitor.start();
-    auto conn1 = mysql_connection_cache.get_instance(
-        collector::kMySQLConnectionMetadata);
-    auto conn2 = mysql_connection_cache.get_instance(
-        collector::kMySQLConnectionUserdata);
   }
 
   const ::mrs::Configuration &configuration;

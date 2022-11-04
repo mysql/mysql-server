@@ -288,6 +288,8 @@ class RestRequestHandler : public BaseRequestHandler {
         handle_error(&request_ctxt, e.change_response(&req));
     } catch (const http::Error &e) {
       handle_error(&request_ctxt, e);
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      handle_error(&request_ctxt, e);
     } catch (const std::exception &e) {
       handle_error(&request_ctxt, e);
     }
@@ -300,6 +302,28 @@ class RestRequestHandler : public BaseRequestHandler {
 
   static http::Error err_to_http_error(const std::exception &) {
     return {HttpStatusCode::InternalError};
+  }
+
+  using ObjectKeyValue = std::map<std::string, std::string>;
+
+  ObjectKeyValue responose_encode_error(
+      const http::Error &, const mysqlrouter::MySQLSession::Error &e) {
+    ObjectKeyValue result{{"message", e.message()},
+                          {"what", e.what()},
+                          {"sqlcode", std::to_string(e.code())}};
+    return result;
+  }
+
+  ObjectKeyValue responose_encode_error(const http::Error &converted,
+                                        const std::exception &e) {
+    ObjectKeyValue result{{"message", converted.message}, {"what", e.what()}};
+    return result;
+  }
+
+  ObjectKeyValue responose_encode_error(const http::Error &converted,
+                                        const http::Error &) {
+    ObjectKeyValue result{{"message", converted.message}};
+    return result;
   }
 
   template <typename Err>
@@ -317,8 +341,12 @@ class RestRequestHandler : public BaseRequestHandler {
           }
           [[fallthrough]];
         default:
-          send_rfc7807_error(*ctxt->request, e.status,
-                             {{"message", e.message}});
+          if (rest_handler_->may_return_detailed_errors())
+            send_rfc7807_error(*ctxt->request, e.status,
+                               responose_encode_error(e, err));
+          else
+            send_rfc7807_error(*ctxt->request, e.status,
+                               responose_encode_error(e, e));
       }
     }
   }
@@ -327,7 +355,8 @@ class RestRequestHandler : public BaseRequestHandler {
   mrs::interface::AuthorizeManager *auth_manager_;
 };
 
-static Parameters get_json(const std::string &txt, const std::string key_name) {
+static Parameters get_json_obj(const std::string &txt,
+                               const std::string key_name) {
   using namespace helper::json;
   RapidReaderHandlerToMapOfSimpleValues sub_object;
   ExtractSubObjectHandler<RapidReaderHandlerToMapOfSimpleValues> extractor{
@@ -336,10 +365,28 @@ static Parameters get_json(const std::string &txt, const std::string key_name) {
   return sub_object.get_result();
 }
 
+static bool get_json_bool(const std::string &txt, const std::string key_name) {
+  using namespace helper::json;
+  RapidReaderHandlerToMapOfSimpleValues extractor;
+  text_to(&extractor, txt);
+  if (extractor.get_result().count(key_name)) {
+    auto value = extractor.get_result().at(key_name);
+    const static std::map<std::string, bool> allowed_values{
+        {"true", true}, {"false", false}, {"1", true}, {"0", false}};
+    auto it = allowed_values.find(value);
+    if (it != allowed_values.end()) {
+      return it->second;
+    }
+  }
+
+  return false;
+}
+
 Handler::Handler(const std::string &url, const std::string &rest_path_matcher,
                  const std::string &options,
                  mrs::interface::AuthorizeManager *auth_manager)
-    : parameters_{get_json(options, "header")},
+    : parameters_{get_json_obj(options, "header")},
+      detailed_errors_{get_json_bool(options, "internal_errors")},
       url_{url},
       rest_path_matcher_{rest_path_matcher},
       authorization_manager_{auth_manager} {
@@ -362,6 +409,8 @@ void Handler::request_end(RequestContext *) {}
 bool Handler::request_error(RequestContext *, const http::Error &) {
   return false;
 }
+
+bool Handler::may_return_detailed_errors() const { return detailed_errors_; }
 
 const Parameters &Handler::get_headers_parameters() const {
   return parameters_;
