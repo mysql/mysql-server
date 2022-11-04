@@ -103,6 +103,7 @@ call mtr.add_suppression("The source .* for channel 'ch1' has left the group .*,
 call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel .*, thence it will try to connect to another source.");
+call mtr.add_suppression("Slave I/O for channel 'ch1': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
 SET SESSION sql_log_bin = 1;
 [connection server3]
 include/stop_group_replication.inc
