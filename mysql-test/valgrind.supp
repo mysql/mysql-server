@@ -859,6 +859,48 @@
    fun:_sasl_build_mechlist
 }
 
+# The GSS API client plugin for Sasl has leaks
+{
+   cyrus libsasl2 GSS API leak 1
+   Memcheck:Leak
+   fun:calloc
+   ...
+   fun:gss_init_sec_context
+}
+
+{
+   cyrus libsasl2 GSS API leak 1.1
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:gss_init_sec_context
+}
+
+{
+   cyrus libsasl2 GSS API leak 2
+   Memcheck:Leak
+   fun:realloc
+   ...
+   fun:gss_acquire_cred
+}
+
+{
+   cyrus libsasl2 GSS API leak 3
+   Memcheck:Leak
+   fun:calloc
+   ...
+   fun:gss_acquire_cred
+}
+
+{
+   cyrus libsasl2 GSS API leak 4
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:gss_acquire_cred
+}
+
+# some more openssl leaks
 {
    OpenSSL still reachable.
    Memcheck:Leak

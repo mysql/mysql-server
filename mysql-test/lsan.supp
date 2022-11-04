@@ -41,3 +41,6 @@ leak:ldap_initialize
 # It seems some of the SASL plugin have leaks.
 # Both LSAN and Valgrind report leaks.
 leak:sasl_client_add_plugin
+
+# The GSS API plugin for SASL has leaks.
+leak:gss_acquire_cred_from
