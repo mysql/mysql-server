@@ -2711,10 +2711,34 @@ SELECT
 FROM h AS table1
   JOIN s AS table2 ON table1.col_int_unique = table2.col_int_key
 WHERE table1.pk IN (
-  SELECT table2s.col_int_key
+  SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table2s.col_int_key
   FROM p AS table1s
     LEFT JOIN l AS table2s ON table1s.pk = table2s.col_int
   WHERE table2s.col_int = 8
+);
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+# Added as part of investigating bug#34231798.:
+#
+# Above query slightly modified to avoid empty result set, still same plan:
+#  -> Incorrect result if table2 is pushed as child of the
+#     REMOVE_DUPLICATES_ON_INDEX table2s
+#
+let $query=
+SELECT
+  table2.col_int_key
+FROM h AS table1
+  JOIN s AS table2 ON table1.col_int_unique = table2.col_int_key
+WHERE table1.col_int_unique IN (
+  SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table2s.col_int_key
+  FROM p AS table1s
+    LEFT JOIN l AS table2s ON table1s.pk = table2s.col_int
+  WHERE table2s.col_int = 1
 );
 
 --replace_regex /  \(cost=.*//
@@ -3008,6 +3032,33 @@ eval explain format=tree $query;
 --sorted_result
 eval $query;
 
+
+# Above query slightly modified, still same plan:
+#
+# Added as part of investigating bug#34231798. Added in order to prove
+# that NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL need a double set
+# of semi_join nests to be set up in ndb_pushed_builder_ctx::construct()
+#
+# Introduced expression '<column>+0' in join condition for table2s to
+# make it unpushable. That should also cause the other semi-joined table1s
+# to be rejected as scanned tables need all tables in the nest
+# to be pushed.
+let $query=
+SELECT table1.pk, table2.pk
+FROM x AS table1
+  JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE #table2.col_int_unique != 7 AND
+      table1.col_int_key IN (
+  SELECT
+    table1s.col_int AS field2
+  FROM f AS table1s
+    JOIN g AS table2s ON table1s.col_int_unique+0 = table2s.col_int_unique
+);
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
 
 # WEEDOUT:
 # Query use 'Remove duplicate ... using temporary table (weedout)'
@@ -3405,6 +3456,50 @@ eval $query;
 
 # end bug#34508948
 ################
+
+
+--echo ##################
+--echo #
+--echo # Bug#34231798 Incorrect query result from pushed join with IN-subquery
+--echo #
+--echo ##################
+#
+# Yet another multiple batch induced problem:
+# Semi-join skipping to next row when a match has been found, could result in
+# also skipping results from other non-semi-joined tables depending on the semi-join
+# when results from these tables had to be retrieved over multiple batches.
+# Thus we can not push such dependent scan-tables
+let $query=
+SELECT DISTINCT
+  table2.col_varchar_256_unique
+FROM r AS table1
+  JOIN q AS table2 ON table2.col_int IS NOT NULL
+WHERE table2.col_int IN (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ col_int_key FROM u);
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+let $query=
+SELECT
+  table2.col_int_key AS field1,
+  table1.col_int_unique AS field2,
+  table2.col_int AS field3
+FROM (q AS table1
+  JOIN h AS table2 ON table1.col_int = table2.col_int_key )
+WHERE ( table2.col_int_unique = ANY (
+  SELECT /*+ SEMIJOIN(LOOSESCAN)*/
+    table2s.col_int_key
+  FROM o AS table1s
+    INNER JOIN l AS table2s ON table1s.col_int = table2s.col_int)
+  AND table2.col_int_unique <= 3);
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
 
 ######################################################
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;

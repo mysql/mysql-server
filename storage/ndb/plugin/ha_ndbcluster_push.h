@@ -776,6 +776,12 @@ class ndb_pushed_builder_ctx {
   // Tables in this join-scope having remaining conditions not being pushed
   ndb_table_map m_has_pending_cond;
 
+  // Tables which are subject to some form of skip-read. That is:
+  // - All tables in semi-join nests.
+  // - All tables having (grand-)parents in semi-join nests.
+  //   (Indirectly skipped when parent rows are skipped.
+  ndb_table_map m_skip_reads;
+
   // Number of internal operations used so far (unique lookups count as two).
   uint m_internal_op_count;
 
