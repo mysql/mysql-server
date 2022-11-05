@@ -22,55 +22,33 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_USER_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_USER_H_
 
 #include <optional>
 #include <string>
 #include <vector>
 
-#include "helper/media_type.h"
-#include "mrs/interface/authorize_manager.h"
-#include "mrs/interface/rest_handler.h"
+#include "mrs/rest/handler_is_authorized.h"
 
 namespace mrs {
 namespace rest {
 
-class Handler : public interface::RestHandler {
+class HandlerUser : public HandlerIsAuthorized {
  public:
-  Handler(const std::string &url, const std::string &rest_path_matcher,
-          const std::string &options,
-          interface::AuthorizeManager *auth_manager);
-  ~Handler() override;
+  using HandlerIsAuthorized::HandlerIsAuthorized;
 
-  bool may_check_access() const override;
+  Result handle_put(RequestContext *ctxt) override;
   void authorization(RequestContext *ctxt) override;
-  bool request_begin(RequestContext *ctxt) override;
-  void request_end(RequestContext *ctxt) override;
-  /**
-   * Error handler.
-   *
-   * Method that allows customization of error handling.
-   *
-   * @returns true in case when the handler send response to the client
-   * @returns false in case when the default handler should send a response to
-   * the client
-   */
-  bool request_error(RequestContext *ctxt, const http::Error &e) override;
 
-  const interface::Options &get_options() const override;
+  uint32_t get_access_rights() const override;
 
-  void throw_unauthorize_when_check_auth_fails(RequestContext *);
-
- protected:
-  interface::Options options_;
-  const std::string url_;
-  const std::string rest_path_matcher_;
-  void *handler_id_;
-  interface::AuthorizeManager *authorization_manager_;
+ private:
+  void fill_authorization(Object &ojson, const AuthUser &user,
+                          const std::vector<AuthRole> &roles) override;
 };
 
 }  // namespace rest
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_USER_H_

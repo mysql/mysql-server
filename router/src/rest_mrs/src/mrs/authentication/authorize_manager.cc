@@ -40,6 +40,7 @@
 #include "mrs/rest/handler_authorize_ok.h"
 #include "mrs/rest/handler_is_authorized.h"
 #include "mrs/rest/handler_unauthorize.h"
+#include "mrs/rest/handler_user.h"
 
 #include "helper/container/generic.h"
 #include "helper/container/map.h"
@@ -192,6 +193,7 @@ void AuthorizeManager::fill_service(const AuthApp &e, ServiceAuthorize &sa) {
   std::string path2 = "^" + e.service_name + auth_path + "/status$";
   std::string path3 = "^" + e.service_name + auth_path + "/logout$";
   std::string path4 = "^" + e.service_name + auth_path + "/completed";
+  std::string path5 = "^" + e.service_name + auth_path + "/user";
   std::string redirect = e.redirect;
 
   if (redirect.empty()) {
@@ -207,11 +209,14 @@ void AuthorizeManager::fill_service(const AuthApp &e, ServiceAuthorize &sa) {
   auto auth_ok_handler = std::make_shared<mrs::rest::HandlerAuthorizeOk>(
       e.service_id, e.service_name, path4, e.options,
       e.redirection_default_page, this);
+  auto user_handler = std::make_shared<mrs::rest::HandlerUser>(
+      e.service_id, e.service_name, path5, e.options, this);
 
   sa.authorize_handler_ = login_handler;
   sa.status_handler_ = status_handler;
   sa.unauthorize_handler_ = unauth_handler;
   sa.authorization_result_handler_ = auth_ok_handler;
+  sa.user_handler_ = user_handler;
 }
 
 void AuthorizeManager::acquire(interface::AuthorizeHandler *handler) {
@@ -483,6 +488,10 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
   }
 
   return false;
+}
+
+users::UserManager *AuthorizeManager::get_user_manager() {
+  return &user_manager_;
 }
 
 bool AuthorizeManager::is_authorized(ServiceId service_id,

@@ -35,6 +35,7 @@
 #include "mrs/http/session_manager.h"
 #include "mrs/http/url.h"
 #include "mrs/interface/authorize_handler.h"
+#include "mrs/users/user_manager.h"
 
 namespace collector {
 
@@ -69,6 +70,7 @@ class AuthorizeManager {
   virtual std::string get_jwt_token(uint64_t service_id, Session *s) = 0;
   virtual Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
                                        http::Cookie *cookies) = 0;
+  virtual users::UserManager *get_user_manager() = 0;
 
   // TODO(lkotula): = 0 (Shouldn't be in review)
   virtual void discard_current_session(ServiceId, http::Cookie *) {}

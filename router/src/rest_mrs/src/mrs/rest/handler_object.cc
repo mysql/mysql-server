@@ -212,6 +212,8 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
                          route_->get_cached_primary(), last_path,
                          route_->get_rest_url());
 
+      if (rest.response.empty()) throw http::Error(HttpStatusCode::NotFound);
+
       return std::move(rest.response);
     }
 

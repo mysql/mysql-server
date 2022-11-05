@@ -49,11 +49,23 @@ namespace interface {
 
 class AuthorizeManager;
 
+using Parameters = std::map<std::string, std::string>;
+
+class Options {
+ public:
+  const Parameters parameters_;
+  const bool detailed_errors_{false};
+  const bool header_requests_{false};
+  const bool header_responses_{false};
+  const bool body_requests_{false};
+  const bool body_responses_{false};
+};
+
 class RestHandler {
  public:
   using SqlSession = mysqlrouter::MySQLSession;
-  using RequestContext = rest::RequestContext;
-  using Parameters = std::map<std::string, std::string>;
+  using RequestContext = mrs::rest::RequestContext;
+  using Parameters = mrs::interface::Parameters;
 
   struct Result {
     using Type = helper::MediaType;
@@ -89,9 +101,8 @@ class RestHandler {
   virtual uint64_t get_db_object_id() const = 0;
   virtual uint64_t get_schema_id() const = 0;
   virtual uint32_t get_access_rights() const = 0;
-  virtual const Parameters &get_headers_parameters() const = 0;
-  virtual bool may_return_detailed_errors() const = 0;
   virtual bool is_json_response() const { return true; }
+  virtual const Options &get_options() const = 0;
 
   virtual void authorization(RequestContext *ctxt) = 0;
   virtual bool request_begin(RequestContext *ctxt) = 0;

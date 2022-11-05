@@ -29,7 +29,10 @@
 #include <string>
 #include <vector>
 
+#include "helper/json/serializer_to_text.h"
 #include "helper/media_type.h"
+#include "mrs/database/entry/auth_role.h"
+#include "mrs/database/entry/auth_user.h"
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/rest/handler.h"
 
@@ -61,9 +64,17 @@ class HandlerIsAuthorized : public Handler {
   Result handle_delete(RequestContext *ctxt) override;
   Result handle_put(RequestContext *ctxt) override;
 
- private:
-  std::string append_status_parameters(const std::string &redirection_url,
-                                       const http::Error &error);
+ protected:
+  using Object = helper::json::SerializerToText::Object;
+  using AuthUser = database::entry::AuthUser;
+  using AuthRole = database::entry::AuthRole;
+
+  virtual void fill_authorization(Object &ojson, const AuthUser &user,
+                                  const std::vector<AuthRole> &roles);
+  static void fill_the_user_data(Object &ojson, const AuthUser &user,
+                                 const std::vector<AuthRole> &roles);
+  static std::string append_status_parameters(
+      const std::string &redirection_url, const http::Error &error);
 
   uint64_t service_id_;
   std::string copy_url_;
