@@ -1,0 +1,60 @@
+##########################################################################
+# Test script to test CHECK TABLE
+##########################################################################
+
+--source include/not_valgrind.inc
+--source include/have_lowercase0.inc
+--source include/have_nodebug.inc
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+--disable_query_log
+call mtr.add_suppression("Record has both instant and version bit set");
+call mtr.add_suppression("Apparent corruption in space .* page .* index `GEN_CLUST_INDEX`");
+call mtr.add_suppression("In page .* of index `GEN_CLUST_INDEX` of table");
+--enable_query_log
+
+--echo # Stop the running the server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy and unzip the datadir.
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/check_table.zip $MYSQL_TMP_DIR/check_table.zip
+--file_exists $MYSQL_TMP_DIR/check_table.zip
+--exec unzip -qo $MYSQL_TMP_DIR/check_table.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server against the unzipped datadir
+--let LOG_FILE= $MYSQLTEST_VARDIR/log/my_restart.err
+--replace_result $DATADIR DATADIR $LOG_FILE LOG_FILE
+--let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k --log-error=$LOG_FILE
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+CHECK TABLE t1;
+
+--let SEARCH_FILE= $LOG_FILE
+--echo # Expect found
+--let SEARCH_PATTERN= Record has both instant and version bit set
+--source include/search_pattern.inc
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/check_table.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/check_table.zip
+--remove_file $LOG_FILE
+
+--echo # Restarting server to restore server state
+let $restart_parameters =;
+--source include/start_mysqld.inc
