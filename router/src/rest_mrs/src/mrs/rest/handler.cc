@@ -31,7 +31,7 @@
 #include "mysql/harness/string_utils.h"
 #include "mysqlrouter/http_request.h"
 #include "mysqlrouter/http_server_component.h"
-#include "mysqlrouter/rest_api_utils.h"
+//#include "mysqlrouter/rest_api_utils.h"
 
 #include "mrs/authentication/www_authentication_handler.h"
 #include "mrs/http/error.h"
@@ -154,6 +154,22 @@ static const char *get_content_type(
   return "";
 }
 
+std::string get_http_method_name(HttpMethod::type type) {
+  const static std::map<HttpMethod::type, std::string> allowed_types{
+      {HttpMethod::Connect, "CONNECT"}, {HttpMethod::Delete, "DELETE"},
+      {HttpMethod::Get, "GET"},         {HttpMethod::Head, "HEAD"},
+      {HttpMethod::Options, "OPTIONS"}, {HttpMethod::Patch, "PATCH"},
+      {HttpMethod::Post, "POST"},       {HttpMethod::Put, "PUT"},
+      {HttpMethod::Trace, "TRACE"}};
+
+  auto it = allowed_types.find(type);
+  if (it != allowed_types.end()) {
+    return it->second;
+  }
+
+  return std::to_string(type);
+}
+
 class RestRequestHandler : public BaseRequestHandler {
  public:
   using Cached = collector::MysqlCacheManager::CachedObject;
@@ -163,6 +179,23 @@ class RestRequestHandler : public BaseRequestHandler {
   RestRequestHandler(Handler *rest_handler,
                      mrs::interface::AuthorizeManager *auth_manager)
       : rest_handler_{rest_handler}, auth_manager_{auth_manager} {}
+
+  void trace_http(const char *type, interface::Options &optsions,
+                  HttpMethod::type method, HttpHeaders &headers,
+                  HttpBuffer &buffer) {
+    log_debug("HTTP %s method: %s", type, get_http_method_name(method).c_str());
+
+    for (const auto &[k, v] : headers) {
+      log_debug("HTTP %s parameters: %s=%s", type, k.c_str(), v.c_str());
+    }
+
+    auto in_len = buffer.length();
+    if (in_len && optsions.body_requests_) {
+      auto data = buffer.copy(in_len);
+      log_debug("HTTP %s body: %s", type,
+                reinterpret_cast<const char *>(&data[0]));
+    }
+  }
 
   void handle_request(HttpRequest &req) override {
     RequestContext request_ctxt{&req};
@@ -176,17 +209,23 @@ class RestRequestHandler : public BaseRequestHandler {
       const auto service_id = rest_handler_->get_service_id();
       const auto method = req.get_method();
 
-      log_debug("RestRequestHandler(service_id:%i): start(url='%s')",
+      log_debug("handle_request(service_id:%i): start(url='%s')",
                 static_cast<int>(service_id),
                 request_ctxt.request->get_uri().join().c_str());
 
-      for (auto &kv : rest_handler_->get_headers_parameters()) {
+      auto options = rest_handler_->get_options();
+      if (options.header_requests_) {
+        trace_http("Request", options, request_ctxt.request->get_method(),
+                   req.get_input_headers(), req.get_input_buffer());
+      }
+
+      for (auto &kv : rest_handler_->get_options().parameters_) {
         auto &oh = request_ctxt.request->get_output_headers();
         oh.add(kv.first.c_str(), kv.second.c_str());
       }
 
       if (method == HttpMethod::Options) {
-        req.send_reply(HttpStatusCode::Ok);
+        send_reply(req, HttpStatusCode::Ok);
         return;
       }
 
@@ -276,14 +315,14 @@ class RestRequestHandler : public BaseRequestHandler {
       out_hdrs.add("Content-Type",
                    get_content_type(result.type, result.type_text));
 
-      req.send_reply(result.status,
-                     HttpStatusCode::get_default_status_text(result.status), b);
+      send_reply(req, result.status,
+                 HttpStatusCode::get_default_status_text(result.status), b);
       rest_handler_->request_end(&request_ctxt);
     } catch (const http::ErrorChangeResponse &e) {
       if (e.retry()) {
         log_debug("handle_request override");
         auto r = e.change_response(&req);
-        req.send_reply(r.status, r.message);
+        send_reply(req, r.status, r.message);
       } else
         handle_error(&request_ctxt, e.change_response(&req));
     } catch (const http::Error &e) {
@@ -332,7 +371,7 @@ class RestRequestHandler : public BaseRequestHandler {
     if (!rest_handler_->request_error(ctxt, e)) {
       switch (e.status) {
         case HttpStatusCode::TemporaryRedirect:
-          ctxt->request->send_reply(e.status, e.message);
+          send_reply(*ctxt->request, e.status, e.message);
           break;
         case HttpStatusCode::Unauthorized:
           if (ctxt->selected_handler) {
@@ -341,7 +380,7 @@ class RestRequestHandler : public BaseRequestHandler {
           }
           [[fallthrough]];
         default:
-          if (rest_handler_->may_return_detailed_errors())
+          if (rest_handler_->get_options().detailed_errors_)
             send_rfc7807_error(*ctxt->request, e.status,
                                responose_encode_error(e, err));
           else
@@ -349,6 +388,86 @@ class RestRequestHandler : public BaseRequestHandler {
                                responose_encode_error(e, e));
       }
     }
+  }
+
+  void send_reply(HttpRequest &req, int status_code) {
+    auto options = rest_handler_->get_options();
+    if (options.header_responses_) {
+      log_debug("HTTP Response status: %i", status_code);
+      trace_http("Response", options, req.get_method(),
+                 req.get_output_headers(), req.get_output_buffer());
+    }
+    req.send_reply(status_code);
+  }
+
+  void send_reply(HttpRequest &req, int status_code, std::string status_text) {
+    auto options = rest_handler_->get_options();
+    if (options.header_responses_) {
+      log_debug("HTTP Response status: %i", status_code);
+      log_debug("HTTP Response status text: %s", status_text.c_str());
+      trace_http("Response", options, req.get_method(),
+                 req.get_output_headers(), req.get_output_buffer());
+    }
+    req.send_reply(status_code, status_text);
+  }
+
+  void send_reply(HttpRequest &req, int status_code, std::string status_text,
+                  HttpBuffer &buffer) {
+    auto options = rest_handler_->get_options();
+    if (options.header_responses_) {
+      log_debug("HTTP Response status: %i", status_code);
+      log_debug("HTTP Response status text: %s", status_text.c_str());
+      trace_http("Response", options, req.get_method(),
+                 req.get_output_headers(), buffer);
+    }
+    req.send_reply(status_code, status_text, buffer);
+  }
+
+  void send_rfc7807_error(HttpRequest &req,
+                          HttpStatusCode::key_type status_code,
+                          const std::map<std::string, std::string> &fields) {
+    auto &out_hdrs = req.get_output_headers();
+    out_hdrs.add("Content-Type", "application/problem+json");
+
+    rapidjson::Document json_doc;
+
+    auto &allocator = json_doc.GetAllocator();
+
+    json_doc.SetObject();
+    for (const auto &field : fields) {
+      json_doc.AddMember(
+          rapidjson::Value(field.first.c_str(), field.first.size(), allocator),
+          rapidjson::Value(field.second.c_str(), field.second.size(),
+                           allocator),
+          allocator);
+    }
+
+    json_doc.AddMember("status", status_code, allocator);
+
+    send_json_document(req, status_code, json_doc);
+  }
+
+  void send_json_document(HttpRequest &req,
+                          HttpStatusCode::key_type status_code,
+                          const rapidjson::Document &json_doc) {
+    // serialize json-document into a string
+    auto &chunk = req.get_output_buffer();
+
+    {
+      rapidjson::StringBuffer json_buf;
+      {
+        rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
+
+        json_doc.Accept(json_writer);
+
+      }  // free json_doc and json_writer early
+
+      // perhaps we could use evbuffer_add_reference() and a unique-ptr on
+      // json_buf here. needs to be benchmarked
+      chunk.add(json_buf.GetString(), json_buf.GetSize());
+    }  // free json_buf early
+    send_reply(req, status_code,
+               HttpStatusCode::get_default_status_text(status_code), chunk);
   }
 
   Handler *rest_handler_;
@@ -385,8 +504,12 @@ static bool get_json_bool(const std::string &txt, const std::string key_name) {
 Handler::Handler(const std::string &url, const std::string &rest_path_matcher,
                  const std::string &options,
                  mrs::interface::AuthorizeManager *auth_manager)
-    : parameters_{get_json_obj(options, "header")},
-      detailed_errors_{get_json_bool(options, "internal_errors")},
+    : options_{get_json_obj(options, "header"),
+               get_json_bool(options, "internal_errors"),
+               get_json_bool(options, "header_requests"),
+               get_json_bool(options, "header_responses"),
+               get_json_bool(options, "body_requests"),
+               get_json_bool(options, "body_responses")},
       url_{url},
       rest_path_matcher_{rest_path_matcher},
       authorization_manager_{auth_manager} {
@@ -410,11 +533,7 @@ bool Handler::request_error(RequestContext *, const http::Error &) {
   return false;
 }
 
-bool Handler::may_return_detailed_errors() const { return detailed_errors_; }
-
-const Parameters &Handler::get_headers_parameters() const {
-  return parameters_;
-}
+const interface::Options &Handler::get_options() const { return options_; }
 
 void Handler::throw_unauthorize_when_check_auth_fails(RequestContext *ctxt) {
   if (this->requires_authentication() != Authorization::kNotNeeded) {

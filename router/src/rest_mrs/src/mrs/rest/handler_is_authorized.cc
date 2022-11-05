@@ -67,6 +67,31 @@ uint64_t HandlerIsAuthorized::get_schema_id() const {
 
 uint32_t HandlerIsAuthorized::get_access_rights() const { return Route::kRead; }
 
+void HandlerIsAuthorized::fill_the_user_data(
+    Object &ojson, const AuthUser &user, const std::vector<AuthRole> &roles) {
+  ojson->member_add_value("name", user.name);
+  ojson->member_add_value("id", user.user_id);
+
+  if (!user.email.empty()) ojson->member_add_value("email", user.email);
+
+  auto roles_array = ojson->member_add_array("roles");
+  for (const auto &r : roles) {
+    roles_array->add_value(database::entry::to_string(r).c_str(),
+                           helper::ColumnJsonTypes::kJson);
+  }
+}
+
+void HandlerIsAuthorized::fill_authorization(
+    Object &ojson, const AuthUser &user, const std::vector<AuthRole> &roles) {
+  ojson->member_add_value("status",
+                          user.has_user_id ? "authorized" : "unauthorized");
+
+  if (user.has_user_id) {
+    auto ouser = ojson->member_add_object("user");
+    fill_the_user_data(ouser, user, roles);
+  }
+}
+
 Result HandlerIsAuthorized::handle_get(RequestContext *ctxt) {
   log_debug("HandlerIsAuthorized::handle_get");
   helper::json::SerializerToText serializer;
@@ -78,20 +103,7 @@ Result HandlerIsAuthorized::handle_get(RequestContext *ctxt) {
       roles.query(session.get(), ctxt->user.user_id);
     }
     auto obj = serializer.add_object();
-    obj->member_add_value(
-        "status", ctxt->user.has_user_id ? "authorized" : "unauthorized");
-
-    if (ctxt->user.has_user_id) {
-      auto user = obj->member_add_object("user");
-      user->member_add_value("name", ctxt->user.name);
-      user->member_add_value("id", ctxt->user.user_id);
-
-      auto roles_array = user->member_add_array("roles");
-      for (const auto &r : roles.result) {
-        roles_array->add_value(database::entry::to_string(r).c_str(),
-                               helper::ColumnJsonTypes::kJson);
-      }
-    }
+    fill_authorization(obj, ctxt->user, roles.result);
   }
 
   return Result(serializer.get_result(), helper::typeJson);

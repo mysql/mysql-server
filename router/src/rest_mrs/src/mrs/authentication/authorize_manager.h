@@ -57,6 +57,7 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
     RestHandlerPtr status_handler_;
     RestHandlerPtr unauthorize_handler_;
     RestHandlerPtr authorization_result_handler_;
+    RestHandlerPtr user_handler_;
   };
 
   using ServiceAuthorizePtr = std::shared_ptr<ServiceAuthorize>;
@@ -83,6 +84,7 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
                                http::Cookie *cookies) override;
   void discard_current_session(ServiceId id, http::Cookie *cookies) override;
+  users::UserManager *get_user_manager() override;
   collector::MysqlCacheManager *get_cache() override { return cache_manager_; }
 
  private:

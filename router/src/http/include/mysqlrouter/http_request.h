@@ -371,6 +371,7 @@ class HTTP_COMMON_EXPORT HttpBuffer {
    * move a subset out from the front of the buffer.
    */
   virtual std::vector<uint8_t> pop_front(size_t length);
+  virtual std::vector<uint8_t> copy(size_t length);
 
  protected:
   HttpBuffer();

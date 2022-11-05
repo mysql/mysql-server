@@ -53,8 +53,8 @@ class MockRestHandler : public mrs::interface::RestHandler {
   MOCK_METHOD(void, request_end, (RequestContext * ctxt), (override));
   MOCK_METHOD(bool, request_error,
               (RequestContext * ctxt, const mrs::http::Error &e), (override));
-  MOCK_METHOD(Parameters &, get_headers_parameters, (), (const, override));
-  MOCK_METHOD(bool, may_return_detailed_errors, (), (const, override));
+  MOCK_METHOD(const mrs::interface::Options &, get_options, (),
+              (const, override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_REST_HANDLER_H_

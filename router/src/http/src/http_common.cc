@@ -474,6 +474,22 @@ std::vector<uint8_t> HttpBuffer::pop_front(size_t len) {
   return data;
 }
 
+std::vector<uint8_t> HttpBuffer::copy(size_t len) {
+  std::vector<uint8_t> data;
+  data.resize(len);
+
+  int bytes_read;
+  if (-1 == (bytes_read = evbuffer_copyout(pImpl_->buffer.get(), data.data(),
+                                           data.size()))) {
+    throw std::runtime_error("couldn't pop bytes from front of buffer");
+  }
+
+  data.resize(bytes_read);
+  data.shrink_to_fit();
+
+  return data;
+}
+
 HttpBuffer::HttpBuffer() = default;
 HttpBuffer::~HttpBuffer() = default;
 
