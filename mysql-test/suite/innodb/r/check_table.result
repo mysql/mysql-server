@@ -1,0 +1,31 @@
+#########
+# SETUP #
+#########
+# Stop the running the server
+# Copy and unzip the datadir.
+# Restart the server against the unzipped datadir
+# restart: --datadir=DATADIR --innodb-page-size=16k --log-error=LOG_FILE
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+c1	c2	b
+r1c1	0	1
+r2c1	2	1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: The B-tree of index GEN_CLUST_INDEX is corrupted.
+test.t1	check	error	Corrupt
+# Expect found
+Pattern "Record has both instant and version bit set" found
+###########
+# CLEANUP #
+###########
+# Shutdown server
+# Remove copied files
+# Restarting server to restore server state
+# restart

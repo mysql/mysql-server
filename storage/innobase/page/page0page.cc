@@ -1693,6 +1693,12 @@ bool page_rec_validate(
   if (page_rec_is_comp(rec)) {
     n_owned = rec_get_n_owned_new(rec);
     heap_no = rec_get_heap_no_new(rec);
+
+    /* Only one of the bit (INSTANT or VERSION) could be set */
+    if (rec_get_instant_flag_new(rec) && rec_new_is_versioned(rec)) {
+      ib::error(ER_CHECK_TABLE_INSTANT_VERSION_BIT_SET);
+      return false;
+    }
   } else {
     n_owned = rec_get_n_owned_old(rec);
     heap_no = rec_get_heap_no_old(rec);
