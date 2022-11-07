@@ -793,9 +793,8 @@ trx_id_t dtuple_t::get_trx_id() const {
 }
 
 void dtuple_t::ignore_trailing_default(const dict_index_t *index) {
-  if (!index->has_instant_cols()) {
-    return;
-  }
+  ut_a(index->has_instant_cols());
+  ut_a(!index->has_row_versions());
 
   /* It's necessary to check all the fields that could be default.
   If it's from normal update, it should be OK to keep original
@@ -805,6 +804,11 @@ void dtuple_t::ignore_trailing_default(const dict_index_t *index) {
   it has to check all possible default values. */
   for (; n_fields > index->get_instant_fields(); --n_fields) {
     const dict_col_t *col = index->get_field(n_fields - 1)->col;
+
+    /* We shall never come here if INSTANT ADD/DROP is done in a version. */
+    ut_a(!col->is_instant_added());
+    ut_a(!col->is_instant_dropped());
+
     const dfield_t *dfield = dtuple_get_nth_field(this, n_fields - 1);
     ulint len = dfield_get_len(dfield);
 

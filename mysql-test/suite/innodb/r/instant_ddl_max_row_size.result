@@ -19,7 +19,7 @@ SET SESSION innodb_strict_mode=OFF;
 # Add a new column. It causes max_row_size > permissible size
 # ------------------------------------------------------------
 ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
-ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
 ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
 Warnings:
 Warning	139	Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
@@ -40,7 +40,9 @@ SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1 ORDER BY id;
 id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
 1	aaaa	bbbb	dddddddddd
 ALTER TABLE t1 ADD COLUMN c4 INT, ALGORITHM=INSTANT;
-ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
 ###########
 # CLEANUP #
 ###########
@@ -91,7 +93,7 @@ SET SESSION innodb_strict_mode=OFF;
 # Add new columns. It causes max_row_size > permissible size
 # ------------------------------------------------------------
 ALTER TABLE t1 ADD COLUMN c5 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ADD COLUMN c6 TEXT, ALGORITHM=INSTANT;
-ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
 ALTER TABLE t1 ADD COLUMN c5 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ADD COLUMN c6 TEXT;
 Warnings:
 Warning	139	Row size too large (> 1979). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
@@ -149,7 +151,9 @@ SELECT c1, c2, c3, c4, LEFT(c5 , 10), c6 from t1;
 c1	c2	c3	c4	LEFT(c5 , 10)	c6
 1	2	3	abcdefg	dddddddddd	hijklmnop
 ALTER TABLE t1 ADD COLUMN c7 INT, ALGORITHM=INSTANT;
-ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
+ALTER TABLE t1 DROP COLUMN c6, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
 ###########
 # CLEANUP #
 ###########
@@ -179,7 +183,7 @@ SET SESSION innodb_strict_mode=OFF;
 # Add a new column. It causes max_row_size > permissible size
 # ------------------------------------------------------------
 ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
-ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
 ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
 Warnings:
 Warning	139	Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
@@ -200,7 +204,9 @@ SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1 ORDER BY id;
 id	LEFT(c1 , 10)	LEFT(c2, 10)	LEFT(c3, 10)
 1	aaaa	bbbb	dddddddddd
 ALTER TABLE t1 ADD COLUMN c4 INT, ALGORITHM=INSTANT;
-ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
 ###########
 # CLEANUP #
 ###########
@@ -251,7 +257,7 @@ SET SESSION innodb_strict_mode=OFF;
 # Add new columns. It causes max_row_size > permissible size
 # ------------------------------------------------------------
 ALTER TABLE t1 ADD COLUMN c5 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ADD COLUMN c6 TEXT, ALGORITHM=INSTANT;
-ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
 ALTER TABLE t1 ADD COLUMN c5 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ADD COLUMN c6 TEXT;
 Warnings:
 Warning	139	Row size too large (> 1982). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
@@ -309,7 +315,9 @@ SELECT c1, c2, c3, c4, LEFT(c5 , 10), c6 from t1;
 c1	c2	c3	c4	LEFT(c5 , 10)	c6
 1	2	3	abcdefg	dddddddddd	hijklmnop
 ALTER TABLE t1 ADD COLUMN c7 INT, ALGORITHM=INSTANT;
-ERROR HY000: Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY.
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
+ALTER TABLE t1 DROP COLUMN c6, ALGORITHM=INSTANT;
+ERROR HY000: Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY.
 ###########
 # CLEANUP #
 ###########

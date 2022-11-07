@@ -1035,14 +1035,14 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
 
           /* INSTANT can't be done any more. Fall back to INPLACE. */
           break;
-        } else if (!Instant_ddl_impl<dd::Table>::is_instant_add_possible(
+        } else if (!Instant_ddl_impl<dd::Table>::is_instant_add_drop_possible(
                        ha_alter_info, table, altered_table,
                        m_prebuilt->table)) {
           if (ha_alter_info->alter_info->requested_algorithm ==
               Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
-            /* Try to find if after adding columns, any possible row stays
-            within permissible limit. If it doesn't, return error. */
-            my_error(ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE, MYF(0));
+            /* Return error if either max possible row size already crosses max
+            permissible row size or may cross it after add. */
+            my_error(ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE, MYF(0));
             return HA_ALTER_ERROR;
           }
 
@@ -10131,13 +10131,13 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
         }
         /* INSTANT can't be done any more. Fall back to INPLACE. */
         break;
-      } else if (!Instant_ddl_impl<dd::Table>::is_instant_add_possible(
+      } else if (!Instant_ddl_impl<dd::Table>::is_instant_add_drop_possible(
                      ha_alter_info, table, altered_table, m_prebuilt->table)) {
         if (ha_alter_info->alter_info->requested_algorithm ==
             Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
-          /* Try to find if after adding columns, any possible row stays
-          within permissible limit. If it doesn't, return error. */
-          my_error(ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE, MYF(0));
+          /* Return error if either max possible row size already crosses max
+          permissible row size or may cross it after add. */
+          my_error(ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE, MYF(0));
           return HA_ALTER_ERROR;
         }
 

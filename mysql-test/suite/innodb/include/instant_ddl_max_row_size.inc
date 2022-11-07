@@ -25,7 +25,7 @@ SET SESSION innodb_strict_mode=OFF;
 --echo # Add a new column. It causes max_row_size > permissible size
 --echo # ------------------------------------------------------------
 # Error with ALGORITHM=INSTANT
---error ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
+--error ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE
 ALTER TABLE t1 ADD COLUMN c3 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ALGORITHM=INSTANT;
 
 # Pass with DEFAULT ALGORITHM
@@ -44,8 +44,13 @@ SELECT id, LEFT(c1 , 10), LEFT(c2, 10), LEFT(c3, 10) FROM t1 ORDER BY id;
 
 # Now this table is already in a state where a possible row could go beyond
 # permissible size. So no new column could be added with ALGORITHM=INSTANT
---error ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
+--error ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE
 ALTER TABLE t1 ADD COLUMN c4 INT, ALGORITHM=INSTANT;
+
+# Now this table is already in a state where a possible row could go beyond
+# permissible size. So no column could be dropped with ALGORITHM=INSTANT
+--error ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE
+ALTER TABLE t1 DROP COLUMN c3, ALGORITHM=INSTANT;
 
 --echo ###########
 --echo # CLEANUP #
@@ -66,7 +71,7 @@ SET SESSION innodb_strict_mode=OFF;
 --echo # ------------------------------------------------------------
 --echo # Add new columns. It causes max_row_size > permissible size
 --echo # ------------------------------------------------------------
---error ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
+--error ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE
 ALTER TABLE t1 ADD COLUMN c5 VARCHAR(500) NOT NULL DEFAULT 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', ADD COLUMN c6 TEXT, ALGORITHM=INSTANT;
 
 # Pass with DEFAULT ALGORITHM
@@ -85,8 +90,13 @@ SELECT c1, c2, c3, c4, LEFT(c5 , 10), c6 from t1;
 
 # Now this table is already in a state where a possible row could go beyond
 # permissible size. So no new column could be added with ALGORITHM=INSTANT
---error ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
+--error ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE
 ALTER TABLE t1 ADD COLUMN c7 INT, ALGORITHM=INSTANT;
+
+# Now this table is already in a state where a possible row could go beyond
+# permissible size. So no column could be dropped with ALGORITHM=INSTANT
+--error ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE
+ALTER TABLE t1 DROP COLUMN c6, ALGORITHM=INSTANT;
 
 --echo ###########
 --echo # CLEANUP #

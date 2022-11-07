@@ -3459,14 +3459,21 @@ bool materialize_instant_default(const dict_index_t *index, const rec_t *rec) {
   Thus ROLLBACK will fail. So for these rows, we keep the old behavior.
   NOTE: Any new row inserted after upgrade will have all INSTANT columns
   materialized and have version=0.
-  NOTE: In new implementation an INSTANT ADD will fail if max possible size of
-  a row crosses row_size_limit. So new rows with materialized INSTANT columns
+  NOTE: In new implementation an INSTANT ADD/DROP will fail if max possible size
+  of a row crosses row_size_limit. So new rows with materialized INSTANT columns
   will always be within row_size_limit.
   Thus the above mentioned issue isn't there for rows inserted post upgrade. */
 
   /* If the record is versioned, the old instant add defaults must already have
   been materialized. */
   if (rec_new_is_versioned(rec)) {
+    return true;
+  }
+
+  /* If table has version (i.e. INSTANT ADD/DROP is done), this is gauranteed
+  that the maximum row will fit within the limit or else INSTANT ADD/DROP would
+  have failed. So it is safe to materialize it. */
+  if (index->has_row_versions()) {
     return true;
   }
 

@@ -91,16 +91,15 @@ class Instant_ddl_impl {
   /** Commit instant DDL */
   void commit_instant_ddl();
 
-  /** Check if INSTANT ADD can be done.
+  /** Check if INSTANT ADD/DROP can be done.
   @param[in]  ha_alter_info alter info
   @param[in]  table         MySQL table before ALTER
   @param[in]  altered_table MySQL table after ALTER
   @param[in]  dict_table    InnoDB table definition cache
-  @return true if INSTANT ADD can be done, false otherwise. */
-  static bool is_instant_add_possible(const Alter_inplace_info *ha_alter_info,
-                                      const TABLE *table,
-                                      const TABLE *altered_table,
-                                      const dict_table_t *dict_table);
+  @return true if INSTANT ADD/DROP can be done, false otherwise. */
+  static bool is_instant_add_drop_possible(
+      const Alter_inplace_info *ha_alter_info, const TABLE *table,
+      const TABLE *altered_table, const dict_table_t *dict_table);
 
  private:
   /** Add column instantly */

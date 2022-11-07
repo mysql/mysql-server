@@ -487,26 +487,28 @@ void row_upd_rec_in_place(
   ut_ad(!index->table->skip_alter_undo);
 
   if (rec_offs_comp(offsets)) {
+    /* Keep the INSTANT/VERSION bit of prepared physical record */
     const bool is_instant = rec_get_instant_flag_new(rec);
     const bool is_versioned = rec_new_is_versioned(rec);
 
+    /* Set the info_bits from the update vector */
     rec_set_info_bits_new(rec, update->info_bits);
+
+    /* Set the INSTANT/VERSION bit from the values kept */
     if (is_versioned) {
-      rec_new_set_versioned(rec, true);
-      rec_set_instant_flag_new(rec, false);
+      rec_new_set_versioned(rec);
     } else if (is_instant) {
       ut_ad(index->table->has_instant_cols());
-      rec_set_instant_flag_new(rec, true);
       ut_ad(!rec_new_is_versioned(rec));
-      rec_new_set_versioned(rec, false);
+      rec_new_set_instant(rec);
     } else {
-      rec_new_set_versioned(rec, false);
-      rec_set_instant_flag_new(rec, false);
+      rec_new_reset_instant_version(rec);
     }
 
     /* Only one of the bit (INSTANT or VERSION) could be set */
     ut_a(!(rec_get_instant_flag_new(rec) && rec_new_is_versioned(rec)));
   } else {
+    /* INSTANT bit is irrelevant for the record in Redundant format */
     bool is_versioned = rec_old_is_versioned(rec);
     rec_set_info_bits_old(rec, update->info_bits);
     if (is_versioned) {
