@@ -51,14 +51,38 @@ class AuthorizeManager;
 
 using Parameters = std::map<std::string, std::string>;
 
+class ReqRes {
+ public:
+  const bool header_;
+  const bool body_;
+};
+
+class Request : public ReqRes {
+ public:
+};
+
+class Response : public ReqRes {
+ public:
+  const bool detailed_errors_{false};
+};
+
 class Options {
  public:
   const Parameters parameters_;
-  const bool detailed_errors_{false};
-  const bool header_requests_{false};
-  const bool header_responses_{false};
-  const bool body_requests_{false};
-  const bool body_responses_{false};
+
+  class Debug {
+   public:
+    class Http {
+     public:
+      Http(const Request &req, const Response &res)
+          : request{req}, response{res} {}
+      Request request;
+      Response response;
+    } http;
+    bool log_exceptions{false};
+
+    Debug(const Http &http, bool le) : http{http}, log_exceptions{le} {}
+  } debug;
 };
 
 class RestHandler {

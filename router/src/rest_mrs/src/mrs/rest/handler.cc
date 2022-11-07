@@ -170,6 +170,27 @@ std::string get_http_method_name(HttpMethod::type type) {
   return std::to_string(type);
 }
 
+void trace_error(const http::ErrorChangeResponse &e) {
+  log_debug("Catch: ErrorChangeResponse name: %s", e.name());
+  log_debug("Catch: ErrorChangeResponse retry: %s",
+            (e.retry() ? "true" : "false"));
+}
+
+void trace_error(const http::Error &e) {
+  log_debug("Catch: http::Error status: %i", e.status);
+  log_debug("Catch: http::Error message: %s", e.message.c_str());
+}
+
+void trace_error(const mysqlrouter::MySQLSession::Error &e) {
+  log_debug("Catch: MySQLSession::Error code: %i", static_cast<int>(e.code()));
+  log_debug("Catch: MySQLSession::Error message: %s", e.message().c_str());
+  log_debug("Catch: MySQLSession::Error message: %s", e.what());
+}
+
+void trace_error(const std::exception &e) {
+  log_debug("Catch: std::exception message: %s", e.what());
+}
+
 class RestRequestHandler : public BaseRequestHandler {
  public:
   using Cached = collector::MysqlCacheManager::CachedObject;
@@ -180,17 +201,20 @@ class RestRequestHandler : public BaseRequestHandler {
                      mrs::interface::AuthorizeManager *auth_manager)
       : rest_handler_{rest_handler}, auth_manager_{auth_manager} {}
 
-  void trace_http(const char *type, interface::Options &optsions,
+  void trace_http(const char *type, interface::ReqRes &options,
                   HttpMethod::type method, HttpHeaders &headers,
                   HttpBuffer &buffer) {
-    log_debug("HTTP %s method: %s", type, get_http_method_name(method).c_str());
+    if (options.header_) {
+      log_debug("HTTP %s method: %s", type,
+                get_http_method_name(method).c_str());
 
-    for (const auto &[k, v] : headers) {
-      log_debug("HTTP %s parameters: %s=%s", type, k.c_str(), v.c_str());
+      for (const auto &[k, v] : headers) {
+        log_debug("HTTP %s parameters: %s=%s", type, k.c_str(), v.c_str());
+      }
     }
 
     auto in_len = buffer.length();
-    if (in_len && optsions.body_requests_) {
+    if (in_len && options.header_) {
       auto data = buffer.copy(in_len);
       log_debug("HTTP %s body: %s", type,
                 reinterpret_cast<const char *>(&data[0]));
@@ -214,10 +238,10 @@ class RestRequestHandler : public BaseRequestHandler {
                 request_ctxt.request->get_uri().join().c_str());
 
       auto options = rest_handler_->get_options();
-      if (options.header_requests_) {
-        trace_http("Request", options, request_ctxt.request->get_method(),
-                   req.get_input_headers(), req.get_input_buffer());
-      }
+
+      trace_http("Request", options.debug.http.request,
+                 request_ctxt.request->get_method(), req.get_input_headers(),
+                 req.get_input_buffer());
 
       for (auto &kv : rest_handler_->get_options().parameters_) {
         auto &oh = request_ctxt.request->get_output_headers();
@@ -319,6 +343,7 @@ class RestRequestHandler : public BaseRequestHandler {
                  HttpStatusCode::get_default_status_text(result.status), b);
       rest_handler_->request_end(&request_ctxt);
     } catch (const http::ErrorChangeResponse &e) {
+      if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       if (e.retry()) {
         log_debug("handle_request override");
         auto r = e.change_response(&req);
@@ -326,10 +351,13 @@ class RestRequestHandler : public BaseRequestHandler {
       } else
         handle_error(&request_ctxt, e.change_response(&req));
     } catch (const http::Error &e) {
+      if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       handle_error(&request_ctxt, e);
     } catch (const mysqlrouter::MySQLSession::Error &e) {
+      if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       handle_error(&request_ctxt, e);
     } catch (const std::exception &e) {
+      if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       handle_error(&request_ctxt, e);
     }
   }
@@ -370,6 +398,9 @@ class RestRequestHandler : public BaseRequestHandler {
     const http::Error &e = err_to_http_error(err);
     if (!rest_handler_->request_error(ctxt, e)) {
       switch (e.status) {
+        case HttpStatusCode::NotModified:
+          send_reply(*ctxt->request, e.status, e.message);
+          break;
         case HttpStatusCode::TemporaryRedirect:
           send_reply(*ctxt->request, e.status, e.message);
           break;
@@ -380,7 +411,7 @@ class RestRequestHandler : public BaseRequestHandler {
           }
           [[fallthrough]];
         default:
-          if (rest_handler_->get_options().detailed_errors_)
+          if (rest_handler_->get_options().debug.http.response.detailed_errors_)
             send_rfc7807_error(*ctxt->request, e.status,
                                responose_encode_error(e, err));
           else
@@ -392,34 +423,34 @@ class RestRequestHandler : public BaseRequestHandler {
 
   void send_reply(HttpRequest &req, int status_code) {
     auto options = rest_handler_->get_options();
-    if (options.header_responses_) {
+    if (options.debug.http.response.body_)
       log_debug("HTTP Response status: %i", status_code);
-      trace_http("Response", options, req.get_method(),
-                 req.get_output_headers(), req.get_output_buffer());
-    }
+
+    trace_http("Response", options.debug.http.response, req.get_method(),
+               req.get_output_headers(), req.get_output_buffer());
     req.send_reply(status_code);
   }
 
   void send_reply(HttpRequest &req, int status_code, std::string status_text) {
     auto options = rest_handler_->get_options();
-    if (options.header_responses_) {
+    if (options.debug.http.response.body_) {
       log_debug("HTTP Response status: %i", status_code);
       log_debug("HTTP Response status text: %s", status_text.c_str());
-      trace_http("Response", options, req.get_method(),
-                 req.get_output_headers(), req.get_output_buffer());
     }
+    trace_http("Response", options.debug.http.response, req.get_method(),
+               req.get_output_headers(), req.get_output_buffer());
     req.send_reply(status_code, status_text);
   }
 
   void send_reply(HttpRequest &req, int status_code, std::string status_text,
                   HttpBuffer &buffer) {
     auto options = rest_handler_->get_options();
-    if (options.header_responses_) {
+    if (options.debug.http.response.body_) {
       log_debug("HTTP Response status: %i", status_code);
       log_debug("HTTP Response status text: %s", status_text.c_str());
-      trace_http("Response", options, req.get_method(),
-                 req.get_output_headers(), buffer);
     }
+    trace_http("Response", options.debug.http.response, req.get_method(),
+               req.get_output_headers(), buffer);
     req.send_reply(status_code, status_text, buffer);
   }
 
@@ -505,11 +536,12 @@ Handler::Handler(const std::string &url, const std::string &rest_path_matcher,
                  const std::string &options,
                  mrs::interface::AuthorizeManager *auth_manager)
     : options_{get_json_obj(options, "header"),
-               get_json_bool(options, "internal_errors"),
-               get_json_bool(options, "header_requests"),
-               get_json_bool(options, "header_responses"),
-               get_json_bool(options, "body_requests"),
-               get_json_bool(options, "body_responses")},
+               {{{get_json_bool(options, "header_requests"),
+                  get_json_bool(options, "body_requests")},
+                 {get_json_bool(options, "header_responses"),
+                  get_json_bool(options, "body_responses"),
+                  get_json_bool(options, "internal_errors")}},
+                get_json_bool(options, "trace_exceptions")}},
       url_{url},
       rest_path_matcher_{rest_path_matcher},
       authorization_manager_{auth_manager} {

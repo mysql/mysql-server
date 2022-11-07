@@ -102,6 +102,7 @@ void WwwAuthenticationHandler::add_www_authenticate(const char *schema) {
    public:
     ErrorAddWwwBasicAuth(const std::string &schema) : schema_{schema} {}
 
+    const char *name() const override { return "ErrorAddWwwBasicAuth"; }
     bool retry() const override { return true; }
     http::Error change_response(HttpRequest *request) const override {
       request->get_output_headers().add(kWwwAuthenticate, schema_.c_str());

@@ -49,6 +49,7 @@ class ErrorChangeResponse {
  public:
   virtual ~ErrorChangeResponse() {}
 
+  virtual const char *name() const = 0;
   virtual bool retry() const = 0;
   virtual Error change_response(HttpRequest *request) const = 0;
 };
@@ -57,6 +58,7 @@ class ErrorRedirect : public ErrorChangeResponse {
  public:
   ErrorRedirect(const std::string &redirect) : redirect_{redirect} {}
 
+  const char *name() const override { return "ErrorRedirect"; }
   bool retry() const override { return false; }
   Error change_response(HttpRequest *request) const override {
     request->get_output_headers().add("Location", redirect_.c_str());
