@@ -102,6 +102,7 @@ engine = InnoDB;
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	4079	'ucs2_vn_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	4162	'ucs2_vn_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 insert into 2byte_collation values (0x0061);
 set @@character_set_results=NULL;
 select hex(c1) from 2byte_collation;
@@ -114,6 +115,7 @@ CREATE TABLE 2byte_collation (s1 char(10) character set utf8 collate utf8_maxuse
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_maxuserid_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO 2byte_collation VALUES ('a'),('b');
 SELECT * FROM 2byte_collation WHERE s1='a' ORDER BY BINARY s1;
 s1
@@ -140,6 +142,7 @@ ENGINE=InnoDB STATS_PERSISTENT=0;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_maxuserid_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO 2byte_collation VALUES(0,'x',1, 1);
 CREATE UNIQUE INDEX idx3 ON 2byte_collation(c, b);
 INSERT INTO 2byte_collation SELECT 0,b,c+1,z+1 FROM 2byte_collation;

@@ -1034,6 +1034,18 @@ void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
       LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_COLLATION_OPTION, option,
              collation->m_coll_name, collation->csname, "utf8mb4");
   }
+  if (!(collation->state & MY_CS_COMPILED)) {
+    if (option == nullptr) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING,
+          ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS,
+          ER_THD(thd, ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS),
+          collation->m_coll_name);
+    } else {
+      LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS_OPTION,
+             option, collation->m_coll_name);
+    }
+  }
 }
 
 /**

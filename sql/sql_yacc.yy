@@ -496,6 +496,19 @@ void warn_about_deprecated_binary(THD *thd)
   "a CHARACTER SET clause with _bin collation");
 }
 
+void warn_on_deprecated_user_defined_collation(
+    THD *thd, const LEX_STRING collation_name) {
+  if (collation_name.length == 0)
+    return;
+  CHARSET_INFO *collation = mysqld_collation_get_by_name(collation_name.str);
+  if (collation && !(collation->state & MY_CS_COMPILED)) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS,
+                        ER_THD(thd, ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS),
+                        collation->m_coll_name);
+  }
+}
+
 %}
 
 %start start_entry
@@ -10476,6 +10489,7 @@ simple_expr:
         | function_call_conflict
         | simple_expr COLLATE_SYM ident_or_text %prec NEG
           {
+            warn_on_deprecated_user_defined_collation(YYTHD, $3);
             $$= NEW_PTN Item_func_set_collation(@$, $1, $3);
           }
         | literal_or_null

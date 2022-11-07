@@ -1,0 +1,4 @@
+--force-restart
+--no-console
+--character-sets-dir=$MYSQL_TEST_DIR/std_data/
+--log-error=$MYSQLTEST_VARDIR/tmp/deprecate_user_defined_collations_log.err

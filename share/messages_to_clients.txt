@@ -9950,6 +9950,9 @@ ER_INSTALL_COMPONENT_SET_NULL_VALUE
 ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
   eng "The assignment of %s in SET doesn't match any of the variables registered by the component(s)"
 
+ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS
+  eng "'%s' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
