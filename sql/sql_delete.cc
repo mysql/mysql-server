@@ -469,7 +469,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   if (order) {
     if (conds != nullptr) table->update_const_key_parts(conds);
     order = simple_remove_const(order, conds);
-    ORDER_with_src order_src(order, ESC_ORDER_BY);
+    ORDER_with_src order_src(order, ESC_ORDER_BY, /*const_optimized=*/true);
     usable_index = get_index_for_order(&order_src, table, limit, range_scan,
                                        &need_sort, &reverse);
     if (range_scan != nullptr) {

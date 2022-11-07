@@ -1488,7 +1488,7 @@ bool JOIN::optimize_distinct_group_order() {
     order = ORDER_with_src(
         remove_const(order.order, where_cond, rollup_state == RollupState::NONE,
                      &simple_order, false),
-        order.src);
+        order.src, /*const_optimized=*/true);
     if (thd->is_error()) {
       error = 1;
       DBUG_PRINT("error", ("Error from remove_const"));
@@ -1626,8 +1626,7 @@ bool JOIN::optimize_distinct_group_order() {
   group_list = ORDER_with_src(
       remove_const(group_list.order, where_cond,
                    rollup_state == RollupState::NONE, &simple_group, true),
-      group_list.src);
-
+      group_list.src, /*const_optimized=*/true);
   if (thd->is_error()) {
     error = 1;
     DBUG_PRINT("error", ("Error from remove_const"));
@@ -1838,12 +1837,14 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
     const Field *field = down_cast<const Item_field *>(real_itm)->field;
 
     /*
-      Skip key parts that are constants in the WHERE clause.
-      These are already skipped in the ORDER BY by check_field_is_const()
+      Skip key parts that are constants in the WHERE clause if these are
+      already removed in the ORDER expression by check_field_is_const().
     */
-    for (; const_key_parts & 1 && key_part < key_part_end;
-         const_key_parts >>= 1)
-      key_part++;
+    if (order_src->is_const_optimized()) {
+      for (; const_key_parts & 1 && key_part < key_part_end;
+           const_key_parts >>= 1)
+        key_part++;
+    }
 
     /* Avoid usage of prefix index for sorting a partition table */
     if (table->part_info && key_part != table->key_info[idx].key_part &&
@@ -1866,9 +1867,15 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
             table->key_info[table->s->primary_key].user_defined_key_parts;
         const_key_parts = table->const_key_parts[table->s->primary_key];
 
-        for (; const_key_parts & 1 && key_part < key_part_end;
-             const_key_parts >>= 1)
-          key_part++;
+        /*
+          Skip key parts that are constants in the WHERE clause if these are
+          already removed in the ORDER expression by check_field_is_const().
+        */
+        if (order_src->is_const_optimized()) {
+          for (; const_key_parts & 1 && key_part < key_part_end;
+               const_key_parts >>= 1)
+            key_part++;
+        }
         /*
          The primary and secondary key parts were all const (i.e. there's
          one row).  The sorting doesn't matter.

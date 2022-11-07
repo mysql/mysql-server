@@ -522,3 +522,36 @@ x	y
 2	3
 3	4
 DROP TABLE t;
+#
+# Bug#34291261: The result of query plan is different between 5.7 and 8.0
+#
+CREATE TABLE test (
+a bigint NOT NULL AUTO_INCREMENT,
+b int not null,
+c date NOT NULL,
+d int NOT NULL,
+PRIMARY KEY (a),
+KEY ix_ordered_date (c,a)
+);
+CREATE PROCEDURE insertProc(input_date varchar(10))
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 1000)
+DO
+INSERT INTO test VALUE (0, 0, input_date, 0);
+SET i = i + 1;
+END WHILE;
+END$$
+CALL insertProc('2022-06-09');
+CALL insertProc('2022-06-10');
+CALL insertProc('2022-06-13');
+analyze table test;
+Table	Op	Msg_type	Msg_text
+test.test	analyze	status	OK
+EXPLAIN SELECT * FROM test  WHERE c = '2022-06-13' AND a > 222 ORDER BY c, a LIMIT 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test	NULL	range	PRIMARY,ix_ordered_date	ix_ordered_date	11	NULL	1000	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test`.`a` AS `a`,`test`.`test`.`b` AS `b`,`test`.`test`.`c` AS `c`,`test`.`test`.`d` AS `d` from `test`.`test` where ((`test`.`test`.`c` = DATE'2022-06-13') and (`test`.`test`.`a` > 222)) order by `test`.`test`.`c`,`test`.`test`.`a` limit 10
+DROP PROCEDURE insertProc;
+DROP TABLE test;

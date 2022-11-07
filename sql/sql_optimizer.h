@@ -99,14 +99,18 @@ class ORDER_with_src {
 
  private:
   int flags;  ///< bitmap of Explain_sort_property
+  // Status of const condition removal from the ORDER Expression
+  bool m_const_optimized;
 
  public:
   ORDER_with_src() { clean(); }
 
-  ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
+  ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg,
+                 bool const_optimized_arg = false)
       : order(order_arg),
         src(src_arg),
-        flags(order_arg ? ESP_EXISTS : ESP_none) {}
+        flags(order_arg ? ESP_EXISTS : ESP_none),
+        m_const_optimized(const_optimized_arg) {}
 
   bool empty() const { return order == nullptr; }
 
@@ -114,12 +118,15 @@ class ORDER_with_src {
     order = nullptr;
     src = ESC_none;
     flags = ESP_none;
+    m_const_optimized = false;
   }
 
   int get_flags() const {
     assert(order);
     return flags;
   }
+
+  bool is_const_optimized() const { return m_const_optimized; }
 };
 
 class JOIN {

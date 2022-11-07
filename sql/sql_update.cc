@@ -576,7 +576,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   bool used_key_is_modified = false;
   uint used_index;
   {
-    ORDER_with_src order_src(order, ESC_ORDER_BY);
+    ORDER_with_src order_src(order, ESC_ORDER_BY, /*const_optimized=*/true);
     used_index = get_index_for_order(&order_src, table, limit, range_scan,
                                      &need_sort, &reverse);
     if (range_scan != nullptr) {
