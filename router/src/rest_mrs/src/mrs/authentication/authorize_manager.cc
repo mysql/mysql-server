@@ -337,7 +337,7 @@ AuthorizeManager::Session *AuthorizeManager::get_current_session(
   }
 
   auto session = session_manager_.get_session(session_identifier);
-  log_debug("Current session state:%i", session->state);
+  log_debug("Current session state:%i", session ? session->state : -1);
   return session;
 }
 
@@ -412,6 +412,11 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
                                  AuthUser *out_user) {
   auto session_cookie_key = get_session_cookie_key_name(service_id);
   auto session_identifier = cookies->get(session_cookie_key);
+  log_debug(
+      "AuthorizeManager::authorize(service_id:%i, session_id:%s, "
+      "can_use_jwt:%s)",
+      static_cast<int>(service_id), session_identifier.c_str(),
+      (jwt_secret_.empty() ? "no" : "yes"));
 
   AuthorizeHandlerPtr selected_handler;
 
