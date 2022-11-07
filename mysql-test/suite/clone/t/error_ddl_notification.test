@@ -10,6 +10,7 @@
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
 
+SET GLOBAL innodb_ddl_threads = 1;
 CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
 
 CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
@@ -123,4 +124,5 @@ SET DEBUG_SYNC = 'RESET';
 --echo # Uninstall clone
 UNINSTALL PLUGIN clone;
 
+SET GLOBAL innodb_ddl_threads = default;
 --source ../include/encrypt_end.inc

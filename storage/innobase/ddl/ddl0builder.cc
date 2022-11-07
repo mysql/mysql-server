@@ -28,6 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  DDL build index implementation.
 Created 2020-11-01 by Sunny Bains. */
 
+#include <debug_sync.h>
 #include "btr0load.h"
 #include "clone0api.h"
 #include "ddl0fts.h"
@@ -2442,6 +2443,7 @@ dberr_t Builder::btree_build_mt() noexcept {
   }
   m_files_vec.clear();
   m_is_subtree = true;
+  DEBUG_SYNC(m_ctx.thd(), "ddl_btree_build_interrupt");
   DBUG_EXECUTE_IF("btree_build_mt_force_error",
                   { set_error(DB_CANNOT_OPEN_FILE); });
   if (err == DB_SUCCESS) {
@@ -2502,7 +2504,7 @@ dberr_t Builder::btree_build() noexcept {
   threaded build. */
   ut_a(m_build_threads.empty());
 
-  DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "ddl_btree_build_interrupt");
+  DEBUG_SYNC(m_ctx.thd(), "ddl_btree_build_interrupt");
   if (m_local_stage != nullptr) {
     m_local_stage->begin_phase_insert();
   }
@@ -2727,11 +2729,11 @@ dberr_t Builder::finalize() noexcept {
   if (err == DB_SUCCESS) {
     write_redo(m_index);
 
-    DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_before");
+    DEBUG_SYNC(m_ctx.thd(), "row_log_apply_before");
 
     err = row_log_apply(m_ctx.m_trx, m_index, m_ctx.m_table, m_local_stage);
 
-    DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_after");
+    DEBUG_SYNC(m_ctx.thd(), "row_log_apply_after");
   }
 
   if (err != DB_SUCCESS) {
@@ -2782,7 +2784,7 @@ dberr_t Builder::setup_sort() noexcept {
   ut_a(!is_skip_file_sort());
   ut_a(get_state() == State::SETUP_SORT);
 
-  DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "ddl_merge_sort_interrupt");
+  DEBUG_SYNC(m_ctx.thd(), "ddl_merge_sort_interrupt");
 
   const auto err = create_merge_sort_tasks();
 

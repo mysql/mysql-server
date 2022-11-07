@@ -1,4 +1,5 @@
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET GLOBAL innodb_ddl_threads = 1;
 CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
 CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
 PARTITION BY KEY(col1) PARTITIONS 5;
@@ -459,6 +460,7 @@ call execute_dml(1, 0, 100, 100, 10, 0);
 # restart:
 SET DEBUG_SYNC = 'RESET';
 # 3. ADD INDEX while clone in progress
+SET GLOBAL innodb_ddl_threads = 1;
 RESET MASTER;
 SET GLOBAL DEBUG = '+d,local_release_clone_file_pin';
 ALTER TABLE t0 ADD INDEX col2_idx(col2), ALGORITHM=INPLACE ;
@@ -853,5 +855,6 @@ DROP TABLE t01;
 DROP TABLE t3;
 DROP TABLE t11;
 DROP TABLE t21;
+SET GLOBAL innodb_ddl_threads = default;
 # Uninstall clone
 UNINSTALL PLUGIN clone;

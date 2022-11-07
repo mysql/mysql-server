@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include <algorithm>
 
+#include <debug_sync.h>
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "buf0lru.h"
@@ -2197,7 +2198,7 @@ code or DB_LOCK_WAIT */
   }
 
   ut_ad(trx_can_be_handled_by_current_thread(trx));
-  DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "before_row_upd_sec_index_entry");
+  DEBUG_SYNC(trx->mysql_thd, "before_row_upd_sec_index_entry");
 
   mtr_start(&mtr);
 
@@ -3013,7 +3014,7 @@ func_exit:
   ulint mode;
 
   ut_ad(trx_can_be_handled_by_current_thread(trx));
-  DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "innodb_row_upd_clust_step_enter");
+  DEBUG_SYNC(trx->mysql_thd, "innodb_row_upd_clust_step_enter");
 
   if (dict_index_is_online_ddl(index)) {
     ut_ad(node->table->id != DICT_INDEXES_ID);
@@ -3169,7 +3170,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
   }
 
   ut_ad(trx_can_be_handled_by_current_thread(thr_get_trx(thr)));
-  DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd, "after_row_upd_clust");
+  DEBUG_SYNC(thr_get_trx(thr)->mysql_thd, "after_row_upd_clust");
 
   if (node->index == nullptr ||
       (!node->is_delete && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
