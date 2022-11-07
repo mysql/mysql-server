@@ -9743,7 +9743,7 @@ ER_XA_TEMP_TABLE
 ER_INNODB_MAX_ROW_VERSION
   eng "Maximum row versions reached for table %s. No more columns can be added or dropped instantly. Please use COPY/INPLACE."
 
-ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
+OBSOLETE_ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
   eng "Column can't be added with ALGORITHM=INSTANT as after this max possible row size crosses max permissible row size. Try ALGORITHM=INPLACE/COPY."
 
 ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
@@ -9934,6 +9934,9 @@ ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR
 
 ER_CANT_CHANGE_SYS_VAR_IN_READ_ONLY_MODE
   eng "Cannot change the '%s' system variable in read-only mode."
+
+ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE
+  eng "Column can't be added or dropped with ALGORITHM=INSTANT as either max possible row size already crosses max permissible row size or may cross it after add. Try ALGORITHM=INPLACE/COPY."
 
 #
 #  End of 8.0 error messages (server-to-client).

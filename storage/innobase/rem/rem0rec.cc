@@ -672,7 +672,7 @@ static rec_t *rec_convert_dtuple_to_rec_old(byte *buf,
 }
 
 /** Builds a ROW_FORMAT=COMPACT record out of a data tuple.
-@param[in]      rec             origin of record
+@param[in, out] rec             origin of record
 @param[in]      index           record descriptor
 @param[in]      fields          array of data fields
 @param[in]      n_fields        number of data fields
@@ -717,9 +717,11 @@ static inline bool rec_convert_dtuple_to_rec_comp(
         !dict_table_is_comp(index->table)) {
       /* Shift nulls 1 byte back for info bits */
       nulls -= 1;
+      rec_new_temp_set_versioned(rec, false);
       if (rec_version > 0) {
         /* Shift nulls 1 byte for version */
         nulls -= 1;
+        rec_new_temp_set_versioned(rec, true);
       }
     }
 
@@ -729,6 +731,9 @@ static inline bool rec_convert_dtuple_to_rec_comp(
       temp = false;
     }
   } else {
+    /* INSTANT/VERSION bit will be set in following 'if' accordingly. */
+    rec_new_reset_instant_version(rec);
+
     ut_ad(v_entry == nullptr);
     ut_ad(num_v == 0);
     nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
@@ -750,12 +755,14 @@ static inline bool rec_convert_dtuple_to_rec_comp(
             /* Shift pointer to null byte before the version */
             nulls -= 1;
             instant = true;
+            rec_new_set_versioned(rec);
           } else {
             ut_ad(index->has_instant_cols());
             if (index->is_tuple_instant_format(n_fields)) {
               /* Not materializing instant default. So need to store in V1 */
               uint32_t n_fields_len = rec_set_n_fields(rec, n_fields);
               nulls -= n_fields_len;
+              rec_new_set_instant(rec);
               instant = true;
             }
           }
@@ -1012,27 +1019,37 @@ static rec_t *rec_convert_dtuple_to_rec_new(byte *buf,
       rec, index, dtuple->fields, dtuple->n_fields, nullptr, status, false,
       index->table->current_row_version);
 
-  /* Set the info bits of the record */
-  rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
-
-  if (instant) {
-    ut_ad(index->has_instant_cols_or_row_versions());
-    if (dtuple->n_fields < index->n_fields) {
-      /* Only in case of UPDATE where we are not materializing instant
-      default values, dtuple->n_fields will be less than index->n_fields. In
-      that case, we need to write in V1. */
-      rec_set_instant_flag_new(rec, true);
-      ut_ad(!rec_new_is_versioned(rec));
+  {
+    /* Keep the INSTANT/VERSION bit from the prepared physical rec */
+    const bool is_instant = rec_get_instant_flag_new(rec);
+    const bool is_versioned = rec_new_is_versioned(rec);
+    if (instant) {
+      ut_a(index->has_instant_cols_or_row_versions());
+      /* At least on the bit should be set */
+      ut_a(is_instant || is_versioned);
+      /* Only one of the bit sould be set */
+      ut_a(!(is_instant && is_versioned));
     } else {
-      /* For any new record insert for upgraded table, always write it in V2. */
-      rec_new_set_versioned(rec, true);
-      rec_set_instant_flag_new(rec, false);
+      ut_a(!is_instant);
+      ut_a(!is_versioned);
     }
-  } else {
-    rec_new_set_versioned(rec, false);
-    rec_set_instant_flag_new(rec, false);
+
+    /* Set the info bits of the record from dtuple */
+    rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
+
+    /* Set the INSTANT/VERSION bit from the kept values */
+    if (is_versioned) {
+      rec_new_set_versioned(rec);
+    } else if (is_instant) {
+      ut_a(index->table->has_instant_cols());
+      rec_new_set_instant(rec);
+    } else {
+      rec_new_reset_instant_version(rec);
+    }
   }
 
+  /* Only one of the bit (INSTANT or VERSION) could be set */
+  ut_a(!(rec_get_instant_flag_new(rec) && rec_new_is_versioned(rec)));
   return (rec);
 }
 

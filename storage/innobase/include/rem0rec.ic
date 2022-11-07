@@ -431,6 +431,21 @@ static inline void rec_new_set_versioned(rec_t *rec, bool flag) {
   rec_set_info_bits_new(rec, val);
 }
 
+static inline void rec_new_set_instant(rec_t *rec) {
+  rec_set_instant_flag_new(rec, true);
+  rec_new_set_versioned(rec, false);
+}
+
+static inline void rec_new_set_versioned(rec_t *rec) {
+  rec_new_set_versioned(rec, true);
+  rec_set_instant_flag_new(rec, false);
+}
+
+static inline void rec_new_reset_instant_version(rec_t *rec) {
+  rec_set_instant_flag_new(rec, false);
+  rec_new_set_versioned(rec, false);
+}
+
 /** The following function is used to set the version bit.
 @param[in,out]  rec     old-style (REDUNDANT) physical record
 @param[in]      flag    true to set, false to reset */

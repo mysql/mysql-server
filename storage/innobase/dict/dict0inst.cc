@@ -38,7 +38,7 @@ static void populate_to_be_instant_columns_low(
     const TABLE *new_table, Columns &cols_to_add, Columns &cols_to_drop);
 
 template <typename Table>
-bool Instant_ddl_impl<Table>::is_instant_add_possible(
+bool Instant_ddl_impl<Table>::is_instant_add_drop_possible(
     const Alter_inplace_info *ha_alter_info, const TABLE *table,
     const TABLE *altered_table, const dict_table_t *dict_table) {
   Columns cols_to_add;
@@ -46,7 +46,8 @@ bool Instant_ddl_impl<Table>::is_instant_add_possible(
   populate_to_be_instant_columns_low(ha_alter_info, table, altered_table,
                                      cols_to_add, cols_to_drop);
 
-  if (cols_to_add.empty()) {
+  if (cols_to_add.empty() && cols_to_drop.empty()) {
+    ut_ad(0);
     return true;
   }
 
@@ -105,11 +106,11 @@ bool Instant_ddl_impl<Table>::is_instant_add_possible(
   return true;
 }
 
-template bool Instant_ddl_impl<dd::Table>::is_instant_add_possible(
+template bool Instant_ddl_impl<dd::Table>::is_instant_add_drop_possible(
     const Alter_inplace_info *ha_alter_info, const TABLE *table,
     const TABLE *altered_table, const dict_table_t *dict_table);
 
-template bool Instant_ddl_impl<dd::Partition>::is_instant_add_possible(
+template bool Instant_ddl_impl<dd::Partition>::is_instant_add_drop_possible(
     const Alter_inplace_info *ha_alter_info, const TABLE *table,
     const TABLE *altered_table, const dict_table_t *dict_table);
 
@@ -117,8 +118,8 @@ template <typename Table>
 void Instant_ddl_impl<Table>::commit_instant_add_col_low() {
   ut_ad(!m_dict_table->is_temporary());
 
-  ut_ad(is_instant_add_possible(m_ha_alter_info, m_old_table, m_altered_table,
-                                m_dict_table));
+  ut_a(is_instant_add_drop_possible(m_ha_alter_info, m_old_table,
+                                    m_altered_table, m_dict_table));
 
   /* To remember old default values if exist */
   dd_copy_table_columns(m_ha_alter_info, m_new_dd_tab->table(),
@@ -150,6 +151,9 @@ void Instant_ddl_impl<dd::Partition>::commit_instant_add_col() {
 template <typename Table>
 void Instant_ddl_impl<Table>::commit_instant_drop_col_low() {
   ut_ad(!m_dict_table->is_temporary());
+
+  ut_a(is_instant_add_drop_possible(m_ha_alter_info, m_old_table,
+                                    m_altered_table, m_dict_table));
 
   /* Copy columns metadata */
   dd_copy_table_columns(m_ha_alter_info, m_new_dd_tab->table(),

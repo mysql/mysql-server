@@ -153,14 +153,17 @@ static inline void rec_set_deleted_flag_new(rec_t *rec,
                                             bool flag);
 
 /** The following function is used to set the instant bit.
-@param[in,out]  rec     new-style physical record
-@param[in]      flag    set the bit to this flag */
-static inline void rec_set_instant_flag_new(rec_t *rec, bool flag);
+@param[in,out]  rec     new-style physical record */
+static inline void rec_new_set_instant(rec_t *rec);
 
 /** The following function is used to set the row version bit.
-@param[in,out]  rec     new-style (COMPACT/DYNAMIC) physical record
-@param[in]      flag    set the bit to this flag */
-static inline void rec_new_set_versioned(rec_t *rec, bool flag);
+@param[in,out]  rec     new-style (COMPACT/DYNAMIC) physical record */
+static inline void rec_new_set_versioned(rec_t *rec);
+
+/** The following function is used to reset the instant bit and the row version
+bit.
+@param[in,out]  rec     new-style (COMPACT/DYNAMIC) physical record */
+static inline void rec_new_reset_instant_version(rec_t *rec);
 
 /** The following function is used to set the instant bit.
 @param[in,out]  rec     old-style (REDUNDANT) physical record
