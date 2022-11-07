@@ -7626,6 +7626,7 @@ Dbspj::scanFrag_send(Signal* signal,
     Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
     Ptr<ScanFragHandle> fragPtr;
     list.first(fragPtr);
+    bool handleLocalFrags = true;
 
     /**
      * Iterate over the list of fragments until we have sent as many
@@ -7634,7 +7635,25 @@ Dbspj::scanFrag_send(Signal* signal,
     while (requestsSent < noOfFrags)
     {
       jam();
+      if (handleLocalFrags)
+      {
+        if (fragPtr.isNull())
+        {
+          // We might have skipped to end of the fragment list while first
+          // sending requests to only the local fragments, start over
+          handleLocalFrags = false;
+          list.first(fragPtr);
+          continue;
+        }
+        if (refToNode(fragPtr.p->m_ref) != getOwnNodeId())
+        {
+          // Skip non local fragments
+          list.next(fragPtr);
+          continue;
+        }
+      }
       ndbassert(!fragPtr.isNull());
+
       /**
        * There is a 12-bit implementation limit on how large
        * the 'parent-row-correlation-id' may be. Thus, if rows
