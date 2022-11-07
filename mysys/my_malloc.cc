@@ -75,9 +75,11 @@ static inline void *std_allocator(size_t size, myf my_flags) {
 
 static inline void std_deallocator(void *ptr) { std::free(ptr); }
 
+#ifndef USE_MALLOC_WRAPPER
 static inline void *std_realloc(void *ptr, size_t size) {
   return std::realloc(ptr, size);
 }
+#endif  // !USE_MALLOC_WRAPPER
 
 #ifdef _WIN32
 #include <memory>
@@ -278,6 +280,7 @@ static inline void *redirecting_allocator(size_t size, myf my_flags) {
   return point;
 }
 
+#ifndef USE_MALLOC_WRAPPER
 static inline void *redirecting_realloc(void *ptr, size_t size) {
 #ifdef _WIN32
   std::call_once(mysys::detail::init_malloc_pointers_flag,
@@ -285,6 +288,7 @@ static inline void *redirecting_realloc(void *ptr, size_t size) {
 #endif  // _WIN32
   return realloc(ptr, size);
 }
+#endif  // !USE_MALLOC_WRAPPER
 
 static inline void redirecting_deallocator(void *ptr) {
 #ifdef _WIN32
