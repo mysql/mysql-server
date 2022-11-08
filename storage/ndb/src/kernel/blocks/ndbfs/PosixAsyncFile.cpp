@@ -451,7 +451,12 @@ no_odirect:
       off += save_size;
     }
 
-    if (::fsync(theFd) == -1) {
+    int r;
+    do {
+      r = ::fsync(theFd);
+    } while (r == -1 && errno == EINTR);
+
+    if (r == -1) {
       close(theFd);
       theFd = -1;
       unlink(theFileName.c_str());
@@ -813,10 +818,17 @@ void PosixAsyncFile::syncReq(Request *request)
   {
     return;
   }
-  if (-1 == ::fsync(theFd)){
+
+  int r;
+  do {
+    r = ::fsync(theFd);
+  } while (r == -1 && errno == EINTR);
+
+  if (r == -1){
     request->error = errno;
     return;
   }
+
   m_write_wo_sync = 0;
 }
 
