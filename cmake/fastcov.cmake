@@ -143,33 +143,13 @@ IF(NOT THIS_IS_AN_IN_SOURCE_BUILD)
         )
     ENDIF()
   ENDFOREACH()
-
-  FOREACH(FILE
-      # MySQL parsers
-      ${CMAKE_SOURCE_DIR}/sql/debug_lo_parser.yy
-      ${CMAKE_SOURCE_DIR}/sql/debug_lo_scanner.ll
-      ${CMAKE_SOURCE_DIR}/sql/sql_hints.yy
-      ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy
-      )
-    GET_FILENAME_COMPONENT(filename "${FILE}" NAME)
-    IF(CMAKE_GENERATOR MATCHES "Ninja")
-      EXECUTE_PROCESS(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        )
-    ELSE()
-      EXECUTE_PROCESS(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink ${FILE} ${filename}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/sql
-        )
-    ENDIF()
-  ENDFOREACH()
 ENDIF()
 
 # Ignore std, boost and 3rd-party code when doing coverage analysis.
 SET(FASTCOV_EXCLUDE_LIST "--exclude")
 FOREACH(FASTCOV_EXCLUDE
     "/usr/include"
+    "/usr/lib"
     "${BOOST_INCLUDE_DIR}"
     "${BOOST_PATCHES_DIR}"
     ${GMOCK_INCLUDE_DIRS}
