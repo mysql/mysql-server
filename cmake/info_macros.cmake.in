@@ -175,14 +175,15 @@ MACRO(CREATE_INFO_BIN)
   IF(HAVE_BUILD_ID_SUPPORT AND NOT WITHOUT_SERVER)
     FILE(APPEND ${INFO_BIN} "\n===== BUILD ID =====\n")
     EXECUTE_PROCESS(COMMAND
-      ${MYSQLD_EXECUTABLE} --help
+      ${MYSQLD_EXECUTABLE} --no-defaults --help
       OUTPUT_VARIABLE mysqld_help
       RESULT_VARIABLE mysqld_help_result
       ERROR_VARIABLE mysqld_help_error
       OUTPUT_STRIP_TRAILING_WHITESPACE
       )
     IF(mysqld_help_result)
-      MESSAGE(FATAL_ERROR "mysqld --help failed: ${mysqld_help_error}")
+      MESSAGE(FATAL_ERROR
+        "mysqld --no-defaults --help failed: ${mysqld_help_error}")
     ENDIF()
     STRING(REPLACE "\n" ";" mysqld_help_list "${mysqld_help}")
     UNSET(BUILD_ID_FOUND)
