@@ -7211,8 +7211,8 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
 
       pos--;
 
-      /* add to the appropriate clause mask */
-      if (hint->clause & INDEX_HINT_MASK_JOIN)
+      /* add to the appropriate clause mask, except for spatial index hints that are ignored */
+      if (hint->clause & INDEX_HINT_MASK_JOIN & (tbl->key_info[pos].flags != HA_SPATIAL))
         index_join[hint->type].set_bit (pos);
       if (hint->clause & INDEX_HINT_MASK_ORDER)
         index_order[hint->type].set_bit (pos);

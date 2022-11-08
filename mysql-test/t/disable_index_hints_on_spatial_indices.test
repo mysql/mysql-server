@@ -1,0 +1,28 @@
+-- If spatial index hints are enabled, this EXPLAIN will lead to
+-- an engine crash 
+
+CREATE DATABASE db1;
+USE db1;
+
+CREATE TABLE `t1` (
+`column1` int(11) NOT NULL AUTO_INCREMENT,
+`column2` polygon NOT NULL,
+PRIMARY KEY (`column1`),
+SPATIAL KEY `spatial_key1` (`column2`)
+) ENGINE=InnoDB;
+
+CREATE TABLE `t2` (
+`col_id1` char(36) CHARACTER SET ascii NOT NULL,
+`column1` int(11) NOT NULL,
+PRIMARY KEY (`col_id1`),
+KEY `another_key` (`column1`)
+) ENGINE=InnoDB;
+
+
+EXPLAIN
+SELECT csdj.col_id1, ai.column1
+FROM db1.t2 csdj JOIN
+db1.t1 ai
+USE INDEX (spatial_key1) ON csdj.column1 = ai.column1;
+
+DROP DATABASE db1;
