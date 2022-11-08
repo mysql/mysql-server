@@ -959,21 +959,21 @@ class SharedRouter {
               ? (ports_[port_key] = port_pool_.get_next_available())
               : ports_it->second;
 
-      writer.section(
-          "routing:classic_" + param.testname,
-          {
-              {"bind_port", std::to_string(port)},
-              {"destinations", mysql_harness::join(destinations, ",")},
-              {"protocol", "classic"},
-              {"routing_strategy", "round-robin"},
+      writer.section("routing:classic_" + param.testname, {
+        {"bind_port", std::to_string(port)},
+#if !defined(_WIN32)
+            {"socket", socket_path(param)},
+#endif
+            {"destinations", mysql_harness::join(destinations, ",")},
+            {"protocol", "classic"}, {"routing_strategy", "round-robin"},
 
-              {"client_ssl_mode", std::string(param.client_ssl_mode)},
-              {"server_ssl_mode", std::string(param.server_ssl_mode)},
+            {"client_ssl_mode", std::string(param.client_ssl_mode)},
+            {"server_ssl_mode", std::string(param.server_ssl_mode)},
 
-              {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
-              {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
-              {"connection_sharing", "0"},
-          });
+            {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
+            {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
+            {"connection_sharing", "0"},
+      });
     }
 
     auto bindir = process_manager().get_origin();
@@ -999,6 +999,13 @@ class SharedRouter {
   [[nodiscard]] uint16_t port(const ConnectionParam &param) const {
     return ports_.at(
         std::make_tuple(param.client_ssl_mode, param.server_ssl_mode));
+  }
+
+  [[nodiscard]] std::string socket_path(const ConnectionParam &param) const {
+    return Path(conf_dir_.name())
+        .join("classic_"s + std::string(param.client_ssl_mode) + "_" +
+              std::string(param.server_ssl_mode) + ".sock")
+        .str();
   }
 
   [[nodiscard]] auto rest_port() const { return rest_port_; }
@@ -1441,6 +1448,56 @@ TEST_P(ConnectionTest, classic_protocol_change_user_native) {
   }
 }
 
+#if !defined(_WIN32)
+TEST_P(ConnectionTest, classic_protocol_native_over_socket) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  auto account = SharedServer::native_password_account();
+  cli.username(account.username);
+  cli.password(account.password);
+
+  if (GetParam().client_ssl_mode == kRequired) {
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_REQUIRED));
+  }
+
+  auto connect_res = cli.connect(MysqlClient::unix_socket_t{},
+                                 shared_router()->socket_path(GetParam()));
+  ASSERT_NO_ERROR(connect_res);
+
+  auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+  ASSERT_NO_ERROR(cmd_res);
+
+  EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(account.username + "@localhost",
+                                                "<NULL>")));
+}
+
+TEST_P(ConnectionTest, classic_protocol_change_user_native_over_socket) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  cli.username("root");
+  cli.password("");
+
+  if (GetParam().client_ssl_mode == kRequired) {
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_REQUIRED));
+  }
+
+  auto connect_res = cli.connect(MysqlClient::unix_socket_t{},
+                                 shared_router()->socket_path(GetParam()));
+  ASSERT_NO_ERROR(connect_res);
+
+  auto account = SharedServer::native_password_account();
+  ASSERT_NO_ERROR(cli.change_user(account.username, account.password, ""));
+
+  auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+  ASSERT_NO_ERROR(cmd_res);
+
+  EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(account.username + "@localhost",
+                                                "<NULL>")));
+}
+#endif
+
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_empty) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -1502,6 +1559,56 @@ TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2) {
                               account.username + "@localhost", "<NULL>")));
   }
 }
+
+#if !defined(_WIN32)
+TEST_P(ConnectionTest, classic_protocol_caching_sha2_over_socket) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_password_account();
+  cli.username(account.username);
+  cli.password(account.password);
+
+  if (GetParam().client_ssl_mode == kRequired) {
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_REQUIRED));
+  }
+
+  auto connect_res = cli.connect(MysqlClient::unix_socket_t{},
+                                 shared_router()->socket_path(GetParam()));
+  ASSERT_NO_ERROR(connect_res);
+
+  auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+  ASSERT_NO_ERROR(cmd_res);
+
+  EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(account.username + "@localhost",
+                                                "<NULL>")));
+}
+
+TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_over_socket) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  cli.username("root");
+  cli.password("");
+
+  if (GetParam().client_ssl_mode == kRequired) {
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_REQUIRED));
+  }
+
+  auto connect_res = cli.connect(MysqlClient::unix_socket_t{},
+                                 shared_router()->socket_path(GetParam()));
+  ASSERT_NO_ERROR(connect_res);
+
+  auto account = SharedServer::caching_sha2_password_account();
+  ASSERT_NO_ERROR(cli.change_user(account.username, account.password, ""));
+
+  auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+  ASSERT_NO_ERROR(cmd_res);
+
+  EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(account.username + "@localhost",
+                                                "<NULL>")));
+}
+#endif
 
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_with_schema) {
   SCOPED_TRACE("// connecting to server");

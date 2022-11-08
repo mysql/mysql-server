@@ -148,7 +148,7 @@ AuthCachingSha2Sender::send_password() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  if (dst_channel->ssl()) {
+  if (socket_splicer->server_conn().is_secure_transport()) {
     trace(Tracer::Event().stage("caching_sha2::sender::plaintext_password"));
     auto send_res = ClassicFrame::send_msg<
         classic_protocol::message::client::AuthMethodData>(
@@ -394,7 +394,7 @@ AuthCachingSha2Forwarder::client_data() {
       // client requested a public key, but router has no ssl-ctx
       // (client-ssl-mode is DISABLED|PASSTHROUGH)
       //
-      // If the server-connection is encrypted, the server will treat the
+      // If the server-connection is secure, the server will treat the
       // public-key-request as an invalid password
       // (as it isn't terminated by \0)
       stage(Stage::PublicKeyResponse);
@@ -457,7 +457,7 @@ AuthCachingSha2Forwarder::plaintext_password() {
           src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  if (src_channel->ssl()) {
+  if (socket_splicer->client_conn().is_secure_transport()) {
     trace(Tracer::Event().stage("caching_sha2::forward::plaintext_password"));
 
     // remove trailing null
@@ -533,8 +533,8 @@ AuthCachingSha2Forwarder::send_password() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  if (dst_channel->ssl()) {
-    // the server-side is encrypted: send plaintext password
+  if (socket_splicer->server_conn().is_secure_transport()) {
+    // the server-side is secure: send plaintext password
     trace(Tracer::Event().stage("caching_sha2::forward::plaintext_password"));
 
     stage(Stage::Response);
@@ -543,7 +543,7 @@ AuthCachingSha2Forwarder::send_password() {
         dst_channel, dst_protocol, src_protocol->password().value());
     if (!send_res) return send_server_failed(send_res.error());
   } else {
-    // the server is NOT encrypted: ask for the server's publickey
+    // the server is NOT secure: ask for the server's publickey
     trace(Tracer::Event().stage("caching_sha2::forward::public_key_request"));
 
     stage(Stage::PublicKeyResponse);

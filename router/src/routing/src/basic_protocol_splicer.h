@@ -103,6 +103,14 @@ class RoutingConnectionBase {
       BlockedEndpoints &blocked_endpoints) = 0;
 };
 
+template <class Protocol>
+struct IsTransportSecure : std::false_type {};
+
+#ifdef NET_TS_HAS_UNIX_SOCKET
+template <>
+struct IsTransportSecure<local::stream_protocol> : std::true_type {};
+#endif
+
 /**
  * basic connection which wraps a net-ts Protocol.
  *
@@ -260,6 +268,15 @@ class BasicConnection : public ConnectionBase {
   stdx::expected<void, std::error_code> get_option(
       GettableSocketOption &opt) const {
     return sock_.get_option(opt);
+  }
+
+  /**
+   * check if the underlying transport is secure.
+   *
+   * - unix-socket, shared-memory, ... are secure.
+   */
+  [[nodiscard]] bool is_secure_transport() const override {
+    return IsTransportSecure<Protocol>::value;
   }
 
  protected:
@@ -435,6 +452,16 @@ class TlsSwitchableConnection {
   }
 
   std::unique_ptr<ConnectionBase> &connection() { return conn_; }
+
+  /**
+   * check if the channel is secure.
+   *
+   * - if TLS is enabled, it the transport is secure
+   * - if transport is secure, the channel is secure
+   */
+  [[nodiscard]] bool is_secure_transport() const {
+    return conn_->is_secure_transport() || channel_->ssl();
+  }
 
  private:
   // tcp/unix-socket
