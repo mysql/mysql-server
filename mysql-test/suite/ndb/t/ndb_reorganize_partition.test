@@ -118,7 +118,7 @@ echo ### verify that the Unique hash index fragments are balanced across all
   data nodes  (2 nodes +2 nodes online);
 select fragment_num,parent_fq_name,type,node_id from ndbinfo.memory_per_fragment
   where type like 'Unique hash index'  and parent_fq_name like '%t1%'
-  order by fragment_num;
+  order by fragment_num, node_id;
 
 drop table t1,t2,t3,t4,t5,t6,t7;
 

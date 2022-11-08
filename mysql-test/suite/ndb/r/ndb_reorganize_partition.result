@@ -168,7 +168,7 @@ preferred_primary	count(*)
 data nodes  (2 nodes +2 nodes online)
 select fragment_num,parent_fq_name,type,node_id from ndbinfo.memory_per_fragment
 where type like 'Unique hash index'  and parent_fq_name like '%t1%'
-  order by fragment_num;
+  order by fragment_num, node_id;
 fragment_num	parent_fq_name	type	node_id
 0	test/def/t1	Unique hash index	1
 0	test/def/t1	Unique hash index	2
@@ -176,12 +176,12 @@ fragment_num	parent_fq_name	type	node_id
 1	test/def/t1	Unique hash index	2
 2	test/def/t1	Unique hash index	1
 2	test/def/t1	Unique hash index	2
-3	test/def/t1	Unique hash index	2
 3	test/def/t1	Unique hash index	1
+3	test/def/t1	Unique hash index	2
 4	test/def/t1	Unique hash index	1
 4	test/def/t1	Unique hash index	2
-5	test/def/t1	Unique hash index	2
 5	test/def/t1	Unique hash index	1
+5	test/def/t1	Unique hash index	2
 6	test/def/t1	Unique hash index	1
 6	test/def/t1	Unique hash index	2
 7	test/def/t1	Unique hash index	1
