@@ -324,6 +324,22 @@ ClientToServerForwarder::forward() {
     case ForwardResult::kFinished:
       stage(Stage::Done);
 
+      // if flush is optional and send-buffer is not too full, skip the flush.
+      //
+      // force-send-buffer-size is a trade-off between latency,
+      // syscall-latency and memory usage:
+      //
+      // - buffering more: less send()-syscalls which helps with small
+      // resultset.
+      // - buffering less: faster forwarding of smaller packets if the server
+      // is send to generate packets.
+      constexpr const size_t kForceFlushAfterBytes{64L * 1024};
+
+      if (flush_before_next_func_optional_ &&
+          dst_channel->send_plain_buffer().size() < kForceFlushAfterBytes) {
+        return Result::Again;
+      }
+
       // encrypt the plaintext data if needed.
       dst_channel->flush_to_send_buf();
 

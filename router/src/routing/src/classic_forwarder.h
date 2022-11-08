@@ -48,12 +48,15 @@ class Forwarder : public Processor {
  */
 class ClientToServerForwarder : public Forwarder {
  public:
-  using Forwarder::Forwarder;
-
   enum class Stage {
     Forward,
     Done,
   };
+
+  explicit ClientToServerForwarder(MysqlRoutingClassicConnectionBase *conn,
+                                   bool flush_before_next_func_optional = true)
+      : Forwarder(conn),
+        flush_before_next_func_optional_(flush_before_next_func_optional) {}
 
   stdx::expected<Result, std::error_code> process() override;
 
@@ -63,6 +66,8 @@ class ClientToServerForwarder : public Forwarder {
  private:
   stdx::expected<ForwardResult, std::error_code> forward_frame_sequence();
   stdx::expected<Result, std::error_code> forward();
+
+  bool flush_before_next_func_optional_;
 
   Stage stage_{Stage::Forward};
 };
@@ -77,8 +82,8 @@ class ServerToClientForwarder : public Forwarder {
     Done,
   };
 
-  ServerToClientForwarder(MysqlRoutingClassicConnectionBase *conn,
-                          bool flush_before_next_func_optional = true)
+  explicit ServerToClientForwarder(MysqlRoutingClassicConnectionBase *conn,
+                                   bool flush_before_next_func_optional = true)
       : Forwarder(conn),
         flush_before_next_func_optional_(flush_before_next_func_optional) {}
 

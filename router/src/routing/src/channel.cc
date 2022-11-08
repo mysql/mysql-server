@@ -67,6 +67,11 @@ stdx::expected<bool, std::error_code> Channel::tls_shutdown() {
     return stdx::make_unexpected(make_tls_ssl_error(ssl, res));
   }
 
+  if (res == 0) {
+    // shutdown not finished yet, flush the alert to the send-buffer.
+    flush_to_send_buf();
+  }
+
   return {res == 1};
 }
 
