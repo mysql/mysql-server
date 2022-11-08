@@ -127,6 +127,25 @@ class BasicConnection : public ConnectionBase {
 
   net::io_context &io_ctx() override { return sock_.get_executor().context(); }
 
+  stdx::expected<void, std::error_code> set_io_context(
+      net::io_context &new_ctx) override {
+    // nothing to do.
+    if (sock_.get_executor() == new_ctx.get_executor()) return {};
+
+    return sock_.release().and_then(
+        [this, &new_ctx](
+            auto native_handle) -> stdx::expected<void, std::error_code> {
+          socket_type new_sock(new_ctx);
+
+          auto assign_res = new_sock.assign(ep_.protocol(), native_handle);
+          if (!assign_res) return assign_res;
+
+          std::swap(sock_, new_sock);
+
+          return {};
+        });
+  }
+
   void async_recv(recv_buffer_type &buf,
                   std::function<void(std::error_code ec, size_t transferred)>
                       completion) override {

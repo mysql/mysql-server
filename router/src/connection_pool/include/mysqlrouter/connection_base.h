@@ -70,6 +70,9 @@ class ConnectionBase {
   [[nodiscard]] virtual std::string endpoint() const = 0;
 
   [[nodiscard]] virtual stdx::expected<void, std::error_code> cancel() = 0;
+
+  [[nodiscard]] virtual stdx::expected<void, std::error_code> set_io_context(
+      net::io_context &new_ctx) = 0;
 };
 
 #endif
