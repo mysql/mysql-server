@@ -69,9 +69,10 @@ IF(MSVC)
 ENDIF()
 
 BISON_TARGET(ndb_import
-  NdbImportCsvGram.ypp
+  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.ypp
   ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
-  COMPILE_FLAGS "--name-prefix=NdbImportCsv_yy --yacc ${BISON_FLAGS_WARNINGS}"
+  COMPILE_FLAGS
+  "--name-prefix=NdbImportCsv_yy --yacc ${BISON_FLAGS_WARNINGS} ${BISON_NO_LINE_OPT}"
   DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
   )
 

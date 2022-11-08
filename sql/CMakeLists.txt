@@ -665,14 +665,14 @@ IF(WITH_LOCK_ORDER)
   FIND_PACKAGE(FLEX REQUIRED)
 
   BISON_TARGET(debug_lo_parser
-    debug_lo_parser.yy
-    ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_parser.yy
+    ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.cc
     COMPILE_FLAGS "--name-prefix=LOCK_ORDER_ ${BISON_NO_LINE_OPT}"
     DEFINES_FILE ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.h
     )
   FLEX_TARGET(debug_lo_scanner
-    debug_lo_scanner.ll
-    ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.ll
+    ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
     COMPILE_FLAGS "--prefix=LOCK_ORDER_"
     DEFINES_FILE ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
     )
@@ -1311,7 +1311,7 @@ IF(USE_BISON_RESULTS_FROM_MAKE_DIST)
   ENDFOREACH()
 ELSE()
   BISON_TARGET(mysql_parser
-    sql_yacc.yy
+    ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy
     ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
     COMPILE_FLAGS
     "--name-prefix=MYSQL --yacc ${BISON_FLAGS_WARNINGS} ${BISON_NO_LINE_OPT}"
@@ -1319,7 +1319,7 @@ ELSE()
     )
 
   BISON_TARGET(hints_parser
-    sql_hints.yy
+    ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
     COMPILE_FLAGS
     "--name-prefix=HINT_PARSER_ --yacc ${BISON_FLAGS_WARNINGS} ${BISON_NO_LINE_OPT}"
