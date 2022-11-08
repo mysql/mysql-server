@@ -1360,11 +1360,33 @@ TEST_P(ConnectionTest, classic_protocol_native_over_socket) {
                                  shared_router()->socket_path(GetParam()));
   ASSERT_NO_ERROR(connect_res);
 
-  auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-  ASSERT_NO_ERROR(cmd_res);
+  {
+    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+    ASSERT_NO_ERROR(cmd_res);
 
-  EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(account.username + "@localhost",
-                                                "<NULL>")));
+    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
+                              account.username + "@localhost", "<NULL>")));
+  }
+
+  {
+    auto cmd_res = query_one_result(cli,
+                                    "SELECT VARIABLE_VALUE "
+                                    " FROM performance_schema.session_status "
+                                    "WHERE variable_name LIKE 'Ssl_cipher'");
+    ASSERT_NO_ERROR(cmd_res);
+
+    if (GetParam().server_ssl_mode == kPreferred ||
+        GetParam().server_ssl_mode == kRequired ||
+        (GetParam().server_ssl_mode == kAsClient &&
+         (GetParam().client_ssl_mode == kPreferred ||
+          GetParam().client_ssl_mode == kRequired))) {
+      // some cipher is set
+      EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(Not(IsEmpty()))));
+    } else {
+      // no cipher is set
+      EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(IsEmpty())));
+    }
+  }
 }
 
 TEST_P(ConnectionTest, classic_protocol_change_user_native_over_socket) {
