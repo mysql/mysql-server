@@ -3955,8 +3955,8 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 EXPLAIN
 -> Sort: x
-    -> Stream results  (cost=1.45 rows=6)
-        -> Group aggregate: count(distinct t1.f2)  (cost=1.45 rows=6)
+    -> Stream results  (cost=1.45 rows=2)
+        -> Group aggregate: count(distinct t1.f2)  (cost=1.45 rows=2)
             -> Index scan on t1 using k1  (cost=0.85 rows=6)
 
 SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;

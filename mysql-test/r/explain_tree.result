@@ -84,12 +84,12 @@ EXPLAIN
 
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
 EXPLAIN
--> Group (no aggregates)  (cost=0.85 rows=3)
+-> Group (no aggregates)  (cost=0.85 rows=2)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
 EXPLAIN
--> Group aggregate: count(0)  (cost=0.85 rows=3)
+-> Group aggregate: count(0)  (cost=0.85 rows=2)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
@@ -294,11 +294,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>  (cost=7.53..9.92 rows=11)
-    -> Temporary table with deduplication  (cost=7.29..7.29 rows=11)
-        -> Table scan on <temporary>  (cost=3.79..6.19 rows=11)
-            -> Temporary table  (cost=3.55..3.55 rows=11)
-                -> Group aggregate: count(distinct t1.b)  (cost=2.45 rows=11)
+-> Table scan on <temporary>  (cost=6.42..8.19 rows=3)
+    -> Temporary table with deduplication  (cost=5.65..5.65 rows=3)
+        -> Table scan on <temporary>  (cost=3.55..5.32 rows=3)
+            -> Temporary table  (cost=2.78..2.78 rows=3)
+                -> Group aggregate: count(distinct t1.b)  (cost=2.45 rows=3)
                     -> Sort: t1.a  (cost=1.35 rows=11)
                         -> Table scan on t1  (cost=1.35 rows=11)
 

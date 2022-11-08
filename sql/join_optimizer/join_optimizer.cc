@@ -5342,7 +5342,8 @@ AccessPath *CreateZeroRowsForEmptyJoin(JOIN *join, const char *cause) {
   is left for FinalizePlanForQueryBlock().
  */
 AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
-                                          JOIN *join, bool rollup) {
+                                          JOIN *join, bool rollup,
+                                          string *trace) {
   AccessPath *child_path = path;
   const Query_block *query_block = join->query_block;
 
@@ -5365,7 +5366,7 @@ AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
   aggregate_path.type = AccessPath::AGGREGATE;
   aggregate_path.aggregate().child = child_path;
   aggregate_path.aggregate().rollup = rollup;
-  EstimateAggregateCost(&aggregate_path, query_block);
+  EstimateAggregateCost(&aggregate_path, query_block, trace);
   return aggregate_path;
 }
 
@@ -6693,7 +6694,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
       if (!group_needs_sort) {
         AccessPath aggregate_path =
-            CreateStreamingAggregationPath(thd, root_path, join, rollup);
+            CreateStreamingAggregationPath(thd, root_path, join, rollup, trace);
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
         continue;
@@ -6738,7 +6739,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         }
 
         AccessPath aggregate_path =
-            CreateStreamingAggregationPath(thd, sort_path, join, rollup);
+            CreateStreamingAggregationPath(thd, sort_path, join, rollup, trace);
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, description);
       }

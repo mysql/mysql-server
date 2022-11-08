@@ -8241,7 +8241,7 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
       if (item->type() == Item::FUNC_ITEM &&
           down_cast<const Item_func *>(item)->functype() ==
               Item_func::ROLLUP_GROUP_ITEM_FUNC) {
-        item = down_cast<const Item_rollup_group_item *>(item)->inner_item();
+        item = down_cast<Item_rollup_group_item *>(item)->inner_item();
       }
       if (is_ref_by_name && item->item_name.eq_safe(find->item_name)) {
         found = &*it;

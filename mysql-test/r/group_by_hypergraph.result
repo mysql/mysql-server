@@ -21,3 +21,198 @@ EXPLAIN
                         -> Table scan on t2
 
 DROP TABLE t;
+#
+# Bug #33968442: Hypergraph gives too high row estimates for GROUP BY
+#
+CREATE TABLE num10 (n INT);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE VIEW num1000 AS
+SELECT d1.n+d2.n*10+d3.n*100 n FROM num10 d1, num10 d2, num10 d3;
+CREATE TABLE t1(
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+g INT,
+h INT,
+i INT,
+j INT,
+k INT,
+l INT,
+PRIMARY KEY(a,b),
+KEY ix1 (c,d),
+KEY ix2 (d,a,c),
+KEY ix3 (g,h,i,j),
+KEY ix4 (k,j,l),
+KEY ix5 (k,l)
+);
+INSERT INTO t1
+SELECT n/100,n%100,n%5,n%7,n%11,n%13,n%10,n%10,n%10,n%10,n%10,n%10
+FROM num1000;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY a;
+EXPLAIN
+-> Group (no aggregates)  (rows=11) (actual rows=11 loops=1)
+    -> Covering index scan on t1 using PRIMARY  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c;
+EXPLAIN
+-> Group (no aggregates)  (rows=5) (actual rows=5 loops=1)
+    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,c;
+EXPLAIN
+-> Group (no aggregates)  (rows=35) (actual rows=35 loops=1)
+    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,a;
+EXPLAIN
+-> Group (no aggregates)  (rows=77) (actual rows=77 loops=1)
+    -> Covering index scan on t1 using ix2  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,d,a;
+EXPLAIN
+-> Group (no aggregates)  (rows=385) (actual rows=385 loops=1)
+    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,a,c WITH ROLLUP;
+EXPLAIN
+-> Group (no aggregates)  (rows=470) (actual rows=806 loops=1)
+    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,d,a WITH ROLLUP;
+EXPLAIN
+-> Group (no aggregates)  (rows=426) (actual rows=426 loops=1)
+    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,a,d WITH ROLLUP;
+EXPLAIN
+-> Group (no aggregates)  (rows=423) (actual rows=776 loops=1)
+    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,a;
+EXPLAIN
+-> Group (no aggregates)  (rows=32) (actual rows=55 loops=1)
+    -> Sort: t1.c, t1.a  (rows=1000) (actual rows=1000 loops=1)
+        -> Index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,b;
+EXPLAIN
+-> Group (no aggregates)  (rows=93) (actual rows=100 loops=1)
+    -> Sort: t1.c, t1.b  (rows=1000) (actual rows=1000 loops=1)
+        -> Index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e,f;
+EXPLAIN
+-> Group (no aggregates)  (rows=320) (actual rows=143 loops=1)
+    -> Sort: t1.e, t1.f  (rows=1000) (actual rows=1000 loops=1)
+        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY g,h,i,j,k,l;
+EXPLAIN
+-> Group (no aggregates)  (rows=47) (actual rows=10 loops=1)
+    -> Sort: t1.g, t1.h, t1.i, t1.j, t1.k, t1.l  (rows=1000) (actual rows=1000 loops=1)
+        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a,b,c,d,e,f,g,h,i;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+test.t1	histogram	status	Histogram statistics created for column 'd'.
+test.t1	histogram	status	Histogram statistics created for column 'e'.
+test.t1	histogram	status	Histogram statistics created for column 'f'.
+test.t1	histogram	status	Histogram statistics created for column 'g'.
+test.t1	histogram	status	Histogram statistics created for column 'h'.
+test.t1	histogram	status	Histogram statistics created for column 'i'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e;
+EXPLAIN
+-> Group (no aggregates)  (rows=11) (actual rows=11 loops=1)
+    -> Sort: t1.e  (rows=1000) (actual rows=1000 loops=1)
+        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e,f;
+EXPLAIN
+-> Group (no aggregates)  (rows=65) (actual rows=143 loops=1)
+    -> Sort: t1.e, t1.f  (rows=1000) (actual rows=1000 loops=1)
+        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY e,f;
+EXPLAIN
+-> Group (no aggregates)  (rows=28) (actual rows=40 loops=1)
+    -> Sort: t1.e, t1.f  (rows=40) (actual rows=40 loops=1)
+        -> Filter: (t1.b > 95)  (rows=40) (actual rows=40 loops=1)
+            -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c+0,e+0;
+EXPLAIN
+-> Group (no aggregates)  (rows=100) (actual rows=55 loops=1)
+    -> Sort: (t1.c + 0), (t1.e + 0)  (rows=1000) (actual rows=1000 loops=1)
+        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY c+0,e+0;
+EXPLAIN
+-> Group (no aggregates)  (rows=12) (actual rows=40 loops=1)
+    -> Sort: (t1.c + 0), (t1.e + 0)  (rows=40) (actual rows=40 loops=1)
+        -> Filter: (t1.b > 95)  (rows=40) (actual rows=40 loops=1)
+            -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY a,e,c+0;
+EXPLAIN
+-> Group (no aggregates)  (rows=501) (actual rows=595 loops=1)
+    -> Sort: t1.a, t1.e, (t1.c + 0)  (rows=1000) (actual rows=1000 loops=1)
+        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
+
+CREATE TABLE t2 (
+c1 INT,
+c2 INT,
+c3 INT,
+PRIMARY KEY(c1,c2)
+);
+INSERT INTO t2 SELECT n%5,n/5,n%3 FROM num10;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c3;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'c3'.
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c1;
+EXPLAIN
+-> Group (no aggregates)  (rows=5) (actual rows=5 loops=1)
+    -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
+        -> Covering index scan on t2 using PRIMARY  (rows=10) (actual rows=10 loops=1)
+        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=10)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c2;
+EXPLAIN
+-> Group (no aggregates)  (rows=3) (actual rows=3 loops=1)
+    -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
+        -> Sort: t2.c2  (rows=10) (actual rows=10 loops=1)
+            -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
+        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=10)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c3;
+EXPLAIN
+-> Group (no aggregates)  (rows=3) (actual rows=3 loops=1)
+    -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
+        -> Sort: t2.c3  (rows=10) (actual rows=10 loops=1)
+            -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
+        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=10)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY a,c3;
+EXPLAIN
+-> Group (no aggregates)  (rows=23) (actual rows=33 loops=1)
+    -> Sort: t1.a, t2.c3  (rows=10000) (actual rows=10000 loops=1)
+        -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
+            -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
+            -> Table scan on t1  (rows=1000) (actual rows=1000 loops=10)
+
+DROP VIEW num1000;
+DROP TABLE num10, t1, t2;

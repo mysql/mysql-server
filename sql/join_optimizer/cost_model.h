@@ -113,7 +113,15 @@ double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
                                 double num_output_rows);
 void EstimateSortCost(AccessPath *path);
 void EstimateMaterializeCost(THD *thd, AccessPath *path);
-void EstimateAggregateCost(AccessPath *path, const Query_block *query_block);
+
+/**
+   Estimate costs and result row count for an aggregate operation.
+   @param[in,out] path The AGGREGATE path.
+   @param[in] query_block The Query_block to which 'path' belongs.
+   @param[in,out] trace Optimizer trace text.
+ */
+void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
+                           std::string *trace = nullptr);
 void EstimateDeleteRowsCost(AccessPath *path);
 void EstimateUpdateRowsCost(AccessPath *path);
 
