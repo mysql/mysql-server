@@ -93,7 +93,7 @@ IF(MY_COMPILER_IS_CLANG)
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-break")
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-return")
 ENDIF()
-  
+
 # Extra warning flags for Clang++
 IF(MY_COMPILER_IS_CLANG)
   # Disable a few default Clang++ warnings
@@ -102,6 +102,17 @@ IF(MY_COMPILER_IS_CLANG)
 
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wconditional-uninitialized")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wdeprecated")
+
+  # Xcode >= 14 makes noise about sprintf, and loss of precision when
+  # assigning integers from 64 bits to 32 bits, so silence. We can't
+  # put these two deprecation exceptions in Darwin.cmake because the
+  # previous line adding -Wdeprecated would be added later and
+  # override them, so do it here instead:
+  IF(APPLE)
+     STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-deprecated-declarations")
+     STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-shorten-64-to-32")
+  ENDIF()
+
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wextra-semi")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wheader-hygiene")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wnon-virtual-dtor")

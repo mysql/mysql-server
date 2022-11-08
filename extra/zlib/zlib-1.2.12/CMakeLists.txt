@@ -204,6 +204,14 @@ IF(NOT WIN32)
   ADD_COMPILE_FLAGS(${ZLIB_SRCS} COMPILE_FLAGS "-fvisibility=hidden")
 ENDIF()
 
+# Xcode >= 14 makes noise about sprintf, and loss of precision
+# when assigning integers from 64 bits to 32 bits, so silence:
+IF(APPLE)
+  ADD_COMPILE_FLAGS(${ZLIB_SRCS} COMPILE_FLAGS " -Wno-deprecated-declarations")
+  ADD_COMPILE_FLAGS(${ZLIB_SRCS} COMPILE_FLAGS " -Wno-shorten-64-to-32")
+ENDIF()
+
+
 RETURN()
 
 # Skip anything below.
