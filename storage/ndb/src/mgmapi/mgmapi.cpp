@@ -1028,7 +1028,17 @@ struct ndb_mgm_type_atoi
 
 static struct ndb_mgm_type_atoi type_values[] = 
 {
+  /*
+   * Note, keep NDB as primary name for database node since this is used by
+   * MGMAPI and changing it to DB would break backward compatibility.  This is
+   * shown when running for example `ndb_mgm -eshow` there it prints
+   * `[ndbd(NDB)]` for data nodes.
+   *
+   * Note, that in config.ini only DB and ndbd are valid for data nodes, not
+   * NDB.
+   */
   { "NDB", "ndbd", NDB_MGM_NODE_TYPE_NDB},
+  { "DB", "ndbd", NDB_MGM_NODE_TYPE_NDB},
   { "API", "mysqld", NDB_MGM_NODE_TYPE_API },
   { "MGM", "ndb_mgmd", NDB_MGM_NODE_TYPE_MGM }
 };

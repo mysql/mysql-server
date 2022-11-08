@@ -217,18 +217,28 @@ ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
 ndb_mgm::config_ptr
 ConfigRetriever::getConfig(const char * filename)
 {
+  BaseString err;
+  ndb_mgm::config_ptr conf = getConfig(filename, err);
+  if (!conf)
+  {
+    setError(CR_ERROR, err);
+  }
+  return conf;
+}
+
+ndb_mgm::config_ptr
+ConfigRetriever::getConfig(const char * filename, BaseString& err)
+{
   if (access(filename, F_OK))
   {
-    BaseString err;
-    err.assfmt("Could not find file: '%s'", filename);
-    setError(CR_ERROR, err);
+    err.assfmt("Could not find file '%s'", filename);
     return {};
   }
 
   FILE * f = fopen(filename, "rb");
   if(f == nullptr)
   {
-    setError(CR_ERROR, "Failed to open file");
+    err.assfmt("Failed to open file '%s'", filename);
     return {};
   }
 
@@ -239,7 +249,8 @@ ConfigRetriever::getConfig(const char * filename)
   {
     if (config_buf.append(read_buf, read_sz) != 0)
     {
-      setError(CR_ERROR, "Out of memory when appending read data");
+      err.assfmt("Out of memory when appending read data from file '%s'",
+                 filename);
       fclose(f);
       return {};
     }
@@ -249,7 +260,7 @@ ConfigRetriever::getConfig(const char * filename)
   ConfigValuesFactory cvf;
   if(!cvf.unpack_buf(config_buf))
   {
-    setError(CR_ERROR,  "Error while unpacking");
+    err.assfmt("Error while unpacking file '%s'", filename);
     return {};
   }
   return ndb_mgm::config_ptr(

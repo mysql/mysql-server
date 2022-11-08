@@ -30,6 +30,7 @@
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include "InitConfigFileParser.hpp"
+#include <optional>
 
 // Parameter must be specified in config file
 #define MANDATORY ((char*)~(UintPtr)0)
@@ -233,6 +234,9 @@ public:
 
   void print(const char* section= nullptr) const;
   void print_xml(const char* section= nullptr) const;
+
+  static std::optional<BaseString> normalizeParamValue(
+      const ConfigInfo::ParamInfo& pinfo, const char* str);
 private:
   bool is_internal_section(const Properties* sec) const;
   void print_impl(const char* section,

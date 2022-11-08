@@ -91,3 +91,18 @@ cluster1
  ERROR    -- at line 0: Too many Datanodes(84) for replicas=1, Max Nodes allowed: 72
 == 29 == Bug32871875
 1,localhost,1,0
+== 30 ==
+config of [DB] node id 1 that is different from default
+CONFIG_PARAMETER,ACTUAL_VALUE,DEFAULT_VALUE
+NodeId,1,(mandatory)
+Arbitration,Disabled,Default
+BackupDataDir,.,(null)
+DataMemory,45M,98M
+FileSystemPath,.,(null)
+LockExecuteThreadToCPU,0-65535,(null)
+Nodegroup,0,(null)
+NoOfReplicas,1,2
+ThreadConfig,,(null)
+
+== 31 == ndb_config --config-binary-file=ndb_3_config.bin.1 --system
+3
