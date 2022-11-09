@@ -102,7 +102,11 @@ typedef int myf; /* Type of MyFlags in my_funcs */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21U
 
 #if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
+#ifndef SSIZE_T_DEFINED
+/* krb5/win-mac.h has a conflicting typedef */
+#define SSIZE_T_DEFINED 1
 typedef SSIZE_T ssize_t;
+#endif
 #endif
 
 /*

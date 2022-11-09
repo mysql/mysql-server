@@ -179,6 +179,23 @@ IF (WIN32)
     krbcc64.dll
     gssapi64.dll
     )
+    # We still support 32bit build for -DWITHOUT_SERVER=ON
+    IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
+      SET(CUSTOM_KERBEROS_EXTRA_LIBRARIES
+        k5sprt32.lib
+        comerr32.lib
+        xpprof32.lib
+        krbcc32.lib
+        gssapi32.lib
+        )
+      SET(CUSTOM_KERBEROS_EXTRA_DLLS
+        k5sprt32.dll
+        comerr32.dll
+        xpprof32.dll
+        krbcc32.dll
+        gssapi32.dll
+        )
+    ENDIF()
 ELSE()
   SET(CUSTOM_KERBEROS_EXTRA_LIBRARIES
     com_err
@@ -234,6 +251,23 @@ MACRO(FIND_CUSTOM_KERBEROS)
       NO_CMAKE_ENVIRONMENT_PATH
       NO_SYSTEM_ENVIRONMENT_PATH
       )
+    # We still support 32bit build for -DWITHOUT_SERVER=ON
+    IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
+      FIND_FILE(KERBEROS_CUSTOM_LIBRARY
+        NAMES krb5_32.lib
+        PATHS ${KERBEROS_ROOT_DIR}/lib
+        NO_CMAKE_PATH
+        NO_CMAKE_ENVIRONMENT_PATH
+        NO_SYSTEM_ENVIRONMENT_PATH
+        )
+      FIND_FILE(KERBEROS_CUSTOM_DLL
+        NAMES krb5_32.dll
+        PATHS ${KERBEROS_ROOT_DIR}/bin
+        NO_CMAKE_PATH
+        NO_CMAKE_ENVIRONMENT_PATH
+        NO_SYSTEM_ENVIRONMENT_PATH
+        )
+    ENDIF()
 
     IF(KERBEROS_INCLUDE_DIR AND KERBEROS_CUSTOM_LIBRARY AND
        KERBEROS_CUSTOM_DLL AND CCAPISERVER_EXECUTABLE)

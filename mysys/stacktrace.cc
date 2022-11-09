@@ -434,13 +434,19 @@ void my_print_stacktrace(const uchar * /* stack_bottom */,
   /*Prepare stackframe for the first StackWalk64 call*/
   frame.AddrFrame.Mode = frame.AddrPC.Mode = frame.AddrStack.Mode =
       AddrModeFlat;
-#if (defined _M_X64)
+#if (defined _M_IX86)
+  machine = IMAGE_FILE_MACHINE_I386;
+  frame.AddrFrame.Offset = context.Ebp;
+  frame.AddrPC.Offset = context.Eip;
+  frame.AddrStack.Offset = context.Esp;
+#elif (defined _M_X64)
   machine = IMAGE_FILE_MACHINE_AMD64;
   frame.AddrFrame.Offset = context.Rbp;
   frame.AddrPC.Offset = context.Rip;
   frame.AddrStack.Offset = context.Rsp;
 #else
   /*There is currently no need to support IA64*/
+  /* Warning C4068: unknown pragma 'error' */
 #pragma error("unsupported architecture")
 #endif
 

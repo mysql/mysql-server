@@ -508,8 +508,14 @@ int vio_shutdown(Vio *vio) {
 #ifndef NDEBUG
 
 #ifdef _WIN32
+#ifdef _WIN64
 #define SOCKET_PRINTF_FORMAT "%llu"
 #else
+#define SOCKET_PRINTF_FORMAT "%lu"
+#endif
+
+#else  // _WIN32
+
 #define SOCKET_PRINTF_FORMAT "%d"
 #endif
 
