@@ -607,7 +607,7 @@ WHEN 1 THEN 'YES' ELSE 'NO' END
 AS stats_metadata_present FROM ndbinfo.index_stats;
 stats_metadata_present
 YES
-21 records in table ndb_index_stat_sample
+21-or-27 records in table ndb_index_stat_sample
 
 NDBT_ProgramExit: 0 - OK
 
@@ -622,7 +622,7 @@ HAVING COUNT(index_id) > 1;
 COUNT(index_id)
 2
 2
-21 records in table ndb_index_stat_sample
+21-or-27 records in table ndb_index_stat_sample
 
 NDBT_ProgramExit: 0 - OK
 

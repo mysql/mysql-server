@@ -428,7 +428,9 @@ ANALYZE TABLE t1;
 SELECT CASE COUNT(*) > 0
        WHEN 1 THEN 'YES' ELSE 'NO' END
 AS stats_metadata_present FROM ndbinfo.index_stats;
-# 21 samples are expected here
+# 21 samples are expected here on little endian systems
+# 27 samples on big endian
+replace_regex /^2[17] /21-or-27 /;
 --exec $NDB_SELECT_COUNT -d mysql ndb_index_stat_sample
 
 # Record the value of 'rows' in the EXPLAIN output for a later check
@@ -450,9 +452,12 @@ SELECT COUNT(index_id)
 FROM ndbinfo.index_stats
 GROUP BY index_id
 HAVING COUNT(index_id) > 1;
-# Should still be 21 samples. Was 42 (21 created with
+# Should still be 21 (or 27) samples. Was 42 (21 created with
 # <index_id, old index_version> as the key and 21 more
 # with <index_id, new index version>) before the bug fix
+# 21 samples are expected here on little endian systems
+# 27 samples on big endian
+replace_regex /^2[17] /21-or-27 /;
 --exec $NDB_SELECT_COUNT -d mysql ndb_index_stat_sample
 
 # Execute the same EXPLAIN as earlier. The expectation is that the 'rows'
