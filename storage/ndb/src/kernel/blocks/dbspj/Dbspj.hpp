@@ -808,6 +808,14 @@ public:
     Uint32 m_totalRows;
     Uint32 m_totalBytes;
 
+    /**
+     * Non-pruned firstMatch may save their original range and param's
+     * before removeMatchedKeys()
+     */
+    Uint32 m_rangeCntSave;
+    Uint32 m_rangePtrISave;  // Set of lower/upper bound keys.
+    Uint32 m_paramPtrISave;  // Set of interpreter parameters
+
     ScanFragHandle_list::HeadPOD m_fragments; // ScanFrag states
     union
     {
@@ -834,6 +842,9 @@ public:
       m_completedRows(0),
       m_totalRows(0),
       m_totalBytes(0),
+      m_rangeCntSave(0),
+      m_rangePtrISave(RNIL),
+      m_paramPtrISave(RNIL),
       m_fragments()
     {
       m_fragments.init();
@@ -973,7 +984,7 @@ public:
        */
       T_UNIQUE_INDEX_LOOKUP = 0x40,
 
-      /*
+      /**
        * Should this node buffers its rows or 'm_matched' bitmask?
        *  We could request the buffer to store either the 'ROW',
        *  as received by TRANSID_AI, and/or a 'MATCH' bitMask.
@@ -1061,6 +1072,14 @@ public:
        * and later resume the operations on it.
        */
       T_CHK_CONGESTION = 0x400000,
+
+      /**
+       * Reduce number of keys/ranges to be requested in remaining
+       * SCAN_FRAGREQ. Is a part of firstMatch optimization, which in
+       * some cases allows us to conclude the 'firstMatch' after the
+       * first matching row was found.
+       */
+      T_REDUCE_KEYS = 0x800000,
 
       // End marker...
       T_END = 0
@@ -1506,6 +1525,8 @@ private:
   void registerActiveCursor(Ptr<Request>, Ptr<TreeNode>);
   void nodeFail_checkRequests(Signal*);
   void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
+
+  void removeMatchedKeys(Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
 
   /**
    * Row buffering
