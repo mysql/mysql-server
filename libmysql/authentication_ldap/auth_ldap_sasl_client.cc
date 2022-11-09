@@ -624,7 +624,11 @@ static int initialize_plugin(char *, size_t, int, va_list) {
 static int deinitialize_plugin() {
   delete g_logger_client;
   g_logger_client = nullptr;
+#if defined(SASL_CLIENT_DONE_SUPPORTED)
   sasl_client_done();
+#else
+  sasl_done();
+#endif
   return 0;
 }
 
