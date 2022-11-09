@@ -2722,17 +2722,29 @@ Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
         }
         /**
          * Adapt to SPJ-API protocol legacy:
+         * 1)
          *   API always assumed that any node having an 'active' node as 
          *   ancestor gets a new batch of result rows. So we didn't explicitly 
          *   set the 'active' bit for these siblings, as it was implicit.
          *   In addition, we might now have (INNER-join) dependencies outside
-         *   of the set of ancestor nodes. If such a dependent node, not being one
-         *   of our ancestor,  is 'active' it will also re-activate this TreeNode.
-         *   Has to inform the API about that.
+         *   of the set of ancestor nodes. If such a dependent node, not being
+         *   one of our ancestor, is 'active' it will also re-activate this
+         *   TreeNode -> Has to inform the API about that.
+         * 2)
+         *   API expect that it is the 'internalOpNo' of the **table** which
+         *   is used to address the 'active' nodes. In case of UNIQUE_INDEXs
+         *   two TreeNodes are generated:
+         *    - First a TreeNode::T_UNIQUE_INDEX_LOOKUP acessing the index.
+         *    - Then another TreeNode accessing the table.
+         *   Thus, if this node is an UNIQUE_INDEX, the node_no of the related
+         *   *table* to be set as 'active' is node_no+1 !!
          */
         else if (!nodePtr.p->m_ancestors.overlaps (requestPtr.p->m_active_tree_nodes))
         {
-          requestPtr.p->m_active_tree_nodes.set(nodePtr.p->m_node_no);
+          if (nodePtr.p->m_bits & TreeNode::T_UNIQUE_INDEX_LOOKUP)
+            requestPtr.p->m_active_tree_nodes.set(nodePtr.p->m_node_no+1);
+          else
+            requestPtr.p->m_active_tree_nodes.set(nodePtr.p->m_node_no);
         }
       }
     } // if (!nodePtr.isNull()
