@@ -1174,7 +1174,10 @@ void ha_warp::maintain_indexes(const char *datadir) {
    the writer object, flush them to disk when ::extra is called.   Seems to
    work.
 */
-int ha_warp::extra(enum ha_extra_function) {
+int ha_warp::extra(enum ha_extra_function xtra) {
+  if(xtra == 0) {
+    return -1;
+  }
   /* if not bulk insert, and there are buffered inserts, write them out
      to disk.  This will destroy the writer.
   */
@@ -2558,11 +2561,17 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
     if(table->reginfo.qep_tab != nullptr) {
       qep_tab = table->reginfo.qep_tab;
     }
-    ha_warp *const ha = (ha_warp*)(table->file);
-    
+
+    // we can't do pushdown to non-WARP tables.  The following call will return
+    // a non-zero value for storage engines other than WARP
+    auto engineSupportsIndexes = table->file->get_default_index_algorithm();
+    if(engienSupportsIndexes != 0) { 
+      continue;
+    }
     if (cond == nullptr && join->where_cond == nullptr) { 
 	    continue; 
     }
+    ha_warp *const ha = (ha_warp*)(table->file);
     
     auto share = ha->get_warp_share();
     auto pushdown_info = get_or_create_pushdown_info(table->in_use, table->alias, share->data_dir_name);
