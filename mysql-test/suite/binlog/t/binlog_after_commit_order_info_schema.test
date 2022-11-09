@@ -1,0 +1,98 @@
+# === Purpose ===
+#
+# Check binlog after commit queue and locks.
+#
+# ==== Requirements ====
+#
+# R1. Any two threads should execute their after_commit hooks in the same order as they commit.
+#
+# === Implementation ====
+#
+# Abstract:
+# Block transaction 1 immediately after the commit stage, before the after_commit hook, by using
+# a debug sync point. Execute transaction 2 and wait for it to complete the commit stage,
+# by inspecting the table data. Verify that transaction 2 is waiting for transaction 1 to make progress,
+# by inspecting its execution stage in performance_schema.
+#
+# Test steps:
+# 1. Create table t1 so that we can insert rows
+# 2. Start connection server_1_1, insert value to t1 and signal that after commit hook has been reached. wait until it is unblocked by server_1 connection.
+# 3. Start connection server_1_2, insert value to t1. This connection will stop at commit phase until server_1_1 is ublocked.
+# 4. Check that connection server_1_1 and server_1_2 have executed and t1 contains two rows using information_schema.processlist.
+# 5. Check connection server_1_1 waits at bgc_after_after_commit_stage_change debug point.
+# 6. Check connection server_1_2 waits for for handler commit.
+# 7. Send signal from server_1 to server_1_1 so that stage is unblocked and transaction in connections server_1_1 and server_1_2 continue.
+# 8. Finish transaction execution in server_1_1 and server_1_2.
+# 9. Cleanup
+#
+# === References ===
+#
+# BUG#34703698 after_commit hook may be invoked out of order even when binlog_order_commit=1
+#
+--source include/have_binlog_format_row.inc
+--source include/have_binlog_order_commits.test
+--source include/have_debug_sync.inc
+--let $rpl_extra_connections_per_server= 2
+--let $rpl_topology= none
+--let $rpl_server_count= 1
+--source include/rpl_init.inc
+
+CREATE TABLE t1 (a INT);
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+
+--let $conn1_id=`SELECT connection_id()`
+
+# Tell the connection to wait on the after commit process and send a signal for us to know it is there
+SET DEBUG_SYNC= 'bgc_after_enrolling_for_after_commit_stage SIGNAL signal.after_commit_reached WAIT_FOR signal.after_commit_unblocked';
+
+--send INSERT INTO t1 VALUES (1)
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# Wait for connection 1 to get there
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_commit_reached";
+
+--let $rpl_connection_name= server_1_2
+--source include/rpl_connection.inc
+
+--let $conn2_id=`SELECT connection_id()`
+
+--send INSERT INTO t1 VALUES (2)
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# check commit phase has been executed
+let $wait_condition=SELECT COUNT(*)=2 FROM t1;
+--source include/wait_condition.inc
+
+--let $assert_text= "The connection for the first insert is blocked in debug point"
+--let $assert_cond= COUNT(*) = 1 FROM information_schema.processlist WHERE id = $conn1_id AND state = \'debug sync point: bgc_after_enrolling_for_after_commit_stage\'
+--source include/assert.inc
+
+# Check connection server_1_2 is blocked at commit stage
+--let $assert_text= "The connection for the second insert is blocked waiting for the commit handler (insert 1)"
+--let $assert_cond= COUNT(*) = 1 FROM information_schema.processlist WHERE id = $conn2_id AND state = \'waiting for handler commit\'
+--source include/assert.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.after_commit_unblocked";
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+
+--reap
+
+--let $rpl_connection_name= server_1_2
+--source include/rpl_connection.inc
+
+--reap
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source include/rpl_end.inc

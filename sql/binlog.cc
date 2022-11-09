@@ -3549,6 +3549,7 @@ void MYSQL_BIN_LOG::cleanup() {
     mysql_mutex_destroy(&LOCK_log);
     mysql_mutex_destroy(&LOCK_index);
     mysql_mutex_destroy(&LOCK_commit);
+    mysql_mutex_destroy(&LOCK_after_commit);
     mysql_mutex_destroy(&LOCK_sync);
     mysql_mutex_destroy(&LOCK_binlog_end_pos);
     mysql_mutex_destroy(&LOCK_xids);
@@ -3570,6 +3571,8 @@ void MYSQL_BIN_LOG::init_pthread_objects() {
   mysql_mutex_init(m_key_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(m_key_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(m_key_LOCK_commit, &LOCK_commit, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(m_key_LOCK_after_commit, &LOCK_after_commit,
+                   MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_binlog_end_pos, &LOCK_binlog_end_pos,
                    MY_MUTEX_INIT_FAST);
@@ -3579,8 +3582,9 @@ void MYSQL_BIN_LOG::init_pthread_objects() {
   if (!is_relay_log) {
     Commit_stage_manager::get_instance().init(
         m_key_LOCK_flush_queue, m_key_LOCK_sync_queue, m_key_LOCK_commit_queue,
-        m_key_LOCK_done, m_key_LOCK_wait_for_group_turn, m_key_COND_done,
-        m_key_COND_flush_queue, m_key_COND_wait_for_group_turn);
+        m_key_LOCK_after_commit_queue, m_key_LOCK_done,
+        m_key_LOCK_wait_for_group_turn, m_key_COND_done, m_key_COND_flush_queue,
+        m_key_COND_wait_for_group_turn);
   }
 }
 
@@ -7817,7 +7821,7 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg) {
   mysql_mutex_unlock(&LOCK_log);
 }
 
-/****** transaction coordinator log for 2pc - binlog() based solution ******/
+/****** transaction coordinator log for 2pc - binlog() based solution *******/
 
 bool MYSQL_BIN_LOG::read_binlog_in_use_flag(
     Binlog_file_reader &binlog_file_reader) {
@@ -8600,11 +8604,8 @@ void MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first) {
 
 #ifndef NDEBUG
 /** Names for the stages. */
-static const char *g_stage_name[] = {
-    "FLUSH",
-    "SYNC",
-    "COMMIT",
-};
+static const char *g_stage_name[] = {"FLUSH", "SYNC", "COMMIT", "AFTER_COMMIT",
+                                     "COMMIT_ORDER_FLUSH"};
 #endif
 
 bool MYSQL_BIN_LOG::change_stage(THD *thd [[maybe_unused]],
@@ -9063,13 +9064,25 @@ commit_stage:
       which would reduce performance.
     */
     process_commit_stage_queue(thd, commit_queue);
-    mysql_mutex_unlock(&LOCK_commit);
-    /*
-      Process after_commit after LOCK_commit is released for avoiding
-      3-way deadlock among user thread, rotate thread and dump thread.
-    */
-    process_after_commit_stage_queue(thd, commit_queue);
-    final_queue = commit_queue;
+
+    /**
+     * After commit stage
+     */
+    if (change_stage(thd, Commit_stage_manager::AFTER_COMMIT_STAGE,
+                     commit_queue, &LOCK_commit, &LOCK_after_commit)) {
+      DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d", thd->thread_id(),
+                            thd->commit_error));
+      return finish_commit(thd);
+    }
+
+    THD *after_commit_queue =
+        Commit_stage_manager::get_instance().fetch_queue_acquire_lock(
+            Commit_stage_manager::AFTER_COMMIT_STAGE);
+
+    process_after_commit_stage_queue(thd, after_commit_queue);
+
+    final_queue = after_commit_queue;
+    mysql_mutex_unlock(&LOCK_after_commit);
   } else {
     if (leave_mutex_before_commit_stage)
       mysql_mutex_unlock(leave_mutex_before_commit_stage);
