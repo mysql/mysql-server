@@ -80,6 +80,7 @@
 #include "mysqld_error.h"
 #include "partition_info.h"
 #include "prealloced_array.h"
+#include "scope_guard.h"
 #include "sql/binlog/global.h"
 #include "sql/binlog/group_commit/bgc_ticket_manager.h"  // Bgc_ticket_manager
 #include "sql/binlog/recovery.h"  // binlog::Binlog_recovery
@@ -2789,6 +2790,21 @@ static int binlog_savepoint_set(handlerton *, THD *thd, void *sv) {
     binlog_trans_log_savepos(thd, (my_off_t *)sv);
 
   return error;
+}
+
+bool MYSQL_BIN_LOG::is_current_stmt_binlog_enabled_and_caches_empty(
+    const THD *thd) const {
+  DBUG_TRACE;
+  if (!(thd->variables.option_bits & OPTION_BIN_LOG) ||
+      !mysql_bin_log.is_open()) {
+    // thd_get_cache_mngr requires binlog to option to be enabled
+    return false;
+  }
+  binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(thd);
+  if (cache_mngr == nullptr) {
+    return true;
+  }
+  return cache_mngr->is_binlog_empty();
 }
 
 static int binlog_savepoint_rollback(handlerton *, THD *thd, void *sv) {
@@ -8058,6 +8074,12 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
                        (ulonglong)thd, YESNO(all), (ulonglong)xid,
                        (ulonglong)cache_mngr));
 
+  Scope_guard guard_applier_wait_enabled(
+      [&thd]() { thd->disable_low_level_commit_ordering(); });
+
+  if (is_current_stmt_binlog_enabled_and_caches_empty(thd)) {
+    thd->enable_low_level_commit_ordering();
+  }
   /*
     No cache manager means nothing to log, but we still have to commit
     the transaction.
