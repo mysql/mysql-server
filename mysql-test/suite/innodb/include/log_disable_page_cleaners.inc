@@ -16,6 +16,15 @@
 SET GLOBAL innodb_dict_stats_disabled_debug = 1;
 SET GLOBAL innodb_master_thread_disabled_debug = 1;
 
+# Disable generating GTIDs, and disable periodic GTID write-out.
+# Generating GTIDs can lead to foreground threads wait for the write-out.
+
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+
+FLUSH ENGINE LOGS;
+
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+
 # Flush all dirty pages and write a checkpoint so we would
 # always start filling redo log starting from an empty one.
 

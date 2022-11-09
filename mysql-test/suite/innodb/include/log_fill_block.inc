@@ -19,7 +19,7 @@ if ($log_fill_block_and_crash == 1) {
     --echo Before COMMIT LSN: $current_lsn
   }
 
-  SET GLOBAL DEBUG = "+d,log_writer_before_write_new_incomplete_block";
+  SET GLOBAL DEBUG = "+d,crash_log_writer_before_write_new_incomplete_block";
 
   # We will crash during log writer's attempt to write 12 bytes of the header of the next block
   --source include/expect_crash.inc

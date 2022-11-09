@@ -37,7 +37,6 @@ innodb.truncate                                   : WL#12034 Enable again once s
 innodb.subpartition                               : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.ddl_crash_alter_table_partition_tablespace : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.innodb_bug14676111                         : BUG#18200831 The test has never worked correctly
-innodb.log_first_rec_group                        : Bug#29692047 Disable for now until we can find a better way to test this.
 innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten
 innodb.slow_shutdown                              : Bug#31763837 mtr hits this debug assert post test run cleanup
 innodb.upgrade_fts_aux                            : Bug#33034679 Test needs an upgrade of its 5.7 data files

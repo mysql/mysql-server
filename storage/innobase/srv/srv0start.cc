@@ -70,6 +70,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0buf.h"
 #include "log0chkp.h"
 #include "log0recv.h"
+#include "log0write.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
 
@@ -2089,6 +2090,12 @@ dberr_t srv_start(bool create_new_db) {
     lost by any future checkpoint. Since DD and data dictionary in memory
     objects are not fully initialized at this point, the usual mechanism to
     persist dynamic metadata at checkpoint wouldn't work. */
+
+    DBUG_EXECUTE_IF("log_first_rec_group_test", {
+      const lsn_t end_lsn = mtr_commit_mlog_test();
+      log_write_up_to(*log_sys, end_lsn, true);
+      DBUG_SUICIDE();
+    });
 
     if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
       ut_a(redo_writes_allowed);
