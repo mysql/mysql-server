@@ -4,6 +4,9 @@ SET GLOBAL innodb_file_per_table=ON;
 #
 SET GLOBAL innodb_dict_stats_disabled_debug = 1;
 SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
 SET GLOBAL innodb_log_checkpoint_now = 1;
 SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
 SET GLOBAL innodb_checkpoint_disabled = 1;

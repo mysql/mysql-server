@@ -1,8 +1,8 @@
-# Initialization - create table.
 #
-# Scenario 1. Crash during recovery crash, when recovery ends in the same block as checkpoint_lsn.
+# Scenario 1. Test recovery when recovery starts and ends in the same block as checkpoint_lsn.
 #
 Pass: 0
+# Initialization - create table, resets autoincrement value.
 # 0. Move to the next log block.
 include/assert.inc [We failed to create log records that would end at boundary between blocks]
 # 1. Execute tiny mini-transaction in the current block [only pass 0]
@@ -13,13 +13,19 @@ include/assert.inc [All must happen within the single log block (this was requir
 # 6. Recover 103, write new redo record X during recovery and crash just before flushing page with 103
 # 7. Start recovery and ensure all is recovered - we must recover 103.
 #    If first_rec_group was pointing to X we would skip 103.
+#    The auto increment value should also be stored properly (with
+#    value of 5 in first pass, 4 in second).
 SELECT * FROM t;
-a
-100
-101
-102
-103
+a	b
+100	1
+101	2
+102	3
+103	4
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
+AUTO_INCREMENT
+5
 Pass: 1
+# Initialization - create table, resets autoincrement value.
 # 0. Move to the next log block.
 include/assert.inc [We failed to create log records that would end at boundary between blocks]
 # 1. Execute tiny mini-transaction in the current block [only pass 0]
@@ -30,11 +36,16 @@ include/assert.inc [All must happen within the single log block (this was requir
 # 6. Recover 103, write new redo record X during recovery and crash just before flushing page with 103
 # 7. Start recovery and ensure all is recovered - we must recover 103.
 #    If first_rec_group was pointing to X we would skip 103.
+#    The auto increment value should also be stored properly (with
+#    value of 5 in first pass, 4 in second).
 SELECT * FROM t;
-a
-100
-101
-103
+a	b
+100	1
+101	2
+103	3
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
+AUTO_INCREMENT
+4
 #
 # Scenario 2. Restart after writing full log block with record ending at boundary,
 #             recovery should start in middle of the last written block (pass 0, 2)
@@ -42,6 +53,7 @@ a
 #             block (pass 0, 1) or just 12 bytes after its beginning (pass 2, 3).
 #
 Pass: 0
+# Initialization - create table, resets autoincrement value.
 # 0. Move to the next log block
 include/assert.inc [We failed to create log records that would end at boundary between blocks]
 # 1. Execute tiny mini-transaction in the current block [pass 0, 2]
@@ -50,10 +62,14 @@ include/assert.inc [We failed to create log records that would end at boundary b
 # 4. If we still haven't crashed, force mtr to crash.
 # 5. Start MySQL after crash to see how it takes care of recovery
 SELECT * FROM t;
-a
-200
-201
+a	b
+200	1
+201	2
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
+AUTO_INCREMENT
+5
 Pass: 1
+# Initialization - create table, resets autoincrement value.
 # 0. Move to the next log block
 include/assert.inc [We failed to create log records that would end at boundary between blocks]
 # 1. Execute tiny mini-transaction in the current block [pass 0, 2]
@@ -62,10 +78,14 @@ include/assert.inc [We failed to create log records that would end at boundary b
 # 4. If we still haven't crashed, force mtr to crash.
 # 5. Start MySQL after crash to see how it takes care of recovery
 SELECT * FROM t;
-a
-200
-201
+a	b
+200	1
+201	2
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
+AUTO_INCREMENT
+4
 Pass: 2
+# Initialization - create table, resets autoincrement value.
 # 0. Move to the next log block
 include/assert.inc [We failed to create log records that would end at boundary between blocks]
 # 1. Execute tiny mini-transaction in the current block [pass 0, 2]
@@ -75,12 +95,16 @@ include/assert.inc [We failed to create log records that would end at boundary b
 # 4. If we still haven't crashed, force mtr to crash.
 # 5. Start MySQL after crash to see how it takes care of recovery
 SELECT * FROM t;
-a
-200
-201
-202
-203
+a	b
+200	1
+201	2
+202	3
+203	4
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
+AUTO_INCREMENT
+5
 Pass: 3
+# Initialization - create table, resets autoincrement value.
 # 0. Move to the next log block
 include/assert.inc [We failed to create log records that would end at boundary between blocks]
 # 1. Execute tiny mini-transaction in the current block [pass 0, 2]
@@ -90,8 +114,11 @@ include/assert.inc [We failed to create log records that would end at boundary b
 # 4. If we still haven't crashed, force mtr to crash.
 # 5. Start MySQL after crash to see how it takes care of recovery
 SELECT * FROM t;
-a
-200
-201
-203
+a	b
+200	1
+201	2
+203	3
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
+AUTO_INCREMENT
+4
 # Cleanup...

@@ -480,6 +480,8 @@ void Clone_persist_gtid::flush_gtids(THD *thd) {
   Sid_map sid_map(nullptr);
   Gtid_set table_gtid_set(&sid_map, nullptr);
 
+  DBUG_EXECUTE_IF("gtid_persist_flush_disable", return;);
+
   /* During recovery, fetch existing GTIDs from gtid_executed table. */
   bool is_recovery = !m_thread_active.load();
   if (is_recovery && !opt_initialize) {

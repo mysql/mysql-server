@@ -12,17 +12,11 @@
 
 --disable_query_log
 --disable_result_log
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
-let $MYSQLD_SOCKET= `SELECT @@socket`;
-let $MYSQLD_PORT= `SELECT @@port`;
-
---echo # Initialization - create table.
-CREATE TABLE t (a INT NOT NULL PRIMARY KEY) ENGINE = InnoDB;
 
 let $debug_test = 0;
 
 --echo #
---echo # Scenario 1. Crash during recovery crash, when recovery ends in the same block as checkpoint_lsn.
+--echo # Scenario 1. Test recovery when recovery starts and ends in the same block as checkpoint_lsn.
 --echo #
 
 let $pass = 0;
@@ -31,19 +25,14 @@ while ($pass != 2) {
 
   --echo Pass: $pass
 
-  DELETE FROM t;
+  --echo # Initialization - create table, resets autoincrement value.
+  CREATE TABLE t (a INT NOT NULL, b INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE = InnoDB;
   INSERT INTO t (a) VALUES (100);
 
   # Enable all METRICS within log module
   SET GLOBAL innodb_monitor_enable = module_log;
 
-  # Disable background threads that could modify pages
-  SET GLOBAL innodb_dict_stats_disabled_debug = 1;
-  SET GLOBAL innodb_master_thread_disabled_debug = 1;
-  SET GLOBAL innodb_purge_stop_now = 1;
-
-  # Execute sharp checkpoint (flush all pages)
-  SET GLOBAL innodb_log_checkpoint_now = 1;
+  --source ../include/log_disable_page_cleaners.inc
 
   --echo # 0. Move to the next log block.
   let $log_fill_block_sql = INSERT INTO t(a) VALUES (101);
@@ -64,6 +53,8 @@ while ($pass != 2) {
   }
 
   --echo # 2. Create checkpoint at the current lsn and block further checkpoints
+  SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
+  SET GLOBAL innodb_checkpoint_disabled = 0;
   SET GLOBAL innodb_log_checkpoint_now = 1;
   SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
   SET GLOBAL innodb_checkpoint_disabled = 1;
@@ -99,19 +90,34 @@ while ($pass != 2) {
 
   --echo # 6. Recover 103, write new redo record X during recovery and crash just before flushing page with 103
 
-  --error 137
-  --exec $MYSQLD --no-defaults --datadir=$MYSQLD_DATADIR --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --skip-ssl --secure-file-priv="" --skip-mysqlx --debug="+d,log_first_rec_group_test"
+  # We use a test-specific log_first_rec_group_test DBUG point to add new dummy
+  # redo record, force write it to redolog file and then crash. We need to do
+  # that before the Persistent Table Metadata that were parsed during recovery,
+  # are to be stored inside srv_start. This will allow us to see the
+  # AUTO_INCREMENT values after another restart to be incorrect, old.
+  --error 2,137
+  --exec $MYSQLD_CMD --debug="+d,log_first_rec_group_test"
 
   --echo # 7. Start recovery and ensure all is recovered - we must recover 103.
   --echo #    If first_rec_group was pointing to X we would skip 103.
+  --echo #    The auto increment value should also be stored properly (with
+  --echo #    value of 5 in first pass, 4 in second).
+
   --source include/start_mysqld.inc
 
   --enable_query_log
   --enable_result_log
   SELECT * FROM t;
+  SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
   --disable_query_log
   --disable_result_log
 
+  if ($debug_test) {
+    --echo State: after recovery
+    --echo LSN: $end_lsn
+  }
+
+  DROP TABLE t;
   inc $pass;
 }
 
@@ -131,19 +137,14 @@ while ($pass != 4) {
 
   --echo Pass: $pass
 
-  DELETE FROM t;
+  --echo # Initialization - create table, resets autoincrement value.
+  CREATE TABLE t (a INT NOT NULL, b INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE = InnoDB;
   INSERT INTO t (a) VALUES (200);
 
   # Enable all METRICS within log module
   SET GLOBAL innodb_monitor_enable = module_log;
 
-  # Disable background threads that could modify pages
-  SET GLOBAL innodb_dict_stats_disabled_debug = 1;
-  SET GLOBAL innodb_master_thread_disabled_debug = 1;
-  SET GLOBAL innodb_purge_stop_now = 1;
-
-  # Execute sharp checkpoint (flush all pages)
-  SET GLOBAL innodb_log_checkpoint_now = 1;
+  --source ../include/log_disable_page_cleaners.inc
 
   --echo # 0. Move to the next log block
   let $log_fill_block_sql = INSERT INTO t(a) VALUES (201);
@@ -181,7 +182,6 @@ while ($pass != 4) {
   let $log_fill_block_and_crash = $crash_at_203;
   let $log_fill_block_sql = INSERT INTO t(a) VALUES (203);
   --source ../include/log_fill_block.inc
-  let $log_fill_block_and_crash = 0;
 
   --echo # 4. If we still haven't crashed, force mtr to crash.
   if ($crash_at_203 == 0) {
@@ -197,9 +197,11 @@ while ($pass != 4) {
   --enable_query_log
   --enable_result_log
   SELECT * FROM t;
+  SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't';
   --disable_query_log
   --disable_result_log
 
+  DROP TABLE t;
   inc $pass;
 }
 
@@ -207,8 +209,6 @@ while ($pass != 4) {
 # we have restarted mysqld.
 
 --echo # Cleanup...
-
-DROP TABLE t;
 
 --enable_query_log
 --enable_result_log
