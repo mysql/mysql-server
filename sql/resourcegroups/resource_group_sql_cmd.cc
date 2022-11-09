@@ -439,6 +439,12 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
         }
       }
     });
+
+    /*
+      Update version so that other system threads referencing resource group
+      also re-applies controls.
+    */
+    resource_group->version()++;
   }
 
   /*

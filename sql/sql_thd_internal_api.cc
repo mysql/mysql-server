@@ -53,6 +53,8 @@
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/query_options.h"
+#include "sql/resourcegroups/resource_group.h"
+#include "sql/resourcegroups/resource_group_mgr.h"
 #include "sql/rpl_filter.h"  // binlog_filter
 #include "sql/sql_class.h"   // THD
 #include "sql/sql_lex.h"
@@ -375,3 +377,231 @@ bool thd_is_dd_update_stmt(const THD *thd) {
 }
 
 my_thread_id thd_thread_id(const THD *thd) { return (thd->thread_id()); }
+
+void disable_resource_groups(const char *reason) {
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (res_grp_mgr->resource_group_support()) {
+    res_grp_mgr->disable_resource_group();
+    res_grp_mgr->set_unsupport_reason(reason);
+  }
+}
+
+#if !defined(NDEBUG) && defined(HAVE_PSI_THREAD_INTERFACE)
+/*
+  Helper function to check if current thread is a system thread.
+
+  @returns true if current thread is a system thread else false.
+*/
+static bool is_system_thread() {
+  ulonglong pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
+  PSI_thread_attrs pfs_thread_attr;
+  memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
+  resourcegroups::Resource_group_mgr::instance()->get_thread_attributes(
+      &pfs_thread_attr, pfs_thread_id);
+  return pfs_thread_attr.m_system_thread;
+}
+#endif
+
+bool bind_thread_to_sys_internal_resource_group() {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (!res_grp_mgr->resource_group_support()) return false;
+
+#ifndef NDEBUG
+  // SYS_internal is allowed to set to only system threads.
+  assert(is_system_thread());
+#endif
+
+  // Apply resource group.
+  res_grp_mgr->sys_internal_resource_group()->controller()->apply_control();
+
+  // Update resource group name in PFS context.
+  ulonglong pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
+  res_grp_mgr->set_res_grp_in_pfs(
+      resourcegroups::SYS_INTERNAL_RESOURCE_GROUP_NAME,
+      strlen(resourcegroups::SYS_INTERNAL_RESOURCE_GROUP_NAME), pfs_thread_id);
+#endif
+
+  return false;
+}
+
+/**
+  Helper method to apply THD resource group to a system thread and save
+  resource group with a system thread.
+
+  @param         thd_resource_grp            THD's resource group.
+  @param[in,out] saved_resource_grp          THD resource group saved with a
+                                             system thread.
+                                             Applied resource group is saved in
+                                             the saved_resource_grp.
+  @param[out]    saved_resource_grp_version  Version of THD resoure group saved
+                                             with a system thread.
+*/
+static void apply_and_save_resource_group(
+    resourcegroups::Resource_group *thd_resource_grp,
+    resourcegroups::Resource_group **saved_resource_grp,
+    uint *saved_resource_grp_version) {
+  if (*saved_resource_grp != nullptr) {
+    // Remove reference from the saved thd resource group.
+    ((*saved_resource_grp)->reference_count())--;
+
+    /*
+      If resource group is inoperative and no other thread is using it
+      then remove the defunct resource group.
+    */
+    if ((*saved_resource_grp)->is_defunct() &&
+        (*saved_resource_grp)->reference_count().load() == 0)
+      delete (*saved_resource_grp);
+  }
+
+  if (thd_resource_grp != nullptr) {
+    // Apply THD resource group to a system thread.
+    thd_resource_grp->controller()->apply_control();
+
+    auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+    if (!res_grp_mgr->is_resource_group_default(thd_resource_grp) &&
+        !res_grp_mgr->is_sys_internal_resource_group(thd_resource_grp)) {
+      /*
+        ALTER or DROP operations on Default and SYS_internal resource groups
+        are not allowed. Reference counter is maintained to handle DROP
+        operations. Hence adding reference to only non-default and non-internal
+        resource group.
+      */
+      (thd_resource_grp->reference_count())++;
+    } else {
+      thd_resource_grp = nullptr;
+    }
+  }
+
+  *saved_resource_grp = thd_resource_grp;
+  *saved_resource_grp_version =
+      (thd_resource_grp != nullptr) ? thd_resource_grp->version() : 0;
+}
+
+bool bind_system_thread_to_thd_resource_group(
+    THD *thd, void **saved_resource_grp, uint *saved_resource_grp_version) {
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (opt_initialize || !res_grp_mgr->resource_group_support()) return false;
+
+#if !defined(NDEBUG) && defined(HAVE_PSI_THREAD_INTERFACE)
+  // Only system thread can bind to THD resource group.
+  assert(is_system_thread());
+#endif
+
+  resourcegroups::Resource_group **saved_thd_res_grp =
+      pointer_cast<resourcegroups::Resource_group **>(saved_resource_grp);
+
+  resourcegroups::Resource_group *thd_res_grp =
+      thd->resource_group_ctx()->m_cur_resource_group;
+
+  DBUG_EXECUTE_IF("log_resource_group_switch_info", {
+    std::string err("Resource group ");
+    err += (thd_res_grp != *saved_thd_res_grp) ? "switched." : "not switched.";
+    LogErr(ERROR_LEVEL, ER_CONDITIONAL_DEBUG, err.c_str());
+  });
+
+  /*
+    Apply THD's RG if saved resource group and THD's resource group are *not*
+    same or resource group is altered and THD has newer version of RG.
+
+    For performance reasons, binding resource group to system thread is not
+    guarded by the lock or mutex. As a result of concurrent SET/DROP/DISABLE
+    operations, bind operation might use THD's *old* resource group instead of
+    current resource group for current query execution. New resource group is
+    used from the next query execution. In non-TP model, a new resource group is
+    applied to the current query execution immediately. But this can not be
+    achieved for TP without additional performance overhead. Hence, current
+    behavior with TP is acceptable.
+  */
+  if (thd_res_grp != *saved_thd_res_grp ||
+      (thd_res_grp != nullptr &&
+       thd_res_grp->version() != *saved_resource_grp_version)) {
+    if (thd_res_grp == nullptr)
+      thd_res_grp = res_grp_mgr->usr_default_resource_group();
+
+    apply_and_save_resource_group(thd_res_grp, saved_thd_res_grp,
+                                  saved_resource_grp_version);
+  }
+
+  // Bind system thread to THD's resource group.
+  thd->resource_group_ctx()->m_bound_system_thread_os_id = my_thread_os_id();
+
+  return false;
+}
+
+bool unbind_system_thread_from_thd_resource_group(
+    THD *thd, void **saved_resource_grp, uint *saved_resource_grp_version) {
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (opt_initialize || !res_grp_mgr->resource_group_support()) return false;
+
+#if !defined(NDEBUG) && defined(HAVE_PSI_THREAD_INTERFACE)
+  // Only system thread can bind to THD resource group.
+  assert(is_system_thread());
+#endif
+
+  resourcegroups::Resource_group **saved_thd_res_grp =
+      pointer_cast<resourcegroups::Resource_group **>(saved_resource_grp);
+
+  resourcegroups::Resource_group *thd_res_grp =
+      thd->resource_group_ctx()->m_cur_resource_group;
+
+  /*
+    Apply THD's RG if saved resource group and THD's resource group are not
+    same.
+
+    At bind stage, the system thread is bind to the THD's resource group. But
+    concurrent resource group operations might change THD's resource group
+    before unbind. So check and apply THD's new RG to system thread. Instead of
+    waiting for bind to apply new RG, applying at unbind stage itself to release
+    old RG and move system thread to new RG.
+
+    System thread keeps using THD's RG even after invoking this method. System
+    thread consumes less resourcees after this stage. System thread remembers
+    current THD's RG. If a query from THD using same RG is picked up for the
+    execution, then RG switch in bind stage is not needed. This optimization
+    helps to improve performance.
+
+    For performance reasons unbinding resource group to system thread is
+    not guarded by the lock or mutex. System thread might keep using THD's *old*
+    resource group on unbind operation because of concurrent SET/DROP/DISABLE.
+    New resource group is used from the next query. In non-TP model, a new
+    resource group is applied to the current query execution immediately. But
+    this can not be achieved for TP without additional performance overhead.
+    Hence, current behavior with TP is acceptable.
+  */
+  if (thd_res_grp != *saved_thd_res_grp) {
+    if (thd_res_grp == nullptr)
+      thd_res_grp = res_grp_mgr->usr_default_resource_group();
+
+    apply_and_save_resource_group(thd_res_grp, saved_thd_res_grp,
+                                  saved_resource_grp_version);
+  }
+
+  // Unbind system thread from THD's resource group.
+  thd->resource_group_ctx()->m_bound_system_thread_os_id = 0;
+
+  return false;
+}
+
+bool release_saved_thd_resource_group(void **saved_resource_grp,
+                                      uint *saved_resource_grp_version,
+                                      bool only_if_defunct) {
+  auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
+  if (opt_initialize || !res_grp_mgr->resource_group_support()) return false;
+
+#if !defined(NDEBUG) && defined(HAVE_PSI_THREAD_INTERFACE)
+  // Only system thread can bind to THD resource group.
+  assert(is_system_thread());
+#endif
+
+  resourcegroups::Resource_group **saved_thd_res_grp =
+      pointer_cast<resourcegroups::Resource_group **>(saved_resource_grp);
+
+  if (*saved_thd_res_grp == nullptr) return false;
+
+  if (!only_if_defunct || (*saved_thd_res_grp)->is_defunct())
+    apply_and_save_resource_group(res_grp_mgr->sys_internal_resource_group(),
+                                  saved_thd_res_grp,
+                                  saved_resource_grp_version);
+  return false;
+}
