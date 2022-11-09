@@ -1,5 +1,6 @@
-# Testing unsupported slave multi source configuration
-
+#
+# Check that multi source replication can't be used when replicating to NDB
+#
 --source include/have_ndb.inc
 
 --let $rpl_topology= 1->2,3->2

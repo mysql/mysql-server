@@ -29,18 +29,28 @@ Variable_name	Value
 server_id	2
 select * from mysql.ndb_apply_status order by server_id;
 server_id	epoch	log_name	start_pos	end_pos
-1	#	#	#	#
+1	#	cluster1-bin.000001	#	#
 select * from test.t1;
 a	b
 1	Summertime
+include/show_binlog_events.inc
+---- [cluster2] SHOW BINLOG EVENTS FROM <POSITION> ----
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+cluster2-bin.000001	#	Query	1	#	use `test`; create table t1(a int primary key, b varchar(50)) engine=ndb
+cluster2-bin.000001	#	Query	2	#	BEGIN
+cluster2-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
+cluster2-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
+cluster2-bin.000001	#	Write_rows	2	#	table_id: #
+cluster2-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+cluster2-bin.000001	#	Query	2	#	COMMIT
 Cluster3 has insert and apply_status from Cluster1+2
 show variables like 'server_id';
 Variable_name	Value
 server_id	3
 select * from mysql.ndb_apply_status order by server_id;
 server_id	epoch	log_name	start_pos	end_pos
-1	#	#	#	#
-2	#	#	#	#
+1	#	cluster1-bin.000001	#	#
+2	#	cluster2-bin.000001	#	#
 select * from test.t1;
 a	b
 1	Summertime
@@ -65,8 +75,8 @@ a	b
 Now change Cluster3 to skip-over Cluster2 and get binlog direct from Cluster1
 select * from mysql.ndb_apply_status order by server_id;
 server_id	epoch	log_name	start_pos	end_pos
-1	#	#	#	#
-2	#	#	#	#
+1	#	cluster1-bin.000001	#	#
+2	#	cluster2-bin.000001	#	#
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

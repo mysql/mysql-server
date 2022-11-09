@@ -26,7 +26,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 START REPLICA;
 
 --echo Capture current count of epoch decline warnings
---let mysqld_name=mysqld.1.slave
+--let $mysqld_name=mysqld.1.slave
 --source ndb_rpl_get_server_error_log.inc
 --disable_query_log
 --disable_result_log

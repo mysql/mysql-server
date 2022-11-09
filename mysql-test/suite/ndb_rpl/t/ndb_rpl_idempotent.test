@@ -3,11 +3,11 @@
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 #
-# Currently test only works with ndb since it retrieves "old"
+# Currently test only works with NDB since it retrieves "old"
 # binlog positions with mysql.ndb_binlog_index and ndb_apply_status;
 #
 
-# create a table with one row
+# create a table
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
 
 # Replicate the table creation, then reset the master log and
@@ -23,6 +23,7 @@ RESET REPLICA;
 START REPLICA;
 --connection master
 
+# with one row
 INSERT INTO t1 VALUES ("row1","will go away",1);
 SELECT * FROM t1 ORDER BY c3;
 
@@ -216,10 +217,11 @@ START REPLICA;
 # Don't show error message, it varies for replica worker
 --let $show_slave_sql_error=0
 --source include/wait_for_slave_sql_error.inc
-# Check expected error message
-SELECT LAST_ERROR_MESSAGE
+# Check that expected error message can be found
+SELECT COUNT(*) as FOUND_ERROR_MESSAGE
   FROM performance_schema.replication_applier_status_by_worker
-    WHERE LAST_ERROR_NUMBER=1050 AND channel_name = '';
+    WHERE LAST_ERROR_NUMBER=1050 AND channel_name = ''  AND
+      LAST_ERROR_MESSAGE LIKE "%Table 't2' already exists%";
 
 STOP REPLICA;
 
@@ -237,5 +239,4 @@ DROP TABLE t2;
 
 --sync_slave_with_master
 
-# End of 5.1 Test
 --source include/rpl_end.inc

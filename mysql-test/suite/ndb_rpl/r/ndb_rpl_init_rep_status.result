@@ -48,7 +48,7 @@ server_id
 2
 Ndb_slave_max_replicated_epoch: 111
 drop table test.t1;
-Check that reset slave resets Ndb_slave_max_replicated_epoch
+Check that reset slave resets Ndb_slave_max_replicated_epoch to zero
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead

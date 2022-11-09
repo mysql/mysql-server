@@ -26,17 +26,38 @@ sync_slave_with_master;
 --echo #
 # ***
 connection slave;
-
-select epoch from mysql.ndb_apply_status into @current_epoch;
+select epoch from mysql.ndb_apply_status into @epoch_before_alter;
 
 connection master;
 alter table t1 add key k(b);
 
 sync_slave_with_master;
+select epoch=@epoch_before_alter from mysql.ndb_apply_status;
 
-connection slave;
+--echo # Check again with copying alter table
+--source include/rpl_connection_master.inc
+alter table t1 modify b varchar(255);
 
-select epoch=@current_epoch from mysql.ndb_apply_status;
+sync_slave_with_master;
+select epoch=@epoch_before_alter from mysql.ndb_apply_status;
+
+--echo # Check copying alter without any row in ndb_apply_status -> should insert
+--echo # row for source server_id with epoch 0
+--source include/rpl_connection_slave.inc
+stop replica;
+reset replica;
+select count(*) from mysql.ndb_apply_status;
+
+--source include/rpl_connection_master.inc
+reset master;
+alter table t1 modify b varchar(255);
+
+--source include/rpl_connection_slave.inc
+start replica;
+
+--source include/rpl_connection_master.inc
+sync_slave_with_master;
+select server_id, epoch, log_name from mysql.ndb_apply_status;
 
 # ***
 --echo # End of test for Bug#14139386

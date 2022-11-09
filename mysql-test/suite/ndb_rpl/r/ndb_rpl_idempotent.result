@@ -98,11 +98,12 @@ call mtr.add_suppression("Table \'t2\' already exists.*");
 call mtr.add_suppression("Worker 1 failed executing transaction.*");
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=1050]
-SELECT LAST_ERROR_MESSAGE
+SELECT COUNT(*) as FOUND_ERROR_MESSAGE
 FROM performance_schema.replication_applier_status_by_worker
-WHERE LAST_ERROR_NUMBER=1050 AND channel_name = '';
-LAST_ERROR_MESSAGE
-Error 'Table 't2' already exists' on query. Default database: 'test'. Query: 'create table t2 (a int primary key) engine=ndb'
+WHERE LAST_ERROR_NUMBER=1050 AND channel_name = ''  AND
+LAST_ERROR_MESSAGE LIKE "%Table 't2' already exists%";
+FOUND_ERROR_MESSAGE
+1
 STOP REPLICA;
 RESET MASTER;
 RESET REPLICA;
