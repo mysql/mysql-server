@@ -62,6 +62,7 @@ class BasicProcessor {
     SendToServer,    // wait for send-to-server and invoke ...
     SendableToServer,
 
+    Suspend,  // wait for explicit resume
     Done,  // pop this processor and invoke the top-most-processor's process()
 
     Void,
