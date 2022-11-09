@@ -301,6 +301,10 @@ static void dumpAccessPath(int level, AccessPath *p, std::ostringstream &buf) {
         str.append("AccessPath::HASH_JOIN outer: ... inner: ");
         p = p->hash_join().inner;
         break;
+      case AccessPath::NESTED_LOOP_JOIN:
+        str.append("AccessPath::NESTED loop outer: ... inner: ");
+        p = p->nested_loop_join().inner;
+        break;
       case AccessPath::FOLLOW_TAIL:
         str.append("AccessPath::FOLLOW_TAIL ");
         str.append(p->follow_tail().table->alias ? p->follow_tail().table->alias
