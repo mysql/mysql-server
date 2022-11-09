@@ -65,7 +65,7 @@ MYSQL_ADD_EXECUTABLE(merge_component_keyring_common_tests-t
  )
 
 FOREACH(test ${KEYRING_COMPONENT_COMMON_TESTS})
-  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+  MYSQL_ADD_EXECUTABLE(keyring_common_${test}-t ${test}-t.cc
     ${COMPILE_OPTIONS_ARG}
     ENABLE_EXPORTS
     SKIP_INSTALL
