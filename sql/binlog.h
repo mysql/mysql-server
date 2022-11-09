@@ -163,6 +163,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   PSI_mutex_key m_key_LOCK_binlog_end_pos;
   /** The PFS instrumentation key for @ LOCK_commit_queue. */
   PSI_mutex_key m_key_LOCK_commit_queue;
+  /** The PFS instrumentation key for @ LOCK_after_commit_queue. */
+  PSI_mutex_key m_key_LOCK_after_commit_queue;
   /** The PFS instrumentation key for @ LOCK_done. */
   PSI_mutex_key m_key_LOCK_done;
   /** The PFS instrumentation key for @ LOCK_flush_queue. */
@@ -177,6 +179,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   PSI_mutex_key m_key_COND_flush_queue;
   /** The instrumentation key to use for @ LOCK_commit. */
   PSI_mutex_key m_key_LOCK_commit;
+  /** The instrumentation key to use for @ LOCK_after_commit. */
+  PSI_mutex_key m_key_LOCK_after_commit;
   /** The instrumentation key to use for @ LOCK_sync. */
   PSI_mutex_key m_key_LOCK_sync;
   /** The instrumentation key to use for @ LOCK_xids. */
@@ -199,6 +203,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_commit;
+  mysql_mutex_t LOCK_after_commit;
   mysql_mutex_t LOCK_sync;
   mysql_mutex_t LOCK_binlog_end_pos;
   mysql_mutex_t LOCK_xids;
@@ -358,7 +363,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   void set_psi_keys(
       PSI_mutex_key key_LOCK_index, PSI_mutex_key key_LOCK_commit,
-      PSI_mutex_key key_LOCK_commit_queue, PSI_mutex_key key_LOCK_done,
+      PSI_mutex_key key_LOCK_commit_queue, PSI_mutex_key key_LOCK_after_commit,
+      PSI_mutex_key key_LOCK_after_commit_queue, PSI_mutex_key key_LOCK_done,
       PSI_mutex_key key_LOCK_flush_queue, PSI_mutex_key key_LOCK_log,
       PSI_mutex_key key_LOCK_binlog_end_pos, PSI_mutex_key key_LOCK_sync,
       PSI_mutex_key key_LOCK_sync_queue, PSI_mutex_key key_LOCK_xids,
@@ -372,6 +378,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     m_key_COND_flush_queue = key_COND_flush_queue;
 
     m_key_LOCK_commit_queue = key_LOCK_commit_queue;
+    m_key_LOCK_after_commit_queue = key_LOCK_after_commit_queue;
     m_key_LOCK_done = key_LOCK_done;
     m_key_LOCK_flush_queue = key_LOCK_flush_queue;
     m_key_LOCK_sync_queue = key_LOCK_sync_queue;
@@ -380,6 +387,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     m_key_LOCK_log = key_LOCK_log;
     m_key_LOCK_binlog_end_pos = key_LOCK_binlog_end_pos;
     m_key_LOCK_commit = key_LOCK_commit;
+    m_key_LOCK_after_commit = key_LOCK_after_commit;
     m_key_LOCK_sync = key_LOCK_sync;
     m_key_LOCK_xids = key_LOCK_xids;
     m_key_update_cond = key_update_cond;
@@ -930,6 +938,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   const char *get_name() const { return name; }
   inline mysql_mutex_t *get_log_lock() { return &LOCK_log; }
   inline mysql_mutex_t *get_commit_lock() { return &LOCK_commit; }
+  inline mysql_mutex_t *get_after_commit_lock() { return &LOCK_after_commit; }
   inline mysql_cond_t *get_log_cond() { return &update_cond; }
   inline Binlog_ofile *get_binlog_file() { return m_binlog_file; }
 

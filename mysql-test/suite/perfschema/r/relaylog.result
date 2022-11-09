@@ -65,6 +65,8 @@ wait/synch/cond/sql/MYSQL_BIN_LOG::COND_done	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_flush_queue	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_wait_for_group_turn	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::prep_xids_cond	NONE
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_after_commit	MANY
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_after_commit_queue	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_binlog_end_pos	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit_queue	MANY
@@ -166,6 +168,8 @@ wait/synch/cond/sql/MYSQL_BIN_LOG::COND_done	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_flush_queue	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_wait_for_group_turn	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::prep_xids_cond	NONE
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_after_commit	MANY
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_after_commit_queue	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_binlog_end_pos	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit_queue	MANY
