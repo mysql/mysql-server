@@ -103,6 +103,14 @@ class RoutingConnectionBase {
       BlockedEndpoints &blocked_endpoints) = 0;
 };
 
+template <class Protocol>
+struct IsTransportSecure : std::false_type {};
+
+#ifdef NET_TS_HAS_UNIX_SOCKET
+template <>
+struct IsTransportSecure<local::stream_protocol> : std::true_type {};
+#endif
+
 /**
  * basic connection which wraps a net-ts Protocol.
  *
@@ -126,6 +134,25 @@ class BasicConnection : public ConnectionBase {
       : sock_{std::move(sock)}, ep_{std::move(ep)} {}
 
   net::io_context &io_ctx() override { return sock_.get_executor().context(); }
+
+  stdx::expected<void, std::error_code> set_io_context(
+      net::io_context &new_ctx) override {
+    // nothing to do.
+    if (sock_.get_executor() == new_ctx.get_executor()) return {};
+
+    return sock_.release().and_then(
+        [this, &new_ctx](
+            auto native_handle) -> stdx::expected<void, std::error_code> {
+          socket_type new_sock(new_ctx);
+
+          auto assign_res = new_sock.assign(ep_.protocol(), native_handle);
+          if (!assign_res) return assign_res;
+
+          std::swap(sock_, new_sock);
+
+          return {};
+        });
+  }
 
   void async_recv(recv_buffer_type &buf,
                   std::function<void(std::error_code ec, size_t transferred)>
@@ -241,6 +268,15 @@ class BasicConnection : public ConnectionBase {
   stdx::expected<void, std::error_code> get_option(
       GettableSocketOption &opt) const {
     return sock_.get_option(opt);
+  }
+
+  /**
+   * check if the underlying transport is secure.
+   *
+   * - unix-socket, shared-memory, ... are secure.
+   */
+  [[nodiscard]] bool is_secure_transport() const override {
+    return IsTransportSecure<Protocol>::value;
   }
 
  protected:
@@ -416,6 +452,16 @@ class TlsSwitchableConnection {
   }
 
   std::unique_ptr<ConnectionBase> &connection() { return conn_; }
+
+  /**
+   * check if the channel is secure.
+   *
+   * - if TLS is enabled, it the transport is secure
+   * - if transport is secure, the channel is secure
+   */
+  [[nodiscard]] bool is_secure_transport() const {
+    return conn_->is_secure_transport() || channel_->ssl();
+  }
 
  private:
   // tcp/unix-socket

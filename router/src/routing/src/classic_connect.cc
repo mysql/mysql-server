@@ -224,9 +224,6 @@ ConnectProcessor::from_pool() {
     return Result::Again;
   }
 
-  auto &io_ctx =
-      connection()->socket_splicer()->client_conn().connection()->io_ctx();
-
   auto &pools = ConnectionPoolComponent::get_instance();
 
   if (auto pool = pools.get(ConnectionPoolComponent::default_pool_name())) {
@@ -243,7 +240,6 @@ ConnectProcessor::from_pool() {
 
     auto pool_res = pool->pop_if(
         [client_caps, ep = mysqlrouter::to_string(server_endpoint_),
-         my_executor = io_ctx.get_executor(),
          requires_tls = connection()->requires_tls()](const auto &pooled_conn) {
           auto pooled_caps = pooled_conn.shared_capabilities();
 
@@ -251,11 +247,9 @@ ConnectProcessor::from_pool() {
               .reset(classic_protocol::capabilities::pos::compress)
               .reset(classic_protocol::capabilities::pos::compress_zstd);
 
-          return pooled_conn.endpoint() == ep &&  //
-                 client_caps == pooled_caps &&    //
-                 pooled_conn.connection()->io_ctx().get_executor() ==
-                     my_executor &&
-                 (requires_tls == (bool)pooled_conn.ssl());
+          return (pooled_conn.endpoint() == ep &&  //
+                  client_caps == pooled_caps &&    //
+                  (requires_tls == (bool)pooled_conn.ssl()));
         });
 
     if (pool_res) {
@@ -269,11 +263,15 @@ ConnectProcessor::from_pool() {
         trace(Tracer::Event().stage(
             "connect::from_pool: " +
             destination_id_from_endpoint(*endpoints_it_)));
+
         // if the socket would be closed, recv() would return 0 for "eof".
         //
         // socket is still alive. good.
         socket_splicer->server_conn() =
             make_connection_from_pooled(std::move(*pool_res));
+
+        (void)socket_splicer->server_conn().connection()->set_io_context(
+            socket_splicer->client_conn().connection()->io_ctx());
 
         stage(Stage::Connected);
         return Result::Again;

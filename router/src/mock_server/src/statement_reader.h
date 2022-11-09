@@ -147,16 +147,18 @@ class ProtocolBase {
               async_send(std::move(compl_handler));
             });
       } else {
-        net::defer([compl_handler = std::move(init.completion_handler),
+        net::defer(client_socket_.get_executor(),
+                   [compl_handler = std::move(init.completion_handler),
                     ec = write_res.error()]() { compl_handler(ec, {}); });
       }
     } else {
       net::dynamic_buffer(send_buffer_).consume(write_res.value());
 
-      net::defer([compl_handler = std::move(init.completion_handler),
+      net::defer(client_socket_.get_executor(),
+                 [compl_handler = std::move(init.completion_handler),
                   transferred = write_res.value()]() {
-        compl_handler({}, transferred);
-      });
+                   compl_handler({}, transferred);
+                 });
     }
 
     return init.result.get();

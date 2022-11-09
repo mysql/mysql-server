@@ -421,11 +421,27 @@ class MysqlClient {
 
   void flags(unsigned long f) { flags_ = f; }
 
-  stdx::expected<void, MysqlError> connect(std::string hostname,
+  // tag class for unix-socket connections
+  struct unix_socket_t {};
+
+  stdx::expected<void, MysqlError> connect(const std::string &hostname,
                                            uint16_t port = 3306) {
     const auto r = mysql_real_connect(
         m_.get(), hostname.c_str(), username_.c_str(), password_.c_str(),
         initial_schema_.c_str(), port, nullptr /* socket */, flags_);
+
+    if (r == nullptr) {
+      return stdx::make_unexpected(make_mysql_error_code(m_.get()));
+    }
+
+    return {};
+  }
+
+  stdx::expected<void, MysqlError> connect(unix_socket_t,
+                                           const std::string &path) {
+    const auto r = mysql_real_connect(
+        m_.get(), "localhost", username_.c_str(), password_.c_str(),
+        initial_schema_.c_str(), 0, path.c_str(), flags_);
 
     if (r == nullptr) {
       return stdx::make_unexpected(make_mysql_error_code(m_.get()));
