@@ -51,8 +51,9 @@ sub process
   {
     $pwd_arg = "--defaults-extra-file=${NDB_ENCRYPTED_CNF} ";
   }
-  print "ndb_print_backup_file " .
-        ($pwd_arg =~ s|$ENV{MYSQL_TEST_DIR}/||r) .
+  my $pwd_arg_printable = $pwd_arg;
+  $pwd_arg_printable =~ s|$ENV{MYSQL_TEST_DIR}/||;
+  print "ndb_print_backup_file ${pwd_arg_printable}" .
         "suite/ndb/backups" .
           substr($File::Find::name, length($NDB_SAVED_BACKUPS)) .
         "\n";
