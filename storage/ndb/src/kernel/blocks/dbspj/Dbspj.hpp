@@ -1479,7 +1479,8 @@ private:
 
   Uint32 planSequentialExec(Ptr<Request>  requestPtr,
                             const Ptr<TreeNode> branchPtr,
-                            Ptr<TreeNode> prevExecPtr);
+                            Ptr<TreeNode> prevExecPtr,
+                            TreeNodeBitMask outerJoins = TreeNodeBitMask());
 
   Uint32 appendTreeNode(Ptr<Request>  requestPtr,
                         Ptr<TreeNode> treeNodePtr,
