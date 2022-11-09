@@ -2565,7 +2565,7 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
     // we can't do pushdown to non-WARP tables.  The following call will return
     // a non-zero value for storage engines other than WARP
     auto engineSupportsIndexes = table->file->get_default_index_algorithm();
-    if(engienSupportsIndexes != 0) { 
+    if(engineSupportsIndexes != 0) { 
       continue;
     }
     if (cond == nullptr && join->where_cond == nullptr) { 
