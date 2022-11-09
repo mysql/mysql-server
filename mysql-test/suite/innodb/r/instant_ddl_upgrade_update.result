@@ -23,7 +23,7 @@ Table	Create Table
 t1_redundant	CREATE TABLE `t1_redundant` (
   `c1` longtext,
   `c2` int DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 BEGIN;
 UPDATE t1_redundant SET c2 = 0;
 ROLLBACK;
@@ -37,7 +37,7 @@ t2_redundant	CREATE TABLE `t2_redundant` (
   `c1` longtext,
   `c2` int DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 BEGIN;
 UPDATE t2_redundant SET c2 = 0;
 ROLLBACK;
@@ -62,7 +62,7 @@ Table	Create Table
 t1_dynamic	CREATE TABLE `t1_dynamic` (
   `c1` longtext,
   `c2` int DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 BEGIN;
 UPDATE t1_dynamic SET c2 = 0;
 ROLLBACK;
@@ -76,7 +76,7 @@ t2_dynamic	CREATE TABLE `t2_dynamic` (
   `c1` longtext,
   `c2` int DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 BEGIN;
 UPDATE t2_dynamic SET c2 = 0;
 ROLLBACK;
@@ -101,7 +101,7 @@ Table	Create Table
 t1_compact	CREATE TABLE `t1_compact` (
   `c1` longtext,
   `c2` int DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 BEGIN;
 UPDATE t1_compact SET c2 = 0;
 ROLLBACK;
@@ -115,7 +115,7 @@ t2_compact	CREATE TABLE `t2_compact` (
   `c1` longtext,
   `c2` int DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 BEGIN;
 UPDATE t2_compact SET c2 = 0;
 ROLLBACK;

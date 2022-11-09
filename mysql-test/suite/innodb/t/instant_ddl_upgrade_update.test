@@ -14,27 +14,27 @@
 # ------------------------------------------------------------
 # Tables created on earlier version with following
 # ------------------------------------------------------------
-# CREATE TABLE t1_redundant(c1 longtext);
+# CREATE TABLE t1_redundant(c1 longtext) ROW_FORMAT=REDUNDANT;
 # INSERT INTO t1_redundant VALUES (repeat('x', 8098));
 # ALTER TABLE t1_redundant ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 #
-# CREATE TABLE t2_redundant(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext);
+# CREATE TABLE t2_redundant(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext) ROW_FORMAT=REDUNDANT;
 # INSERT INTO t2_redundant VALUES (1, repeat('x', 8100));
 # ALTER TABLE t2_redundant ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 #
-# CREATE TABLE t1_compact(c1 longtext);
+# CREATE TABLE t1_compact(c1 longtext) ROW_FORMAT=COMPACT;
 # INSERT INTO t1_compact VALUES (repeat('x', 8098));
 # ALTER TABLE t1_compact ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 #
-# CREATE TABLE t2_compact(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext);
+# CREATE TABLE t2_compact(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext) ROW_FORMAT=COMPACT;
 # INSERT INTO t2_compact VALUES (1, repeat('x', 8100));
 # ALTER TABLE t2_compact ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 #
-# CREATE TABLE t1_dynamic(c1 longtext);
+# CREATE TABLE t1_dynamic(c1 longtext) ROW_FORMAT=DYNAMIC;
 # INSERT INTO t1_dynamic VALUES (repeat('x', 8098));
 # ALTER TABLE t1_dynamic ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 #
-# CREATE TABLE t2_dynamic(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext);
+# CREATE TABLE t2_dynamic(id int NOT NULL AUTO_INCREMENT KEY, c1 longtext) ROW_FORMAT=DYNAMIC;
 # INSERT INTO t2_dynamic VALUES (1, repeat('x', 8100));
 # ALTER TABLE t2_dynamic ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 # ------------------------------------------------------------

@@ -9,7 +9,7 @@
 # ------------------------------------------------------------
 # Tables created on earlier version with following
 # ------------------------------------------------------------
-# CREATE TABLE t1_redundant (c1 INT, c2 CHAR(10))
+# CREATE TABLE t1_redundant (c1 INT, c2 CHAR(10)) ROW_FORMAT=REDUNDANT
 #  PARTITION BY RANGE(c1)
 #   (PARTITION p0 VALUES LESS THAN (100),
 #    PARTITION p1 VALUES LESS THAN (200),
@@ -21,7 +21,7 @@
 # ALTER TABLE t1_redundant ADD COLUMN c4 CHAR(10) default "c4_def";
 # INSERT INTO t1_redundant VALUES(60, "r6c2", "r6c3", "r6c4");
 
-# CREATE TABLE t1_dynamic (c1 INT, c2 CHAR(10))
+# CREATE TABLE t1_dynamic (c1 INT, c2 CHAR(10)) ROW_FORMAT=DYNAMIC
 #  PARTITION BY RANGE(c1)
 #   (PARTITION p0 VALUES LESS THAN (100),
 #    PARTITION p1 VALUES LESS THAN (200),
@@ -33,7 +33,7 @@
 # ALTER TABLE t1_dynamic ADD COLUMN c4 CHAR(10) default "c4_def";
 # INSERT INTO t1_dynamic VALUES(60, "r6c2", "r6c3", "r6c4");
 
-# CREATE TABLE t1_compact (c1 INT, c2 CHAR(10))
+# CREATE TABLE t1_compact (c1 INT, c2 CHAR(10)) ROW_FORMAT=COMPACT
 #  PARTITION BY RANGE(c1)
 #   (PARTITION p0 VALUES LESS THAN (100),
 #    PARTITION p1 VALUES LESS THAN (200),
@@ -45,7 +45,7 @@
 # ALTER TABLE t1_compact ADD COLUMN c4 CHAR(10) default "c4_def";
 # INSERT INTO t1_compact VALUES(60, "r6c2", "r6c3", "r6c4");
 #
-# CREATE TABLE t2_redundant (c1 INT, c2 INT, c3 INT, c4 TEXT)
+# CREATE TABLE t2_redundant (c1 INT, c2 INT, c3 INT, c4 TEXT) ROW_FORMAT=REDUNDANT
 #  PARTITION BY RANGE(c1)
 #   (PARTITION p0 VALUES LESS THAN (100),
 #    PARTITION p1 VALUES LESS THAN (200),
@@ -55,7 +55,7 @@
 # Alter table t2_redundant add column c5 INT, algorithm=INSTANT;
 # ALTER TABLE t2_redundant TRUNCATE PARTITION p0, p1, p2;
 #
-# CREATE TABLE t2_dynamic (c1 INT, c2 INT, c3 INT, c4 TEXT)
+# CREATE TABLE t2_dynamic (c1 INT, c2 INT, c3 INT, c4 TEXT) ROW_FORMAT=DYNAMIC
 #  PARTITION BY RANGE(c1)
 #   (PARTITION p0 VALUES LESS THAN (100),
 #    PARTITION p1 VALUES LESS THAN (200),
@@ -65,7 +65,7 @@
 # Alter table t2_dynamic  add column c5 INT, algorithm=INSTANT;
 # ALTER TABLE t2_dynamic  TRUNCATE PARTITION p0, p1, p2;
 #
-# CREATE TABLE t2_compact (c1 INT, c2 INT, c3 INT, c4 TEXT)
+# CREATE TABLE t2_compact (c1 INT, c2 INT, c3 INT, c4 TEXT) ROW_FORMAT=COMPACT
 #  PARTITION BY RANGE(c1)
 #   (PARTITION p0 VALUES LESS THAN (100),
 #    PARTITION p1 VALUES LESS THAN (200),

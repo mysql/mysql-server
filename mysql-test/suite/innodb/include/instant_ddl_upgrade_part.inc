@@ -106,6 +106,8 @@ eval DROP TABLE t1_$row_format;
 --echo #
 --echo #     Partition p0, p1, p2 are truncated.
 --echo # ------------------------------------------------------------
+eval SHOW CREATE TABLE t2_$row_format;
+
 eval SELECT * FROM t2_$row_format ORDER BY c1;
 --let $table_name=t2_$row_format
 --source suite/innodb/include/print_instant_part_metadata.inc
