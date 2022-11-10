@@ -1124,7 +1124,7 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
 
   if (is_left_most && level > 0 && page_loader->get_rec_no() == 0) {
     /* The node pointer must be marked as the predefined minimum
-    record,     as there is no lower alphabetical limit to records in
+    record, as there is no lower alphabetical limit to records in
     the leftmost node of a level: */
     const auto info_bits = dtuple_get_info_bits(tuple) | REC_INFO_MIN_REC_FLAG;
     dtuple_set_info_bits(tuple, info_bits);
