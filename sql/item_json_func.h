@@ -945,6 +945,8 @@ class Item_func_json_storage_size final : public Item_int_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_JSON)) return true;
+    if (Item_int_func::resolve_type(thd)) return true;
+    set_nullable(true);
     return false;
   }
 

@@ -9834,7 +9834,7 @@ String *Item_cache_json::val_str(String *tmp) {
 double Item_cache_json::val_real() {
   Json_wrapper wr;
 
-  if (val_json(&wr)) return 0.0;
+  if (val_json(&wr)) return error_real();
 
   if (null_value) return 0.0;
 
@@ -9844,9 +9844,9 @@ double Item_cache_json::val_real() {
 my_decimal *Item_cache_json::val_decimal(my_decimal *decimal_value) {
   Json_wrapper wr;
 
-  if (val_json(&wr)) return decimal_value;
+  if (val_json(&wr)) return error_decimal(decimal_value);
 
-  if (null_value) return decimal_value;
+  if (null_value) return error_decimal(decimal_value);
 
   return wr.coerce_decimal(decimal_value, whence(cached_field));
 }
@@ -9873,9 +9873,9 @@ bool Item_cache_json::get_time(MYSQL_TIME *ltime) {
 
 longlong Item_cache_json::val_int() {
   Json_wrapper wr;
-  if (val_json(&wr)) return 0;
+  if (val_json(&wr)) return error_int();
 
-  if (null_value) return true;
+  if (null_value) return 0;
 
   return wr.coerce_int(whence(cached_field));
 }
