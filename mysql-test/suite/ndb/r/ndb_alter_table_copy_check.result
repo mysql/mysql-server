@@ -541,3 +541,78 @@ a	c
 set DEBUG_SYNC='RESET';
 drop table oxford;
 drop table cambridge;
+Create RP, RB and FR tables
+create table mab_rp (a int primary key, b int, c int, d int) engine=ndb COMMENT='NDB_TABLE=READ_BACKUP=0';
+create table mab_rb (a int primary key, b int, c int, d int) engine=ndb COMMENT='NDB_TABLE=READ_BACKUP=1';
+create table mab_fr (a int primary key, b int, c int, d int) engine=ndb COMMENT='NDB_TABLE=FULLY_REPLICATED=1';
+Create some data in all table types
+insert into mab_rp values (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5);
+insert into mab_rp select a+5, b+5, c+5, d+5 from mab_rp;
+insert into mab_rp select a+10, b+10, c+10, d+10 from mab_rp;
+insert into mab_rp select a+20, b+20, c+20, d+20 from mab_rp;
+insert into mab_rb select * from mab_rp;
+insert into mab_fr select * from mab_rp;
+Perform some updates, so commit count != row count
+update mab_rp set b=b+1;
+update mab_rb set b=b+1;
+update mab_fr set b=b+1;
+Check stable commit counts
+4 node cluster with 2 replicas ((1,2), (3,4))
+Split into two logical sub clusters with (at least) all fragments A (1,3), B (2,4)
+Show how (sum of) commit counts in each sub cluster diverge over node restart
+select sum(tot_commits) into @rp_commits_a from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rp' and (node_id=1 or node_id=3);
+select sum(tot_commits) = @rp_commits_a as rp_commit_counts_same from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rp' and (node_id=2 or node_id=4);
+rp_commit_counts_same
+1
+select sum(tot_commits) into @rb_commits_a from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rb' and (node_id=1 or node_id=3);
+select sum(tot_commits) = @rb_commits_a as rb_commits_counts_same from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rb' and (node_id=2 or node_id=4);
+rb_commits_counts_same
+1
+select sum(tot_commits) into @fr_commits_a from ndbinfo.operations_per_fragment where fq_name='test/def/mab_fr' and (node_id=1 or node_id=3);
+select sum(tot_commits) = @fr_commits_a as fr_commit_counts_same from ndbinfo.operations_per_fragment where fq_name='test/def/mab_fr' and (node_id=2 or node_id=4);
+fr_commit_counts_same
+1
+Restart one data node to cause different replicas to
+have different commit counts
+Node 1 is being restarted
+
+Database node 1 is being started.
+
+Node restarted
+Show commit counts on A changed
+select sum(tot_commits) = @rp_commits_a as rp_commits_a_same from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rp' and (node_id=1 or node_id=3);
+rp_commits_a_same
+0
+select sum(tot_commits) = @rb_commits_a as rb_commits_a_same from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rb' and (node_id=1 or node_id=3);
+rb_commits_a_same
+0
+select sum(tot_commits) = @fr_commits_a as fr_commits_a_same from ndbinfo.operations_per_fragment where fq_name='test/def/mab_fr' and (node_id=1 or node_id=3);
+fr_commits_a_same
+0
+Show commit counts no longer the same A vs B
+select sum(tot_commits) into @rp_commits_a from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rp' and (node_id=1 or node_id=3);
+select sum(tot_commits) = @rp_commits_a as rp_commit_counts_same from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rp' and (node_id=2 or node_id=4);
+rp_commit_counts_same
+0
+select sum(tot_commits) into @rb_commits_a from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rb' and (node_id=1 or node_id=3);
+select sum(tot_commits) = @rb_commits_a as rb_commit_counts_same from ndbinfo.operations_per_fragment where fq_name='test/def/mab_rb' and (node_id=2 or node_id=4);
+rb_commit_counts_same
+0
+select sum(tot_commits) into @fr_commits_a from ndbinfo.operations_per_fragment where fq_name='test/def/mab_fr' and (node_id=1 or node_id=3);
+select sum(tot_commits) = @fr_commits_a as fr_commits_counts_same from ndbinfo.operations_per_fragment where fq_name='test/def/mab_fr' and (node_id=2 or node_id=4);
+fr_commits_counts_same
+0
+Check that ALTER TABLE can handle this situation
+ALTER TABLE mab_rp DROP COLUMN d;
+ALTER TABLE mab_rb DROP COLUMN d;
+ALTER TABLE mab_fr DROP COLUMN d;
+Check that there are no resources left in use
+select count(1) from ndbinfo.cluster_transactions;
+count(1)
+0
+select count(1) from ndbinfo.cluster_operations;
+count(1)
+0
+drop table mab_rp;
+drop table mab_rb;
+drop table mab_fr;

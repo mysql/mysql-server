@@ -698,13 +698,12 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
    public:
     // Save the commit count for source table during copying ALTER,
-    // returns false on success and true on error
-    bool save_commit_count(Thd_ndb *thd_ndb,
-                           const NdbDictionary::Table *ndbtab);
+    // returns 0 on success, handler error otherwise
+    int save_commit_count(Thd_ndb *thd_ndb, const NdbDictionary::Table *ndbtab);
     // Check commit count for source table during copying ALTER,
-    // returns false on success and true on error
-    bool check_saved_commit_count(Thd_ndb *thd_ndb,
-                                  const NdbDictionary::Table *ndbtab) const;
+    // returns 0 on success, handler error otherwise
+    int check_saved_commit_count(Thd_ndb *thd_ndb,
+                                 const NdbDictionary::Table *ndbtab) const;
   } copying_alter;
 
   /* State for setActiveHook() callback for reading blob data. */
