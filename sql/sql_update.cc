@@ -2550,10 +2550,12 @@ bool UpdateRowsIterator::DoImmediateUpdatesAndBufferRowIds(
       }
 
       /* Store regular updated fields in the row. */
-      fill_record(thd(), tmp_table,
-                  tmp_table->visible_field_ptr() + 1 +
-                      m_unupdated_check_opt_tables.size(),
-                  *m_values_for_table[offset], nullptr, nullptr, false);
+      if (fill_record(thd(), tmp_table,
+                      tmp_table->visible_field_ptr() + 1 +
+                          m_unupdated_check_opt_tables.size(),
+                      *m_values_for_table[offset], nullptr, nullptr, false)) {
+        return true;
+      }
 
       // check if a record exists with the same hash value
       if (!check_unique_constraint(tmp_table))

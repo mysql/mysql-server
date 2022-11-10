@@ -10810,6 +10810,8 @@ int ha_innobase::rnd_next(uchar *buf) /*!< in/out: returns the row in this
 
   DBUG_TRACE;
 
+  if (m_user_thd->transaction_rollback_request) return HA_ERR_GENERIC;
+
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
   if (m_start_of_scan) {
