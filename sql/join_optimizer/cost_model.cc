@@ -610,7 +610,7 @@ double EstimateAggregateRows(const TermArray &terms, double child_rows,
 
   if (trace != nullptr) {
     *trace += StringPrintf(
-        "Estimating %.1f distinct values for %lu non-field terms"
+        "Estimating %.1f distinct values for %zu non-field terms"
         " and %.1f in total.\n",
         non_field_values, remaining_term_cnt, output_rows);
   }
@@ -682,7 +682,7 @@ void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
 
     if (trace != nullptr) {
       *trace += StringPrintf(
-          "\nEstimating row count for aggregation on %lu terms.\n", term_count);
+          "\nEstimating row count for aggregation on %zu terms.\n", term_count);
     }
 
     output_rows = EstimateAggregateRows(terms, child_rows, trace);
@@ -702,7 +702,7 @@ void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
 
         if (trace != nullptr) {
           *trace +=
-              StringPrintf("\nEstimating row count for ROLLUP on %lu terms.\n",
+              StringPrintf("\nEstimating row count for ROLLUP on %zu terms.\n",
                            terms.size());
         }
         output_rows += EstimateAggregateRows(terms, child_rows, trace);
