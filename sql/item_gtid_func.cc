@@ -53,8 +53,6 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
   assert(fixed);
   THD *thd = current_thd;
 
-  null_value = false;
-
   String *gtid_text = args[0]->val_str(&value);
   if (gtid_text == nullptr) {
     /*
@@ -68,6 +66,17 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     return error_int();
   }
 
+  double timeout = 0;
+  if (arg_count > 1) {
+    timeout = args[1]->val_real();
+    if (args[1]->null_value || timeout < 0) {
+      if (!thd->is_error()) {
+        my_error(ER_WRONG_ARGUMENTS, MYF(0), "WAIT_FOR_EXECUTED_GTID_SET.");
+      }
+      return error_int();
+    }
+  }
+
   // Waiting for a GTID in a slave thread could cause the slave to
   // hang/deadlock.
   // @todo: Return error instead of NULL
@@ -77,16 +86,15 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
 
   Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
 
-  global_sid_lock->rdlock();
+  Checkable_rwlock::Guard global_sid_lock_guard(*global_sid_lock,
+                                                Checkable_rwlock::READ_LOCK);
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
-    global_sid_lock->unlock();
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     return error_int();
   }
 
   if (wait_for_gtid_set.add_gtid_text(gtid_text->c_ptr_safe()) !=
       RETURN_STATUS_OK) {
-    global_sid_lock->unlock();
     // Error has already been generated.
     return error_int();
   }
@@ -97,37 +105,22 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
       wait_for_gtid_set.contains_gtid(thd->owned_gtid)) {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
     thd->owned_gtid.to_string(global_sid_map, buf);
-    global_sid_lock->unlock();
     my_error(ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID, MYF(0),
              buf);
     return error_int();
   }
 
   gtid_state->begin_gtid_wait();
-
-  double timeout = (arg_count == 2) ? args[1]->val_real() : 0;
-  if (timeout < 0) {
-    if (thd->is_strict_mode()) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "WAIT_FOR_EXECUTED_GTID_SET.");
-    } else {
-      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          ER_THD(thd, ER_WRONG_ARGUMENTS),
-                          "WAIT_FOR_EXECUTED_GTID_SET.");
-    }
-    gtid_state->end_gtid_wait();
-    global_sid_lock->unlock();
-    return error_int();
-  }
-
   bool result = gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout);
-  global_sid_lock->unlock();
   gtid_state->end_gtid_wait();
 
+  null_value = false;
   return result;
 }
 
 Item_master_gtid_set_wait::Item_master_gtid_set_wait(const POS &pos, Item *a)
     : Item_int_func(pos, a) {
+  null_on_null = false;
   push_deprecated_warn(current_thd, "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS",
                        "WAIT_FOR_EXECUTED_GTID_SET");
 }
@@ -135,6 +128,7 @@ Item_master_gtid_set_wait::Item_master_gtid_set_wait(const POS &pos, Item *a)
 Item_master_gtid_set_wait::Item_master_gtid_set_wait(const POS &pos, Item *a,
                                                      Item *b)
     : Item_int_func(pos, a, b) {
+  null_on_null = false;
   push_deprecated_warn(current_thd, "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS",
                        "WAIT_FOR_EXECUTED_GTID_SET");
 }
@@ -142,6 +136,7 @@ Item_master_gtid_set_wait::Item_master_gtid_set_wait(const POS &pos, Item *a,
 Item_master_gtid_set_wait::Item_master_gtid_set_wait(const POS &pos, Item *a,
                                                      Item *b, Item *c)
     : Item_int_func(pos, a, b, c) {
+  null_on_null = false;
   push_deprecated_warn(current_thd, "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS",
                        "WAIT_FOR_EXECUTED_GTID_SET");
 }
@@ -157,41 +152,45 @@ bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res) {
 longlong Item_master_gtid_set_wait::val_int() {
   assert(fixed);
   DBUG_TRACE;
-  int event_count = 0;
+  THD *thd = current_thd;
 
-  null_value = false;
-
-  String *gtid = args[0]->val_str(&value);
+  String *gtid = args[0]->val_str(&gtid_value);
   if (gtid == nullptr) {
+    if (!thd->is_error()) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0),
+               "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+    }
     return error_int();
   }
 
-  THD *thd = current_thd;
-  Master_info *mi = nullptr;
-  double timeout = (arg_count >= 2) ? args[1]->val_real() : 0;
-  if (timeout < 0) {
-    if (thd->is_strict_mode()) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0),
-               "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
-    } else {
-      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          ER_THD(thd, ER_WRONG_ARGUMENTS),
-                          "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+  double timeout = 0;
+  if (arg_count > 1) {
+    timeout = args[1]->val_real();
+    if (args[1]->null_value || timeout < 0) {
+      if (!thd->is_error()) {
+        my_error(ER_WRONG_ARGUMENTS, MYF(0),
+                 "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+      }
+      return error_int();
     }
-    return error_int();
   }
 
   if (thd->slave_thread) {
     return error_int();
   }
 
+  Master_info *mi = nullptr;
   channel_map.rdlock();
 
   /* If replication channel is mentioned */
-  if (arg_count == 3) {
-    String *channel_str;
-    if (!(channel_str = args[2]->val_str(&value))) {
+  if (arg_count > 2) {
+    String *channel_str = args[2]->val_str(&channel_value);
+    if (channel_str == nullptr) {
       channel_map.unlock();
+      if (!thd->is_error()) {
+        my_error(ER_WRONG_ARGUMENTS, MYF(0),
+                 "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+      }
       return error_int();
     }
     mi = channel_map.get_mi(channel_str->ptr());
@@ -224,6 +223,7 @@ longlong Item_master_gtid_set_wait::val_int() {
   channel_map.unlock();
 
   bool null_result = false;
+  int event_count = 0;
 
   if (mi != nullptr && mi->rli != nullptr) {
     event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout);
@@ -240,6 +240,7 @@ longlong Item_master_gtid_set_wait::val_int() {
 
   gtid_state->end_gtid_wait();
 
+  null_value = false;
   return null_result ? error_int() : event_count;
 }
 
@@ -250,10 +251,7 @@ longlong Item_master_gtid_set_wait::val_int() {
 */
 longlong Item_func_gtid_subset::val_int() {
   DBUG_TRACE;
-
   assert(fixed);
-
-  null_value = false;
 
   // Evaluate strings without lock
   String *string1 = args[0]->val_str(&buf1);
@@ -281,6 +279,8 @@ longlong Item_func_gtid_subset::val_int() {
       ret = sub_set.is_subset(&super_set) ? 1 : 0;
     }
   }
+
+  null_value = false;
   return ret;
 }
 
@@ -304,10 +304,7 @@ bool Item_func_gtid_subtract::resolve_type(THD *thd) {
 
 String *Item_func_gtid_subtract::val_str_ascii(String *str) {
   DBUG_TRACE;
-
   assert(fixed);
-
-  null_value = false;
 
   String *str1 = args[0]->val_str_ascii(&buf1);
   if (str1 == nullptr) {
@@ -337,6 +334,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str) {
       if (!str->mem_realloc((length = set1.get_string_length()) + 1)) {
         set1.to_string(str->ptr());
         str->length(length);
+        null_value = false;
         return str;
       }
     }

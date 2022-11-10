@@ -8,14 +8,11 @@ Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:100', -1);;
 ERROR HY000: Incorrect arguments to WAIT_FOR_EXECUTED_GTID_SET.
-When SQL_MODE is non-strict mode, then it will return NULL immediately
-without doing any work and generates WRONG_ARGUMENTS warning.
+When SQL_MODE is non-strict mode the function executes
+same as in strict SQL_MODE and generates WRONG_ARGUMENTS error.
 SET @@SESSION.SQL_MODE="";
 SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:100', -1);;
-WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:100', -1)
-NULL
-Warnings:
-Warning	1210	Incorrect arguments to WAIT_FOR_EXECUTED_GTID_SET.
+ERROR HY000: Incorrect arguments to WAIT_FOR_EXECUTED_GTID_SET.
 SET @@SESSION.SQL_MODE=@save_sql_mode;
 Test WAIT_FOR_EXECUTED_GTID_SET function with fractional timeout value.
 Earlier(before fix), 0.4 is read as integer value '0' and the function

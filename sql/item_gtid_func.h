@@ -45,9 +45,13 @@ class Item_wait_for_executed_gtid_set final : public Item_int_func {
 
  public:
   Item_wait_for_executed_gtid_set(const POS &pos, Item *a)
-      : Item_int_func(pos, a) {}
+      : Item_int_func(pos, a) {
+    null_on_null = false;
+  }
   Item_wait_for_executed_gtid_set(const POS &pos, Item *a, Item *b)
-      : Item_int_func(pos, a, b) {}
+      : Item_int_func(pos, a, b) {
+    null_on_null = false;
+  }
 
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
@@ -65,7 +69,8 @@ class Item_wait_for_executed_gtid_set final : public Item_int_func {
 class Item_master_gtid_set_wait final : public Item_int_func {
   typedef Item_int_func super;
 
-  String value;
+  String gtid_value;
+  String channel_value;
 
  public:
   Item_master_gtid_set_wait(const POS &pos, Item *a);

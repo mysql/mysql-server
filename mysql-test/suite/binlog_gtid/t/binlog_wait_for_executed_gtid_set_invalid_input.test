@@ -22,10 +22,11 @@ SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
 --error ER_WRONG_ARGUMENTS
 --eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:100', -1);
 
---echo When SQL_MODE is non-strict mode, then it will return NULL immediately
---echo without doing any work and generates WRONG_ARGUMENTS warning.
+--echo When SQL_MODE is non-strict mode the function executes
+--echo same as in strict SQL_MODE and generates WRONG_ARGUMENTS error.
 SET @@SESSION.SQL_MODE="";
 --replace_result $master_uuid MASTER_UUID
+--error ER_WRONG_ARGUMENTS
 --eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:100', -1);
 SET @@SESSION.SQL_MODE=@save_sql_mode;
 
