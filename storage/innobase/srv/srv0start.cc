@@ -2184,7 +2184,7 @@ dberr_t srv_start(bool create_new_db) {
         }
       }
 
-      buf_pool_wait_for_no_pending_io_reads();
+      buf_pool_wait_for_no_pending_io();
 
       if (redo_writes_allowed) {
         /* Create checkpoint to ensure that the checkpoint header is flushed
@@ -2278,7 +2278,7 @@ dberr_t srv_start(bool create_new_db) {
       log_start_background_threads(*log_sys);
 
     } else if (recv_sys->is_cloned_db || recv_sys->is_meb_db) {
-      buf_pool_wait_for_no_pending_io_reads();
+      buf_pool_wait_for_no_pending_io();
 
       /* Reset creator for log */
 
@@ -2968,7 +2968,7 @@ static void srv_shutdown_page_cleaners() {
 
   srv_shutdown_set_state(SRV_SHUTDOWN_FLUSH_PHASE);
 
-  buf_pool_wait_for_no_pending_io_reads();
+  buf_pool_wait_for_no_pending_io();
 
   /* At this point only page_cleaner should be active. We wait
   here to let it complete the flushing of the buffer pools

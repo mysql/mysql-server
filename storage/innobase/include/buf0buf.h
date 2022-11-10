@@ -687,12 +687,12 @@ size_t buf_pool_pending_io_reads_count();
 @return number of pending i/o writes */
 size_t buf_pool_pending_io_writes_count();
 
-/** Waits until there are no pending I/O read operations for the buffer pool.
+/** Waits until there are no pending I/O operations for the buffer pool.
 Keep waiting in loop with sleeps, emitting information every minute.
-This is used to avoid risk of some pending async read (e.g. enqueued by
+This is used to avoid risk of some pending async IO (e.g. enqueued by
 the linear read-ahead), which would involve ibuf merge and create new
 redo records. */
-void buf_pool_wait_for_no_pending_io_reads();
+void buf_pool_wait_for_no_pending_io();
 
 /** Invalidates the file pages in the buffer pool when an archive recovery is
  completed. All the file pages buffered must be in a replaceable state when
