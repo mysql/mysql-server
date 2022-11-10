@@ -31,6 +31,7 @@
 #include "my_table_map.h"
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/histograms/histogram.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
@@ -46,13 +47,15 @@
 using std::string;
 
 /**
-  Estimate the selectivity of (equi)joining a given field to any other field
-  using cardinality information from indexes, if possible. Assumes equal
-  distribution and zero correlation between the two fields, so if there are
-  e.g. 100 records and 4 distinct values (A,B,C,D) for the field, it assumes
-  25% of the values will be A, 25% B, etc. (equal distribution), and thus,
-  when joining a row from some other table against this one, 25% of the records
-  will match (equal distribution, zero correlation).
+  Estimate the selectivity of (equi)joining a given field to any other
+  field. Use cardinality information from indexes, if possible.
+  Otherwise, use a histogram if there is one. Assumes equal
+  distribution and zero correlation between the two fields, so if
+  there are e.g. 100 records and 4 distinct values (A,B,C,D) for the
+  field, it assumes 25% of the values will be A, 25% B, etc. (equal
+  distribution), and thus, when joining a row from some other table
+  against this one, 25% of the records will match (equal distribution,
+  zero correlation).
 
   If there are multiple ones, we choose the one with the largest
   selectivity (least selective). There are two main reasons for this:
@@ -66,7 +69,7 @@ using std::string;
      for many rows (e.g., nested loop against table scans). We should
      clearly prefer the least risky choice here.
 
-  Returns -1.0 if no index was found. Lifted from
+  Returns -1.0 if no index or no histogram was found. Lifted from
   Item_equal::get_filtering_effect.
  */
 static double EstimateFieldSelectivity(Field *field, double *selectivity_cap,
@@ -111,6 +114,31 @@ static double EstimateFieldSelectivity(Field *field, double *selectivity_cap,
         }
         *selectivity_cap =
             std::min(*selectivity_cap, 1.0 / table->file->stats.records);
+      }
+    }
+  }
+
+  // Look for a histogram if there was no suitable index.
+  if (selectivity == -1.0) {
+    const histograms::Histogram *const histogram =
+        field->table->s->find_histogram(field->field_index());
+
+    if (histogram != nullptr) {
+      /*
+        Assume that we do "SELECT ... FROM ... WHERE tab.field=<expression>".
+        And there is a histogram on 'tab.field' indicating that there are
+        N distinct values for that field. Then we estimate the selectivity
+        to be 1/N.
+      */
+      const double distinct_values = histogram->get_num_distinct_values();
+      selectivity = 1.0 / std::max(1.0, distinct_values);
+
+      if (trace != nullptr) {
+        *trace += StringPrintf(
+            " - estimating selectivity %f for field '%s.%s'"
+            " from histogram showing %.1f distinct values.\n",
+            selectivity, field->table->alias, field->field_name,
+            distinct_values);
       }
     }
   }
@@ -168,9 +196,9 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
         if (selectivity >= 0.0) {
           selectivity = std::min(selectivity, selectivity_cap);
           if (trace != nullptr) {
-            *trace +=
-                StringPrintf(" - used an index for %s, selectivity = %.3f\n",
-                             ItemToString(condition).c_str(), selectivity);
+            *trace += StringPrintf(
+                " - used an index or a histogram for %s, selectivity = %.3f\n",
+                ItemToString(condition).c_str(), selectivity);
           }
           return selectivity;
         }
@@ -238,8 +266,9 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
     if (selectivity >= 0.0) {
       selectivity = std::min(selectivity, selectivity_cap);
       if (trace != nullptr) {
-        *trace += StringPrintf(" - used an index for %s, selectivity = %.3f\n",
-                               ItemToString(condition).c_str(), selectivity);
+        *trace += StringPrintf(
+            " - used an index or a histogram for %s, selectivity = %.3f\n",
+            ItemToString(condition).c_str(), selectivity);
       }
       return selectivity;
     }
