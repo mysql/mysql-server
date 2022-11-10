@@ -721,6 +721,7 @@ void MysqlRoutingClassicConnection::loop() {
         return async_wait_send_server(Function::kLoop);
       case Processor::Result::Again:
         break;
+      case Processor::Result::Suspend:
       case Processor::Result::Void:
         return;
     }

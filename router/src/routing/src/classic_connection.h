@@ -250,6 +250,14 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
   virtual void client_socket_failed(std::error_code ec,
                                     bool call_finish = true);
 
+  // resume
+  //
+  // A Processor may suspend by returning Result::Suspend. When woken,
+  // typically using an async timer, the Processor calls resume() to execute
+  // the next loop() iteration. This allows waiting asynchronously for a
+  // condition other than async io.
+  void resume() { call_next_function(Function::kLoop); }
+
  private:
   enum class Function {
     kLoop,
