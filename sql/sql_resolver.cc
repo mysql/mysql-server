@@ -557,7 +557,8 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   if (!thd->lex->is_view_context_analysis() &&
       (outer_query_block() == nullptr ||
        ((parent_lex->sql_command == SQLCOM_SET_OPTION ||
-         parent_lex->sql_command == SQLCOM_END) &&
+         parent_lex->sql_command == SQLCOM_END ||
+         parent_lex->sql_command == SQLCOM_LOAD) &&
         outer_query_block()->outer_query_block() == nullptr)) &&
       !skip_local_transforms) {
     /*
@@ -574,6 +575,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       or scalar subqueries used in SP expressions like sp_instr_freturn
       (undicated by SQLCOM_END).
       @todo: Refactor SET so that this is not needed.
+      - If this is a subquery in a LOAD command.
       - INSERT may in some cases alter the sequence of preparation calls, by
       setting the skip_local_transforms flag before calling prepare().
 
