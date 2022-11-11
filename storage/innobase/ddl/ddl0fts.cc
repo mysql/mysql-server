@@ -40,6 +40,7 @@ Created 10/13/2010 Jimmy Yang */
 #include "fts0plugin.h"
 #include "lob0lob.h"
 #include "os0thread-create.h"
+#include "sql/sql_class.h"
 
 #include <current_thd.h>
 
@@ -182,6 +183,8 @@ struct FTS::Parser {
   /** Set the parent thread state.
   @param[in] state              The parent state. */
   void set_parent_state(Thread_state state) noexcept { m_parent_state = state; }
+
+  Diagnostics_area da{false};
 
  private:
   /** Tokenize incoming text data and add to the sort buffer.
@@ -854,7 +857,11 @@ void FTS::Parser::parse(Builder *builder) noexcept {
   auto clean_up = [&](dberr_t err) {
     mem_heap_free(blob_heap);
 
-    IF_ENABLED("ddl_fts_write_failure", err = DB_TEMP_FILE_WRITE_FAIL;)
+#ifdef UNIV_DEBUG
+    if (Sync_point::enabled(m_ctx.thd(), "ddl_fts_write_failure")) {
+      err = DB_TEMP_FILE_WRITE_FAIL;
+    };
+#endif
 
     if (err != DB_SUCCESS) {
       builder->set_error(err);
@@ -1515,13 +1522,17 @@ dberr_t FTS::start_parse_threads(Builder *builder) noexcept {
     Runnable runnable{PSI_NOT_INSTRUMENTED, seqnum};
 #endif /* UNIV_PFS_THREAD */
 
-    auto old_thd = current_thd;
+    my_thread_init();
 
-    current_thd = m_ctx.thd();
+    auto thd = create_internal_thd();
+    ut_ad(current_thd == thd);
 
+    thd->push_diagnostics_area(&parser->da, false);
     parser->parse(builder);
+    thd->pop_diagnostics_area();
 
-    current_thd = old_thd;
+    destroy_internal_thd(current_thd);
+    my_thread_end();
   };
 
   size_t seqnum{1};
@@ -1545,6 +1556,15 @@ dberr_t FTS::enqueue(FTS::Doc_item *doc_item) noexcept {
 }
 
 dberr_t FTS::check_for_errors() noexcept {
+  for (auto parser : m_parsers) {
+    auto da = &parser->da;
+    if (da->is_error() && !m_ctx.thd()->is_error()) {
+      m_ctx.thd()->get_stmt_da()->set_error_status(
+          da->mysql_errno(), da->message_text(), da->returned_sqlstate());
+    }
+    m_ctx.thd()->get_stmt_da()->copy_sql_conditions_from_da(m_ctx.thd(),
+                                                            &parser->da);
+  }
   for (auto parser : m_parsers) {
     auto err = parser->get_error();
 
