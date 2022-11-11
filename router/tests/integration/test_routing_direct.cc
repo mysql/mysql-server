@@ -1317,9 +1317,15 @@ TEST_P(ConnectionTest, classic_protocol_wait_timeout) {
   {
     auto ping_res = cli.ping();
     ASSERT_ERROR(ping_res);
-    EXPECT_EQ(ping_res.error().value(), 4031) << ping_res.error();
-    // The client was disconnected by the server because of inactivity. See
-    // wait_timeout and interactive_timeout for configuring this behavior.
+    EXPECT_THAT(
+        ping_res.error().value(),
+        AnyOf(2013,  // Lost connection to MySQL server during query
+                     //
+              4031   // The client was disconnected by the server because of
+                     // inactivity. See wait_timeout and interactive_timeout
+                     // for configuring this behavior.
+              ))
+        << ping_res.error();
   }
 }
 
