@@ -107,7 +107,7 @@ INSERT INTO xplugintest.table2(doc) VALUES('{"col1":"val4","col2":102,"_id":4}')
 #-- " null value allowed for col2"
 INSERT INTO xplugintest.table2(doc) VALUES('{"col1":"val5","_id":5}');
 SELECT * FROM xplugintest.table2;
-SELECT _id,doc, CONCAT("Prefix",$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9) , $ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F
+SELECT _id,doc, CONCAT("Prefix",`$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9`) , `$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F`
    FROM xplugintest.table2;
 #-- "Error as virual column data type mismatch while inserting into JSON doc"
 -->endsql
@@ -121,7 +121,7 @@ INSERT INTO xplugintest.table2(doc) VALUES('{"col1":"val6","col2":"non_int_val",
 -->recv
 
 -->sql
-ALTER TABLE xplugintest.table2 ADD COLUMN $ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36 TEXT;
+ALTER TABLE xplugintest.table2 ADD COLUMN `$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36` TEXT;
 -->endsql
 #-- "Column name exits - reuse"
 -->stmtadmin create_collection_index	{"schema":"xplugintest", "collection":"table2", "name":"col3_index", "unique":false, "fields":{"field":"$.col3", "type":"TEXT(13)", "required":false}}

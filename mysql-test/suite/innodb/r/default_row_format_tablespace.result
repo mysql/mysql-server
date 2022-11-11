@@ -72,9 +72,9 @@ SELECT @@innodb_default_row_format;
 @@innodb_default_row_format
 dynamic
 #Create table with tablespace
-CREATE TABLESPACE $tablespace ADD DATAFILE '$tablespace.ibd'
+CREATE TABLESPACE tblsp ADD DATAFILE 'tblsp.ibd'
 ENGINE=InnoDB;
-CREATE TABLE tab(c1  TEXT, c2 BLOB) TABLESPACE $tablespace;
+CREATE TABLE tab(c1  TEXT, c2 BLOB) TABLESPACE tblsp;
 CREATE TABLESPACE tblsp1 ADD DATAFILE 'tblsp1.ibd' FILE_BLOCK_SIZE=1k
 ENGINE=InnoDB;
 CREATE TABLE tab1(c1  TEXT, c2 BLOB) KEY_BLOCK_SIZE=1 TABLESPACE tblsp1;
@@ -88,7 +88,7 @@ mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Sin
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
-test/tab	$tablespace	161	5	Dynamic	0	General
+test/tab	tblsp	161	5	Dynamic	0	General
 test/tab1	tblsp1	163	5	Compressed	1024	General
 ALTER TABLE tab ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -97,7 +97,7 @@ mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Sin
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
-test/tab	$tablespace	129	5	Compact	0	General
+test/tab	tblsp	129	5	Compact	0	General
 test/tab1	tblsp1	163	5	Compressed	1024	General
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
@@ -109,7 +109,7 @@ mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Sin
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
-test/tab	$tablespace	161	5	Dynamic	0	General
+test/tab	tblsp	161	5	Dynamic	0	General
 test/tab1	tblsp1	163	5	Compressed	1024	General
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
@@ -121,13 +121,13 @@ mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Sin
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
-test/tab	$tablespace	128	5	Redundant	0	General
+test/tab	tblsp	128	5	Redundant	0	General
 test/tab1	tblsp1	163	5	Compressed	1024	General
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=COMPRESSED;
-ERROR HY000: InnoDB: Tablespace `$tablespace` cannot contain a COMPRESSED table
+ERROR HY000: InnoDB: Tablespace `tblsp` cannot contain a COMPRESSED table
 ALTER TABLE tab1 ROW_FORMAT=DYNAMIC;
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'KEY_BLOCK_SIZE'
 SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_TABLES
@@ -147,14 +147,14 @@ mtr/asserted_test_suppressions	mtr/asserted_test_suppressions	33	4	Dynamic	0	Sin
 mtr/global_suppressions	mtr/global_suppressions	33	4	Dynamic	0	Single
 mtr/test_ignored_global_suppressions	mtr/test_ignored_global_suppressions	33	4	Dynamic	0	Single
 mtr/test_suppressions	mtr/test_suppressions	33	4	Dynamic	0	Single
-test/tab	$tablespace	161	5	Dynamic	0	General
+test/tab	tblsp	161	5	Dynamic	0	General
 test/tab1	tblsp1	163	5	Compressed	1024	General
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 DROP TABLE tab;
 DROP TABLE tab1;
-DROP TABLESPACE $tablespace;
+DROP TABLESPACE tblsp;
 DROP TABLESPACE tblsp1;
 SET GLOBAL innodb_file_per_table=Default;
 SELECT @@innodb_default_row_format;

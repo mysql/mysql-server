@@ -126,5 +126,8 @@ bool init_state_maps(CHARSET_INFO *cs) {
   state_map[(uchar)'b'] = state_map[(uchar)'B'] = MY_LEX_IDENT_OR_BIN;
   state_map[(uchar)'n'] = state_map[(uchar)'N'] = MY_LEX_IDENT_OR_NCHAR;
 
+  /* Special handling for identifiers that start with dollar */
+  state_map[(uchar)'$'] = MY_LEX_IDENT_OR_DOLLAR_QUOTE;
+
   return false;
 }

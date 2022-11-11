@@ -41,4 +41,7 @@ inline void warn_on_deprecated_collation(THD * /* thd */,
 inline void push_deprecated_warn(THD * /* thd */, const char * /* old_syntax */,
                                  const char * /* new_syntax */) {}
 
+inline void push_deprecated_warn_no_replacement(THD * /* thd */,
+                                                const char * /* old_syntax */) {
+}
 #endif

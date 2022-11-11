@@ -19,10 +19,10 @@ if ($tablespace == 'tblsp') {
 
 # Check for compressed tables without File_block_size.
 --echo #Create table with tablespace
-CREATE TABLESPACE $tablespace ADD DATAFILE '$tablespace.ibd'
+eval CREATE TABLESPACE $tablespace ADD DATAFILE '$tablespace.ibd'
 ENGINE=InnoDB;
 
-CREATE TABLE tab(c1  TEXT, c2 BLOB) TABLESPACE $tablespace;
+eval CREATE TABLE tab(c1  TEXT, c2 BLOB) TABLESPACE $tablespace;
 
 # Check for compressed tables with File_block_size.
 CREATE TABLESPACE tblsp1 ADD DATAFILE 'tblsp1.ibd' FILE_BLOCK_SIZE=1k
@@ -139,7 +139,7 @@ DROP TABLE tab;
 # Drop only when tablespace is set
 if ($tablespace == 'tblsp') {
 DROP TABLE tab1;
-DROP TABLESPACE $tablespace;
+eval DROP TABLESPACE $tablespace;
 DROP TABLESPACE tblsp1;
 }
 

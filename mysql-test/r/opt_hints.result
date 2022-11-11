@@ -1526,7 +1526,7 @@ SELECT /*+ NO_ICP(3rd_index) */ 1 FROM t1;
 1
 Warnings:
 Warning	3128	Unresolved name `3rd_index`@`select#1` for NO_ICP hint
-CREATE INDEX $index ON t1(j, i);
+CREATE INDEX `$index` ON t1(j, i);
 SELECT /*+ NO_ICP($index) */ 1 FROM t1;
 1
 Warnings:

@@ -271,7 +271,7 @@ ngs::Error_code Admin_command_collection_handler::modify_collection_validation(
     qb.put(" MODIFY COLUMN _json_schema JSON GENERATED ALWAYS AS (")
         .quote_json_string(schema_string)
         .put(") VIRTUAL, ALTER CHECK ")
-        .put(constraint_name)
+        .quote_identifier(constraint_name)
         .put(is_enforced ? " ENFORCED" : " NOT ENFORCED");
   else if (validation.fld(0).key() == "schema")
     qb.put(" MODIFY COLUMN _json_schema JSON GENERATED ALWAYS AS (")
@@ -279,7 +279,7 @@ ngs::Error_code Admin_command_collection_handler::modify_collection_validation(
         .put(") VIRTUAL");
   else if (validation.fld(0).key() == "level")
     qb.put(" ALTER CHECK ")
-        .put(constraint_name)
+        .quote_identifier(constraint_name)
         .put(is_enforced ? " ENFORCED" : " NOT ENFORCED");
 
   const ngs::PFS_string &tmp(qb.get());
@@ -311,7 +311,7 @@ ngs::Error_code Admin_command_collection_handler::modify_collection_validation(
           .put(" ADD COLUMN _json_schema JSON GENERATED ALWAYS AS (")
           .quote_json_string(new_schema)
           .put(") VIRTUAL, ADD CONSTRAINT ")
-          .put(constraint_name)
+          .quote_identifier(constraint_name)
           .put(" CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ")
           .put(is_enforced ? "ENFORCED" : "NOT ENFORCED");
 

@@ -102,7 +102,7 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->callmacro Insert	spatial1	'{"_id": "five", "first":{"type": "MultiLineString", "coordinates": [[[10, 10], [20, 20], [10, 40]], [[40, 40], [30, 30], [40, 20], [30, 10]]]}}'	ER_SUCCESS
 -->callmacro Insert	spatial1	'{"_id": "six", "first":{"type": "MultiPolygon", "coordinates": [[[[40, 40], [20, 45], [45, 30], [40, 40]]], [[[20, 35], [10, 30], [10, 10], [30, 5], [45, 20], [20, 35]]]]}}'	ER_SUCCESS
 -->callmacro Insert	spatial1	'{"_id": "seven", "first":{"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10, 20]}]}]}}'	ER_SUCCESS
--->stmtsql SELECT doc,_id,ST_ASGEOJSON($ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B) FROM xtest.spatial1;
+-->stmtsql SELECT doc,_id,ST_ASGEOJSON(`$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B`) FROM xtest.spatial1;
 -->recvresult
 -->echo Using of index give an unexpected result and it caused by another bug
 -->callmacro Show_use_of_index	spatial1	MBRContains(st_geomfromgeojson(doc->'$.first',1,4326),st_geomfromtext('point(10 11)',4326))
