@@ -40,6 +40,7 @@
 #include <utility>
 
 #include "my_compiler.h"
+#include "mysql/harness/net_ts/impl/callstack.h"
 #include "mysql/harness/net_ts/netfwd.h"
 
 namespace net {
@@ -894,7 +895,9 @@ class strand {
 
   inner_executor_type get_inner_executor() const noexcept { return inner_ex_; }
 
-  bool running_in_this_thread() const noexcept;
+  bool running_in_this_thread() const noexcept {
+    return impl::Callstack<strand>::contains(this) != nullptr;
+  }
 
   execution_context &context() const noexcept { return inner_ex_.context(); }
 
@@ -902,7 +905,11 @@ class strand {
   void on_work_finished() const noexcept { inner_ex_.on_work_finished(); }
 
   template <class Func, class ProtoAllocator>
-  void dispatch(Func &&f, const ProtoAllocator &a) const;
+  void dispatch(Func &&f, const ProtoAllocator & /* a */) const {
+    if (running_in_this_thread()) {
+      std::forward<Func>(f)();
+    }
+  }
   template <class Func, class ProtoAllocator>
   void post(Func &&f, const ProtoAllocator &a) const;
   template <class Func, class ProtoAllocator>
@@ -910,6 +917,9 @@ class strand {
 
  private:
   Executor inner_ex_;
+
+  bool running_{false};
+  std::queue<std::function<void()>> jobs_;
 };
 
 template <class Executor>

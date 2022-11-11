@@ -40,6 +40,7 @@
 
 #include "my_config.h"  // HAVE_EPOLL
 #include "mysql/harness/net_ts/executor.h"
+#include "mysql/harness/net_ts/impl/callstack.h"
 #include "mysql/harness/net_ts/impl/kqueue_io_service.h"
 #include "mysql/harness/net_ts/impl/linux_epoll_io_service.h"
 #include "mysql/harness/net_ts/impl/poll_io_service.h"
@@ -117,7 +118,7 @@ class io_context : public execution_context {
       stopped_ = true;
     }
 
-    io_service_->notify();
+    notify_io_service_if_not_running_in_this_thread();
   }
 
   bool stopped() const noexcept {
@@ -248,7 +249,7 @@ class io_context : public execution_context {
     deferred_work_.post(std::forward<Func>(f), a);
 
     // wakeup the possibly blocked io-thread.
-    io_service()->notify();
+    notify_io_service_if_not_running_in_this_thread();
   }
 
   template <class Clock, class Duration>
@@ -504,7 +505,7 @@ class io_context : public execution_context {
       }
     }
 
-    io_service_->notify();
+    notify_io_service_if_not_running_in_this_thread();
   }
 
   class timer_queue_base : public execution_context::service {
@@ -820,7 +821,7 @@ class io_context : public execution_context {
     queue.push(timer, std::forward<Op>(op));
 
     // wakeup the blocked poll_one() to handle possible timer events.
-    io_service_->notify();
+    notify_io_service_if_not_running_in_this_thread();
   }
 
   /**
@@ -835,7 +836,7 @@ class io_context : public execution_context {
     const auto count = use_service<timer_queue<Timer>>(*this).cancel(timer);
     if (count) {
       // if a timer was canceled, interrupt the io-service
-      io_service_->notify();
+      notify_io_service_if_not_running_in_this_thread();
     }
     return count;
   }
@@ -891,6 +892,8 @@ class io_context : public execution_context {
 
   void is_running(bool v) { is_running_ = v; }
   bool is_running() const { return is_running_; }
+
+  void notify_io_service_if_not_running_in_this_thread();
 };
 }  // namespace net
 
@@ -983,34 +986,6 @@ inline io_context::count_type io_context::poll_one() {
   return do_one(lk, 0ms);
 }
 
-/**
- * cancel all async-ops of a file-descriptor.
- */
-inline stdx::expected<void, std::error_code> io_context::cancel(
-    native_handle_type fd) {
-  bool need_notify{false};
-  {
-    // check all async-ops
-    std::lock_guard<std::mutex> lk(mtx_);
-
-    while (auto op = active_ops_.extract_first(fd)) {
-      op->cancel();
-
-      cancelled_ops_.push_back(std::move(op));
-
-      need_notify = true;
-    }
-  }
-
-  // wakeup the loop to deliver the cancelled fds
-  if (true || need_notify) {
-    io_service_->remove_fd(fd);
-    io_service_->notify();
-  }
-
-  return {};
-}
-
 class io_context::executor_type {
  public:
   executor_type(const executor_type &rhs) noexcept = default;
@@ -1021,11 +996,7 @@ class io_context::executor_type {
   ~executor_type() = default;
 
   bool running_in_this_thread() const noexcept {
-    // TODO: check if this task is running in this thread. Currently, it is
-    // "yes", as we don't allow post()ing to other threads
-
-    // track call-chain
-    return true;
+    return impl::Callstack<io_context>::contains(io_ctx_) != nullptr;
   }
   io_context &context() const noexcept { return *io_ctx_; }
 
@@ -1109,6 +1080,35 @@ inline io_context::executor_type io_context::get_executor() noexcept {
   return executor_type(*this);
 }
 
+/**
+ * cancel all async-ops of a file-descriptor.
+ */
+inline stdx::expected<void, std::error_code> io_context::cancel(
+    native_handle_type fd) {
+  bool need_notify{false};
+  {
+    // check all async-ops
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    while (auto op = active_ops_.extract_first(fd)) {
+      op->cancel();
+
+      cancelled_ops_.push_back(std::move(op));
+
+      need_notify = true;
+    }
+  }
+
+  // wakeup the loop to deliver the cancelled fds
+  if (true || need_notify) {
+    io_service_->remove_fd(fd);
+
+    notify_io_service_if_not_running_in_this_thread();
+  }
+
+  return {};
+}
+
 template <class Clock, class Duration>
 inline io_context::count_type io_context::do_one_until(
     std::unique_lock<std::mutex> &lk,
@@ -1130,9 +1130,17 @@ inline io_context::count_type io_context::do_one_until(
   return do_one(lk, rel_time_ms);
 }
 
+inline void io_context::notify_io_service_if_not_running_in_this_thread() {
+  if (impl::Callstack<io_context>::contains(this) == nullptr) {
+    io_service_->notify();
+  }
+}
+
 // precond: lk MUST be locked
 inline io_context::count_type io_context::do_one(
     std::unique_lock<std::mutex> &lk, std::chrono::milliseconds timeout) {
+  impl::Callstack<io_context>::Context ctx(this);
+
   timer_queue_base *timer_q{nullptr};
 
   monitor mon(*this);
