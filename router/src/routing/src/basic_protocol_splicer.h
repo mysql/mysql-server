@@ -157,73 +157,15 @@ class BasicConnection : public ConnectionBase {
   void async_recv(recv_buffer_type &buf,
                   std::function<void(std::error_code ec, size_t transferred)>
                       completion) override {
-    if (sock_.native_non_blocking()) {
-      auto read_res =
-          net::read(sock_, net::dynamic_buffer(buf), net::transfer_at_least(1));
-
-      if (!read_res) {
-        auto ec = read_res.error();
-
-        if (ec == make_error_condition(std::errc::operation_would_block)) {
-          net::async_read(sock_, net::dynamic_buffer(buf),
-                          net::transfer_at_least(1), std::move(completion));
-          return;
-        } else {
-          net::post(sock_.get_executor().context(),
-                    [completion = std::move(completion), ec]() {
-                      completion(ec, 0);
-                    });
-          return;
-        }
-      } else {
-        net::post(sock_.get_executor().context(),
-                  [completion = std::move(completion),
-                   transferred = read_res.value()]() {
-                    completion(std::error_code{}, transferred);
-                  });
-        return;
-      }
-
-    } else {
-      net::async_read(sock_, net::dynamic_buffer(buf),
-                      net::transfer_at_least(1), std::move(completion));
-    }
+    net::async_read(sock_, net::dynamic_buffer(buf), net::transfer_at_least(1),
+                    std::move(completion));
   }
 
   void async_send(recv_buffer_type &buf,
                   std::function<void(std::error_code ec, size_t transferred)>
                       completion) override {
-    if (sock_.native_non_blocking()) {
-      auto write_res = net::write(sock_, net::dynamic_buffer(buf),
-                                  net::transfer_at_least(1));
-
-      if (!write_res) {
-        auto ec = write_res.error();
-
-        if (ec == make_error_condition(std::errc::operation_would_block)) {
-          net::async_write(sock_, net::dynamic_buffer(buf),
-                           net::transfer_at_least(1), std::move(completion));
-          return;
-        } else {
-          net::post(sock_.get_executor().context(),
-                    [completion = std::move(completion), ec]() {
-                      completion(ec, 0);
-                    });
-          return;
-        }
-      } else {
-        net::post(sock_.get_executor().context(),
-                  [completion = std::move(completion),
-                   transferred = write_res.value()]() {
-                    completion(std::error_code{}, transferred);
-                  });
-        return;
-      }
-
-    } else {
-      net::async_write(sock_, net::dynamic_buffer(buf),
-                       net::transfer_at_least(1), std::move(completion));
-    }
+    net::async_write(sock_, net::dynamic_buffer(buf), net::transfer_at_least(1),
+                     std::move(completion));
   }
 
   void async_wait_send(
