@@ -339,7 +339,7 @@ class linux_epoll_io_service : public IoServiceBase {
       // update the fd-interest
       it->second &= ~revent;
 
-      if (it->second != 0) {
+      if ((it->second & ev_mask) != 0) {
         // if a one shot event with multiple waiting events fired for one of the
         // events, it removes all interests for the fd.
         //

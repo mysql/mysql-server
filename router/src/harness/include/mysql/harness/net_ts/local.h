@@ -36,7 +36,7 @@
 #include <WinSock2.h>
 #include <Windows.h>
 
-#ifdef HAVE_AF_UNIX_H
+#ifdef AF_UNIX
 #include <afunix.h>
 #define NET_TS_HAS_UNIX_SOCKET
 #endif

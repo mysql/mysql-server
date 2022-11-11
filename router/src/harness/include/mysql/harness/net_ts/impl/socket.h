@@ -28,12 +28,16 @@
 #include <algorithm>  // max
 #include <array>
 #include <bitset>
+#include <cinttypes>  // PRIx64
 #include <limits>
 #include <system_error>
 
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <Windows.h>
+#ifdef AF_UNIX
+#include <afunix.h>
+#endif
 #else
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -48,6 +52,8 @@
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/stdx/expected.h"
+
+#include "scope_guard.h"
 
 namespace net {
 namespace impl {
@@ -439,8 +445,7 @@ inline stdx::expected<void, error_type> getpeername(
  * socketpair().
  *
  * - wraps socketpair() on POSIX
- * - emualated on windows via a AF_INET + SOCK_STREAM socket on localhost on a
- *   system assigned port.
+ * - emulates socketpair() on windows as winsock2() provides no socketpair.
  */
 inline stdx::expected<std::pair<native_handle_type, native_handle_type>,
                       error_type>
@@ -454,72 +459,122 @@ socketpair(int family, int sock_type, int protocol) {
 
   return std::make_pair(fds[0], fds[1]);
 #else
-  if (family != AF_INET) {
-    return stdx::make_unexpected(
-        std::error_code(WSAEAFNOSUPPORT, std::system_category()));
-  }
-  if (sock_type != SOCK_STREAM) {
-    return stdx::make_unexpected(
-        std::error_code(WSAESOCKTNOSUPPORT, std::system_category()));
-  }
-  // we don't have socketpair on windows, build one ourselves
   auto listener_res = impl::socket::socket(family, sock_type, protocol);
   if (!listener_res) return stdx::make_unexpected(listener_res.error());
+
   auto listener = listener_res.value();
 
-  int reuse = 1;
-  impl::socket::setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &reuse,
-                           sizeof(reuse));
+  Scope_guard listener_guard([listener]() {
+#if defined(AF_UNIX)
+    struct sockaddr_storage ss {};
+    size_t ss_len = sizeof(ss);
 
-  struct sockaddr_in sa {};
-  sa.sin_family = family;
-  sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  sa.sin_port = 0;  // pick a random port
+    auto name_res = impl::socket::getsockname(
+        listener, reinterpret_cast<sockaddr *>(&ss), &ss_len);
+    if (name_res) {
+      if (ss.ss_family == AF_UNIX) {
+        struct sockaddr_un *su = reinterpret_cast<sockaddr_un *>(&ss);
 
-  size_t sa_len = sizeof(sa);
-  auto bind_res =
-      impl::socket::bind(listener, reinterpret_cast<sockaddr *>(&sa), sa_len);
-  if (!bind_res) {
+        // delete the named socket
+        DeleteFile(su->sun_path);
+      }
+    }
+#endif
+
     impl::socket::close(listener);
-    return stdx::make_unexpected(bind_res.error());
+  });
+
+  stdx::expected<void, std::error_code> bind_res;
+
+  switch (family) {
+    case AF_INET: {
+      int reuse = 1;
+      impl::socket::setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &reuse,
+                               sizeof(reuse));
+
+      struct sockaddr_in sa {};
+      size_t sa_len = sizeof(sa);
+
+      sa.sin_family = family;
+      sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+      sa.sin_port = 0;  // pick a random port
+
+      bind_res = impl::socket::bind(listener, reinterpret_cast<sockaddr *>(&sa),
+                                    sa_len);
+    } break;
+#if defined(AF_UNIX)
+    case AF_UNIX: {
+      struct sockaddr_un sa {};
+      size_t sa_len = sizeof(sa);
+
+      sa.sun_family = family;
+
+      DWORD path_len = GetTempPath(UNIX_PATH_MAX, sa.sun_path);
+
+      // use the current dir if the tmppath is too long.
+      if (path_len >= UNIX_PATH_MAX - 9) path_len = 0;
+
+      LARGE_INTEGER ticks;
+      QueryPerformanceCounter(&ticks);
+
+      snprintf(sa.sun_path + path_len, UNIX_PATH_MAX - path_len,
+               "%" PRIx64 "-%lu.sok", ticks.QuadPart, GetCurrentProcessId());
+
+      bind_res = impl::socket::bind(listener, reinterpret_cast<sockaddr *>(&sa),
+                                    sa_len);
+    } break;
+#endif
+    default:
+      bind_res = stdx::make_unexpected(
+          make_error_code(std::errc::address_family_not_supported));
+      break;
   }
+
+  if (!bind_res) return stdx::make_unexpected(bind_res.error());
+
   auto listen_res = impl::socket::listen(listener, 128);
-  if (!listen_res) {
-    impl::socket::close(listener);
-    return stdx::make_unexpected(listen_res.error());
-  }
-  auto first_res = impl::socket::socket(AF_INET, SOCK_STREAM, 0);
-  if (!first_res) {
-    impl::socket::close(listener);
-    return stdx::make_unexpected(first_res.error());
-  }
+  if (!listen_res) return stdx::make_unexpected(listen_res.error());
 
-  memset(&sa, 0, sizeof(sa));
-  impl::socket::getsockname(listener, reinterpret_cast<sockaddr *>(&sa),
-                            &sa_len);
-  sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  sa.sin_family = AF_INET;
+  auto first_res = impl::socket::socket(family, sock_type, protocol);
+  if (!first_res) return stdx::make_unexpected(first_res.error());
 
   auto first_fd = first_res.value();
 
-  auto connect_res = impl::socket::connect(
-      first_fd, reinterpret_cast<sockaddr *>(&sa), sa_len);
-  if (!connect_res) {
-    impl::socket::close(listener);
-    impl::socket::close(first_fd);
-    return stdx::make_unexpected(connect_res.error());
-  }
+  Scope_guard first_fd_guard([first_fd]() { impl::socket::close(first_fd); });
 
-  auto second_res = impl::socket::accept(listener, nullptr, nullptr);
-  if (!second_res) {
-    impl::socket::close(listener);
-    impl::socket::close(first_fd);
-    return stdx::make_unexpected(second_res.error());
-  }
+  auto remote_sa_res = [](auto sock_handle)
+      -> stdx::expected<sockaddr_storage, std::error_code> {
+    struct sockaddr_storage ss {};
+    size_t ss_len = sizeof(ss);
+
+    const auto name_res = impl::socket::getsockname(
+        sock_handle, reinterpret_cast<sockaddr *>(&ss), &ss_len);
+    if (!name_res) return stdx::make_unexpected(name_res.error());
+
+    // overwrite the address.
+    if (ss.ss_family == AF_INET) {
+      auto *sa = reinterpret_cast<sockaddr_in *>(&ss);
+
+      sa->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    }
+
+    return ss;
+  }(listener);
+
+  if (!remote_sa_res) return stdx::make_unexpected(remote_sa_res.error());
+  const auto remote_sa = *remote_sa_res;
+
+  const auto connect_res = impl::socket::connect(
+      first_fd, reinterpret_cast<const sockaddr *>(&remote_sa),
+      sizeof(remote_sa));
+  if (!connect_res) return stdx::make_unexpected(connect_res.error());
+
+  const auto second_res = impl::socket::accept(listener, nullptr, nullptr);
+  if (!second_res) return stdx::make_unexpected(second_res.error());
+
+  first_fd_guard.commit();
 
   auto second_fd = second_res.value();
-
-  impl::socket::close(listener);
 
   return std::make_pair(first_fd, second_fd);
 #endif
