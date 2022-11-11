@@ -84,9 +84,9 @@ drop table t1;
 # Test that we get warning for this
 drop database if exists mysqltest;
 create database mysqltest;
-create table mysqltest.$test1 (a$1 int, $b int, c$ int);
-insert into mysqltest.$test1 values (1,2,3);
-select a$1, $b, c$ from mysqltest.$test1;
+create table mysqltest.`$test1` (a$1 int, `$b` int, c$ int);
+insert into mysqltest.`$test1` values (1,2,3);
+select a$1, `$b`, c$ from mysqltest.`$test1`;
 create table mysqltest.test2$ (a int);
 drop table mysqltest.test2$;
 drop database mysqltest;

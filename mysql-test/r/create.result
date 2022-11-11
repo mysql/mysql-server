@@ -83,9 +83,9 @@ drop database if exists mysqltest;
 Warnings:
 Note	1008	Can't drop database 'mysqltest'; database doesn't exist
 create database mysqltest;
-create table mysqltest.$test1 (a$1 int, $b int, c$ int);
-insert into mysqltest.$test1 values (1,2,3);
-select a$1, $b, c$ from mysqltest.$test1;
+create table mysqltest.`$test1` (a$1 int, `$b` int, c$ int);
+insert into mysqltest.`$test1` values (1,2,3);
+select a$1, `$b`, c$ from mysqltest.`$test1`;
 a$1	$b	c$
 1	2	3
 create table mysqltest.test2$ (a int);

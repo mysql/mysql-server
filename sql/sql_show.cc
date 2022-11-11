@@ -1428,6 +1428,9 @@ static const char *require_quotes(const char *name, size_t name_length) {
   bool pure_digit = true;
   const char *end = name + name_length;
 
+  // Identifier starting with '$' is deprecated.
+  if (name_length && static_cast<uchar>(*name) == '$') return name;
+
   for (; name < end; name++) {
     uchar chr = (uchar)*name;
     uint length = my_mbcharlen(system_charset_info, chr);

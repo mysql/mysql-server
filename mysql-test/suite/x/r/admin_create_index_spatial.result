@@ -152,7 +152,7 @@ Got expected error (code 0)
 
 1 rows affected
 Got expected error (code 0)
-doc	_id	ST_ASGEOJSON($ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B)
+doc	_id	ST_ASGEOJSON(`$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B`)
 {"_id": "five", "first": {"type": "MultiLineString", "coordinates": [[[10, 10], [20, 20], [10, 40]], [[40, 40], [30, 30], [40, 20], [30, 10]]]}}	five	{"type": "MultiLineString", "coordinates": [[[10.0, 10.0], [20.0, 20.0], [10.0, 40.0]], [[40.0, 40.0], [30.0, 30.0], [40.0, 20.0], [30.0, 10.0]]]}
 {"_id": "four", "first": {"type": "MultiPoint", "coordinates": [[10, 40], [40, 30], [20, 20], [30, 10]]}}	four	{"type": "MultiPoint", "coordinates": [[10.0, 40.0], [40.0, 30.0], [20.0, 20.0], [30.0, 10.0]]}
 {"_id": "one", "first": {"type": "Point", "coordinates": [10, 11]}}	one	{"type": "Point", "coordinates": [10.0, 11.0]}

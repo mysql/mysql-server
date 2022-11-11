@@ -1,0 +1,148 @@
+create table $t(id int);
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+drop table $t;
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+create table t(id int, $id int, $id2 int, $$id int, $ int, $1 int,$$$ int,
+id$$$ int, 1$ int, `$$` int, _$ int, b$$lit$$ int);
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+select `$1`, $$$,$$id, '$someli$teral' from t where t.`$id` = 0;
+$1	$$$	$$id	$someli$teral
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+SET sql_mode = sys.LIST_ADD(@@sql_mode, 'ANSI_QUOTES');
+select "$id2", "$$$" from t where t."$id" = 0;
+$id2	$$$
+SET sql_mode = sys.LIST_DROP(@@sql_mode, 'ANSI_QUOTES');
+select * from t where t.`$id` = 0 or `$id2` = 0 or b$$lit$$ = 0;
+id	$id	$id2	$$id	$	$1	$$$	id$$$	1$	$$	_$	b$$lit$$
+select id+$id+$$id from t;
+id+$id+$$id
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+create view $view as select id, $id2 from t;
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+select * from $view;
+id	$id2
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+drop view `$view`;
+create table tpart (
+firstname varchar(25) NOT NULL,
+lastname varchar(25) NOT NULL,
+username varchar(16) NOT NULL,
+email varchar(35),
+`$joined` date not null
+)
+partition by key(`$joined`) partitions 6;
+drop table tpart;
+prepare $stmt from 'select $$id, $id, `$$` from t';
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+execute $stmt;
+$$id	$id	$$
+set @table_name:='t';
+set @sql:=concat('select $$id, $id, `$$` from ', @table_name);
+prepare dynamic_stmt from @sql;
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+execute dynamic_stmt;
+$$id	$id	$$
+create schema $s;
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+create table $s.$t($id int);
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+select $s.$t.$id from $s.$t;
+$id
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+select $s.`$t`.`$id` from $s.`$t`;
+$id
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+drop table `$s`.`$t`;
+drop schema `$s`;
+create procedure $p(in $i int)
+begin
+declare $id1 int;
+select b$$lit$$ into $id1 from t where id = $i;
+end//
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+call $p(3);
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1329	No data - zero rows fetched, selected, or processed
+drop procedure `$p`;
+create function $f($i int) returns int no sql
+begin
+return `$i` * 2;
+end//
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+select $f(2);
+$f(2)
+4
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+drop function `$f`;
+create role $username@$hostname.$domainname.com;
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+drop role $username@$hostname.$domainname.com;
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+set @$myvar = true;
+select count(*) from t where @$myvar;
+count(*)
+0
+select 8.0 $p, 8.4$p, .0$p, 8.$p, 8.p;
+$p	$p	$p	$p	p
+8.0	8.4	0.0	8	8
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+select .$p;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.$p' at line 1
+show warnings;
+Level	Code	Message
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Error	1064	You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.$p' at line 1
+SELECT JSON_EXTRACT('{"id": "3", "$name": "Barney"}', "$.id");
+JSON_EXTRACT('{"id": "3", "$name": "Barney"}', "$.id")
+"3"
+SELECT JSON_EXTRACT('{"id": "3", "$name": "$Barney"}', "$.$name");
+JSON_EXTRACT('{"id": "3", "$name": "$Barney"}', "$.$name")
+"$Barney"
+PROMPT set to '$aa'
+PROMPT set to '$aa$'
+drop table t;

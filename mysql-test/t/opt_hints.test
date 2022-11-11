@@ -622,7 +622,7 @@ EXPLAIN DELETE /*+ test */ FROM t1 WHERE i = 10;
 CREATE INDEX 3rd_index ON t1(i, j);
 SELECT /*+ NO_ICP(3rd_index) */ 1 FROM t1;
 
-CREATE INDEX $index ON t1(j, i);
+CREATE INDEX `$index` ON t1(j, i);
 SELECT /*+ NO_ICP($index) */ 1 FROM t1;
 
 CREATE TABLE ` quoted name тест` (i INT);

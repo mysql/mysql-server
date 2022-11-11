@@ -654,6 +654,11 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         yylval->lex_str.length = lip->yytoklen;
         return (NCHAR_STRING);
 
+      case MY_LEX_IDENT_OR_DOLLAR_QUOTE:
+        state = MY_LEX_IDENT;
+        push_deprecated_warn_no_replacement(
+            lip->m_thd, "$ as the first character of an unquoted identifier");
+        break;
       case MY_LEX_IDENT_OR_HEX:
         if (lip->yyPeek() == '\'') {  // Found x'hex-number'
           state = MY_LEX_HEX_NUMBER;
@@ -771,10 +776,16 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         yylval->lex_str.str = const_cast<char *>(lip->get_ptr());
         yylval->lex_str.length = 1;
         c = lip->yyGet();  // should be '.'
-        lip->next_state =
-            MY_LEX_IDENT_START;         // Next is an ident (not a keyword)
-        if (!ident_map[lip->yyPeek()])  // Probably ` or "
+        if (uchar next_c = lip->yyPeek(); ident_map[next_c]) {
+          lip->next_state =
+              MY_LEX_IDENT_START;  // Next is an ident (not a keyword)
+          if (next_c == '$')       // We got .$ident
+            push_deprecated_warn_no_replacement(
+                lip->m_thd,
+                "$ as the first character of an unquoted identifier");
+        } else  // Probably ` or "
           lip->next_state = MY_LEX_START;
+
         return ((int)c);
 
       case MY_LEX_NUMBER_IDENT:  // number or ident which num-start

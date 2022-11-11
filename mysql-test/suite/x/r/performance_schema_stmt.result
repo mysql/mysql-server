@@ -104,7 +104,7 @@ CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JS
 SELECT @@sql_mode
 SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END) AS id,COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND column_name != '_json_schema' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\"|`.*`)))*\\\\''\\)') THEN 1 ELSE NULL END) AS gen, COUNT(CASE WHEN (column_name = '_json_schema') THEN 1 ELSE NULL END) AS validation_schema FROM information_schema.columns WHERE table_name = 'test2' AND table_schema = 'xtest'
 SELECT @@lower_case_table_names
-ALTER TABLE `xtest`.`test2` MODIFY COLUMN _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}') VIRTUAL, ALTER CHECK $val_strict_7CEB3FDE5F7A9C4CE5FBE610D7D8EDA62EBE5F4E NOT ENFORCED
+ALTER TABLE `xtest`.`test2` MODIFY COLUMN _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}') VIRTUAL, ALTER CHECK `$val_strict_7CEB3FDE5F7A9C4CE5FBE610D7D8EDA62EBE5F4E` NOT ENFORCED
 0 rows affected
 ######### get validation error when working with collections #########
 
