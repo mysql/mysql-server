@@ -918,3 +918,28 @@ SELECT * FROM t2;
 --remove_file $MYSQLTEST_VARDIR/tmp/t2.csv
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug 34336033 - LOAD DATA INFILE with a subquery returns incorrect 'Subquery returns more than 1 row'
+--echo #
+
+CREATE TABLE t1 (c1 CHAR(10) NOT NULL);
+INSERT INTO t1 VALUES ('236451');
+CREATE TABLE t2(c1 SMALLINT, c2 CHAR(10));
+INSERT INTO t2 VALUES (0,'236451');
+INSERT INTO t2 VALUES (1,'236451');
+CREATE TABLE t3(c1 SMALLINT, c2 CHAR(10));
+INSERT INTO t3 VALUES (0,'236451');
+
+# dump t1 into a file
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.csv';
+DELETE FROM t1;
+
+# load data back into t1
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/t1.csv' INTO TABLE t1 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LINES TERMINATED BY '\n' SET c1 = (SELECT t2.c2 FROM t2 INNER JOIN t3 ON t3.c1=t2.c1 where t3.c2='236451');
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.csv
+
+DROP TABLE t1,t2,t3;
