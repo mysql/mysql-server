@@ -1812,10 +1812,10 @@ ER_RPL_SLAVE_ERROR_INFO_FROM_DA
   eng "Slave: %s Error_code: MY-%06d"
 
 ER_RPL_SLAVE_ERROR_LOADING_USER_DEFINED_LIBRARY
-  eng "Error loading user-defined library, slave SQL thread aborted. Install the missing library, and restart the slave SQL thread with \"SLAVE START\". We stopped at log '%s' position %s"
+  eng "Error loading user-defined library, slave SQL thread aborted. Install the missing library, and restart the slave SQL thread with \"START SLAVE\". We stopped at log '%s' position %s"
 
 ER_RPL_SLAVE_ERROR_RUNNING_QUERY
-  eng "Error running query, slave SQL thread aborted. Fix the problem, and restart the slave SQL thread with \"SLAVE START\". We stopped at log '%s' position %s"
+  eng "Error running query, slave SQL thread aborted. Fix the problem, and restart the slave SQL thread with \"START SLAVE\". We stopped at log '%s' position %s"
 
 ER_RPL_SLAVE_SQL_THREAD_EXITING
   eng "Slave SQL thread%s exiting, replication stopped in log '%s' at position %s"
