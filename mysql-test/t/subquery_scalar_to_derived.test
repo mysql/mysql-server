@@ -2360,10 +2360,12 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t(i INT);
 INSERT INTO t VALUES (1);
+ANALYZE TABLE t;
 
 let $query = SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
 --error ER_SUBQUERY_NO_1_ROW
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 DROP TABLE t;
 

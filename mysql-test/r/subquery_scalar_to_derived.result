@@ -4672,6 +4672,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t(i INT);
 INSERT INTO t VALUES (1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN FORMAT=tree SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
