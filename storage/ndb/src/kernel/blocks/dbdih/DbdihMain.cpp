@@ -992,7 +992,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     ndbrequire(c_copyGCISlave.m_expectedNextWord == tstart);
     isdone = (tstart + CopyGCIReq::DATA_SIZE) >= Sysfile::SYSFILE_SIZE32_v1;
 
-    arrGuard(tstart + CopyGCIReq::DATA_SIZE, sizeof(cdata)/4);
+    ndbrequire(tstart <= (sizeof(cdata)/4 - CopyGCIReq::DATA_SIZE));
     for(Uint32 i = 0; i<CopyGCIReq::DATA_SIZE; i++)
       cdata[tstart+i] = copyGCI->data[i];
     cdata_size_in_words = tstart + CopyGCIReq::DATA_SIZE;
@@ -2720,7 +2720,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   {
     jam();
     v2_format = false;
-    arrGuard(startWord + StartMeConf::DATA_SIZE, sizeof(cdata)/4);
+    ndbrequire(startWord <= (sizeof(cdata)/4 - StartMeConf::DATA_SIZE));
     for(Uint32 i = 0; i < StartMeConf::DATA_SIZE; i++)
     {
       cdata[startWord+i] = startMe->data[i];
