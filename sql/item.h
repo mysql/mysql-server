@@ -1931,14 +1931,6 @@ public:
   virtual bool clean_up_after_removal(uchar *arg) { return false; }
 
   /**
-     Check if the item is of type direct_view_ref.
-     @param  arg  Unused, needed to match the signature of the
-                  "Item_processor" of the "walk" function.
-     @retval      true if the item is of type direct_view_ref
-  */
-  virtual bool is_direct_view_ref(uchar *arg) { return false; }
-
-  /**
     Propagate components that use referenced columns from derived tables.
     Some columns from derived tables may be determined to be unused, but
     may actually reference other columns that are used. This function will
@@ -4452,7 +4444,6 @@ public:
   virtual bool val_json(Json_wrapper *wr);
   virtual bool is_null();
   virtual bool send(Protocol *prot, String *tmp);
-  virtual bool is_direct_view_ref(uchar *arg) { return true; }
 
 protected:
   virtual type_conversion_status save_in_field_inner(Field *field,
