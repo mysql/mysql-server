@@ -56,6 +56,7 @@ class FilterObjectGenerator {
   void prase_order(Object object);
   void parse_asof(Value *value);
   void parse_wmember(const char *name, Value *value);
+  void parse_match(Value *value);
 
   std::string where_;
   std::list<std::string> argument_;

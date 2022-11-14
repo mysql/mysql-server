@@ -251,7 +251,7 @@ Result HandlerObject::handle_post([[maybe_unused]] rest::RequestContext *ctxt,
 
   database::QueryRestObjectInsert insert;
   const auto &columns = route_->get_cached_columnes();
-  std::string pk_value = "LAST_INSERT_ID()";
+  std::string pk_value = "";
 
   auto it = json_doc.FindMember(route_->get_cached_primary().c_str());
   if (it != json_doc.MemberEnd()) {
@@ -286,10 +286,17 @@ Result HandlerObject::handle_post([[maybe_unused]] rest::RequestContext *ctxt,
   if (!route_->get_cached_primary().empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
-    fetch_one.query_entries(session.get(), columns, route_->get_schema_name(),
-                            route_->get_object_name(),
-                            route_->get_cached_primary(), pk_value,
-                            route_->get_rest_url());
+    if (pk_value.empty()) {
+      fetch_one.query_last_inserted(
+          session.get(), columns, route_->get_schema_name(),
+          route_->get_object_name(), route_->get_cached_primary(),
+          route_->get_rest_url());
+    } else {
+      fetch_one.query_entries(session.get(), columns, route_->get_schema_name(),
+                              route_->get_object_name(),
+                              route_->get_cached_primary(), pk_value,
+                              route_->get_rest_url());
+    }
     return std::move(fetch_one.response);
   }
 
