@@ -744,7 +744,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     }
   }
 
-  arrGuard(tstart + CopyGCIReq::DATA_SIZE, sizeof(sysfileData)/4);
+  ndbrequire(tstart <= (sizeof(cdata)/4 - CopyGCIReq::DATA_SIZE));
   for(Uint32 i = 0; i<CopyGCIReq::DATA_SIZE; i++)
     cdata[tstart+i] = copyGCI->data[i];
   
@@ -2293,7 +2293,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   
   CRASH_INSERTION(7130);
   ndbrequire(nodeId == cownNodeId);
-  arrGuard(startWord + StartMeConf::DATA_SIZE, sizeof(cdata)/4);
+  ndbrequire(startWord <= (sizeof(cdata)/4 - StartMeConf::DATA_SIZE));
   for(i = 0; i < StartMeConf::DATA_SIZE; i++)
     cdata[startWord+i] = startMe->data[i];
   
