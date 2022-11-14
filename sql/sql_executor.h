@@ -568,7 +568,7 @@ bool MaterializeIsDoingDeduplication(TABLE *table);
   condition_parts. E.g. if you have ((a AND b) AND c), condition_parts
   will contain [a, b, c], plus whatever it contained before the call.
  */
-void ExtractConditions(Item *condition,
+bool ExtractConditions(Item *condition,
                        Mem_root_array<Item *> *condition_parts);
 
 AccessPath *create_table_access_path(THD *thd, TABLE *table,

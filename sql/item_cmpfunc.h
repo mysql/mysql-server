@@ -2808,4 +2808,33 @@ extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
 
+/// Returns true if the item is a conjunction.
+inline bool IsAnd(const Item *item) {
+  return item->type() == Item::COND_ITEM &&
+         down_cast<const Item_cond *>(item)->functype() ==
+             Item_func::COND_AND_FUNC;
+}
+
+/**
+  Calls "func" on each term in "condition" if it's a conjunction (and
+  recursively on any conjunction directly contained in it, thereby flattening
+  nested AND structures). Otherwise, calls "func" on "condition". It aborts and
+  returns true as soon as a call to "func" returns true.
+ */
+template <class Func>
+bool WalkConjunction(Item *condition, Func func) {
+  if (condition == nullptr) {
+    return false;
+  } else if (IsAnd(condition)) {
+    for (Item &item : *down_cast<Item_cond_and *>(condition)->argument_list()) {
+      if (WalkConjunction(&item, func)) {
+        return true;
+      }
+    }
+    return false;
+  } else {
+    return func(condition);
+  }
+}
+
 #endif /* ITEM_CMPFUNC_INCLUDED */

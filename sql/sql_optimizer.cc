@@ -3959,6 +3959,13 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
         if ((cs != down_cast<Item_func *>(item)->compare_collation()) ||
             !cs->coll->propagate(cs, nullptr, 0))
           return false;
+        // Don't build multiple equalities mixing strings and JSON, not even
+        // when they have the same collation, since string comparison and JSON
+        // comparison are very different.
+        if ((field_item->data_type() == MYSQL_TYPE_JSON) !=
+            (const_item->data_type() == MYSQL_TYPE_JSON)) {
+          return false;
+        }
       }
 
       bool copyfl;

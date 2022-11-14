@@ -6567,6 +6567,16 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
   t1->file->stats.records = 100000;
   t1->file->stats.data_file_length = 1e8;
 
+  // Build multiple equalities from the WHERE clause.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->m_table_nest,
+                             &query_block->cond_value));
+  EXPECT_EQ(1, cond_equal->current_level.size());
+  EXPECT_TRUE(is_function_of_type(query_block->where_cond(),
+                                  Item_func::MULT_EQUAL_FUNC));
+  query_block->join->where_cond = query_block->where_cond();
+
   const size_t mem_root_size_after_resolving = thd->mem_root->allocated_size();
 
   {
@@ -6574,11 +6584,14 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
     // optimizer, so that this memory can be freed after each iteration without
     // interfering with the data structures allocated during resolving above.
     MEM_ROOT optimize_mem_root;
-    Swap_mem_root_guard mem_root_guard(thd, &optimize_mem_root);
+    Query_arena arena_backup;
+    Query_arena arena{&optimize_mem_root, Query_arena::STMT_PREPARED};
+    thd->swap_query_arena(arena, &arena_backup);
 
     StartBenchmarkTiming();
 
     for (size_t i = 0; i < num_iterations; ++i) {
+      assert(query_block->join->where_cond == query_block->where_cond());
       AccessPath *path = FindBestQueryPlan(thd, query_block, /*trace=*/nullptr);
       assert(path != nullptr);
       assert(path->type == AccessPath::EQ_REF);
@@ -6590,10 +6603,15 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
 
       query_block->cleanup(/*full=*/false);
       query_block->join->set_root_access_path(nullptr);
+      thd->rollback_item_tree_changes();
+      cleanup_items(arena.item_list());
+      arena.free_items();
       optimize_mem_root.ClearForReuse();
     }
 
     StopBenchmarkTiming();
+
+    thd->swap_query_arena(arena_backup, &arena);
   }
 
   // Check that all the allocations in FindBestQueryPlan() used

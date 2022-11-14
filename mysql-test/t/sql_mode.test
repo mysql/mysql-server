@@ -649,7 +649,11 @@ SET @a = '1invalid';
 --error ER_TRUNCATED_WRONG_VALUE
 EXECUTE stmt USING @a;
 SET SQL_MODE='';
+--disable_warnings
 EXECUTE stmt USING @a;
+--enable_warnings
+--skip_if_hypergraph  # Different number of warnings.
+SHOW WARNINGS;
 SELECT * FROM test;
 SET SQL_MODE=DEFAULT;
 DROP TABLE test;

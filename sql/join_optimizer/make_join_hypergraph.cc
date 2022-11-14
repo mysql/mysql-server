@@ -56,6 +56,7 @@
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/nested_join.h"
 #include "sql/sql_class.h"
+#include "sql/sql_const.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"
@@ -1217,14 +1218,7 @@ Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
         List<Item> eq_items;
         FullyConcretizeMultipleEquals(equal, allowed_tables, &eq_items);
         assert(!eq_items.is_empty());
-        if (eq_items.size() == 1) {
-          return eq_items.head();
-        } else {
-          Item_cond_and *item_and = new Item_cond_and(eq_items);
-          item_and->update_used_tables();
-          item_and->quick_fix_field();
-          return item_and;
-        }
+        return CreateConjunction(&eq_items);
       });
 
   // Account for tables not in allowed_tables having been removed.
@@ -1243,12 +1237,6 @@ Mem_root_array<Item *> ResplitConditions(
   return new_conditions;
 }
 
-bool IsConjunction(const Item *item) {
-  return item->type() == Item::COND_ITEM &&
-         down_cast<const Item_cond *>(item)->functype() ==
-             Item_func::COND_AND_FUNC;
-}
-
 // Calls CanonicalizeCondition() for each condition in the given array.
 bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
                             Mem_root_array<Item *> *conditions) {
@@ -1258,7 +1246,7 @@ bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
     if (condition == nullptr) {
       return true;
     }
-    if (IsConjunction(condition)) {
+    if (IsAnd(condition)) {
       // Canonicalization converted something (probably an Item_equal) to a
       // conjunction, which we need to split back to new conditions again.
       need_resplit = true;
@@ -2303,7 +2291,7 @@ bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
       // If the condition was replaced by a conjunction, we need to split it and
       // add its children to conditions, so that its individual elements can be
       // considered for condition pushdown later.
-      if (*it != old_item && IsConjunction(*it)) {
+      if (*it != old_item && IsAnd(*it)) {
         need_resplit = true;
       }
 
@@ -3310,6 +3298,118 @@ table_map GetTablesInnerToOuterJoinOrAntiJoin(
   return 0;
 }
 
+/**
+  Fully expand a multiple equality for a single table as simple equalities and
+  append each equality to the array of conditions. Only expected to be called on
+  multiple equalities that do not have an already known value, as such
+  equalities should be eliminated by constant folding instead of being expanded.
+ */
+bool ExpandMultipleEqualsForSingleTable(Item_equal *equal,
+                                        Mem_root_array<Item *> *conditions) {
+  assert(!equal->const_item());
+  assert(IsSingleBitSet(equal->used_tables() & ~PSEUDO_TABLE_BITS));
+  Item *const_arg = equal->const_arg();
+  if (const_arg != nullptr) {
+    for (Item_field &field : equal->get_fields()) {
+      if (conditions->push_back(MakeEqItem(&field, const_arg, equal))) {
+        return true;
+      }
+    }
+  } else {
+    Item_field *prev = nullptr;
+    for (Item_field &field : equal->get_fields()) {
+      if (prev != nullptr) {
+        if (conditions->push_back(MakeEqItem(prev, &field, equal))) {
+          return true;
+        }
+      }
+      prev = &field;
+    }
+  }
+  return false;
+}
+
+/**
+  Extract all WHERE conditions in a single-table query. Multiple equalities are
+  fully expanded unconditionally, since there is only one way to expand them
+  when there is only a single table (no need to consider that they should be
+  pushable to joins). Normalization will also be performed if necessary.
+ */
+bool ExtractWhereConditionsForSingleTable(THD *thd, Item *condition,
+                                          Mem_root_array<Item *> *conditions,
+                                          bool *where_is_always_false) {
+  bool need_normalization = false;
+  if (WalkConjunction(condition, [conditions, &need_normalization](Item *cond) {
+        if (IsMultipleEquals(cond)) {
+          Item_equal *equal = down_cast<Item_equal *>(cond);
+          if (equal->const_item()) {
+            // This equality is known to evaluate to a constant value. Don't
+            // expand it, but rather let constant folding remove it. Flag that
+            // normalization is needed, so that constant folding kicks in.
+            need_normalization = true;
+            return conditions->push_back(equal);
+          } else {
+            // Expand the multiple equality. Normalization does not do anything
+            // useful if all conditions are multiple equalities.
+            return ExpandMultipleEqualsForSingleTable(equal, conditions);
+          }
+        } else {
+          // Some other kind of condition. We might be able to simplify it in
+          // normalization, so flag that we need normalization.
+          need_normalization = true;
+          return ExtractConditions(
+              EarlyExpandMultipleEquals(cond, TablesBetween(0, MAX_TABLES)),
+              conditions);
+        }
+      })) {
+    return true;
+  }
+
+  if (need_normalization) {
+    if (EarlyNormalizeConditions(thd, /*join=*/nullptr, conditions,
+                                 where_is_always_false)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/// Fast path for MakeJoinHypergraph() when the query accesses a single table.
+bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
+                               string *trace, JoinHypergraph *graph,
+                               bool *where_is_always_false) {
+  Table_ref *const table_ref = query_block->leaf_tables;
+  table_ref->fetch_number_of_rows();
+
+  RelationalExpression *root = MakeRelationalExpression(thd, table_ref);
+  MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
+
+  if (Item *const where_cond = query_block->join->where_cond;
+      where_cond != nullptr) {
+    Mem_root_array<Item *> where_conditions(thd->mem_root);
+    if (ExtractWhereConditionsForSingleTable(thd, where_cond, &where_conditions,
+                                             where_is_always_false)) {
+      return true;
+    }
+
+    for (Item *item : where_conditions) {
+      AddPredicate(thd, item, /*was_join_condition=*/false,
+                   /*source_multiple_equality_idx=*/-1, root, graph, trace);
+    }
+    graph->num_where_predicates = graph->predicates.size();
+
+    SortPredicates(graph->predicates.begin(), graph->predicates.end());
+  }
+
+  if (trace != nullptr) {
+    *trace += "\nConstructed hypergraph:\n";
+    *trace += PrintDottyHypergraph(*graph);
+  }
+
+  return false;
+}
+
 }  // namespace
 
 const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
@@ -3317,7 +3417,6 @@ const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
 bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
                         bool *where_is_always_false) {
   const Query_block *query_block = graph->query_block();
-  const JOIN *join = graph->join();
 
   if (trace != nullptr) {
     // TODO(sgunders): Do we want to keep this in the trace indefinitely?
@@ -3337,43 +3436,8 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   // Fast path for single-table queries. We can skip all the logic that analyzes
   // join conditions, as there is no join.
   if (num_tables == 1) {
-    Table_ref *const table_ref = query_block->leaf_tables;
-    table_ref->fetch_number_of_rows();
-
-    RelationalExpression *root = MakeRelationalExpression(thd, table_ref);
-    MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
-
-    if (join->where_cond != nullptr) {
-      const table_map tables_in_tree = table_ref->map();
-      Item *where_cond =
-          EarlyExpandMultipleEquals(join->where_cond, tables_in_tree);
-      Mem_root_array<Item *> where_conditions(thd->mem_root);
-      ExtractConditions(where_cond, &where_conditions);
-
-      if (EarlyNormalizeConditions(thd, /*join=*/nullptr, &where_conditions,
-                                   where_is_always_false)) {
-        return true;
-      }
-
-      if (CanonicalizeConditions(thd, tables_in_tree, &where_conditions)) {
-        return true;
-      }
-
-      for (Item *item : where_conditions) {
-        AddPredicate(thd, item, /*was_join_condition=*/false,
-                     /*source_multiple_equality_idx=*/-1, root, graph, trace);
-      }
-      graph->num_where_predicates = graph->predicates.size();
-
-      SortPredicates(graph->predicates.begin(), graph->predicates.end());
-    }
-
-    if (trace != nullptr) {
-      *trace += "\nConstructed hypergraph:\n";
-      *trace += PrintDottyHypergraph(*graph);
-    }
-
-    return false;
+    return MakeSingleTableHypergraph(thd, query_block, trace, graph,
+                                     where_is_always_false);
   }
 
   RelationalExpression *root =
@@ -3384,6 +3448,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
                        table_num_to_companion_set);
   FlattenInnerJoins(root);
 
+  const JOIN *join = query_block->join;
   if (trace != nullptr) {
     // TODO(sgunders): Same question as above; perhaps the version after
     // pushdown is sufficient.
@@ -3413,7 +3478,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   if (join->where_cond != nullptr) {
     Item *where_cond = EarlyExpandMultipleEquals(join->where_cond,
                                                  /*tables_in_subtree=*/~0);
-    ExtractConditions(where_cond, &where_conditions);
+    if (ExtractConditions(where_cond, &where_conditions)) {
+      return true;
+    }
     if (EarlyNormalizeConditions(thd, /*join=*/nullptr, &where_conditions,
                                  where_is_always_false)) {
       return true;
