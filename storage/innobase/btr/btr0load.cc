@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0lob.h"
 #include "log0chkp.h"
 #include "log0log.h"
+#include "scope_guard.h"
 #include "trx0trx.h"
 #include "ut0ut.h"
 
@@ -1000,9 +1001,9 @@ dberr_t Page_load::init_mem(const page_no_t page_no,
   new_page = buf_block_get_frame(new_block);
   new_page_no = page_get_page_no(new_page);
 
-  btr_page_set_next(new_page, nullptr, FIL_NULL, nullptr);
-  btr_page_set_prev(new_page, nullptr, FIL_NULL, nullptr);
-  btr_page_set_index_id(new_page, nullptr, m_index->id, nullptr);
+  btr_page_set_next(new_page, new_page_zip, FIL_NULL, nullptr);
+  btr_page_set_prev(new_page, new_page_zip, FIL_NULL, nullptr);
+  btr_page_set_index_id(new_page, new_page_zip, m_index->id, nullptr);
 
   if (dict_index_is_sec_or_ibuf(m_index) && !m_index->table->is_temporary() &&
       page_is_leaf(new_page)) {
@@ -1039,6 +1040,76 @@ dberr_t Page_load::init_mem(const page_no_t page_no,
   return DB_SUCCESS;
 }
 
+dberr_t Page_load::reinit() noexcept {
+  btr_page_set_level(m_page, m_page_zip, m_level, m_mtr);
+  page_create_empty(m_block, m_index, m_mtr);
+  m_cur_rec = page_get_infimum_rec(m_page);
+  m_free_space = page_get_free_space_of_empty(m_is_comp);
+  m_padding_space =
+      UNIV_PAGE_SIZE - dict_index_zip_pad_optimal_page_size(m_index);
+  m_heap_top = page_header_get_ptr(m_page, PAGE_HEAP_TOP);
+  m_rec_no = page_header_get_field(m_page, PAGE_N_RECS);
+  m_last_slotted_rec = page_get_infimum_rec(m_page);
+  m_slotted_rec_no = 0;
+  m_modified = true;
+  btr_page_set_next(m_page, m_page_zip, FIL_NULL, m_mtr);
+  btr_page_set_prev(m_page, m_page_zip, FIL_NULL, m_mtr);
+  btr_page_set_index_id(m_page, m_page_zip, m_index->id, m_mtr);
+  return DB_SUCCESS;
+}
+
+dberr_t Page_load::alloc() noexcept {
+  ut_ad(m_page_no == FIL_NULL);
+  mtr_t alloc_mtr;
+  mtr_t mtr;
+  mtr.start();
+
+  /* We commit redo log for allocation by a separate mtr,
+  because we don't guarantee pages are committed following
+  the allocation order, and we will always generate redo log
+  for page allocation, even when creating a new tablespace. */
+  alloc_mtr.start();
+
+  ulint n_reserved;
+  bool success = fsp_reserve_free_extents(&n_reserved, m_index->space, 1,
+                                          FSP_NORMAL, &alloc_mtr);
+  if (!success) {
+    alloc_mtr.commit();
+    return DB_OUT_OF_FILE_SPACE;
+  }
+
+  /* Allocate a new page. */
+  auto new_block =
+      btr_page_alloc(m_index, 0, FSP_UP, m_level, &alloc_mtr, &mtr);
+
+  auto new_page = buf_block_get_frame(new_block);
+
+  if (n_reserved > 0) {
+    fil_space_release_free_extents(m_index->space, n_reserved);
+  }
+
+  m_page_no = new_block->page.id.page_no();
+  alloc_mtr.commit();
+
+  auto new_page_zip = buf_block_get_page_zip(new_block);
+
+  if (new_page_zip) {
+    const trx_id_t max_trx_id = 0;
+    page_create_zip(new_block, m_index, m_level, max_trx_id, &mtr,
+                    FIL_PAGE_INDEX);
+  } else {
+    ut_ad(!dict_index_is_spatial(m_index));
+    page_create(new_block, &mtr, dict_table_is_comp(m_index->table),
+                FIL_PAGE_INDEX);
+  }
+
+  btr_page_set_level(new_page, new_page_zip, m_level, &mtr);
+  btr_page_set_index_id(new_page, new_page_zip, m_index->id, &mtr);
+
+  mtr.commit();
+  return DB_SUCCESS;
+}
+
 dberr_t Page_load::init() noexcept {
   page_t *new_page;
   page_no_t new_page_no;
@@ -1060,6 +1131,7 @@ dberr_t Page_load::init() noexcept {
     mtr->set_flush_observer(m_flush_observer);
   }
   m_mtr = mtr;
+  m_mtr->set_modified();
 
   if (!dict_index_is_online_ddl(m_index)) {
     mtr->x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
@@ -1292,7 +1364,9 @@ dberr_t Page_load::commit() noexcept {
     }
   }
   if (m_btree_load != nullptr) {
-    m_btree_load->m_last_page_nos[m_level] = get_page_no();
+    if ((m_level + 1) != m_btree_load->m_last_page_nos.size()) {
+      m_btree_load->m_last_page_nos[m_level] = get_page_no();
+    }
   }
   return DB_SUCCESS;
 }
@@ -1388,6 +1462,33 @@ size_t Page_load::copy_all(const page_t *src_page) noexcept {
   const size_t n_recs = copy_records(first_rec);
   ut_ad(m_modified);
   return n_recs;
+}
+
+size_t Page_load::copy_to(std::vector<Page_load *> &to_pages) {
+  auto src_page = get_page();
+  auto inf_rec = page_get_infimum_rec(src_page);
+  auto first_rec = page_rec_get_next_const(inf_rec);
+  const size_t n_recs = page_get_n_recs(src_page);
+  const size_t n_pages = to_pages.size();
+  const size_t rec_per_page = (n_recs + n_pages) / n_pages;
+  Rec_offsets offsets{};
+  const rec_t *rec = first_rec;
+
+  size_t rec_count = 1;
+  size_t i = 0;
+  do {
+    offsets = rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &m_heap);
+    to_pages[i]->insert(rec, offsets);
+    rec = page_rec_get_next_const(rec);
+    if (rec_count % rec_per_page == 0) {
+      ++i;
+      ut_a(i < to_pages.size());
+    }
+    rec_count++;
+    ut_a(rec_count <= n_recs);
+  } while (!page_rec_is_supremum(rec));
+  return rec_count;
 }
 
 size_t Page_load::copy_records(const rec_t *first_rec) noexcept {
@@ -1537,8 +1638,19 @@ dberr_t Page_load::store_ext(const big_rec_t *big_rec,
 
 void Page_load::release() noexcept {}
 
-/** Start mtr and latch the block */
-void Page_load::latch() noexcept {}
+void Page_load::latch() noexcept {
+  m_mtr->start();
+  ut_ad(m_flush_observer != nullptr);
+  m_mtr->set_log_mode(MTR_LOG_NO_REDO);
+  m_mtr->set_flush_observer(m_flush_observer);
+  const space_id_t space_id = space();
+  const page_id_t page_id(space_id, m_page_no);
+  const page_size_t page_size = m_index->get_page_size();
+  m_block =
+      buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
+  m_page = buf_block_get_frame(m_block);
+  m_page_zip = buf_block_get_page_zip(m_block);
+}
 
 #ifdef UNIV_DEBUG
 bool Page_load::is_index_locked() noexcept {
@@ -1982,9 +2094,10 @@ void Btree_load::print_pages_in_level(const size_t level) const {
 }
 #endif /* UNIV_DEBUG */
 
-dberr_t Btree_load::finish(dberr_t err, bool subtree) noexcept {
+dberr_t Btree_load::finish(dberr_t err, const bool subtree) noexcept {
   ut_ad(!m_index->table->is_temporary());
   /* Assert that the index online status has not changed */
+
   ut_ad(m_index->online_status == m_index_online || err != DB_SUCCESS);
   if (m_level_ctxs.empty()) {
     /* The table is empty. The root page of the index tree
@@ -2012,7 +2125,7 @@ dberr_t Btree_load::finish(dberr_t err, bool subtree) noexcept {
   regular mtr via buffer pool. */
 
   if (err == DB_SUCCESS) {
-    if (!subtree) {
+    if (subtree == false) {
       err = load_root_page(last_page_no);
     }
   }
@@ -2845,6 +2958,7 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
 
   auto err = root_load.init();
   if (err != DB_SUCCESS) {
+    mtr.commit();
     return err;
   }
 
@@ -2887,18 +3001,20 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
       }
     } else {
       /* Copy the records from subtree root to actual root. */
-      root_load.copy_all(subtree_page);
+      (void)root_load.copy_all(subtree_page);
+
       /* Remove the subtree root. */
       btr_page_free_low(m_index, subtree_block, highest_level, &mtr);
     }
     min_rec = false;
   }
   root_load.set_next(FIL_NULL);
+  root_load.set_prev(FIL_NULL);
   root_load.finish();
   mtr.commit();
-  err = m_btree_loads[0]->page_commit(&root_load, nullptr, false);
-  if (observer != nullptr) {
-    observer->flush();
+  root_load.commit();
+  if (root_load.is_table_compressed()) {
+    err = root_page_commit(&root_load);
   }
   return err;
 }
@@ -2957,4 +3073,120 @@ Page_load::~Page_load() noexcept {
     }
     mem_heap_free(m_heap);
   }
+}
+
+dberr_t Btree_load::Merger::root_split(Page_load *root_load,
+                                       const size_t n_pages) {
+  const size_t root_level = root_load->get_level();
+  Flush_observer *observer = m_trx->flush_observer;
+  const auto trx_id = m_trx->id;
+  dberr_t err{DB_SUCCESS};
+
+  /* Load the given root page. */
+  root_load->latch();
+
+  /* Allocate requested number of pages in the given level. */
+  std::vector<Page_load *> page_loads;
+
+  auto guard = create_scope_guard([root_load, &page_loads]() {
+    root_load->finish();
+    root_load->commit();
+
+    for (auto &page_load : page_loads) {
+      ut::delete_(page_load);
+    }
+  });
+
+  for (size_t i = 0; i < n_pages; ++i) {
+    auto page_load =
+        ut::new_withkey<Page_load>(UT_NEW_THIS_FILE_PSI_KEY, m_index, trx_id,
+                                   FIL_NULL, root_level, observer, nullptr);
+    if (page_load == nullptr) {
+      return DB_OUT_OF_MEMORY;
+    }
+    page_loads.push_back(page_load);
+    err = page_load->alloc();
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+    err = page_load->init();
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+  }
+
+  /* Set the FIL_PAGE_PREV and FIL_PAGE_NEXT for these new pages. */
+  for (size_t i = 0; i < n_pages; ++i) {
+    page_no_t p = FIL_NULL;
+    page_no_t n = FIL_NULL;
+    if (i == 0) {
+      n = page_loads[i + 1]->get_page_no();
+    } else if (i == (n_pages - 1)) {
+      p = page_loads[i - 1]->get_page_no();
+    } else {
+      p = page_loads[i - 1]->get_page_no();
+      n = page_loads[i + 1]->get_page_no();
+    }
+    page_loads[i]->set_prev(p);
+    page_loads[i]->set_next(n);
+  }
+
+  /* Copy records from given root pages to the new pages. */
+  root_load->copy_to(page_loads);
+
+  // Compress each of these N pages.
+  for (size_t i = 0; i < n_pages; ++i) {
+    page_loads[i]->finish();
+    page_loads[i]->commit();
+    bool success = page_loads[i]->compress();
+    if (!success) {
+      return DB_FAIL;
+    }
+  }
+
+  /* Empty the root page. */
+  root_load->set_level(root_level + 1);
+  err = root_load->reinit();
+  ut_a(err == DB_SUCCESS);
+
+  /* Insert N node_ptrs into root page. */
+  for (size_t i = 0; i < n_pages; ++i) {
+    dtuple_t *node_ptr = page_loads[i]->get_node_ptr();
+    big_rec_t *big_rec{};
+    auto rec_size = rec_get_converted_size(m_index, node_ptr);
+    err = root_load->insert(node_ptr, big_rec, rec_size);
+    ut_a(err == DB_SUCCESS);
+  }
+
+  guard.commit();
+  root_load->finish();
+  root_load->commit();
+
+  /* Compress the root page. */
+  bool success = root_load->compress();
+  if (!success) {
+    return DB_FAIL;
+  }
+
+  return DB_SUCCESS;
+}
+
+dberr_t Btree_load::Merger::root_page_commit(Page_load *root_load) {
+  ut_a(root_load);
+  root_load->set_next(FIL_NULL);
+  root_load->set_prev(FIL_NULL);
+  dberr_t err{DB_SUCCESS};
+
+  if (root_load->is_table_compressed() && !root_load->compress()) {
+    /* We split the root page into 2 and compress, if that fails we split the
+    root page into 3 and compress and so on upto a maximum of 6.  */
+    const size_t max_split = 6;
+    for (size_t i = 2; i < max_split; ++i) {
+      err = root_split(root_load, i);
+      if (err == DB_SUCCESS) {
+        break;
+      }
+    }
+  }
+  return err;
 }

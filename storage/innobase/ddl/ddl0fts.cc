@@ -1330,7 +1330,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
     trx->op_info = "";
 
     if (ins_ctx.m_btr_bulk != nullptr) {
-      err = ins_ctx.m_btr_bulk->finish(err);
+      err = ins_ctx.m_btr_bulk->finish(err, false);
       ut::delete_(ins_ctx.m_btr_bulk);
     }
 

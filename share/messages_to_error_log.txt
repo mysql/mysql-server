@@ -12075,6 +12075,12 @@ ER_RPL_REPLICA_CONNECTED_TO_SOURCE_RPL_STARTED_FILE_BASED
 ER_RPL_REPLICA_CONNECTED_TO_SOURCE_RPL_STARTED_GTID_BASED
   eng "Replica receiver thread%s: connected to source \'%s@%s:%d\' with server_uuid=%s, server_id=%d. Starting GTID-based replication."
 
+ER_IB_INDEX_LOADER_DONE
+   eng "Loader::build_all(): Completed building %zu indexes for old_table=%s, new_table=%s, err=%zu."
+
+ER_IB_INDEX_BUILDER_DONE
+   eng "Builder::finish(): Completed building index=%s of table=%s, err=%zu."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

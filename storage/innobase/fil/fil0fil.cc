@@ -11673,6 +11673,8 @@ std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
   /* Print the header information in the order it is stored. */
   out << "[Fil_page_header: FIL_PAGE_OFFSET=" << get_page_no()
       << ", FIL_PAGE_TYPE=" << get_page_type()
+      << ", FIL_PAGE_PREV=" << get_page_prev()
+      << ", FIL_PAGE_NEXT=" << get_page_next()
       << ", FIL_PAGE_SPACE_ID=" << get_space_id() << "]";
   return out;
 }
@@ -11687,6 +11689,14 @@ page_no_t Fil_page_header::get_page_no() const noexcept {
 
 uint16_t Fil_page_header::get_page_type() const noexcept {
   return mach_read_from_2(m_frame + FIL_PAGE_TYPE);
+}
+
+page_no_t Fil_page_header::get_page_prev() const noexcept {
+  return mach_read_from_4(m_frame + FIL_PAGE_PREV);
+}
+
+page_no_t Fil_page_header::get_page_next() const noexcept {
+  return mach_read_from_4(m_frame + FIL_PAGE_NEXT);
 }
 
 fil_node_t *fil_space_t::get_file_node(page_no_t *page_no) noexcept {
