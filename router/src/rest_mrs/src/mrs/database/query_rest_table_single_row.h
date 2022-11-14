@@ -47,6 +47,13 @@ class QueryRestTableSingleRow : private Query {
                              const std::string &pri_value,
                              const std::string &url_route);
 
+  virtual void query_last_inserted(MySQLSession *session,
+                                   const std::vector<Column> &columns,
+                                   const std::string &schema,
+                                   const std::string &object,
+                                   const std::string &primary_key,
+                                   const std::string &url_route);
+
   std::string response;
 
  private:
@@ -55,6 +62,11 @@ class QueryRestTableSingleRow : private Query {
                    const std::string &schema, const std::string &object,
                    const std::string &primary_key, const std::string &pri_value,
                    const std::string &url_route);
+  void build_query_last_inserted(const std::vector<Column> &columns,
+                                 const std::string &schema,
+                                 const std::string &object,
+                                 const std::string &primary_key,
+                                 const std::string &url_route);
 };
 
 }  // namespace database

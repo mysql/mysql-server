@@ -25,18 +25,42 @@
 #include "mrs/database/filter_object_generator.h"
 
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "helper/container/map.h"
+#include "helper/container/to_string.h"
 #include "helper/json/rapid_json_interator.h"
 #include "helper/json/to_string.h"
+
+#include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {
 namespace database {
 
 using namespace std::string_literals;
 using Value = FilterObjectGenerator::Value;
+
+std::vector<std::string> get_array_of_string(Value *value) {
+  if (value->IsString()) return {value->GetString()};
+
+  if (!value->IsArray())
+    throw std::runtime_error(
+        "One of parameters must be a string or an array of strings");
+
+  std::vector<std::string> result;
+  auto array = value->GetArray();
+  for (auto &v : helper::json::array_iterator(array)) {
+    if (!v.IsString())
+      throw std::runtime_error("All values in array must be of type string.");
+
+    result.push_back(v.GetString());
+  }
+
+  return result;
+}
 
 class tosString {
  public:
@@ -108,6 +132,8 @@ void FilterObjectGenerator::parse(const Document &doc) {
   if (!doc.IsObject())
     throw std::runtime_error("`FilterObject` must be a json object.");
 
+  where_.clear();
+  order_.clear();
   parse_orderby_asof_wmember(doc.GetObject());
 }
 
@@ -132,8 +158,6 @@ void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
 
 bool FilterObjectGenerator::parse_complex_object(const char *name,
                                                  Value *value) {
-  if (!value->IsArray()) return false;
-
   if ("$or"s == name) {
     where_ += "(";
     parse_complex_or(value);
@@ -141,6 +165,10 @@ bool FilterObjectGenerator::parse_complex_object(const char *name,
   } else if ("$and"s == name) {
     where_ += "(";
     parse_complex_and(value);
+    where_ += ")";
+  } else if ("$match"s == name) {
+    where_ += "(";
+    parse_match(value);
     where_ += ")";
   } else
     return false;
@@ -197,6 +225,59 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
     return false;
 
   return true;
+}
+
+void FilterObjectGenerator::parse_match(Value *value) {
+  if (!value->IsObject())
+    throw std::runtime_error("Match operator, requires JSON object as value.");
+  auto param = value->FindMember("$params");
+  auto against = value->FindMember("$against");
+
+  if (param == value->MemberEnd() || !param->value.IsArray())
+    throw std::runtime_error(
+        "Match operator, requires JSON array under \"$params\" key.");
+
+  if (against == value->MemberEnd() || !against->value.IsObject())
+    throw std::runtime_error(
+        "Match operator, requires JSON object under \"$against\" key.");
+
+  auto fields = get_array_of_string(&param->value);
+
+  auto against_expr = against->value.FindMember("$expr");
+  auto against_mod = against->value.FindMember("$modifier");
+
+  if (against_expr == against->value.MemberEnd() ||
+      !against_expr->value.IsString()) {
+    throw std::runtime_error(
+        "Match operator, requires string value in \"$expr\" key.");
+  }
+
+  mysqlrouter::sqlstring selected_modifier{""};
+
+  if (against_mod != against->value.MemberEnd()) {
+    if (!against_mod->value.IsString()) {
+      throw std::runtime_error(
+          "Match operator, optional value under \"modifier\" key must be a "
+          "string.");
+    }
+    const static std::set<std::string> allowed_values{
+        "IN NATURAL LANGUAGE MODE",
+        "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION", "IN BOOLEAN MODE",
+        "WITH QUERY EXPANSION"};
+
+    if (!allowed_values.count(against_mod->value.GetString())) {
+      using namespace std::string_literals;
+      throw std::runtime_error(
+          "Match operator, optional value under \"modifier\" key must be a "
+          "string set to one of: ["s +
+          helper::container::to_string(allowed_values) + "]");
+    }
+    selected_modifier = mysqlrouter::sqlstring{against_mod->value.GetString()};
+  }
+
+  mysqlrouter::sqlstring v{"MATCH (!) AGAINST(? ?) "};
+  v << fields << against_expr->value.GetString() << selected_modifier;
+  where_ += v.str();
 }
 
 void FilterObjectGenerator::parse_complex_and(Value *value) {

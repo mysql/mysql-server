@@ -210,6 +210,7 @@ class SerializerToText {
  private:
   const char *get_raw(const char *value) { return value; }
   const char *get_raw(const std::string &value) { return value.c_str(); }
+  const char *get_raw(const bool value) { return value ? "1" : "0"; }
 
   template <typename Value>
   void add_member_impl(const char *key, Value &&value) {

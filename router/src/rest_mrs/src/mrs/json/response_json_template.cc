@@ -72,6 +72,8 @@ void ResponseJsonTemplate::end() {
   json_root_items_ = JsonSerializer::Array();
   json_root_->member_add_value("limit", limit_);
   json_root_->member_add_value("offset", offset_);
+  json_root_->member_add_value("hasMore", has_more_,
+                               helper::ColumnJsonTypes::kBool);
   json_root_->member_add_value("count", std::min(limit_, pushed_documents_));
   {
     auto array_links = serializer_.member_add_array("links");

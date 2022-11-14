@@ -34,6 +34,31 @@ namespace mrs {
 namespace database {
 
 class QueryRestObjectInsert : private Query {
+ private:
+  template <typename K, typename V>
+  class It {
+   public:
+    It(K k, V v) : k_{k}, v_{v} {}
+
+    It &operator++() {
+      ++k_;
+      ++v_;
+      return *this;
+    }
+
+    auto operator*() {
+      mysqlrouter::sqlstring r{" !=?"};
+      r << *k_ << *v_;
+      return r;
+    }
+
+    bool operator!=(const It &other) { return k_ != other.k_; }
+
+   private:
+    K k_;
+    V v_;
+  };
+
  public:
   template <typename KeysIt, typename ValuesIt>
   void execute(MySQLSession *session, const std::string &schema,
@@ -41,6 +66,19 @@ class QueryRestObjectInsert : private Query {
                const ValuesIt &vit) {
     query_ = {"INSERT INTO !.!(!) VALUES(?)"};
     query_ << schema << object << kit << vit;
+    query(session);
+  }
+
+  template <typename KeysIt, typename ValuesIt>
+  void execute_with_upsert(MySQLSession *session, const std::string &schema,
+                           const std::string &object, const KeysIt &kit,
+                           const ValuesIt &vit) {
+    query_ = {"INSERT INTO !.!(!) VALUES(?) ON DUPLICATE KEY UPDATE !"};
+    using ItTypes =
+        It<typename KeysIt::first_type, typename ValuesIt::first_type>;
+    query_ << schema << object << kit << vit
+           << std::make_pair<ItTypes, ItTypes>(ItTypes(kit.first, vit.first),
+                                               ItTypes(kit.second, vit.second));
     query(session);
   }
 };

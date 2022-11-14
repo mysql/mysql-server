@@ -60,6 +60,16 @@ void QueryRestTableSingleRow::query_entries(MySQLSession *session,
   query(session);
 }
 
+void QueryRestTableSingleRow::query_last_inserted(
+    MySQLSession *session, const std::vector<Column> &columns,
+    const std::string &schema, const std::string &object,
+    const std::string &primary_key, const std::string &url_route) {
+  response = "";
+  build_query_last_inserted(columns, schema, object, primary_key, url_route);
+
+  query(session);
+}
+
 void QueryRestTableSingleRow::on_row(const Row &r) { response.append(r[0]); }
 
 void QueryRestTableSingleRow::build_query(const std::vector<Column> &columns,
@@ -74,6 +84,19 @@ void QueryRestTableSingleRow::build_query(const std::vector<Column> &columns,
 
   query_ << columns << url_route << pri_value;
   query_ << schema << object << primary_key << pri_value;
+}
+
+void QueryRestTableSingleRow::build_query_last_inserted(
+    const std::vector<Column> &columns, const std::string &schema,
+    const std::string &object, const std::string &primary_key,
+    const std::string &url_route) {
+  query_ =
+      "SELECT JSON_OBJECT(?,'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
+      "'href', CONCAT(?,'/',!)))) FROM !.! WHERE !=!;";
+
+  static mysqlrouter::sqlstring last_inserted{"LAST_INSERT_ID()"};
+  query_ << columns << url_route << last_inserted;
+  query_ << schema << object << primary_key << last_inserted;
 }
 
 }  // namespace database
