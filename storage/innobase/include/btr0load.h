@@ -604,7 +604,7 @@ class Btree_load : private ut::Non_copyable {
   @param[in]    err    Whether bulk load was successful until now
   @param[in]    subtree	  true if a subtree is being built, false otherwise.
   @return error code  */
-  [[nodiscard]] dberr_t finish(dberr_t err, bool subtree = false) noexcept;
+  [[nodiscard]] dberr_t finish(dberr_t err, const bool subtree) noexcept;
 
   /** Release latch on the rightmost leaf page in the index tree.
   @note It does not do anything now. */
@@ -952,6 +952,20 @@ class Btree_load::Merger {
   @return innodb error code. */
   dberr_t add_root_for_subtrees(const size_t highest_level);
 
+  /* Commit the root page of the combined final B-tree.
+  @param[in]  root_load   the page load object of the root page.
+  @return DB_SUCCESS if root page committed successfully.
+  @return error code on failure. */
+  dberr_t root_page_commit(Page_load *root_load);
+
+  /* If the compression of the root page failed, then it needs to be split into
+  multiple pages and compressed again.
+  @param[in]  root_load   the page load object of the root page.
+  @param[in]  n_pages  the number of pages the root page will be split into.
+  @return DB_SUCCESS if root page committed successfully.
+  @return error code on failure. */
+  dberr_t root_split(Page_load *root_load, const size_t n_pages);
+
  private:
   /** Refernce to the subtrees to be merged. */
   Btree_loads &m_btree_loads;
@@ -1082,6 +1096,13 @@ class Page_load : private ut::Non_copyable {
   [[nodiscard]] dberr_t init_mem(const page_no_t new_page_no,
                                  Page_extent *page_extent) noexcept;
 
+  /** Allocate a page for this Page_load object.
+  @return DB_SUCCESS on success, error code on failure. */
+  dberr_t alloc() noexcept;
+
+  /** Re-initialize this page. */
+  [[nodiscard]] dberr_t reinit() noexcept;
+
   /** Initialize members and allocate page for blob. */
   dberr_t init_blob(const page_no_t new_page_no) noexcept;
 
@@ -1130,6 +1151,11 @@ class Page_load : private ut::Non_copyable {
   @param[in]  src_page          Page with records to copy. */
   size_t copy_all(const page_t *src_page) noexcept;
 
+  /** Distribute all records from this page to the given pages.
+  @param[in,out]  to_pages array of Page_load objects.
+  return total number of records processed. */
+  size_t copy_to(std::vector<Page_load *> &to_pages);
+
   /** Set next page
   @param[in]	next_page_no	    Next page no */
   void set_next(page_no_t next_page_no) noexcept;
@@ -1142,7 +1168,7 @@ class Page_load : private ut::Non_copyable {
   inline void release() noexcept;
 
   /** Start mtr and latch block */
-  inline void latch() noexcept;
+  void latch() noexcept;
 
   /** Check if required space is available in the page for the rec
   to be inserted.	We check fill factor & padding here.

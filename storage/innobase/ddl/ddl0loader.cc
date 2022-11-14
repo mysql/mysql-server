@@ -505,6 +505,9 @@ dberr_t Loader::build_all() noexcept {
     m_ctx.set_error(err);
   }
 
+  LogErr(INFORMATION_LEVEL, ER_IB_INDEX_LOADER_DONE, m_ctx.m_indexes.size(),
+         m_ctx.m_old_table->name.m_name, m_ctx.m_new_table->name.m_name,
+         (size_t)err);
   return err;
 }
 

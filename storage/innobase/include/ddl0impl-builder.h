@@ -576,7 +576,7 @@ struct Builder {
   Files_t m_files_vec;
 
   /** Were subtrees built using multiple threads. */
-  bool m_is_subtree;
+  bool m_is_subtree{false};
 
   /** Total number of pages allocated by all Btree_loads of this Builder
   object. */

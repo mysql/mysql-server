@@ -1764,6 +1764,7 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
   ut_a(!srv_read_only_mode);
   ut_a(!dict_index_is_ibuf(m_index));
   ut_a(m_index->is_clustered());
+  m_is_subtree = (m_btree_loads.size() > 0);
 
   {
     auto err = m_ctx.check_state_of_online_build_log();
@@ -1820,8 +1821,7 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
     }
 
     if (cursor.eof() || err != DB_SUCCESS) {
-      const bool is_subtree = true;
-      err = btree_load->finish(err, is_subtree);
+      err = btree_load->finish(err, m_is_subtree);
     } else {
       btree_load->release();
     }
@@ -2280,6 +2280,7 @@ dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept {
 
 dberr_t Builder::btree_subtree_build(Builder *builder,
                                      size_t btree_load_id) noexcept {
+  builder->m_is_subtree = true;
   auto load_file = builder->m_files_vec[btree_load_id];
   Btree_load *btr_load = builder->get_btree_load(btree_load_id);
   Context &ctx = builder->ctx();
@@ -2309,11 +2310,10 @@ dberr_t Builder::btree_subtree_build(Builder *builder,
     ut_a(err != DB_SUCCESS || n_rows == cursor.get_row_count());
   }
 
-  const bool subtree = true;
-
   /* First we check if the Btree loader returned an internal error.
   If loader succeeded then we check if the cursor returned an error. */
-  err = btr_load->finish(err != DB_SUCCESS ? err : cursor_err, subtree);
+  err = btr_load->finish(err != DB_SUCCESS ? err : cursor_err,
+                         builder->m_is_subtree);
 
   if (err != DB_SUCCESS) {
     builder->set_error(err);
@@ -2837,10 +2837,12 @@ dberr_t Builder::finish() noexcept {
   }
   m_build_threads.clear();
 
-  err = merge_subtrees();
-  if (err != DB_SUCCESS) {
-    set_error(err);
-    return get_error();
+  if (m_is_subtree) {
+    err = merge_subtrees();
+    if (err != DB_SUCCESS) {
+      set_error(err);
+      return get_error();
+    }
   }
 
   if (get_error() != DB_SUCCESS) {
@@ -2879,6 +2881,8 @@ dberr_t Builder::finish() noexcept {
 #endif /* UNIV_DEBUG */
 
   set_next_state();
+  LogErr(INFORMATION_LEVEL, ER_IB_INDEX_BUILDER_DONE, m_index->name(),
+         m_index->table_name, (size_t)err);
   return get_error();
 }
 
