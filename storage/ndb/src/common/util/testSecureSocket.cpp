@@ -475,6 +475,7 @@ protected:
   int send(size_t sent, size_t total);
   int retry_send(size_t len);
   int recv(size_t len);
+  bool writeOutputFile(FILE *, size_t) const;
 
   void setup() override;
   int runTest() override;
@@ -614,6 +615,17 @@ int SendRecvTest::recv(size_t len) {
   return POLL_TIMEOUT;
 }
 
+bool SendRecvTest::writeOutputFile(FILE * outfp, size_t r) const {
+  if(outfp) {
+    if(fwrite(m_recv_buffer, 1, r, outfp) != r) {
+      printf("Error writing destination file: %s\n", strerror(errno));
+      fclose(outfp);
+      return false;
+    }
+  }
+  return true;
+}
+
 int SendRecvTest::testRecv() {
   FILE * outfp = opt_data_dest ? fopen(opt_data_dest, "w") : nullptr;
   int r = 0;
@@ -628,7 +640,7 @@ int SendRecvTest::testRecv() {
       one_timeout = this_timeout;
     } while(try_again(r));
     if(r < 1) break;
-    if(outfp) fwrite(m_recv_buffer, 1, r, outfp);
+    if(! writeOutputFile(outfp, r)) return -1;
     m_bytes_received += r;
   }
 
@@ -728,6 +740,7 @@ private:
 
 int ReadLineTest::testRecv() {
   FILE * outfp = opt_data_dest ? fopen(opt_data_dest, "w") : nullptr;
+  if(opt_data_dest && ! outfp) return error_message("Destination file", -1);
   int r = 0;
   int elapsed_time;
   while(1) {
@@ -739,15 +752,14 @@ int ReadLineTest::testRecv() {
     assert(r > 0);
     assert(m_recv_buffer[r] == '\0');
     assert(m_recv_buffer[r-1] == '\n');
-    if(outfp) fwrite(m_recv_buffer, 1, r, outfp);
+    if(! writeOutputFile(outfp, r)) return -1;
     m_lines_received++;
   };
 
   if (outfp) fclose(outfp);
 
-  if(r < 0) return r;
-  if(elapsed_time >= m_timeout) return POLL_TIMEOUT;
-  return 0;
+  if(r > 0 || elapsed_time >= m_timeout) return 0;
+  return r;
 }
 
 void ReadLineTest::printTestResult() {
