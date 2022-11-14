@@ -4464,3 +4464,20 @@ EXECUTE ps;
 1
 DEALLOCATE PREPARE ps;
 DROP TABLE t1, t2;
+#
+# Bug#34727088: Assertion `!OrderItemsReferenceUnavailableTables(path, tables)' failed.
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, x INT);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+CREATE TABLE t2 (pk INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT DISTINCT t1.x FROM t1, t2 WHERE t1.x = t2.pk GROUP BY t1.pk;
+x
+1
+2
+3
+DROP TABLE t1, t2;
