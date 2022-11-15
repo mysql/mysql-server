@@ -23359,6 +23359,7 @@ static void test_bug25584097() {
       DIE_UNLESS(rc == 0);
       mysql_close(lmysql);
       printf("child thread ending\n");
+      mysql_thread_end();
     }
 
     unsigned long wait_to_kill() {
