@@ -1672,10 +1672,13 @@ private:
   void scanFrag_dumpNode(const Ptr<Request> requestPtr,
                          const Ptr<TreeNode> treeNodePtr);
 
+  Uint32 scanFrag_getBatchSize(Ptr<TreeNode> treeNodePtr,
+                               Uint32 &availableBatchBytes,
+                               Uint32 &availableBatchRows);
+
   Uint32 scanFrag_parallelism(Ptr<Request> requestPtr,
                               Ptr<TreeNode> treeNodePtr,
-                              Uint32 availableBatchBytes,
-                              Uint32 availableBatchRows);
+                              Uint32 batchRows);
 
   Uint32 check_own_location_domain(const Uint32 *nodes, Uint32 node_count);
   void send_close_scan(Signal*, Ptr<ScanFragHandle>, Ptr<Request>);
