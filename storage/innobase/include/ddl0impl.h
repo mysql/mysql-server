@@ -182,14 +182,6 @@ struct Fetch_sequence : public Context::FTS::Sequence {
 /** Physical row context.  This is a wrapper class for a clustered index
 record.  It can be used to build a record for a given index. */
 struct Row {
-  /** Constructor. */
-  Row() = default;
-
-  Row(const Row &) = default;
-
-  /** Destructor. */
-  ~Row() = default;
-
   /** Build a row for the given index using the available clustered index
   record (member m_rec).
   @param[in,out] ctx            DDL context.

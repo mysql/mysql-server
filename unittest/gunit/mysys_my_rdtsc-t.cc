@@ -113,7 +113,7 @@ TEST_F(RDTimeStampCounter, TestCycle) {
   ulonglong t1 = my_timer_cycles();
   ulonglong t2;
   int i;
-  int backward = 0;
+  int backward [[maybe_unused]] = 0;
   int nonzero = 0;
 
   for (i = 0; i < LOOP_COUNT; i++) {
